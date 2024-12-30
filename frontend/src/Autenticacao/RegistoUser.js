@@ -18,7 +18,7 @@ const RegistoUser = () => {
     useEffect(() => {
         const fetchEmpresas = async () => {
             try {
-                const response = await fetch('http://backend.advir.pt/api/users/empresas', {
+                const response = await fetch('https://backend.advir.pt/api/users/empresas', {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
@@ -44,7 +44,7 @@ const RegistoUser = () => {
     // Função para buscar o limite de utilizadores e o número atual de utilizadores da empresa selecionada
     const fetchEmpresaInfo = async (empresaId) => {
         try {
-            const response = await fetch(`http://backend.advir.pt/api/empresas/${empresaId}`, {
+            const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
                     'Content-Type': 'application/json',
@@ -90,7 +90,7 @@ const RegistoUser = () => {
         };
 
         try {
-            const response = await fetch('http://backend.advir.pt/api/users', {
+            const response = await fetch('https://backend.advir.pt/api/users', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,

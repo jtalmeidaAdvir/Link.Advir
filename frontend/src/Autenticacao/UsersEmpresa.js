@@ -19,7 +19,7 @@ const UsersEmpresa = () => {
     // Função para obter a imagem de perfil de um utilizador, com tratamento para imagem inexistente
     const fetchUserProfileImage = async (userId) => {
         try {
-            const response = await fetch(`http://backend.advir.pt/api/users/${userId}/profileImage`, {
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/profileImage`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
@@ -39,7 +39,7 @@ const UsersEmpresa = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch('http://backend.advir.pt/api/users/usersByEmpresa', {
+            const response = await fetch('https://backend.advir.pt/api/users/usersByEmpresa', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -79,7 +79,7 @@ const UsersEmpresa = () => {
 
     const fetchEmpresas = async () => {
         try {
-            const response = await fetch('http://backend.advir.pt/api/users/empresas', {
+            const response = await fetch('https://backend.advir.pt/api/users/empresas', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
@@ -105,7 +105,7 @@ const UsersEmpresa = () => {
 
     const handleAddEmpresa = async (userId, novaEmpresaId) => {
         try {
-            const response = await fetch('http://backend.advir.pt/api/users/adicionar-empresa', {
+            const response = await fetch('https://backend.advir.pt/api/users/adicionar-empresa', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -131,7 +131,7 @@ const UsersEmpresa = () => {
 
     const handleRemoveEmpresa = async (userId, empresaId) => {
         try {
-            const response = await fetch('http://backend.advir.pt/api/users/remover-empresa', {
+            const response = await fetch('https://backend.advir.pt/api/users/remover-empresa', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

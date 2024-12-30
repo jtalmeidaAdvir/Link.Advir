@@ -12,7 +12,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
         e.preventDefault();
     
         try {
-            const response = await fetch('http://backend.advir.pt/api/users/login', {
+            const response = await fetch('https://backend.advir.pt/api/users/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

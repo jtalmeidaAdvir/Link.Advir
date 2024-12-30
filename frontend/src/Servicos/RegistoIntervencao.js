@@ -220,7 +220,7 @@ const RegistoIntervencao = (props) => {
             setIsLoading(true);
             const id = localStorage.getItem('intervencaoId');
             const processoID = id.toString();
-            const apiBaseUrl = 'http://localhost:3001/routePedidos_STP';
+            const apiBaseUrl = 'https://webapiprimavera.advir.pt/routePedidos_STP';
             let ultimoEstado;
             let secAnterior;
             let utilizador;
@@ -381,7 +381,7 @@ const RegistoIntervencao = (props) => {
 
             const enviarEmail = async () => {
                 try {
-                    const response = await fetch('http://localhost:3001/send-email', {
+                    const response = await fetch('https://webapiprimavera.advir.pt/send-email', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

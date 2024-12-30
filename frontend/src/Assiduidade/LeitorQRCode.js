@@ -58,7 +58,7 @@ const LeitorQRCode = () => {
             async (text) => {
                 if (text === qrData) {
                     try {
-                        const response = await fetch('http://192.168.1.4/api/registoPonto/ler-qr', {
+                        const response = await fetch('https://192.168.1.4/api/registoPonto/ler-qr', {
                             method: 'POST',
                             headers: {
                                 'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
@@ -96,7 +96,7 @@ const LeitorQRCode = () => {
     const fetchRegistosDiarios = async () => {
         try {
             const token = localStorage.getItem('loginToken');
-            const response = await fetch('http://192.168.1.4/api/registoPonto/diario', {
+            const response = await fetch('https://192.168.1.4/api/registoPonto/diario', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
@@ -130,7 +130,7 @@ const LeitorQRCode = () => {
             setHoraInicioIntervalo(agora);
             setIntervaloAberto(true);
 
-            const response = await fetch('http://192.168.1.4/api/intervalo/iniciarIntervalo', {
+            const response = await fetch('https://192.168.1.4/api/intervalo/iniciarIntervalo', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -157,7 +157,7 @@ const LeitorQRCode = () => {
     const finalizarIntervalo = async () => {
         try {
             const token = localStorage.getItem('loginToken');
-            const response = await fetch('http://192.168.1.4/api/intervalo/finalizarIntervalo', {
+            const response = await fetch('https://192.168.1.4/api/intervalo/finalizarIntervalo', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

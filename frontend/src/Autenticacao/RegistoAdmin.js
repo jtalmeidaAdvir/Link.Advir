@@ -25,7 +25,7 @@ const RegistoAdmin = () => {
         console.log(newUser); // Verifique os valores aqui
     
         try {
-            const response = await fetch('http://backend.advir.pt/api/users/criarUtilizadorAdmin', {
+            const response = await fetch('https://backend.advir.pt/api/users/criarUtilizadorAdmin', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

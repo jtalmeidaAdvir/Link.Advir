@@ -113,7 +113,7 @@ const ListarRegistos = () => {
     const fetchHistoricoPontos = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`http://192.168.1.4/api/registoPonto/listar?mes=${mesSelecionado}&ano=${anoSelecionado}`, {
+            const response = await fetch(`https://192.168.1.4/api/registoPonto/listar?mes=${mesSelecionado}&ano=${anoSelecionado}`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('loginToken')}` },
             });

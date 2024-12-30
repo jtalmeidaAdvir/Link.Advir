@@ -15,7 +15,7 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
         const fetchEmpresas = async () => {
             try {
                 const loginToken = localStorage.getItem('loginToken');
-                const response = await fetch('http://backend.advir.pt/api/users/empresas', {
+                const response = await fetch('https://backend.advir.pt/api/users/empresas', {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${loginToken}`,
@@ -60,7 +60,7 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
         try {
             const loginToken = localStorage.getItem('loginToken');
     
-            const credenciaisResponse = await fetch(`http://backend.advir.pt/api/empresas/nome/${encodeURIComponent(empresa)}`, {
+            const credenciaisResponse = await fetch(`https://backend.advir.pt/api/empresas/nome/${encodeURIComponent(empresa)}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${loginToken}`,

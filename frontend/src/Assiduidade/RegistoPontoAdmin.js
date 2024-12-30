@@ -27,7 +27,7 @@ const RegistoPontoAdmin = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await fetch('http://192.168.1.4/api/users/usersByEmpresa', {
+            const response = await fetch('https://192.168.1.4/api/users/usersByEmpresa', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -61,7 +61,7 @@ const RegistoPontoAdmin = () => {
     const fetchHistoricoPontos = async (userId) => {
         setLoadingButton(true);
         try {
-            const response = await fetch(`http://192.168.1.4/api/registoPonto/listaradmin?usuario=${userId}&mes=${mesSelecionado}&ano=${anoSelecionado}`, {
+            const response = await fetch(`https://192.168.1.4/api/registoPonto/listaradmin?usuario=${userId}&mes=${mesSelecionado}&ano=${anoSelecionado}`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('loginToken')}` },
             });
@@ -120,7 +120,7 @@ const RegistoPontoAdmin = () => {
         for (const usuario of users) {
             try {
                 // Faz o fetch dos registos para cada utilizador
-                const response = await fetch(`http://192.168.1.4/api/registoPonto/listaradmin?usuario=${usuario.id}&mes=${mesSelecionado}&ano=${anoSelecionado}`, {
+                const response = await fetch(`https://192.168.1.4/api/registoPonto/listaradmin?usuario=${usuario.id}&mes=${mesSelecionado}&ano=${anoSelecionado}`, {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('loginToken')}` },
                 });

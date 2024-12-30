@@ -22,7 +22,7 @@ const PainelAdmin = () => {
         };
     
         try {
-            const response = await fetch('http://backend.advir.pt/api/empresas', {
+            const response = await fetch('https://backend.advir.pt/api/empresas', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

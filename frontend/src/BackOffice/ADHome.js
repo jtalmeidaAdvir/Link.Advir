@@ -21,7 +21,7 @@ const ADHome = () => {
 
     const fetchEmpresas = async () => {
         try {
-            const response = await fetch('http://backend.advir.pt/api/empresas/listar');
+            const response = await fetch('https://backend.advir.pt/api/empresas/listar');
             const data = await response.json();
             setEmpresas(data);
         } catch (error) {
@@ -31,7 +31,7 @@ const ADHome = () => {
 
     const fetchAllModulos = async () => {
         try {
-            const response = await fetch('http://backend.advir.pt/api/modulos/listar');
+            const response = await fetch('https://backend.advir.pt/api/modulos/listar');
             const data = await response.json();
             setAllModulos(data.modulos);
         } catch (error) {
@@ -41,7 +41,7 @@ const ADHome = () => {
 
     const fetchEmpresaModulos = async (empresaId) => {
         try {
-            const response = await fetch(`http://backend.advir.pt/api/empresas/${empresaId}/modulos`);
+            const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}/modulos`);
             const data = await response.json();
             setEmpresaModulos(data.modulos);
         } catch (error) {
@@ -51,7 +51,7 @@ const ADHome = () => {
 
     const fetchMaxUsers = async (empresaId) => {
         try {
-            const response = await fetch(`http://backend.advir.pt/api/empresas/${empresaId}`);
+            const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}`);
             const data = await response.json();
             setMaxUsers(data.maxUsers || ''); // Definir o valor inicial do campo `maxUsers`
         } catch (error) {
@@ -70,7 +70,7 @@ const ADHome = () => {
         console.log("Novo Limite de Utilizadores:", maxUsers);
 
         try {
-            const response = await fetch(`http://backend.advir.pt/api/empresas/${selectedEmpresa.id}/updateMaxUsers`, {
+            const response = await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/updateMaxUsers`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -108,7 +108,7 @@ const ADHome = () => {
 
     const addModuloToEmpresa = async (moduloId) => {
         try {
-            await fetch(`http://backend.advir.pt/api/empresas/${selectedEmpresa.id}/modulos`, {
+            await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/modulos`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ const ADHome = () => {
 
     const removeModuloFromEmpresa = async (moduloId) => {
         try {
-            await fetch(`http://backend.advir.pt/api/empresas/${selectedEmpresa.id}/modulos/${moduloId}`, {
+            await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/modulos/${moduloId}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',

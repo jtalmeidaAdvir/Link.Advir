@@ -18,7 +18,7 @@ const RedefinirPassword = ({ route }) => {
         }
 
         try {
-            const response = await fetch(`http://backend.advir.pt/api/users/redefinir-password/${token}`, {
+            const response = await fetch(`https://backend.advir.pt/api/users/redefinir-password/${token}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ newPassword }),

@@ -54,7 +54,7 @@ const Drawer = createDrawerNavigator();
 
 // Configuração de deep linking para reconhecer URLs com parâmetros dinâmicos como o token
 const linking = {
-    prefixes: ['http://backend.advir.pt:8081'],
+    prefixes: ['https://backend.advir.pt:8081'],
     config: {
         screens: {
             RedefinirPassword: 'redefinir-password/:token',
@@ -244,7 +244,7 @@ const AppNavigator = () => {
         const userId = localStorage.getItem('userId');
         if (userId && token) {
             try {
-                const response = await fetch(`http://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`, {
+                const response = await fetch(`https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await response.json();

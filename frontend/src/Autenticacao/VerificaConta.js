@@ -15,7 +15,7 @@ const VerificaConta = () => {
 
         try {
             const token = localStorage.getItem('loginToken');
-            const response = await fetch('http://backend.advir.pt/api/users/alterarPassword', {
+            const response = await fetch('https://backend.advir.pt/api/users/alterarPassword', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

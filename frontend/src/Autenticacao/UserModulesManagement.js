@@ -14,7 +14,7 @@ const UserModulesManagement = ({ route }) => {
 
     const fetchEmpresaModulos = async () => {
         try {
-            const response = await fetch(`http://backend.advir.pt/api/users/${userId}/empresa-modulos`);
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/empresa-modulos`);
             const data = await response.json();
     
             if (!response.ok) {
@@ -30,7 +30,7 @@ const UserModulesManagement = ({ route }) => {
     
     const fetchUserModulos = async (userId) => {
         try {
-            const response = await fetch(`http://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`);
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`);
             const data = await response.json();
             setUserModulos(data.modulos || []);
         } catch (error) {
@@ -49,8 +49,8 @@ const UserModulesManagement = ({ route }) => {
 
     const handleToggleModulo = async (moduloId, isChecked) => {
         const url = isChecked 
-            ? 'http://backend.advir.pt/api/modulos/associar' 
-            : 'http://backend.advir.pt/api/modulos/remover';
+            ? 'https://backend.advir.pt/api/modulos/associar' 
+            : 'https://backend.advir.pt/api/modulos/remover';
 
         try {
             await fetch(url, {
@@ -67,8 +67,8 @@ const UserModulesManagement = ({ route }) => {
     const handleToggleSubmodulo = async (moduloId, submoduloId) => {
         const isCurrentlyChecked = isSubmoduloChecked(moduloId, submoduloId);
         const url = isCurrentlyChecked 
-            ? 'http://backend.advir.pt/api/submodulos/remover' 
-            : 'http://backend.advir.pt/api/submodulos/associar';
+            ? 'https://backend.advir.pt/api/submodulos/remover' 
+            : 'https://backend.advir.pt/api/submodulos/associar';
 
         try {
             await fetch(url, {

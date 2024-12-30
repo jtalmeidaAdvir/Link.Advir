@@ -52,7 +52,7 @@ const novoUser = await User.create({
 
 
         // Enviar e-mail de verificação
-        const verificationLink = `http://51.254.116.237:3000/api/users/verify/${verificationToken}`;
+        const verificationLink = `https://51.254.116.237:3000/api/users/verify/${verificationToken}`;
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
@@ -123,7 +123,7 @@ const criarUtilizador = async (req, res) => {
         await novoUser.addEmpresa(empresa);  // Usa o método gerado pelo Sequelize para associar muitos-para-muitos
 
         // Enviar e-mail de verificação
-        const verificationLink = `http://51.254.116.237:3000/api/users/verify/${verificationToken}`;
+        const verificationLink = `https://51.254.116.237:3000/api/users/verify/${verificationToken}`;
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
@@ -174,7 +174,7 @@ const verificarConta = async (req, res) => {
         await user.save();
 
         // Redireciona para o frontend (login) após a verificação
-        return res.redirect('http://51.254.116.237:8081'); // Altera a URL para o endereço do frontend
+        return res.redirect('https://51.254.116.237:8081'); // Altera a URL para o endereço do frontend
     } catch (error) {
         console.error('Erro ao verificar a conta:', error);
         return res.status(500).json({ error: 'Erro ao verificar a conta.' });
@@ -422,7 +422,7 @@ const recuperarPassword = async (req, res) => {
         await user.save();
 
         // Enviar email com o link de recuperação
-        const recoveryLink = `http://51.254.116.237:8081/redefinir-password/${recoveryToken}`;
+        const recoveryLink = `https://51.254.116.237:8081/redefinir-password/${recoveryToken}`;
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
@@ -616,7 +616,7 @@ const uploadProfileImage = async (file) => {
     formData.append('profileImage', file); // Envia o ficheiro diretamente
 
     try {
-        const response = await fetch(`http://51.254.116.237:3000/api/users/${userId}/uploadProfileImage`, {
+        const response = await fetch(`https://51.254.116.237:3000/api/users/${userId}/uploadProfileImage`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`

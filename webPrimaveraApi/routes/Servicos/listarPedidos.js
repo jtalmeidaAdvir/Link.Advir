@@ -35,7 +35,7 @@ router.get('/listarPedidos', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ListarPedidos`;  // A URL completa da API
+        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ListarPedidos`;  // A URL completa da API
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {

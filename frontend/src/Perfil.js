@@ -24,7 +24,7 @@ const Perfil = ({ user }) => {
                 return;
             }
 
-            const response = await fetch(`http://backend.advir.pt/api/users/${userId}/profileImage`, {
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/profileImage`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -56,7 +56,7 @@ const Perfil = ({ user }) => {
         formData.append('profileImage', file); // Adiciona o ficheiro diretamente
 
         try {
-            const response = await fetch(`http://backend.advir.pt/api/users/${userId}/uploadProfileImage`, {
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/uploadProfileImage`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -105,7 +105,7 @@ const Perfil = ({ user }) => {
                 return;
             }
 
-            const response = await fetch('http://backend.advir.pt/api/users/alterarPassword', {
+            const response = await fetch('https://backend.advir.pt/api/users/alterarPassword', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

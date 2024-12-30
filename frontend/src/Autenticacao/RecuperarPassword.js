@@ -12,7 +12,7 @@ const RecuperarPassword = () => {
         e.preventDefault();
 
         try {
-            const response = await fetch('http://backend.advir.pt/api/users/recuperar-password', {
+            const response = await fetch('https://backend.advir.pt/api/users/recuperar-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email }),
