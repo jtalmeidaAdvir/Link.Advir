@@ -309,16 +309,78 @@ const RegistoIntervencao = (props) => {
                 console.error('Erro ao fazer a requisição:', error.message);
             }
 
+            // Calculate duration
+           // const dataHoraInicio = new Date(`${formData.dataInicio}T${formData.horaInicio}`);
+            //const dataHoraFim = new Date(`${formData.dataFim}T${formData.horaFim}`);
+            //const duracaoEmMinutos = Math.floor((dataHoraFim - dataHoraInicio) / (1000 * 60));
+            const duracaoRealEmHoras = Math.floor(duracaoEmMinutos / 60);
+
+            // Add base article based on intervention type
+            let artigoBase = null;
+            const tipoIntervencaoSelecionado = tipos.find(tipo => tipo.TipoIntervencao === formData.tipo);
+
+            const artigosAdicionados = [...addedArtigos]; // Clone the existing array
+
+            if (tipoIntervencaoSelecionado) {
+                // Create base article with selected intervention type properties
+                artigoBase = {
+                    artigo: tipoIntervencaoSelecionado.ServicoBase,
+                    descricao: tipoIntervencaoSelecionado.Descricao,
+                    ContabilizaMO: tipoIntervencaoSelecionado.ContabilizaMO,
+                    TipoContabilizacao: tipoIntervencaoSelecionado.TipoContabilizacao,
+                    TempoFixo: tipoIntervencaoSelecionado.TempoFixo,
+                    TempoDebitoMin: tipoIntervencaoSelecionado.TempoDebitoMin,
+                    TempoPeriodoSeg: tipoIntervencaoSelecionado.TempoPeriodoSeg,
+                    ImplicaDeslocacoes: tipoIntervencaoSelecionado.ImplicaDeslocacoes,
+                    ServicoDeslocacao: tipoIntervencaoSelecionado.ServicoDeslocacao,
+                    ObrigaRegCaractVar: tipoIntervencaoSelecionado.ObrigaRegCaractVar,
+                    qtdeCusto: qtdeCusto, // Using modal input value
+                    precoCusto: precoCusto, // Using modal input value
+                    qtdeCliente: qtdeCliente, // Using modal input value
+                    precoCliente: precoCliente, // Using modal input value
+                    descontoCliente: descontoCliente, // Using modal input value
+                };
+
+                // If the transport service is not null, create an additional article
+                if (tipoIntervencaoSelecionado.ServicoDeslocacao) {
+                    const artigoDeslocacao = {
+                        artigo: tipoIntervencaoSelecionado.ServicoDeslocacao,
+                        descricao: "Descri��o do Servi�o de Desloca��o",
+                        ContabilizaMO: false,
+                        TipoContabilizacao: 0,
+                        TempoFixo: 0,
+                        TempoDebitoMin: 0,
+                        TempoPeriodoSeg: 0,
+                        ImplicaDeslocacoes: false,
+                        ServicoDeslocacao: null,
+                        ObrigaRegCaractVar: false,
+                        qtdeCusto: qtdeCustoDeslocacao, // Using desloca��o modal input value
+                        precoCusto: precoCustoDeslocacao, // Using desloca��o modal input value
+                        qtdeCliente: qtdeClienteDeslocacao, // Using desloca��o modal input value
+                        precoCliente: precoClienteDeslocacao, // Using desloca��o modal input value
+                        descontoCliente: descontoClienteDeslocacao,
+                    };
+
+                    // Add the transport article to the added articles array
+                    artigosAdicionados.push(artigoDeslocacao);
+                }
+
+                // Include the base article in the added articles array
+                artigosAdicionados.push(artigoBase);
+            }
 
 
-            // Prepare data to save
+            const dataHoraInicioFormatted = `${formData.dataInicio}T${formData.horaInicio}:00`; // Adiciona segundos
+            const dataHoraFimFormatted = `${formData.dataFim}T${formData.horaFim}:00`;
+
+    
             const dataToSave = {
                 processoID,
                 tipoIntervencao: formData.tipo,
                 duracao: duracaoEmMinutos,
                 duracaoReal: duracaoEmMinutos,
-                DataHoraInicio: `${formData.dataInicio}T${formData.horaInicio}:00`,
-                DataHoraFim: `${formData.dataFim}T${formData.horaFim}:00`,
+                DataHoraInicio: dataHoraInicioFormatted, // Envia no formato correto
+                DataHoraFim: dataHoraFimFormatted, // Envia no formato correto
                 tecnico: formData.tecnico,
                 estadoAnt: ultimoEstado.toString(),
                 estado: formData.estado,
@@ -326,9 +388,9 @@ const RegistoIntervencao = (props) => {
                 seccao: secAnterior,
                 utilizador: utilizador,
                 descricaoResposta: formData.descricao || null,
-                artigos: [...addedArtigos],
-                emailDestinatario: email // Adicione o email aqui
+                artigos: artigosAdicionados,
             };
+            console.log(dataToSave);
 
 
 
@@ -415,9 +477,6 @@ const RegistoIntervencao = (props) => {
 
             // Chame a função para enviar o e-mail
             enviarEmail();
-
-
-
 
             
     
