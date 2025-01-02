@@ -43,7 +43,7 @@ router.get('/ObterInfoEmail/:PedidoId/:UltimaNumIntervencao', async (req, res) =
             return res.status(400).json({ error: 'Parâmetros não fornecidos na URL.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ObterInfoEmail/${PedidoId}/${UltimaNumIntervencao}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ObterInfoEmail/${PedidoId}/${UltimaNumIntervencao}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         // Fazendo a requisição para o backend .NET
@@ -89,7 +89,7 @@ router.get('/LstClientes', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/Base/LstClientes`;
+        const apiUrl = `http://${urlempresa}/WebApi/Base/LstClientes`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -136,7 +136,7 @@ router.get('/ListarContactos/:IDCliente', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ListarContactos/${IDCliente}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ListarContactos/${IDCliente}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -184,7 +184,7 @@ router.get('/ObterContactoIntervencao/:IDIntervencao', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ObterContactoIntervencao/${IDIntervencao}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ObterContactoIntervencao/${IDIntervencao}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -231,7 +231,7 @@ router.get('/LstEstadosTodos', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/LstEstadosTodos`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/LstEstadosTodos`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -278,7 +278,7 @@ router.get('/LstTiposIntervencao', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/LstTiposIntervencao`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/LstTiposIntervencao`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -323,7 +323,7 @@ router.get('/LstObjectos', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/LstObjectos`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/LstObjectos`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -368,7 +368,7 @@ router.get('/LstOrigensProcessos', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/LstOrigensProcessos`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/LstOrigensProcessos`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -413,7 +413,7 @@ router.get('/ListarTiposPrioridades', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ListarTiposPrioridades`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ListarTiposPrioridades`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -458,7 +458,7 @@ router.get('/ListarSeccoes', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ListarSeccoes`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ListarSeccoes`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -506,7 +506,7 @@ router.get('/ListarContratos/:IDCliente', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ListarContratos/${IDCliente}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ListarContratos/${IDCliente}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -552,7 +552,7 @@ router.get('/ListarTiposProcesso', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ListarTiposProcesso`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ListarTiposProcesso`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -598,7 +598,7 @@ router.get('/LstTecnicosTodos', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/LstTecnicosTodos`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/LstTecnicosTodos`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -644,7 +644,7 @@ router.get('/LstArtigos', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/Artigo/LstArtigos`;
+        const apiUrl = `http://${urlempresa}/WebApi/Artigo/LstArtigos`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -690,7 +690,7 @@ router.get('/GetIntervencao/:IntervencaoID', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/GetIntervencao/${IntervencaoID}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/GetIntervencao/${IntervencaoID}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -734,7 +734,7 @@ router.get('/EliminarIntervencao/:IntervencaoID', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/EliminarIntervencao/${IntervencaoID}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/EliminarIntervencao/${IntervencaoID}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -778,7 +778,7 @@ router.get('/EliminarPedido/:PedidoID', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/EliminarPedido/${PedidoID}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/EliminarPedido/${PedidoID}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -822,7 +822,7 @@ router.get('/DaUltimoEstadoPedido/:PedidoID', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/DaUltimoEstadoPedido/${PedidoID}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/DaUltimoEstadoPedido/${PedidoID}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -865,7 +865,7 @@ router.get('/ListarSeccaoUtilizador/:PedidoID', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ListarSeccaoUtilizador/${PedidoID}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ListarSeccaoUtilizador/${PedidoID}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -933,7 +933,7 @@ router.post('/CriarPedido', async (req, res) => {
         } = req.body;
 
         // Construindo a URL da API
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/CriarPedido`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/CriarPedido`;
 
         // Cria um objeto com todos os dados a serem enviados
         const requestData = {
@@ -1027,7 +1027,7 @@ router.post('/CriarIntervencoes', async (req, res) => {
         } = req.body;
 
         // Construindo a URL da API
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/CriarIntervencoes`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/CriarIntervencoes`;
 
         console.log('Enviando solicitação para a URL:', apiUrl);
 
@@ -1101,7 +1101,7 @@ router.get('/ListaProcessosTecnico/:TecnicoID', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ListaProcessosTecnico/${TecnicoID}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ListaProcessosTecnico/${TecnicoID}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -1145,7 +1145,7 @@ router.get('/ListaIntervencoesTecnico/:TecnicoID', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ListaIntervencoesTecnico/${TecnicoID}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ListaIntervencoesTecnico/${TecnicoID}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -1190,7 +1190,7 @@ router.get('/MudarEstadoPedido/:EstadoID', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/MudarEstadoPedido/${EstadoID}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/MudarEstadoPedido/${EstadoID}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {

@@ -32,13 +32,14 @@ router.get('/ObterInfoContrato/:Id', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ObterInfoContrato/${req.params.Id}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ObterInfoContrato/${req.params.Id}`;
 
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
                 'Content-Type': 'application/json',
             }
+
         });
 
         res.status(response.status).json(response.data);

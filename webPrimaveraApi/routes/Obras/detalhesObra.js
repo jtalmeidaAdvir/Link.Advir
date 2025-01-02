@@ -32,7 +32,7 @@ router.get('/GetCAdicionaisEstimado/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetCAdicionais_Estimado/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetCAdicionais_Estimado/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -57,7 +57,7 @@ router.get('/GetSubempreitadasReal/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetSubempreitadas_Real/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetSubempreitadas_Real/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -83,7 +83,7 @@ router.get('/GetOutrosCustosReal/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetOutrosCustos_Real/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetOutrosCustos_Real/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -109,7 +109,7 @@ router.get('/GetFichasPessoal_Real/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetFichasPessoal_Real/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetFichasPessoal_Real/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -134,7 +134,7 @@ router.get('/GetFichasEquipamento_Real/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetFichasEquipamento_Real/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetFichasEquipamento_Real/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -159,7 +159,7 @@ router.get('/GetCustosManuais_Real/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetCustosManuais_Real/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetCustosManuais_Real/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -184,7 +184,7 @@ router.get('/GetTrabalhosMenos_Real/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetTrabalhosMenos_Real/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetTrabalhosMenos_Real/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -209,7 +209,7 @@ router.get('/GetSubempreitadas_Pendentes/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetSubempreitadas_Pendentes/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetSubempreitadas_Pendentes/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -233,7 +233,7 @@ router.get('/GetCAdicionais_Proveitos/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetCAdicionais_Proveitos/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetCAdicionais_Proveitos/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -258,7 +258,7 @@ router.get('/GetNaoAutorizados_Faturacao/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetNaoAutorizados_Faturacao/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetNaoAutorizados_Faturacao/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -283,7 +283,7 @@ router.get('/GetAutorizados_Faturacao/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetAutorizados_Faturacao/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetAutorizados_Faturacao/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -309,7 +309,7 @@ router.get('/GetTrabalhosMenos_Faturacao/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetTrabalhosMenos_Faturacao/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetTrabalhosMenos_Faturacao/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -333,7 +333,7 @@ router.get('/GetFaturada_RevisaoPrecos/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetFaturada_RevisaoPrecos/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetFaturada_RevisaoPrecos/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -358,7 +358,7 @@ router.get('/GetAutosMedicao_Execucao/:IdObra', async (req, res) => {
         if (!painelAdminToken) return res.status(401).json({ error: 'Token ausente. Faça login novamente.' });
         if (!urlempresa) return res.status(400).json({ error: 'URL da empresa não fornecida.' });
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetAutosMedicao_Execucao/${IdObra}`;
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetAutosMedicao_Execucao/${IdObra}`;
         const response = await axios.get(apiUrl, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -388,7 +388,7 @@ router.get('/GetFaturados_Faturacao/:IdObra', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetFaturados_Faturacao/${IdObra}`;  // A URL completa da API
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetFaturados_Faturacao/${IdObra}`;  // A URL completa da API
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -429,7 +429,7 @@ router.get('/GetFichasPessoal/:IdObra', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetFichasPessoal/${IdObra}`;  // A URL completa da API
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetFichasPessoal/${IdObra}`;  // A URL completa da API
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -470,7 +470,7 @@ router.get('/GetControlo/:IdObra', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/GetControlo/${IdObra}`;  // A URL completa da API
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/GetControlo/${IdObra}`;  // A URL completa da API
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -509,7 +509,7 @@ router.post('/InsertPartesDiarias', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `https://${urlempresa}/WebApi/Obras/InsertPartesDiarias`; // URL da API externa
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/InsertPartesDiarias`; // URL da API externa
 
         // Validar dados no corpo da requisição
         const dados = req.body;

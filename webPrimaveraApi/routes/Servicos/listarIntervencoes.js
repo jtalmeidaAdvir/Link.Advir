@@ -34,7 +34,7 @@ router.get('/:pedidoId', async (req, res) => {
         }
 
         // Monta a URL completa para listar intervenções
-        const apiUrl = `https://${urlempresa}/WebApi/ServicosTecnicos/ListarIntervencoes/${pedidoId}`;
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ListarIntervencoes/${pedidoId}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
         // Realiza a chamada para listar as intervenções
