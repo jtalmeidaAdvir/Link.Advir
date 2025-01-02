@@ -72,7 +72,7 @@ const Home = () => {
           return;
         }
 
-        const response = await fetch(`https://webprimavera:3001/clientArea/ObterInfoContrato/${id}`, {
+          const response = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${id}`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
