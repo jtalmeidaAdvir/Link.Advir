@@ -213,7 +213,7 @@ const loginUtilizador = async (req, res) => {
                 token: jwt.sign(
                     { id: user.id, username: user.username, isAdmin: user.isAdmin, superAdmin: user.superAdmin }, 
                     process.env.JWT_SECRET, 
-                    { expiresIn: '1h' }
+                    { expiresIn: '24h' }
                 ),
                 userId: user.id,
                 isAdmin: user.isAdmin,
@@ -225,7 +225,7 @@ const loginUtilizador = async (req, res) => {
         const token = jwt.sign(
             { id: user.id, username: user.username, isAdmin: user.isAdmin, superAdmin: user.superAdmin }, 
             process.env.JWT_SECRET, 
-            { expiresIn: '1h' }
+            { expiresIn: '24h' }
         );
 
         // Retorna o token ao cliente, estado de admin e superAdmin
