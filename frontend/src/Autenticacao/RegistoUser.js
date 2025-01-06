@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, Button, StyleSheet } from 'react-native';
-
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 const RegistoUser = () => {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -13,7 +14,7 @@ const RegistoUser = () => {
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [empresaAreacliente, setEmpresaAreacliente] = useState('');
-
+    const { t } = useTranslation();
     // Função para buscar as empresas associadas ao utilizador autenticado
     useEffect(() => {
         const fetchEmpresas = async () => {
@@ -128,12 +129,12 @@ const RegistoUser = () => {
     return (
         <div style={styles.container}>
             <div style={styles.formContainer}>
-                <h1 style={styles.title}>Registo de Utilizador</h1>
+                <h1 style={styles.title}>{t(RegistoUser.Title)}</h1>
                 <form onSubmit={handleRegister}>
                     <div style={styles.inputContainer}>
                         <input
                             type="text"
-                            placeholder="Username"
+                            placeholder={t(RegistoUser.TxtUser)}
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
@@ -153,7 +154,7 @@ const RegistoUser = () => {
                     <div style={styles.inputContainer}>
                         <input
                             type="password"
-                            placeholder="Password"
+                            placeholder={t(RegistoUser.TxtPass)}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -163,7 +164,7 @@ const RegistoUser = () => {
                     <div style={{ marginBottom: '20px' }}>
                         <input
                             type="text"
-                            placeholder="Empresa ou Área de Cliente"
+                            placeholder={t(RegistoUser.TxtEmpresaArea)}
                             value={empresaAreacliente}
                             onChange={(e) => setEmpresaAreacliente(e.target.value)}
                             required
@@ -185,7 +186,7 @@ const RegistoUser = () => {
                             required
                             style={styles.input}
                         >
-                            <option value="">Selecione a Empresa</option>
+                            <option value="">{t(RegistoUser.CBSelecionarEmpresa)}</option>
                             {empresas.map((empresa) => (
                                 <option key={empresa.id} value={empresa.id}>
                                     {empresa.empresa}
@@ -195,7 +196,7 @@ const RegistoUser = () => {
                     </div>
 
                     <button type="submit" style={styles.registerButton}>
-                        Registar
+                        {t(RegistoUser.BtRegistar)}
                     </button>
                 </form>
                 
@@ -209,7 +210,7 @@ const RegistoUser = () => {
                     <View style={styles.modalContainer}>
                         <View style={styles.modalContent}>
                             <Text style={styles.modalText}>
-                                Utilizador criado com sucesso.
+                                t(RegistoUser.Alert.1)
                             </Text>
                             <Button title="OK" onPress={handleCloseSuccessModal} />
                         </View>

@@ -49,6 +49,7 @@ import AddPartesDiarias from './src/Obras/AddPartesDiarias';
 import UserModulesManagement from './src/Autenticacao/UserModulesManagement';
 import logo from './assets/img_logo.png';
 import i18n from './src/i18n';
+import { useTranslation } from 'react-i18next';
 const Drawer = createDrawerNavigator();
 
 
@@ -64,7 +65,7 @@ const linking = {
 
 const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...props }) => {
     const [expanded, setExpanded] = useState(false);
-
+    const { t } = useTranslation();
     const handlePress = () => setExpanded(!expanded);
 
     const handleLogout = () => {
@@ -118,27 +119,27 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
     return (
         <DrawerContentScrollView {...props} contentContainerStyle={{ flexGrow: 1 }}>
             <DrawerItem
-                label="Home"
+                label={t("Drawer.Home")}
                 onPress={() => props.navigation.navigate('Home')}
                 icon={() => <FontAwesome name="home" size={20} color="#0022FF" />}
             />
             {isLoggedIn && (
                 <>
                     <DrawerItem
-                        label="Selecionar Empresa"
+                        label={t("Drawer.SelecaoEmpresa")}
                         onPress={() => props.navigation.navigate('SelecaoEmpresa')}
                         icon={() => <FontAwesome name="briefcase" size={20} color="#0022FF" />}
                     />
                     {hasObrasModule && (
                     <DrawerItem
-                        label="Obras"
+                            label={t("Drawer.Obra")}
                         onPress={() => props.navigation.navigate('Obras')}
                         icon={() => <FontAwesome name="road" size={20} color="#0022FF" />}
                     />
                     )}
                     {hasServicesModule && (
                         <DrawerItem
-                            label="Pedido de Serviços"
+                            label=  {t("Drawer.Servicos")}
                             onPress={() => props.navigation.navigate('PedidosAssistencia')}
                             icon={() => <FontAwesome name="wrench" size={20} color="#0022FF" />}
                         />
@@ -146,7 +147,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                     )}
                     {hasServicesModule && (
                         <DrawerItem
-                            label="PandIByTecnico"
+                            label=  {t("Drawer.ServicosTecnicos")}
                             onPress={() => props.navigation.navigate('PandIByTecnico')}
                             icon={() => <FontAwesome name="wrench" size={20} color="#0022FF" />}
                         />
@@ -154,14 +155,14 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                     )}
                     {hasQrCodeAssiduidadeModule && (
                         <DrawerItem
-                            label="Assiduidade (QR Code)"
+                            label={t("Drawer.PontoQR")}
                             onPress={() => props.navigation.navigate('LeitorQRCode')}
                             icon={() => <FontAwesome name="clock-o" size={20} color="#0022FF" />}
                         />
                     )}
                     {hasBotaoAssiduidadeModule && (
                         <DrawerItem
-                            label="Assiduidade (Botão)"
+                            label={t("Drawer.PontoBT")}
                             onPress={() => props.navigation.navigate('PontoBotao')}
                             icon={() => <FontAwesome name="clock-o" size={20} color="#0022FF" />}
                         />
@@ -171,7 +172,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
             <View style={{ flexGrow: 1, justifyContent: 'flex-end', paddingBottom: 20 }}>
                 {isAdmin && (
                    <List.Accordion
-                   title="Administrador"
+                        title={t("Drawer.ADM.title")}
                    left={() => (
                        <FontAwesome name="cogs" size={18} color="#0022FF" style={{ marginLeft:15 }} />
                    )}
@@ -188,23 +189,23 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                    titleStyle={{ fontSize: 14, marginLeft: 0, flexDirection: 'row', alignItems: 'center' }}
                >
                    <List.Item
-                       title="> Painel de Administração"
+                            title={t("Drawer.ADM.1")}
                        onPress={() => props.navigation.navigate('PainelAdmin')}
                    />
                    <List.Item
-                       title="> Gestão de Utilizadores"
+                            title={t("Drawer.ADM.2")}
                        onPress={() => props.navigation.navigate('UsersEmpresa')}
                    />
                    <List.Item
-                       title="> Registar Utilizador"
+                            title={t("Drawer.ADM.3")}
                        onPress={() => props.navigation.navigate('RegistoUser')}
                    />
                    <List.Item
-                       title="> Registo Ponto Admin"
+                            title={t("Drawer.ADM.4")}
                        onPress={() => props.navigation.navigate('RegistoPontoAdmin')}
                    />
                    <List.Item
-                       title="> Pedidos Alteração Admin"
+                            title={t("Drawer.ADM.5")}
                        onPress={() => props.navigation.navigate('PedidosAlteracaoAdmin')}
                    />
                </List.Accordion>
@@ -213,14 +214,14 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                 )}
                 {localStorage.getItem('loginToken') && (
                     <DrawerItem
-                        label="Meu Perfil"
+                        label={t("Drawer.Perfil")}
                         onPress={() => props.navigation.navigate('Perfil')}
                         icon={() => <FontAwesome name="user" size={20} color="#0022FF" />}
                     />
                 )}
                 {localStorage.getItem('loginToken') && (
                     <DrawerItem
-                        label="Logout"
+                        label={t("Drawer.Exit")}
                         icon={() => <FontAwesome name="sign-out" size={20} color="#0022FF" />}
                         onPress={handleLogout}
                     />

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, View, TouchableOpacity, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 const SelecaoEmpresa = ({ setEmpresa }) => {
     const [empresas, setEmpresas] = useState([]);
     const [empresaSelecionada, setEmpresaSelecionada] = useState('');
@@ -10,7 +11,7 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
     const [loadingButton, setLoadingButton] = useState(false); // Novo estado para controlar o loading do botão
     const [errorMessage, setErrorMessage] = useState('');
     const navigation = useNavigation();
-
+    const { t } = useTranslation();
     useEffect(() => {
         const fetchEmpresas = async () => {
             try {
@@ -32,7 +33,7 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
                         await handleEntrarEmpresa(data[0].empresa); // Passa a empresa explicitamente
                     }
                 } else {
-                    setErrorMessage('Erro ao obter as empresas.');
+                    setErrorMessage(t("SelecaoEmpresa.Error.1"));
                 }
             } catch (error) {
                 console.error('Erro de rede:', error);
@@ -49,7 +50,7 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
         const empresa = empresaForcada || empresaSelecionada; // Usa o valor forçado ou selecionado
     
         if (!empresa) {
-            setErrorMessage('Por favor, selecione uma empresa.');
+            setErrorMessage(t("SelecaoEmpresa.Aviso.1"));
             return;
         }
     
@@ -105,7 +106,7 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
                 }
             } else {
                 const errorData = await credenciaisResponse.json();
-                setErrorMessage(errorData.message || 'Empresa não encontrada.');
+                setErrorMessage(errorData.message || t("SelecaoEmpresa.Error.1"));
             }
         } catch (error) {
             console.error('Erro de rede:', error);
@@ -149,7 +150,7 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
                         marginBottom: '50px',
                     }}
                 >
-                    Selecione a Empresa
+                    {t("SelecaoEmpresa.Title")}
                 </h1>
 
                 {loading ? (
@@ -176,7 +177,7 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
                                 border: '1px solid #ccc',
                             }}
                         >
-                            <option value="">Selecione a Empresa</option>
+                                    <option value="">{t("SelecaoEmpresa.CbSelecionar")}</option>
                             {empresas.map((empresa, index) => (
                                 <option key={index} value={empresa.empresa}>
                                     {empresa.empresa}
@@ -211,7 +212,7 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
                             {loadingButton ? (
                                 <ActivityIndicator size="small" color="#ffffff" />
                             ) : (
-                                'Entrar na Empresa'
+                                        t("SelecaoEmpresa.BtEntrar") 
                             )}
                         </button>
 

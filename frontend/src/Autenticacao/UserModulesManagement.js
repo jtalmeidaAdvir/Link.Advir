@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, CheckBox } from 'react-native';
-
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 const UserModulesManagement = ({ route }) => {
     const { userId } = route.params;
     const [empresaModulos, setEmpresaModulos] = useState([]);
     const [userModulos, setUserModulos] = useState([]);
     const [errorMessage, setErrorMessage] = useState('');
-
+    const { t } = useTranslation();
     useEffect(() => {
         fetchEmpresaModulos();
         fetchUserModulos(userId);
@@ -85,7 +86,7 @@ const UserModulesManagement = ({ route }) => {
     return (
         <View style={styles.container}>
             <View style={styles.innerContainer}>
-                <Text style={styles.title}>Gestão de Módulos do Utilizador</Text>
+                <Text style={styles.title}>{t("UserModulesManagement.Title")}</Text>
                 {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
                 
                 <FlatList

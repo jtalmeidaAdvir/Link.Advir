@@ -10,7 +10,7 @@ const Home = () => {
     const { t } = useTranslation();
 
   const [isDrawerOpen, setDrawerOpen] = useState(false);
-    const [activeMenu, setActiveMenu] = useState(t('menu.contract')); // Estado para o menu ativo
+    const [activeMenu, setActiveMenu] = useState(t('Home.menu.contract')); // Estado para o menu ativo
   const [contratoInfo, setContratoInfo] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -28,16 +28,16 @@ const Home = () => {
 
   const faqItems = [
       {
-          question: t('faq.questions.q1') ,
-          answer: t('faq.questions.a1'),
+          question: t('Home.faq.questions.q1') ,
+          answer: t('Home.faq.questions.a1'),
     },
     {
-        question: t('faq.questions.q2'),
-        answer: t('faq.questions.a2'),
+        question: t('Home.faq.questions.q2'),
+        answer: t('Home.faq.questions.a2'),
     },
     {
-        question: t('faq.questions.q3'),
-        answer: t('faq.questions.a3'),
+        question: t('Home.faq.questions.q3'),
+        answer: t('Home.faq.questions.a3'),
     },
   ];
   
@@ -49,10 +49,10 @@ const Home = () => {
 
 
     const menus = [
-        { title: t('menu.contract'), icon: <FaFileContract size={32} /> },
-        { title: t('menu.orders'), icon: <FaPhone size={32} /> },
-        { title: t('menu.products'), icon: <FaBoxOpen size={32} /> },
-        { title: t('menu.faq'), icon: <FaQuestionCircle size={32} /> },
+        { title: t('Home.menu.contract'), icon: <FaFileContract size={32} /> },
+        { title: t('Home.menu.orders'), icon: <FaPhone size={32} /> },
+        { title: t('Home.menu.products'), icon: <FaBoxOpen size={32} /> },
+        { title: t('Home.menu.faq'), icon: <FaQuestionCircle size={32} /> },
     ];
 
 
@@ -64,14 +64,14 @@ const Home = () => {
                 const id = await AsyncStorage.getItem('empresa_areacliente');
 
                 if (!id || !token || !urlempresa) {
-                    throw new Error(t('error') + 'Token or URL missing.');
+                    throw new Error(t('Home.error') + 'Token or URL missing.');
                 }
 
                 const response = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${id}`, {
                     headers: { Authorization: `Bearer ${token}`, urlempresa },
                 });
 
-                if (!response.ok) throw new Error(t('error') + response.statusText);
+                if (!response.ok) throw new Error(t('Home.error') + response.statusText);
                 const data = await response.json();
                 setContratoInfo(data);
             } catch (error) {
@@ -124,7 +124,7 @@ const Home = () => {
         minHeight: '100vh',
         fontFamily: 'Poppins, sans-serif',
       }}>
-                <h2 style={{ fontWeight: '600', color: '#0022FF', marginBottom: '20px' }}>{t('welcome')}</h2>
+                <h2 style={{ fontWeight: '600', color: '#0022FF', marginBottom: '20px' }}>{t('Home.welcome')}</h2>
 
         {/* Menu Section */}
         <div style={{
@@ -163,7 +163,7 @@ const Home = () => {
 </div>
 
         {/* Content Based on Active Menu */}
-                {activeMenu === t('menu.contract') && (
+                {activeMenu === t('Home.menu.contract') && (
           <>
             {loading ? (
             <p>{t('loading')}</p>
@@ -184,28 +184,28 @@ const Home = () => {
                   textAlign: 'left',
                 }}
               >
-                <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('contratoinfo.title')}</h2>
+                                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('Home.contratoinfo.title')}</h2>
                 <div style={{ borderBottom: '1px solid #E0E0E0', paddingBottom: '15px', marginBottom: '15px' }}>
                   <p style={{ margin: '5px 0' }}>
-                    <strong style={{ color: '#555' }}>{t('contratoinfo.codigo')}</strong> {contratoInfo.DataSet.Table[0]?.Codigo}
+                                                <strong style={{ color: '#555' }}>{t('Home.contratoinfo.codigo')}</strong> {contratoInfo.DataSet.Table[0]?.Codigo}
                   </p>
                   <p style={{ margin: '5px 0' }}>
-                    <strong style={{ color: '#555' }}>{t('contratoinfo.descricao')}</strong> {contratoInfo.DataSet.Table[0]?.Descricao}
+                                                <strong style={{ color: '#555' }}>{t('Home.contratoinfo.descricao')}</strong> {contratoInfo.DataSet.Table[0]?.Descricao}
                   </p>
                 </div>
                 <p style={{ margin: '10px 0' }}>
-                    <strong style={{ color: '#555' }}>{t('contratoinfo.horascontrato')}</strong> {contratoInfo.DataSet.Table[0]?.HorasTotais} h
+                                            <strong style={{ color: '#555' }}>{t('Home.contratoinfo.horascontrato')}</strong> {contratoInfo.DataSet.Table[0]?.HorasTotais} h
                 </p>
                 <p style={{ margin: '10px 0' }}>
-                    <strong style={{ color: '#555' }}>{t('contratoinfo.horasgastas')}</strong> {contratoInfo.DataSet.Table[0]?.HorasGastas} h
+                                            <strong style={{ color: '#555' }}>{t('Home.contratoinfo.horasgastas')}</strong> {contratoInfo.DataSet.Table[0]?.HorasGastas} h
                 </p>
               </motion.div>
             ) : (
-            <p style={{ fontSize: '18px', color: '#333' }}>{t('contratoinfo.error')}</p>
+                                        <p style={{ fontSize: '18px', color: '#333' }}>{t('Home.contratoinfo.error')}</p>
             )}
           </>
         )}
-                {activeMenu === t('menu.orders') && (
+                {activeMenu === t('Home.menu.orders') && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -220,11 +220,11 @@ const Home = () => {
               textAlign: 'center',
             }}
           >
-                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('menu.orders')}</h2>
-                        <p>{t('Pedidos.title')}</p>
+                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('Home.menu.orders')}</h2>
+                        <p>{t('Home.Pedidos.title')}</p>
           </motion.div>
         )}
-                {activeMenu === t('menu.products') && (
+                {activeMenu === t('Home.menu.products') && (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -239,7 +239,7 @@ const Home = () => {
       textAlign: 'center',
     }}
   >
-    <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('menu.products')}</h2>
+                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('Home.menu.products')}</h2>
     <div
       style={{
         display: 'flex',
@@ -342,7 +342,7 @@ const Home = () => {
 
 
 
-{activeMenu === t('menu.faq') && (
+                {activeMenu === t('Home.menu.faq') && (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -356,7 +356,7 @@ const Home = () => {
       boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
     }}
   >
-                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('faq.title')}</h2>
+                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('Home.faq.title')}</h2>
     <div>
       {faqItems.map((item, index) => (
         <div key={index} style={{ borderBottom: '1px solid #E0E0E0', paddingBottom: '15px', marginBottom: '15px' }}>

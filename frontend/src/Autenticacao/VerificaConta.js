@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native'; // Importa o hook para navegação
 import { Modal, View, Text, Button, StyleSheet } from 'react-native'; // Importar os componentes necessários
-
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 const VerificaConta = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmNewPassword, setConfirmNewPassword] = useState('');
     const [showModal, setShowModal] = useState(false); // Estado para controlar a exibição do modal
-
+    const { t } = useTranslation();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -70,14 +71,14 @@ const VerificaConta = () => {
                         marginBottom: '50px',
                     }}
                 >
-                    Alterar Password
+                    {t("VerificaConta.Title")}
                 </h1>
                 <form onSubmit={handleSubmit}>
                     {/* Campo Nova Password */}
                     <div style={{ marginBottom: '20px' }}>
                         <input
                             type="password"
-                            placeholder="Nova Password"
+                            placeholder={t("VerificaConta.TxtNovaPass")}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             required
@@ -95,7 +96,7 @@ const VerificaConta = () => {
                     <div style={{ marginBottom: '20px' }}>
                         <input
                             type="password"
-                            placeholder="Confirmar Nova Password"
+                            placeholder={t("VerificaConta.TxtConfirmar")}
                             value={confirmNewPassword}
                             onChange={(e) => setConfirmNewPassword(e.target.value)}
                             required
@@ -121,7 +122,7 @@ const VerificaConta = () => {
                             border: 'none',
                         }}
                     >
-                        Confirmar
+                        {t("VerificaConta.Btconfirmar")}
                     </button>
                 </form>
                 <Modal
@@ -133,7 +134,7 @@ const VerificaConta = () => {
                     <View style={styles.modalContainer}>
                         <View style={styles.modalContent}>
                             <Text style={styles.modalText}>
-                                Password atualizada com sucesso.
+                                {t("VerificaConta.Aviso.1")}
                             </Text>
                             <Button title="OK" onPress={handleCloseModal} />
                         </View>

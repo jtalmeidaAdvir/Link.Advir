@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { View, TouchableOpacity, Text } from 'react-native';
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 
 const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {  // Adicione setIsLoggedIn como prop
     const [username, setLocalUsername] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const navigation = useNavigation();
-
+    const { t } = useTranslation();
     const handleLogin = async (e) => {
         e.preventDefault();
     
@@ -48,7 +50,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 }
             } else {
                 const errorData = await response.json();
-                setErrorMessage(errorData.error || 'Erro ao fazer login');
+                setErrorMessage(errorData.error ||  t("Login.Error.1") );
             }
         } catch (error) {
             console.error('Erro de rede:', error);
@@ -77,7 +79,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
             <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 10 }}>
                 <TouchableOpacity onPress={() => navigation.navigate('RecuperarPassword')}>
                     <Text style={{ color: '#0022FF', fontSize: 14 }}>
-                    Esqueceu-se da sua palavra-passe?
+                        {t("Login.LinkRecoverPass")}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -114,13 +116,13 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                         marginBottom: '50px',
                     }}
                 >
-                    Bem Vindo
+                    {t("Login.Title") }
                 </h1>
                 <form onSubmit={handleLogin}>
                     <div style={{ marginBottom: '20px' }}>
                         <input
                             type="text"
-                            placeholder="Username"
+                            placeholder={t("Login.TxtUsername")}
                             value={username}
                             onChange={(e) => setLocalUsername(e.target.value)}
                             required
@@ -137,7 +139,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                     <div style={{ marginBottom: '20px' }}>
                         <input
                             type="password"
-                            placeholder="Password"
+                            placeholder={t("Login.TxtPass")}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -174,7 +176,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                             alignContent: 'center',
                         }}
                     >
-                        Login
+                        {t("Login.BtLogin")}
                     </button>
                 </form>
 

@@ -1,7 +1,8 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, Picker, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 const UsersEmpresa = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [users, setUsers] = useState([]);
@@ -11,7 +12,7 @@ const UsersEmpresa = () => {
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const navigation = useNavigation();
-
+    const { t } = useTranslation();
     const handleUserClick = (userId) => {
         navigation.navigate('UserModulesManagement', { userId });
     };
@@ -161,10 +162,10 @@ const UsersEmpresa = () => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Utilizadores</Text>
+            <Text style={styles.title}>{t("UsersEmpresa.Title")}</Text>
 
             <TextInput
-                placeholder="🔍 Procurar..."
+                placeholder={t("UsersEmpresa.procurar")}
                 value={searchTerm}
                 onChangeText={setSearchTerm}
                 style={styles.searchInput}
@@ -200,7 +201,7 @@ const UsersEmpresa = () => {
                                 }
                                 style={styles.empresaPicker}
                             >
-                                <Picker.Item label="Selecione uma Empresa" value="" />
+                                <Picker.Item label={t("UsersEmpresa.Selecionar")} value="" />
                                 {empresas.map((empresa) => (
                                     <Picker.Item key={empresa.id} label={empresa.empresa} value={empresa.id} />
                                 ))}
@@ -209,13 +210,13 @@ const UsersEmpresa = () => {
                                 onPress={() => handleAddEmpresa(item.id, empresaSelecionada[item.id])}
                                 style={styles.addButton}
                             >
-                                <Text style={styles.buttonText}>Adicionar</Text>
+                                <Text style={styles.buttonText}>{t("UsersEmpresa.BtAdcionar")} </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={() => handleRemoveEmpresa(item.id, empresaSelecionada[item.id])}
                                 style={styles.removeButton}
                             >
-                                <Text style={styles.buttonText}>Remover</Text>
+                                <Text style={styles.buttonText}>{t("UsersEmpresa.BtRemover")} </Text>
                             </TouchableOpacity>
                         </View>
                     </View>

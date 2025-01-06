@@ -4,7 +4,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faClose, faExpand, faTrash } from '@fortawesome/free-solid-svg-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 const PedidosAssistencia = ({ navigation }) => {
     // State variables
     const [searchTerm, setSearchTerm] = useState('');
@@ -15,7 +16,7 @@ const PedidosAssistencia = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [filterPrioridade, setFilterPrioridade] = useState(''); 
     const [filterEstado, setFilterEstado] = useState('1'); 
-
+    const { t } = useTranslation();
     const [filteredData, setFilteredData] = useState([]);
 
 
@@ -245,30 +246,30 @@ const PedidosAssistencia = ({ navigation }) => {
     // Render individual pedido item
     const renderPedidoDetails = (pedido) => (
         <View style={styles.pedidoDetailContainer}>
-            <Text style={styles.pedidoDetailLabel}>Cliente:</Text>
+            <Text style={styles.pedidoDetailLabel}>{t("PedidosAssistencia.Pedido.TxtCliente")}</Text>
             <Text style={styles.pedidoDetailValue}>{pedido.Cliente} - {pedido.Nome}</Text>
 
-            <Text style={styles.pedidoDetailLabel}>Data de Abertura:</Text>
+            <Text style={styles.pedidoDetailLabel}>{t("PedidosAssistencia.Pedido.TxtDataAbert")}</Text>
             <Text style={styles.pedidoDetailValue}>{new Date(pedido.DataHoraAbertura).toLocaleString()}</Text>
-            <Text style={styles.pedidoDetailLabel}>Prioridade:</Text>
+            <Text style={styles.pedidoDetailLabel}>{t("PedidosAssistencia.Pedido.TxtPrioridade")}</Text>
             <Text style={styles.pedidoDetailValue}>{getPrioridade(pedido.Prioridade)}</Text>
-            <Text style={styles.pedidoDetailLabel}>Estado:</Text>
+            <Text style={styles.pedidoDetailLabel}>{t("PedidosAssistencia.Pedido.TxtEstado")}</Text>
             <Text style={styles.pedidoDetailValue}>{getEstado(pedido.Estado)}</Text>
-            <Text style={styles.pedidoDetailLabel}>Descrição:</Text>
+            <Text style={styles.pedidoDetailLabel}>{t("PedidosAssistencia.Pedido.TxtDescricao")}</Text>
             <Text style={styles.pedidoDetailValue}>{pedido.DescricaoProb}</Text>
         </View>
     );
 
     const prioridades = [
-        { label: 'Baixa', value: '1' },
-        { label: 'Média', value: '2' },
-        { label: 'Alta', value: '3' },
+        { label: t("PedidosAssistencia.Prioridades.1"), value: '1' },
+        { label: t("PedidosAssistencia.Prioridades.2"), value: '2' },
+        { label: t("PedidosAssistencia.Prioridades.3"), value: '3' },
     ];
 
     const estados = [
-        { label: 'Novos', value: '1', descricao: 'Aguardar intervenção equipa Advir' },
-        { label: 'Pendentes', value: 'pendentes', descricao: 'Inclui: Em curso Equipa Advir, Reportado para Parceiro, Aguarda resposta Cliente' },
-        { label: 'Terminados', value: '0', descricao: 'Terminado' },
+        { label: t("PedidosAssistencia.Estados.1"), value: '1', descricao: 'Aguardar intervenção equipa Advir' },
+        { label: t("PedidosAssistencia.Estados.2"), value: 'pendentes', descricao: 'Inclui: Em curso Equipa Advir, Reportado para Parceiro, Aguarda resposta Cliente' },
+        { label: t("PedidosAssistencia.Estados.3"), value: '0', descricao: 'Terminado' },
     ];
     
     
@@ -276,7 +277,7 @@ const PedidosAssistencia = ({ navigation }) => {
 
     const renderFilterMenu = () => (
         <View style={styles.filterMenu}>
-            <Text style={styles.filterLabel}>Prioridade:</Text>
+            <Text style={styles.filterLabel}>{t("PedidosAssistencia.TxtPrioridade")}</Text>
             <View style={styles.filterGroup}>
     {prioridades.map(({ label, value }) => (
         <TouchableOpacity
@@ -301,7 +302,7 @@ const PedidosAssistencia = ({ navigation }) => {
     ))}
 </View>
     
-            <Text style={styles.filterLabel}>Estado:</Text>
+            <Text style={styles.filterLabel}>{t("PedidosAssistencia.TxtEstado")}</Text>
             <View style={styles.filterGroup}>
             {estados.map(({ label, value }) => (
                     <TouchableOpacity
@@ -394,12 +395,12 @@ const PedidosAssistencia = ({ navigation }) => {
 
     return (
         <ScrollView style={styles.container}>
-            <Text style={styles.title}>Pedidos de Assistência</Text>
+            <Text style={styles.title}>{t("PedidosAssistencia.Title")}</Text>
 
             <View style={styles.searchContainer}>
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="🔍 Procurar..."
+                    placeholder={t("PedidosAssistencia.TxtProcurar")}
                     value={searchTerm}
                     onChangeText={handleSearch}
                 />
@@ -407,7 +408,7 @@ const PedidosAssistencia = ({ navigation }) => {
                     style={styles.addButton}
                     onPress={() => navigation.navigate('RegistarPedido')}
                 >
-                    <Text style={styles.addButtonText}>+ Pedido</Text>
+                    <Text style={styles.addButtonText}>{t("PedidosAssistencia.BtCriarPedido")}</Text>
                 </TouchableOpacity>
                 
 
@@ -423,7 +424,7 @@ const PedidosAssistencia = ({ navigation }) => {
                         renderItem={renderSection}
                         keyExtractor={(group) => group[0]?.NumProcesso?.toString() || Math.random().toString()}
                         ListEmptyComponent={
-                            <Text style={{ textAlign: 'center', marginTop: 20 }}>Nenhum pedido encontrado.</Text>
+                            <Text style={{ textAlign: 'center', marginTop: 20 }}>{t("PedidosAssistencia.Aviso.1")}</Text>
                         }
                       
                     />
@@ -445,13 +446,13 @@ const PedidosAssistencia = ({ navigation }) => {
             >
                 <View style={styles.modalBackground}>
                     <View style={styles.modalView}>
-                        <Text style={styles.modalText}>Tem certeza que deseja eliminar este pedido?</Text>
+                        <Text style={styles.modalText}>{t("PedidosAssistencia.Aviso.2")}</Text>
                         <View style={styles.modalButtons}>
                             <TouchableOpacity style={styles.button} onPress={() => setModalVisible(false)}>
-                                <Text style={styles.buttonText}>Cancelar</Text>
+                                <Text style={styles.buttonText}>{t("PedidosAssistencia.BtCancelar")}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.button} onPress={handleDeleteConfirmation}>
-                                <Text style={styles.buttonText}>Eliminar</Text>
+                                <Text style={styles.buttonText}>{t("PedidosAssistencia.BtEliminar")}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

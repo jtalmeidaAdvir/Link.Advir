@@ -3,7 +3,8 @@ import { View, Text, TextInput, Button, StyleSheet, Modal, TouchableOpacity, Fla
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPrint, faTrash, faArrowLeft, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 const Intervencoes = (props) => {
     const navigation = useNavigation();
     const [searchTerm, setSearchTerm] = useState('');
@@ -11,7 +12,7 @@ const Intervencoes = (props) => {
     const [expandedIntervencao, setExpandedIntervencao] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedIntervencao, setSelectedIntervencao] = useState(null);
-
+    const { t } = useTranslation();
     const token = localStorage.getItem('painelAdminToken');  // Usando localStorage para obter o token
     const empresaSelecionada = localStorage.getItem('empresaSelecionada'); // Recuperando empresa
     const urlempresa = localStorage.getItem('urlempresa'); // Recuperando urlempresa
@@ -102,7 +103,7 @@ const Intervencoes = (props) => {
         return (
             <TouchableOpacity style={styles.listItem} onPress={() => toggleExpand(item.ID)}>
                 <View style={styles.itemHeader}>
-                    <Text style={styles.listText}>Intervenção: {item.Interv}</Text>
+                    <Text style={styles.listText}>{t("Intervencoes.Intervencao.Title")} {item.Interv}</Text>
                     <View style={styles.headerIcons}>
                         <TouchableOpacity onPress={() => { /* Implementar impressão */ }}>
                             <FontAwesomeIcon icon={faPrint} style={styles.icon} />
@@ -115,13 +116,12 @@ const Intervencoes = (props) => {
                 </View>
                 {isExpanded && (
                     <View style={styles.expandedContent}>
-                        <Text>Início: {new Date(item.DataHoraInicio).toLocaleDateString()} - {new Date(item.DataHoraInicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-                        <Text>Fim: {new Date(item.DataHoraFim).toLocaleDateString()} - {new Date(item.DataHoraFim).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-
-                        <Text>Duração: {item.Duracao} min</Text>
-                        <Text>Tipo: {item.TipoInterv}</Text>
-                        <Text>Técnico: {item.Nome}</Text>
-                        <Text>Descrição: {item.DescricaoResp}</Text>
+                        <Text>{t("Intervencoes.Intervencao.TxtInicio")} {new Date(item.DataHoraInicio).toLocaleDateString()} - {new Date(item.DataHoraInicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                        <Text>{t("Intervencoes.Intervencao.TxtFim")} {new Date(item.DataHoraFim).toLocaleDateString()} - {new Date(item.DataHoraFim).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                        <Text>{t("Intervencoes.Intervencao.TxtDuracao")} {item.Duracao} min</Text>
+                        <Text>{t("Intervencoes.Intervencao.TxtTipo")} {item.TipoInterv}</Text>
+                        <Text>{t("Intervencoes.Intervencao.TxtTecnico")} {item.Nome}</Text>
+                        <Text>{t("Intervencoes.Intervencao.TxtDescricao")} {item.DescricaoResp}</Text>
                     </View>
                 )}
             </TouchableOpacity>
@@ -133,13 +133,13 @@ const Intervencoes = (props) => {
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => props.navigation.navigate('PedidosAssistencia')} style={styles.backButton}>
                     <FontAwesomeIcon icon={faArrowLeft} style={{ color: '#0022FF', marginRight: 5 }} />
-                    <Text style={{ color: '#0022FF' }}>Voltar</Text>
+                    <Text style={{ color: '#0022FF' }}>{t("Intervencoes.BtVoltar")}</Text>
                 </TouchableOpacity>
             </View>
-            <Text style={styles.title}>Intervenções</Text>
+            <Text style={styles.title}>{t("Intervencoes.Title")}</Text>
             <View style={styles.searchContainer}>
                 <TextInput
-                    placeholder="🔍 Procurar..."
+                    placeholder={t("Intervencoes.Procurar")}
                     value={searchTerm}
                     onChangeText={setSearchTerm}
                     style={styles.searchInput}
@@ -148,7 +148,7 @@ const Intervencoes = (props) => {
                     style={styles.addButton}
                     onPress={() => navigation.navigate('RegistoIntervencao')}
                 >
-                    <Text style={styles.addButtonText}>+ Intervenção</Text>
+                    <Text style={styles.addButtonText}>{t("Intervencoes.BtCriarIntervencao")}</Text>
                 </TouchableOpacity>
             </View>
             <FlatList
@@ -157,7 +157,7 @@ const Intervencoes = (props) => {
                 )}
                 keyExtractor={(item) => item.ID.toString()}
                 renderItem={renderIntervencao}
-                ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma intervenção encontrada</Text>}
+                ListEmptyComponent={<Text style={styles.emptyText}>{t("Intervencoes.Aviso.1")}</Text>}
             />
             <Modal
                 animationType="slide"
@@ -167,13 +167,13 @@ const Intervencoes = (props) => {
             >
                 <View style={styles.modalBackground}>
                     <View style={styles.modalView}>
-                        <Text style={styles.modalText}>Tem certeza que deseja eliminar esta intervenção?</Text>
+                        <Text style={styles.modalText}>{t("Intervencoes.Aviso.2")}</Text>
                         <View style={styles.modalButtons}>
                             <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.button}>
-                                <Text style={styles.buttonText}>Cancelar</Text>
+                                <Text style={styles.buttonText}>{t("Intervencoes.BtCancelar")}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity onPress={confirmDelete} style={styles.button}>
-                                <Text style={styles.buttonText}>Eliminar</Text>
+                                <Text style={styles.buttonText}>{t("Intervencoes.BtEliminar")}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

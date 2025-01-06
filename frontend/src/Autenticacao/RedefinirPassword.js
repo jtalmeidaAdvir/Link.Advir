@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { View, TouchableOpacity, Text } from 'react-native';
-
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 const RedefinirPassword = ({ route }) => {
     const { token } = route.params; // Obtém o token da URL
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const navigation = useNavigation();
-
+    const { t } = useTranslation();
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (newPassword !== confirmPassword) {
-            setError('As passwords não coincidem.');
+            setError(t("RedefenirPassword.Error.1"));
             return;
         }
 
@@ -66,13 +67,13 @@ const RedefinirPassword = ({ route }) => {
                         marginBottom: '50px',
                     }}
                 >
-                    Redefinir Password
+                    {t("RedefenirPassword.Title")}
                 </h1>
                 <form onSubmit={handleSubmit}>
                     <div style={{ marginBottom: '20px' }}>
                         <input
                             type="password"
-                            placeholder="Nova Palavara-Passe"
+                            placeholder={t("RedefenirPassword.TxtNovaPass")}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             required
@@ -88,7 +89,7 @@ const RedefinirPassword = ({ route }) => {
                     <div style={{ marginBottom: '20px' }}>
                         <input
                             type="password"
-                            placeholder="Confirmar Palavra-Passe"
+                            placeholder={t("RedefenirPassword.TxtConfirmar")}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required
@@ -118,7 +119,7 @@ const RedefinirPassword = ({ route }) => {
                             border: 'none',
                         }}
                     >
-                        Redefinir
+                        {t("RedefenirPassword.BtRedefenir")}
                     </button>
                 </form>
             </div>

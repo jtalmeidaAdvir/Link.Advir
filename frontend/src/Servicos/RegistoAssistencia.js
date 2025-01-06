@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 
 
 const getCurrentDateTime = () => {
@@ -14,6 +15,7 @@ const RegistoAssistencia = (props) => {
     const [selectedObjeto, setSelectedObjeto] = useState(null);
     const token = localStorage.getItem('painelAdminToken');
     const urlempresa = localStorage.getItem('urlempresa');
+    const { t } = useTranslation();
     // Variáveis de estado
     const [formData, setFormData] = useState({
 
@@ -125,7 +127,7 @@ const RegistoAssistencia = (props) => {
         event.preventDefault();
     
         if (!formData.cliente || !formData.tecnico || !formData.origem || !formData.objeto || !formData.prioridade || !formData.secao || !formData.estado || !formData.tipoProcesso  || !formData.problema) {
-            setMessage('Por favor, preencha todos os campos obrigatórios.');
+            setMessage(t("RegistoAssistencia.Aviso.1"));
             return;
         }
     
@@ -184,9 +186,9 @@ const RegistoAssistencia = (props) => {
             }
     
             const data = await response.json();
-            setMessage('Pedido criado com sucesso!');
+            setMessage(t("RegistoAssistencia.Aviso.2"));
 
-
+            /*
             try {
                 const response = await fetch(`https://webapiprimavera.advir.pt/send-email`, {
                     method: 'POST',
@@ -203,18 +205,18 @@ const RegistoAssistencia = (props) => {
                 if (response.ok) {
                     const data = await response.json();
                     console.log('E-mail enviado com sucesso:', data);
-                    alert('E-mail enviado com sucesso!');
+                   // alert('E-mail enviado com sucesso!');
                 } else {
                     const errorData = await response.json();
                     console.error('Erro ao enviar e-mail:', errorData);
-                    alert('Erro ao enviar e-mail: ' + errorData.message);
+                    //alert('Erro ao enviar e-mail: ' + errorData.message);
                 }
             } catch (error) {
                 console.error('Erro ao fazer a requisição:', error);
                 alert('Erro ao fazer a requisição: ' + error.message);
             }
 
-
+            */
 
             setFormData({
                 cliente: '',
@@ -253,13 +255,13 @@ const RegistoAssistencia = (props) => {
     return (
         
         <div style={containerStyle}>
-            <h1 style={headerStyle}>Registo de Assistencia</h1>
+            <h1 style={headerStyle}>{t("RegistoAssistencia.Title")}</h1>
             {message && <div style={messageStyle}>{message}</div>}
             {/* Informações do Cliente e Contacto */}
             <div style={formRowStyle}>
                 <div style={selectColumnStyle}>
                     <select name="cliente" value={formData.cliente} onChange={handleChange} onClick={() => fetchData('routePedidos_STP/LstClientes', 'clientes', 'carregandoClientes')} style={selectStyle}>
-                        <option value="">Cliente</option>
+                        <option value="">{t("RegistoAssistencia.TxtCliente")}</option>
                         {dataLists.clientes.map((c) => (
                             <option key={c.Cliente} value={c.Cliente}>
                                 {c.Cliente} - {c.Nome}
@@ -267,7 +269,7 @@ const RegistoAssistencia = (props) => {
                         ))}
                     </select>
                     <select name="contacto" value={formData.contacto} onChange={handleChange} onClick={() => fetchData(`routePedidos_STP/ListarContactos/${formData.cliente}`, 'contactos', 'carregandoContactos')} style={selectStyle}>
-                        <option value="">Contacto</option>
+                        <option value="">{t("RegistoAssistencia.TxtContacto")}</option>
                         {dataLists.contactos.map((co) => (
                             <option key={co.Contacto} value={co.Contacto}>
                                {co.Contacto} - {co.PrimeiroNome} {co.UltimoNome}
@@ -290,7 +292,7 @@ const RegistoAssistencia = (props) => {
                 </div>
                 <div style={selectColumnStyle}>
                     <select name="tecnico" value={formData.tecnico} onChange={handleChange} onClick={() => fetchData('routePedidos_STP/LstTecnicosTodos', 'tecnicos', 'carregandoTecnicos')} style={selectStyle}>
-                        <option value="">Tecnico</option>
+                        <option value="">{t("RegistoAssistencia.TxtTecnico")}</option>
                         {dataLists.tecnicos.map((t) => (
                             <option key={t.Tecnico} value={t.Tecnico}>
                                 {t.Tecnico} - {t.Nome}
@@ -298,7 +300,7 @@ const RegistoAssistencia = (props) => {
                         ))}
                     </select>
                     <select name="origem" value={formData.origem} onChange={handleChange} onClick={() => fetchData('routePedidos_STP/LstOrigensProcessos', 'origens', 'carregandoOrigens')} style={selectStyle}>
-                        <option value="">Origem</option>
+                        <option value="">{t("RegistoAssistencia.TxtOrigem")}</option>
                         {dataLists.origens.map((o) => (
                             <option key={o.OrigemProcesso} value={o.OrigemProcesso}>
                                 {o.OrigemProcesso} - {o.Descricao}
@@ -320,7 +322,7 @@ const RegistoAssistencia = (props) => {
                 
             </div>
 
-            <h2 style={detailsHeaderStyle}>Detalhes da Assistencia</h2>
+            <h2 style={detailsHeaderStyle}>{t("RegistoAssistencia.Title2")}</h2>
 
             {/* Detalhes da Assistência */}
             <div style={formRowStyle}>
@@ -337,7 +339,7 @@ const RegistoAssistencia = (props) => {
                         onClick={() => fetchData('routePedidos_STP/LstObjectos', 'objetos', 'carregandoObjetos')}
                         style={selectStyle}
                     >
-                        <option value="">Objeto</option>
+                        <option value="">{t("RegistoAssistencia.TxtObjeto")}</option>
                         {dataLists.objetos.map((o) => (
                             <option key={o.ID} value={o.Objecto}>
                                 {o.Objecto}
@@ -347,7 +349,7 @@ const RegistoAssistencia = (props) => {
                 </div>
                 <div style={selectColumnStyle}>
                     <select name="prioridade" value={formData.prioridade} onChange={handleChange} onClick={() => fetchData('routePedidos_STP/ListarTiposPrioridades', 'prioridades', 'carregandoPrioridades')} style={selectStyle}>
-                        <option value="">Prioridade</option>
+                        <option value="">{t("RegistoAssistencia.TxtPrioridade")}</option>
                         {dataLists.prioridades.map((p) => (
                             <option key={p.Prioridade} value={p.Prioridade}>
                                 {p.Prioridade} - {p.Descricao}
@@ -363,7 +365,7 @@ const RegistoAssistencia = (props) => {
             <div style={formRowStyle}>
                 <div style={selectColumnStyle}>
                     <select name="secao" value={formData.secao} onChange={handleChange} onClick={() => fetchData('routePedidos_STP/ListarSeccoes', 'seccoes', 'carregandoSeccoes')} style={selectStyle}>
-                        <option value="">Secao</option>
+                        <option value="">{t("RegistoAssistencia.TxtSecao")}</option>
                         {dataLists.seccoes.map((s) => (
                             <option key={s.Seccao} value={s.Seccao}>
                                 {s.Seccao} - {s.Nome}
@@ -373,7 +375,7 @@ const RegistoAssistencia = (props) => {
                 </div>
                 <div style={selectColumnStyle}>
                     <select name="estado" value={formData.estado} onChange={handleChange} onClick={() => fetchData('routePedidos_STP/LstEstadosTodos', 'estados', 'carregandoEstados')} style={selectStyle}>
-                        <option value="">Estado</option>
+                        <option value="">{t("RegistoAssistencia.TxtEstado")}</option>
                         {dataLists.estados.map((e) => (
                             <option key={e.Estado} value={e.Estado}>
                                 {e.Descricao}
@@ -387,7 +389,7 @@ const RegistoAssistencia = (props) => {
             <div style={formRowStyle}>
                 <div style={selectColumnStyle}>
                     <select name="tipoProcesso" value={formData.tipoProcesso} onChange={handleChange} onClick={() => fetchData('routePedidos_STP/ListarTiposProcesso', 'tiposProcessos', 'carregandoTiposProcessos')} style={selectStyle}>
-                        <option value="">Tipo Processo</option>
+                        <option value="">{t("RegistoAssistencia.TxtTipoProcesso")}</option>
                         {dataLists.tiposProcessos.map((tp) => (
                             <option key={tp.TipoProcesso} value={tp.TipoProcesso}>
                                 {tp.TipoProcesso} - {tp.Descricao}
@@ -406,7 +408,7 @@ const RegistoAssistencia = (props) => {
                     onClick={() => fetchData(`routePedidos_STP/Listarcontratos/${formData.cliente}`, 'contratosID', 'carregandocontratosID')} 
                     style={selectStyle}
                 >
-                    <option value="">Contrato</option>
+                        <option value="">{t("RegistoAssistencia.TxtContrato")}</option>
                     {dataLists.contratosID.map((ct) => (
                         <option key={ct.ID} value={ct.ID}>
                             {ct.Codigo} - {ct.Descricao1}
@@ -422,17 +424,17 @@ const RegistoAssistencia = (props) => {
 
                 {/* Áreas de texto para Problema e Como Reproduzir */}
                 <div style={textareaContainerStyle}>
-                <textarea name="problema" placeholder="Problema" value={formData.problema} onChange={handleChange} style={textareaStyle} />
-                <textarea name="comoReproduzir" placeholder="Como Reproduzir" value={formData.comoReproduzir} onChange={handleChange} style={textareaStyle} />
+                <textarea name="problema" placeholder={t("RegistoAssistencia.TxtProblema")} value={formData.problema} onChange={handleChange} style={textareaStyle} />
+                <textarea name="comoReproduzir" placeholder={t("RegistoAssistencia.TxtComoReproduzir")} value={formData.comoReproduzir} onChange={handleChange} style={textareaStyle} />
             </div>
 
             {/* Botões de Cancelar e Gravar */}
             <div style={buttonContainerStyle}>
                 <button onClick={() => props.navigation.navigate('PedidosAssistencia')} style={cancelButtonStyle}>
-                    Cancelar
+                    {t("RegistoAssistencia.BtCancelar")}
                 </button>
                 <button onClick={handleSubmit} style={saveButtonStyle} disabled={isSubmitting}>
-                    {isSubmitting ? 'Gravando...' : 'Gravar'}
+                    {isSubmitting ? t("RegistoAssistencia.BtGravando") : t("RegistoAssistencia.BtGravar")}
                 </button>
             </div>
         </div>

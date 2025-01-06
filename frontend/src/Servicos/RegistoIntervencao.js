@@ -339,6 +339,7 @@ const RegistoIntervencao = (props) => {
                     qtdeCliente: qtdeCliente, // Using modal input value
                     precoCliente: precoCliente, // Using modal input value
                     descontoCliente: descontoCliente, // Using modal input value
+                    
                 };
 
                 // If the transport service is not null, create an additional article
@@ -359,6 +360,7 @@ const RegistoIntervencao = (props) => {
                         qtdeCliente: qtdeClienteDeslocacao, // Using desloca��o modal input value
                         precoCliente: precoClienteDeslocacao, // Using desloca��o modal input value
                         descontoCliente: descontoClienteDeslocacao,
+                        
                     };
 
                     // Add the transport article to the added articles array

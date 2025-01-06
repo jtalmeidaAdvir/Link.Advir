@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { View, TouchableOpacity, Text } from 'react-native';
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 
 const RecuperarPassword = () => {
     const [email, setEmail] = useState('');
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const navigation = useNavigation();
-
+    const { t } = useTranslation();
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -19,11 +21,11 @@ const RecuperarPassword = () => {
             });
 
             if (response.ok) {
-                setMessage('Email enviado com sucesso! Verifique a sua caixa de entrada.');
+                setMessage(t("RecuperarPassword.Avisos.Sucesso"));
                 setError('');
             } else {
                 const errorData = await response.json();
-                setError(errorData.error || 'Erro ao enviar email.');
+                setError(errorData.error || t("RecuperarPassword.Error.1"));
             }
         } catch (error) {
             console.error('Erro de rede:', error);
@@ -61,13 +63,13 @@ const RecuperarPassword = () => {
                         marginBottom: '50px',
                     }}
                 >
-                    Recuperar a Minha Palavra-Passe
+                    {t("RecuperarPassword.Title")}
                 </h1>
                 <form onSubmit={handleSubmit}>
                     <div style={{ marginBottom: '20px' }}>
                         <input
                             type="email"
-                            placeholder="Insere o teu email"
+                            placeholder={t("RecuperarPassword.TxtEmail")}
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
@@ -102,13 +104,13 @@ const RecuperarPassword = () => {
                             border: 'none',
                         }}
                     >
-                        Recuperar
+                        {t("RecuperarPassword.BtRecuperar")}
                     </button>
                 </form>
 
                 <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 20 }}>
                     <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                        <Text style={{ color: '#0022FF', fontSize: 14 }}>Voltar ao Login</Text>
+                        <Text style={{ color: '#0022FF', fontSize: 14 }}>{t("RecuperarPassword.LinkLogin")}</Text>
                     </TouchableOpacity>
                 </View>
             </div>
