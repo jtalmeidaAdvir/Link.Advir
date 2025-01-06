@@ -48,7 +48,7 @@ import AddPartesDiarias from './src/Obras/AddPartesDiarias';
 
 import UserModulesManagement from './src/Autenticacao/UserModulesManagement';
 import logo from './assets/img_logo.png';
-
+import i18n from './src/i18n';
 const Drawer = createDrawerNavigator();
 
 
@@ -302,24 +302,44 @@ const AppNavigator = () => {
                     </View>
                 ),
                 headerRight: () => (
-                    <TouchableOpacity 
-                        onPress={() => {
-                            if (isLoggedIn) {
-                                navigation.navigate('Perfil');
-                            } else {
-                                navigation.navigate('Login');
-                            }
-                        }}
-                        style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}
-                    >
-                        <FontAwesome name="user" size={20} color="#0022FF" />
-                        <Text style={{ marginLeft: 8, color: '#0022FF', fontSize: 16 }}>{username}</Text>
-                        {empresa && (
-                            <Text style={{ marginLeft: 15, color: '#0022FF', fontSize: 16 }}>
-                                {empresa}
-                            </Text>
-                        )}
-                    </TouchableOpacity>
+                   
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
+
+
+                        {/* Botão de perfil/login */}
+                        <TouchableOpacity
+                            onPress={() => {
+                                if (isLoggedIn) {
+                                    navigation.navigate('Perfil');
+                                } else {
+                                    navigation.navigate('Login');
+                                }
+                            }}
+                            style={{ flexDirection: 'row', alignItems: 'center' }}
+                        >
+                            <FontAwesome name="user" size={20} color="#0022FF" />
+                            <Text style={{ marginLeft: 8, color: '#0022FF', fontSize: 16 }}>{username}</Text>
+                            {empresa && (
+                                <Text style={{ marginLeft: 15, color: '#0022FF', fontSize: 16 }}>
+                                    {empresa}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+
+                        {/* Botões de Idioma */}
+                        <TouchableOpacity
+                            onPress={() => i18n.changeLanguage('en')}
+                            style={{ marginRight: 10, marginLeft: 10 }}
+                        >
+                            <Text style={{ color: '#0022FF', fontSize: 16 }}>EN</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => i18n.changeLanguage('pt')}
+                            style={{ marginRight: 15 }}
+                        >
+                            <Text style={{ color: '#0022FF', fontSize: 16 }}>PT</Text>
+                        </TouchableOpacity>
+                    </View>
                 ),
             })}
         >

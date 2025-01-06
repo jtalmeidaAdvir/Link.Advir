@@ -1,13 +1,16 @@
 ﻿import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { FaFileContract, FaPhone, FaBoxOpen, FaQuestionCircle,FaBars } from 'react-icons/fa';
-
+import { FaFileContract, FaPhone, FaBoxOpen, FaQuestionCircle, FaBars } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import i18n from './i18n'; // Import do i18n
 
 const Home = () => {
+    const { t } = useTranslation();
+
   const [isDrawerOpen, setDrawerOpen] = useState(false);
-  const [activeMenu, setActiveMenu] = useState('Contrato'); // Estado para o menu ativo
+    const [activeMenu, setActiveMenu] = useState(t('menu.contract')); // Estado para o menu ativo
   const [contratoInfo, setContratoInfo] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -24,17 +27,17 @@ const Home = () => {
   const [expandedIndex, setExpandedIndex] = useState(null); // Estado para controlar qual pergunta está expandida
 
   const faqItems = [
-    {
-      question: 'Como posso alterar as minhas informações de contrato?',
-      answer: 'Para alterar as informações de contrato, aceda à secção "Contrato" e clique em "Editar".',
+      {
+          question: t('faq.questions.q1') ,
+          answer: t('faq.questions.a1'),
     },
     {
-      question: 'Quais são os métodos de pagamento disponíveis?',
-      answer: 'Pode pagar através de transferência bancária, cartão de crédito ou débito direto.',
+        question: t('faq.questions.q2'),
+        answer: t('faq.questions.a2'),
     },
     {
-      question: 'Como posso contactar o suporte?',
-      answer: 'Pode contactar o suporte através do número de telefone listado na secção "Pedidos".',
+        question: t('faq.questions.q3'),
+        answer: t('faq.questions.a3'),
     },
   ];
   
@@ -45,60 +48,43 @@ const Home = () => {
 
 
 
-  const menus = [
-    { title: 'Contrato', color: '#0022FF', icon: <FaFileContract size={32} /> },
-    { title: 'Pedidos', color: '#0022FF', icon: <FaPhone size={32} /> }, // Ícone de telefone para "Pedidos"
-    { title: 'Produtos', color: '#0022FF', icon: <FaBoxOpen size={32} /> },
-    { title: 'FAQ', color: '#0022FF', icon: <FaQuestionCircle size={32} /> }, // Ícone de perguntas para "FAQ"
-  ];
+    const menus = [
+        { title: t('menu.contract'), icon: <FaFileContract size={32} /> },
+        { title: t('menu.orders'), icon: <FaPhone size={32} /> },
+        { title: t('menu.products'), icon: <FaBoxOpen size={32} /> },
+        { title: t('menu.faq'), icon: <FaQuestionCircle size={32} /> },
+    ];
 
 
-  useEffect(() => {
-    const fetchContratoInfo = async () => {
-      try {
-        const token = await AsyncStorage.getItem('painelAdminToken');
-        const urlempresa = await AsyncStorage.getItem('urlempresa');
-        const id = await AsyncStorage.getItem('empresa_areacliente');
+    useEffect(() => {
+        const fetchContratoInfo = async () => {
+            try {
+                const token = await AsyncStorage.getItem('painelAdminToken');
+                const urlempresa = await AsyncStorage.getItem('urlempresa');
+                const id = await AsyncStorage.getItem('empresa_areacliente');
 
-        if (!id) {
-          setErrorMessage('ID da empresa não encontrado.');
-          setLoading(false);
-          return;
-        }
+                if (!id || !token || !urlempresa) {
+                    throw new Error(t('error') + 'Token or URL missing.');
+                }
 
-        if (!token || !urlempresa) {
-          setErrorMessage('Token ou URL da empresa não encontrados.');
-          setLoading(false);
-          return;
-        }
+                const response = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${id}`, {
+                    headers: { Authorization: `Bearer ${token}`, urlempresa },
+                });
 
-          const response = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${id}`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            urlempresa,
-            'Content-Type': 'application/json',
-          },
-        });
+                if (!response.ok) throw new Error(t('error') + response.statusText);
+                const data = await response.json();
+                setContratoInfo(data);
+            } catch (error) {
+                setErrorMessage(error.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchContratoInfo();
+    }, [t]);
 
-        if (!response.ok) {
-          throw new Error(`Erro : ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        setContratoInfo(data);
-        console.log('Dados recebidos do endpoint:', data);
-      } catch (error) {
-        setErrorMessage(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchContratoInfo();
-  }, []);
-
-  return (
+    return (
+          
     <div style={{ height: '100vh', overflowY: 'auto', fontFamily: 'Poppins, sans-serif', background: 'linear-gradient(135deg, #f3f6fb, #d4e4ff)' }}>
       <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet" />
       
@@ -138,7 +124,7 @@ const Home = () => {
         minHeight: '100vh',
         fontFamily: 'Poppins, sans-serif',
       }}>
-        <h2 style={{ fontWeight: '600', color: '#0022FF', marginBottom: '20px' }}>Área do Cliente - Advir</h2>
+                <h2 style={{ fontWeight: '600', color: '#0022FF', marginBottom: '20px' }}>{t('welcome')}</h2>
 
         {/* Menu Section */}
         <div style={{
@@ -176,12 +162,11 @@ const Home = () => {
   ))}
 </div>
 
-
         {/* Content Based on Active Menu */}
-        {activeMenu === 'Contrato' && (
+                {activeMenu === t('menu.contract') && (
           <>
             {loading ? (
-              <p>Carregando informações...</p>
+            <p>{t('loading')}</p>
             ) : errorMessage ? (
               <p style={{ color: 'red', fontSize: '18px' }}>{errorMessage}</p>
             ) : contratoInfo ? (
@@ -199,28 +184,28 @@ const Home = () => {
                   textAlign: 'left',
                 }}
               >
-                <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>Informações do Contrato</h2>
+                <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('contratoinfo.title')}</h2>
                 <div style={{ borderBottom: '1px solid #E0E0E0', paddingBottom: '15px', marginBottom: '15px' }}>
                   <p style={{ margin: '5px 0' }}>
-                    <strong style={{ color: '#555' }}>Código:</strong> {contratoInfo.DataSet.Table[0]?.Codigo}
+                    <strong style={{ color: '#555' }}>{t('contratoinfo.codigo')}</strong> {contratoInfo.DataSet.Table[0]?.Codigo}
                   </p>
                   <p style={{ margin: '5px 0' }}>
-                    <strong style={{ color: '#555' }}>Descrição:</strong> {contratoInfo.DataSet.Table[0]?.Descricao}
+                    <strong style={{ color: '#555' }}>{t('contratoinfo.descricao')}</strong> {contratoInfo.DataSet.Table[0]?.Descricao}
                   </p>
                 </div>
                 <p style={{ margin: '10px 0' }}>
-                  <strong style={{ color: '#555' }}>Horas Contratualizadas:</strong> {contratoInfo.DataSet.Table[0]?.HorasTotais} h
+                    <strong style={{ color: '#555' }}>{t('contratoinfo.horascontrato')}</strong> {contratoInfo.DataSet.Table[0]?.HorasTotais} h
                 </p>
                 <p style={{ margin: '10px 0' }}>
-                  <strong style={{ color: '#555' }}>Horas Gastas:</strong> {contratoInfo.DataSet.Table[0]?.HorasGastas} h
+                    <strong style={{ color: '#555' }}>{t('contratoinfo.horasgastas')}</strong> {contratoInfo.DataSet.Table[0]?.HorasGastas} h
                 </p>
               </motion.div>
             ) : (
-              <p style={{ fontSize: '18px', color: '#333' }}>Informações não disponíveis.</p>
+            <p style={{ fontSize: '18px', color: '#333' }}>{t('contratoinfo.error')}</p>
             )}
           </>
         )}
-        {activeMenu === 'Pedidos' && (
+                {activeMenu === t('menu.orders') && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -235,11 +220,11 @@ const Home = () => {
               textAlign: 'center',
             }}
           >
-            <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>Pedidos</h2>
-            <p>Conteúdo relacionado com Pedidos.</p>
+                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('menu.orders')}</h2>
+                        <p>{t('Pedidos.title')}</p>
           </motion.div>
         )}
-       {activeMenu === 'Produtos' && (
+                {activeMenu === t('menu.products') && (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -254,7 +239,7 @@ const Home = () => {
       textAlign: 'center',
     }}
   >
-    <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>Produtos</h2>
+    <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('menu.products')}</h2>
     <div
       style={{
         display: 'flex',
@@ -357,7 +342,7 @@ const Home = () => {
 
 
 
-        {activeMenu === 'FAQ' && (
+{activeMenu === t('menu.faq') && (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -371,7 +356,7 @@ const Home = () => {
       boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
     }}
   >
-    <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>Perguntas Frequentes</h2>
+                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('faq.title')}</h2>
     <div>
       {faqItems.map((item, index) => (
         <div key={index} style={{ borderBottom: '1px solid #E0E0E0', paddingBottom: '15px', marginBottom: '15px' }}>
