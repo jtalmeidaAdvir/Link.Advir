@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Image, Modal, TouchableOpacity } from 'react-native';
-
+import i18n from './i18n';
+import { useTranslation } from 'react-i18next';
 
 const Perfil = ({ user }) => {
     const [newPassword, setNewPassword] = useState('');
@@ -8,7 +9,7 @@ const Perfil = ({ user }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [profileImage, setProfileImage] = useState(null);
     const fileInput = useRef(null);
-
+    const { t } = useTranslation();
     useEffect(() => {
         loadProfileImage(); // Carrega a imagem de perfil ao abrir a página
     }, []);
@@ -66,14 +67,14 @@ const Perfil = ({ user }) => {
 
             const data = await response.json();
             if (response.ok) {
-                alert(data.message || "Imagem carregada com sucesso.");
+                alert(data.message || t("Perfil.Alerta.1"));
             } else {
                 console.error("Erro do servidor:", data);
-                alert(data.error || "Erro ao carregar imagem.");
+                alert(data.error || t("Perfil.Error.1"));
             }
         } catch (error) {
-            console.error("Erro ao carregar imagem:", error);
-            alert("Erro de rede ao tentar carregar a imagem.");
+            console.error(t("Perfil.Error.1"), error);
+            alert(t("Perfil.Error.1"));
         }
     };
 
@@ -89,7 +90,7 @@ const Perfil = ({ user }) => {
     // Função para abrir o modal de confirmação para alterar a password
     const handleSavePassword = () => {
         if (newPassword !== confirmPassword) {
-            alert("As passwords não coincidem.");
+            alert(t("Perfil.Alerta.2"));
             return;
         }
         setModalVisible(true); // Abre o modal de confirmação
@@ -120,21 +121,21 @@ const Perfil = ({ user }) => {
             const data = await response.json();
 
             if (response.ok) {
-                alert(data.message || "Password alterada com sucesso.");
+                alert(data.message || t("Perfil.Alerta.3"));
                 setNewPassword('');
                 setConfirmPassword('');
             } else {
-                alert(data.error || "Erro ao alterar a password.");
+                alert(data.error || t("Perfil.Error.2"));
             }
         } catch (error) {
-            console.error("Erro ao alterar a password:", error);
-            alert("Erro de rede ao tentar alterar a password.");
+            console.error(t("Perfil.Error.2"), error);
+            alert(t("Perfil.Error.2"));
         }
     };
 
     return (
         <View style={styles.container}>
-            <Text style={styles.welcomeText}>Bem Vindo, {user?.name}</Text>
+            <Text style={styles.welcomeText}>{t("Perfil.Title")}, {user?.name}</Text>
 
             <View style={styles.profileContainer}>
                 <View style={styles.infoContainer}>
@@ -146,7 +147,7 @@ const Perfil = ({ user }) => {
                         style={styles.avatar}
                         source={profileImage ? { uri: profileImage } : require('../assets/icon.png')}
                     />
-                    <Text style={styles.uploadText}>Carregar Imagem</Text>
+                    <Text style={styles.uploadText}>{t("Perfil.Carregar")}</Text>
                 </TouchableOpacity>
                 {/* Input invisível para carregar imagem */}
                 <input
@@ -157,24 +158,24 @@ const Perfil = ({ user }) => {
                 />
             </View>
 
-            <Text style={styles.changePasswordText}>Alterar password</Text>
+            <Text style={styles.changePasswordText}>{t("Perfil.Alterar")}</Text>
 
             <TextInput
                 style={styles.input}
-                placeholder="Nova Password"
+                placeholder={t("Perfil.Novapass")}
                 value={newPassword}
                 secureTextEntry
                 onChangeText={setNewPassword}
             />
             <TextInput
                 style={styles.input}
-                placeholder="Confirmar Password"
+                placeholder={t("Perfil.Confirmarpass")}
                 value={confirmPassword}
                 secureTextEntry
                 onChangeText={setConfirmPassword}
             />
 
-            <Button title="Gravar" onPress={handleSavePassword} color="#0022FF" />
+            <Button title={t("Perfil.Gravar")} onPress={handleSavePassword} color="#0022FF" />
 
             {/* Modal de confirmação */}
             <Modal
@@ -185,19 +186,19 @@ const Perfil = ({ user }) => {
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContainer}>
-                        <Text style={styles.modalText}>Deseja realmente alterar a password?</Text>
+                        <Text style={styles.modalText}>{t("Perfil.ModalPergunta")}</Text>
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
                                 style={[styles.modalButton, styles.cancelButton]}
                                 onPress={() => setModalVisible(false)}
                             >
-                                <Text style={styles.buttonText}>Cancelar</Text>
+                                <Text style={styles.buttonText}>{t("Perfil.ModalCancelar")}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.modalButton, styles.confirmButton]}
                                 onPress={alterarPassword}
                             >
-                                <Text style={styles.buttonText}>Sim</Text>
+                                <Text style={styles.buttonText}>{t("Perfil.ModalSim")}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

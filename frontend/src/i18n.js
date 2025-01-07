@@ -2,7 +2,7 @@
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-
+const storedLanguage = localStorage.getItem('Idioma') || 'pt';
 i18n
     .use(LanguageDetector)
     .use(initReactI18next)
@@ -216,6 +216,56 @@ i18n
                             TxtDescricao: "Description:",
                         },
                     },
+                    RegistoIntervencao: {
+                        Aviso:{
+                            1: "Please fill in all required fields before proceeding.",
+                            2:"Intervention saved successfully!",
+                            3:"Success!",
+                            4:"Close",
+                        },
+                        Title: "Intervention Log",
+                        TxtTipoInter: "Type of Intervention",
+                        TxtTecnico: "Technician",
+                        DataInicio: "Start Date",
+                        DataFim: "End Date",
+                        HoraInicio: "Start Time",
+                        HoraFim: "End Time",
+                        Descricao: "Description",
+                        Estado: "Status",
+                        Tipo: "Type",
+                        SubTitulo: "Add Items/Services",
+                        SelecioneArtigo: "Select an Item",
+                        Remover: "Remove",
+                        Cancelar: "Cancel",
+                        Criar: "Create Intervention",
+                        Loading: "Loading...",
+                        AddArtigo: "Add Item",
+                        OcultarArtigo: "Hide Item Form",
+                        Add: "Add",
+                        Atualizar: "Update",
+                        Expandir: "Expand",
+                        Recolher: "Collapse",
+                    },
+                    Perfil: {
+                        Alerta: {
+                            1: "Image uploaded successfully.",
+                            2: "The passwords do not match.",
+                            3: "Password changed successfully.",
+                        },
+                        Error:{
+                            1:"Error uploading image.",
+                            2:"Error changing the password.",
+                        },
+                        Title: "Welcome",
+                        Carregar: "Upload Image",
+                        Alterar: "Change password",
+                        Novapass: "New Password",
+                        Confirmarpass: "Confirm Password",
+                        Gravar: "Save",
+                        ModalPergunta: "Are you sure you want to change the password?",
+                        ModalCancelar: "Cancel",
+                        ModalSim: "Yes",
+                    },
                 },
             },
             pt: {
@@ -428,10 +478,60 @@ i18n
                         },
 
                     },
+                    RegistoIntervencao: {
+                        Aviso: {
+                            1: "Por favor, preencha todos os campos obrigatorios antes de prosseguir.",
+                            2: "Intervenção gravada com sucesso!",
+                            3: "Sucesso!",
+                            4: "Fechar",
+                        },
+                        Title: "Registo de Intervenções",
+                        TxtTipoInter: "Tipo de Intervencao",
+                        TxtTecnico: "Tecnico",
+                        DataInicio: "Data Inicio",
+                        DataFim: "Data Fim",
+                        HoraInicio: "Hora Inicio",
+                        HoraFim: "Hora Fim",
+                        Descricao: "Descrição",
+                        Estado: "Estado",
+                        Tipo: "Tipo",
+                        SubTitulo: "Adicionar Artigos/Servicos",
+                        SelecioneArtigo: "Selecione um Artigo",
+                        Remover: "Remover",
+                        Cancelar: "Cancelar",
+                        Criar: "Criar Intervencão",
+                        Loading: "Carregando...",
+                        AddArtigo: "Adicionar Artigo",
+                        OcultarArtigo: "Ocultar Formulario de Artigo",
+                        Add: "Adicionar",
+                        Atualizar: "Atualizar",
+                        Expandir: "Expandir",
+                        Recolher: "Recolher",
+                    },
+                    Perfil: {
+                        Alerta: {
+                            1: "Imagem carregada com sucesso.",
+                            2: "As passwords não coincidem.",
+                            3: "Password alterada com sucesso.",
+                        },
+                        Error: {
+                            1: "Erro ao carregar imagem.",
+                            2: "Erro ao alterar a password.",
+                        },
+                        Title: "Bem Vindo",
+                        Carregar: "Carregar Imagem",
+                        Alterar: "Alterar password",
+                        Novapass: "Nova Password",
+                        Confirmarpass: "Confirmar Password",
+                        Gravar: "Gravar",
+                        ModalPergunta: "Deseja realmente alterar a password?",
+                        ModalCancelar: "Cancelar",
+                        ModalSim: "Sim",
+                    },
                 },
             },
         },
-        lng: "pt", // Define o idioma padrão como PT
+        lng: storedLanguage, // Define o idioma padrão como PT
         fallbackLng: "pt", 
         interpolation: {
             escapeValue: false,

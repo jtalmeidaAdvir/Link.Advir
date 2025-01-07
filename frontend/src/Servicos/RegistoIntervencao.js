@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import Modal from './Modal';
+import i18n from '../i18n';
+import { useTranslation } from 'react-i18next';
 const RegistoIntervencao = (props) => {
 
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-    
+    const { t } = useTranslation();
 
     const initialArtigoForm = () => ({
         artigo: '',
@@ -521,7 +523,7 @@ const RegistoIntervencao = (props) => {
             !formData.horaInicio ||
             !formData.horaFim
         ) {
-            setSuccessMessage("Por favor, preencha todos os campos obrigatorios antes de prosseguir.");
+            setSuccessMessage(t("RegistoIntervencao.Aviso.1"));
             return;
         }
         setSuccessMessage('');
@@ -541,7 +543,7 @@ const RegistoIntervencao = (props) => {
 
     return (
         <div style={containerStyle}>
-            <h1 style={headerStyle}>Registo de Intervencoes</h1>
+            <h1 style={headerStyle}>{t("RegistoIntervencao.Title")}</h1>
 
             <div style={formRowStyle}>
                 <div style={selectColumnStyle}>
@@ -553,7 +555,7 @@ const RegistoIntervencao = (props) => {
                         onClick={fetchTiposIntervencao}
                         required 
                     >
-                        <option value="">Tipo de Intervencao</option>
+                        <option value="">{t("RegistoIntervencao.TxtTipoInter")}</option>
                         {tiposIntervencao.map((tipo) => (
                             <option key={tipo.Prioridade} value={tipo.Prioridade}>
                                 {tipo.Prioridade} - {tipo.Descricao}
@@ -573,7 +575,7 @@ const RegistoIntervencao = (props) => {
                         onClick={fetchTecnicos}
                         required 
                     >
-                        <option value="">Tecnico</option>
+                        <option value="">{t("RegistoIntervencao.TxtTecnico")}</option>
                         {tecnicos.map((tecnico) => (
                             <option key={tecnico.Tecnico} value={tecnico.Tecnico}>
                                 {tecnico.Tecnico} - {tecnico.Nome}
@@ -585,7 +587,7 @@ const RegistoIntervencao = (props) => {
             </div>
             <div style={dateTimeContainerStyle}>
                 <label>
-                    Data Inicio </label>
+                    {t("RegistoIntervencao.DataInicio")} </label>
                     <input
                         type="date"
                         name="dataInicio"
@@ -597,7 +599,7 @@ const RegistoIntervencao = (props) => {
                
 
                 <label>
-                    Data Fim </label>
+                    {t("RegistoIntervencao.DataFim")} </label>
                     <input
                         type="date"
                         name="dataFim"
@@ -609,7 +611,7 @@ const RegistoIntervencao = (props) => {
                
 
                 <label>
-                    Hora Inicio</label>
+                    {t("RegistoIntervencao.HoraInicio")} </label>
                     <input
                         type="time"
                         name="horaInicio"
@@ -621,7 +623,7 @@ const RegistoIntervencao = (props) => {
                 
 
                 <label>
-                    Hora Fim</label>
+                    {t("RegistoIntervencao.HoraFim")}</label>
                     <input
                         type="time"
                         name="horaFim"
@@ -635,7 +637,7 @@ const RegistoIntervencao = (props) => {
 
             <div style={descricaodiv}>
                 <label>
-                    Descrição</label>
+                    {t("RegistoIntervencao.Descricao")}</label>
                 <textarea
                     type="text"
                     name="descricao"
@@ -657,7 +659,7 @@ const RegistoIntervencao = (props) => {
                         onClick={fetchEstados}
                         required 
                     >
-                        <option value="">Estado</option>
+                        <option value="">{t("RegistoIntervencao.Estado")}</option>
                         {estados.map((estado) => (
                             <option key={estado.Estado} value={estado.Estado}>
                                 {estado.Descricao}
@@ -675,7 +677,7 @@ const RegistoIntervencao = (props) => {
                         onClick={fetchTipos}
                         required 
                     >
-                        <option value="">Tipo</option>
+                        <option value="">{t("RegistoIntervencao.Tipo")}</option>
                         {tipos.map((tipo) => (
                             <option key={tipo.TipoIntervencao} value={tipo.TipoIntervencao}>
                                 {tipo.TipoIntervencao}
@@ -686,9 +688,9 @@ const RegistoIntervencao = (props) => {
 
             </div>
 
-            <h2 style={detailsHeaderStyle}>Adicionar Artigos/Servicos</h2>
+            <h2 style={detailsHeaderStyle}>{t("RegistoIntervencao.SubTitulo")}</h2>
             <button style={toggleButtonStyle} onClick={toggleArtigoSection}>
-                {isArtigoSectionOpen ? 'Ocultar Formulario de Artigo' : 'Adicionar Artigo'}
+                {isArtigoSectionOpen ? t("RegistoIntervencao.OcultarArtigo") :  t("RegistoIntervencao.AddArtigo") }
             </button>
 
             {isArtigoSectionOpen && (
@@ -701,7 +703,7 @@ const RegistoIntervencao = (props) => {
                             onClick={fetchArtigos}
                             style={selectStyle}
                         >
-                            <option value="">Selecione um Artigo</option>
+                            <option value="">{t("RegistoIntervencao.SelecioneArtigo")}</option>
                             {artigosDisponiveis.map((art) => (
                                 <option key={art.Artigo} value={art.Artigo}>
                                     {art.Artigo}
@@ -720,7 +722,7 @@ const RegistoIntervencao = (props) => {
                             }}
                             onClick={handleAddArtigo}
                         >
-                            {editingIndex !== null ? 'Atualizar' : 'Adicionar'}
+                            {editingIndex !== null ? t("RegistoIntervencao.Atualizar") : t("RegistoIntervencao.Add") }
                         </button>
                     </div>
                 </div>
@@ -745,7 +747,7 @@ const RegistoIntervencao = (props) => {
                             <span>{artigo.artigo}</span>
                             <div>
                                 <button style={expandButtonStyle}>
-                                    {expandedIndexes[index] ? 'Recolher' : 'Expandir'}
+                                    {expandedIndexes[index] ? t("RegistoIntervencao.Recolher") : t("RegistoIntervencao.Expandir")}
                                 </button>
                                 <button
                                     style={{
@@ -761,7 +763,7 @@ const RegistoIntervencao = (props) => {
                                     }}
                                     onClick={() => handleDeleteArtigo(index)}
                                 >
-                                    Remover
+                                    {t("RegistoIntervencao.Remover")}
                                 </button>
                             </div>
                         </div>
@@ -793,25 +795,25 @@ const RegistoIntervencao = (props) => {
                         style={cancelButtonStyle}
                         onClick={() => props.navigation.navigate('Intervencoes')}
                     >
-                        Cancelar
+                        {t("RegistoIntervencao.Cancelar")}
                     </button>
 
                     <button
                         style={saveButtonStyle}
                         onClick={handleSave}
                     >
-                        Criar Intervencão
+                        {t("RegistoIntervencao.Criar")}
                     </button>
                 </div>
 
                 {/* Loading Spinner */}
-                {isLoading && <div style={loadingStyle}>Carregando...</div>}
+                {isLoading && <div style={loadingStyle}>{t("RegistoIntervencao.Loading")}</div>}
 
                 {/* Mensagem de Sucesso */}
                 {isSuccessModalOpen && (
                         <Modal onClose={() => setIsSuccessModalOpen(false)}>
-                            <h2 style={modalTitleStyle}>Sucesso!</h2>
-                            <p>Intervenção gravada com sucesso!</p>
+                        <h2 style={modalTitleStyle}>{t("RegistoIntervencao.Aviso.3")}</h2>
+                        <p>{t("RegistoIntervencao.Aviso.2")}</p>
                             <div style={buttonContainerStyle}>
                                 <button
                                     style={saveButtonStyle}
@@ -820,7 +822,7 @@ const RegistoIntervencao = (props) => {
                                         props.navigation.navigate('Intervencoes');
                                     }}
                                 >
-                                    Fechar
+                                {t("RegistoIntervencao.Aviso.4")}
                                 </button>
                             </div>
                         </Modal>

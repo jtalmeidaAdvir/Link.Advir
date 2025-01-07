@@ -129,12 +129,12 @@ const RegistoUser = () => {
     return (
         <div style={styles.container}>
             <div style={styles.formContainer}>
-                <h1 style={styles.title}>{t(RegistoUser.Title)}</h1>
+                <h1 style={styles.title}>{t("RegistoUser.Title")}</h1>
                 <form onSubmit={handleRegister}>
                     <div style={styles.inputContainer}>
                         <input
                             type="text"
-                            placeholder={t(RegistoUser.TxtUser)}
+                            placeholder={t("RegistoUser.TxtUser")}
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
@@ -154,7 +154,7 @@ const RegistoUser = () => {
                     <div style={styles.inputContainer}>
                         <input
                             type="password"
-                            placeholder={t(RegistoUser.TxtPass)}
+                            placeholder={t("RegistoUser.TxtPass")}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -164,7 +164,7 @@ const RegistoUser = () => {
                     <div style={{ marginBottom: '20px' }}>
                         <input
                             type="text"
-                            placeholder={t(RegistoUser.TxtEmpresaArea)}
+                            placeholder={t("RegistoUser.TxtEmpresaArea")}
                             value={empresaAreacliente}
                             onChange={(e) => setEmpresaAreacliente(e.target.value)}
                             required
@@ -186,7 +186,7 @@ const RegistoUser = () => {
                             required
                             style={styles.input}
                         >
-                            <option value="">{t(RegistoUser.CBSelecionarEmpresa)}</option>
+                            <option value="">{t("RegistoUser.CBSelecionarEmpresa")}</option>
                             {empresas.map((empresa) => (
                                 <option key={empresa.id} value={empresa.id}>
                                     {empresa.empresa}
@@ -196,7 +196,7 @@ const RegistoUser = () => {
                     </div>
 
                     <button type="submit" style={styles.registerButton}>
-                        {t(RegistoUser.BtRegistar)}
+                        {t("RegistoUser.BtRegistar")}
                     </button>
                 </form>
                 
@@ -210,7 +210,7 @@ const RegistoUser = () => {
                     <View style={styles.modalContainer}>
                         <View style={styles.modalContent}>
                             <Text style={styles.modalText}>
-                                t(RegistoUser.Alert.1)
+                                {t("RegistoUser.Alert.1")}
                             </Text>
                             <Button title="OK" onPress={handleCloseSuccessModal} />
                         </View>

@@ -53,6 +53,7 @@ import { useTranslation } from 'react-i18next';
 const Drawer = createDrawerNavigator();
 
 
+
 // Configuração de deep linking para reconhecer URLs com parâmetros dinâmicos como o token
 const linking = {
     prefixes: ['https://backend.advir.pt:8081'],
@@ -239,7 +240,8 @@ const AppNavigator = () => {
     const [empresa, setEmpresa] = useState('');
     const [modules, setModules] = useState([]); 
     const [loading, setLoading] = useState(true);
-
+    const [languageSelectorVisible, setLanguageSelectorVisible] = useState(false); 
+    const [hoveredLanguage, setHoveredLanguage] = useState(null); 
     const fetchUserModules = async () => {
         const token = localStorage.getItem('loginToken');
         const userId = localStorage.getItem('userId');
@@ -271,6 +273,18 @@ const AppNavigator = () => {
 
         fetchUserData();
     }, []);
+
+
+    const toggleLanguageSelector = () => {
+        setLanguageSelectorVisible(!languageSelectorVisible); // Alterna a visibilidade do combobox de idiomas
+    };
+    const handleLanguageHover = (language) => {
+        setHoveredLanguage(language); // Atualiza o idioma que está em hover
+    };
+
+    const handleLanguageLeave = () => {
+        setHoveredLanguage(null); // Restaura quando o hover sai
+    };
 
     if (loading) {
         return (
@@ -327,19 +341,45 @@ const AppNavigator = () => {
                             )}
                         </TouchableOpacity>
 
-                        {/* Botões de Idioma */}
+                        {/* Botão de Idioma */}
                         <TouchableOpacity
-                            onPress={() => i18n.changeLanguage('en')}
+                            onPress={toggleLanguageSelector} // Alterna a visibilidade do combobox de idiomas
                             style={{ marginRight: 10, marginLeft: 10 }}
                         >
-                            <Text style={{ color: '#0022FF', fontSize: 16 }}>EN</Text>
+                            <Text style={{ color: '#0022FF', fontSize: 16 }}>
+                                {i18n.language === 'pt' ? 'PT' : 'EN'}
+                            </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={() => i18n.changeLanguage('pt')}
-                            style={{ marginRight: 15 }}
-                        >
-                            <Text style={{ color: '#0022FF', fontSize: 16 }}>PT</Text>
-                        </TouchableOpacity>
+
+                      {/* Exibe o combobox de idiomas se estiver visível */}
+                        {languageSelectorVisible && (
+                            <View style={{
+                                position: 'absolute', top: 50, right: 0, width: 75, backgroundColor: 'white', borderRadius: 5, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3.5, elevation: 5
+                            }}>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        i18n.changeLanguage('pt');
+                                        setLanguageSelectorVisible(false); // Fecha o combobox
+                                    }}
+                                    onMouseEnter={() => handleLanguageHover('pt')} // Evento de hover
+                                    onMouseLeave={handleLanguageLeave} // Evento de sair do hover
+                                    style={{ padding: 10, backgroundColor: hoveredLanguage === 'pt' ? '#e1e1e1' : 'transparent' }}
+                                >
+                                    <Text style={{ fontSize: 16 }}>PT-PT</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        i18n.changeLanguage('en');
+                                        setLanguageSelectorVisible(false); // Fecha o combobox
+                                    }}
+                                    onMouseEnter={() => handleLanguageHover('en')} // Evento de hover
+                                    onMouseLeave={handleLanguageLeave} // Evento de sair do hover
+                                    style={{ padding: 10, backgroundColor: hoveredLanguage === 'en' ? '#e1e1e1' : 'transparent' }}
+                                >
+                                    <Text style={{ fontSize: 16 }}>EN-EN</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </View>
                 ),
             })}

@@ -101,14 +101,14 @@ const Home = () => {
                 const id = await AsyncStorage.getItem('empresa_areacliente');
 
                 if (!id || !token || !urlempresa) {
-                    throw new Error(t('error') + 'Token or URL missing.');
+                    throw new Error(t('Home.error') + 'Token or URL missing.');
                 }
 
                 const response = await fetch(`https://webapiprimavera.advir.pt/clientArea/AreaclientListarpedidos/${id}`, {
                     headers: { Authorization: `Bearer ${token}`, urlempresa },
                 });
 
-                if (!response.ok) throw new Error(t('error') + response.statusText);
+                if (!response.ok) throw new Error(t('Home.error') + response.statusText);
                 const data = await response.json();
                 setPedidosInfo(data);
             } catch (error) {
@@ -132,14 +132,14 @@ const Home = () => {
                 const id = await AsyncStorage.getItem('empresa_areacliente');
 
                 if (!id || !token || !urlempresa) {
-                    throw new Error(t('error') + 'Token or URL missing.');
+                    throw new Error(t('Home.error') + 'Token or URL missing.');
                 }
 
                 const response = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${id}`, {
                     headers: { Authorization: `Bearer ${token}`, urlempresa },
                 });
 
-                if (!response.ok) throw new Error(t('error') + response.statusText);
+                if (!response.ok) throw new Error(t('Home.error') + response.statusText);
                 const data = await response.json();
                 setContratoInfo(data);
             } catch (error) {
@@ -192,7 +192,7 @@ const Home = () => {
                 minHeight: '100vh',
                 fontFamily: 'Poppins, sans-serif',
             }}>
-                <h2 style={{ fontWeight: '600', color: '#0022FF', marginBottom: '20px' }}>{t('welcome')}</h2>
+                <h2 style={{ fontWeight: '600', color: '#0022FF', marginBottom: '20px' }}>{t('Home.welcome')}</h2>
 
                 {/* Menu Section */}
                 <div style={{
@@ -234,7 +234,7 @@ const Home = () => {
                 {activeMenu === t('Home.menu.contract') && (
                     <>
                         {loading ? (
-                            <p>{t('loading')}</p>
+                            <p>{t('Home.loading')}</p>
                         ) : errorMessage ? (
                             <p style={{ color: 'red', fontSize: '18px' }}>{errorMessage}</p>
                         ) : contratoInfo ? (
@@ -292,7 +292,7 @@ const Home = () => {
                 {activeMenu === t('Home.menu.orders') && (
                     <>
                         {pedidosLoading ? (
-                            <p>{t('loading')}</p>
+                            <p>{t('Home.loading')}</p>
                         ) : pedidosError ? (
                             <p style={{ color: 'red', fontSize: '18px' }}>{pedidosError}</p>
                         ) : groupedPedidos && Object.keys(groupedPedidos).length > 0 ? (
