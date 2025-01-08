@@ -341,6 +341,11 @@ const faqRef = useRef(null);
                                 <p style={{ margin: '10px 0' }}>
                                             <strong style={{ color: '#555' }}>{t('Home.contratoinfo.horasgastas')}</strong> {contratoInfo.DataSet.Table[0]?.HorasGastas} h
                                 </p>
+                        
+                                <p style={{ margin: '10px 0' }}>
+                        <strong style={{ color: '#555' }}>{t('Home.contratoinfo.horasdisponiveis')}</strong> {contratoInfo.DataSet.Table[0]?.HorasTotais - contratoInfo.DataSet.Table[0]?.HorasGastas} h
+                    </p>
+                                
                             </motion.div>
                         ) : (
                                         <p style={{ fontSize: '18px', color: '#333' }}>{t('Home.contratoinfo.error')}</p>
