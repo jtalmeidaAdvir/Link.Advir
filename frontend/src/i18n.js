@@ -287,12 +287,12 @@ i18n
                             title: "Perguntas Frequentes",
                             "questions":
                             {
-                                "q1": "Como posso alterar as minhas informacoes de contrato?",
-                                "a1": "Acesse a secoo 'Contrato' e clique em 'Editar'.",
-                                "q2": "Quais são os metodos de pagamento disponiveis?",
-                                "a2": "Pode pagar por transferencia bancaria, cartao de credito ou debito direto.",
-                                "q3": "Como posso contactar o suporte?",
-                                "a3": "Pode contactar o suporte pelo numero listado na secao 'Pedidos'.",
+                                "q1": "As faturas que incluem produtos alimentares com isenção do IVA devem conter alguma menção?",
+                                "a1": "Sim. As faturas que titulem operações abrangidas pela isenção prevista na Lei n.º 17/2023, de 14 de abril, devem conter a menção “IVA – Isenção prevista na Lei n.º 17/2023, de 14 de abril”..",
+                                "q2": "O ERP PRIMAVERA suporta a faturação eletrónica? (CV)",
+                                "a2": "Sim. O ERP suporta desde outubro de 2021 o regime jurídico de faturação eletrónica de Cabo Verde (ver comunicado). No entanto, para implementar este novo regime jurídico no ERP deverá garantir um conjunto de configurações importantes para a correta comunicação à DNRE.",
+                                "q3": "Quais são as condições necessárias para garantir o inventário permanente?",
+                                "a3": "Para garantir o inventário permanente, é necessário configurar todos os documentos de inventário para integrar com a contabilidade, bem como ter um cenário de contabilização definido.",
                             }
 
                         },

@@ -18,8 +18,25 @@ const Home = () => {
     const [expandedIndex, setExpandedIndex] = useState(null); // Estado para controlar qual pergunta está expandida
     const [groupedPedidos, setGroupedPedidos] = useState({});
     const [expandedInterv, setExpandedInterv] = useState({}); // Estado para controlar intervenções expandidas
+    const [searchTerm, setSearchTerm] = useState(''); // Estado para a barra de pesquisa
+    const [currentPage, setCurrentPage] = useState(1); // Estado para a página atual
+    const itemsPerPage = 5; // Número de processos por página
 
 
+    const [selectedEstado, setSelectedEstado] = useState(''); // Estado para o filtro
+
+    const estadosDisponiveis = pedidosInfo
+    ? [...new Set(pedidosInfo.DataSet.Table.map((pedido) => pedido.DescricaoEstado))]
+    : [];
+
+
+
+
+
+ // Função para atualizar o termo da pesquisa
+ const handleSearch = (e) => {
+    setSearchTerm(e.target.value.toLowerCase());
+};
 
 
     const [errorMessage, setErrorMessage] = useState('');
@@ -70,6 +87,48 @@ const Home = () => {
         return `${twoDigits(date.getDate())}/${twoDigits(date.getMonth() + 1)}/${date.getFullYear()} - ${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}:${twoDigits(date.getSeconds())}`;
     };
 
+  // Filtrar pedidos com base no termo de pesquisa
+  const filteredPedidos = groupedPedidos
+  ? Object.fromEntries(
+      Object.entries(groupedPedidos).filter(([processo, pedidos]) =>
+          pedidos.some(
+              (pedido) =>
+                  (selectedEstado === '' || pedido.DescricaoEstado === selectedEstado) &&
+                  (pedido.Processo.toLowerCase().includes(searchTerm) ||
+                      pedido.DescricaoEstado.toLowerCase().includes(searchTerm) ||
+                      pedido.DescricaoProb.toLowerCase().includes(searchTerm) ||
+                      pedido.DescricaoResp.toLowerCase().includes(searchTerm) ||
+                      pedido.NomeTecnico.toLowerCase().includes(searchTerm))
+          )
+      ).map(([processo, pedidos]) => [
+          processo,
+          pedidos.filter(
+              (pedido) =>
+                  (selectedEstado === '' || pedido.DescricaoEstado === selectedEstado) &&
+                  (pedido.Processo.toLowerCase().includes(searchTerm) ||
+                      pedido.DescricaoEstado.toLowerCase().includes(searchTerm) ||
+                      pedido.DescricaoProb.toLowerCase().includes(searchTerm) ||
+                      pedido.DescricaoResp.toLowerCase().includes(searchTerm) ||
+                      pedido.NomeTecnico.toLowerCase().includes(searchTerm))
+          ),
+      ])
+  )
+  : {};
+
+
+      // Função para calcular os processos a serem exibidos na página atual
+      const paginatedPedidos = Object.keys(filteredPedidos).slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    // Total de páginas
+    const totalPages = Math.ceil(Object.keys(filteredPedidos).length / itemsPerPage);
+
+    // Função para alterar a página
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+    };
 
 
     const menus = [
@@ -101,14 +160,17 @@ const Home = () => {
                 const id = await AsyncStorage.getItem('empresa_areacliente');
 
                 if (!id || !token || !urlempresa) {
-                    throw new Error(t('Home.error') + 'Token or URL missing.');
+                    throw new Error(t('error') + 'Token or URL missing.');
                 }
 
-                const response = await fetch(`https://webapiprimavera.advir.pt/clientArea/AreaclientListarpedidos/${id}`, {
-                    headers: { Authorization: `Bearer ${token}`, urlempresa },
-                });
+                const response = await fetch(
+                    `https://webapiprimavera.advir.pt/clientArea/AreaclientListarpedidos/${id}`,
+                    {
+                        headers: { Authorization: `Bearer ${token}`, urlempresa },
+                    }
+                );
 
-                if (!response.ok) throw new Error(t('Home.error') + response.statusText);
+                if (!response.ok) throw new Error(t('error') + response.statusText);
                 const data = await response.json();
                 setPedidosInfo(data);
             } catch (error) {
@@ -132,14 +194,14 @@ const Home = () => {
                 const id = await AsyncStorage.getItem('empresa_areacliente');
 
                 if (!id || !token || !urlempresa) {
-                    throw new Error(t('Home.error') + 'Token or URL missing.');
+                    throw new Error(t('error') + 'Token or URL missing.');
                 }
 
                 const response = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${id}`, {
                     headers: { Authorization: `Bearer ${token}`, urlempresa },
                 });
 
-                if (!response.ok) throw new Error(t('Home.error') + response.statusText);
+                if (!response.ok) throw new Error(t('error') + response.statusText);
                 const data = await response.json();
                 setContratoInfo(data);
             } catch (error) {
@@ -234,7 +296,7 @@ const Home = () => {
                 {activeMenu === t('Home.menu.contract') && (
                     <>
                         {loading ? (
-                            <p>{t('Home.loading')}</p>
+                            <p>{t('loading')}</p>
                         ) : errorMessage ? (
                             <p style={{ color: 'red', fontSize: '18px' }}>{errorMessage}</p>
                         ) : contratoInfo ? (
@@ -282,113 +344,224 @@ const Home = () => {
 
 
 
+                
+{activeMenu === t('Home.menu.orders') && (
+    <>
+        {pedidosLoading ? (
+            <p>{t('loading')}</p>
+        ) : pedidosError ? (
+            <p style={{ color: 'red', fontSize: '18px' }}>{pedidosError}</p>
+        ) : (
+            <>
+                <div
+    style={{
+        maxWidth: '800px',
+        margin: '20px auto',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '20px', // Espaçamento entre os elementos
+        textAlign: 'center',
+    }}
+>
+    {/* Barra de Pesquisa e Botão "Pedido +" */}
+    <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
+        <input
+            type="text"
+            value={searchTerm}
+            onChange={handleSearch}
+            placeholder={t('Pesquisar pedidos...')}
+            style={{
+                flex: '1',
+                maxWidth: '800px',
+                padding: '10px',
+                borderRadius: '15px',
+                border: '1px solid #ddd',
+            }}
+        />
+        {/* <button
+            onClick={""} // Função que será chamada ao clicar no botão
+            style={{
+                padding: '10px 20px',
+                backgroundColor: '#0056FF',
+                color: '#FFFFFF',
+                borderRadius: '15px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: 'bold',
+            }}
+        >
+            {t('Pedido +')}
+        </button>*/}
+    </div>
+
+    {/* Botões de Filtro */}
+    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+        <button
+            onClick={() => setSelectedEstado('')} // Limpar filtro
+            style={{
+                padding: '10px 20px',
+                borderRadius: '15px',
+                border: 'none',
+                backgroundColor: selectedEstado === '' ? '#0056FF' : '#FFFFFF',
+                color: selectedEstado === '' ? '#FFFFFF' : '#0056FF',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                transition: 'background-color 0.3s, color 0.3s',
+            }}
+        >
+            {t('Todos')}
+        </button>
+        {estadosDisponiveis.map((estado, index) => (
+            <button
+                key={index}
+                onClick={() => setSelectedEstado(estado)} // Atualiza o estado do filtro
+                style={{
+                    padding: '10px 20px',
+                    borderRadius: '15px',
+                    border: 'none',
+                    backgroundColor: selectedEstado === estado ? '#0056FF' : '#FFFFFF',
+                    color: selectedEstado === estado ? '#FFFFFF' : '#0056FF',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    transition: 'background-color 0.3s, color 0.3s',
+                }}
+            >
+                {estado}
+            </button>
+        ))}
+    </div>
+</div>
 
 
+                {paginatedPedidos.length > 0 ? (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                        style={{
+                            maxWidth: '800px',
+                            margin: '0 auto',
+                            padding: '30px',
+                            backgroundColor: '#FFFFFF',
+                            borderRadius: '15px',
+                            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+                            textAlign: 'left',
+                        }}
+                    >
+                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>
+                            {t('Pedidos de Assistência')}
+                        </h2>
 
+                        {paginatedPedidos.map((processo, index) => (
+    <div key={index}>
+        <h5 style={{ fontWeight: '400', color: '#0056FF' }}>
+            {t('Processo')}: {processo}
+            
+        </h5>
+        {filteredPedidos[processo].map((pedido, i) => {
+            const isExpanded = expandedInterv[`${processo}-${i}`];
+            return (
+                <div
+                    key={i}
+                    style={{
+                        marginLeft: '20px',
+                        marginTop: '10px',
+                        paddingBottom: '20px',
+                        backgroundColor: '#F9F9F9',
+                        borderRadius: '10px',
+                        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)',
+                        padding: '15px',
+                    }}
+                >
+                    <p>
+                        <strong>{t('Intervenção nº')}:</strong> {pedido.Interv}
+                    </p>
+                    <p>
+                        <strong>{t('Problema')}:</strong> {pedido.DescricaoProb}
+                    </p>
 
+                    {isExpanded && (
+                        <>
+                            <p>
+                                <strong>{t('Intervenção')}:</strong> {pedido.DescricaoResp}
+                            </p>
+                            <p>
+                                <strong>{t('Intervencionado por')}:</strong> {pedido.NomeTecnico}
+                            </p>
+                            <p><strong>{t('Estado')}:</strong> {pedido.DescricaoEstado}</p>
+                            <p>
+                                <strong>{t('Duração')}:</strong> {pedido.Duracao} min
+                            </p>
+                            <p>
+                                <strong>{t('Inicio')}:</strong> {formatDateTime(pedido.DataHoraInicio)}
+                            </p>
+                            <p>
+                                <strong>{t('Fim')}:</strong> {formatDateTime(pedido.DataHoraFim)}
+                            </p>
+                        </>
+                    )}
 
-
-
-                {activeMenu === t('Home.menu.orders') && (
-                    <>
-                        {pedidosLoading ? (
-                            <p>{t('Home.loading')}</p>
-                        ) : pedidosError ? (
-                            <p style={{ color: 'red', fontSize: '18px' }}>{pedidosError}</p>
-                        ) : groupedPedidos && Object.keys(groupedPedidos).length > 0 ? (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5 }}
-                                style={{
-                                    maxWidth: '800px',
-                                    margin: '0 auto',
-                                    padding: '30px',
-                                    backgroundColor: '#FFFFFF',
-                                    borderRadius: '15px',
-                                    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
-                                    textAlign: 'left',
-                                }}
-                            >
-                                <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('Pedidos de Assistência')}</h2>
-
-                                {Object.keys(groupedPedidos).map((processo, index) => (
-                                    <div key={index} style={{ borderBottom: '1px solid #E0E0E0', paddingBottom: '15px', marginBottom: '20px' }}>
-                                        <h3 style={{ fontWeight: '400', color: '#0056FF' }}>{t('Processo')}: {processo}</h3>
-
-                                        {groupedPedidos[processo].map((pedido, i) => {
-                                            const isExpanded = expandedInterv[`${processo}-${i}`];
-
-                                            return (
-
-                                                <div
-                                                    key={i}
-                                                    style={{
-                                                        marginLeft: '20px',
-                                                        marginTop: '10px',
-                                                        paddingBottom: '10px',
-                                                        backgroundColor: '#F9F9F9',
-                                                        borderRadius: '10px',
-                                                        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)',
-                                                        padding: '15px',
-                                                    }}
-                                                >
-                                                    <p><strong>{t('Intervenção nº')}:</strong> {pedido.Interv}</p>
-                                                    <p><strong>{t('Problema')}:</strong> {pedido.DescricaoProb}</p>
-
-                                                    {/* Mostrar informações adicionais apenas se expandido */}
-                                                    {isExpanded && (
-                                                        <>
-                                                            <p><strong>{t('Intervenção')}:</strong> {pedido.DescricaoResp}</p>
-                                                            <p><strong>{t('Duração')}:</strong> {pedido.Duracao} min</p>
-                                                            <p><strong>{t('Inicio')}:</strong> {formatDateTime(pedido.DataHoraInicio)}</p>
-                                                            <p><strong>{t('Fim')}:</strong> {formatDateTime(pedido.DataHoraFim)}</p>
-                                                            <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
-
-
-                                                            </div>
-
-                                                        </>
-                                                    )}
-
-                                                    {/* Botão com ícone */}
-                                                    <button
-                                                        onClick={() => toggleExpand(processo, i)}
-                                                        style={{
-                                                            backgroundColor: 'transparent',
-                                                            color: isExpanded ? '#FF0000' : '#0056FF',
-                                                            border: 'none',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            marginTop: '10px',
-                                                        }}
-                                                    >
-                                                        <span style={{ fontSize: '18px', marginRight: '5px' }}>
-                                                            {isExpanded ? '-' : '+'}
-                                                        </span>
-                                                        {isExpanded ? t('Ver Menos') : t('Ver Mais')}
-                                                    </button>
-                                                </div>
-
-
-                                            );
-                                        })}
-                                    </div>
-                                ))}
-                            </motion.div>
-                        ) : (
-                                        <p style={{ fontSize: '18px', color: '#333' }}>{t('pedidos.empty')}</p>
-                        )}
-                    </>
+                    <button
+                        onClick={() => toggleExpand(processo, i)}
+                        style={{
+                            backgroundColor: 'transparent',
+                            color: isExpanded ? '#FF0000' : '#0056FF',
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            marginTop: '10px',
+                        }}
+                    >
+                        <span style={{ fontSize: '18px', marginRight: '5px' }}>
+                            {isExpanded ? '-' : '+'}
+                        </span>
+                        {isExpanded ? t('Ver Menos') : t('Ver Mais')}
+                    </button>
+                </div>
+            );
+        })}
+    </div>
+))}
+                    </motion.div>
+                ) : (
+                    <p style={{ fontSize: '18px', color: '#333' }}>{t('Pedidos não encontrados')}</p>
                 )}
 
-
-
-
-
-
-
+                {/* Paginação */}
+                <div
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        marginTop: '20px',
+                    }}
+                >
+                    {[...Array(totalPages).keys()].map((page) => (
+                        <button
+                            key={page}
+                            onClick={() => handlePageChange(page + 1)}
+                            style={{
+                                padding: '10px 15px',
+                                margin: '0 5px',
+                                backgroundColor: currentPage === page + 1 ? '#0056FF' : '#FFFFFF',
+                                color: currentPage === page + 1 ? '#FFFFFF' : '#0056FF',
+                                border: '1px solid #0056FF',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            {page + 1}
+                        </button>
+                    ))}
+                </div>
+            </>
+        )}
+    </>
+)}
 
 
                 {activeMenu === t('Home.menu.products') && (
@@ -429,7 +602,10 @@ const Home = () => {
                                 <img
                                     src="https://pt.primaverabss.com/temas/primavera/img/cegid-logo-footer.svg"
                                     alt="Primavera"
-                                    style={{ width: '100%', height: 'auto', marginBottom: '10px' }}
+                                    style={{ width: '150px',
+                                        height: '150px',
+                                        objectFit: 'contain',
+                                        marginBottom: '10px', }}
                                 />
                                 <a
                                     href="https://www.primaverabss.com/pt/"
@@ -458,7 +634,10 @@ const Home = () => {
                                 <img
                                     src="https://link.advir.pt/static/media/img_logo.a2a85989c690f4bfd096.png"
                                     alt="Syslog"
-                                    style={{ width: '100%', height: 'auto', marginBottom: '10px' }}
+                                    style={{width: '150px',
+                                        height: '150px',
+                                        objectFit: 'contain',
+                                        marginBottom: '10px', }}
                                 />
                                 <a
                                     href="https://link.advir.pt"
@@ -488,7 +667,10 @@ const Home = () => {
                                 <img
                                     src="https://www.syslogmobile.com/wp-content/themes/syslog/images/logo-syslog.png"
                                     alt="Syslog"
-                                    style={{ width: '100%', height: 'auto', marginBottom: '10px' }}
+                                    style={{ width: '150px',
+                                        height: '150px',
+                                        objectFit: 'contain',
+                                        marginBottom: '10px', }}
                                 />
                                 <a
                                     href="https://www.syslogmobile.com/"
