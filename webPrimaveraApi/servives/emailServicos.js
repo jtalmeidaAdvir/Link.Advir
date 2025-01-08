@@ -17,7 +17,7 @@ const sendEmail = async (req, res) => {
 
             const mailOptions = {
                 from: 'noreply.advir@gmail.com',
-               // to: `${emailDestinatario}`,
+                to: `${emailDestinatario}`,
                 subject: `Nova Intervenção: ${Pedido}  ${dadosIntervencao.processoID}/${dadosIntervencao.NumIntervencao}`,
                 html: `
                 <div style="font-family: Arial, sans-serif; color: #004580; line-height: 1.5;">

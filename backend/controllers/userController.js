@@ -52,7 +52,7 @@ const novoUser = await User.create({
 
 
         // Enviar e-mail de verificação
-        const verificationLink = `https://51.254.116.237:3000/api/users/verify/${verificationToken}`;
+        const verificationLink = `https://backend.advir.pt/api/users/verify/${verificationToken}`;
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
