@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect,useRef  } from 'react';
 import { useTranslation } from 'react-i18next';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaFileContract, FaPhone, FaBoxOpen, FaQuestionCircle, FaBars } from 'react-icons/fa';
@@ -29,7 +29,11 @@ const Home = () => {
     ? [...new Set(pedidosInfo.DataSet.Table.map((pedido) => pedido.DescricaoEstado))]
     : [];
 
-
+// Referências para as seções
+const contractRef = useRef(null);
+const ordersRef = useRef(null);
+const productsRef = useRef(null);
+const faqRef = useRef(null);
 
 
 
@@ -46,9 +50,16 @@ const Home = () => {
         setDrawerOpen(!isDrawerOpen);
     };
 
-    const handleMenuClick = (menu) => {
-        setActiveMenu(menu);
-    };
+ // Função para alternar o menu e rolar para a seção correspondente
+ const handleMenuClick = (menu, ref) => {
+    setActiveMenu(menu);
+
+    // Rolar suavemente até a seção associada
+    if (ref && ref.current) {
+        ref.current.scrollIntoView({ behavior: 'smooth' });
+    }
+};
+
 
 
     // Função para alternar a expansão de uma intervenção específica
@@ -132,10 +143,10 @@ const Home = () => {
 
 
     const menus = [
-        { title: t('Home.menu.contract'), icon: <FaFileContract size={32} /> },
-        { title: t('Home.menu.orders'), icon: <FaPhone size={32} /> },
-        { title: t('Home.menu.products'), icon: <FaBoxOpen size={32} /> },
-        { title: t('Home.menu.faq'), icon: <FaQuestionCircle size={32} /> },
+        { title: t('Home.menu.contract'), icon: <FaFileContract size={22} />, ref: contractRef },
+        { title: t('Home.menu.orders'), icon: <FaPhone size={22} />, ref: ordersRef },
+        { title: t('Home.menu.products'), icon: <FaBoxOpen size={22} />, ref: productsRef },
+        { title: t('Home.menu.faq'), icon: <FaQuestionCircle size={22} />, ref: faqRef },
     ];
 
     useEffect(() => {
@@ -267,10 +278,10 @@ const Home = () => {
                     {menus.map((menu, index) => (
                         <div
                             key={index}
-                            onClick={() => handleMenuClick(menu.title)}
+                            onClick={() => handleMenuClick(menu.title, menu.ref)}
                             style={{
-                                width: '200px',
-                                height: '150px',
+                                width: '150px',
+                                height: '100px',
                                 backgroundColor: activeMenu === menu.title ? '#0056FF' : menu.color, // Cor do menu ativo
                                 borderRadius: '15px',
                                 display: 'flex',
@@ -293,6 +304,7 @@ const Home = () => {
                 </div>
 
                 {/* Content Based on Active Menu */}
+                <div ref={contractRef}>
                 {activeMenu === t('Home.menu.contract') && (
                     <>
                         {loading ? (
@@ -334,7 +346,7 @@ const Home = () => {
                                         <p style={{ fontSize: '18px', color: '#333' }}>{t('Home.contratoinfo.error')}</p>
                         )}
                     </>
-                )}
+                )}</div>
 
 
 
@@ -344,7 +356,7 @@ const Home = () => {
 
 
 
-                
+<div ref={ordersRef}>
 {activeMenu === t('Home.menu.orders') && (
     <>
         {pedidosLoading ? (
@@ -561,9 +573,9 @@ const Home = () => {
             </>
         )}
     </>
-)}
+)}</div>
 
-
+<div ref={productsRef}>
                 {activeMenu === t('Home.menu.products') && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -687,10 +699,10 @@ const Home = () => {
                             </div>
                         </div>
                     </motion.div>
-                )}
+                )}</div>
 
 
-
+<div ref={faqRef}>
                 {activeMenu === t('Home.menu.faq') && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -745,7 +757,7 @@ const Home = () => {
                             ))}
                         </div>
                     </motion.div>
-                )}
+                )}</div>
 
 
             </section>
