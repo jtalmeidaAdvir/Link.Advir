@@ -21,7 +21,11 @@ const Home = () => {
     const [searchTerm, setSearchTerm] = useState(''); // Estado para a barra de pesquisa
     const [currentPage, setCurrentPage] = useState(1); // Estado para a página atual
     const itemsPerPage = 5; // Número de processos por página
+    const [contratoLoading, setContratoLoading] = useState(false);
+    const [initialDataLoading, setInitialDataLoading] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
 
+    
 
     const [selectedEstado, setSelectedEstado] = useState(''); // Estado para o filtro
 
@@ -36,11 +40,115 @@ const productsRef = useRef(null);
 const faqRef = useRef(null);
 
 
+const [showForm, setShowForm] = useState(false);
+
+const toggleForm = () => {
+    setShowForm(!showForm);
+};
+
+
+const handleFormSubmit = async (event) => {
+    event.preventDefault();
+
+    // Validação de campos obrigatórios
+    if (!formData.contacto || !formData.prioridade || !formData.descricaoProblema) {
+        setErrorMessage(t('Por favor, preencha todos os campos obrigatórios.'));
+        return;
+    }
+
+    try {
+        const token = await AsyncStorage.getItem('painelAdminToken');
+        const urlempresa = await AsyncStorage.getItem('urlempresa');
+        const clienteID = await AsyncStorage.getItem('empresa_areacliente');
+
+        if (!token || !urlempresa || !clienteID) {
+            throw new Error(t('Erro: Token ou informações da empresa estão ausentes.'));
+        }
+
+        const payload = {
+            ...formData,
+            cliente: clienteID, // Define o cliente a partir do AsyncStorage
+            datahoraabertura: new Date().toISOString(),
+        };
+
+        console.log('Enviando o pedido com payload:', payload);
+
+        const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/CriarPedido`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+                urlempresa,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Erro ao criar pedido:', errorData);
+            throw new Error(t('Erro ao criar o pedido: ') + errorData.message);
+        }
+
+        const responseData = await response.json();
+        console.log('Resposta da criação do pedido:', responseData);
+
+        // Mensagem de sucesso e fechar o formulário
+        setSuccessMessage(t('Pedido criado com sucesso!'));
+        setShowForm(false); // Fecha o formulário
+        setFormData({
+            cliente: '',
+            contacto: '',
+            prioridade: '',
+            descricaoProblema: '',
+            origem: 'SITE',
+            tecnico: '',
+            tipoProcesso: 'PASI',
+            estado: 1,
+            serie: '2024',
+            seccao: 'SD',
+            objectoID: '9dc979ae-96b4-11ef-943d-e08281583916',
+            contratoID: '',
+        });
+
+        // Limpar mensagem de sucesso após 3 segundos
+        setTimeout(() => {
+            setSuccessMessage('');
+        }, 3000);
+    } catch (error) {
+        console.error('Erro ao enviar o pedido:', error);
+        setErrorMessage(error.message);
+    }
+};
+
+
 
  // Função para atualizar o termo da pesquisa
  const handleSearch = (e) => {
     setSearchTerm(e.target.value.toLowerCase());
 };
+
+const [formData, setFormData] = useState({
+    cliente: '', // ID do cliente logado
+    contacto: '', // ID do contacto selecionado
+    prioridade: '', // ID da prioridade selecionada
+    descricaoProblema: '', // Descrição do problema
+    origem: 'SITE', // Origem padrão ou ajustável
+    tecnico: '000', // vazio
+    tipoProcesso: 'PASI', // Tipo de processo
+    estado: 1, // Estado inicial
+    serie: '2024',
+    seccao: 'SD' , // Secção associada 
+    objectoID: '9dc979ae-96b4-11ef-943d-e08281583916',
+    contratoID: '', // contrato associado
+    datahoraabertura: '', // Preenchido automaticamente
+    datahorafimprevista: '', // Calculado automaticamente
+});
+
+
+const [dataLists, setDataLists] = useState({
+    contactos: [],
+    prioridades: [],
+});
 
 
     const [errorMessage, setErrorMessage] = useState('');
@@ -198,31 +306,75 @@ const faqRef = useRef(null);
 
 
     useEffect(() => {
-        const fetchContratoInfo = async () => {
+        const fetchData = async () => {
+            console.log("Iniciando fetch de dados iniciais e contrato.");
+            setContratoLoading(false);
+            setLoading(false);
+            setInitialDataLoading(true);
+    
             try {
                 const token = await AsyncStorage.getItem('painelAdminToken');
                 const urlempresa = await AsyncStorage.getItem('urlempresa');
-                const id = await AsyncStorage.getItem('empresa_areacliente');
-
-                if (!id || !token || !urlempresa) {
-                    throw new Error(t('error') + 'Token or URL missing.');
+                const clienteID = await AsyncStorage.getItem('empresa_areacliente');
+    
+                console.log('Token:', token, 'URL Empresa:', urlempresa, 'Cliente ID:', clienteID);
+    
+                if (!clienteID || !token || !urlempresa) {
+                    console.error('Token, URL ou ID de cliente estão ausentes.');
+                    return;
                 }
-
-                const response = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${id}`, {
+    
+                // Fetch contrato
+                const contratoResponse = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${clienteID}`, {
                     headers: { Authorization: `Bearer ${token}`, urlempresa },
                 });
-
-                if (!response.ok) throw new Error(t('error') + response.statusText);
-                const data = await response.json();
-                setContratoInfo(data);
+    
+                if (!contratoResponse.ok) {
+                    throw new Error(`Erro ao buscar contrato: ${contratoResponse.statusText}`);
+                }
+                const contratoData = await contratoResponse.json();
+                console.log('Contrato Data:', contratoData);
+    
+                // Atualizar informações do contrato
+                setContratoInfo(contratoData);
+    
+                // Atualizar contratoID no formulário automaticamente
+                if (contratoData?.DataSet?.Table?.length > 0) {
+                    const contratoID = contratoData.DataSet.Table[0]?.ID; // Obter o contratoID
+                    setFormData((prev) => ({ ...prev, contratoID }));
+                }
+    
+                // Fetch contactos
+                const contactosResponse = await fetch(
+                    `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${clienteID}`,
+                    { headers: { Authorization: `Bearer ${token}`, urlempresa } }
+                );
+                const contactosData = await contactosResponse.json();
+                setDataLists((prev) => ({ ...prev, contactos: contactosData.DataSet.Table || [] }));
+    
+                // Fetch prioridades
+                const prioridadesResponse = await fetch(
+                    `https://webapiprimavera.advir.pt/routePedidos_STP/ListarTiposPrioridades`,
+                    { headers: { Authorization: `Bearer ${token}`, urlempresa } }
+                );
+                const prioridadesData = await prioridadesResponse.json();
+                setDataLists((prev) => ({ ...prev, prioridades: prioridadesData.DataSet.Table || [] }));
+    
+                // Preencher cliente no formulário
+                setFormData((prev) => ({ ...prev, cliente: clienteID }));
             } catch (error) {
+                console.error('Erro ao buscar dados:', error);
                 setErrorMessage(error.message);
             } finally {
-                setLoading(false);
+                setContratoLoading(false);
+                setInitialDataLoading(false);
+                console.log("Finalizado fetch de dados iniciais e contrato.");
             }
         };
-        fetchContratoInfo();
+    
+        fetchData();
     }, [t]);
+    
 
     return (
 
@@ -311,7 +463,7 @@ const faqRef = useRef(null);
                             <p>{t('loading')}</p>
                         ) : errorMessage ? (
                             <p style={{ color: 'red', fontSize: '18px' }}>{errorMessage}</p>
-                        ) : contratoInfo ? (
+                        ) : contratoInfo?.DataSet?.Table?.length > 0 ? (
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -396,22 +548,174 @@ const faqRef = useRef(null);
                 border: '1px solid #ddd',
             }}
         />
-        {/* <button
-            onClick={""} // Função que será chamada ao clicar no botão
-            style={{
-                padding: '10px 20px',
-                backgroundColor: '#0056FF',
-                color: '#FFFFFF',
-                borderRadius: '15px',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '16px',
-                fontWeight: 'bold',
-            }}
-        >
-            {t('Pedido +')}
-        </button>*/}
+         <button
+    onClick={toggleForm} // Alternar a visibilidade do formulário
+    style={{
+        padding: '10px 20px',
+        backgroundColor: '#0056FF',
+        color: '#FFFFFF',
+        borderRadius: '15px',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '16px',
+        fontWeight: 'bold',
+    }}
+>
+    {t('Pedido +')}
+</button>
+
     </div>
+
+
+    {showForm && (
+    <div
+        style={{
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: '9999',
+        }}
+        onClick={toggleForm}
+    >
+        <div
+            style={{
+                width: '400px',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '15px',
+                padding: '20px',
+                boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+                position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+        >
+            <button
+                onClick={toggleForm}
+                style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '10px',
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '18px',
+                    cursor: 'pointer',
+                }}
+            >
+                &times;
+            </button>
+            <h3 style={{ textAlign: 'center', color: '#0056FF' }}>{t('Novo Pedido')}</h3>
+            <form onSubmit={handleFormSubmit}>
+                
+
+                <div style={{ marginBottom: '15px' }}>
+                    <label>{t('Contacto')}</label>
+                    <select
+                        name="contacto"
+                        value={formData.contacto}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, contacto: e.target.value }))}
+                        style={{
+                            width: '100%',
+                            padding: '10px',
+                            borderRadius: '10px',
+                            border: '1px solid #ddd',
+                        }}
+                    >
+                        <option value="">{t('Selecione um contacto')}</option>
+                        {dataLists.contactos.map((contacto) => (
+                            <option key={contacto.Contacto} value={contacto.Contacto}>
+                                {contacto.Contacto} - {contacto.PrimeiroNome} {contacto.UltimoNome}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                
+
+
+
+                <div style={{ marginBottom: '15px' }}>
+                    <label>{t('Prioridade')}</label>
+                    <select
+                        name="prioridade"
+                        value={formData.prioridade}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, prioridade: e.target.value }))}
+                        style={{
+                            width: '100%',
+                            padding: '10px',
+                            borderRadius: '10px',
+                            border: '1px solid #ddd',
+                        }}
+                    >
+                        <option value="">{t('Selecione a prioridade')}</option>
+                        {dataLists.prioridades.map((prioridade) => (
+                            <option key={prioridade.Prioridade} value={prioridade.Prioridade}>
+                                {prioridade.Prioridade} - {prioridade.Descricao}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                    <label>{t('Descrição')}</label>
+                    <textarea
+                        name="descricaoProblema"
+                        value={formData.descricaoProblema}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, descricaoProblema: e.target.value }))}
+                        rows="4"
+                        style={{
+                            width: '100%',
+                            padding: '10px',
+                            borderRadius: '10px',
+                            border: '1px solid #ddd',
+                        }}
+                        required
+                    />
+                </div>
+
+                
+
+                <button
+                    type="submit"
+                    style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#0056FF',
+                        color: '#FFFFFF',
+                        borderRadius: '15px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                    }}
+                >
+                    {t('Submeter Pedido')}
+                </button>
+            </form>
+        </div>
+    </div>
+)}
+
+{successMessage && (
+    <div
+        style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            padding: '10px 20px',
+            backgroundColor: '#4caf50',
+            color: '#fff',
+            borderRadius: '5px',
+            boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)',
+            zIndex: 1000,
+        }}
+    >
+        {successMessage}
+    </div>
+)}
 
     {/* Botões de Filtro */}
     <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
