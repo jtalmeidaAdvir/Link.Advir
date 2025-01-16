@@ -51,6 +51,8 @@ import logo from './assets/img_logo.png';
 import i18n from './src/i18n';
 import { useTranslation } from 'react-i18next';
 import OficiosPage from './src/Oficios/OficiosPage';
+import OficiosList from './src/Oficios/OficiosList';
+
 const Drawer = createDrawerNavigator();
  
  
@@ -147,13 +149,13 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                         />
                        
                     )}
+                    
                     {hasServicesModule && (
                         <DrawerItem
                             label={t("Oficios")}
-                            onPress={() => props.navigation.navigate('OficiosPage')}
-                            icon={() => <FontAwesome name="wrench" size={20} color="#0022FF" />}
+                            onPress={() => props.navigation.navigate('OficiosList')}
+                            icon={() => <FontAwesome name="file" size={20} color="#0022FF" />}
                         />
- 
                     )}
                     {hasServicesModule && (
                         <DrawerItem
@@ -437,6 +439,7 @@ const AppNavigator = () => {
             <Drawer.Screen name="UserModulesManagement" component={UserModulesManagement} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="VerificaConta" component={VerificaConta} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="OficiosPage" component={OficiosPage} />
+            <Drawer.Screen name="OficiosList" component={OficiosList} />
             <Drawer.Screen name="Home" component={Home} />
             {isLoggedIn && (
                 <Drawer.Screen name="SelecaoEmpresa">
