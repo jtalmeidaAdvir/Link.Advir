@@ -110,6 +110,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
  
     // Conteúdo do drawer para outros utilizadores
     const hasServicesModule = modules.some(module => module.nome === "Servicos");
+    
     const hasQrCodeAssiduidadeModule = modules.some(
         module => module.nome === "Assiduidade" && module.submodulos.some(sub => sub.nome === "QrCode")
     );

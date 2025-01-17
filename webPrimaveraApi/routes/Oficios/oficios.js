@@ -2,14 +2,144 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const cors = require('cors');
+const fs = require("fs");
+const path = require("path");
+const PDFDocument = require("pdfkit");
+const os = require("os");
 
-// Função para obter o `urlempresa` usando o `painelAdminToken`
+// Caminho base para guardar os ficheiros
+const desktopPath = path.join(os.homedir(), "Desktop", "Oficios");
+
+// Verificar ou criar a pasta base "Oficios"
+if (!fs.existsSync(desktopPath)) {
+    fs.mkdirSync(desktopPath, { recursive: true });
+}
+
+
+router.post("/Criar", async (req, res) => {
+    try {
+        const dadosOficio = req.body;
+        const token = req.headers['authorization']?.split(' ')[1]; // Obtendo o token do cabeÃ§alho
+
+        // Verifica se o token foi enviado
+        if (!token) {
+            return res.status(401).json({ error: 'Token nÃ£o encontrado. FaÃ§a login novamente.' });
+        }
+
+        // ObtÃ©m o `urlempresa` do cabeÃ§alho
+        const urlempresa = req.headers['urlempresa'];
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa nÃ£o fornecida.' });
+        }
+
+        // Extraindo os parÃ¢metros do corpo da requisiÃ§Ã£o
+        const { codigo, assunto, data, remetente, email, texto } = dadosOficio;
+
+        // **1. Chamar a API externa**
+        const apiUrl = `http://${urlempresa}/WebApi/Word/Criar`;
+        console.log('Enviando solicitaÃ§Ã£o para a URL:', apiUrl);
+
+        const requestData = {
+            codigo,
+            data,
+            assunto,
+            remetente,
+            email,
+            texto: texto || 'Texto padrÃ£o', // Se texto estiver vazio, use 'Texto padrÃ£o'
+        };
+
+        console.log("Dados enviados para a API externa:", requestData);
+
+        const response = await axios.post(apiUrl, requestData, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+        });
+
+        // Verifica o status da resposta da API externa
+        if (response.status !== 200) {
+            return res.status(response.status).json({
+                error: 'Erro ao criar o ofÃ­cio na API externa.',
+                details: response.data,
+            });
+        }
+
+        console.log('OfÃ­cio criado na API externa com sucesso.');
+
+        // **2. Salvar o PDF localmente**
+        const oficioPath = path.join(desktopPath, codigo);
+        if (!fs.existsSync(oficioPath)) {
+            fs.mkdirSync(oficioPath, { recursive: true }); // Cria os diretÃ³rios de forma recursiva
+        }
+
+        const pdfFilename = `${codigo}.pdf`;
+        const pdfFilePath = path.join(oficioPath, pdfFilename);
+
+        const doc = new PDFDocument();
+        const writeStream = fs.createWriteStream(pdfFilePath);
+        doc.pipe(writeStream);
+
+        doc
+            .fontSize(16)
+            .text(`OfÃ­cio: ${codigo}`, { align: "center" })
+            .moveDown();
+        doc
+            .fontSize(12)
+            .text(`Assunto: ${assunto}`)
+            .moveDown()
+            .text(`Data: ${data}`)
+            .moveDown()
+            .text(`Remetente: ${remetente}`)
+            .moveDown()
+            .text(`Email: ${email}`)
+            .moveDown()
+            .text(`Texto: ${texto}`, { align: "justify" });
+
+        doc.end();
+
+        // Esperar a conclusÃ£o da gravaÃ§Ã£o do PDF
+        writeStream.on("finish", () => {
+            console.log(`PDF salvo em: ${pdfFilePath}`);
+            res.status(200).json({
+                message: "OfÃ­cio criado e PDF salvo com sucesso.",
+                path: pdfFilePath,
+            });
+        });
+
+        writeStream.on("error", (err) => {
+            console.error("Erro ao salvar o PDF:", err);
+            res.status(500).json({ error: "Erro ao salvar o PDF." });
+        });
+    } catch (error) {
+        console.error("Erro ao criar e salvar o ofÃ­cio:", error.message);
+
+        if (error.response) {
+            // Erro vindo da API externa
+            return res.status(error.response.status).json({
+                error: 'Erro inesperado ao criar o ofÃ­cio na API externa.',
+                details: error.response.data,
+            });
+        }
+
+        res.status(500).json({
+            error: "Erro inesperado ao criar e salvar o ofÃ­cio.",
+            details: error.message,
+        });
+    }
+});
+
+
+
+
+// Funï¿½ï¿½o para obter o `urlempresa` usando o `painelAdminToken`
 async function getEmpresaUrl(req) {
     try {
-        console.log('Cabeçalhos recebidos:', req.headers);  // Verificando os cabeçalhos
-        const urlempresa = req.headers['urlempresa'];  // Obtendo o urlempresa do cabeçalho
+        console.log('Cabeï¿½alhos recebidos:', req.headers);  // Verificando os cabeï¿½alhos
+        const urlempresa = req.headers['urlempresa'];  // Obtendo o urlempresa do cabeï¿½alho
         if (!urlempresa) {
-            throw new Error('URL da empresa não fornecido.');
+            throw new Error('URL da empresa nï¿½o fornecido.');
         }
         return urlempresa;  // Retorna o urlempresa diretamente
     } catch (error) {
@@ -20,25 +150,25 @@ async function getEmpresaUrl(req) {
 
 router.get('/Listar', async (req, res) => {
     try {
-        const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabeçalho
+        const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabeï¿½alho
         if (!token) {
-            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
+            return res.status(401).json({ error: 'Token nï¿½o encontrado. Faï¿½a login novamente.' });
         }
 
-        // Usando a função para obter o urlempresa dos cabeçalhos
+        // Usando a funï¿½ï¿½o para obter o urlempresa dos cabeï¿½alhos
         const urlempresa = await getEmpresaUrl(req);
         if (!urlempresa) {
-            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+            return res.status(400).json({ error: 'URL da empresa nï¿½o fornecida.' });
         }
 
-        // Monta a URL completa para listar intervenções
+        // Monta a URL completa para listar intervenï¿½ï¿½es
         const apiUrl = `http://${urlempresa}/WebApi/Word/Listar`;
-        console.log('Enviando solicitação para a URL:', apiUrl);
+        console.log('Enviando solicitaï¿½ï¿½o para a URL:', apiUrl);
 
-        // Realiza a chamada para listar as intervenções
+        // Realiza a chamada para listar as intervenï¿½ï¿½es
         const response = await axios.get(apiUrl, {
             headers: {
-                'Authorization': `Bearer ${token}`,  // Envia o token para a autenticação
+                'Authorization': `Bearer ${token}`,  // Envia o token para a autenticaï¿½ï¿½o
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             }
@@ -46,123 +176,43 @@ router.get('/Listar', async (req, res) => {
 
         // Verifica o status da resposta
         if (response.status === 200) {
-            return res.status(200).json(response.data);  // Retorna as intervenções encontradas
+            return res.status(200).json(response.data);  // Retorna as intervenï¿½ï¿½es encontradas
         } else if (response.status === 404) {
-            return res.status(404).json({ error: 'Nenhuma intervenção encontrada.' });
+            return res.status(404).json({ error: 'Nenhuma intervenï¿½ï¿½o encontrada.' });
         } else {
             return res.status(400).json({
-                error: 'Falha ao listar intervenções.',
+                error: 'Falha ao listar intervenï¿½ï¿½es.',
                 details: response.data.ErrorMessage || 'Erro desconhecido.'
             });
         }
     } catch (error) {
-        console.error('Erro ao listar intervenções:', error.message);
+        console.error('Erro ao listar intervenï¿½ï¿½es:', error.message);
         return res.status(500).json({
-            error: 'Erro inesperado ao listar intervenções',
+            error: 'Erro inesperado ao listar intervenï¿½ï¿½es',
             details: error.message
         });
     }
 });
 
-router.post('/Criar', async (req, res) => {
-    try {
-        const dadosOficio = req.body;
-        const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabeçalho
 
-        // Verifica se o token foi enviado
-        if (!token) {
-            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
-        }
-
-        // Usando a função para obter o urlempresa dos cabeçalhos
-        const urlempresa = await getEmpresaUrl(req);
-        if (!urlempresa) {
-            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
-        }
-
-        // Extraindo os parâmetros do corpo da requisição
-        const {
-            codigo,
-            assunto,
-            data,
-            remetente,
-            email,
-            texto,
-        } = req.body;
-
-        // Monta a URL completa para a API externa
-        const apiUrl = `http://${urlempresa}/WebApi/Word/Criar`;
-        console.log('Enviando solicitação para a URL:', apiUrl);
-
-        // Cria um objeto com todos os dados a serem enviados
-        const requestData = {
-            codigo,
-            assunto,
-            data,
-            remetente,
-            email,
-            texto: texto || 'Texto padrão'  // Se texto estiver vazio, use 'Texto padrão'
-        };
-        console.log('Dados a serem enviados:', requestData);
-
-        // Chamada para a API externa para criar o ofício
-        const response = await axios.post(apiUrl, requestData, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            }
-        });
-
-        // Verifica o status da resposta da API de destino
-        if (response.status === 200) {
-            return res.status(200).json(response.data);  // Retorna os dados da resposta
-        } else if (response.status === 404) {
-            return res.status(404).json({ error: 'Nenhum Ofício encontrado.' });
-        } else {
-            return res.status(400).json({
-                error: 'Falha ao listar Ofício.',
-                details: response.data.ErrorMessage || 'Erro desconhecido.'
-            });
-        }
-
-    } catch (error) {
-        console.error('Erro ao chamar a API externa:', error.message);
-
-        // Se a resposta da API de destino contiver dados de erro, os captura
-        if (error.response) {
-            console.error('Detalhes do erro da resposta:', error.response.data);
-            return res.status(error.response.status).json({
-                error: 'Erro inesperado ao criar Ofício',
-                details: error.response.data
-            });
-        }
-
-        // Caso contrário, captura o erro genérico
-        return res.status(500).json({
-            error: 'Erro inesperado ao criar Ofício',
-            details: error.message
-        });
-    }
-});
 
 
 router.get('/atualizar', async (req, res) => {
     try {
         const dadosOficio = req.body;
-        const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabeçalho
+        const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabeï¿½alho
         if (!token) {
-            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
+            return res.status(401).json({ error: 'Token nï¿½o encontrado. Faï¿½a login novamente.' });
         }
 
-        // Usando a função para obter o urlempresa dos cabeçalhos
+        // Usando a funï¿½ï¿½o para obter o urlempresa dos cabeï¿½alhos
         const urlempresa = await getEmpresaUrl(req);
         if (!urlempresa) {
-            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+            return res.status(400).json({ error: 'URL da empresa nï¿½o fornecida.' });
         }
 
 
-        // Extraindo os parâmetros do corpo da requisição
+        // Extraindo os parï¿½metros do corpo da requisiï¿½ï¿½o
         const {
             codigo,
             assunto,
@@ -173,11 +223,11 @@ router.get('/atualizar', async (req, res) => {
         } = req.body;
 
 
-        // Monta a URL completa para listar intervenções
+        // Monta a URL completa para listar intervenï¿½ï¿½es
 
 
         const apiUrl = `http://${urlempresa}/WebApi/Word/Atualizar`;
-        console.log('Enviando solicitação para a URL:', apiUrl);
+        console.log('Enviando solicitaï¿½ï¿½o para a URL:', apiUrl);
         // Cria um objeto com todos os dados a serem enviados
         const requestData = {
                      codigo,
@@ -190,7 +240,7 @@ router.get('/atualizar', async (req, res) => {
         console.log('Dados a serem enviados:', requestData);
 
 
-        // Chamada para a API para criar a intervenção
+        // Chamada para a API para criar a intervenï¿½ï¿½o
         const response = await axios.post(apiUrl, requestData, {
             headers: {
                 'Authorization': `Bearer ${painelAdminToken}`,
@@ -201,7 +251,7 @@ router.get('/atualizar', async (req, res) => {
 
         // Verifica o status da resposta
         if (response.status === 200) {
-            return res.status(200).json(response.data);  // Retorna as intervenções encontradas
+            return res.status(200).json(response.data);  // Retorna as intervenï¿½ï¿½es encontradas
         } else if (response.status === 404) {
             return res.status(404).json({ error: 'Nenhum Oficio encontrada.' });
         } else {
@@ -222,24 +272,24 @@ router.get('/atualizar', async (req, res) => {
 router.get('/Eliminar/:Codigo', async (req, res) => {
     try {
         const { Codigo } = req.params;
-        const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabeçalho
+        const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabeï¿½alho
         if (!token) {
-            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
+            return res.status(401).json({ error: 'Token nï¿½o encontrado. Faï¿½a login novamente.' });
         }
 
-        // Usando a função para obter o urlempresa dos cabeçalhos
+        // Usando a funï¿½ï¿½o para obter o urlempresa dos cabeï¿½alhos
         const urlempresa = await getEmpresaUrl(req);
         if (!urlempresa) {
-            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+            return res.status(400).json({ error: 'URL da empresa nï¿½o fornecida.' });
         }
 
 
-        // Monta a URL completa para listar intervenções
+        // Monta a URL completa para listar intervenï¿½ï¿½es
         const apiUrl = `http://${urlempresa}/WebApi/Word/Eliminar/${Codigo}`;
-        console.log('Enviando solicitação para a URL:', apiUrl);
+        console.log('Enviando solicitaï¿½ï¿½o para a URL:', apiUrl);
 
 
-        // Chamada para a API para criar a intervenção
+        // Chamada para a API para criar a intervenï¿½ï¿½o
         const response = await axios.get(apiUrl, {
             headers: {
                 Authorization: `Bearer ${painelAdminToken}`,
@@ -250,7 +300,7 @@ router.get('/Eliminar/:Codigo', async (req, res) => {
 
         // Verifica o status da resposta
         if (response.status === 200) {
-            return res.status(200).json(response.data);  // Retorna as intervenções encontradas
+            return res.status(200).json(response.data);  // Retorna as intervenï¿½ï¿½es encontradas
         } else if (response.status === 404) {
             return res.status(404).json({ error: 'Nenhum Oficio encontrada.' });
         } else {
@@ -271,24 +321,24 @@ router.get('/Eliminar/:Codigo', async (req, res) => {
 router.get('/Detalhes/:Codigo', async (req, res) => {
     try {
         const { Codigo } = req.params;
-        const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabeçalho
+        const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabeï¿½alho
         if (!token) {
-            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
+            return res.status(401).json({ error: 'Token nï¿½o encontrado. Faï¿½a login novamente.' });
         }
 
-        // Usando a função para obter o urlempresa dos cabeçalhos
+        // Usando a funï¿½ï¿½o para obter o urlempresa dos cabeï¿½alhos
         const urlempresa = await getEmpresaUrl(req);
         if (!urlempresa) {
-            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+            return res.status(400).json({ error: 'URL da empresa nï¿½o fornecida.' });
         }
 
 
-        // Monta a URL completa para listar intervenções
+        // Monta a URL completa para listar intervenï¿½ï¿½es
         const apiUrl = `http://${urlempresa}/WebApi/Word/Detalhes/${Codigo}`;
-        console.log('Enviando solicitação para a URL:', apiUrl);
+        console.log('Enviando solicitaï¿½ï¿½o para a URL:', apiUrl);
 
 
-        // Chamada para a API para criar a intervenção
+        // Chamada para a API para criar a intervenï¿½ï¿½o
         const response = await axios.get(apiUrl, {
             headers: {
                 Authorization: `Bearer ${painelAdminToken}`,
@@ -299,7 +349,7 @@ router.get('/Detalhes/:Codigo', async (req, res) => {
 
         // Verifica o status da resposta
         if (response.status === 200) {
-            return res.status(200).json(response.data);  // Retorna as intervenções encontradas
+            return res.status(200).json(response.data);  // Retorna as intervenï¿½ï¿½es encontradas
         } else if (response.status === 404) {
             return res.status(404).json({ error: 'Nenhum Oficio encontrada.' });
         } else {
