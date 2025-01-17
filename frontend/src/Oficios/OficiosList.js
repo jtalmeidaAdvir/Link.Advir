@@ -1,23 +1,79 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+
 
 const OficiosList = () => {
-  const navigation = useNavigation();
+    const navigation = useNavigation();
 
-  // Dados estáticos para a FlatList
-  const [oficios, setOficios] = useState([
-    { id: "1", title: "Ofício 1", description: "Descrição do Ofício 1" },
-    { id: "2", title: "Ofício 2", description: "Descrição do Ofício 2" },
-    { id: "3", title: "Ofício 3", description: "Descrição do Ofício 3" },
-  ]);
+    // Dados estáticos para a FlatList
+    const [oficios, setOficios] = useState([]);
 
-  const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [loading, setLoading] = useState(true); // Estado de carregamento
+    const [error, setError] = useState(null); // Estado de erro
 
-  // Filtra os ofícios com base na pesquisa
-  const filteredOficios = oficios.filter((oficio) =>
-    oficio.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+
+
+    // Função para buscar os dados da API
+    useFocusEffect(
+        React.useCallback(() => {
+            // Função assíncrona dentro do efeito
+            const fetchOficios = async () => {
+                const token = localStorage.getItem('painelAdminToken');
+                const urlempresa = localStorage.getItem('urlempresa');
+
+                if (!urlempresa) {
+                    setError('URL da empresa não encontrada.');
+                    setLoading(false);
+                    return;
+                }
+
+                try {
+                    const response = await fetch('http://localhost:3001/oficio/Listar', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'urlempresa': urlempresa,
+                            'Content-Type': 'application/json',
+                        },
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Error: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    console.log(data); // Verifique a estrutura da resposta
+
+                    // Verificando se os dados existem e se a estrutura está correta
+                    if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
+                        setOficios(data.DataSet.Table);
+                    } else {
+                        setOficios([]);
+                        setError('Dados não encontrados ou estrutura inesperada');
+                    }
+                } catch (error) {
+                    console.error('Error fetching oficios:', error);
+                    setOficios([]);
+                    setError('Erro ao carregar os dados');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            fetchOficios(); // Chame a função assíncrona aqui
+        }, [])
+    );
+
+
+
+    // Filtrando os ofícios com base na pesquisa
+    const filteredOficios = oficios.filter((oficio) => {
+        // Garantir que o 'title' (ou CDU_assunto) seja uma string
+        const title = oficio.CDU_assunto ? oficio.CDU_assunto.toLowerCase() : '';
+        return title.includes(searchQuery.toLowerCase());
+    });
 
   // Renderiza cada item da lista
   const renderOficio = ({ item }) => (
@@ -27,37 +83,49 @@ const OficiosList = () => {
     </View>
   );
 
-  return (
-    <View style={styles.container}>
-      {/* Barra de Pesquisa */}
-      <TextInput
-        style={styles.searchBar}
-        placeholder="Pesquisar Ofício"
-        value={searchQuery}
-        onChangeText={(text) => setSearchQuery(text)}
-      />
+    return (
+        <View style={styles.container}>
+            {/* Barra de Pesquisa */}
+            <TextInput
+                style={styles.searchBar}
+                placeholder="Pesquisar Ofício"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+            />
 
-      <FlatList
-        data={filteredOficios}
-        renderItem={renderOficio}
-        keyExtractor={(item) => item.id}
-      />
+            {loading ? (
+                <Text>Carregando...</Text>
+            ) : error ? (
+                <Text>{error}</Text>
+            ) : (
+                <FlatList
+                    data={filteredOficios}
+                    renderItem={({ item }) => (
+                        <View style={styles.itemContainer}>
+                            <Text style={styles.title}>{item.CDU_codigo}</Text>
+                            <Text style={styles.description}>{item.CDU_assunto} {item.CDU_remetente}</Text>
+                            <Text style={styles.description}>{item.CDU_remetente}</Text>
+                        </View>
+                    )}
+                    keyExtractor={(item) => item.CDU_codigo}
+                />
+            )}
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate("OficiosPage")}
-      >
-        <Text style={styles.buttonText}>Criar Novo Ofício</Text>
-      </TouchableOpacity>
-    </View>
-  );
+            <TouchableOpacity
+                style={styles.button}
+                onPress={() => navigation.navigate("OficiosPage")}
+            >
+                <Text style={styles.buttonText}>Criar Novo Ofício</Text>
+            </TouchableOpacity>
+        </View>
+    );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#d4e4ff",
   },
   searchBar: {
     backgroundColor: "#fff",

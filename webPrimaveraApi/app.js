@@ -9,6 +9,7 @@ const routePedidos_STP = require('./routes/Servicos/routePedidos_STP');
 const listarIntervencoes = require('./routes/Servicos/listarIntervencoes');
 const clientArea = require('./routes/ClientArea/clientArea')
 const sendEmail = require('./servives/emailServicos');
+const oficio = require('./routes/Oficios/oficios');
 
 const app = express();
 app.use(express.json());
@@ -20,7 +21,7 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // ou outros métodos necessários
 
 }));
-  
+
 
 // Configuração de sessão
 app.use(session({
@@ -37,6 +38,7 @@ app.use('/listarObras', listarObras);
 app.use('/detalhesObra', detalhesObra);
 app.use('/routePedidos_STP', routePedidos_STP);
 app.use('/listarIntervencoes', listarIntervencoes);
+app.use('/oficio', oficio);
 app.post('/send-email', sendEmail);  // Ensure it's a POST route
 
 app.post('/connect-database/token', async (req, res) => {
