@@ -206,7 +206,7 @@ const OficiosPage = () => {
     useEffect(() => {
         generateBlankPageWithTitle();
     }, []);
-
+    /*
     const handleSavePDF = async () => {
         const container = docxContainer.current;
         if (container) {
@@ -219,7 +219,7 @@ const OficiosPage = () => {
             pdf.save("oficio.pdf");
         }
     };
-
+    */
     const handleSendEmail = () => {
         alert("Função de enviar email ainda não implementada!");
     };
@@ -257,9 +257,53 @@ const OficiosPage = () => {
             const data = await response.json();
             alert("Ofício criado e PDF salvo com sucesso!");
             console.log("Resposta do servidor:", data);
+
+            await handleSavePDF();
         } catch (error) {
             console.error("Erro ao criar o ofício:", error);
             alert("Erro ao criar o ofício. Verifique os logs para mais detalhes.");
+        }
+    };
+
+    const handleSavePDF = async () => {
+        const container = docxContainer.current;
+
+        if (container) {
+            // Define uma largura fixa para o container antes de capturar
+            const originalWidth = container.style.width;
+            container.style.width = "794px"; // Largura aproximada de A4 em pixels
+
+            // Captura o conteúdo com uma escala fixa
+            const canvas = await html2canvas(container, {
+                scale: 2, // Aumenta a resolução para qualidade
+                useCORS: true, // Garante que imagens externas sejam capturadas
+            });
+
+            // Restaura o estilo original do container
+            container.style.width = originalWidth;
+
+            // Converte o conteúdo capturado para imagem
+            const imgData = canvas.toDataURL("image/png");
+
+            // Calcula as dimensões do PDF
+            const pdf = new jsPDF("portrait", "mm", "a4");
+            const pdfWidth = 210; // Largura A4 em mm
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            // Adiciona a imagem ao PDF
+            pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+
+            // Nome e localização do ficheiro
+            const fileName = `${formData.codigo}.pdf`;
+
+            // Guardar o PDF
+            try {
+                saveAs(pdf.output("blob"), fileName);
+                alert(`Por favor, guarde o ficheiro na pasta 'C:\\Users\\jtalm\\Desktop\\Oficios'`);
+            } catch (error) {
+                console.error("Erro ao guardar o PDF:", error);
+                alert("Erro ao tentar salvar o PDF.");
+            }
         }
     };
 

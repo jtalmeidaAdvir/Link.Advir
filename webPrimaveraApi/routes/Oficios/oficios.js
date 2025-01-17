@@ -4,9 +4,8 @@ const axios = require('axios');
 const cors = require('cors');
 const fs = require("fs");
 const path = require("path");
-const PDFDocument = require("pdfkit");
 const os = require("os");
-
+const PDFDocument = require("pdfkit");
 // Caminho base para guardar os ficheiros
 const desktopPath = path.join(os.homedir(), "Desktop", "Oficios");
 
@@ -14,8 +13,6 @@ const desktopPath = path.join(os.homedir(), "Desktop", "Oficios");
 if (!fs.existsSync(desktopPath)) {
     fs.mkdirSync(desktopPath, { recursive: true });
 }
-
-
 router.post("/Criar", async (req, res) => {
     try {
         const dadosOficio = req.body;
@@ -70,11 +67,13 @@ router.post("/Criar", async (req, res) => {
 
         // **2. Salvar o PDF localmente**
         const oficioPath = path.join(desktopPath, codigo);
+        console.log('Caminho da pasta do ofício:', oficioPath); 
         if (!fs.existsSync(oficioPath)) {
             fs.mkdirSync(oficioPath, { recursive: true }); // Cria os diretórios de forma recursiva
         }
 
-        const pdfFilename = `${codigo}.pdf`;
+        const sanitizedCodigo = codigo.replace(/[\\\/:*?"<>|]/g, "_");
+        const pdfFilename = `${sanitizedCodigo}.pdf`;
         const pdfFilePath = path.join(oficioPath, pdfFilename);
 
         const doc = new PDFDocument();
