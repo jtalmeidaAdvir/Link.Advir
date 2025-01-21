@@ -132,8 +132,8 @@ const Intervencoes = (props) => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => props.navigation.navigate('PedidosAssistencia')} style={styles.backButton}>
-                    <FontAwesomeIcon icon={faArrowLeft} style={{ color: '#0022FF', marginRight: 5 }} />
-                    <Text style={{ color: '#0022FF' }}>{t("Intervencoes.BtVoltar")}</Text>
+                    <FontAwesomeIcon icon={faArrowLeft} style={{ color: '#1792FE', marginRight: 5 }} />
+                    <Text style={{ color: '#1792FE' }}>{t("Intervencoes.BtVoltar")}</Text>
                 </TouchableOpacity>
             </View>
             <Text style={styles.title}>{t("Intervencoes.Title")}</Text>
@@ -201,12 +201,12 @@ const styles = StyleSheet.create({
         marginBottom: 20,
         padding: 10,
         borderRadius: 30,
-        borderColor: '#0022FF',
+        borderColor: '#1792FE',
         borderWidth: 1,
     },
     title: {
         fontSize: 24,
-        color: '#0022FF',
+        color: '#1792FE',
         fontWeight: '600',
         marginBottom: 20,
     },
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     searchInput: {
         flex: 1,
         padding: 10,
-        borderColor: '#0022FF',
+        borderColor: '#1792FE',
         borderWidth: 1,
         borderRadius: 30,
         marginRight: 10,
@@ -250,11 +250,11 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
     chevronIcon: {
-        color: '#0022FF',
+        color: '#1792FE',
         marginLeft: 10,
     },
     icon: {
-        color: '#0022FF',
+        color: '#1792FE',
         marginLeft: 10,
     },
     iconDelete: {
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     button: {
         padding: 10,
         borderRadius: 20,
-        backgroundColor: '#0022FF',
+        backgroundColor: '#1792FE',
         marginHorizontal: 5,
     },
     addButton: {

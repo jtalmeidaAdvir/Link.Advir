@@ -106,7 +106,7 @@ const PainelAdmin = () => {
     return (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', backgroundColor: '#d4e4ff', margin: '0', padding: '0' }}>
             <div style={{ maxWidth: '400px', width: '100%', padding: '20px', borderRadius: '15px' }}>
-                <h1 style={{ textAlign: 'center', color: '#0022FF', fontWeight: '600', fontSize: '2rem', marginBottom: '50px' }}>
+                <h1 style={{ textAlign: 'center', color: '#1792FE', fontWeight: '600', fontSize: '2rem', marginBottom: '50px' }}>
                     Conecte a Sua Empresa
                 </h1>
                 <form onSubmit={handleSubmit}>
@@ -174,7 +174,7 @@ const PainelAdmin = () => {
                         </div>
                     )}
 
-                    <button type="submit" style={{ borderRadius: '10px', padding: '12px', fontSize: '1.1rem', backgroundColor: '#0022FF', color: 'white', width: '100%', border: 'none' }} disabled={loading}>
+                    <button type="submit" style={{ borderRadius: '10px', padding: '12px', fontSize: '1.1rem', backgroundColor: '#1792FE', color: 'white', width: '100%', border: 'none' }} disabled={loading}>
                         {loading ? 'Aguarde...' : 'Conectar'}
                     </button>
                 </form>

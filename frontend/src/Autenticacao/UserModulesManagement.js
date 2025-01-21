@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     },
     title: {
         textAlign: 'center',
-        color: '#0022FF',
+        color: '#1792FE',
         fontWeight: '600',
         fontSize: 22,
         marginBottom: 20,
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     },
     moduleText: {
         fontSize: 18,
-        color: '#0022FF',
+        color: '#1792FE',
         marginBottom: 10,
     },
     submoduleContainer: {
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     },
     submoduleText: {
         fontSize: 16,
-        color: '#0022FF',
+        color: '#1792FE',
         marginLeft: 10,
     },
 });

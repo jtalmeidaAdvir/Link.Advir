@@ -201,19 +201,19 @@ const LeitorQRCode = () => {
                 <Text style={styles.cardDate}>Dia: {item.data}</Text>
                 <View style={styles.cardContent}>
                     <View style={styles.cardRow}>
-                        <FontAwesome name="sign-in" size={16} color="#0022FF" style={styles.icon} />
+                        <FontAwesome name="sign-in" size={16} color="#1792FE" style={styles.icon} />
                         <Text style={styles.registoText}>Entrada: {horaEntrada}</Text>
                     </View>
                     <View style={styles.cardRow}>
-                        <FontAwesome name="sign-out" size={16} color="#0022FF" style={styles.icon} />
+                        <FontAwesome name="sign-out" size={16} color="#1792FE" style={styles.icon} />
                         <Text style={styles.registoText}>Saída: {horaSaida}</Text>
                     </View>
                     <View style={styles.cardRow}>
-                        <FontAwesome name="clock-o" size={16} color="#0022FF" style={styles.icon} />
+                        <FontAwesome name="clock-o" size={16} color="#1792FE" style={styles.icon} />
                         <Text style={styles.registoText}>Total Horas: {totalHorasDia} horas</Text>
                     </View>
                     <View style={styles.cardRow}>
-                        <FontAwesome name="pause-circle" size={16} color="#0022FF" style={styles.icon} />
+                        <FontAwesome name="pause-circle" size={16} color="#1792FE" style={styles.icon} />
                         <Text style={styles.registoText}>Total Pausa: {parseFloat(totalTempoIntervalo).toFixed(2)} horas</Text>
                     </View>
                 </View>
@@ -241,7 +241,7 @@ const LeitorQRCode = () => {
                     onPress={iniciarIntervalo}
                     disabled={intervaloAberto || existeSaida}
                 >
-                    <FontAwesome name="pause" size={20} color="#0022FF" style={styles.icon} />
+                    <FontAwesome name="pause" size={20} color="#1792FE" style={styles.icon} />
                     <Text style={styles.buttonText}></Text>
                 </TouchableOpacity>
 
@@ -250,7 +250,7 @@ const LeitorQRCode = () => {
                     onPress={finalizarIntervalo}
                     disabled={!intervaloAberto || existeSaida}
                 >
-                    <FontAwesome name="play" size={20} color="#0022FF" style={styles.icon} />
+                    <FontAwesome name="play" size={20} color="#1792FE" style={styles.icon} />
                     <Text style={styles.buttonText}></Text>
                 </TouchableOpacity>
 
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 26,
         fontWeight: '700',
-        color: '#0022FF',
+        color: '#1792FE',
         marginVertical: 20,
     },
     clockContainer: {
@@ -330,17 +330,17 @@ const styles = StyleSheet.create({
     buttonWarning: {
         backgroundColor: '#e3ebff',
         borderWidth: 2,
-        borderColor: '#0022FF',
+        borderColor: '#1792FE',
     },
     buttonSuccess: {
         backgroundColor: '#e3ebff',
         borderWidth: 2,
-        borderColor: '#0022FF',
+        borderColor: '#1792FE',
     },
     buttonText: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#0022FF',
+        color: '#1792FE',
         marginLeft: 8,
     },
     card: {
@@ -355,12 +355,12 @@ const styles = StyleSheet.create({
         width: '90%',
         alignSelf: 'center',
         borderLeftWidth: 5,
-        borderLeftColor: '#0022FF',
+        borderLeftColor: '#1792FE',
     },
     cardDate: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#0022FF',
+        color: '#1792FE',
         marginBottom: 5,
     },
     cardContent: {

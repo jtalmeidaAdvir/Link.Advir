@@ -61,7 +61,7 @@ const RedefinirPassword = ({ route }) => {
                 <h1
                     style={{
                         textAlign: 'center',
-                        color: '#0022FF',
+                        color: '#1792FE',
                         fontWeight: '600',
                         fontSize: '2rem',
                         marginBottom: '50px',
@@ -113,7 +113,7 @@ const RedefinirPassword = ({ route }) => {
                             borderRadius: '10px',
                             padding: '12px',
                             fontSize: '1.1rem',
-                            backgroundColor: '#0022FF',
+                            backgroundColor: '#1792FE',
                             color: 'white',
                             width: '100%',
                             border: 'none',

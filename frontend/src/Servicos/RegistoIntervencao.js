@@ -994,7 +994,7 @@ const tableStyle2 = {
 };
 const modalTitleStyle = {
     textAlign: 'center',
-    color: '#0022FF',
+    color: '#1792FE',
     margin: 0,
 };
 const inputStyle2 = {
@@ -1003,7 +1003,7 @@ const inputStyle2 = {
     boxSizing: 'border-box', // Inclui padding no total width
 };
 const sectionTitleStyle = {
-    color: '#0022FF',
+    color: '#1792FE',
     margin: '10px 0 5px',
 };
 
@@ -1021,14 +1021,14 @@ const artigoListContainerStyle = {
     marginTop: '20px',
 };
 const headerStyle = {
-    color: '#0022FF',
+    color: '#1792FE',
     fontSize: '2rem',
     fontWeight: '600',
     marginBottom: '30px',
 };
 const detailsHeaderStyle = {
     fontSize: '1.5rem',
-    color: '#0022FF',
+    color: '#1792FE',
     marginBottom: '20px',
 };
 const formRowStyle = {
@@ -1091,7 +1091,7 @@ const saveButtonStyle = {
     borderRadius: '10px',
     padding: '12px',
     fontSize: '1.1rem',
-    backgroundColor: '#0022FF',
+    backgroundColor: '#1792FE',
     color: 'white',
     width: '48%',
     border: 'none',

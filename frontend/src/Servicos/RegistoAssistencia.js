@@ -471,7 +471,7 @@ const containerStyle = {
 };
 
 const headerStyle = {
-    color: '#0022FF',
+    color: '#1792FE',
     fontSize: '2rem',
     fontWeight: '600',
     marginBottom: '30px',
@@ -479,7 +479,7 @@ const headerStyle = {
 
 const detailsHeaderStyle = {
     fontSize: '1.5rem',
-    color: '#0022FF',
+    color: '#1792FE',
     marginBottom: '20px',
 };
 
@@ -549,7 +549,7 @@ const saveButtonStyle = {
     borderRadius: '10px',
     padding: '12px',
     fontSize: '1.1rem',
-    backgroundColor: '#0022FF',
+    backgroundColor: '#1792FE',
     color: 'white',
     width: '48%',
     border: 'none',

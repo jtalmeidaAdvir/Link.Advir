@@ -57,7 +57,7 @@ const AutosMedicaoExecucao = ({ route,navigation }) => {
             </TouchableOpacity>
             <Text style={styles.title}>Autos de Medição Execução - Obra {obraCodigo}</Text>
             {loading ? (
-                <ActivityIndicator size="large" color="#0022FF" style={styles.loadingIndicator} />
+                <ActivityIndicator size="large" color="#1792FE" style={styles.loadingIndicator} />
             ) : errorMessage ? (
                 <Text style={styles.errorText}>{errorMessage}</Text>
             ) : (
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
         padding: 10,
         borderRadius: 30,
-        borderColor: '#0022FF',
+        borderColor: '#1792FE',
         borderWidth: 1,
     },
     title: {

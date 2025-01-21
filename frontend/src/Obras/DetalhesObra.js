@@ -107,7 +107,7 @@ const DetalhesObra = ({ route, navigation }) => {
                 <Text style={styles.title}>Detalhes da Obra {obraCodigo}</Text>
 
                 {loading ? (
-                    <ActivityIndicator size="large" color="#0022FF" style={styles.loadingIndicator} />
+                    <ActivityIndicator size="large" color="#1792FE" style={styles.loadingIndicator} />
                 ) : errorMessage ? (
                     <Text style={styles.errorText}>{errorMessage}</Text>
                 ) : (
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
         padding: 10,
         borderRadius: 30,
-        borderColor: '#0022FF',
+        borderColor: '#1792FE',
         borderWidth: 1,
     },
     container: {
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     chartTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#0022FF',
+        color: '#1792FE',
         textAlign: 'center',
         marginBottom: 10,
     },
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
         color: '#333',
     },
     button: {
-        backgroundColor: '#0022FF',
+        backgroundColor: '#1792FE',
         padding: 15,
         borderRadius: 8,
         alignItems: 'center',
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#0022FF',
+        color: '#1792FE',
         marginBottom: 10,
     },
     cube: {

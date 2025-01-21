@@ -175,7 +175,7 @@ const Perfil = ({ user }) => {
                 onChangeText={setConfirmPassword}
             />
 
-            <Button title={t("Perfil.Gravar")} onPress={handleSavePassword} color="#0022FF" />
+            <Button title={t("Perfil.Gravar")} onPress={handleSavePassword} color="#1792FE" />
 
             {/* Modal de confirmação */}
             <Modal
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     welcomeText: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#0022FF',
+        color: '#1792FE',
         marginBottom: 20,
     },
     profileContainer: {
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     userName: {
         fontSize: 20,
         fontWeight: '600',
-        color: '#0022FF',
+        color: '#1792FE',
     },
     userCompany: {
         fontSize: 16,
@@ -253,12 +253,12 @@ const styles = StyleSheet.create({
         height: 100,
         borderRadius: 50,
         borderWidth: 1,
-        borderColor: '#0022FF',
+        borderColor: '#1792FE',
     },
     changePasswordText: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#0022FF',
+        color: '#1792FE',
         marginBottom: 10,
     },
     input: {
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#ccc',
     },
     confirmButton: {
-        backgroundColor: '#0022FF',
+        backgroundColor: '#1792FE',
     },
     buttonText: {
         color: 'white',

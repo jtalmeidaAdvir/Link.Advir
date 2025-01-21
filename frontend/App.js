@@ -87,28 +87,31 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                 <DrawerItem
                     label="ADHome"
                     onPress={() => props.navigation.navigate('ADHome')}
-                    icon={() => <FontAwesome name="home"  size={20} color="#0022FF" />}
+                    icon={() => <FontAwesome name="home"  size={20} color="#1792FE" />}
                 />
                 <DrawerItem
                     label="RegistoAdmin"
                     onPress={() => props.navigation.navigate('RegistoAdmin')}
-                    icon={() => <FontAwesome name="home" size={20} color="#0022FF" />}
+                    icon={() => <FontAwesome name="home" size={20} color="#1792FE" />}
                 />
                 <DrawerItem
                     label="Meu Perfil"
                     onPress={() => props.navigation.navigate('Perfil')}
-                    icon={() => <FontAwesome name="user" size={20} color="#0022FF" />}
+                    icon={() => <FontAwesome name="user" size={20} color="#1792FE" />}
                 />
                 <DrawerItem
                     label="Logout"
                     onPress={handleLogout}
-                    icon={() => <FontAwesome name="sign-out" size={20} color="#0022FF" />}
+                    icon={() => <FontAwesome name="sign-out" size={20} color="#1792FE" />}
                 />
             </DrawerContentScrollView>
         );
     }
  
     // Conteúdo do drawer para outros utilizadores
+
+    const hasOficiosModule = modules.some(module => module.nome === "Oficios");
+
     const hasServicesModule = modules.some(module => module.nome === "Servicos");
     
     const hasQrCodeAssiduidadeModule = modules.some(
@@ -126,43 +129,43 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
             <DrawerItem
                 label={t("Drawer.Home")}
                 onPress={() => props.navigation.navigate('Home')}
-                icon={() => <FontAwesome name="home" size={20} color="#0022FF" />}
+                icon={() => <FontAwesome name="home" size={20} color="#1792FE" />}
             />
             {isLoggedIn && (
                 <>
                     <DrawerItem
                         label={t("Drawer.SelecaoEmpresa")}
                         onPress={() => props.navigation.navigate('SelecaoEmpresa')}
-                        icon={() => <FontAwesome name="briefcase" size={20} color="#0022FF" />}
+                        icon={() => <FontAwesome name="briefcase" size={20} color="#1792FE" />}
                     />
                     {hasObrasModule && (
                     <DrawerItem
                             label={t("Drawer.Obra")}
                         onPress={() => props.navigation.navigate('Obras')}
-                        icon={() => <FontAwesome name="road" size={20} color="#0022FF" />}
+                        icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
                     />
                     )}
                     {hasServicesModule && (
                         <DrawerItem
                             label=  {t("Drawer.Servicos")}
                             onPress={() => props.navigation.navigate('PedidosAssistencia')}
-                            icon={() => <FontAwesome name="wrench" size={20} color="#0022FF" />}
+                            icon={() => <FontAwesome name="wrench" size={20} color="#1792FE" />}
                         />
                        
                     )}
                     
-                    {hasServicesModule && (
+                    {hasOficiosModule && (
                         <DrawerItem
                             label={t("Oficios")}
                             onPress={() => props.navigation.navigate('OficiosList')}
-                            icon={() => <FontAwesome name="file" size={20} color="#0022FF" />}
+                            icon={() => <FontAwesome name="file" size={20} color="#1792FE" />}
                         />
                     )}
                     {hasServicesModule && (
                         <DrawerItem
                             label=  {t("Drawer.ServicosTecnicos")}
                             onPress={() => props.navigation.navigate('PandIByTecnico')}
-                            icon={() => <FontAwesome name="wrench" size={20} color="#0022FF" />}
+                            icon={() => <FontAwesome name="wrench" size={20} color="#1792FE" />}
                         />
                        
                     )}
@@ -170,14 +173,14 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                         <DrawerItem
                             label={t("Drawer.PontoQR")}
                             onPress={() => props.navigation.navigate('LeitorQRCode')}
-                            icon={() => <FontAwesome name="clock-o" size={20} color="#0022FF" />}
+                            icon={() => <FontAwesome name="clock-o" size={20} color="#1792FE" />}
                         />
                     )}
                     {hasBotaoAssiduidadeModule && (
                         <DrawerItem
                             label={t("Drawer.PontoBT")}
                             onPress={() => props.navigation.navigate('PontoBotao')}
-                            icon={() => <FontAwesome name="clock-o" size={20} color="#0022FF" />}
+                            icon={() => <FontAwesome name="clock-o" size={20} color="#1792FE" />}
                         />
                     )}
                 </>
@@ -187,14 +190,14 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                    <List.Accordion
                         title={t("Drawer.ADM.title")}
                    left={() => (
-                       <FontAwesome name="cogs" size={18} color="#0022FF" style={{ marginLeft:15 }} />
+                       <FontAwesome name="cogs" size={18} color="#1792FE" style={{ marginLeft:15 }} />
                    )}
                    right={() => (
                        <FontAwesome
                            name={expanded ? "angle-down" : "angle-up"} // Seta para cima ou para baixo
                            size={18}
                            
-                           color="#0022FF"
+                           color="#1792FE"
                        />
                    )}
                    expanded={expanded}
@@ -229,13 +232,13 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                     <DrawerItem
                         label={t("Drawer.Perfil")}
                         onPress={() => props.navigation.navigate('Perfil')}
-                        icon={() => <FontAwesome name="user" size={20} color="#0022FF" />}
+                        icon={() => <FontAwesome name="user" size={20} color="#1792FE" />}
                     />
                 )}
                 {localStorage.getItem('loginToken') && (
                     <DrawerItem
                         label={t("Drawer.Exit")}
-                        icon={() => <FontAwesome name="sign-out" size={20} color="#0022FF" />}
+                        icon={() => <FontAwesome name="sign-out" size={20} color="#1792FE" />}
                         onPress={handleLogout}
                     />
                 )}
@@ -301,7 +304,7 @@ const AppNavigator = () => {
     if (loading) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#0022FF" />
+                <ActivityIndicator size="large" color="#1792FE" />
                 <Text>A carregar...</Text>
             </View>
         );
@@ -344,10 +347,10 @@ const AppNavigator = () => {
                             }}
                             style={{ flexDirection: 'row', alignItems: 'center' }}
                         >
-                            <FontAwesome name="user" size={20} color="#0022FF" />
-                            <Text style={{ marginLeft: 8, color: '#0022FF', fontSize: 16 }}>{username}</Text>
+                            <FontAwesome name="user" size={20} color="#1792FE" />
+                            <Text style={{ marginLeft: 8, color: '#1792FE', fontSize: 16 }}>{username}</Text>
                             {empresa && (
-                                <Text style={{ marginLeft: 15, color: '#0022FF', fontSize: 16 }}>
+                                <Text style={{ marginLeft: 15, color: '#1792FE', fontSize: 16 }}>
                                     {empresa}
                                 </Text>
                             )}
@@ -358,7 +361,7 @@ const AppNavigator = () => {
                             onPress={toggleLanguageSelector} // Alterna a visibilidade do combobox de idiomas
                             style={{ marginRight: 10, marginLeft: 10 }}
                         >
-                            <Text style={{ color: '#0022FF', fontSize: 16 }}>
+                            <Text style={{ color: '#1792FE', fontSize: 16 }}>
                                 {i18n.language === 'pt' ? 'PT' : 'EN'}
                             </Text>
                         </TouchableOpacity>

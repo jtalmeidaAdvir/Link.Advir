@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#0022FF',
+        color: '#1792FE',
         textAlign: 'center',
         marginBottom: 20,
     },
@@ -269,13 +269,13 @@ const styles = StyleSheet.create({
     subTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#0022FF',
+        color: '#1792FE',
         marginBottom: 10,
     },
     empresaButton: {
         padding: 15,
         borderRadius: 10,
-        backgroundColor: '#0022FF',
+        backgroundColor: '#1792FE',
         marginVertical: 5,
     },
     selectedButton: {
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     updateButton: {
-        backgroundColor: '#0022FF',
+        backgroundColor: '#1792FE',
         borderRadius: 10,
         padding: 10,
         alignItems: 'center',

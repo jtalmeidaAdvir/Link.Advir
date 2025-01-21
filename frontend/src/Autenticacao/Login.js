@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { View, TouchableOpacity, Text } from 'react-native';
+import { View, TouchableOpacity, Text, Image } from 'react-native';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
+import logo from '../../assets/img_logo.png';
 
 const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {  // Adicione setIsLoggedIn como prop
     const [username, setLocalUsername] = useState('');
@@ -10,9 +11,10 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
     const [errorMessage, setErrorMessage] = useState('');
     const navigation = useNavigation();
     const { t } = useTranslation();
+
     const handleLogin = async (e) => {
         e.preventDefault();
-    
+
         try {
             const response = await fetch('https://backend.advir.pt/api/users/login', {
                 method: 'POST',
@@ -21,11 +23,11 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 },
                 body: JSON.stringify({ username, password }),
             });
-    
+
             if (response.ok) {
                 const data = await response.json();
                 console.log('Login bem-sucedido:', data);
-    
+
                 // Guardar o token no localStorage
                 localStorage.setItem('loginToken', data.token);
                 localStorage.setItem('isAdmin', data.isAdmin ? 'true' : 'false');
@@ -33,13 +35,13 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 localStorage.setItem('username', username);
                 localStorage.setItem('userId', data.userId);
                 localStorage.setItem('empresa_areacliente', data.empresa_areacliente);
-    
+
                 // Atualiza o estado de login e permissões
                 setUsername(username);
                 setIsAdmin(data.isAdmin);
-                setIsLoggedIn(true); 
+                setIsLoggedIn(true);
                 onLoginComplete(); // Chama para atualizar o Drawer
-    
+
                 // Redirecionamento após login
                 if (data.redirect) {
                     navigation.navigate('VerificaConta');
@@ -50,7 +52,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 }
             } else {
                 const errorData = await response.json();
-                setErrorMessage(errorData.error ||  t("Login.Error.1") );
+                setErrorMessage(errorData.error || t("Login.Error.1"));
             }
         } catch (error) {
             console.error('Erro de rede:', error);
@@ -58,27 +60,12 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
         }
     };
 
-    
-    
-    // Hiperligação para a página de Registo de Empresa
-    const RegistarEmpresaLink = () => {
-        return (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 20 }}>
-                <TouchableOpacity onPress={() => navigation.navigate('RegistoAdmin')}>
-                    <Text style={{ color: '#0022FF', fontSize: 14 }}>
-                        Registar a minha empresa
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        );
-    };
-
     // Hiperligação para a página de recuperação de senha
     const RecuperarPasswordLink = () => {
         return (
             <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 10 }}>
                 <TouchableOpacity onPress={() => navigation.navigate('RecuperarPassword')}>
-                    <Text style={{ color: '#0022FF', fontSize: 14 }}>
+                    <Text style={{ color: '#1792FE', fontSize: 14 }}>
                         {t("Login.LinkRecoverPass")}
                     </Text>
                 </TouchableOpacity>
@@ -107,17 +94,12 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                     borderRadius: '15px',
                 }}
             >
-                <h1
-                    style={{
-                        textAlign: 'center',
-                        color: '#0022FF',
-                        fontWeight: '600',
-                        fontSize: '2rem',
-                        marginBottom: '50px',
-                    }}
-                >
-                    {t("Login.Title") }
-                </h1>
+                {/* Logo acima do título */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                    <img src={logo} alt="Logo" style={{ width: '550px', height: 'auto' }} />
+                </div>
+
+
                 <form onSubmit={handleLogin}>
                     <div style={{ marginBottom: '20px' }}>
                         <input
@@ -158,18 +140,16 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                         </div>
                     )}
 
-                    <RecuperarPasswordLink/>
-
-
+                    <RecuperarPasswordLink />
 
                     <button
                         type="submit"
                         style={{
-                            marginTop:'15px',
+                            marginTop: '15px',
                             borderRadius: '10px',
                             padding: '20px',
                             fontSize: '1.1rem',
-                            backgroundColor: '#0022FF',
+                            backgroundColor: '#1792FE',
                             color: 'white',
                             width: '100%',
                             border: 'none',
@@ -179,11 +159,6 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                         {t("Login.BtLogin")}
                     </button>
                 </form>
-
-                {/*<RegistarEmpresaLink />*/}
-                
-                
-                
             </div>
         </div>
     );

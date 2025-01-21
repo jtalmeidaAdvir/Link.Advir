@@ -55,7 +55,7 @@ const PedidosAlteracaoAdmin = () => {
             {errorMessage && <Text style={styles.error}>{errorMessage}</Text>}
 
             {loading ? (
-                <ActivityIndicator size="large" color="#0022FF" />
+                <ActivityIndicator size="large" color="#1792FE" />
             ) : (
                 <FlatList
                     data={pedidos}

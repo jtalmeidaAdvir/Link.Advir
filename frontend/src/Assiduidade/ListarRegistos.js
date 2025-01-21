@@ -51,35 +51,35 @@ const RegistoItem = ({ item, onEdit }) => {
             <Text style={styles.cardDate}>Dia: {new Date(item.data).toLocaleDateString('pt-PT')}</Text>
             <View style={styles.cardContent}>
                 <View style={styles.cardRow}>
-                    <FontAwesome name="sign-in" size={16} color="#0022FF" style={styles.icon} />
+                    <FontAwesome name="sign-in" size={16} color="#1792FE" style={styles.icon} />
                     <Text style={styles.registoText}>Entrada: {item.horaEntrada ? new Date(item.horaEntrada).toLocaleTimeString('pt-PT') : "N/A"}</Text>
                 </View>
                 <View style={styles.cardRow}>
-                    <FontAwesome name="sign-out" size={16} color="#0022FF" style={styles.icon} />
+                    <FontAwesome name="sign-out" size={16} color="#1792FE" style={styles.icon} />
                     <Text style={styles.registoText}>Saída: {item.horaSaida ? new Date(item.horaSaida).toLocaleTimeString('pt-PT') : "N/A"}</Text>
                 </View>
                 <View style={styles.cardRow}>
-                    <FontAwesome name="clock-o" size={16} color="#0022FF" style={styles.icon} />
+                    <FontAwesome name="clock-o" size={16} color="#1792FE" style={styles.icon} />
                     <Text style={styles.registoText}>Horas Trabalhadas: {totalHorasDia} horas</Text>
                 </View>
                 <View style={styles.cardRow}>
-                    <FontAwesome name="pause-circle" size={16} color="#0022FF" style={styles.icon} />
+                    <FontAwesome name="pause-circle" size={16} color="#1792FE" style={styles.icon} />
                     <Text style={styles.registoText}>Horas de Pausa: {parseFloat(totalTempoIntervalo).toFixed(2)} horas</Text>
                 </View>
                 <View style={styles.cardRow}>
-                    <FontAwesome name="map-marker" size={16} color="#0022FF" style={styles.icon} />
+                    <FontAwesome name="map-marker" size={16} color="#1792FE" style={styles.icon} />
                     <Text style={styles.registoText}>Latitude: {item.latitude || "N/A"}</Text>
                 </View>
                 <View style={styles.cardRow}>
-                    <FontAwesome name="map-marker" size={16} color="#0022FF" style={styles.icon} />
+                    <FontAwesome name="map-marker" size={16} color="#1792FE" style={styles.icon} />
                     <Text style={styles.registoText}>Longitude: {item.longitude || "N/A"}</Text>
                 </View>
                 <View style={styles.cardRow}>
-                    <FontAwesome name="map-marker" size={16} color="#0022FF" style={styles.icon} />
+                    <FontAwesome name="map-marker" size={16} color="#1792FE" style={styles.icon} />
                     <Text style={styles.registoText}>Endereço: {endereco}</Text>
                 </View>
                 <TouchableOpacity onPress={() => onEdit(item)} style={styles.editButton}>
-                    <FontAwesome name="edit" size={16} color="#0022FF" />
+                    <FontAwesome name="edit" size={16} color="#1792FE" />
                     <Text>Editar</Text>
                 </TouchableOpacity>
             </View>
@@ -143,7 +143,7 @@ const ListarRegistos = () => {
                 {errorMessage ? (
                     <Text style={styles.errorText}>{errorMessage}</Text>
                 ) : loading ? (
-                    <ActivityIndicator size="large" color="#0022FF" />
+                    <ActivityIndicator size="large" color="#1792FE" />
                 ) : (
                     <>
                         <View style={styles.filterContainer}>
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 26,
         fontWeight: '700',
-        color: '#0022FF',
+        color: '#1792FE',
         marginVertical: 20,
     },
     filterContainer: {
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: '#0022FF',
+        borderColor: '#1792FE',
         width: 100,
         marginRight: 10,
     },
@@ -243,12 +243,12 @@ const styles = StyleSheet.create({
         width: '90%',
         alignSelf: 'center',
         borderLeftWidth: 5,
-        borderLeftColor: '#0022FF',
+        borderLeftColor: '#1792FE',
     },
     cardDate: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#0022FF',
+        color: '#1792FE',
         marginBottom: 5,
     },
     cardContent: {

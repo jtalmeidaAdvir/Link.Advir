@@ -417,7 +417,7 @@ const PedidosAssistencia = ({ navigation }) => {
             <View style={styles.tableContainer}>
             {renderFilterMenu()}
                 {loading ? (
-                    <ActivityIndicator size="large" color="#0022FF" style={styles.loadingIndicator} />
+                    <ActivityIndicator size="large" color="#1792FE" style={styles.loadingIndicator} />
                 ) : (
                     <FlatList
                         data={filteredAndGroupedPedidos}
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 24,
-        color: '#0022FF',
+        color: '#1792FE',
         fontWeight: '600',
         marginBottom: 20,
     },
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     searchInput: {
         flex: 1,
         padding: 10,
-        borderColor: '#0022FF',
+        borderColor: '#1792FE',
         borderWidth: 1,
         borderRadius: 30,
         marginRight: 10,

@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 26,
         fontWeight: '600',
-        color: '#0022FF',
+        color: '#1792FE',
         marginBottom: 20,
         alignSelf: 'center',
 
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     searchInput: {
         padding: 15,
         borderRadius: 30,
-        borderColor: '#0022FF',
+        borderColor: '#1792FE',
         borderWidth: 1,
         marginBottom: 20,
         fontSize: 16,
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     },
     username: {
         fontSize: 18,
-        color: '#0022FF',
+        color: '#1792FE',
         marginBottom: 5,
         fontWeight: '500',
 
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
     },
     addButton: {
-        backgroundColor: '#0022FF',
+        backgroundColor: '#1792FE',
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 30,

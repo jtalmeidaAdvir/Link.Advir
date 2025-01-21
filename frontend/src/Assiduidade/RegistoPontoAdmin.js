@@ -173,7 +173,7 @@ const RegistoPontoAdmin = () => {
             {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
 
             {loading ? (
-                <ActivityIndicator size="large" color="#0022FF" />
+                <ActivityIndicator size="large" color="#1792FE" />
             ) : (
                 <>
                     {/* Selector de Utilizador */}
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     titulo: {
         fontSize: 24,
         fontWeight: '600',
-        color: '#0022FF',
+        color: '#1792FE',
         marginBottom: 20,
     },
     selectorContainer: {
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     exportButton: {
         borderRadius: 10,
         padding: 15,
-        backgroundColor: '#0022FF',
+        backgroundColor: '#1792FE',
         width: '80%',
         alignItems: 'center',
         marginVertical: 20,

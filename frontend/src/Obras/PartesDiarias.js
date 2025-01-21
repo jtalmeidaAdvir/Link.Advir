@@ -70,7 +70,7 @@ const PartesDiarias = ({ route, navigation }) => {
             </TouchableOpacity>
             <Text style={styles.header}>Partes Diárias {obraCodigo}</Text>
             {loading ? (
-                <ActivityIndicator size="large" color="#0022FF" />
+                <ActivityIndicator size="large" color="#1792FE" />
             ) : error ? (
                 <Text style={styles.errorText}>{error}</Text>
             ) : (
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 20,
         textAlign: 'center',
-        color: '#0022FF',
+        color: '#1792FE',
     },
     list: {
         marginTop: 10,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
         color: '#777',
     },
     button: {
-        backgroundColor: '#0022FF',
+        backgroundColor: '#1792FE',
         padding: 10,
         borderRadius: 5,
         alignItems: 'center',

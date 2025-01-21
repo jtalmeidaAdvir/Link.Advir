@@ -57,7 +57,7 @@ const RecuperarPassword = () => {
                 <h1
                     style={{
                         textAlign: 'center',
-                        color: '#0022FF',
+                        color: '#1792FE',
                         fontWeight: '600',
                         fontSize: '2rem',
                         marginBottom: '50px',
@@ -98,7 +98,7 @@ const RecuperarPassword = () => {
                             borderRadius: '10px',
                             padding: '12px',
                             fontSize: '1.1rem',
-                            backgroundColor: '#0022FF',
+                            backgroundColor: '#1792FE',
                             color: 'white',
                             width: '100%',
                             border: 'none',
@@ -110,7 +110,7 @@ const RecuperarPassword = () => {
 
                 <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 20 }}>
                     <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                        <Text style={{ color: '#0022FF', fontSize: 14 }}>{t("RecuperarPassword.LinkLogin")}</Text>
+                        <Text style={{ color: '#1792FE', fontSize: 14 }}>{t("RecuperarPassword.LinkLogin")}</Text>
                     </TouchableOpacity>
                 </View>
             </div>

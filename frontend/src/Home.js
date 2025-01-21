@@ -417,7 +417,7 @@ const [dataLists, setDataLists] = useState({
                 minHeight: '100vh',
                 fontFamily: 'Poppins, sans-serif',
             }}>
-                <h2 style={{ fontWeight: '600', color: '#0022FF', marginBottom: '20px' }}>{t('Home.welcome')}</h2>
+                <h2 style={{ fontWeight: '600', color: '#1792FE', marginBottom: '20px' }}>{t('Home.welcome')}</h2>
 
                 {/* Menu Section */}
                 <div style={{
@@ -478,7 +478,7 @@ const [dataLists, setDataLists] = useState({
                                     textAlign: 'left',
                                 }}
                             >
-                                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('Home.contratoinfo.title')}</h2>
+                                        <h2 style={{ fontWeight: '300', color: '#1792FE', marginBottom: '20px' }}>{t('Home.contratoinfo.title')}</h2>
                                 <div style={{ borderBottom: '1px solid #E0E0E0', paddingBottom: '15px', marginBottom: '15px' }}>
                                     <p style={{ margin: '5px 0' }}>
                                                 <strong style={{ color: '#555' }}>{t('Home.contratoinfo.codigo')}</strong> {contratoInfo.DataSet.Table[0]?.Codigo}
@@ -773,7 +773,7 @@ const [dataLists, setDataLists] = useState({
                             textAlign: 'left',
                         }}
                     >
-                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>
+                        <h2 style={{ fontWeight: '300', color: '#1792FE', marginBottom: '20px' }}>
                             {t('Pedidos de Assistência')}
                         </h2>
 
@@ -900,7 +900,7 @@ const [dataLists, setDataLists] = useState({
                             textAlign: 'center',
                         }}
                     >
-                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('Home.menu.products')}</h2>
+                        <h2 style={{ fontWeight: '300', color: '#1792FE', marginBottom: '20px' }}>{t('Home.menu.products')}</h2>
                         <div
                             style={{
                                 display: 'flex',
@@ -1026,7 +1026,7 @@ const [dataLists, setDataLists] = useState({
                             boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
                         }}
                     >
-                        <h2 style={{ fontWeight: '300', color: '#0022FF', marginBottom: '20px' }}>{t('Home.faq.title')}</h2>
+                        <h2 style={{ fontWeight: '300', color: '#1792FE', marginBottom: '20px' }}>{t('Home.faq.title')}</h2>
                         <div>
                             {faqItems.map((item, index) => (
                                 <div key={index} style={{ borderBottom: '1px solid #E0E0E0', paddingBottom: '15px', marginBottom: '15px' }}>

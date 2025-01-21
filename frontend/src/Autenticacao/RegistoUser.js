@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     },
     title: {
         textAlign: 'center',
-        color: '#0022FF',
+        color: '#1792FE',
         fontWeight: '600',
         fontSize: '2rem',
         marginBottom: '50px',
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
         borderRadius: '10px',
         padding: '12px',
         fontSize: '1.5rem',
-        backgroundColor: '#0022FF',
+        backgroundColor: '#1792FE',
         color: 'white',
         width: '100%',
         border: 'none',
