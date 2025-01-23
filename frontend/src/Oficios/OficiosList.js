@@ -31,7 +31,7 @@ const OficiosList = () => {
                 }
 
                 try {
-                    const response = await fetch('http://localhost:3001/oficio/Listar', {
+                    const response = await fetch('https://webapiprimavera.advir.pt/oficio/Listar', {
                         method: 'GET',
                         headers: {
                             'Authorization': `Bearer ${token}`,
@@ -119,7 +119,7 @@ const OficiosList = () => {
         }
 
         try {
-            const response = await fetch('http://localhost:3001/oficio/Listar', {
+            const response = await fetch('https://webapiprimavera.advir.pt/oficio/Listar', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,

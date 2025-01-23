@@ -15,7 +15,7 @@ const Home = () => {
     const [contratoInfo, setContratoInfo] = useState(null);
     const [pedidosInfo, setPedidosInfo] = useState(null);
     const [pedidosError, setPedidosError] = useState('');
-    const [pedidosLoading, setPedidosLoading] = useState(true);
+    const [pedidosLoading, setPedidosLoading] = useState(false);
     const [expandedIndex, setExpandedIndex] = useState(null); // Estado para controlar qual pergunta está expandida
     const [groupedPedidos, setGroupedPedidos] = useState({});
     const [expandedInterv, setExpandedInterv] = useState({}); // Estado para controlar intervenções expandidas
@@ -275,9 +275,11 @@ const [dataLists, setDataLists] = useState({
 
     useEffect(() => {
         const fetchPedidosInfo = async () => {
+            setPedidosLoading(true);
+            setLoading(true);
             try {
                 const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
-                const urlempresa = await AsyncStorage.getItem('urlempresa');
+                const urlempresa = await AsyncStorage.getItem('urlempresaAdvir');
                 const id = await AsyncStorage.getItem('empresa_areacliente');
 
                 if (!id || !token || !urlempresa) {
@@ -298,6 +300,8 @@ const [dataLists, setDataLists] = useState({
                 setPedidosError(error.message);
             } finally {
                 setPedidosLoading(false);
+            setLoading(false);
+            console.log("Finalizado fetch de dados iniciais e contrato.");
             }
         };
 
@@ -332,7 +336,7 @@ const [dataLists, setDataLists] = useState({
                 const credenciais = await credenciaisResponse.json();
     
                 // Guardar a `urlempresa` no localStorage
-                localStorage.setItem('urlempresa', credenciais.urlempresa);
+                localStorage.setItem('urlempresaAdvir', credenciais.urlempresa);
     
                 // Obter o token para a empresa Advir
                 const tokenResponse = await fetch(
@@ -382,7 +386,7 @@ const [dataLists, setDataLists] = useState({
 
         try {
             const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
-            const urlempresa = await AsyncStorage.getItem('urlempresa');
+            const urlempresa = await AsyncStorage.getItem('urlempresaAdvir');
             const clienteID = await AsyncStorage.getItem('empresa_areacliente');
 
             console.log('Token:', token, 'URL Empresa:', urlempresa, 'Cliente ID:', clienteID);

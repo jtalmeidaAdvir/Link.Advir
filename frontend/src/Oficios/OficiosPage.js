@@ -113,7 +113,7 @@ const OficiosPage = () => {
             if (!urlempresa) return;
 
             try {
-                const response = await fetch("http://localhost:3001/oficio/ListarObras", {
+                const response = await fetch("https://webapiprimavera.advir.pt/oficio/ListarObras", {
                     method: "GET",
                     headers: {
                         "Authorization": `Bearer ${token}`,
@@ -226,7 +226,7 @@ const OficiosPage = () => {
             const token = localStorage.getItem("painelAdminToken");
             const urlempresa = localStorage.getItem("urlempresa");
 
-            const response = await fetch("http://localhost:3001/oficio/save-pdf", {
+            const response = await fetch("https://webapiprimavera.advir.pt/oficio/save-pdf", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -348,7 +348,7 @@ const OficiosPage = () => {
             };
 
             // Enviar para o backend
-            const response = await fetch("http://localhost:3001/sendmailoficios", {
+            const response = await fetch("https://webapiprimavera.advir.pt/sendmailoficios", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -447,7 +447,7 @@ const OficiosPage = () => {
         };
 
         try {
-            const response = await fetch("http://localhost:3001/oficio/Criar", {
+            const response = await fetch("https://webapiprimavera.advir.pt/oficio/Criar", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -459,7 +459,7 @@ const OficiosPage = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`Erro HTTP: ${response.status} - ${errorData.error}`);
+                throw new Error(`Erro https: ${response.status} - ${errorData.error}`);
             }
 
             const data = await response.json();
@@ -488,7 +488,7 @@ const OficiosPage = () => {
 
         const fetchDonoObra = async () => {
             try {
-                const response = await fetch(`http://localhost:3001/oficio/GetEntidade/${entidadeid}`, {
+                const response = await fetch(`https://webapiprimavera.advir.pt/oficio/GetEntidade/${entidadeid}`, {
                     method: "GET",
                     headers: {
                         "Authorization": `Bearer ${token}`,
@@ -527,7 +527,7 @@ const OficiosPage = () => {
             const urlempresa = localStorage.getItem("urlempresa");
             const emailuser = localStorage.getItem("userEmail");
 
-            const response = await fetch(`http://localhost:3001/oficio/GetEmail/${donoObra.ID}`, {
+            const response = await fetch(`https://webapiprimavera.advir.pt/oficio/GetEmail/${donoObra.ID}`, {
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -566,7 +566,7 @@ const OficiosPage = () => {
         const userNome = localStorage.getItem("userNome");
 
         try {
-            const response = await fetch("http://localhost:3001/oficio/GetId", {
+            const response = await fetch("https://webapiprimavera.advir.pt/oficio/GetId", {
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -577,7 +577,7 @@ const OficiosPage = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`Erro HTTP: ${response.status} - ${errorData.error}`);
+                throw new Error(`Erro https: ${response.status} - ${errorData.error}`);
             }
 
             const data = await response.json();
@@ -1063,11 +1063,11 @@ const OficiosPage = () => {
         try {
             // Define URL e método com base na operação (criar ou atualizar)
             const url = isButtonSave
-                ? `http://localhost:3001/oficio/Criar` // Endpoint para criar
-                : `http://localhost:3001/oficio/atualizar`; // Endpoint para atualizar
+                ? `https://webapiprimavera.advir.pt/oficio/Criar` // Endpoint para criar
+                : `https://webapiprimavera.advir.pt/oficio/atualizar`; // Endpoint para atualizar
             const method =  "PUT";
 
-            const response = await fetch("http://localhost:3001/oficio/atualizar", {
+            const response = await fetch("https://webapiprimavera.advir.pt/oficio/atualizar", {
                 method,
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -1079,7 +1079,7 @@ const OficiosPage = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`Erro HTTP: ${response.status} - ${errorData.error}`);
+                throw new Error(`Erro https: ${response.status} - ${errorData.error}`);
             }
 
             const data = await response.json();
