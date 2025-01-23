@@ -81,22 +81,35 @@ const OficiosList = () => {
     const renderOficio = ({ item }) => (
         <View style={styles.itemContainer}>
             <View style={styles.textContainer}>
-                <Text style={styles.title}>{item.CDU_codigo}</Text>
-                <Text style={styles.description}>{item.CDU_assunto}</Text>
-                <Text style={styles.description}>{item.CDU_remetente}</Text>
+                {/* Ícone e código do ofício */}
+                <View style={styles.row}>
+                    <Icon name="hash" size={16} color="#007bff" style={styles.icon} />
+                    <Text style={styles.title}>{item.CDU_codigo}</Text>
+                </View>
+    
+                {/* Ícone e assunto do ofício */}
+                <View style={styles.row}>
+                    <Icon name="file-text" size={16} color="#007bff" style={styles.icon} />
+                    <Text style={styles.description}>{item.CDU_assunto}</Text>
+                </View>
+    
+                {/* Ícone e remetente do ofício */}
+                <View style={styles.row}>
+                    <Icon name="user" size={16} color="#007bff" style={styles.icon} />
+                    <Text style={styles.description}>{item.CDU_remetente}</Text>
+                </View>
             </View>
-
+    
             {/* Botão de editar com ícone */}
             <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => navigation.navigate("EditOficio", { oficioId: item.CDU_codigo, oficioData: item })}
             >
-                {/* Substitui pelo ícone que preferires */}
                 <Icon name="edit" size={20} color="#fff" style={styles.editIcon} />
-
             </TouchableOpacity>
         </View>
     );
+    
     // Usando o useFocusEffect para recarregar os dados quando a tela for focada
     useFocusEffect(
         useCallback(() => {
@@ -154,6 +167,7 @@ const OficiosList = () => {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
             />
+            
 
             {loading ? (
                 <Text>Carregando...</Text>
@@ -164,7 +178,11 @@ const OficiosList = () => {
                     data={filteredOficios}
                     renderItem={renderOficio}
                     keyExtractor={(item) => item.CDU_codigo.toString()}
+                    getItemLayout={(data, index) => (
+                        { length: 80, offset: 80 * index, index } // Define uma altura fixa de 80px por item
+                    )}
                 />
+
             )}
 
             <TouchableOpacity
@@ -186,6 +204,7 @@ const styles = StyleSheet.create({
     searchBar: {
         backgroundColor: "#fff",
         padding: 12,
+        
         borderRadius: 8,
         marginBottom: 16,
         shadowColor: "#000",
@@ -206,20 +225,30 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 2,
+        height: 100, // Ajuste a altura se necessário
     },
     textContainer: {
         flex: 1,
         justifyContent: 'center',
         marginRight: 10,
     },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
     title: {
         fontSize: 16,
         fontWeight: "bold",
+        marginLeft: 8, // Espaço entre o ícone e o texto
     },
     description: {
         fontSize: 14,
         color: "#666",
-        marginTop: 4,
+        marginLeft: 8, // Espaço entre o ícone e o texto
+    },
+    icon: {
+        marginRight: 8, // Espaço entre os ícones para separação visual
     },
     button: {
         backgroundColor: "#007bff",
@@ -234,21 +263,15 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
     },
     editButton: {
-        flexDirection: 'row',
+        width: 40,
+        height: 40,
         alignItems: 'center',
-        backgroundColor: "#007bff",
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 8,
         justifyContent: 'center',
+        backgroundColor: "#007bff",
+        borderRadius: 8,
     },
     editIcon: {
-        marginRight: 6,
-    },
-    editButtonText: {
-        color: "#fff",
-        fontSize: 14,
-        fontWeight: "bold",
+        margin: 0,
     },
 });
 

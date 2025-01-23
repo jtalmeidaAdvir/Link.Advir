@@ -1183,197 +1183,235 @@ const OficiosPage = () => {
                     )}
                 </>
             ) : (
-                <div style={{ maxWidth: "600px", margin: "0 auto", padding: "20px" }}>
-                    {/* Inputs para selecionar obra, assunto, corpo e anexos */}
-                    <div style={{ position: "relative", width: "500px" }} ref={comboBoxRef}>
-                        <input
-                            type="text"
-                            value={inputValue} // Certifique-se de que `inputValue` não seja null
-                            onChange={handleInputChange}
-                            placeholder="Selecione ou escreva a obra"
-                            style={{
-                                width: "100%",
-                                padding: "8px",
-                                margin: "10px auto",
-                                border: "1px solid #ccc",
-                                borderRadius: "4px",
-                            }}
-                            onFocus={() => setShowOptions(true)}
-                        />
-                        {showOptions && (
-                            <ul
-                                style={{
-                                    position: "absolute",
-                                    top: "100%",
-                                    left: 0,
-                                    right: 0,
-                                    margin: 0,
-                                    padding: "8px",
-                                    listStyle: "none",
-                                    border: "1px solid #ccc",
-                                    borderRadius: "4px",
-                                    background: "white",
-                                    maxHeight: "150px",
-                                    overflowY: "auto",
-                                    zIndex: 10,
-                                }}
-                            >
-                                {/* Mover a opção 'Não tem obra' para o início */}
-                                <li
-                                    onClick={() => {
-                                        setSelectedObra(null);
-                                        setInputValue("Não tem obra");
-                                        setShowOptions(false);
-                                        setDonoObra(""); // Permite escrever livremente no destinatário
-                                    }}
-                                    style={{
-                                        padding: "8px",
-                                        cursor: "pointer",
-                                        color: "black",
-                                        background: "white",
-                                    }}
-                                >
-                                    Não tem obra
-                                </li>
-                                {filteredObras.map((obra, index) => (
-                                    <li
-                                        key={index}
-                                        onClick={() => {
-                                            handleOptionClick(obra);
-                                            setDonoObra(obra.Codigo); // Atualiza o destinatário automaticamente
-                                        }}
-                                        style={{
-                                            padding: "8px",
-                                            cursor: "pointer",
-                                            color: "black",
-                                            background:
-                                                selectedObra?.Codigo === obra.Codigo
-                                                    ? "#f0f0f0"
-                                                    : "white",
-                                        }}
-                                    >
-                                        {obra.Codigo}
-                                    </li>
-                                ))}
-
-                            </ul>
-                        )}
-                    </div>
-
+                <div style={{ maxWidth: "600px", margin: "0 auto", padding: "20px", backgroundColor: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)" }}>
+                {/* Campo para selecionar obra */}
+                <div style={{ position: "relative", width: "100%", marginBottom: "20px" }} ref={comboBoxRef}>
                     <input
                         type="text"
-                        placeholder="Destinatário"
-                        value={donoObra?.Nome || ""} // Garante que `donoObra` não é null/undefined
-                        onChange={(e) =>
-                            setDonoObra((prev) => ({
-                                ...prev,
-                                Nome: e.target.value, // Atualiza apenas o campo Nome do objeto donoObra
-                            }))
-                        }
+                        value={inputValue}
+                        onChange={handleInputChange}
+                        placeholder="Selecione ou escreva a obra"
                         style={{
                             width: "100%",
-                            padding: "8px",
-                            margin: "10px auto",
-                            border: "1px solid #ccc",
-                            borderRadius: "4px",
+                            padding: "12px",
+                            margin: "10px 0",
+                            border: "1px solid #ddd",
+                            borderRadius: "8px",
+                            fontSize: "16px",
+                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                         }}
-                        disabled={inputValue !== "Não tem obra"}
+                        onFocus={() => setShowOptions(true)}
                     />
-
-
-
-
-
-                    <input
-                        type="text"
-                        placeholder="Assunto do Documento"
-                        value={assuntoDoc}
-                        onChange={(e) => setAssuntoDoc(e.target.value)}
-                        style={styles.input}
-                    />
-
-                    <div
-                        ref={contentEditableRef}
-                        contentEditable="true"
-                        dir="ltr"
-                        onBlur={handleBlur}
-                        onKeyDown={(e) => {
-                            if (e.key === "Tab") {
-                                e.preventDefault();
-                                const selection = window.getSelection();
-                                const range = selection.getRangeAt(0);
-
-                                // Cria um nó de texto com espaços em vez de tab
-                                const tabNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0"); // 4 espaços
-                                range.insertNode(tabNode);
-
-                                // Move o cursor para o final do tab
-                                range.setStartAfter(tabNode);
-                                range.setEndAfter(tabNode);
-                                selection.removeAllRanges();
-                                selection.addRange(range);
-                            }
-                        }}
-                        style={{
-                            ...styles.textarea,
-                            whiteSpace: "pre-wrap", // Mantém espaços e quebras de linha
-                            wordWrap: "break-word", // Evita overflow de texto
-                            backgroundColor: "white",
-                            border: "1px solid #ccc",
-                            padding: "10px",
-                            minHeight: "500px",
-                            overflowY: "auto",
-                            width: "500px",
-                        }}
-                        dangerouslySetInnerHTML={{ __html: textoDoc }}
-                    ></div>
-
-
-
-
-
-                    <label style={styles.fileInputLabel}>
-                        <FaPaperclip /> Anexos
-                        <input
-                            type="file"
-                            multiple
-                            onChange={handleAddAnexo}
-                            style={styles.fileInput}
-                        />
-                    </label>
-
-                    {anexos.length > 0 && (
-                        <div style={styles.anexosList}>
-                            <h4 style={styles.h4}>Anexos:</h4>
-                            <ul style={styles.ul}>
-                                {anexos.map((anexo, index) => (
-                                    <li key={index} style={styles.li}>
-                                        {anexo.name}
-                                        <button
-                                            onClick={() => handleRemoveAnexo(index)}
-                                            style={styles.removeButton}
-                                        >
-                                            Remover
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+                    {showOptions && (
+                        <ul
+                            style={{
+                                position: "absolute",
+                                top: "100%",
+                                left: 0,
+                                right: 0,
+                                margin: 0,
+                                padding: "10px",
+                                listStyle: "none",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                background: "white",
+                                maxHeight: "150px",
+                                overflowY: "auto",
+                                zIndex: 10,
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            }}
+                        >
+                            <li
+                                onClick={() => {
+                                    setSelectedObra(null);
+                                    setInputValue("Não tem obra");
+                                    setShowOptions(false);
+                                    setDonoObra("");
+                                }}
+                                style={{
+                                    padding: "10px",
+                                    cursor: "pointer",
+                                    color: "#333",
+                                    background: "#f9f9f9",
+                                    borderRadius: "6px",
+                                }}
+                            >
+                                Não tem obra
+                            </li>
+                            {filteredObras.map((obra, index) => (
+                                <li
+                                    key={index}
+                                    onClick={() => {
+                                        handleOptionClick(obra);
+                                        setDonoObra(obra.Codigo);
+                                    }}
+                                    style={{
+                                        padding: "10px",
+                                        cursor: "pointer",
+                                        color: "#333",
+                                        background:
+                                            selectedObra?.Codigo === obra.Codigo ? "#e6f7ff" : "white",
+                                        borderRadius: "6px",
+                                        marginBottom: "5px",
+                                    }}
+                                >
+                                    {obra.Codigo}
+                                </li>
+                            ))}
+                        </ul>
                     )}
-
-
-                    <button
-                        onClick={() => {
-                            setIsPreviewVisible(!isPreviewVisible); // Alterna entre pré-visualização e edição
-                            if (!isPreviewVisible) {
-                                changeTemplate(); // Garante que o template é inicializado ao ativar a pré-visualização
-                            }
-                        }}
-                        style={styles.button}
-                    >
-                        {isPreviewVisible ? "Editar" : "Pré-visualizar"}
-                    </button>
                 </div>
+            
+                {/* Campo de destinatário */}
+                <input
+                    type="text"
+                    placeholder="Destinatário"
+                    value={donoObra?.Nome || ""}
+                    onChange={(e) =>
+                        setDonoObra((prev) => ({
+                            ...prev,
+                            Nome: e.target.value,
+                        }))
+                    }
+                    style={{
+                        width: "100%",
+                        padding: "12px",
+                        margin: "10px 0",
+                        border: "1px solid #ddd",
+                        borderRadius: "8px",
+                        fontSize: "16px",
+                        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                    }}
+                    disabled={inputValue !== "Não tem obra"}
+                />
+            
+                {/* Campo de assunto */}
+                <input
+                    type="text"
+                    placeholder="Assunto do Documento"
+                    value={assuntoDoc}
+                    onChange={(e) => setAssuntoDoc(e.target.value)}
+                    style={{
+                        width: "100%",
+                        padding: "12px",
+                        margin: "10px 0",
+                        border: "1px solid #ddd",
+                        borderRadius: "8px",
+                        fontSize: "16px",
+                        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                    }}
+                />
+            
+                {/* Campo de texto editável */}
+                <div
+                    ref={contentEditableRef}
+                    contentEditable="true"
+                    dir="ltr"
+                    onBlur={handleBlur}
+                    onKeyDown={(e) => {
+                        if (e.key === "Tab") {
+                            e.preventDefault();
+                            const selection = window.getSelection();
+                            const range = selection.getRangeAt(0);
+            
+                            const tabNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0");
+                            range.insertNode(tabNode);
+            
+                            range.setStartAfter(tabNode);
+                            range.setEndAfter(tabNode);
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                    }}
+                    style={{
+                        whiteSpace: "pre-wrap",
+                        wordWrap: "break-word",
+                        backgroundColor: "white",
+                        border: "1px solid #ddd",
+                        borderRadius: "8px",
+                        padding: "12px",
+                        minHeight: "200px",
+                        overflowY: "auto",
+                        fontSize: "16px",
+                        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                    }}
+                    dangerouslySetInnerHTML={{ __html: textoDoc }}
+                ></div>
+            
+                {/* Campo para anexos */}
+                <label style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "20px", cursor: "pointer", color: "#1792FE", fontWeight: "bold" }}>
+                    <FaPaperclip /> Anexos
+                    <input
+                        type="file"
+                        multiple
+                        onChange={handleAddAnexo}
+                        style={{ display: "none" }}
+                    />
+                </label>
+            
+                {/* Lista de anexos */}
+                {anexos.length > 0 && (
+                    <div style={{ marginTop: "20px", padding: "15px", backgroundColor: "#f9f9f9", border: "1px solid #ddd", borderRadius: "8px" }}>
+                        <h4 style={{ fontSize: "16px", marginBottom: "10px", color: "#333" }}>Anexos:</h4>
+                        <ul style={{ listStyleType: "none", paddingLeft: "0", margin: "0" }}>
+                            {anexos.map((anexo, index) => (
+                                <li
+                                    key={index}
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        padding: "10px",
+                                        border: "1px solid #ddd",
+                                        borderRadius: "8px",
+                                        marginBottom: "8px",
+                                        backgroundColor: "#fff",
+                                    }}
+                                >
+                                    {anexo.name}
+                                    <button
+                                        onClick={() => handleRemoveAnexo(index)}
+                                        style={{
+                                            backgroundColor: "#ff4d4d",
+                                            color: "#fff",
+                                            border: "none",
+                                            padding: "5px 10px",
+                                            borderRadius: "6px",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Remover
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            
+                {/* Botão de alternar entre pré-visualização e edição */}
+                <button
+                    onClick={() => {
+                        setIsPreviewVisible(!isPreviewVisible);
+                        if (!isPreviewVisible) {
+                            changeTemplate();
+                        }
+                    }}
+                    style={{
+                        width: "100%",
+                        padding: "12px",
+                        marginTop: "20px",
+                        backgroundColor: "#1792FE",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontSize: "16px",
+                        cursor: "pointer",
+                        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+                    }}
+                >
+                    {isPreviewVisible ? "Editar" : "Pré-visualizar"}
+                </button>
+            </div>
 
             )}
 
@@ -1467,16 +1505,26 @@ const OficiosPage = () => {
 // Estilos
 // ==============================
 const styles = {
+    
     pageContainer: {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        width: "115%",
+        width: "100%",
         minHeight: "100vh",
         backgroundColor: "#d4e4ff",
         overflowY: "auto",
         padding: "20px",
     },
+    body: {
+        margin: 0,
+        padding: 0,
+        display: "flex",
+        justifycontent: "center",
+        alignItems: "center",
+        minheight: "100vh",
+        backgroundColor: "#d4e4ff", /* fundo azul claro */
+      },
     header: {
         display: "flex",
         flexDirection: "column",
@@ -1637,6 +1685,16 @@ const styles = {
         display: "flex",
         justifyContent: "center",
         gap: "10px",
+    },
+    formContainer: {
+        maxWidth: "600px",
+        margin: "0 auto",
+        padding: "20px",
+        backgroundColor: "#ffffff",
+        borderRadius: "12px",
+        boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
+        textAlign: "center",
+        width: "100%",
     },
 };
 
