@@ -4,12 +4,12 @@ const router = express.Router();
 const nodemailer = require('nodemailer');
 
 const sendmailoficios = async (req, res) => {
-    console.log('Corpo da requisição:', req.body);
+    console.log('Corpo da requisiï¿½ï¿½o:', req.body);
 
-    const { emailDestinatario, assunto, texto, remetente, anexos } = req.body;
+    const { emailCC,emailDestinatario, assunto, texto, remetente, anexos } = req.body;
 
     if (!emailDestinatario || !assunto || !texto) {
-        return res.status(400).send('Dados obrigatórios estão em falta.');
+        return res.status(400).send('Dados obrigatï¿½rios estï¿½o em falta.');
     }
 
     try {
@@ -17,21 +17,20 @@ const sendmailoficios = async (req, res) => {
             service: 'gmail',
             auth: {
                 user: 'noreply.advir@gmail.com',
-                pass: 'ihpgedswadmqtceh', // Usar variável de ambiente
+                pass: 'ihpgedswadmqtceh', // Usar variï¿½vel de ambiente
             },
         });
 
         const mailOptions = {
             from: remetente || 'noreply.advir@gmail.com',
             to: emailDestinatario,
-            replyTo: 'jpvale@advir.pt',
+            cc: emailCC, 
+            replyTo: emailCC.split(',')[0].trim(), // Pega apenas o primeiro email
             subject: assunto,
             html: `
-                <div style="font-family: Arial, sans-serif; color: #004580; line-height: 1.5;">
-                    <h2 style="color: #004580; text-align: center;">Advir Support Space</h2>
+                <div>
                     <p>${texto}</p>
-                    <p>Com os melhores cumprimentos,</p>
-                    <p>${remetente || 'Advir Consultoria'}</p>
+                    
                 </div>
             `,
             attachments: anexos?.map((anexo) => ({

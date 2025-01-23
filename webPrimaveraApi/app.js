@@ -15,8 +15,8 @@ const oficio = require('./routes/Oficios/oficios');
 const app = express();
 
 // Ajusta os limites de payload
-app.use(express.json({ limit: '60mb' }));
-app.use(express.urlencoded({ limit: '60mb', extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Middleware CORS
 app.use(cors({

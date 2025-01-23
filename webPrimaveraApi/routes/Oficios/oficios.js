@@ -82,7 +82,7 @@ router.post("/Criar", async (req, res) => {
         }
 
         // Extraindo os parâmetros do corpo da requisição
-        const { codigo, assunto, data, remetente, email, texto } = req.body;
+        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra, donoObra, Morada, Localidade, CodPostal, CodPostalLocal } = req.body;
 
         // Construindo a URL da API
         const apiUrl = `http://${urlempresa}/WebApi/Word/Criar`;
@@ -91,13 +91,22 @@ router.post("/Criar", async (req, res) => {
         // Cria um objeto com todos os dados a serem enviados
         const requestData = {
             codigo,
-            data,
             assunto,
+            data,
             remetente,
             email,
-            texto: texto || 'Texto padrão', // Se texto estiver vazio, use 'Texto padrão'
+            texto1, 
+            texto2, 
+            template, 
+            createdby, 
+            texto3, 
+            obra, 
+            donoObra,
+            Morada,
+            Localidade,
+            CodPostal,
+            CodPostalLocal,
         };
-
         console.log('Dados a serem enviados:', requestData);
 
         // Chamada para a API externa para criar o ofício
@@ -193,9 +202,8 @@ router.get('/Listar', async (req, res) => {
     }
 });
 
-router.get('/atualizar', async (req, res) => {
+router.put('/atualizar', async (req, res) => {
     try {
-        const dadosOficio = req.body;
         const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabe�alho
         if (!token) {
             return res.status(401).json({ error: 'Token n�o encontrado. Fa�a login novamente.' });
@@ -206,17 +214,28 @@ router.get('/atualizar', async (req, res) => {
         if (!urlempresa) {
             return res.status(400).json({ error: 'URL da empresa n�o fornecida.' });
         }
-
+        // Extraindo os parâmetros do corpo da requisição
+        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra ,donoObra, Morada, Localidade, CodPostal, CodPostalLocal } = req.body;
 
         // Extraindo os par�metros do corpo da requisi��o
-        const {
+        const requestData = {
             codigo,
             assunto,
             data,
             remetente,
             email,
-            texto,
-        } = req.body;
+            texto1,
+            texto2,
+            template,
+            createdby,
+            texto3,
+            obra,
+            donoObra,
+            Morada,
+            Localidade,
+            CodPostal,
+            CodPostalLocal,
+        };
 
 
         // Monta a URL completa para listar interven��es
@@ -224,22 +243,14 @@ router.get('/atualizar', async (req, res) => {
 
         const apiUrl = `http://${urlempresa}/WebApi/Word/Atualizar`;
         console.log('Enviando solicita��o para a URL:', apiUrl);
-        // Cria um objeto com todos os dados a serem enviados
-        const requestData = {
-                     codigo,
-            assunto,
-            data,
-            remetente,
-            email,
-            texto,
-        };
+
         console.log('Dados a serem enviados:', requestData);
 
 
         // Chamada para a API para criar a interven��o
-        const response = await axios.post(apiUrl, requestData, {
+        const response = await axios.put(apiUrl, requestData, {
             headers: {
-                'Authorization': `Bearer ${painelAdminToken}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             }
@@ -552,4 +563,55 @@ router.get('/GetEmail/:entidadeId', async (req, res) => {
         });
     }
 });
+
+router.get('/GetEntidadeCode/:obraCode', async (req, res) => {
+    try {
+        const { obraCode } = req.params;
+        const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabe�alho
+        if (!token) {
+            return res.status(401).json({ error: 'Token n�o encontrado. Fa�a login novamente.' });
+        }
+
+        // Usando a fun��o para obter o urlempresa dos cabe�alhos
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa n�o fornecida.' });
+        }
+
+
+        // Monta a URL completa para listar interven��es
+        const apiUrl = `http://${urlempresa}/WebApi/Word/GetEntidadeCode/${obraCode}`;
+        console.log('Enviando solicita��o para a URL:', apiUrl);
+
+
+        // Chamada para a API para criar a interven��o
+        const response = await axios.get(apiUrl, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+        });
+
+        // Verifica o status da resposta
+        if (response.status === 200) {
+            return res.status(200).json(response.data);  // Retorna as interven��es encontradas
+        } else if (response.status === 404) {
+            return res.status(404).json({ error: 'Nenhum Oficio encontrada.' });
+        } else {
+            return res.status(400).json({
+                error: 'Falha ao listar Oficio.',
+                details: response.data.ErrorMessage || 'Erro desconhecido.'
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao listar Oficio:', error.message);
+        return res.status(500).json({
+            error: 'Erro inesperado ao listar Oficio',
+            details: error.message
+        });
+    }
+});
+
+
 module.exports = router;

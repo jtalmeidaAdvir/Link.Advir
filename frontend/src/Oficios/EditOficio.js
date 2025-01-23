@@ -1,3 +1,5 @@
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
@@ -7,14 +9,37 @@ import { FaSave, FaEnvelope, FaFilePdf, FaPaperclip } from "react-icons/fa";
 import { useFocusEffect } from '@react-navigation/native';
 import PMEPreto from '../../images/PMEPRETO.png';
 import QualidadePreto from '../../images/QUALIDADEPRETO.png';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+const EditOficio = (props) => {
+    const navigation = useNavigation();
+    const route = useRoute(); // Para pegar os dados passados pela navegação
+    const { oficioId, oficioData } = route.params; // Obter os dados do ofício
 
-const OficiosPage = () => {
+    // Estado para armazenar os dados do ofício
+    const [codigo, setCodigo] = useState(oficioData.CDU_codigo);
+    const [obraUP, setobraUP] = useState(oficioData.CDU_obra);
+    const [assunto, setAssunto] = useState(oficioData.CDU_assunto);
+    const [remetente, setRemetente] = useState(oficioData.CDU_remetente);
+    const [textopart1, settextopart1] = useState(oficioData.CDU_texto1);
+    const [textopart2, settextopart2] = useState(oficioData.CDU_texto2);
+    const [templete, settemplete] = useState(oficioData.CDU_template);
+    const [NomeDestinatario, setNomeDestinatario] = useState(oficioData.CDU_DonoObra);
+    const [Morada, setMorada] = useState(oficioData.CDU_Morada);
+    const [Localidade, setLocalidade] = useState(oficioData.CDU_Localidade);
+    const [CodPostal, setCodPostal] = useState(oficioData.CDU_CodPostal);
+    const [CodPostalLocal, setCodPostalLocal] = useState(oficioData.CDU_CodPostalLocal);
+    
     // ==============================
     // 1) Estados para o documento
     // ==============================
     const [isModalOpen, setIsModalOpen] = useState(false); // Controla a abertura do modal
     const [currentTemplate, setCurrentTemplate] = useState(1); // Controla o template ativo (1 ou 2)
-    const [donoObra, setDonoObra] = useState("");
+    const [donoObra, setDonoObra] = useState({ Nome: codigo });
+    const [donoObra2, setDonoObra2] = useState({});
+
+    const [nomeDono, setnomeDono] = useState("");
+
 
     const [isEditable, setIsEditable] = useState(false);
     const [selectedObra, setSelectedObra] = useState("");
@@ -396,81 +421,7 @@ const OficiosPage = () => {
         });
     };
 
-    // ======================================
-    // 11) Toggle modo editável (se quiseres)
-    // ======================================
-    const toggleEdit = () => {
-        setIsEditable(!isEditable);
-    };
 
-    // ======================================
-    // 12) Salvar dados do documento (criar ofício) no backend
-    // ======================================
-    const handleSave = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
-        const usernome = localStorage.getItem("userNome");
-        const useremail = localStorage.getItem("userEmail");
-
-        var nomeDonoObra = donoObra.Nome;
-        var moradaDonoObra = donoObra.Morada;
-        var localidadeDonoObra = donoObra.Localidade;
-        var codPostalDonoObra = donoObra.CodPostal;
-        var codPostalLocalDonoObra = donoObra.CodPostalLocal;
-        console.log("donoObra");
-        console.log(donoObra.Morada);
-        console.log(donoObra.Localidade);
-        console.log(donoObra.CodPostal);
-        
-        if (currentTemplate === 1) {
-            var templateestado = "2"
-        } else if (currentTemplate === 2) {
-            var templateestado = "1"
-        }
-        // Vamos inserir assuntoDoc e textoDoc dentro de formData, para enviar e gravar no backend
-        const payloadDoc = {
-            ...formData,
-            assunto: assuntoDoc,
-            texto1: textParts.part1 || "",
-            texto2: textParts.part2 || "",
-            obra: selectedObra.Codigo,
-            remetente: usernome,
-            createdby: usernome,
-            email: useremail,
-            template: templateestado,
-            donoObra: nomeDonoObra,
-            Morada: moradaDonoObra,
-            Localidade: localidadeDonoObra,
-            CodPostal: codPostalDonoObra,
-            CodPostalLocal: codPostalLocalDonoObra,
-        };
-
-        try {
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/Criar", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "urlempresa": urlempresa,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payloadDoc),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Erro HTTP: ${response.status} - ${errorData.error}`);
-            }
-
-            const data = await response.json();
-            // Depois de criar o ofício, podemos também salvar o PDF e anexos
-            await handleSavePDFAndSendToBackend();
-            alert("Ofício criado e PDF salvo com sucesso!");
-            console.log("Resposta do servidor:", data);
-        } catch (error) {
-            console.error("Erro ao criar o ofício:", error);
-            alert("Erro ao criar o ofício. Verifique os logs para mais detalhes.");
-        }
-    };
 
     // ======================================
     // 13) Atualizar formData ao selecionar a Obra
@@ -555,79 +506,8 @@ const OficiosPage = () => {
             fetchEmailObra();
         }
     }, [donoObra]);
-    // ======================================
-    // 14) Gerar automaticamente o "código" do ofício
-    // ======================================
-    const generateCodigo = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
-        const emailrementente = localStorage.getItem("userEmail");
-        const userNome = localStorage.getItem("userNome");
-
-        try {
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/GetId", {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "urlempresa": urlempresa,
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Erro HTTP: ${response.status} - ${errorData.error}`);
-            }
-
-            const data = await response.json();
-            let conteudoCentral = data?.DataSet?.Table?.[0]?.Conteudo_Central || "000";
-
-            const novoConteudoCentral = String(parseInt(conteudoCentral, 10) + 1).padStart(3, '0');
-
-            const currentYear = new Date().getFullYear();
-            const currentMonth = new Date().getMonth() + 1;
-            const formattedMonth = currentMonth.toString().padStart(2, '0');
-
-            let iniciais = "";
-            if (userNome) {
-                const palavras = userNome.split(/\s+/); // Divide o nome em palavras
-                if (palavras.length >= 2) {
-                    iniciais = palavras[0][0].toUpperCase() + palavras[1][0].toUpperCase(); // Só as iniciais das duas primeiras palavras
-                } else if (palavras.length === 1) {
-                    iniciais = palavras[0][0].toUpperCase(); // Caso só exista uma palavra
-                }
-            }
-
-            const updatedCodigo = `OFI${currentYear}${formattedMonth}${novoConteudoCentral}${iniciais}`;
-
-            const editableCellCodigo = document.getElementById("editableCellCodigo");
-            if (editableCellCodigo) {
-                editableCellCodigo.innerHTML = `
-                    REF: ${updatedCodigo}<br>
-                    DATA: ${formData.data}<br>
-                    ANEXOS: ${anexos.map(a => a.name).join(", ") || "Nenhum anexo"}<br>
-                `;
-            }
-
-            setFormData((prevFormData) => ({
-                ...prevFormData,
-                codigo: updatedCodigo,
-            }));
-        } catch (error) {
-            console.error("Erro ao obter o último ID:", error);
-            alert("Erro ao obter o último ID. Verifique os logs para mais detalhes.");
-            throw error;
-        }
-    };
 
 
-
-
-
-    useEffect(() => {
-        generateCodigo();
-        // eslint-disable-next-line
-    }, []);
 
     // ======================================
     // 15) Mudar Template
@@ -725,10 +605,10 @@ const OficiosPage = () => {
 <tr>
 <td></td>
 <td style="padding-left:99px;" contentEditable="false">
-        EXMO(s) SR(s) ${donoObra.Nome || ''}<br>
-        ${donoObra.Morada || ''}<br>
-        ${donoObra.Localidade || ''}<br>
-        ${donoObra.CodPostal || ''} ${donoObra.CodPostalLocal || ''}
+        EXMO(s) SR(s) ${NomeDestinatario || ''}<br>
+        ${Morada || ''}<br>
+        ${Localidade || ''}<br>
+        ${CodPostal || ''} ${CodPostalLocal || ''}
 </td>
 </tr>
 <tr>
@@ -904,7 +784,7 @@ const OficiosPage = () => {
     </tr>
     <tr>
     <td style="padding-left:300px;" contentEditable="false" colspan="2">
-        EXMO(s) SR(s) ${donoObra.Nome}<br>
+        EXMO(s) SR(s) ${NomeDestinatario}<br>
       </td>
     </tr>
     <tr>
@@ -1027,6 +907,7 @@ const OficiosPage = () => {
     };
 
 
+
     const filteredObras = obras.filter((obra) =>
         obra.Codigo.toLowerCase().includes(inputValue.toLowerCase())
     );
@@ -1050,19 +931,28 @@ const OficiosPage = () => {
         const urlempresa = localStorage.getItem("urlempresa");
         const usernome = localStorage.getItem("userNome");
         const useremail = localStorage.getItem("userEmail");
-        const templateestado = currentTemplate === 1 ? "1" : "2";
-
+        const templateestado = currentTemplate === 1 ? "2" : "1";
+        var nomeDonoObra = NomeDestinatario;
+        var moradaDonoObra = Morada;
+        var localidadeDonoObra = Localidade;
+        var codPostalDonoObra = CodPostal;
+        var codPostalLocalDonoObra = CodPostalLocal;
         // Payload comum para criação e atualização
         const payloadDoc = {
             ...formData,
             assunto: assuntoDoc,
             texto1: textParts.part1 || "",
             texto2: textParts.part2 || "",
-            obra: selectedObra.ID,
+            obra: obraUP,
             remetente: usernome,
             createdby: usernome,
             email: useremail,
             template: templateestado,
+            donoObra: nomeDonoObra,
+            Morada: moradaDonoObra,
+            Localidade: localidadeDonoObra,
+            CodPostal: codPostalDonoObra,
+            CodPostalLocal: codPostalLocalDonoObra,
         };
 
         try {
@@ -1070,7 +960,7 @@ const OficiosPage = () => {
             const url = isButtonSave
                 ? `https://webapiprimavera.advir.pt/oficio/Criar` // Endpoint para criar
                 : `https://webapiprimavera.advir.pt/oficio/atualizar`; // Endpoint para atualizar
-            const method =  "PUT";
+            const method = "PUT";
 
             const response = await fetch("https://webapiprimavera.advir.pt/oficio/atualizar", {
                 method,
@@ -1098,12 +988,76 @@ const OficiosPage = () => {
         }
     };
 
+    //inserir automaticamente
+    useEffect(() => {
+        console.log("ObraUP foi preenchido:", obraUP);
+        if (obraUP) {
+            // Substitua esta parte pela ação que deseja disparar
+           
+            // Você pode também chamar APIs, atualizar estados, etc.
+            setFormData((prevFormData) => ({
+                ...prevFormData,
+                codigo: codigo, // Atualiza apenas o campo "codigo"
+            }));
+            setDonoObra((prev) => ({
+                ...prev,
+                Nome: donoObra.Nome, // Atualiza apenas o campo Nome do objeto donoObra
+            }));
+            setAssuntoDoc(assunto);
+            var texto = textopart1 + textopart2
+            setTextoDoc(texto);
+            setTemplateByCode(templete);
+        }
+    }, [obraUP]);
+   
+    const setTemplateByCode = (templateNumber) => {
+        console.log(templateNumber);
+        const validTemplate = parseInt(templateNumber, 10);
+       // const validTemplate = templateNumber;
+        setCurrentTemplate(validTemplate); // Atualiza o estado do template
+
+        // Atualiza o conteúdo do template no DOM
+        const newContent = validTemplate === 1 ? getTemplate1() : getTemplate2();
+        if (docxContainer.current) {
+            docxContainer.current.innerHTML = newContent;
+
+            // Atualiza segunda página, se necessário
+            if (docxContainer2.current) {
+                if (validTemplate === 1) {
+                    docxContainer2.current.innerHTML = getTemplate1SecondPage();
+                } else if (validTemplate === 2) {
+                    docxContainer2.current.innerHTML = getTemplate2SecondPage();
+                } else {
+                    docxContainer2.current.innerHTML = "";
+                }
+            }
+        }
+    };
+
+
+    const goBackToOficiosList = () => {
+        // Redefine a navegação e recarrega a tela 'OficiosList'
+        navigation.reset({
+            index: 0,
+            routes: [{ name: 'OficiosList' }],
+        });
+    };
+
 
     return (
         <div style={styles.pageContainer}>
             <header style={styles.header}>
                 <div style={styles.controlsAlignedLeft}>
-
+                    <TouchableOpacity
+                        onPress={goBackToOficiosList} // Ao clicar, será acionada a navegação com reset
+                        style={{ flexDirection: 'row', alignItems: 'center' }}
+                    >
+                        <FontAwesomeIcon
+                            icon={faArrowLeft}
+                            style={{ color: '#1792FE', marginRight: 5 }}
+                        />
+                        <Text style={{ color: '#1792FE' }}>Voltar</Text>
+                    </TouchableOpacity>
 
                     {/* Botão Mudar Template só aparece na pré-visualização */}
                     {isPreviewVisible && (
@@ -1124,16 +1078,12 @@ const OficiosPage = () => {
                                 {isPreviewVisible ? "Editar" : "Pré-visualizar"}
                             </button>
 
-                           
+
                             <button
                                 onClick={() => {
-                                    if (!isButtonSave) {
-                                        setIsButtonSave(true);
-                                        handleSavePDF(); 
-                                        handleSave(); 
-                                    } else {
-                                        handleSavePDF();
-                                    }
+                                    handleSaveOrUpdate();
+                                    handleSavePDF();
+                                    
                                 }}
                                 style={styles.button}
                             >
@@ -1141,13 +1091,9 @@ const OficiosPage = () => {
                             </button>
                             <button
                                 onClick={() => {
-                                    if (!isButtonSave) {
-                                        setIsButtonSave(true);
-                                        handleSave();
-                                        setIsModalOpen(true);
-                                    } else {
-                                        setIsModalOpen(true);
-                                    }
+                                    handleSaveOrUpdate();
+                                    setIsModalOpen(true);
+                                    
                                 }}
                                 style={styles.button}
                             >
@@ -1156,12 +1102,9 @@ const OficiosPage = () => {
 
                             <button
                                 onClick={() => {
-                                    if (!isButtonSave) {
-                                        setIsButtonSave(true);
-                                        handleSave();
-                                    } else {
+                                   
                                         handleSaveOrUpdate();
-                                    }
+                                    
                                 }}
                                 style={styles.button}
                             >
@@ -1189,20 +1132,21 @@ const OficiosPage = () => {
                 <div style={{ maxWidth: "600px", margin: "0 auto", padding: "20px" }}>
                     {/* Inputs para selecionar obra, assunto, corpo e anexos */}
                     <div style={{ position: "relative", width: "500px" }} ref={comboBoxRef}>
-                        <input
-                            type="text"
-                            value={inputValue} // Certifique-se de que `inputValue` não seja null
-                            onChange={handleInputChange}
-                            placeholder="Selecione ou escreva a obra"
-                            style={{
-                                width: "100%",
-                                padding: "8px",
-                                margin: "10px auto",
-                                border: "1px solid #ccc",
-                                borderRadius: "4px",
-                            }}
-                            onFocus={() => setShowOptions(true)}
-                        />
+                            <input
+                                type="text"
+                                value={obraUP || ''}
+                                onChange={handleInputChange}
+                                placeholder="Selecione ou escreva a obra"
+                                style={{
+                                    width: "100%",
+                                    padding: "8px",
+                                    margin: "10px auto",
+                                    border: "1px solid #ccc",
+                                    borderRadius: "4px",
+                                }}
+                                onFocus={() => setShowOptions(true)}
+                                disabled="false" // Explicitamente habilitado
+                            />
                         {showOptions && (
                             <ul
                                 style={{
@@ -1243,7 +1187,7 @@ const OficiosPage = () => {
                                         key={index}
                                         onClick={() => {
                                             handleOptionClick(obra);
-                                            setDonoObra(obra.Codigo); // Atualiza o destinatário automaticamente
+                                            setDonoObra(obraUP); // Atualiza o destinatário automaticamente
                                         }}
                                         style={{
                                             padding: "8px",
@@ -1266,7 +1210,7 @@ const OficiosPage = () => {
                     <input
                         type="text"
                         placeholder="Destinatário"
-                        value={donoObra?.Nome || ""} // Garante que `donoObra` não é null/undefined
+                            value={NomeDestinatario || ""} // Garante que `donoObra` não é null/undefined
                         onChange={(e) =>
                             setDonoObra((prev) => ({
                                 ...prev,
@@ -1470,6 +1414,11 @@ const OficiosPage = () => {
 // Estilos
 // ==============================
 const styles = {
+    backButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 5,
+    },
     pageContainer: {
         display: "flex",
         flexDirection: "column",
@@ -1643,6 +1592,4 @@ const styles = {
     },
 };
 
-export default OficiosPage;
-
-
+export default EditOficio;

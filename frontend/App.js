@@ -5,6 +5,8 @@ import { View, Image, Text, ActivityIndicator, TouchableOpacity } from 'react-na
 import { List } from 'react-native-paper';
 import { FaHome, FaUser, FaTool, FaClock, FaBriefcase, FaSignOutAlt, FaCog } from 'react-icons/fa';
 import { FontAwesome } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native'; // Importa o hook
+
  
  
  
@@ -52,6 +54,7 @@ import i18n from './src/i18n';
 import { useTranslation } from 'react-i18next';
 import OficiosPage from './src/Oficios/OficiosPage';
 import OficiosList from './src/Oficios/OficiosList';
+import EditOficio from './src/Oficios/EditOficio';
 
 const Drawer = createDrawerNavigator();
  
@@ -248,6 +251,8 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
 };
  
 const AppNavigator = () => {
+    const navigation = useNavigation(); // Obtém o objeto de navegação
+
     const [isAdmin, setIsAdmin] = useState(false);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -257,22 +262,33 @@ const AppNavigator = () => {
     const [loading, setLoading] = useState(true);
     const [languageSelectorVisible, setLanguageSelectorVisible] = useState(false);
     const [hoveredLanguage, setHoveredLanguage] = useState(null);
+    const [initialRoute, setInitialRoute] = useState('Login'); // Define a rota inicial com Login por padrão
+
+
     const fetchUserModules = async () => {
         const token = localStorage.getItem('loginToken');
         const userId = localStorage.getItem('userId');
         if (userId && token) {
             try {
                 const response = await fetch(`https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await response.json();
                 setModules(data.modulos);
             } catch (error) {
-                console.error("Erro ao buscar módulos:", error);
+                console.error('Erro ao buscar módulos:', error);
             }
         }
     };
- 
+
+    useEffect(() => {
+        const token = localStorage.getItem('loginToken');
+        if (token) {
+            setInitialRoute('Home'); // Se houver um token válido, define a rota inicial para Home
+        }
+        setLoading(false); // Termina o estado de carregamento
+    }, []);
+
     useEffect(() => {
         const fetchUserData = async () => {
             const token = localStorage.getItem('loginToken');
@@ -281,11 +297,11 @@ const AppNavigator = () => {
             setIsAdmin(localStorage.getItem('isAdmin') === 'true');
             setUsername(localStorage.getItem('username') || '');
             setEmpresa(localStorage.getItem('empresaSelecionada') || '');
- 
+
             await fetchUserModules();
             setLoading(false);
         };
- 
+
         fetchUserData();
     }, []);
  
@@ -312,15 +328,15 @@ const AppNavigator = () => {
  
     return (
         <Drawer.Navigator
-            initialRouteName="Login"
-            drawerContent={props => (
-                <CustomDrawerContent
-                    {...props}
-                    isAdmin={isAdmin}
-                    isSuperAdmin={isSuperAdmin}
-                    isLoggedIn={isLoggedIn}
-                    modules={modules}
-                />
+        initialRouteName={initialRoute} // Usa a rota inicial definida com base na autenticação
+        drawerContent={(props) => (
+            <CustomDrawerContent
+                {...props}
+                isAdmin={isAdmin}
+                isSuperAdmin={isSuperAdmin}
+                isLoggedIn={isLoggedIn}
+                modules={modules}
+            />
             )}
             screenOptions={({ navigation }) => ({
                 headerTitle: () => (
@@ -444,6 +460,7 @@ const AppNavigator = () => {
             <Drawer.Screen name="VerificaConta" component={VerificaConta} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="OficiosPage" component={OficiosPage} />
             <Drawer.Screen name="OficiosList" component={OficiosList} />
+            <Drawer.Screen name="EditOficio" component={EditOficio} />
             <Drawer.Screen name="Home" component={Home} />
             {isLoggedIn && (
                 <Drawer.Screen name="SelecaoEmpresa">

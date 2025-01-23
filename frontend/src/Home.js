@@ -8,9 +8,10 @@ import i18n from './i18n'; // Import do i18n
 
 const Home = () => {
     const { t } = useTranslation();
+    
 
     const [isDrawerOpen, setDrawerOpen] = useState(false);
-    const [activeMenu, setActiveMenu] = useState(t('Home.menu.contract')); // Estado para o menu ativo
+    const [activeMenu, setActiveMenu] = useState(t('Home.menu.products')); // Estado para o menu ativo
     const [contratoInfo, setContratoInfo] = useState(null);
     const [pedidosInfo, setPedidosInfo] = useState(null);
     const [pedidosError, setPedidosError] = useState('');
@@ -104,7 +105,7 @@ const handleFormSubmit = async (event) => {
             tecnico: '',
             tipoProcesso: 'PASI',
             estado: 1,
-            serie: '2024',
+            serie: '2025',
             seccao: 'SD',
             objectoID: '9dc979ae-96b4-11ef-943d-e08281583916',
             contratoID: '',
@@ -122,6 +123,7 @@ const handleFormSubmit = async (event) => {
 
 
 
+
  // Função para atualizar o termo da pesquisa
  const handleSearch = (e) => {
     setSearchTerm(e.target.value.toLowerCase());
@@ -136,7 +138,7 @@ const [formData, setFormData] = useState({
     tecnico: '000', // vazio
     tipoProcesso: 'PASI', // Tipo de processo
     estado: 1, // Estado inicial
-    serie: '2024',
+    serie: '2025',
     seccao: 'SD' , // Secção associada 
     objectoID: '9dc979ae-96b4-11ef-943d-e08281583916',
     contratoID: '', // contrato associado
@@ -274,7 +276,7 @@ const [dataLists, setDataLists] = useState({
     useEffect(() => {
         const fetchPedidosInfo = async () => {
             try {
-                const token = await AsyncStorage.getItem('painelAdminToken');
+                const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
                 const urlempresa = await AsyncStorage.getItem('urlempresa');
                 const id = await AsyncStorage.getItem('empresa_areacliente');
 
@@ -304,77 +306,145 @@ const [dataLists, setDataLists] = useState({
         }
     }, [activeMenu, t]);
 
-
     useEffect(() => {
-        const fetchData = async () => {
-            console.log("Iniciando fetch de dados iniciais e contrato.");
-            setContratoLoading(false);
-            setLoading(false);
-            setInitialDataLoading(true);
-    
+        const entrarNaEmpresaAdvir = async () => {
             try {
-                const token = await AsyncStorage.getItem('painelAdminToken');
-                const urlempresa = await AsyncStorage.getItem('urlempresa');
-                const clienteID = await AsyncStorage.getItem('empresa_areacliente');
-    
-                console.log('Token:', token, 'URL Empresa:', urlempresa, 'Cliente ID:', clienteID);
-    
-                if (!clienteID || !token || !urlempresa) {
-                    console.error('Token, URL ou ID de cliente estão ausentes.');
-                    return;
+                const loginToken = localStorage.getItem('loginToken');
+                if (!loginToken) {
+                    throw new Error('Token de login não encontrado.');
                 }
     
-                // Fetch contrato
-                const contratoResponse = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${clienteID}`, {
-                    headers: { Authorization: `Bearer ${token}`, urlempresa },
-                });
-    
-                if (!contratoResponse.ok) {
-                    throw new Error(`Erro ao buscar contrato: ${contratoResponse.statusText}`);
-                }
-                const contratoData = await contratoResponse.json();
-                console.log('Contrato Data:', contratoData);
-    
-                // Atualizar informações do contrato
-                setContratoInfo(contratoData);
-    
-                // Atualizar contratoID no formulário automaticamente
-                if (contratoData?.DataSet?.Table?.length > 0) {
-                    const contratoID = contratoData.DataSet.Table[0]?.ID; // Obter o contratoID
-                    setFormData((prev) => ({ ...prev, contratoID }));
-                }
-    
-                // Fetch contactos
-                const contactosResponse = await fetch(
-                    `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${clienteID}`,
-                    { headers: { Authorization: `Bearer ${token}`, urlempresa } }
+                // Buscar as credenciais da empresa Advir
+                const credenciaisResponse = await fetch(
+                    'https://backend.advir.pt/api/empresas/nome/Advir',
+                    {
+                        method: 'GET',
+                        headers: {
+                            Authorization: `Bearer ${loginToken}`,
+                        },
+                    }
                 );
-                const contactosData = await contactosResponse.json();
-                setDataLists((prev) => ({ ...prev, contactos: contactosData.DataSet.Table || [] }));
     
-                // Fetch prioridades
-                const prioridadesResponse = await fetch(
-                    `https://webapiprimavera.advir.pt/routePedidos_STP/ListarTiposPrioridades`,
-                    { headers: { Authorization: `Bearer ${token}`, urlempresa } }
+                if (!credenciaisResponse.ok) {
+                    throw new Error('Erro ao buscar credenciais da empresa Advir.');
+                }
+    
+                const credenciais = await credenciaisResponse.json();
+    
+                // Guardar a `urlempresa` no localStorage
+                localStorage.setItem('urlempresa', credenciais.urlempresa);
+    
+                // Obter o token para a empresa Advir
+                const tokenResponse = await fetch(
+                    'https://webapiprimavera.advir.pt/connect-database/token',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${loginToken}`,
+                        },
+                        body: JSON.stringify({
+                            username: credenciais.username,
+                            password: credenciais.password,
+                            company: credenciais.empresa,
+                            line: credenciais.linha,
+                            instance: 'DEFAULT',
+                            urlempresa: credenciais.urlempresa,
+                            forceRefresh: true,
+                        }),
+                    }
                 );
-                const prioridadesData = await prioridadesResponse.json();
-                setDataLists((prev) => ({ ...prev, prioridades: prioridadesData.DataSet.Table || [] }));
     
-                // Preencher cliente no formulário
-                setFormData((prev) => ({ ...prev, cliente: clienteID }));
+                if (!tokenResponse.ok) {
+                    throw new Error('Erro ao obter o token da empresa Advir.');
+                }
+    
+                const tokenData = await tokenResponse.json();
+                localStorage.setItem('painelAdminTokenAdvir', tokenData.token);
+                console.log('Login automático na empresa Advir concluído.');
             } catch (error) {
-                console.error('Erro ao buscar dados:', error);
-                setErrorMessage(error.message);
-            } finally {
-                setContratoLoading(false);
-                setInitialDataLoading(false);
-                console.log("Finalizado fetch de dados iniciais e contrato.");
+                console.error('Erro ao entrar automaticamente na empresa Advir:', error.message);
             }
         };
+        
+
+        entrarNaEmpresaAdvir();
+    }, []);
     
+
+
+    
+ useEffect(() => {
+    const fetchData = async () => {
+        console.log("Iniciando fetch de dados iniciais e contrato.");
+        setContratoLoading(true);
+        setLoading(true);
+
+        try {
+            const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
+            const urlempresa = await AsyncStorage.getItem('urlempresa');
+            const clienteID = await AsyncStorage.getItem('empresa_areacliente');
+
+            console.log('Token:', token, 'URL Empresa:', urlempresa, 'Cliente ID:', clienteID);
+
+            if (!clienteID || !token || !urlempresa) {
+                console.error('Token, URL ou ID de cliente estão ausentes.');
+                return;
+            }
+
+            // Fetch contrato
+            const contratoResponse = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${clienteID}`, {
+                headers: { Authorization: `Bearer ${token}`, urlempresa },
+            });
+
+            if (!contratoResponse.ok) {
+                throw new Error(`Erro ao buscar contrato: ${contratoResponse.statusText}`);
+            }
+            const contratoData = await contratoResponse.json();
+            console.log('Contrato Data:', contratoData);
+
+            // Atualizar informações do contrato
+            setContratoInfo(contratoData);
+
+            // Atualizar contratoID no formulário automaticamente
+            if (contratoData?.DataSet?.Table?.length > 0) {
+                const contratoID = contratoData.DataSet.Table[0]?.ID; // Obter o contratoID
+                setFormData((prev) => ({ ...prev, contratoID }));
+            }
+
+            // Fetch contactos
+            const contactosResponse = await fetch(
+                `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${clienteID}`,
+                { headers: { Authorization: `Bearer ${token}`, urlempresa } }
+            );
+            const contactosData = await contactosResponse.json();
+            setDataLists((prev) => ({ ...prev, contactos: contactosData.DataSet.Table || [] }));
+
+            // Fetch prioridades
+            const prioridadesResponse = await fetch(
+                `https://webapiprimavera.advir.pt/routePedidos_STP/ListarTiposPrioridades`,
+                { headers: { Authorization: `Bearer ${token}`, urlempresa } }
+            );
+            const prioridadesData = await prioridadesResponse.json();
+            setDataLists((prev) => ({ ...prev, prioridades: prioridadesData.DataSet.Table || [] }));
+
+            // Preencher cliente no formulário
+            setFormData((prev) => ({ ...prev, cliente: clienteID }));
+        } catch (error) {
+            console.error('Erro ao buscar dados:', error);
+            setErrorMessage(error.message);
+        } finally {
+            setContratoLoading(false);
+            setLoading(false);
+            console.log("Finalizado fetch de dados iniciais e contrato.");
+        }
+    };
+
+    if (activeMenu === t('Home.menu.contract')) {
         fetchData();
-    }, [t]);
-    
+    }
+}, [activeMenu, t]);
+
 
     return (
 
@@ -458,6 +528,7 @@ const [dataLists, setDataLists] = useState({
                 {/* Content Based on Active Menu */}
                 <div ref={contractRef}>
                 {activeMenu === t('Home.menu.contract') && (
+                    
                     <>
                         {loading ? (
                             <p>{t('loading')}</p>
@@ -477,7 +548,7 @@ const [dataLists, setDataLists] = useState({
                                     boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
                                     textAlign: 'left',
                                 }}
-                            >
+                            > 
                                         <h2 style={{ fontWeight: '300', color: '#1792FE', marginBottom: '20px' }}>{t('Home.contratoinfo.title')}</h2>
                                 <div style={{ borderBottom: '1px solid #E0E0E0', paddingBottom: '15px', marginBottom: '15px' }}>
                                     <p style={{ margin: '5px 0' }}>

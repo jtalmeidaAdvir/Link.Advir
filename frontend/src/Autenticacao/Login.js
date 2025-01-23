@@ -34,6 +34,9 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 localStorage.setItem('superAdmin', data.superAdmin ? 'true' : 'false'); // Adiciona superAdmin ao localStorage
                 localStorage.setItem('username', username);
                 localStorage.setItem('userId', data.userId);
+                localStorage.setItem('userNome', data.userNome);
+                localStorage.setItem('userEmail', data.userEmail);
+                //localStorage.setItem('nomeuser', data.nome);
                 localStorage.setItem('empresa_areacliente', data.empresa_areacliente);
 
                 // Atualiza o estado de login e permissões
