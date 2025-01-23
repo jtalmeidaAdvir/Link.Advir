@@ -235,7 +235,9 @@ const loginUtilizador = async (req, res) => {
             userId: user.id,  // Inclui o ID do usuário aqui
             isAdmin: user.isAdmin,
             superAdmin: user.superAdmin,  // Inclua o campo superAdmin aqui
-            empresa_areacliente: user.empresa_areacliente
+            empresa_areacliente: user.empresa_areacliente,
+            userNome: user.nome,
+            userEmail: user.email
         });
     } catch (error) {
         console.error('Erro ao fazer login:', error);

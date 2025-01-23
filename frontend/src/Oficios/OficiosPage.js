@@ -106,13 +106,14 @@ const OficiosPage = () => {
     // 5) Carregar lista de obras do backend
     // ======================================
     useEffect(() => {
+     
         const fetchObras = async () => {
             const token = localStorage.getItem("painelAdminToken");
             const urlempresa = localStorage.getItem("urlempresa");
             if (!urlempresa) return;
 
             try {
-                const response = await fetch("https://webapiprimavera.advir.pt/oficio/ListarObras", {
+                const response = await fetch("http://localhost:3001/oficio/ListarObras", {
                     method: "GET",
                     headers: {
                         "Authorization": `Bearer ${token}`,
@@ -225,7 +226,7 @@ const OficiosPage = () => {
             const token = localStorage.getItem("painelAdminToken");
             const urlempresa = localStorage.getItem("urlempresa");
 
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/save-pdf", {
+            const response = await fetch("http://localhost:3001/oficio/save-pdf", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -347,7 +348,7 @@ const OficiosPage = () => {
             };
 
             // Enviar para o backend
-            const response = await fetch("https://webapiprimavera.advir.pt/sendmailoficios", {
+            const response = await fetch("http://localhost:3001/sendmailoficios", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -446,7 +447,7 @@ const OficiosPage = () => {
         };
 
         try {
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/Criar", {
+            const response = await fetch("http://localhost:3001/oficio/Criar", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -487,7 +488,7 @@ const OficiosPage = () => {
 
         const fetchDonoObra = async () => {
             try {
-                const response = await fetch(`https://webapiprimavera.advir.pt/oficio/GetEntidade/${entidadeid}`, {
+                const response = await fetch(`http://localhost:3001/oficio/GetEntidade/${entidadeid}`, {
                     method: "GET",
                     headers: {
                         "Authorization": `Bearer ${token}`,
@@ -526,7 +527,7 @@ const OficiosPage = () => {
             const urlempresa = localStorage.getItem("urlempresa");
             const emailuser = localStorage.getItem("userEmail");
 
-            const response = await fetch(`https://webapiprimavera.advir.pt/oficio/GetEmail/${donoObra.ID}`, {
+            const response = await fetch(`http://localhost:3001/oficio/GetEmail/${donoObra.ID}`, {
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -565,7 +566,7 @@ const OficiosPage = () => {
         const userNome = localStorage.getItem("userNome");
 
         try {
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/GetId", {
+            const response = await fetch("http://localhost:3001/oficio/GetId", {
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -622,17 +623,11 @@ const OficiosPage = () => {
 
 
 
-
-
-    useEffect(() => {
-        generateCodigo();
-        // eslint-disable-next-line
-    }, []);
-
     // ======================================
     // 15) Mudar Template
     // ======================================
     const changeTemplate = () => {
+        generateCodigo();
         const newTemplate = currentTemplate === 1 ? 2 : 1;
         setCurrentTemplate(newTemplate);
 
@@ -1068,11 +1063,11 @@ const OficiosPage = () => {
         try {
             // Define URL e método com base na operação (criar ou atualizar)
             const url = isButtonSave
-                ? `https://webapiprimavera.advir.pt/oficio/Criar` // Endpoint para criar
-                : `https://webapiprimavera.advir.pt/oficio/atualizar`; // Endpoint para atualizar
+                ? `http://localhost:3001/oficio/Criar` // Endpoint para criar
+                : `http://localhost:3001/oficio/atualizar`; // Endpoint para atualizar
             const method =  "PUT";
 
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/atualizar", {
+            const response = await fetch("http://localhost:3001/oficio/atualizar", {
                 method,
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -1116,7 +1111,9 @@ const OficiosPage = () => {
                                 onClick={() => {
                                     setIsPreviewVisible(!isPreviewVisible); // Alterna entre pré-visualização e edição
                                     if (!isPreviewVisible) {
+                                        
                                         changeTemplate(); // Garante que o template é inicializado ao ativar a pré-visualização
+                                        
                                     }
                                 }}
                                 style={styles.button}
