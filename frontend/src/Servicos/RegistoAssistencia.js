@@ -160,7 +160,7 @@ const RegistoAssistencia = (props) => {
             tecnico: formData.tecnico,
             objectoID: objetoID,
             tipoDoc: objetotipo,
-            serie: "2024",
+            serie: "2025",
             estado: formData.estado,
             seccao: formData.secao,
             comoReproduzir: formData.comoReproduzir ? formData.comoReproduzir : null,

@@ -194,6 +194,14 @@ const [dataLists, setDataLists] = useState({
             question: t('Home.faq.questions.q3'),
             answer: t('Home.faq.questions.a3'),
         },
+        {
+            question: t('Home.faq.questions.q4'),
+            answer: t('Home.faq.questions.a4'),
+        },
+        {
+            question: t('Home.faq.questions.q5'),
+            answer: t('Home.faq.questions.a5'),
+        },
     ];
 
     const handleToggle = (index) => {

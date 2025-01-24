@@ -23,8 +23,8 @@ router.post("/save-pdf", upload.fields([{ name: 'file', maxCount: 1 }, { name: '
     }
     codigo = codigo.replace(/\//g, '_');
     const tempPathPdf = req.files.file[0].path; // Caminho temporário do PDF
-    const desktopPath = path.join(os.homedir(), 'Desktop'); // Obtém o caminho para o Desktop
-    const oficiosDir = path.join(desktopPath, 'Oficios'); // Caminho para a pasta 'Oficios'
+    const desktopPath = path.join('\\\\192.168.16.241', 'Departamentos', '02.Obras'); // Caminho da rede
+    const oficiosDir = path.join(desktopPath, 'TesteAdvirOficios'); // Caminho para a pasta 'Oficios'
     const oficioFolder = path.join(oficiosDir, codigo); // Caminho para a pasta do ofício
 
     // Verifique se o diretório 'Oficios' existe, se não, crie-o
@@ -41,30 +41,45 @@ router.post("/save-pdf", upload.fields([{ name: 'file', maxCount: 1 }, { name: '
     const targetPathPdf = path.join(oficioFolder, `${codigo}.pdf`); // O nome do arquivo PDF será igual ao código
 
     // Mova o arquivo PDF para a pasta do ofício
-    fs.rename(tempPathPdf, targetPathPdf, (err) => {
+    fs.copyFile(tempPathPdf, targetPathPdf, (err) => {
         if (err) {
-            console.error("Erro ao mover o PDF:", err);
+            console.error("Erro ao copiar o PDF:", err);
             return res.status(500).send("Erro ao salvar o PDF.");
         }
-
-        // Agora vamos salvar os anexos
+    
+        // Apaga o arquivo temporário após copiar
+        fs.unlink(tempPathPdf, (unlinkErr) => {
+            if (unlinkErr) {
+                console.error("Erro ao apagar o arquivo temporário:", unlinkErr);
+                // Ainda assim retorna sucesso porque o PDF foi salvo
+            }
+        });
+    
+        console.log("PDF salvo com sucesso:", targetPathPdf);
+        // Processa os anexos
         if (req.files.anexos) {
             req.files.anexos.forEach((anexo, index) => {
-                const tempPathAnexo = anexo.path; // Caminho temporário do anexo
-                const targetPathAnexo = path.join(oficioFolder, `${codigo}_anexo_${index + 1}${path.extname(anexo.originalname)}`); // Nome do anexo
-
-                // Mova cada anexo para a pasta do ofício
-                fs.rename(tempPathAnexo, targetPathAnexo, (err) => {
+                const tempPathAnexo = anexo.path;
+                const targetPathAnexo = path.join(oficioFolder, `${codigo}_anexo_${index + 1}${path.extname(anexo.originalname)}`);
+    
+                fs.copyFile(tempPathAnexo, targetPathAnexo, (err) => {
                     if (err) {
-                        console.error(`Erro ao mover o anexo ${index + 1}:`, err);
+                        console.error(`Erro ao copiar o anexo ${index + 1}:`, err);
                         return res.status(500).send(`Erro ao salvar o anexo ${index + 1}.`);
                     }
+    
+                    fs.unlink(tempPathAnexo, (unlinkErr) => {
+                        if (unlinkErr) {
+                            console.error("Erro ao apagar o anexo temporário:", unlinkErr);
+                        }
+                    });
                 });
             });
         }
-
-        res.status(200).send(`PDF e anexos salvos com sucesso na pasta '${codigo}' dentro de 'Oficios' no Desktop!`);
+    
+        res.status(200).send(`PDF e anexos salvos com sucesso na pasta '${codigo}' dentro de 'Oficios' no destino de rede!`);
     });
+    
 });
 
 router.post("/Criar", async (req, res) => {
@@ -299,7 +314,7 @@ router.get('/Eliminar/:Codigo', async (req, res) => {
         // Chamada para a API para criar a interven��o
         const response = await axios.get(apiUrl, {
             headers: {
-                Authorization: `Bearer ${painelAdminToken}`,
+                Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             },

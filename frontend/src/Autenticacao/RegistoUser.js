@@ -4,6 +4,7 @@ import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
 const RegistoUser = () => {
     const [username, setUsername] = useState('');
+    const [nome, setNome] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [empresaId, setEmpresaId] = useState('');  // Estado para armazenar o ID da empresa
@@ -82,7 +83,7 @@ const RegistoUser = () => {
 
         const newUser = {
             username,
-            nome: "Novo Utilizador",
+            nome,
             email,
             password,
             empresa_id: empresaId,
@@ -138,7 +139,31 @@ const RegistoUser = () => {
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
-                            style={styles.input}
+                            style={{
+                                borderRadius: '30px',
+                                padding: '10px 20px',
+                                width: '100%',
+                                marginBottom: '10px',
+                                fontSize: '1rem',
+                                border: '1px solid #ccc',
+                            }}
+                        />
+                    </div>
+                    <div style={styles.inputContainer}>
+                        <input
+                            type="nome"
+                            placeholder={t("RegistoUser.TxtNome")}
+                            value={nome}
+                            onChange={(e) => setNome(e.target.value)}
+                            required
+                            style={{
+                                borderRadius: '30px',
+                                padding: '10px 20px',
+                                width: '100%',
+                                marginBottom: '10px',
+                                fontSize: '1rem',
+                                border: '1px solid #ccc',
+                            }}
                         />
                     </div>
                     <div style={styles.inputContainer}>
@@ -148,7 +173,14 @@ const RegistoUser = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            style={styles.input}
+                            style={{
+                                borderRadius: '30px',
+                                padding: '10px 20px',
+                                width: '100%',
+                                marginBottom: '10px',
+                                fontSize: '1rem',
+                                border: '1px solid #ccc',
+                            }}
                         />
                     </div>
                     <div style={styles.inputContainer}>
@@ -158,7 +190,14 @@ const RegistoUser = () => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            style={styles.input}
+                            style={{
+                                borderRadius: '30px',
+                                padding: '10px 20px',
+                                width: '100%',
+                                marginBottom: '10px',
+                                fontSize: '1rem',
+                                border: '1px solid #ccc',
+                            }}
                         />
                     </div>
                     <div style={{ marginBottom: '20px' }}>
@@ -184,7 +223,14 @@ const RegistoUser = () => {
                             value={empresaId}
                             onChange={handleEmpresaChange}
                             required
-                            style={styles.input}
+                            style={{
+                                borderRadius: '30px',
+                                padding: '10px 20px',
+                                width: '100%',
+                                marginBottom: '10px',
+                                fontSize: '1rem',
+                                border: '1px solid #ccc',
+                            }}
                         >
                             <option value="">{t("RegistoUser.CBSelecionarEmpresa")}</option>
                             {empresas.map((empresa) => (
@@ -265,11 +311,11 @@ const styles = StyleSheet.create({
     },
     input: {
         borderRadius: '30px',
-        padding: '10px 20px',
-        width: '100%',
-        marginBottom: '10px',
-        fontSize: '1rem',
-        border: '1px solid #ccc',
+                                padding: '10px 20px',
+                                width: '100%',
+                                marginBottom: '10px',
+                                fontSize: '1rem',
+                                border: '1px solid #ccc',
     },
     registerButton: {
         borderRadius: '10px',

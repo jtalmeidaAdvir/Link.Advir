@@ -105,6 +105,7 @@ i18n
                     RegistoUser: {
                         Title: "User Registration",
                         TxtUser: "Username",
+                        TxtNome: "Name",
                         TxtPass: "Password",
                         TxtEmpresaArea: "Company or Client Area",
                         CBSelecionarEmpresa: "Select the Company",
@@ -294,6 +295,11 @@ i18n
                                 "a2": "Sim. O ERP suporta desde outubro de 2021 o regime jurídico de faturação eletrónica de Cabo Verde (ver comunicado). No entanto, para implementar este novo regime jurídico no ERP deverá garantir um conjunto de configurações importantes para a correta comunicação à DNRE.",
                                 "q3": "Quais são as condições necessárias para garantir o inventário permanente?",
                                 "a3": "Para garantir o inventário permanente, é necessário configurar todos os documentos de inventário para integrar com a contabilidade, bem como ter um cenário de contabilização definido.",
+                                "q4": "Definição dos anos de suspensão no regime IRS Jovem",
+                                "a4":"De acordo com as alterações ao regime fiscal IRS Jovem para 2025, a isenção referente a este regime não se aplica nos anos em que não sejam auferidos rendimentos das categorias A e B. Voltará a aplicar-se pelo número de anos de obtenção de rendimentos remanescente até perfazer um total de 10 anos de gozo da isenção, sem ultrapassar a idade máxima dos 35 anos.Para indicar no cálculo do IRS Jovem os anos em que não foram obtidos rendimentos, a ficha do funcionário do módulo de Recursos Humanos passa a disponibilizar o campo Anos de Suspensão, em que será possível indicar o número de anos que deverão ser subtraídos ao cálculo dos anos de rendimento a considerar para o IRS Jovem.Esta alteração está disponível a partir da versão 10.0020.1090 do módulo de Recursos Humanos.",
+                                "q5": "Atualizações legais para 2025 aplicáveis a Recursos Humanos",
+                                "a5":"A Cegid encara todos os temas relacionadas com a fiscalidade/legalidade como obrigatórios e prioritários. Neste sentido, o módulo de Recursos Humanos do ERP v10 e ERP Evolution foi atualizado para incluir as alterações legais recentemente aprovadas.",
+
                             }
 
                         },
@@ -336,6 +342,7 @@ i18n
                         Title: "Bem Vindo",
                         BtLogin: "Entrar",
                         TxtUsername: "Utilizador",
+                        
                         TxtPass: "Palavra-passe",
                         LinkRecoverPass: "Esqueceu-se da sua palavra-passe?",
                         Error: {
@@ -367,6 +374,7 @@ i18n
                     RegistoUser: {
                         Title: "Registo de Utilizador",
                         TxtUser: "Utilizador",
+                        TxtNome: "Nome",
                         TxtPass: "Palavra-passe",
                         TxtEmpresaArea: "Empresa ou Area de Cliente",
                         CBSelecionarEmpresa: "Selecione a Empresa",

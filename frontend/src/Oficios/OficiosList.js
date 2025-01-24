@@ -1,7 +1,31 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Modal } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Feather as Icon } from '@expo/vector-icons';
+
+
+
+// Componente ConfirmModal
+const ConfirmModal = ({ visible, onCancel, onConfirm, codigo }) => (
+    <Modal visible={visible} transparent={true} animationType="slide">
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" }}>
+            <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 8, width: "80%" }}>
+                <Text style={{ fontSize: 16, marginBottom: 10, textAlign:"center" }}>
+                    Tem a certeza que deseja eliminar o ofício com o código {codigo}?
+                </Text>
+                <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
+                    <TouchableOpacity onPress={onCancel}>
+                        <Text style={{ color: "#007bff" }}>Cancelar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={onConfirm}>
+                        <Text style={{ color: "#ff0000" }}>Eliminar</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </View>
+    </Modal>
+);
+
 
 
 const OficiosList = () => {
@@ -11,6 +35,9 @@ const OficiosList = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+     // Estado para o modal
+     const [modalVisible, setModalVisible] = useState(false);
+     const [selectedOficio, setSelectedOficio] = useState(null);
 
     useFocusEffect(
         useCallback(() => {
@@ -21,15 +48,19 @@ const OficiosList = () => {
             setLoading(true);
 
             const fetchOficios = async () => {
+                setLoading(true);
+                setOficios([]);
+                setError(null);
+            
                 const token = localStorage.getItem('painelAdminToken');
                 const urlempresa = localStorage.getItem('urlempresa');
-
+            
                 if (!urlempresa) {
                     setError('URL da empresa não encontrada.');
                     setLoading(false);
                     return;
                 }
-
+            
                 try {
                     const response = await fetch('https://webapiprimavera.advir.pt/oficio/Listar', {
                         method: 'GET',
@@ -39,26 +70,38 @@ const OficiosList = () => {
                             'Content-Type': 'application/json',
                         },
                     });
-
+            
                     if (!response.ok) {
                         throw new Error(`Error: ${response.statusText}`);
                     }
-
+            
                     const data = await response.json();
                     if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
-                        setOficios(data.DataSet.Table);
+                        // Ordenar com base no número dentro do código
+                        const sortedOficios = data.DataSet.Table.sort((a, b) => {
+                            // Extrai os números do código
+                            const numA = parseInt(a.CDU_codigo.match(/\d+/g)[0], 10);
+                            const numB = parseInt(b.CDU_codigo.match(/\d+/g)[0], 10);
+            
+                            // Ordenação decrescente (mais recente primeiro)
+                            return numB - numA;
+                        });
+            
+                        setOficios(sortedOficios);
                     } else {
                         setOficios([]);
                         setError('Dados não encontrados ou estrutura inesperada');
                     }
                 } catch (error) {
-                    console.error('Error fetching oficios:', error);
-                    setOficios([]);
                     setError('Erro ao carregar os dados');
+                    setOficios([]);
                 } finally {
                     setLoading(false);
                 }
             };
+            
+            
+            
 
             fetchOficios();
         }, []) // Assegure-se de passar um array vazio para evitar redefinir em loops desnecessários
@@ -78,37 +121,56 @@ const OficiosList = () => {
         );
     });
 
-    const renderOficio = ({ item }) => (
-        <View style={styles.itemContainer}>
-            <View style={styles.textContainer}>
-                {/* Ícone e código do ofício */}
-                <View style={styles.row}>
-                    <Icon name="hash" size={16} color="#007bff" style={styles.icon} />
-                    <Text style={styles.title}>{item.CDU_codigo}</Text>
+    const renderOficio = ({ item }) => {
+        const isInactive = item.CDU_isactive === false;
+    
+        return (
+            <View style={[styles.itemContainer, isInactive && styles.inactiveContainer]}>
+                <View style={styles.textContainer}>
+                    {/* Ícone e código do ofício */}
+                    <View style={styles.row}>
+                        <Icon name="hash" size={16} color="#007bff" style={styles.icon} />
+                        <Text style={[styles.title, isInactive && styles.inactiveText]}>{item.CDU_codigo}</Text>
+                    </View>
+    
+                    {/* Ícone e assunto do ofício */}
+                    <View style={styles.row}>
+                        <Icon name="file-text" size={16} color="#007bff" style={styles.icon} />
+                        <Text style={[styles.description, isInactive && styles.inactiveText]}>{item.CDU_assunto}</Text>
+                    </View>
+    
+                    {/* Ícone e remetente do ofício */}
+                    <View style={styles.row}>
+                        <Icon name="user" size={16} color="#007bff" style={styles.icon} />
+                        <Text style={[styles.description, isInactive && styles.inactiveText]}>{item.CDU_remetente}</Text>
+                    </View>
                 </View>
     
-                {/* Ícone e assunto do ofício */}
-                <View style={styles.row}>
-                    <Icon name="file-text" size={16} color="#007bff" style={styles.icon} />
-                    <Text style={styles.description}>{item.CDU_assunto}</Text>
-                </View>
+                {/* Botões apenas se ativo */}
+                {!isInactive && (
+                    <>
+                        <TouchableOpacity
+                            style={styles.editButton}
+                            onPress={() => navigation.navigate("EditOficio", { oficioId: item.CDU_codigo, oficioData: item })}
+                        >
+                            <Icon name="edit" size={20} color="#fff" style={styles.editIcon} />
+                        </TouchableOpacity>
     
-                {/* Ícone e remetente do ofício */}
-                <View style={styles.row}>
-                    <Icon name="user" size={16} color="#007bff" style={styles.icon} />
-                    <Text style={styles.description}>{item.CDU_remetente}</Text>
-                </View>
+                        <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => {
+                                setSelectedOficio(item.CDU_codigo); // Armazena o código do ofício
+                                setModalVisible(true); // Mostra o modal
+                            }}
+                        >
+                            <Icon name="trash" size={20} color="#fff" />
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
+        );
+    };
     
-            {/* Botão de editar com ícone */}
-            <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => navigation.navigate("EditOficio", { oficioId: item.CDU_codigo, oficioData: item })}
-            >
-                <Icon name="edit" size={20} color="#fff" style={styles.editIcon} />
-            </TouchableOpacity>
-        </View>
-    );
     
     // Usando o useFocusEffect para recarregar os dados quando a tela for focada
     useFocusEffect(
@@ -121,16 +183,16 @@ const OficiosList = () => {
         setLoading(true);
         setOficios([]);
         setError(null);
-
+    
         const token = localStorage.getItem('painelAdminToken');
         const urlempresa = localStorage.getItem('urlempresa');
-
+    
         if (!urlempresa) {
             setError('URL da empresa não encontrada.');
             setLoading(false);
             return;
         }
-
+    
         try {
             const response = await fetch('https://webapiprimavera.advir.pt/oficio/Listar', {
                 method: 'GET',
@@ -140,14 +202,24 @@ const OficiosList = () => {
                     'Content-Type': 'application/json',
                 },
             });
-
+    
             if (!response.ok) {
                 throw new Error(`Error: ${response.statusText}`);
             }
-
+    
             const data = await response.json();
             if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
-                setOficios(data.DataSet.Table);
+                // Ordenar com base no número dentro do código
+                const sortedOficios = data.DataSet.Table.sort((a, b) => {
+                    // Extrai os números do código
+                    const numA = parseInt(a.CDU_codigo.match(/\d+/g)[0], 10);
+                    const numB = parseInt(b.CDU_codigo.match(/\d+/g)[0], 10);
+    
+                    // Ordenação decrescente (mais recente primeiro)
+                    return numB - numA;
+                });
+    
+                setOficios(sortedOficios);
             } else {
                 setOficios([]);
                 setError('Dados não encontrados ou estrutura inesperada');
@@ -159,6 +231,7 @@ const OficiosList = () => {
             setLoading(false);
         }
     };
+    
     return (
         <View style={styles.container}>
             <TextInput
@@ -191,6 +264,50 @@ const OficiosList = () => {
             >
                 <Text style={styles.buttonText}>Criar Novo Ofício</Text>
             </TouchableOpacity>
+            {/* Modal de confirmação */}
+            <ConfirmModal
+                visible={modalVisible}
+                codigo={selectedOficio}
+                onCancel={() => setModalVisible(false)} // Fecha o modal
+                onConfirm={async () => {
+                    console.log('Código do ofício a eliminar:', selectedOficio);
+                    const token = localStorage.getItem('painelAdminToken');
+                    const urlempresa = localStorage.getItem('urlempresa');
+                
+                    if (!urlempresa) {
+                        alert('URL da empresa não encontrada.');
+                        return;
+                    }
+                
+                    try {
+                        const response = await fetch(`https://webapiprimavera.advir.pt/oficio/Eliminar/${selectedOficio}`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'urlempresa': urlempresa,
+                                'Content-Type': 'application/json',
+                            },
+                        });
+                    
+                        const responseText = await response.text(); // Obtém a resposta como texto
+                        console.log('Resposta do servidor:', responseText);
+                    
+                        if (!response.ok) {
+                            throw new Error(`Erro ao eliminar o ofício: ${response.statusText}`);
+                        }
+                    
+                        const responseData = JSON.parse(responseText); // Converte em JSON, se possível
+                        alert(`Ofício ${selectedOficio} eliminado com sucesso.`);
+                        setModalVisible(false);
+                        fetchOficios(); // Atualiza a lista
+                    } catch (error) {
+                        console.error('Erro na requisição:', error.message);
+                        alert(`Erro ao eliminar o ofício: ${error.message}`);
+                    }
+                    
+                }}
+                
+            />
         </View>
     );
 };
@@ -270,8 +387,24 @@ const styles = StyleSheet.create({
         backgroundColor: "#007bff",
         borderRadius: 8,
     },
+    deleteButton: {
+        width: 40,
+        height: 40,
+        marginLeft:10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: "#007bff",
+        borderRadius: 8,
+    },
     editIcon: {
         margin: 0,
+    },
+    inactiveContainer: {
+        backgroundColor: "#f0f0f0", // Cor mais clara para indicar inatividade
+        opacity: 0.9, // Efeito de "sombreado"
+    },
+    inactiveText: {
+        color: "#aaa", // Texto acinzentado para indicar inatividade
     },
 });
 

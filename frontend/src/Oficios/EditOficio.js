@@ -11,6 +11,7 @@ import PMEPreto from '../../images/PMEPRETO.png';
 import QualidadePreto from '../../images/QUALIDADEPRETO.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+
 const EditOficio = (props) => {
     const navigation = useNavigation();
     const route = useRoute(); // Para pegar os dados passados pela navegação
@@ -29,7 +30,7 @@ const EditOficio = (props) => {
     const [Localidade, setLocalidade] = useState(oficioData.CDU_Localidade);
     const [CodPostal, setCodPostal] = useState(oficioData.CDU_CodPostal);
     const [CodPostalLocal, setCodPostalLocal] = useState(oficioData.CDU_CodPostalLocal);
-    
+
     // ==============================
     // 1) Estados para o documento
     // ==============================
@@ -1007,6 +1008,8 @@ const EditOficio = (props) => {
             var texto = textopart1 + textopart2
             setTextoDoc(texto);
             setTemplateByCode(templete);
+
+            
         }
     }, [obraUP]);
    
@@ -1048,16 +1051,27 @@ const EditOficio = (props) => {
         <div style={styles.pageContainer}>
             <header style={styles.header}>
                 <div style={styles.controlsAlignedLeft}>
-                    <TouchableOpacity
-                        onPress={goBackToOficiosList} // Ao clicar, será acionada a navegação com reset
-                        style={{ flexDirection: 'row', alignItems: 'center' }}
-                    >
-                        <FontAwesomeIcon
-                            icon={faArrowLeft}
-                            style={{ color: '#1792FE', marginRight: 5 }}
-                        />
-                        <Text style={{ color: '#1792FE' }}>Voltar</Text>
-                    </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={goBackToOficiosList}
+                    style={{
+                        position: 'absolute', // Posiciona o botão fora do fluxo normal
+                        top: 10, // Define a distância do topo
+                        left: 10, // Define a distância da esquerda
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        padding: 10,
+                        borderRadius: 30,
+                        borderColor: '#1792FE',
+                        borderWidth: 1,
+                        zIndex: 1000, // Garante que o botão fique acima de outros elementos
+                    }}
+                >
+                    <FontAwesomeIcon
+                        icon={faArrowLeft}
+                        style={{ color: '#1792FE', marginRight: 5 }}
+                    />
+                    <Text style={{ color: '#1792FE' }}>Voltar</Text>
+                </TouchableOpacity>
 
                     {/* Botão Mudar Template só aparece na pré-visualização */}
                     {isPreviewVisible && (
@@ -1129,24 +1143,25 @@ const EditOficio = (props) => {
                     )}
                 </>
             ) : (
-                <div style={{ maxWidth: "600px", margin: "0 auto", padding: "20px" }}>
-                    {/* Inputs para selecionar obra, assunto, corpo e anexos */}
-                    <div style={{ position: "relative", width: "500px" }} ref={comboBoxRef}>
-                            <input
+                <div style={{ width: "60%", margin: "0 auto", padding: "20px", backgroundColor: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)" }}>
+                    {/* Campo para selecionar obra */}
+                    <div style={{ position: "relative", width: "100%", marginBottom: "20px" }} ref={comboBoxRef}>
+                        <input
                                 type="text"
-                                value={obraUP || ''}
-                                onChange={handleInputChange}
-                                placeholder="Selecione ou escreva a obra"
-                                style={{
-                                    width: "100%",
-                                    padding: "8px",
-                                    margin: "10px auto",
-                                    border: "1px solid #ccc",
-                                    borderRadius: "4px",
-                                }}
-                                onFocus={() => setShowOptions(true)}
-                                disabled="false" // Explicitamente habilitado
-                            />
+                                value={obraUP||''}
+                            onChange={handleInputChange}
+                                placeholder={NomeDestinatario}
+                            style={{
+                                width: "100%",
+                                padding: "12px",
+                                margin: "10px 0",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                fontSize: "16px",
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            }}
+                            onFocus={() => setShowOptions(true)}
+                        />
                         {showOptions && (
                             <ul
                                 style={{
@@ -1155,29 +1170,30 @@ const EditOficio = (props) => {
                                     left: 0,
                                     right: 0,
                                     margin: 0,
-                                    padding: "8px",
+                                    padding: "10px",
                                     listStyle: "none",
-                                    border: "1px solid #ccc",
-                                    borderRadius: "4px",
+                                    border: "1px solid #ddd",
+                                    borderRadius: "8px",
                                     background: "white",
                                     maxHeight: "150px",
                                     overflowY: "auto",
                                     zIndex: 10,
+                                    boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                                 }}
                             >
-                                {/* Mover a opção 'Não tem obra' para o início */}
                                 <li
                                     onClick={() => {
                                         setSelectedObra(null);
                                         setInputValue("Não tem obra");
                                         setShowOptions(false);
-                                        setDonoObra(""); // Permite escrever livremente no destinatário
+                                        setDonoObra("");
                                     }}
                                     style={{
-                                        padding: "8px",
+                                        padding: "10px",
                                         cursor: "pointer",
-                                        color: "black",
-                                        background: "white",
+                                        color: "#333",
+                                        background: "#f9f9f9",
+                                        borderRadius: "6px",
                                     }}
                                 >
                                     Não tem obra
@@ -1187,58 +1203,136 @@ const EditOficio = (props) => {
                                         key={index}
                                         onClick={() => {
                                             handleOptionClick(obra);
-                                            setDonoObra(obraUP); // Atualiza o destinatário automaticamente
+                                            setDonoObra(obraUP);
                                         }}
                                         style={{
-                                            padding: "8px",
+                                            padding: "10px",
                                             cursor: "pointer",
-                                            color: "black",
+                                            color: "#333",
                                             background:
-                                                selectedObra?.Codigo === obra.Codigo
-                                                    ? "#f0f0f0"
-                                                    : "white",
+                                                selectedObra?.Codigo === obra.Codigo ? "#e6f7ff" : "white",
+                                            borderRadius: "6px",
+                                            marginBottom: "5px",
                                         }}
                                     >
                                         {obra.Codigo}
                                     </li>
                                 ))}
-
                             </ul>
                         )}
                     </div>
 
+                    {/* Campo de destinatário */}
                     <input
                         type="text"
                         placeholder="Destinatário"
-                            value={NomeDestinatario || ""} // Garante que `donoObra` não é null/undefined
+                            value={NomeDestinatario|| ""}
                         onChange={(e) =>
                             setDonoObra((prev) => ({
                                 ...prev,
-                                Nome: e.target.value, // Atualiza apenas o campo Nome do objeto donoObra
+                                Nome: e.target.value,
                             }))
                         }
                         style={{
                             width: "100%",
-                            padding: "8px",
-                            margin: "10px auto",
-                            border: "1px solid #ccc",
-                            borderRadius: "4px",
+                            padding: "12px",
+                            margin: "10px 0",
+                            border: "1px solid #ddd",
+                            borderRadius: "8px",
+                            fontSize: "16px",
+                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                         }}
                         disabled={inputValue !== "Não tem obra"}
-                    />
+                        />
+                        {/* Exibe campos somente quando a opção "Não tem obra" está selecionada */}
+                        {obraUP === "Não tem obra" && (
+                            <>
+                                {/* Campo de morada */}
+                                <input
+                                    type="text"
+                                    placeholder="Morada"
+                                    value={Morada}
+                                    onChange={(e) => setMorada(e.target.value)}
+                                    style={{
+                                        width: "100%",
+                                        padding: "12px",
+                                        margin: "10px 0",
+                                        border: "1px solid #ddd",
+                                        borderRadius: "8px",
+                                        fontSize: "16px",
+                                        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                    }}
+                                />
 
+                                {/* Campo de localidade */}
+                                <input
+                                    type="text"
+                                    placeholder="Localidade"
+                                    value={Localidade}
+                                    onChange={(e) => setLocalidade(e.target.value)}
+                                    style={{
+                                        width: "100%",
+                                        padding: "12px",
+                                        margin: "10px 0",
+                                        border: "1px solid #ddd",
+                                        borderRadius: "8px",
+                                        fontSize: "16px",
+                                        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                    }}
+                                />
 
+                                {/* Campo de código postal e local coppostal lado a lado */}
+                                <div style={{ display: "flex", gap: "10px", margin: "10px 0" }}>
+                                    <input
+                                        type="text"
+                                        placeholder="Código Postal"
+                                        value={CodPostal}
+                                        onChange={(e) => setCodPostal(e.target.value)}
+                                        style={{
+                                            flex: 1,
+                                            padding: "12px",
+                                            border: "1px solid #ddd",
+                                            borderRadius: "8px",
+                                            fontSize: "16px",
+                                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                        }}
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Local CopPostal"
+                                        value={CodPostalLocal}
+                                        onChange={(e) => setCodPostalLocal(e.target.value)}
+                                        style={{
+                                            flex: 1,
+                                            padding: "12px",
+                                            border: "1px solid #ddd",
+                                            borderRadius: "8px",
+                                            fontSize: "16px",
+                                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                        }}
+                                    />
+                                </div>
+                            </>
+                        )}
 
-
-
+                    {/* Campo de assunto */}
                     <input
                         type="text"
                         placeholder="Assunto do Documento"
                         value={assuntoDoc}
                         onChange={(e) => setAssuntoDoc(e.target.value)}
-                        style={styles.input}
+                        style={{
+                            width: "100%",
+                            padding: "12px",
+                            margin: "10px 0",
+                            border: "1px solid #ddd",
+                            borderRadius: "8px",
+                            fontSize: "16px",
+                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                        }}
                     />
 
+                    {/* Campo de texto editável */}
                     <div
                         ref={contentEditableRef}
                         contentEditable="true"
@@ -1250,11 +1344,9 @@ const EditOficio = (props) => {
                                 const selection = window.getSelection();
                                 const range = selection.getRangeAt(0);
 
-                                // Cria um nó de texto com espaços em vez de tab
-                                const tabNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0"); // 4 espaços
+                                const tabNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0");
                                 range.insertNode(tabNode);
 
-                                // Move o cursor para o final do tab
                                 range.setStartAfter(tabNode);
                                 range.setEndAfter(tabNode);
                                 selection.removeAllRanges();
@@ -1262,43 +1354,61 @@ const EditOficio = (props) => {
                             }
                         }}
                         style={{
-                            ...styles.textarea,
-                            whiteSpace: "pre-wrap", // Mantém espaços e quebras de linha
-                            wordWrap: "break-word", // Evita overflow de texto
+                            whiteSpace: "pre-wrap",
+                            wordWrap: "break-word",
                             backgroundColor: "white",
-                            border: "1px solid #ccc",
-                            padding: "10px",
-                            minHeight: "500px",
+                            border: "1px solid #ddd",
+                            borderRadius: "8px",
+                            padding: "12px",
+                            minHeight: "200px",
                             overflowY: "auto",
-                            width: "500px",
+                            fontSize: "16px",
+                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                         }}
                         dangerouslySetInnerHTML={{ __html: textoDoc }}
                     ></div>
 
-
-
-
-
-                    <label style={styles.fileInputLabel}>
+                    {/* Campo para anexos */}
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "20px", cursor: "pointer", color: "#1792FE", fontWeight: "bold" }}>
                         <FaPaperclip /> Anexos
                         <input
                             type="file"
                             multiple
                             onChange={handleAddAnexo}
-                            style={styles.fileInput}
+                            style={{ display: "none" }}
                         />
                     </label>
 
+                    {/* Lista de anexos */}
                     {anexos.length > 0 && (
-                        <div style={styles.anexosList}>
-                            <h4 style={styles.h4}>Anexos:</h4>
-                            <ul style={styles.ul}>
+                        <div style={{ marginTop: "20px", padding: "15px", backgroundColor: "#f9f9f9", border: "1px solid #ddd", borderRadius: "8px" }}>
+                            <h4 style={{ fontSize: "16px", marginBottom: "10px", color: "#333" }}>Anexos:</h4>
+                            <ul style={{ listStyleType: "none", paddingLeft: "0", margin: "0" }}>
                                 {anexos.map((anexo, index) => (
-                                    <li key={index} style={styles.li}>
+                                    <li
+                                        key={index}
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            padding: "10px",
+                                            border: "1px solid #ddd",
+                                            borderRadius: "8px",
+                                            marginBottom: "8px",
+                                            backgroundColor: "#fff",
+                                        }}
+                                    >
                                         {anexo.name}
                                         <button
                                             onClick={() => handleRemoveAnexo(index)}
-                                            style={styles.removeButton}
+                                            style={{
+                                                backgroundColor: "#ff4d4d",
+                                                color: "#fff",
+                                                border: "none",
+                                                padding: "5px 10px",
+                                                borderRadius: "6px",
+                                                cursor: "pointer",
+                                            }}
                                         >
                                             Remover
                                         </button>
@@ -1308,25 +1418,32 @@ const EditOficio = (props) => {
                         </div>
                     )}
 
-
+                    {/* Botão de alternar entre pré-visualização e edição */}
                     <button
                         onClick={() => {
-                            setIsPreviewVisible(!isPreviewVisible); // Alterna entre pré-visualização e edição
+                            setIsPreviewVisible(!isPreviewVisible);
                             if (!isPreviewVisible) {
-                                changeTemplate(); // Garante que o template é inicializado ao ativar a pré-visualização
+                                changeTemplate();
                             }
                         }}
-                        style={styles.button}
+                        style={{
+                            width: "100%",
+                            padding: "12px",
+                            marginTop: "20px",
+                            backgroundColor: "#1792FE",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "8px",
+                            fontSize: "16px",
+                            cursor: "pointer",
+                            boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+                        }}
                     >
                         {isPreviewVisible ? "Editar" : "Pré-visualizar"}
                     </button>
                 </div>
 
             )}
-
-
-
-
 
             {/* MODAL para envio de email (campos independentes) */}
             {isModalOpen && (
@@ -1414,20 +1531,25 @@ const EditOficio = (props) => {
 // Estilos
 // ==============================
 const styles = {
-    backButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 5,
-    },
+
     pageContainer: {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        width: "115%",
-        minHeight: "100vh",
+        width: "100%",
+        height: "100%",
         backgroundColor: "#d4e4ff",
         overflowY: "auto",
         padding: "20px",
+    },
+    body: {
+        margin: 0,
+        padding: 0,
+        display: "flex",
+        justifycontent: "center",
+        alignItems: "center",
+        minheight: "100vh",
+        backgroundColor: "#d4e4ff", /* fundo azul claro */
     },
     header: {
         display: "flex",
@@ -1589,6 +1711,16 @@ const styles = {
         display: "flex",
         justifyContent: "center",
         gap: "10px",
+    },
+    formContainer: {
+        maxWidth: "600px",
+        margin: "0 auto",
+        padding: "20px",
+        backgroundColor: "#ffffff",
+        borderRadius: "12px",
+        boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
+        textAlign: "center",
+        width: "100%",
     },
 };
 

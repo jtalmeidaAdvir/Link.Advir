@@ -1,3 +1,5 @@
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
@@ -7,15 +9,16 @@ import { FaSave, FaEnvelope, FaFilePdf, FaPaperclip } from "react-icons/fa";
 import { useFocusEffect } from '@react-navigation/native';
 import PMEPreto from '../../images/PMEPRETO.png';
 import QualidadePreto from '../../images/QUALIDADEPRETO.png';
-
-const OficiosPage = () => {
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+const OficiosPage = (props) => {
     // ==============================
     // 1) Estados para o documento
     // ==============================
     const [isModalOpen, setIsModalOpen] = useState(false); // Controla a abertura do modal
     const [currentTemplate, setCurrentTemplate] = useState(1); // Controla o template ativo (1 ou 2)
     const [donoObra, setDonoObra] = useState("");
-
+    const navigation = useNavigation();
     const [isEditable, setIsEditable] = useState(false);
     const [selectedObra, setSelectedObra] = useState("");
     const [assuntoDoc, setAssuntoDoc] = useState("");   // <--- Assunto do documento
@@ -26,6 +29,10 @@ const OficiosPage = () => {
     const [isTemplateVisible, setIsTemplateVisible] = useState(false);
     const [isPreviewVisible, setIsPreviewVisible] = useState(false);
     const [isButtonSave, setIsButtonSave] = useState(false);
+    const [morada, setMorada] = useState("");
+    const [localidade, setLocalidade] = useState("");
+    const [codigoPostal, setCodigoPostal] = useState("");
+    const [localCopPostal, setLocalCopPostal] = useState("");
 
 
     const contentEditableRef = useRef(null);
@@ -66,7 +73,7 @@ const OficiosPage = () => {
     // ==============================
     // 2) Estados para o modal de envio de email
     // ==============================
-    const [emailTo, setEmailTo] = useState("jtalmeida@advir.pt"); // Destinatário do email
+    const [emailTo, setEmailTo] = useState(""); // Destinatário do email
     const [emailCC, setEmailCC] = useState(""); // Destinatário do email
     const [emailAssunto, setEmailAssunto] = useState("");         // Assunto do email
     const [emailTexto, setEmailTexto] = useState("");             // Corpo do email
@@ -397,81 +404,99 @@ const OficiosPage = () => {
         });
     };
 
+
     // ======================================
-    // 11) Toggle modo editável (se quiseres)
-    // ======================================
-    const toggleEdit = () => {
-        setIsEditable(!isEditable);
+// 12) Salvar dados do documento (criar ofício) no backend
+// ======================================
+const handleSave = async () => {
+    const token = localStorage.getItem("painelAdminToken");
+    const urlempresa = localStorage.getItem("urlempresa");
+    const usernome = localStorage.getItem("userNome");
+    const useremail = localStorage.getItem("userEmail");
+ 
+    var nomeDonoObra = "";
+    var moradaDonoObra = "";
+    var localidadeDonoObra = "";
+    var codPostalDonoObra = "";
+    var codPostalLocalDonoObra = "";
+    var obraSlecionadaSave = "";
+    console.log("CODIGO");
+    console.log(inputValue);
+ 
+    if (inputValue === "Não tem obra") {
+ 
+        console.log(donoObra.Nome);
+        nomeDonoObra = donoObra.Nome || "";
+        moradaDonoObra = morada || "";
+        localidadeDonoObra = localidade || "";
+        codPostalDonoObra = codigoPostal || "";
+        codPostalLocalDonoObra = localCopPostal || "";
+        console.log(formData?.codigo);
+        obraSlecionadaSave = inputValue || "";
+ 
+ 
+    }else {
+        nomeDonoObra = donoObra.Nome;
+ 
+        moradaDonoObra = donoObra.Morada;
+        localidadeDonoObra = donoObra.Localidade;
+        codPostalDonoObra = donoObra.CodPostal;
+        codPostalLocalDonoObra = donoObra.CodPostalLocal;
+        obraSlecionadaSave = selectedObra?.Codigo || "";
+ 
+    }
+ 
+    
+    if (currentTemplate === 1) {
+        var templateestado = "2"
+    } else if (currentTemplate === 2) {
+        var templateestado = "1"
+    }
+    // Vamos inserir assuntoDoc e textoDoc dentro de formData, para enviar e gravar no backend
+    const payloadDoc = {
+        ...formData,
+        codigo: formData?.codigo || "",
+        assunto: assuntoDoc,
+        texto1: textParts.part1 || "",
+        texto2: textParts.part2 || "",
+        obra: obraSlecionadaSave || "",
+        remetente: usernome,
+        createdby: usernome,
+        email: useremail,
+        template: templateestado,
+        donoObra: nomeDonoObra,
+        Morada: moradaDonoObra,
+        Localidade: localidadeDonoObra,
+        CodPostal: codPostalDonoObra,
+        CodPostalLocal: codPostalLocalDonoObra,
     };
-
-    // ======================================
-    // 12) Salvar dados do documento (criar ofício) no backend
-    // ======================================
-    const handleSave = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
-        const usernome = localStorage.getItem("userNome");
-        const useremail = localStorage.getItem("userEmail");
-
-        var nomeDonoObra = donoObra.Nome;
-        var moradaDonoObra = donoObra.Morada;
-        var localidadeDonoObra = donoObra.Localidade;
-        var codPostalDonoObra = donoObra.CodPostal;
-        var codPostalLocalDonoObra = donoObra.CodPostalLocal;
-        console.log("donoObra");
-        console.log(donoObra.Morada);
-        console.log(donoObra.Localidade);
-        console.log(donoObra.CodPostal);
-        
-        if (currentTemplate === 1) {
-            var templateestado = "2"
-        } else if (currentTemplate === 2) {
-            var templateestado = "1"
+ 
+    try {
+        const response = await fetch("https://webapiprimavera.advir.pt/oficio/Criar", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "urlempresa": urlempresa,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payloadDoc),
+        });
+ 
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Erro https: ${response.status} - ${errorData.error}`);
         }
-        // Vamos inserir assuntoDoc e textoDoc dentro de formData, para enviar e gravar no backend
-        const payloadDoc = {
-            ...formData,
-            assunto: assuntoDoc,
-            texto1: textParts.part1 || "",
-            texto2: textParts.part2 || "",
-            obra: selectedObra.Codigo,
-            remetente: usernome,
-            createdby: usernome,
-            email: useremail,
-            template: templateestado,
-            donoObra: nomeDonoObra,
-            Morada: moradaDonoObra,
-            Localidade: localidadeDonoObra,
-            CodPostal: codPostalDonoObra,
-            CodPostalLocal: codPostalLocalDonoObra,
-        };
-
-        try {
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/Criar", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "urlempresa": urlempresa,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payloadDoc),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Erro https: ${response.status} - ${errorData.error}`);
-            }
-
-            const data = await response.json();
-            // Depois de criar o ofício, podemos também salvar o PDF e anexos
-            await handleSavePDFAndSendToBackend();
-            alert("Ofício criado e PDF salvo com sucesso!");
-            console.log("Resposta do servidor:", data);
-        } catch (error) {
-            console.error("Erro ao criar o ofício:", error);
-            alert("Erro ao criar o ofício. Verifique os logs para mais detalhes.");
-        }
-    };
+ 
+        const data = await response.json();
+        // Depois de criar o ofício, podemos também salvar o PDF e anexos
+        await handleSavePDFAndSendToBackend();
+        alert("Ofício criado e PDF salvo com sucesso!");
+        console.log("Resposta do servidor:", data);
+    } catch (error) {
+        console.error("Erro ao criar o ofício:", error);
+        alert("Erro ao criar o ofício. Verifique os logs para mais detalhes.");
+    }
+};
 
     // ======================================
     // 13) Atualizar formData ao selecionar a Obra
@@ -659,7 +684,7 @@ const OficiosPage = () => {
     const getTemplate1 = () => {
         const usernome = formData.nome || localStorage.getItem("userNome") || 'Email não disponível';
         const useremail = formData.email || localStorage.getItem("userEmail") || 'Email não disponível';
-
+ 
         return `
 <!DOCTYPE html>
 <html lang="pt">
@@ -721,9 +746,9 @@ const OficiosPage = () => {
 <td></td>
 <td style="padding-left:99px;" contentEditable="false">
         EXMO(s) SR(s) ${donoObra.Nome || ''}<br>
-        ${donoObra.Morada || ''}<br>
-        ${donoObra.Localidade || ''}<br>
-        ${donoObra.CodPostal || ''} ${donoObra.CodPostalLocal || ''}
+        ${donoObra.Morada || morada}<br>
+        ${donoObra.Localidade || localidade}<br>
+        ${donoObra.CodPostal || codigoPostal} ${donoObra.CodPostalLocal || localCopPostal}
 </td>
 </tr>
 <tr>
@@ -732,7 +757,7 @@ const OficiosPage = () => {
 </tr>
 <tr>
 <td style="width: 28%; font-size: 10px" contentEditable="false" id="editableCellCodigo" >
-        REF: ${formData.codigo}<br>
+        REF: ${formData?.codigo}<br>
         DATA: ${formData.data}<br>
         ANEXOS: ${anexos.map(a => a.name).join(", ") || "Nenhum anexo"}<br><br><br><br><br>
         REMETENTE<br><br>
@@ -740,8 +765,7 @@ const OficiosPage = () => {
         ${useremail || 'Email não existe'}
 </td>
 <td style="vertical-align: top;">
- 
-        <div
+<div
           contentEditable="false"
           id="editableCellAssunto"
           oninput="window.updateTexto(this.innerText)"
@@ -751,8 +775,7 @@ const OficiosPage = () => {
           Exmo. Senhores,<br><br>
           ${textParts.part1 || ""}
 </div>
- 
-      </td>
+</td>
 </tr>
 <tr style="${currentTemplate === 1 && textParts.part2 ? 'visibility:hidden;' : ''}">
 <td>
@@ -1093,12 +1116,34 @@ const OficiosPage = () => {
         }
     };
 
-
+    const goBackToOficiosList = () => {
+        navigation.navigate('OficiosList'); // Navigate to OficiosList screen
+    };
     return (
         <div style={styles.pageContainer}>
             <header style={styles.header}>
                 <div style={styles.controlsAlignedLeft}>
-
+                    <TouchableOpacity
+                                        onPress={goBackToOficiosList}
+                                        style={{
+                                            position: 'absolute', // Posiciona o botão fora do fluxo normal
+                                            top: 10, // Define a distância do topo
+                                            left: 10, // Define a distância da esquerda
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            padding: 10,
+                                            borderRadius: 30,
+                                            borderColor: '#1792FE',
+                                            borderWidth: 1,
+                                            zIndex: 1000, // Garante que o botão fique acima de outros elementos
+                                        }}
+                                    >
+                                        <FontAwesomeIcon
+                                            icon={faArrowLeft}
+                                            style={{ color: '#1792FE', marginRight: 5 }}
+                                        />
+                                        <Text style={{ color: '#1792FE' }}>Voltar</Text>
+                                    </TouchableOpacity>
 
                     {/* Botão Mudar Template só aparece na pré-visualização */}
                     {isPreviewVisible && (
@@ -1134,7 +1179,7 @@ const OficiosPage = () => {
                                 }}
                                 style={styles.button}
                             >
-                                <FaFilePdf /> Salvar e PDF
+                                <FaFilePdf /> Guardar/PDF
                             </button>
                             <button
                                 onClick={() => {
@@ -1148,7 +1193,7 @@ const OficiosPage = () => {
                                 }}
                                 style={styles.button}
                             >
-                                <FaEnvelope /> Enviar Email
+                                <FaEnvelope /> Guardar/Email
                             </button>
 
                             <button
@@ -1183,7 +1228,7 @@ const OficiosPage = () => {
                     )}
                 </>
             ) : (
-                <div style={{ maxWidth: "600px", margin: "0 auto", padding: "20px", backgroundColor: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)" }}>
+                <div style={{ width: "60%", margin: "0 auto", padding: "20px", backgroundColor: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)" }}>
                 {/* Campo para selecionar obra */}
                 <div style={{ position: "relative", width: "100%", marginBottom: "20px" }} ref={comboBoxRef}>
                     <input
@@ -1255,7 +1300,7 @@ const OficiosPage = () => {
                                         marginBottom: "5px",
                                     }}
                                 >
-                                    {obra.Codigo}
+                                    {obra?.Codigo || ""} - {obra?.Descricao || ""}
                                 </li>
                             ))}
                         </ul>
@@ -1284,6 +1329,77 @@ const OficiosPage = () => {
                     }}
                     disabled={inputValue !== "Não tem obra"}
                 />
+
+                {/* Exibe campos somente quando a opção "Não tem obra" está selecionada */}
+  {inputValue === "Não tem obra" && (
+<>
+          {/* Campo de morada */}
+<input
+              type="text"
+              placeholder="Morada"
+              value={morada}
+              onChange={(e) => setMorada(e.target.value)}
+              style={{
+                  width: "100%",
+                  padding: "12px",
+                  margin: "10px 0",
+                  border: "1px solid #ddd",
+                  borderRadius: "8px",
+                  fontSize: "16px",
+                  boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+              }}
+          />
+ 
+          {/* Campo de localidade */}
+<input
+              type="text"
+              placeholder="Localidade"
+              value={localidade}
+              onChange={(e) => setLocalidade(e.target.value)}
+              style={{
+                  width: "100%",
+                  padding: "12px",
+                  margin: "10px 0",
+                  border: "1px solid #ddd",
+                  borderRadius: "8px",
+                  fontSize: "16px",
+                  boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+              }}
+          />
+ 
+          {/* Campo de código postal e local coppostal lado a lado */}
+            <div style={{ display: "flex", gap: "10px", margin: "10px 0" }}>
+            <input
+                            type="text"
+                            placeholder="Código Postal"
+                            value={codigoPostal}
+                            onChange={(e) => setCodigoPostal(e.target.value)}
+                            style={{
+                                flex: 1,
+                                padding: "12px",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                fontSize: "16px",
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            }}
+                        />
+            <input
+                            type="text"
+                            placeholder="Local CopPostal"
+                            value={localCopPostal}
+                            onChange={(e) => setLocalCopPostal(e.target.value)}
+                            style={{
+                                flex: 1,
+                                padding: "12px",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                fontSize: "16px",
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            }}
+                        />
+            </div>
+            </>
+            )}
             
                 {/* Campo de assunto */}
                 <input
@@ -1304,39 +1420,39 @@ const OficiosPage = () => {
             
                 {/* Campo de texto editável */}
                 <div
-                    ref={contentEditableRef}
-                    contentEditable="true"
-                    dir="ltr"
-                    onBlur={handleBlur}
-                    onKeyDown={(e) => {
-                        if (e.key === "Tab") {
-                            e.preventDefault();
-                            const selection = window.getSelection();
-                            const range = selection.getRangeAt(0);
-            
-                            const tabNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0");
-                            range.insertNode(tabNode);
-            
-                            range.setStartAfter(tabNode);
-                            range.setEndAfter(tabNode);
-                            selection.removeAllRanges();
-                            selection.addRange(range);
-                        }
-                    }}
-                    style={{
-                        whiteSpace: "pre-wrap",
-                        wordWrap: "break-word",
-                        backgroundColor: "white",
-                        border: "1px solid #ddd",
-                        borderRadius: "8px",
-                        padding: "12px",
-                        minHeight: "200px",
-                        overflowY: "auto",
-                        fontSize: "16px",
-                        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                    }}
-                    dangerouslySetInnerHTML={{ __html: textoDoc }}
-                ></div>
+                        ref={contentEditableRef}
+                        contentEditable="true"
+                        dir="ltr"
+                        onBlur={handleBlur}
+                        onKeyDown={(e) => {
+                            if (e.key === "Tab") {
+                                e.preventDefault();
+                                const selection = window.getSelection();
+                                const range = selection.getRangeAt(0);
+
+                                const tabNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0");
+                                range.insertNode(tabNode);
+
+                                range.setStartAfter(tabNode);
+                                range.setEndAfter(tabNode);
+                                selection.removeAllRanges();
+                                selection.addRange(range);
+                            }
+                        }}
+                        style={{
+                            whiteSpace: "pre-wrap",
+                            wordWrap: "break-word",
+                            backgroundColor: "white",
+                            border: "1px solid #ddd",
+                            borderRadius: "8px",
+                            padding: "12px",
+                            minHeight: "200px",
+                            overflowY: "auto",
+                            fontSize: "16px",
+                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                        }}
+                        dangerouslySetInnerHTML={{ __html: textoDoc }}
+                    ></div>
             
                 {/* Campo para anexos */}
                 <label style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "20px", cursor: "pointer", color: "#1792FE", fontWeight: "bold" }}>
@@ -1511,7 +1627,7 @@ const styles = {
         flexDirection: "column",
         alignItems: "center",
         width: "100%",
-        minHeight: "100vh",
+        height: "100%",
         backgroundColor: "#d4e4ff",
         overflowY: "auto",
         padding: "20px",
@@ -1557,7 +1673,7 @@ const styles = {
         fontSize: "16px",
         border: "1px solid #ccc",
         borderRadius: "5px",
-        height: "200px",
+        height: "300px",
         resize: "none", // Remove o redimensionamento
         whiteSpace: "pre-wrap", // Respeita as quebras de linha
         boxSizing: "border-box",
@@ -1582,16 +1698,16 @@ const styles = {
     button: {
         display: "flex",
         alignItems: "center",
-        gap: "8px",
+        justifyContent: "center",
         padding: "10px 20px",
         fontSize: "16px",
         color: "#fff",
-        backgroundColor: "#1792FE",
+        backgroundColor: "#1792fe",
         border: "none",
-        borderRadius: "6px",
+        borderRadius: "8px",
         cursor: "pointer",
         transition: "background-color 0.3s ease",
-        margin: "20px auto", display: "block"
+        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
     },
     docxContainer: {
         marginTop: "20px",
@@ -1673,7 +1789,7 @@ const styles = {
         zIndex: 1000,
     },
     modalContent: {
-        backgroundColor: "#d4e4ff",
+        backgroundColor: "#fff",
         padding: "20px",
         borderRadius: "10px",
         width: "400px",
