@@ -420,9 +420,8 @@ const handleSave = async () => {
     var codPostalDonoObra = "";
     var codPostalLocalDonoObra = "";
     var obraSlecionadaSave = "";
-    console.log("CODIGO");
-    console.log(inputValue);
- 
+
+    const nomesAnexos = anexos.map(anexo => anexo.name).join(", ");
     if (inputValue === "Não tem obra") {
  
         console.log(donoObra.Nome);
@@ -469,6 +468,7 @@ const handleSave = async () => {
         Localidade: localidadeDonoObra,
         CodPostal: codPostalDonoObra,
         CodPostalLocal: codPostalLocalDonoObra,
+        anexos: nomesAnexos,
     };
  
     try {

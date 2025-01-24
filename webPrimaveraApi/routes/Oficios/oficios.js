@@ -89,20 +89,20 @@ router.post("/Criar", async (req, res) => {
         if (!painelAdminToken) {
             return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
         }
-
+ 
         // Obter a URL da empresa do cabeçalho usando a função getEmpresaUrl
         const urlempresa = await getEmpresaUrl(req);
         if (!urlempresa) {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
-
+ 
         // Extraindo os parâmetros do corpo da requisição
-        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra, donoObra, Morada, Localidade, CodPostal, CodPostalLocal } = req.body;
-
+        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra, donoObra, Morada, Localidade, CodPostal, CodPostalLocal, anexos } = req.body;
+ 
         // Construindo a URL da API
         const apiUrl = `http://${urlempresa}/WebApi/Word/Criar`;
         console.log('Enviando solicitação para a URL:', apiUrl);
-
+ 
         // Cria um objeto com todos os dados a serem enviados
         const requestData = {
             codigo,
@@ -121,9 +121,10 @@ router.post("/Criar", async (req, res) => {
             Localidade,
             CodPostal,
             CodPostalLocal,
+            anexos,
         };
         console.log('Dados a serem enviados:', requestData);
-
+ 
         // Chamada para a API externa para criar o ofício
         const response = await axios.post(apiUrl, requestData, {
             headers: {
@@ -132,7 +133,7 @@ router.post("/Criar", async (req, res) => {
                 'Accept': 'application/json',
             }
         });
-
+ 
         // Verificar status da resposta da API externa
         if (response.status === 200) {
             console.log('Ofício criado na API externa com sucesso.');

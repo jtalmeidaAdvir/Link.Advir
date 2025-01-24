@@ -243,7 +243,7 @@ const OficiosList = () => {
             
 
             {loading ? (
-                <Text>Carregando...</Text>
+                <Text>A carregar...</Text>
             ) : error ? (
                 <Text>{error}</Text>
             ) : (

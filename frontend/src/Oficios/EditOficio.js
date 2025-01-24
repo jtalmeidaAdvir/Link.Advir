@@ -30,7 +30,7 @@ const EditOficio = (props) => {
     const [Localidade, setLocalidade] = useState(oficioData.CDU_Localidade);
     const [CodPostal, setCodPostal] = useState(oficioData.CDU_CodPostal);
     const [CodPostalLocal, setCodPostalLocal] = useState(oficioData.CDU_CodPostalLocal);
-
+    const [AnexosUP, setAnexosUP] = useState(oficioData.CDU_Anexos);
     // ==============================
     // 1) Estados para o documento
     // ==============================
@@ -620,7 +620,7 @@ const EditOficio = (props) => {
 <td style="width: 28%; font-size: 10px" contentEditable="false" id="editableCellCodigo" >
         REF: ${formData.codigo}<br>
         DATA: ${formData.data}<br>
-        ANEXOS: ${anexos.map(a => a.name).join(", ") || "Nenhum anexo"}<br><br><br><br><br>
+        ANEXOS: ${AnexosUP || "Nenhum anexo"}<br><br><br><br><br>
         REMETENTE<br><br>
         ${usernome || 'Remetente não disponível'}<br>
         ${useremail || 'Email não existe'}
@@ -1368,21 +1368,12 @@ const EditOficio = (props) => {
                         dangerouslySetInnerHTML={{ __html: textoDoc }}
                     ></div>
 
-                    {/* Campo para anexos */}
-                    <label style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "20px", cursor: "pointer", color: "#1792FE", fontWeight: "bold" }}>
-                        <FaPaperclip /> Anexos
-                        <input
-                            type="file"
-                            multiple
-                            onChange={handleAddAnexo}
-                            style={{ display: "none" }}
-                        />
-                    </label>
+                    
 
                     {/* Lista de anexos */}
-                    {anexos.length > 0 && (
+                    {anexos.length > 0 || AnexosUP != "" && (
                         <div style={{ marginTop: "20px", padding: "15px", backgroundColor: "#f9f9f9", border: "1px solid #ddd", borderRadius: "8px" }}>
-                            <h4 style={{ fontSize: "16px", marginBottom: "10px", color: "#333" }}>Anexos:</h4>
+                            <h4 style={{ fontSize: "16px", marginBottom: "10px", color: "#333" }}>Anexos: {AnexosUP || ""}</h4>
                             <ul style={{ listStyleType: "none", paddingLeft: "0", margin: "0" }}>
                                 {anexos.map((anexo, index) => (
                                     <li
@@ -1398,7 +1389,7 @@ const EditOficio = (props) => {
                                             backgroundColor: "#fff",
                                         }}
                                     >
-                                        {anexo.name}
+                                        {AnexosUP || ""},{anexo.name}
                                         <button
                                             onClick={() => handleRemoveAnexo(index)}
                                             style={{
