@@ -46,7 +46,7 @@ const RegistoUser = () => {
     // Função para buscar o limite de utilizadores e o número atual de utilizadores da empresa selecionada
     const fetchEmpresaInfo = async (empresaId) => {
         try {
-            const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}`, {
+            const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}`, { //https://backend.advir.pt/api/empresas/${empresaId}
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
                     'Content-Type': 'application/json',
@@ -82,7 +82,7 @@ const RegistoUser = () => {
         }
 
         const newUser = {
-            username,
+            username:"",
             nome,
             email,
             password,
@@ -132,23 +132,7 @@ const RegistoUser = () => {
             <div style={styles.formContainer}>
                 <h1 style={styles.title}>{t("RegistoUser.Title")}</h1>
                 <form onSubmit={handleRegister}>
-                    <div style={styles.inputContainer}>
-                        <input
-                            type="text"
-                            placeholder={t("RegistoUser.TxtUser")}
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            required
-                            style={{
-                                borderRadius: '30px',
-                                padding: '10px 20px',
-                                width: '100%',
-                                marginBottom: '10px',
-                                fontSize: '1rem',
-                                border: '1px solid #ccc',
-                            }}
-                        />
-                    </div>
+                    
                     <div style={styles.inputContainer}>
                         <input
                             type="nome"
