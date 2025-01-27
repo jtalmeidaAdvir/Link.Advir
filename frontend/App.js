@@ -257,6 +257,7 @@ const AppNavigator = () => {
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [username, setUsername] = useState('');
+    const [usernome, setUsernome] = useState('');
     const [empresa, setEmpresa] = useState('');
     const [modules, setModules] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -296,6 +297,7 @@ const AppNavigator = () => {
             setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
             setIsAdmin(localStorage.getItem('isAdmin') === 'true');
             setUsername(localStorage.getItem('username') || '');
+            setUserNome(localStorage.getItem('usernome') || '');
             setEmpresa(localStorage.getItem('empresaSelecionada') || '');
 
             await fetchUserModules();
@@ -364,7 +366,7 @@ const AppNavigator = () => {
                             style={{ flexDirection: 'row', alignItems: 'center' }}
                         >
                             <FontAwesome name="user" size={20} color="#1792FE" />
-                            <Text style={{ marginLeft: 8, color: '#1792FE', fontSize: 16 }}>{username}</Text>
+                            <Text style={{ marginLeft: 8, color: '#1792FE', fontSize: 16 }}>{usernome}</Text>
                             {empresa && (
                                 <Text style={{ marginLeft: 15, color: '#1792FE', fontSize: 16 }}>
                                     {empresa}
@@ -422,6 +424,7 @@ const AppNavigator = () => {
                         setIsLoggedIn={setIsLoggedIn}
                         setIsAdmin={setIsAdmin}
                         setUsername={setUsername}
+                        setUsernome={setUsernome}
                         onLoginComplete={fetchUserModules}
                     />
                 )}
@@ -440,7 +443,7 @@ const AppNavigator = () => {
             <Drawer.Screen name="PontoBotao" component={PontoBotao} />
             <Drawer.Screen name="Perfil">
                 {props => (
-                    <Perfil {...props} user={{ name: username, company: empresa }} />
+                    <Perfil {...props} user={{ name: usernome, company: empresa }} />
                 )}
             </Drawer.Screen>
            
