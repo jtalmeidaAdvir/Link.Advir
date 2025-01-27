@@ -89,20 +89,20 @@ router.post("/Criar", async (req, res) => {
         if (!painelAdminToken) {
             return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
         }
- 
+
         // Obter a URL da empresa do cabeçalho usando a função getEmpresaUrl
         const urlempresa = await getEmpresaUrl(req);
         if (!urlempresa) {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
- 
+
         // Extraindo os parâmetros do corpo da requisição
-        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra, donoObra, Morada, Localidade, CodPostal, CodPostalLocal, anexos } = req.body;
- 
+        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra, donoObra, Morada, Localidade, CodPostal, CodPostalLocal, anexos, texto4, texto5 } = req.body;
+
         // Construindo a URL da API
         const apiUrl = `http://${urlempresa}/WebApi/Word/Criar`;
         console.log('Enviando solicitação para a URL:', apiUrl);
- 
+
         // Cria um objeto com todos os dados a serem enviados
         const requestData = {
             codigo,
@@ -110,21 +110,23 @@ router.post("/Criar", async (req, res) => {
             data,
             remetente,
             email,
-            texto1, 
-            texto2, 
-            template, 
-            createdby, 
-            texto3, 
-            obra, 
+            texto1,
+            texto2,
+            template,
+            createdby,
+            texto3,
+            obra,
             donoObra,
             Morada,
             Localidade,
             CodPostal,
             CodPostalLocal,
             anexos,
+            texto4,
+            texto5,
         };
         console.log('Dados a serem enviados:', requestData);
- 
+
         // Chamada para a API externa para criar o ofício
         const response = await axios.post(apiUrl, requestData, {
             headers: {
@@ -133,7 +135,7 @@ router.post("/Criar", async (req, res) => {
                 'Accept': 'application/json',
             }
         });
- 
+
         // Verificar status da resposta da API externa
         if (response.status === 200) {
             console.log('Ofício criado na API externa com sucesso.');
@@ -405,6 +407,52 @@ router.get('/ListarObras', async (req, res) => {
 
         // Monta a URL completa para listar interven��es
         const apiUrl = `http://${urlempresa}/WebApi/Word/ListarObras`;
+        console.log('Enviando solicita��o para a URL:', apiUrl);
+
+        // Realiza a chamada para listar as interven��es
+        const response = await axios.get(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${token}`,  // Envia o token para a autentica��o
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            }
+        });
+
+        // Verifica o status da resposta
+        if (response.status === 200) {
+            return res.status(200).json(response.data);  // Retorna as interven��es encontradas
+        } else if (response.status === 404) {
+            return res.status(404).json({ error: 'Nenhuma interven��o encontrada.' });
+        } else {
+            return res.status(400).json({
+                error: 'Falha ao listar interven��es.',
+                details: response.data.ErrorMessage || 'Erro desconhecido.'
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao listar interven��es:', error.message);
+        return res.status(500).json({
+            error: 'Erro inesperado ao listar interven��es',
+            details: error.message
+        });
+    }
+});
+
+router.get('/ListarEntidades', async (req, res) => {
+    try {
+        const token = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabe�alho
+        if (!token) {
+            return res.status(401).json({ error: 'Token n�o encontrado. Fa�a login novamente.' });
+        }
+
+        // Usando a fun��o para obter o urlempresa dos cabe�alhos
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa n�o fornecida.' });
+        }
+
+        // Monta a URL completa para listar interven��es
+        const apiUrl = `http://${urlempresa}/WebApi/Word/ListarEntidades`;
         console.log('Enviando solicita��o para a URL:', apiUrl);
 
         // Realiza a chamada para listar as interven��es

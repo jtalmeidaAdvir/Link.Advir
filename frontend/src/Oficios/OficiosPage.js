@@ -15,8 +15,9 @@ const OficiosPage = (props) => {
     // ==============================
     // 1) Estados para o documento
     // ==============================
+    const [pageCount2, setPageCount2] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false); // Controla a abertura do modal
-    const [currentTemplate, setCurrentTemplate] = useState(1); // Controla o template ativo (1 ou 2)
+    const [currentTemplate, setCurrentTemplate] = useState(2); // Controla o template ativo (1 ou 2)
     const [donoObra, setDonoObra] = useState("");
     const navigation = useNavigation();
     const [isEditable, setIsEditable] = useState(false);
@@ -24,6 +25,7 @@ const OficiosPage = (props) => {
     const [assuntoDoc, setAssuntoDoc] = useState("");   // <--- Assunto do documento
     const [textoDoc, setTextoDoc] = useState("");       // <--- Texto do documento
     const [anexos, setAnexos] = useState([]);
+    const [anexostext, setAnexostext] = useState([]);
     const docxContainer = useRef(null);
     const docxContainer2 = useRef(null);
     const [isTemplateVisible, setIsTemplateVisible] = useState(false);
@@ -33,7 +35,7 @@ const OficiosPage = (props) => {
     const [localidade, setLocalidade] = useState("");
     const [codigoPostal, setCodigoPostal] = useState("");
     const [localCopPostal, setLocalCopPostal] = useState("");
-
+    const [paginasCriadas, setpaginasCriadas] = useState(0);
 
     const contentEditableRef = useRef(null);
 
@@ -65,10 +67,24 @@ const OficiosPage = (props) => {
     });
 
     const [obras, setObras] = useState([]);
+    const [obras2, setObras2] = useState([]);
     const [inputValue, setInputValue] = useState("");
 
     const [showOptions, setShowOptions] = useState(false);
     const comboBoxRef = useRef(null);
+    // Estados para a segunda combobox
+    const comboBoxRef2 = useRef(null);
+    const [inputValue2, setInputValue2] = useState('');
+    const [showOptions2, setShowOptions2] = useState(false);
+    const [filteredObras2, setFilteredObras2] = useState([]);
+    const [selectedObra2, setSelectedObra2] = useState(null);
+    const [donoObra2, setDonoObra2] = useState('');
+
+
+
+
+
+
 
     // ==============================
     // 2) Estados para o modal de envio de email
@@ -94,20 +110,28 @@ const OficiosPage = (props) => {
     // ======================================
     // 4) Dividir texto se exceder limite de caracteres (ex. 2500)
     // ======================================
-    const splitTextByLimit = (texto, limit) => {
-        if (!texto) return { part1: "", part2: "" };
-        if (texto.length <= limit) {
-            return { part1: texto, part2: "" };
-        }
-        const part1 = texto.substring(0, limit);
-        const part2 = texto.substring(limit);
-        return { part1, part2 };
+    // Função para dividir o texto baseado no limite
+    const limitText = (texto, limit) => {
+        return texto.length > limit ? texto.substring(0, limit) : texto;
     };
 
-    useEffect(() => {
-        const limit = currentTemplate === 1 ? 1020 : 2020; // Limite depende do template
-        setTextParts(splitTextByLimit(textoDoc, limit));
-    }, [textoDoc, currentTemplate]); // Inclui currentTemplate como dependência
+    const handleInputPart1 = (e) => {
+        const newText = e.target.innerHTML;
+        const limitedText = limitText(newText, 1020); // Limita a 1020 caracteres
+        setTextParts((prev) => ({
+            ...prev,
+            part1: limitedText,
+        }));
+    };
+
+    const handleInputPart2 = (e) => {
+        const newText = e.target.innerHTML;
+        setTextParts((prev) => ({
+            ...prev,
+            part2: newText,
+        }));
+    };
+
 
     // ======================================
     // 5) Carregar lista de obras do backend
@@ -142,60 +166,129 @@ const OficiosPage = (props) => {
                 console.error("Erro ao carregar obras:", error);
             }
         };
+        const fetchEntidades = async () => {
+            const token = localStorage.getItem("painelAdminToken");
+            const urlempresa = localStorage.getItem("urlempresa");
+            if (!urlempresa) return;
+
+            try {
+                const response = await fetch("https://webapiprimavera.advir.pt/oficio/ListarEntidades", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "urlempresa": urlempresa,
+                        "Content-Type": "application/json",
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                // Se data.DataSet.Table for array, atualiza
+                if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
+                    console.log(data.DataSet.Table);
+                    setObras2(data.DataSet.Table);
+                }
+            } catch (error) {
+                console.error("Erro ao carregar obras:", error);
+            }
+        };
 
         fetchObras();
+        fetchEntidades();
         setDonoObra("");
+        setDonoObra2("");
     }, []);
+
+
 
     // ======================================
     // 6) Gerar PDF (multi-página se existir part2)
     // ======================================
     const handleSavePDF = async () => {
-        const container1 = docxContainer.current;
-        const container2 = docxContainer2.current; // segunda página, se houver
+        const containers = [docxContainer.current, docxContainer2.current]; // Containers de conteúdo
+        const validContainers = containers.filter(container => container); // Filtra containers válidos
 
-        if (!container1) {
-            alert("Erro: não foi possível encontrar o conteúdo para gerar o PDF.");
+        if (validContainers.length === 0) {
+            alert("Erro: não foi possível encontrar o conteúdo para gerar os PDFs.");
             return;
         }
 
         try {
-            const pdf = new jsPDF("portrait", "mm", "a4");
+            // Geração do primeiro PDF (apenas para o primeiro container)
+            const pdf1 = new jsPDF("portrait", "mm", "a4");
+            const pdfWidth = 210; // Largura do PDF em mm
+            const pdfHeight = 297; // Altura do PDF em mm (A4)
 
-            // Captura da primeira página
-            const canvas1 = await html2canvas(container1, {
+            // Captura o conteúdo do primeiro container e gera o PDF
+            const canvas1 = await html2canvas(validContainers[0], {
                 scale: 2,
                 useCORS: true,
                 logging: true,
+                scrollX: 0,
+                scrollY: 0,
             });
+
             const imgData1 = canvas1.toDataURL("image/jpeg", 0.8);
+            const imgHeight1 = (canvas1.height * pdfWidth) / canvas1.width;
 
-            const pdfWidth = 210; // Largura do PDF em mm
-            const pdfHeight = (canvas1.height * pdfWidth) / canvas1.width;
+            // Adiciona a imagem no primeiro PDF
+            pdf1.addImage(imgData1, "JPEG", 0, 0, pdfWidth, imgHeight1, undefined, "FAST");
 
-            pdf.addImage(imgData1, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "FAST");
+            // Salva o primeiro PDF
+            pdf1.save("oficio_primeiro_container.pdf");
 
-            // Se existe texto na part2 e container2 existe, geramos segunda página
-            if (textParts.part2 && container2) {
-                pdf.addPage();
-                const canvas2 = await html2canvas(container2, {
-                    scale: 2,
-                    useCORS: true,
-                    logging: true,
-                });
-                const imgData2 = canvas2.toDataURL("image/jpeg", 0.8);
-                const pdfHeight2 = (canvas2.height * pdfWidth) / canvas2.width;
+            // Geração do segundo PDF (com várias páginas do segundo container)
+            const pdf2 = new jsPDF("portrait", "mm", "a4");
+            const container2 = validContainers[1];
 
-                pdf.addImage(imgData2, "JPEG", 0, 0, pdfWidth, pdfHeight2, undefined, "FAST");
+            // Captura o conteúdo do segundo container
+            const canvas2 = await html2canvas(container2, {
+                scale: 2,
+                useCORS: true,
+                logging: true,
+                scrollX: 0,
+                scrollY: 0,
+            });
+
+            const imgData2 = canvas2.toDataURL("image/jpeg", 0.8);
+            const imgHeight2 = (canvas2.height * pdfWidth) / canvas2.width;
+
+            let currentHeight = 0; // Altura inicial para adicionar imagem
+            let pageIndex = 0; // Índice da página
+
+            // Adiciona a primeira página
+            pdf2.addImage(imgData2, "JPEG", 0, 0, pdfWidth, imgHeight2, undefined, "FAST");
+            currentHeight += pdfHeight; // Aumenta a altura
+            for (var i = 1; i < pageCount; i++) {
+                pdf2.addPage(); // Adiciona uma nova página
+                pdf2.addImage(imgData2, "JPEG", 0, -currentHeight, pdfWidth, imgHeight2, undefined, "FAST");
+                currentHeight += pdfHeight; // Atualiza a altura
+                pageIndex++; // Atualiza o número da página
             }
 
-            pdf.save("oficio.pdf");
-            alert("PDF gerado e salvo com sucesso!");
+
+            // Salva o segundo PDF com todas as páginas
+            pdf2.save("oficio_segundo_container.pdf");
+
         } catch (error) {
-            console.error("Erro ao gerar o PDF:", error);
-            alert("Erro ao gerar o PDF. Verifique o console para mais detalhes.");
+            console.error("Erro ao gerar os PDFs:", error);
+            alert("Erro ao gerar os PDFs. Verifique o console para mais detalhes.");
         }
     };
+
+
+
+
+
+
+
+
+    
+
+
 
     // ======================================
     // 7) Enviar PDF + anexos para o backend
@@ -243,7 +336,6 @@ const OficiosPage = (props) => {
             });
 
             if (response.ok) {
-                alert("PDF e anexos enviados e salvos com sucesso!");
             } else {
                 alert("Erro ao salvar o PDF e anexos no backend.");
             }
@@ -281,6 +373,7 @@ const OficiosPage = (props) => {
     // 9) Enviar Email com Office API (usando dados do modal)
     // ======================================
     const handleSendEmailWithOfficeAPI = async () => {
+        console.log(pageCount2);
         const containers = [docxContainer.current, docxContainer2.current]; // Lista de contêineres para as páginas
 
         if (!containers[0]) {
@@ -289,38 +382,73 @@ const OficiosPage = (props) => {
         }
 
         try {
+            // Geração do primeiro PDF (apenas para o primeiro container)
+            const pdf1 = new jsPDF("portrait", "mm", "a4");
+            const pdfWidth = 210; // Largura do PDF em mm
+            const pdfHeight = 297; // Altura do PDF em mm (A4)
 
-            const pdf = new jsPDF("portrait", "mm", "a4");
-            const pdfWidth = 210; // Largura da página em mm
-            let firstPage = true;
+            // Captura o conteúdo do primeiro container e gera o PDF
+            const canvas1 = await html2canvas(containers[0], {
+                scale: 2,
+                useCORS: true,
+                logging: true,
+                scrollX: 0,
+                scrollY: 0,
+            });
 
-            for (const container of containers) {
-                if (!container) continue; // Ignora contêineres não definidos
+            const imgData1 = canvas1.toDataURL("image/jpeg", 0.5);
+            const imgHeight1 = (canvas1.height * pdfWidth) / canvas1.width;
 
-                const canvas = await html2canvas(container, {
-                    scale: 3,
-                    useCORS: true,
-                    logging: true,
-                });
-                const imgData = canvas.toDataURL("image/png", 0.6);
-                const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+            // Adiciona a imagem no primeiro PDF
+            pdf1.addImage(imgData1, "JPEG", 0, 0, pdfWidth, imgHeight1, undefined, "FAST");
 
-                if (!firstPage) {
-                    pdf.addPage(); // Adiciona uma nova página se não for a primeira
-                }
-                firstPage = false;
-
-                pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, imgHeight, undefined, "FAST");
-            }
-
-            const pdfBlob = pdf.output("blob");
-
-            // Converter PDF em Base64
-            const pdfBase64 = await new Promise((resolve, reject) => {
+            // Salva o primeiro PDF
+            const pdf1Blob = pdf1.output("blob");
+            const pdf1Base64 = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onloadend = () => resolve(reader.result.split(",")[1]);
                 reader.onerror = (error) => reject(error);
-                reader.readAsDataURL(pdfBlob);
+                reader.readAsDataURL(pdf1Blob);
+            });
+
+            // Geração do segundo PDF (com várias páginas do segundo container)
+            const pdf2 = new jsPDF("portrait", "mm", "a4");
+            const container2 = containers[1];
+
+            // Captura o conteúdo do segundo container
+            const canvas2 = await html2canvas(container2, {
+                scale: 2,
+                useCORS: true,
+                logging: true,
+                scrollX: 0,
+                scrollY: 0,
+            });
+
+            const imgData2 = canvas2.toDataURL("image/jpeg", 0.5);
+            const imgHeight2 = (canvas2.height * pdfWidth) / canvas2.width;
+
+            let currentHeight = 0; // Altura inicial para adicionar imagem
+
+            // Adiciona páginas até o conteúdo ser totalmente coberto
+            let valor = pageCount2 - 1;
+            for (var i = 1; i < valor; i++) {
+                const pageHeight = pdfHeight; // Altura de uma página A4
+                if (currentHeight > 0) {
+                    pdf2.addPage(); // Adiciona uma nova página se não for a primeira
+                }
+
+                // Adiciona a imagem no PDF, ajustando a posição Y
+                pdf2.addImage(imgData2, "JPEG", 0, -currentHeight, pdfWidth, imgHeight2, undefined, "FAST");
+                currentHeight += pdfHeight; // Atualiza a altura para a próxima página
+            }
+
+
+            const pdf2Blob = pdf2.output("blob");
+            const pdf2Base64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(",")[1]);
+                reader.onerror = (error) => reject(error);
+                reader.readAsDataURL(pdf2Blob);
             });
 
             // Converter anexos adicionais
@@ -338,10 +466,14 @@ const OficiosPage = (props) => {
                 )
             );
 
-            // Adicionar o PDF gerado (do documento) à lista de anexos do email
+            // Adicionar os dois PDFs gerados à lista de anexos
             processedAnexos.push({
-                name: "oficio.pdf",
-                content: pdfBase64,
+                name: "oficio_primeiro_container.pdf",
+                content: pdf1Base64,
+            });
+            processedAnexos.push({
+                name: "oficio_segundo_container.pdf",
+                content: pdf2Base64,
             });
 
             // Montar payload com os dados do modal
@@ -364,7 +496,6 @@ const OficiosPage = (props) => {
             });
 
             if (response.ok) {
-                alert("Email enviado com sucesso!");
             } else {
                 const errorData = await response.json();
                 console.error("Erro ao enviar email:", errorData);
@@ -374,10 +505,12 @@ const OficiosPage = (props) => {
             console.error("Erro ao gerar ou enviar o PDF com anexos:", error);
             alert("Erro ao processar o PDF ou anexos.");
         } finally {
-
             setIsModalOpen(false);
         }
     };
+
+
+
 
     // ======================================
     // 10) Adicionar anexos
@@ -406,9 +539,9 @@ const OficiosPage = (props) => {
 
 
     // ======================================
-// 12) Salvar dados do documento (criar ofício) no backend
-// ======================================
-const handleSave = async () => {
+    // 12) Salvar dados do documento (criar ofício) no backend
+    // ======================================
+    const handleSave = async () => {
     const token = localStorage.getItem("painelAdminToken");
     const urlempresa = localStorage.getItem("urlempresa");
     const usernome = localStorage.getItem("userNome");
@@ -450,14 +583,25 @@ const handleSave = async () => {
         var templateestado = "2"
     } else if (currentTemplate === 2) {
         var templateestado = "1"
-    }
+        }
+
+        // Função para dividir texto em partes de 4000 caracteres
+        const splitText = (text, chunkSize = 4000) => {
+            const chunks = [];
+            for (let i = 0; i < text.length; i += chunkSize) {
+                chunks.push(text.substring(i, i + chunkSize));
+            }
+            return chunks;
+        };
+        const part2Chunks = splitText(textParts.part2 || "");
     // Vamos inserir assuntoDoc e textoDoc dentro de formData, para enviar e gravar no backend
     const payloadDoc = {
         ...formData,
         codigo: formData?.codigo || "",
         assunto: assuntoDoc,
         texto1: textParts.part1 || "",
-        texto2: textParts.part2 || "",
+        texto2: part2Chunks[0] || "",  // Adiciona a primeira parte
+        texto3: part2Chunks[1] || "",  
         obra: obraSlecionadaSave || "",
         remetente: usernome,
         createdby: usernome,
@@ -468,7 +612,10 @@ const handleSave = async () => {
         Localidade: localidadeDonoObra,
         CodPostal: codPostalDonoObra,
         CodPostalLocal: codPostalLocalDonoObra,
-        anexos: nomesAnexos,
+        anexos: anexostext,
+        texto4: part2Chunks[2],
+        texto5: part2Chunks[3],
+        
     };
  
     try {
@@ -490,7 +637,6 @@ const handleSave = async () => {
         const data = await response.json();
         // Depois de criar o ofício, podemos também salvar o PDF e anexos
         await handleSavePDFAndSendToBackend();
-        alert("Ofício criado e PDF salvo com sucesso!");
         console.log("Resposta do servidor:", data);
     } catch (error) {
         console.error("Erro ao criar o ofício:", error);
@@ -653,7 +799,7 @@ const handleSave = async () => {
     // ======================================
     const changeTemplate = () => {
         generateCodigo();
-        const newTemplate = currentTemplate === 1 ? 2 : 1;
+        const newTemplate = 1;// currentTemplate === 1 ? 2 : 1;
         setCurrentTemplate(newTemplate);
 
         // Torna a visualização do template visível
@@ -699,7 +845,8 @@ const handleSave = async () => {
     background-color: #f4f4f4; color: #333;
     font-size: 13pt;
   }
-  .page {
+  
+  .page1 {
     max-width: 100%;
     margin: auto;
     padding: 2rem;
@@ -709,6 +856,7 @@ const handleSave = async () => {
     font-size: 8pt;
     height: 1095.5px;
     font-size: 13pt;
+
   }
   td { word-wrap: break-word; }
   table {
@@ -729,13 +877,13 @@ const handleSave = async () => {
   .logo img { max-width: 30%; height: auto; }
   .PMEPreto img { max-width: 25%; height: auto; }
   @media (max-width: 768px) {
-    .page { padding: 1rem; }
+    .page1 { padding: 1rem; }
     th, td { font-size: 6pt; padding: 0.3rem; }
   }
 </style>
 </head>
 <body>
-<div class="page">
+<div class="page1">
 <table>
 <tr>
 <td class="logo" colspan="2">
@@ -759,7 +907,7 @@ const handleSave = async () => {
 <td style="width: 28%; font-size: 10px" contentEditable="false" id="editableCellCodigo" >
         REF: ${formData?.codigo}<br>
         DATA: ${formData.data}<br>
-        ANEXOS: ${anexos.map(a => a.name).join(", ") || "Nenhum anexo"}<br><br><br><br><br>
+        ANEXOS: ${anexostext || "Nenhum anexo"}<br><br><br><br><br>
         REMETENTE<br><br>
         ${usernome || 'Remetente não disponível'}<br>
         ${useremail || 'Email não existe'}
@@ -777,7 +925,7 @@ const handleSave = async () => {
 </div>
 </td>
 </tr>
-<tr style="${currentTemplate === 1 && textParts.part2 ? 'visibility:hidden;' : ''}">
+<tr>
 <td>
 </td>
 <td contentEditable="true" >
@@ -809,67 +957,150 @@ const handleSave = async () => {
         if (!textParts.part2) {
             return "";
         }
-        return `
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-<meta charset="UTF-8">
-<style>
-  .page {
-    page-break-before: always;
-    width: 100%;
-    min-height: 1095.5px;
-    font-size: 13pt;
-  }
-  .logo { text-align: left; }
-  .logo img { max-width: 30%; height: auto; }
-  .PMEPreto img { max-width: 25%; height: auto; }
-</style>
-</head>
-<body>
-<div class="page">
-<table style="width:100%;height: 93%; border:0px solid #ccc;">
-<tr>
-<td class="logo" colspan="2" style="height: 130px;">
-<img src="${logo}" alt="Logo JPA Construtora" />
-</td>
-</tr>
-<tr>
-<td colspan="2" style="vertical-align: top;height: 0px;">
-<!-- Continuação do texto excedente -->
-        ${textParts.part2}
-</td>
-</tr>
-</tr>
-<tr>
-<td>
-</td>
-<td contentEditable="true" >
-        Sem outro assunto,<br>
-        Com os melhores cumprimentos,<br>
-        De V/Exas.<br>
-        Atentamente
-</td>
-</tr>
-</table>
-<table style="width:100%; border:0px solid #ccc;">
-<tr>
-<td class="PMEPreto">
-<img src="${PMEPreto}" alt="Logo" />
-<img src="${QualidadePreto}" alt="Logo" />
-</td>
-<td style="
-    font-size: 8px;">
-        _____________________________________________________________________________________________________________________<br>
-        Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750.000.00 €
-</td>
-</tr>
-</table>
-</div>
-</body>
-</html>
-`;
+
+        const pageHeight = 1095.5; // Altura da página (ajuste conforme necessário)
+        const textHeight = calculateTextHeight(textParts.part2); // Função para calcular a altura do texto
+
+        // Verifique se o conteúdo excede a altura da página
+        let pages = [];
+        let remainingText = textParts.part2;
+
+        // Enquanto o conteúdo for maior que a altura da página, crie novas páginas
+        while (remainingText.length > 0) {
+            const pageContent = remainingText.substring(0, 1800); // Pegue uma quantidade de caracteres
+            remainingText = remainingText.substring(1800); // Remova a parte já usada
+
+            pages.push(createPage(pageContent)); // Adiciona a página com o conteúdo atual
+        }
+
+        // Agora, adicionamos os containers adequados para cada página
+        return pages.map((page, index) => {
+            return `
+            <div 
+                ref={docxContainer${index + 2}} 
+                style="
+                    width: 793.7px;
+                    height: 1122.5px;
+                    border: 0px solid rgb(204, 204, 204);
+                    background-color: rgb(255, 255, 255);
+                    padding: 20px;
+                    border-radius: 8px;
+                    box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px;
+                "
+            >
+                ${page}
+            </div>
+        `;
+        }).join('');
     };
+
+    const calculateTextHeight = (text) => {
+        // Uma forma simples de calcular a altura do texto, pode ser ajustada conforme necessário
+        const avgCharHeight = 20; // altura média de um caractere, ajustável
+        return text.length * avgCharHeight;
+    };
+    let pageCount = 0; 
+    const createPage = (content) => {
+        pageCount++;
+        const isFirstPage = pageCount === 1;
+
+        setPageCount2(prevCount => prevCount + 1);
+        console.log(pageCount2);
+        return `
+    <!DOCTYPE html>
+    <html lang="pt">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelo de Documento (Template 2)</title>
+    <style>
+      body {
+        font-family: Calibri, sans-serif;
+        margin: 0; padding: 0;
+        background-color: #f4f4f4; color: #333;
+        font-size: 10pt; /* Changed font size to 10pt */
+      }
+      .page {
+            max-width: 100%;
+        margin: auto;
+        padding: 2rem;
+        border: 0px solid #ccc;
+        background-color: #fff;
+        box-sizing: border-box;
+        font-size: 10pt; /* Changed font size to 10pt */
+        height: 1095.5px;
+        font-size: 13pt;
+      }
+      .logo { text-align: left; }
+      .logo img { max-width: 30%; height: auto; }
+      .PMEPreto img { max-width: 25%; height: auto; }
+    </style>
+    </head>
+    <body>
+    <div class="page">
+      <table style="width:100%; border:0px solid #ccc;height: 100%;">
+        <tr>
+          <td class="logo" colspan="2">
+            <img src="${logo}" alt="Logo JPA Construtora" />
+          </td>
+        </tr>
+        <tr>
+        <td colspan="2"></td>
+        </tr>
+        
+        <tr>
+        <td colspan="2"></td>
+        </tr>
+        
+        <tr>
+        <td colspan="2"></td>
+        </tr>
+        <tr>
+        <td style="padding-left:300px;" contentEditable="false" colspan="2">
+        ${isFirstPage ? `
+              EXMO(s) SR(s) ${donoObra.Nome}<br>` : ""}
+            
+          </td>
+        </tr>
+        <tr>
+        
+          <td colspan="2">
+           <div
+              contentEditable="false"
+              id="editableCellAssunto"
+              oninput="window.updateTexto(this.innerText)"
+              style="width: 100%; min-height: 764px; max-height: 600px; overflow: auto;"
+            >
+            ${isFirstPage ? `
+              ASSUNTO: ${assuntoDoc}<br><br>
+              Exmo. Senhores,<br><br>` : ""}
+              ${content}
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="PMEPreto">
+            <img src="${PMEPreto}" alt="Logo" />
+            <img src="${QualidadePreto}" alt="Logo" />
+          </td>
+            <td style="
+        font-size: 8px;">
+            _____________________________________________________________________________________________________________________<br>
+            Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750.000.00 €
+          </td>
+        </tr>
+      </table>
+    </div>
+    </body>
+    </html>
+    `;
+    };
+
+
+
+
+
+
 
     const getTemplate2 = () => `
 <!DOCTYPE html>
@@ -886,7 +1117,7 @@ const handleSave = async () => {
     font-size: 13pt;
   }
   .page {
-    max-width: 100%;
+        max-width: 100%;
     margin: auto;
     padding: 2rem;
     border: 0px solid #ccc;
@@ -1016,6 +1247,8 @@ const handleSave = async () => {
     // ======================================
     // 17) Ao mudar algo de doc, recarregamos template
     // ======================================
+
+    const docxContainerUpdated = useRef(false); 
     useEffect(() => {
         if (docxContainer.current) {
             const newContent = currentTemplate === 1 ? getTemplate1() : getTemplate2();
@@ -1026,8 +1259,22 @@ const handleSave = async () => {
                     currentTemplate === 1 ? getTemplate1SecondPage() : getTemplate2SecondPage();
                 docxContainer2.current.innerHTML = secondPageContent;
             }
+
+            // Marca que o conteúdo foi atualizado
+            docxContainerUpdated.current = true;
         }
     }, [currentTemplate, donoObra, formData, textParts, assuntoDoc]);
+
+    // Função para gerar o PDF quando o conteúdo estiver pronto
+    const handleGeneratePDF = async () => {
+        // Verifique se o conteúdo foi atualizado antes de gerar o PDF
+        if (docxContainerUpdated.current) {
+            await handleSavePDF(); // Chama a função de gerar PDF
+            docxContainerUpdated.current = false; // Reseta para evitar a geração do PDF de novo sem mudança
+        } else {
+            console.log('Conteúdo ainda não foi atualizado!');
+        }
+    };
 
     // ======================================
     // 18) Filtro de obras (comboBox)
@@ -1046,8 +1293,10 @@ const handleSave = async () => {
 
 
     const filteredObras = obras.filter((obra) =>
-        obra.Codigo.toLowerCase().includes(inputValue.toLowerCase())
+        obra.Codigo.toLowerCase().includes(inputValue.toLowerCase()) ||
+        obra.Descricao.toLowerCase().includes(inputValue.toLowerCase())
     );
+
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -1060,6 +1309,47 @@ const handleSave = async () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
+
+    ///////////////////////////////////////////
+
+    const handleInputChange2 = (e) => {
+        const value = e.target.value;
+        setInputValue2(value);
+        setFilteredObras2(
+            obras2.filter((obra) =>
+                obra.Codigo.toLowerCase().includes(value.toLowerCase()) ||
+                obra.Nome.toLowerCase().includes(value.toLowerCase())
+            )
+        );
+        setShowOptions2(true); // Sempre exibe as opções ao digitar
+       
+    };
+
+    
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (comboBoxRef2.current && !comboBoxRef2.current.contains(event.target)) {
+                setShowOptions2(false);
+            }
+        };
+
+        // Adding the event listener to handle clicks outside the dropdown
+        document.addEventListener("mousedown", handleClickOutside);
+
+        // Cleanup the event listener when the component unmounts or when comboBoxRef2 changes
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const handleOptionClick2 = (obra) => {
+        var input = obra.Codigo + " - " + obra.Nome;
+        setInputValue2(input);
+        setSelectedObra2(obra);
+        setShowOptions2(false);
+        setDonoObra(obra);
+
+    };
+
     // ======================================
     // 19) Update
     // ======================================
@@ -1106,7 +1396,6 @@ const handleSave = async () => {
             }
 
             const data = await response.json();
-            alert(isButtonSave ? "Ofício criado com sucesso!" : "Ofício atualizado com sucesso!");
             console.log("Resposta do servidor:", data);
 
             // Se necessário, atualize o estado local com a resposta
@@ -1148,10 +1437,8 @@ const handleSave = async () => {
                     {/* Botão Mudar Template só aparece na pré-visualização */}
                     {isPreviewVisible && (
                         <>
-                            <button onClick={changeTemplate} style={styles.button}>
-                                Mudar Template
-                            </button>
-
+                        
+                        
                             <button
                                 onClick={() => {
                                     setIsPreviewVisible(!isPreviewVisible); // Alterna entre pré-visualização e edição
@@ -1172,9 +1459,10 @@ const handleSave = async () => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
                                         handleSavePDF(); 
-                                        handleSave(); 
+                                        handleSave();
                                     } else {
                                         handleSavePDF();
+                                        handleSave();
                                     }
                                 }}
                                 style={styles.button}
@@ -1224,7 +1512,7 @@ const handleSave = async () => {
                     {/* Área de visualização do DOCUMENTO (template) */}
                     <div ref={docxContainer} style={styles.docxContainer}></div>
                     {textParts.part2 && (
-                        <div ref={docxContainer2} style={styles.docxContainer}></div>
+                        <div ref={docxContainer2} ></div>
                     )}
                 </>
             ) : (
@@ -1305,8 +1593,67 @@ const handleSave = async () => {
                             ))}
                         </ul>
                     )}
+                        </div>
+
+                        <div style={{ position: "relative", width: "100%", marginBottom: "20px" }} ref={comboBoxRef2}>
+                            <input
+                                type="text"
+                                value={inputValue2}
+                                onChange={handleInputChange2}
+                                placeholder="Selecione outra Entidade"
+                                style={{
+                                    width: "100%",
+                                    padding: "12px",
+                                    margin: "10px 0",
+                                    border: "1px solid #ddd",
+                                    borderRadius: "8px",
+                                    fontSize: "16px",
+                                    boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                }}
+                                onFocus={() => setShowOptions2(true)} // Abre a lista ao focar no campo
+                            />
+                            {showOptions2 && (
+                                <ul
+                                    style={{
+                                        position: "absolute",
+                                        top: "100%",
+                                        left: 0,
+                                        right: 0,
+                                        margin: 0,
+                                        padding: "10px",
+                                        listStyle: "none",
+                                        border: "1px solid #ddd",
+                                        borderRadius: "8px",
+                                        background: "white",
+                                        maxHeight: "150px",
+                                        overflowY: "auto",
+                                        zIndex: 10,
+                                        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                    }}
+                                >
+                                    {filteredObras2.map((obra, index) => (
+                                        <li
+                                            key={index}
+                                            onClick={() => handleOptionClick2(obra)}
+                                            style={{
+                                                padding: "10px",
+                                                cursor: "pointer",
+                                                color: "#333",
+                                                background: selectedObra2?.Codigo === obra.Codigo ? "#e6f7ff" : "white",
+                                                borderRadius: "6px",
+                                                marginBottom: "5px",
+                                            }}
+                                        >
+                                            {obra?.Codigo || ""} - {obra?.Nome || ""}
+                              
+                                        </li>
+                                    ))}
+                                </ul>
+                    )}
                 </div>
-            
+
+
+
                 {/* Campo de destinatário */}
                 <input
                     type="text"
@@ -1327,18 +1674,22 @@ const handleSave = async () => {
                         fontSize: "16px",
                         boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                     }}
-                    disabled={inputValue !== "Não tem obra"}
                 />
 
                 {/* Exibe campos somente quando a opção "Não tem obra" está selecionada */}
-  {inputValue === "Não tem obra" && (
+
 <>
           {/* Campo de morada */}
 <input
               type="text"
               placeholder="Morada"
-              value={morada}
-              onChange={(e) => setMorada(e.target.value)}
+            value={donoObra?.Morada || ""}
+            onChange={(e) =>
+                setDonoObra((prev) => ({
+                    ...prev,
+                    Morada: e.target.value,
+                }))
+            }
               style={{
                   width: "100%",
                   padding: "12px",
@@ -1353,9 +1704,14 @@ const handleSave = async () => {
           {/* Campo de localidade */}
 <input
               type="text"
-              placeholder="Localidade"
-              value={localidade}
-              onChange={(e) => setLocalidade(e.target.value)}
+            placeholder="Localidade"
+            value={donoObra?.Localidade || ""}
+            onChange={(e) =>
+                setDonoObra((prev) => ({
+                    ...prev,
+                    Localidade: e.target.value,
+                }))
+            }
               style={{
                   width: "100%",
                   padding: "12px",
@@ -1366,14 +1722,18 @@ const handleSave = async () => {
                   boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
               }}
           />
- 
           {/* Campo de código postal e local coppostal lado a lado */}
             <div style={{ display: "flex", gap: "10px", margin: "10px 0" }}>
             <input
                             type="text"
                             placeholder="Código Postal"
-                            value={codigoPostal}
-                            onChange={(e) => setCodigoPostal(e.target.value)}
+                                    value={donoObra?.CodPostal ||""}
+                                    onChange={(e) =>
+                                        setDonoObra((prev) => ({
+                                            ...prev,
+                                            CodPostal: e.target.value,
+                                        }))
+                                    }
                             style={{
                                 flex: 1,
                                 padding: "12px",
@@ -1386,8 +1746,13 @@ const handleSave = async () => {
             <input
                             type="text"
                             placeholder="Local CopPostal"
-                            value={localCopPostal}
-                            onChange={(e) => setLocalCopPostal(e.target.value)}
+                                    value={donoObra?.CodPostalLocal || ""}
+                                    onChange={(e) =>
+                                        setDonoObra((prev) => ({
+                                            ...prev,
+                                            CodPostalLocal: e.target.value,
+                                        }))
+                                    }
                             style={{
                                 flex: 1,
                                 padding: "12px",
@@ -1399,7 +1764,23 @@ const handleSave = async () => {
                         />
             </div>
             </>
-            )}
+
+                        {/* Campo de assunto */}
+                        <input
+                            type="text"
+                            placeholder="Email"
+                            value={emailTo}
+                            onChange={(e) => setEmailTo(e.target.value)}
+                            style={{
+                                width: "100%",
+                                padding: "12px",
+                                margin: "10px 0",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                fontSize: "16px",
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            }}
+                        />
             
                 {/* Campo de assunto */}
                 <input
@@ -1417,92 +1798,127 @@ const handleSave = async () => {
                         boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                     }}
                 />
+                        {/* Campo de assunto2 */}
+                        <textarea
+                            placeholder="Assunto do Documento"
+                            value={textParts.part1}  // O valor agora é igual a textParts.part1
+                            onChange={(e) => {
+                                // Atualiza textParts.part1 com o novo valor
+                                setTextParts({ ...textParts, part1: e.target.value });
+                            }}  // Atualiza textParts.part1 ao digitar
+                            maxLength={1020}  // Limite de 1020 caracteres
+                            style={{
+                                width: "100%",
+                                padding: "12px",
+                                margin: "10px 0",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                fontSize: "16px",
+                                minHeight: "100px",  // Ajuste a altura mínima para acomodar múltiplas linhas
+                                overflowY: "auto",  // Adiciona barra de rolagem se o texto for muito longo
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                whiteSpace: "pre-wrap",  // Mantém as quebras de linha
+                                wordWrap: "break-word",  // Quebra as palavras longas
+                            }}
+                        />
+                            {/* Campo de texto editável 1 - com limite de 1020 caracteres */}
+                        <div
+                            contentEditable="true"
+                            dir="ltr"
+                            onInput={handleInputPart1}
+                            style={{
+                                whiteSpace: "pre-wrap",
+                                wordWrap: "break-word",
+                                backgroundColor: "white",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                padding: "12px",
+                                minHeight: "200px",
+                                overflowY: "auto",
+                                fontSize: "16px",
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                textAlign: "left",
+                                display: "none",   // Torna o conteúdo invisível, mas o espaço permanece
+                            }}
+                            dangerouslySetInnerHTML={{ __html: textParts.part1 }}
+                        ></div>
+
+                        {/* Campo de assunto2 */}
+                        <textarea
+                            placeholder="Assunto do Documento"
+                            value={textParts.part2}  // O valor agora é igual a textParts.part1
+                            onChange={(e) => {
+                                // Atualiza textParts.part1 com o novo valor
+                                setTextParts({ ...textParts, part2: e.target.value });
+                            }}  // Atualiza textParts.part1 ao digitar
+                        
+                            style={{
+                                width: "100%",
+                                padding: "12px",
+                                margin: "10px 0",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                fontSize: "16px",
+                                minHeight: "100px",  // Ajuste a altura mínima para acomodar múltiplas linhas
+                                overflowY: "auto",  // Adiciona barra de rolagem se o texto for muito longo
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                whiteSpace: "pre-wrap",  // Mantém as quebras de linha
+                                wordWrap: "break-word",  // Quebra as palavras longas
+                            }}
+                        />
+                        {/* Campo de texto editável 2 - sem limite */}
+                        <div
+                            ref={contentEditableRef}
+                            contentEditable="true"
+                            dir="ltr"
+                            onInput={handleInputPart2} // Atualiza part2 sem limite
+                            onKeyDown={(e) => {
+                                if (e.key === "Tab") {
+                                    e.preventDefault();
+                                    const selection = window.getSelection();
+                                    const range = selection.getRangeAt(0);
+
+                                    const tabNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0");
+                                    range.insertNode(tabNode);
+
+                                    range.setStartAfter(tabNode);
+                                    range.setEndAfter(tabNode);
+                                    selection.removeAllRanges();
+                                    selection.addRange(range);
+                                }
+                            }}
+                            style={{
+                                whiteSpace: "pre-wrap",
+                                wordWrap: "break-word",
+                                backgroundColor: "white",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                padding: "12px",
+                                minHeight: "200px",
+                                overflowY: "auto",
+                                fontSize: "16px",
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                direction: "ltr", 
+                                display: "none",
+                            }}
+                            dangerouslySetInnerHTML={{ __html: textParts.part2 }} // Exibe a parte 2 sem limite
+                        ></div>
             
-                {/* Campo de texto editável */}
-                <div
-                        ref={contentEditableRef}
-                        contentEditable="true"
-                        dir="ltr"
-                        onBlur={handleBlur}
-                        onKeyDown={(e) => {
-                            if (e.key === "Tab") {
-                                e.preventDefault();
-                                const selection = window.getSelection();
-                                const range = selection.getRangeAt(0);
-
-                                const tabNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0");
-                                range.insertNode(tabNode);
-
-                                range.setStartAfter(tabNode);
-                                range.setEndAfter(tabNode);
-                                selection.removeAllRanges();
-                                selection.addRange(range);
-                            }
-                        }}
+                        <input
+                        type="text"
+                        placeholder="Anexos"
+                        value={anexostext}
+                        onChange={(e) => setAnexostext(e.target.value)} // Corrected here
                         style={{
-                            whiteSpace: "pre-wrap",
-                            wordWrap: "break-word",
-                            backgroundColor: "white",
+                            width: "100%",
+                            padding: "12px",
+                            margin: "10px 0",
                             border: "1px solid #ddd",
                             borderRadius: "8px",
-                            padding: "12px",
-                            minHeight: "200px",
-                            overflowY: "auto",
                             fontSize: "16px",
                             boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                         }}
-                        dangerouslySetInnerHTML={{ __html: textoDoc }}
-                    ></div>
-            
-                {/* Campo para anexos */}
-                <label style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "20px", cursor: "pointer", color: "#1792FE", fontWeight: "bold" }}>
-                    <FaPaperclip /> Anexos
-                    <input
-                        type="file"
-                        multiple
-                        onChange={handleAddAnexo}
-                        style={{ display: "none" }}
                     />
-                </label>
-            
-                {/* Lista de anexos */}
-                {anexos.length > 0 && (
-                    <div style={{ marginTop: "20px", padding: "15px", backgroundColor: "#f9f9f9", border: "1px solid #ddd", borderRadius: "8px" }}>
-                        <h4 style={{ fontSize: "16px", marginBottom: "10px", color: "#333" }}>Anexos:</h4>
-                        <ul style={{ listStyleType: "none", paddingLeft: "0", margin: "0" }}>
-                            {anexos.map((anexo, index) => (
-                                <li
-                                    key={index}
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        padding: "10px",
-                                        border: "1px solid #ddd",
-                                        borderRadius: "8px",
-                                        marginBottom: "8px",
-                                        backgroundColor: "#fff",
-                                    }}
-                                >
-                                    {anexo.name}
-                                    <button
-                                        onClick={() => handleRemoveAnexo(index)}
-                                        style={{
-                                            backgroundColor: "#ff4d4d",
-                                            color: "#fff",
-                                            border: "none",
-                                            padding: "5px 10px",
-                                            borderRadius: "6px",
-                                            cursor: "pointer",
-                                        }}
-                                    >
-                                        Remover
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
             
                 {/* Botão de alternar entre pré-visualização e edição */}
                 <button
