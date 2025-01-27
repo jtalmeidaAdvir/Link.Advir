@@ -25,7 +25,7 @@ const OficiosPage = (props) => {
     const [assuntoDoc, setAssuntoDoc] = useState("");   // <--- Assunto do documento
     const [textoDoc, setTextoDoc] = useState("");       // <--- Texto do documento
     const [anexos, setAnexos] = useState([]);
-    const [anexostext, setAnexostext] = useState([]);
+    const [anexostext, setAnexostext] = useState("");
     const docxContainer = useRef(null);
     const docxContainer2 = useRef(null);
     const [isTemplateVisible, setIsTemplateVisible] = useState(false);

@@ -60,7 +60,7 @@ const novoUser = await User.create({
             subject: 'Verificação de Conta',
             html: `
             <div style="font-family: Arial, sans-serif; text-align: center;">
-                <img src="https://83f2d7bf3d.clvaw-cdnwnd.com/6a27b29fd8dcf97059d9a3e8fbd23dd2/200000021-da9dbda9dd/700/ADVIR%20PLAN%20%283%29.webp?ph=83f2d7bf3d" alt="Advir Plan" style="width: 200px; margin-bottom: 20px;" />
+                <img src="https://link.advir.pt/static/media/img_logo.a2a85989c690f4bfd096.png" alt="Advir Plan" style="width: 200px; margin-bottom: 20px;" />
                 <h2 style="color: #1F2D50;">Bem-vindo, ${nome}!</h2>
                 <p style="font-size: 16px; color: #333;">Obrigado por te juntares a nós. Para tirares o maior partido da nossa plataforma clica no botão abaixo!</p>
                 <a href="${verificationLink}" style="background-color: #1792FE; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">Verifica a minha Conta</a>
@@ -131,7 +131,7 @@ const criarUtilizador = async (req, res) => {
             subject: 'Verificação de Conta',
             html: `
             <div style="font-family: Arial, sans-serif; text-align: center;">
-                <img src="https://83f2d7bf3d.clvaw-cdnwnd.com/6a27b29fd8dcf97059d9a3e8fbd23dd2/200000021-da9dbda9dd/700/ADVIR%20PLAN%20%283%29.webp?ph=83f2d7bf3d" alt="Advir Plan" style="width: 200px; margin-bottom: 20px;" />
+                <img src="https://link.advir.pt/static/media/img_logo.a2a85989c690f4bfd096.png" alt="Advir Plan" style="width: 200px; margin-bottom: 20px;" />
                 <h2 style="color: #1F2D50;">Bem-vindo, ${nome}!</h2>
                 <p style="font-size: 16px; color: #333;">O seu administrador definiu o seguinte email: ${email}  e password: ${password}. Obrigado por te juntares a nós. Para tirares o maior partido da nossa plataforma clica no botão abaixo!</p>
                 <a href="${verificationLink}" style="background-color: #1792FE; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">Verifica a minha Conta</a>

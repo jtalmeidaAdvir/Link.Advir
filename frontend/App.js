@@ -49,7 +49,7 @@ import AddPartesDiarias from './src/Obras/AddPartesDiarias';
  
  
 import UserModulesManagement from './src/Autenticacao/UserModulesManagement';
-import logo from './assets/img_logo.png';
+import logo from './assets/favicon1.ico';
 import i18n from './src/i18n';
 import { useTranslation } from 'react-i18next';
 import OficiosPage from './src/Oficios/OficiosPage';
@@ -345,7 +345,7 @@ const AppNavigator = () => {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Image
                             source={logo}
-                            style={{ width: 110, height: 110, resizeMode: 'contain', marginLeft: 10 }}
+                            style={{ width: 40, height: 40, resizeMode: 'contain', marginLeft: 10 }}
                         />
                     </View>
                 ),
