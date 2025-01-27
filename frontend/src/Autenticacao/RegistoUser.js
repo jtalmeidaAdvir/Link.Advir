@@ -82,7 +82,7 @@ const RegistoUser = () => {
         }
 
         const newUser = {
-            username:"",
+            username,
             nome,
             email,
             password,
@@ -133,6 +133,27 @@ const RegistoUser = () => {
                 <h1 style={styles.title}>{t("RegistoUser.Title")}</h1>
                 <form onSubmit={handleRegister}>
                     
+
+                <div style={styles.inputContainer}>
+                        <input
+                            type="username"
+                            placeholder={t("Username")}
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                            style={{
+                                borderRadius: '30px',
+                                padding: '10px 20px',
+                                width: '100%',
+                                marginBottom: '10px',
+                                fontSize: '1rem',
+                                border: '1px solid #ccc',
+                            }}
+                        />
+                    </div>
+
+
+
                     <div style={styles.inputContainer}>
                         <input
                             type="nome"
