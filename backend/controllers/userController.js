@@ -186,9 +186,9 @@ const jwt = require('jsonwebtoken');
 
 const loginUtilizador = async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { email, password } = req.body;
 
-        const user = await User.findOne({ where: { username } });
+        const user = await User.findOne({ where: { email } });
 
         if (!user) {
             return res.status(400).json({ error: 'Utilizador não encontrado.' });

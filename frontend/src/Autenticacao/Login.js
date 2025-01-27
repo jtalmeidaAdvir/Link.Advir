@@ -7,6 +7,7 @@ import logo from '../../assets/img_logo.png';
 
 const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {  // Adicione setIsLoggedIn como prop
     const [username, setLocalUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const navigation = useNavigation();
@@ -21,7 +22,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ email, password }),
             });
 
             if (response.ok) {
@@ -33,6 +34,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 localStorage.setItem('isAdmin', data.isAdmin ? 'true' : 'false');
                 localStorage.setItem('superAdmin', data.superAdmin ? 'true' : 'false'); // Adiciona superAdmin ao localStorage
                 localStorage.setItem('username', username);
+                localStorage.setItem('email',email);
                 localStorage.setItem('userId', data.userId);
                 localStorage.setItem('userNome', data.userNome);
                 localStorage.setItem('userEmail', data.userEmail);
@@ -41,6 +43,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
 
                 // Atualiza o estado de login e permissões
                 setUsername(username);
+                setEmail(email);
                 setIsAdmin(data.isAdmin);
                 setIsLoggedIn(true);
                 onLoginComplete(); // Chama para atualizar o Drawer
@@ -107,9 +110,9 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                     <div style={{ marginBottom: '20px' }}>
                         <input
                             type="text"
-                            placeholder={t("Login.TxtUsername")}
-                            value={username}
-                            onChange={(e) => setLocalUsername(e.target.value)}
+                            placeholder={t("Email")}
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             required
                             style={{
                                 borderRadius: '30px',
