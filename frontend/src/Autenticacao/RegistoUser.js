@@ -92,7 +92,7 @@ const RegistoUser = () => {
         };
 
         try {
-            const response = await fetch('https://backend.advir.pt/api/users', {
+            const response = await fetch('https://backend.advir.pt/api/users', { //https://backend.advir.pt/api/users
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,

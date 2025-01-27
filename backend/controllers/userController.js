@@ -61,7 +61,7 @@ const novoUser = await User.create({
             html: `
             <div style="font-family: Arial, sans-serif; text-align: center;">
                 <img src="https://83f2d7bf3d.clvaw-cdnwnd.com/6a27b29fd8dcf97059d9a3e8fbd23dd2/200000021-da9dbda9dd/700/ADVIR%20PLAN%20%283%29.webp?ph=83f2d7bf3d" alt="Advir Plan" style="width: 200px; margin-bottom: 20px;" />
-                <h2 style="color: #1F2D50;">Bem-vindo, ${username}!</h2>
+                <h2 style="color: #1F2D50;">Bem-vindo, ${nome}!</h2>
                 <p style="font-size: 16px; color: #333;">Obrigado por te juntares a nós. Para tirares o maior partido da nossa plataforma clica no botão abaixo!</p>
                 <a href="${verificationLink}" style="background-color: #1792FE; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">Verifica a minha Conta</a>
                 <p style="font-size: 14px; color: #333;">Se tiveres alguma questão ou precisares de ajuda, não hesites em contactar a <a href="mailto:support@advir.pt" style="color: #1792FE;">equipa de suporte</a>.</p>
@@ -93,7 +93,7 @@ const novoUser = await User.create({
 // Função para criar um novo utilizador e enviar e-mail de verificação
 const criarUtilizador = async (req, res) => {
     try {
-        const { nome, username, email, password, empresa_id, isAdmin = false,empresa_areacliente  } = req.body;
+        const { nome,username, email, password, empresa_id, isAdmin = false,empresa_areacliente  } = req.body;
 
         // Verificar se a empresa existe
         const empresa = await Empresa.findByPk(empresa_id);
@@ -132,8 +132,8 @@ const criarUtilizador = async (req, res) => {
             html: `
             <div style="font-family: Arial, sans-serif; text-align: center;">
                 <img src="https://83f2d7bf3d.clvaw-cdnwnd.com/6a27b29fd8dcf97059d9a3e8fbd23dd2/200000021-da9dbda9dd/700/ADVIR%20PLAN%20%283%29.webp?ph=83f2d7bf3d" alt="Advir Plan" style="width: 200px; margin-bottom: 20px;" />
-                <h2 style="color: #1F2D50;">Bem-vindo, ${username}!</h2>
-                <p style="font-size: 16px; color: #333;">O seu administrador definiu o seguinte username: ${username}  e password: ${password}. Obrigado por te juntares a nós. Para tirares o maior partido da nossa plataforma clica no botão abaixo!</p>
+                <h2 style="color: #1F2D50;">Bem-vindo, ${nome}!</h2>
+                <p style="font-size: 16px; color: #333;">O seu administrador definiu o seguinte email: ${email}  e password: ${password}. Obrigado por te juntares a nós. Para tirares o maior partido da nossa plataforma clica no botão abaixo!</p>
                 <a href="${verificationLink}" style="background-color: #1792FE; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">Verifica a minha Conta</a>
                 <p style="font-size: 14px; color: #333;">Se tiveres alguma questão ou precisares de ajuda, não hesites em contactar a <a href="mailto:support@advir.pt" style="color: #1792FE;">equipa de suporte</a>.</p>
                 <p style="font-size: 14px; color: #333;">Obrigado,<br>Advir</p>
@@ -211,7 +211,7 @@ const loginUtilizador = async (req, res) => {
                 message: 'Primeiro login, redirecionar para alteração de password.',
                 redirect: '/verificaConta',
                 token: jwt.sign(
-                    { id: user.id, username: user.username, isAdmin: user.isAdmin, superAdmin: user.superAdmin }, 
+                    { id: user.id, userNome: user.usernome, isAdmin: user.isAdmin, superAdmin: user.superAdmin }, 
                     process.env.JWT_SECRET, 
                     { expiresIn: '24h' }
                 ),
@@ -223,7 +223,7 @@ const loginUtilizador = async (req, res) => {
 
         // Gera o token JWT para logins normais
         const token = jwt.sign(
-            { id: user.id, username: user.username, isAdmin: user.isAdmin, superAdmin: user.superAdmin }, 
+            { id: user.id, userNome: user.usernome, isAdmin: user.isAdmin, superAdmin: user.superAdmin }, 
             process.env.JWT_SECRET, 
             { expiresIn: '24h' }
         );

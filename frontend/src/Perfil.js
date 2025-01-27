@@ -3,15 +3,23 @@ import { View, Text, TextInput, Button, StyleSheet, Image, Modal, TouchableOpaci
 import i18n from './i18n';
 import { useTranslation } from 'react-i18next';
 
+
 const Perfil = ({ user }) => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
     const [profileImage, setProfileImage] = useState(null);
+    const [userNome, setUserNome] = useState(''); // Novo estado para UserNome
+  
+
     const fileInput = useRef(null);
     const { t } = useTranslation();
     useEffect(() => {
+        const userNomeFromStorage = localStorage.getItem('userNome');
+        setUserNome(userNomeFromStorage);
         loadProfileImage(); // Carrega a imagem de perfil ao abrir a página
+        
+
     }, []);
 
     // Função para carregar a imagem de perfil do servidor
@@ -19,6 +27,7 @@ const Perfil = ({ user }) => {
         try {
             const userId = localStorage.getItem('userId');
             const token = localStorage.getItem('loginToken');
+            
             
             if (!userId || !token) {
                 alert("Autenticação necessária.");
@@ -135,11 +144,11 @@ const Perfil = ({ user }) => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.welcomeText}>{t("Perfil.Title")}, {user?.name}</Text>
+            <Text style={styles.welcomeText}>{t("Perfil.Title")}, {userNome}</Text>
 
             <View style={styles.profileContainer}>
                 <View style={styles.infoContainer}>
-                    <Text style={styles.userName}>{user?.name}</Text>
+                    <Text style={styles.userName}>{userNome}</Text>
                     <Text style={styles.userCompany}>{user?.company}</Text>
                 </View>
                 <TouchableOpacity style={styles.avatarContainer} onPress={() => fileInput.current.click()}>
