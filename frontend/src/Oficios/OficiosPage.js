@@ -11,6 +11,7 @@ import PMEPreto from '../../images/PMEPRETO.png';
 import QualidadePreto from '../../images/QUALIDADEPRETO.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import Logo50 from '../../images/Logo50.jpg';
 const OficiosPage = (props) => {
     // ==============================
     // 1) Estados para o documento
@@ -49,7 +50,7 @@ const OficiosPage = (props) => {
 
 
     // Estado para guardar a divisão do texto (se exceder um limite)
-    const [textParts, setTextParts] = useState({ part1: "", part2: "" });
+    const [textParts, setTextParts] = useState({ part1: "JOAQUIM PEIXOTO AZEVEDO, & FILHOS, LDA, com sede na Rua de Longras, n.º 44, 4730-360 Vila Verde, na qualidade de", part2: "" });
 
     // formData para o documento (sem campos de email do modal)
     const [formData, setFormData] = useState({
@@ -197,13 +198,60 @@ const OficiosPage = (props) => {
         };
 
         fetchObras();
-        fetchEntidades();
         setDonoObra("");
-        setDonoObra2("");
     }, []);
+    // Usando onFocus no input para garantir que a lista apareça ao focar
+    // Adicionando o evento de foco no input
+    const handleFocus = () => {
+        if (filteredObras2.length === 0 && !showOptions2) {  // Se não houver obras e as opções ainda não foram mostradas
+            fetchEntidades();  // Carrega as opções ao focar no campo
+            setShowOptions2(true);  // Exibe as opções ao focar
+        }
+    };
 
+    const handleComboBoxClick = () => {
+        setShowOptions2(true);  // Garante que a lista de opções seja exibida ao clicar
+        fetchEntidades();       // Carrega as opções ao clicar
+    };
+    const fetchEntidades = async () => {
+    const token = localStorage.getItem("painelAdminToken");
+    const urlempresa = localStorage.getItem("urlempresa");
+    if (!urlempresa) return;
 
+    try {
+        const response = await fetch("https://webapiprimavera.advir.pt/oficio/ListarEntidades", {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "urlempresa": urlempresa,
+                "Content-Type": "application/json",
+            },
+        });
 
+        if (!response.ok) {
+            throw new Error(`Error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        // Se data.DataSet.Table for array, atualiza
+        if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
+            console.log(data.DataSet.Table);
+            setObras2(data.DataSet.Table);  // Atualiza a lista de obras
+        }
+    } catch (error) {
+        console.error("Erro ao carregar obras:", error);
+    } finally {
+
+    }
+};
+    const filterObras = (inputValue, obras) => {
+        return obras.filter((obra) => {
+            return (
+                obra?.Codigo?.toLowerCase().includes(inputValue.toLowerCase()) ||
+                obra?.Nome?.toLowerCase().includes(inputValue.toLowerCase())
+            );
+        });
+    };
     // ======================================
     // 6) Gerar PDF (multi-página se existir part2)
     // ======================================
@@ -212,7 +260,6 @@ const OficiosPage = (props) => {
         const validContainers = containers.filter(container => container); // Filtra containers válidos
 
         if (validContainers.length === 0) {
-            alert("Erro: não foi possível encontrar o conteúdo para gerar os PDFs.");
             return;
         }
 
@@ -275,7 +322,6 @@ const OficiosPage = (props) => {
 
         } catch (error) {
             console.error("Erro ao gerar os PDFs:", error);
-            alert("Erro ao gerar os PDFs. Verifique o console para mais detalhes.");
         }
     };
 
@@ -283,7 +329,7 @@ const OficiosPage = (props) => {
 
 
 
-
+    
 
 
     
@@ -293,10 +339,9 @@ const OficiosPage = (props) => {
     // ======================================
     // 7) Enviar PDF + anexos para o backend
     // ======================================
-    const handleSavePDFAndSendToBackend = async () => {
+    /*const handleSavePDFAndSendToBackend = async () => {
         const container = docxContainer.current;
         if (!container) {
-            alert("Erro: não foi possível encontrar o conteúdo para gerar o PDF.");
             return;
         }
 
@@ -337,10 +382,101 @@ const OficiosPage = (props) => {
 
             if (response.ok) {
             } else {
-                alert("Erro ao salvar o PDF e anexos no backend.");
             }
         } catch (error) {
             console.error("Erro ao gerar ou enviar o PDF:", error);
+        }
+    };*/
+    const handleSavePDFAndSendToBackend = async () => {
+        const containers = [docxContainer.current, docxContainer2.current]; // Containers de conteúdo
+        const validContainers = containers.filter(container => container); // Filtra containers válidos
+
+        if (validContainers.length === 0) {
+            return;
+        }
+
+        try {
+            const pdfWidth = 210; // Largura do PDF em mm
+            const pdfHeight = 297; // Altura do PDF em mm (A4)
+
+            // Geração do primeiro PDF (apenas para o primeiro container)
+            const pdf1 = new jsPDF("portrait", "mm", "a4");
+            const canvas1 = await html2canvas(validContainers[0], {
+                scale: 2,
+                useCORS: true,
+                logging: true,
+                scrollX: 0,
+                scrollY: 0,
+            });
+
+            const imgData1 = canvas1.toDataURL("image/jpeg", 0.8);
+            const imgHeight1 = (canvas1.height * pdfWidth) / canvas1.width;
+            pdf1.addImage(imgData1, "JPEG", 0, 0, pdfWidth, imgHeight1, undefined, "FAST");
+
+            // Permite o usuário escolher o local para salvar o primeiro PDF
+            const fileHandle1 = await window.showSaveFilePicker({
+                suggestedName: `${formData?.codigo || ""}.pdf`,
+                types: [
+                    {
+                        description: "PDF File",
+                        accept: { "application/pdf": [".pdf"] },
+                    },
+                ],
+            });
+
+            const writable1 = await fileHandle1.createWritable();
+            await writable1.write(pdf1.output("blob"));
+            await writable1.close();
+
+            // Geração do segundo PDF (com várias páginas do segundo container)
+            const pdf2 = new jsPDF("portrait", "mm", "a4");
+            const container2 = validContainers[1];
+            const canvas2 = await html2canvas(container2, {
+                scale: 2,
+                useCORS: true,
+                logging: true,
+                scrollX: 0,
+                scrollY: 0,
+            });
+
+            const imgData2 = canvas2.toDataURL("image/jpeg", 0.8);
+            const imgHeight2 = (canvas2.height * pdfWidth) / canvas2.width;
+     
+            
+
+            // Adiciona múltiplas páginas se necessário
+            console.log(pageCount2);
+
+             // Aumenta a altura
+            let pageIndex = 0;
+            let currentHeight = 0; // Altura inicial para adicionar imagem
+
+            let pageCount = pageCount2;
+            pdf2.addImage(imgData2, "JPEG", 0, 0, pdfWidth, imgHeight2, undefined, "FAST");
+            currentHeight += pdfHeight;
+            for (let i = 1; i < pageCount; i++) {
+                pdf2.addPage();
+                pdf2.addImage(imgData2, "JPEG", 0, -currentHeight, pdfWidth, imgHeight2, undefined, "FAST");
+                currentHeight += pdfHeight;
+                pageIndex++;
+            }
+
+            // Permite o usuário escolher o local para salvar o segundo PDF
+            const fileHandle2 = await window.showSaveFilePicker({
+                suggestedName: `${formData?.codigo || ""}.Anexo.pdf`,
+                types: [
+                    {
+                        description: "PDF File",
+                        accept: { "application/pdf": [".pdf"] },
+                    },
+                ],
+            });
+
+            const writable2 = await fileHandle2.createWritable();
+            await writable2.write(pdf2.output("blob"));
+            await writable2.close();
+        } catch (error) {
+            console.error("Erro ao gerar os PDFs:", error);
         }
     };
 
@@ -358,7 +494,7 @@ const OficiosPage = (props) => {
                 editableCellCodigo.innerHTML = `
           REF: ${formData.codigo}<br>
           DATA: ${formData.data}<br>
-          ANEXOS: ${anexosNomes || "Nenhum"}<br><br><br><br>
+          ANEXOS: ${anexosNomes || ""}<br><br><br><br>
           REMETENTE<br><br>
           ${formData.remetente ? formData.remetente : 'Remetente não disponível'}<br>
           ${formData.email || 'Email não existe'}
@@ -377,7 +513,6 @@ const OficiosPage = (props) => {
         const containers = [docxContainer.current, docxContainer2.current]; // Lista de contêineres para as páginas
 
         if (!containers[0]) {
-            alert("Erro: não foi possível encontrar o conteúdo para gerar o PDF.");
             return;
         }
 
@@ -499,11 +634,11 @@ const OficiosPage = (props) => {
             } else {
                 const errorData = await response.json();
                 console.error("Erro ao enviar email:", errorData);
-                alert("Erro ao enviar email.");
+           
             }
         } catch (error) {
             console.error("Erro ao gerar ou enviar o PDF com anexos:", error);
-            alert("Erro ao processar o PDF ou anexos.");
+   
         } finally {
             setIsModalOpen(false);
         }
@@ -612,7 +747,7 @@ const OficiosPage = (props) => {
         Localidade: localidadeDonoObra,
         CodPostal: codPostalDonoObra,
         CodPostalLocal: codPostalLocalDonoObra,
-        anexos: anexostext,
+        anexos: anexostext || "",
         texto4: part2Chunks[2],
         texto5: part2Chunks[3],
         
@@ -636,11 +771,10 @@ const OficiosPage = (props) => {
  
         const data = await response.json();
         // Depois de criar o ofício, podemos também salvar o PDF e anexos
-        await handleSavePDFAndSendToBackend();
+  
         console.log("Resposta do servidor:", data);
     } catch (error) {
         console.error("Erro ao criar o ofício:", error);
-        alert("Erro ao criar o ofício. Verifique os logs para mais detalhes.");
     }
 };
 
@@ -777,7 +911,7 @@ const OficiosPage = (props) => {
                 editableCellCodigo.innerHTML = `
                     REF: ${updatedCodigo}<br>
                     DATA: ${formData.data}<br>
-                    ANEXOS: ${anexos.map(a => a.name).join(", ") || "Nenhum anexo"}<br>
+                    ANEXOS: ${anexos.map(a => a.name).join(", ") || ""}<br>
                 `;
             }
 
@@ -787,7 +921,6 @@ const OficiosPage = (props) => {
             }));
         } catch (error) {
             console.error("Erro ao obter o último ID:", error);
-            alert("Erro ao obter o último ID. Verifique os logs para mais detalhes.");
             throw error;
         }
     };
@@ -799,7 +932,7 @@ const OficiosPage = (props) => {
     // ======================================
     const changeTemplate = () => {
         generateCodigo();
-        const newTemplate = 1;// currentTemplate === 1 ? 2 : 1;
+        const newTemplate = currentTemplate === 1 ? 2 : 1;
         setCurrentTemplate(newTemplate);
 
         // Torna a visualização do template visível
@@ -830,7 +963,7 @@ const OficiosPage = (props) => {
     const getTemplate1 = () => {
         const usernome = formData.nome || localStorage.getItem("userNome") || 'Email não disponível';
         const useremail = formData.email || localStorage.getItem("userEmail") || 'Email não disponível';
- 
+        setPageCount2(0);
         return `
 <!DOCTYPE html>
 <html lang="pt">
@@ -860,6 +993,7 @@ const OficiosPage = (props) => {
   }
   td { word-wrap: break-word; }
   table {
+      height: 100%;
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 2rem;
@@ -892,43 +1026,84 @@ const OficiosPage = (props) => {
 </tr>
 <tr>
 <td></td>
-<td style="padding-left:99px;" contentEditable="false">
+<td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
         EXMO(s) SR(s) ${donoObra.Nome || ''}<br>
         ${donoObra.Morada || morada}<br>
         ${donoObra.Localidade || localidade}<br>
         ${donoObra.CodPostal || codigoPostal} ${donoObra.CodPostalLocal || localCopPostal}
 </td>
+
 </tr>
 <tr>
-<td colspan="2" style="font-weight: bold; text-align: center;">
-      ______________________________________________________________________________</td>
+<td  >
+      <img src="${Logo50}" alt="Logo" style="
+    width: 50%;
+"/>
+
+</td>
+<td  >
+
+</td>
 </tr>
 <tr>
-<td style="width: 28%; font-size: 10px" contentEditable="false" id="editableCellCodigo" >
+<td  style="font-weight: bold; text-align: center;">
+  
+    <hr style="border: 3px solid black; margin: 0;">
+</td>
+<td  style="font-weight: bold; text-align: center;">
+    <hr style="border: 3px solid black; margin: 0;">
+</td>
+</tr>
+<tr>
+<td style="
+    width: 28%; 
+    font-size: 6pt;
+    font-family: 'TitilliumText22L', sans-serif; 
+    color: black;
+    text-align: left;
+    font-weight: bold; 
+  "  contentEditable="false" id="editableCellCodigo" >
         REF: ${formData?.codigo}<br>
         DATA: ${formData.data}<br>
-        ANEXOS: ${anexostext || "Nenhum anexo"}<br><br><br><br><br>
+        ANEXOS: ${anexostext || ""}<br><br><br><br><br>
         REMETENTE<br><br>
         ${usernome || 'Remetente não disponível'}<br>
-        ${useremail || 'Email não existe'}
-</td>
+        ${useremail || 'Email não existe'}<br><br><br><br><br>
+
+
+        <strong>JPA - CONSTRUTORA</strong><br>
+        <span style="color: #999;">Rua de Longras, nº 44</span><br>
+<span style="color: #999;">4730-360 Pedregais,</span><br>
+<span style="color: #999;">Vila Verde - Portugal</span><br><br>
+
+<span style="color: #999;">www.jpaconstrutora.com</span><br>
+<span style="color: #999;">geral@jpaconstrutora.com</span><br>
+<span style="color: #999;">t. (+351) 253 38 13 10</span><br>
+<span style="color: #999;">f. (+351) 253 38 22 44</span><br>
+
+
 <td style="vertical-align: top;">
 <div
           contentEditable="false"
           id="editableCellAssunto"
           oninput="window.updateTexto(this.innerText)"
-          style="width: 100%; min-height: 586px; max-height: 600px; overflow: auto;"
+          style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
 >
-          ASSUNTO: ${assuntoDoc}<br><br>
-          Exmo. Senhores,<br><br>
+          <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
+              ASSUNTO:  ${assuntoDoc}
+          </span><br><br>
+          <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
+              EXMO(s) SR(s) 
+          </span><br><br>
           ${textParts.part1 || ""}
 </div>
 </td>
+
 </tr>
 <tr>
 <td>
 </td>
-<td contentEditable="true" >
+<td style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 13px; color: black;" contentEditable="true">
         Sem outro assunto,<br>
         Com os melhores cumprimentos,<br>
         De V/Exas.<br>
@@ -939,10 +1114,11 @@ const OficiosPage = (props) => {
 <td class="PMEPreto">
 <img src="${PMEPreto}" alt="Logo" />
 <img src="${QualidadePreto}" alt="Logo" />
+<img src="${Logo50}" alt="Logo" style="max-width: 43%;"/>
 </td>
 <td style="
     font-size: 8px;">
-        _____________________________________________________________________________________________________________________<br>
+        <br>_____________________________________________________________________________________________________________________<br>
         Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750.000.00 €
 </td>
 </tr>
@@ -1055,8 +1231,8 @@ const OficiosPage = (props) => {
         <tr>
         <td colspan="2"></td>
         </tr>
-        <tr>
-        <td style="padding-left:300px;" contentEditable="false" colspan="2">
+        <tr>      
+        <td style="padding-left:300px; padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
         ${isFirstPage ? `
               EXMO(s) SR(s) ${donoObra.Nome}<br>` : ""}
             
@@ -1065,30 +1241,67 @@ const OficiosPage = (props) => {
         <tr>
         
           <td colspan="2">
-           <div
-              contentEditable="false"
-              id="editableCellAssunto"
-              oninput="window.updateTexto(this.innerText)"
-              style="width: 100%; min-height: 764px; max-height: 600px; overflow: auto;"
-            >
-            ${isFirstPage ? `
-              ASSUNTO: ${assuntoDoc}<br><br>
-              Exmo. Senhores,<br><br>` : ""}
-              ${content}
-            </div>
-          </td>
+  <div
+    contentEditable="true"
+    id="editableCellAssunto"
+    oninput="window.updateTexto(this.innerText)"
+    style="
+      width: 100%;
+      min-height: 764px;
+      max-height: 600px;
+      overflow: auto;
+    "
+  >
+    ${isFirstPage ? `
+      <span 
+        style="
+          font-family: 'TitilliumText22L', sans-serif;
+          font-size: 8pt;
+          font-weight: bold; /* Negrito ON */
+          font-style: normal; /* Itálico OFF */
+          text-decoration: none; /* Sublinhado OFF */
+          text-transform: none; /* Maiúscula OFF */
+          color: black;
+          text-align: justify;
+          display: block;
+        "
+      >
+        ASSUNTO: ${assuntoDoc}
+      </span>
+      <br><br>
+      <span
+        style="
+          font-family: 'TitilliumText22L', sans-serif;
+          font-size: 9pt;
+          font-weight: normal; /* Negrito OFF */
+          font-style: normal; /* Itálico OFF */
+          text-decoration: none; /* Sublinhado OFF */
+          text-transform: none; /* Maiúscula OFF */
+          color: black;
+          text-align: justify;
+          display: block;
+        "
+      >
+        Exmo(s) Senhores,
+      </span>
+      <br><br>` : ""}
+    ${content}
+  </div>
+</td>
+
         </tr>
-        <tr>
-          <td class="PMEPreto">
-            <img src="${PMEPreto}" alt="Logo" />
-            <img src="${QualidadePreto}" alt="Logo" />
-          </td>
-            <td style="
-        font-size: 8px;">
-            _____________________________________________________________________________________________________________________<br>
-            Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750.000.00 €
-          </td>
-        </tr>
+<tr>
+<td class="PMEPreto">
+<img src="${PMEPreto}" alt="Logo" />
+<img src="${QualidadePreto}" alt="Logo" />
+<img src="${Logo50}" alt="Logo" style="max-width: 43%;"/>
+</td>
+<td style="
+    font-size: 8px;">
+        <br>_____________________________________________________________________________________________________________________<br>
+        Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750.000.00 €
+</td>
+</tr>
       </table>
     </div>
     </body>
@@ -1102,13 +1315,17 @@ const OficiosPage = (props) => {
 
 
 
-    const getTemplate2 = () => `
+    const getTemplate2 = () => {
+        const usernome = formData.nome || localStorage.getItem("userNome") || 'Email não disponível';
+        const useremail = formData.email || localStorage.getItem("userEmail") || 'Email não disponível';
+        setPageCount2(0);
+        return `
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Modelo de Documento (Template 2)</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Modelo de Documento</title>
 <style>
   body {
     font-family: Calibri, sans-serif;
@@ -1116,8 +1333,9 @@ const OficiosPage = (props) => {
     background-color: #f4f4f4; color: #333;
     font-size: 13pt;
   }
-  .page {
-        max-width: 100%;
+  
+  .page1 {
+    max-width: 100%;
     margin: auto;
     padding: 2rem;
     border: 0px solid #ccc;
@@ -1126,122 +1344,323 @@ const OficiosPage = (props) => {
     font-size: 8pt;
     height: 1095.5px;
     font-size: 13pt;
+
   }
-  .logo { text-align: left; }
-  .logo img { max-width: 30%; height: auto; }
-  .PMEPreto img { max-width: 25%; height: auto; }
+  td { word-wrap: break-word; }
+  table {
+      height: 100%;
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+    font-size: 13pt;
+  }
+  table, th, td { border: 0px solid #ccc; }
+  th, td {
+    padding: 0.5rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  .footer { font-size: 8pt; line-height: 1.6; }
+  .footer p { margin: 0.5em 0; }
+  .logo { text-align: left; visibility: hidden;}
+  .logo img { max-width: 30%; height: auto; visibility: hidden;}
+  .PMEPreto img { max-width: 25%; height: auto; visibility: hidden;}
+  @media (max-width: 768px) {
+    .page1 { padding: 1rem; }
+    th, td { font-size: 6pt; padding: 0.3rem; }
+  }
 </style>
 </head>
 <body>
-<div class="page">
-  <table style="width:100%; border:0px solid #ccc;height: 100%;">
-    <tr>
-      <td class="logo" colspan="2">
-        <img src="${logo}" alt="Logo JPA Construtora" />
-      </td>
-    </tr>
-    <tr>
-    <td colspan="2"></td>
-    </tr>
-    
-    <tr>
-    <td colspan="2"></td>
-    </tr>
-    
-    <tr>
-    <td colspan="2"></td>
-    </tr>
-    <tr>
-    <td style="padding-left:300px;" contentEditable="false" colspan="2">
-        EXMO(s) SR(s) ${donoObra.Nome}<br>
-      </td>
-    </tr>
-    <tr>
-    
-      <td colspan="2">
-       <div
+<div class="page1">
+<table>
+<tr>
+<td class="logo" colspan="2">
+<img src="${logo}" alt="Logo JPA Construtora" />
+</td>
+</tr>
+<tr>
+<td></td>
+<td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
+        EXMO(s) SR(s) ${donoObra.Nome || ''}<br>
+        ${donoObra.Morada || morada}<br>
+        ${donoObra.Localidade || localidade}<br>
+        ${donoObra.CodPostal || codigoPostal} ${donoObra.CodPostalLocal || localCopPostal}
+</td>
+
+</tr>
+<tr>
+<td  >
+      <img src="${Logo50}" alt="Logo" style="
+    width: 50%; visibility: hidden;
+"/>
+
+</td>
+<td  >
+
+</td>
+</tr>
+<tr>
+<td  style="font-weight: bold; text-align: center; visibility: hidden;">
+  
+    <hr style="border: 3px solid black; margin: 0; visibility: hidden;">
+</td>
+<td  style="font-weight: bold; text-align: center; visibility: hidden;">
+    <hr style="border: 3px solid black; margin: 0; visibility: hidden;">
+</td>
+</tr>
+<tr>
+<td style="
+    width: 28%; 
+    font-size: 6pt;
+    font-family: 'TitilliumText22L', sans-serif; 
+    color: black;
+    text-align: left;
+    font-weight: bold; 
+  "  contentEditable="false" id="editableCellCodigo" >
+        REF: ${formData?.codigo}<br>
+        DATA: ${formData.data}<br>
+        ANEXOS: ${anexostext || ""}<br><br><br><br><br>
+        REMETENTE<br><br>
+        ${usernome || 'Remetente não disponível'}<br>
+        ${useremail || 'Email não existe'}<br><br><br><br><br>
+
+
+        <div style="visibility: hidden;">
+    <strong>JPA - CONSTRUTORA</strong><br>
+    <span style="color: #999;">Rua de Longras, nº 44</span><br>
+    <span style="color: #999;">4730-360 Pedregais,</span><br>
+    <span style="color: #999;">Vila Verde - Portugal</span><br><br>
+
+    <span style="color: #999;">www.jpaconstrutora.com</span><br>
+    <span style="color: #999;">geral@jpaconstrutora.com</span><br>
+    <span style="color: #999;">t. (+351) 253 38 13 10</span><br>
+    <span style="color: #999;">f. (+351) 253 38 22 44</span><br>
+</div>
+
+
+<td style="vertical-align: top;">
+<div
           contentEditable="false"
           id="editableCellAssunto"
           oninput="window.updateTexto(this.innerText)"
-          style="width: 100%; min-height: 800px; max-height: 600px; overflow: auto;"
-        >
-          ASSUNTO: ${assuntoDoc}<br><br>
-          Exmo. Senhores,<br><br>
+          style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
+>
+          <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
+              ASSUNTO:  ${assuntoDoc}
+          </span><br><br>
+          <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
+              EXMO(s) SR(s) 
+          </span><br><br>
           ${textParts.part1 || ""}
-        </div>
-      </td>
-    </tr>
-    <tr>
-      <td class="PMEPreto">
-        <img src="${PMEPreto}" alt="Logo" />
-        <img src="${QualidadePreto}" alt="Logo" />
-      </td>
-        <td style="
-    font-size: 8px;">
-        _____________________________________________________________________________________________________________________<br>
-        Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750.000.00 €
-      </td>
-    </tr>
-  </table>
 </div>
-</body>
-</html>
-`;
+</td>
 
-    const getTemplate2SecondPage = () => {
-        if (!textParts.part2) {
-            return "";
-        }
-        return `
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-<meta charset="UTF-8">
-<style>
-  .page {
-    page-break-before: always;
-    width: 100%;
-    min-height: 1095.5px;
-    font-size: 13pt;
-  }
-  .logo { text-align: left; }
-  .logo img { max-width: 30%; height: auto; }
-  .PMEPreto img { max-width: 25%; height: auto; }
-</style>
-</head>
-<body>
-<div class="page">
-  <table style="width:100%;height: 93%; border:0px solid #ccc;">
-    <tr>
-      <td class="logo" colspan="2" style="height: 130px;">
-        <img src="${logo}" alt="Logo JPA Construtora" />
-      </td>
-    </tr>
-    <tr>
-      <td colspan="2" style="vertical-align: top;">
-        <!-- Continuação do texto excedente -->
-        ${textParts.part2}
-      </td>
-    </tr>
-  </table>
-   <table style="width:100%; border:0px solid #ccc;">
-       <tr>
-      <td class="PMEPreto">
-        <img src="${PMEPreto}" alt="Logo" />
-        <img src="${QualidadePreto}" alt="Logo" />
-      </td>
-        <td style="
+</tr>
+<tr>
+<td>
+</td>
+<td style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 13px; color: black;" contentEditable="true">
+        Sem outro assunto,<br>
+        Com os melhores cumprimentos,<br>
+        De V/Exas.<br>
+        Atentamente
+</td>
+</tr>
+<tr>
+<td class="PMEPreto">
+<img src="${PMEPreto}" alt="Logo"  style="visibility: hidden;"/>
+<img src="${QualidadePreto}" alt="Logo" style="visibility: hidden;"/>
+<img src="${Logo50}" alt="Logo" style="max-width: 43%; visibility: hidden;"/>
+</td>
+<td style="visibility: hidden;
     font-size: 8px;">
-        _____________________________________________________________________________________________________________________<br>
+        <br>_____________________________________________________________________________________________________________________<br>
         Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750.000.00 €
-      </td>
-    </tr>
-   </table>
+</td>
+</tr>
+</table>
 </div>
 </body>
 </html>
 `;
     };
+
+
+    const getTemplate2SecondPage = () => {
+        if (!textParts.part2) {
+            return "";
+        }
+
+        const pageHeight = 1095.5; // Height of the page (adjust as necessary)
+        const textHeight = calculateTextHeight(textParts.part2); // Function to calculate the text height
+
+        // Check if the content exceeds the height of the page
+        let pages = [];
+        let remainingText = textParts.part2;
+
+        // While the content is larger than the page height, create new pages
+        while (remainingText.length > 0) {
+            const pageContent = remainingText.substring(0, 1800); // Take a chunk of characters
+            remainingText = remainingText.substring(1800); // Remove the used part
+
+            pages.push(createPage2(pageContent)); // Add the page with current content
+        }
+
+        // Add appropriate containers for each page
+        return pages.map((page, index) => {
+            return `
+            <div 
+                ref={docxContainer${index + 2}} 
+                style="
+                    width: 793.7px;
+                    height: 1122.5px;
+                    border: 0px solid rgb(204, 204, 204);
+                    background-color: rgb(255, 255, 255);
+                    padding: 20px;
+                    border-radius: 8px;
+                    box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px;
+                "
+            >
+                ${page}
+            </div>
+        `;
+        }).join('');
+    };
+
+    const createPage2 = (content) => {
+        pageCount++;
+        const isFirstPage = pageCount === 1;
+
+        setPageCount2(prevCount => prevCount + 1);
+        console.log(pageCount2);
+        return `
+    <!DOCTYPE html>
+    <html lang="pt">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelo de Documento (Template 2)</title>
+    <style>
+      body {
+        font-family: Calibri, sans-serif;
+        margin: 0; padding: 0;
+        background-color: #f4f4f4; color: #333;
+        font-size: 10pt; /* Changed font size to 10pt */
+      }
+      .page {
+            max-width: 100%;
+        margin: auto;
+        padding: 2rem;
+        border: 0px solid #ccc;
+        background-color: #fff;
+        box-sizing: border-box;
+        font-size: 10pt; /* Changed font size to 10pt */
+        height: 1095.5px;
+        font-size: 13pt;
+      }
+      .logo { text-align: left; }
+      .logo img { max-width: 30%; height: auto; }
+      .PMEPreto img { max-width: 25%; height: auto; }
+    </style>
+    </head>
+    <body>
+    <div class="page">
+      <table style="width:100%; border:0px solid #ccc;height: 100%;">
+        <tr>
+          <td class="logo" colspan="2">
+            <img src="${logo}" alt="Logo JPA Construtora" />
+          </td>
+        </tr>
+        <tr>
+        <td colspan="2"></td>
+        </tr>
+        
+        <tr>
+        <td colspan="2"></td>
+        </tr>
+        
+        <tr>
+        <td colspan="2"></td>
+        </tr>
+        <tr>      
+        <td style="padding-left:300px; padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
+        ${isFirstPage ? `
+              EXMO(s) SR(s) ${donoObra.Nome}<br>` : ""}
+            
+          </td>
+        </tr>
+        <tr>
+        
+          <td colspan="2">
+  <div
+    contentEditable="true"
+    id="editableCellAssunto"
+    oninput="window.updateTexto(this.innerText)"
+    style="
+      width: 100%;
+      min-height: 764px;
+      max-height: 600px;
+      overflow: auto;
+    "
+  >
+    ${isFirstPage ? `
+      <span 
+        style="
+          font-family: 'TitilliumText22L', sans-serif;
+          font-size: 8pt;
+          font-weight: bold; /* Negrito ON */
+          font-style: normal; /* Itálico OFF */
+          text-decoration: none; /* Sublinhado OFF */
+          text-transform: none; /* Maiúscula OFF */
+          color: black;
+          text-align: justify;
+          display: block;
+        "
+      >
+        ASSUNTO: ${assuntoDoc}
+      </span>
+      <br><br>
+      <span
+        style="
+          font-family: 'TitilliumText22L', sans-serif;
+          font-size: 9pt;
+          font-weight: normal; /* Negrito OFF */
+          font-style: normal; /* Itálico OFF */
+          text-decoration: none; /* Sublinhado OFF */
+          text-transform: none; /* Maiúscula OFF */
+          color: black;
+          text-align: justify;
+          display: block;
+        "
+      >
+        Exmo(s) Senhores,
+      </span>
+      <br><br>` : ""}
+    ${content}
+  </div>
+</td>
+
+        </tr>
+<tr>
+<td class="PMEPreto">
+<img src="${PMEPreto}" alt="Logo" />
+<img src="${QualidadePreto}" alt="Logo" />
+<img src="${Logo50}" alt="Logo" style="max-width: 43%;"/>
+</td>
+<td style="visibility: hidden;
+    font-size: 8px;">
+        <br>_____________________________________________________________________________________________________________________<br>
+        Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750.000.00 €
+</td>
+</tr>
+      </table>
+    </div>
+    </body>
+    </html>
+    `;
+    };
+
 
 
     // ======================================
@@ -1360,24 +1779,73 @@ const OficiosPage = (props) => {
         const useremail = localStorage.getItem("userEmail");
         const templateestado = currentTemplate === 1 ? "1" : "2";
 
-        // Payload comum para criação e atualização
+        var nomeDonoObra = "";
+        var moradaDonoObra = "";
+        var localidadeDonoObra = "";
+        var codPostalDonoObra = "";
+        var codPostalLocalDonoObra = "";
+        var obraSlecionadaSave = "";
+
+        const nomesAnexos = anexos.map(anexo => anexo.name).join(", ");
+        if (inputValue === "Não tem obra") {
+
+            console.log(donoObra.Nome);
+            nomeDonoObra = donoObra.Nome || "";
+            moradaDonoObra = morada || "";
+            localidadeDonoObra = localidade || "";
+            codPostalDonoObra = codigoPostal || "";
+            codPostalLocalDonoObra = localCopPostal || "";
+            console.log(formData?.codigo);
+            obraSlecionadaSave = inputValue || "";
+
+
+        } else {
+            nomeDonoObra = donoObra.Nome;
+
+            moradaDonoObra = donoObra.Morada;
+            localidadeDonoObra = donoObra.Localidade;
+            codPostalDonoObra = donoObra.CodPostal;
+            codPostalLocalDonoObra = donoObra.CodPostalLocal;
+            obraSlecionadaSave = selectedObra?.Codigo || "";
+
+        }
+
+        // Função para dividir texto em partes de 4000 caracteres
+        const splitText = (text, chunkSize = 4000) => {
+            const chunks = [];
+            for (let i = 0; i < text.length; i += chunkSize) {
+                chunks.push(text.substring(i, i + chunkSize));
+            }
+            return chunks;
+        };
+
+        const part2Chunks = splitText(textParts.part2 || "");
+
         const payloadDoc = {
             ...formData,
+            codigo: formData?.codigo || "",
             assunto: assuntoDoc,
             texto1: textParts.part1 || "",
-            texto2: textParts.part2 || "",
-            obra: selectedObra.ID,
+            texto2: part2Chunks[0] || "",  // Adiciona a primeira parte
+            texto3: part2Chunks[1] || "",
+            obra: obraSlecionadaSave || "",
             remetente: usernome,
             createdby: usernome,
             email: useremail,
             template: templateestado,
+            donoObra: nomeDonoObra,
+            Morada: moradaDonoObra,
+            Localidade: localidadeDonoObra,
+            CodPostal: codPostalDonoObra,
+            CodPostalLocal: codPostalLocalDonoObra,
+            anexos: anexostext || "",
+            texto4: part2Chunks[2],
+            texto5: part2Chunks[3],
+
         };
 
+
         try {
-            // Define URL e método com base na operação (criar ou atualizar)
-            const url = isButtonSave
-                ? `https://webapiprimavera.advir.pt/oficio/Criar` // Endpoint para criar
-                : `https://webapiprimavera.advir.pt/oficio/atualizar`; // Endpoint para atualizar
             const method =  "PUT";
 
             const response = await fetch("https://webapiprimavera.advir.pt/oficio/atualizar", {
@@ -1401,7 +1869,6 @@ const OficiosPage = (props) => {
             // Se necessário, atualize o estado local com a resposta
         } catch (error) {
             console.error(`Erro ao ${isButtonSave ? "criar" : "atualizar"} o ofício:`, error);
-            alert(`Erro ao ${isButtonSave ? "criar" : "atualizar"} o ofício. Verifique os logs.`);
         }
     };
 
@@ -1452,7 +1919,12 @@ const OficiosPage = (props) => {
                             >
                                 {isPreviewVisible ? "Editar" : "Pré-visualizar"}
                             </button>
-
+                            <button
+                                onClick={changeTemplate}
+                                style={{ ...styles.button, backgroundColor: "#28a745" }}
+                            >
+                                Alterar Template
+                            </button>
                            
                             <button
                                 onClick={() => {
@@ -1462,7 +1934,7 @@ const OficiosPage = (props) => {
                                         handleSave();
                                     } else {
                                         handleSavePDF();
-                                        handleSave();
+                                        handleSaveOrUpdate();
                                     }
                                 }}
                                 style={styles.button}
@@ -1477,6 +1949,7 @@ const OficiosPage = (props) => {
                                         setIsModalOpen(true);
                                     } else {
                                         setIsModalOpen(true);
+                                        handleSaveOrUpdate();
                                     }
                                 }}
                                 style={styles.button}
@@ -1489,8 +1962,10 @@ const OficiosPage = (props) => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
                                         handleSave();
+                                        handleSavePDFAndSendToBackend();
                                     } else {
                                         handleSaveOrUpdate();
+                                        handleSavePDFAndSendToBackend();
                                     }
                                 }}
                                 style={styles.button}
@@ -1595,11 +2070,20 @@ const OficiosPage = (props) => {
                     )}
                         </div>
 
-                        <div style={{ position: "relative", width: "100%", marginBottom: "20px" }} ref={comboBoxRef2}>
+                        <div
+                            style={{ position: "relative", width: "100%", marginBottom: "20px" }}
+                            ref={comboBoxRef2}
+                            onClick={handleComboBoxClick} // Chama a função ao clicar
+                        >
                             <input
                                 type="text"
                                 value={inputValue2}
-                                onChange={handleInputChange2}
+                                onChange={(e) => {
+                                    setInputValue2(e.target.value);
+                                    // Aplica o filtro diretamente ao digitar, para que a lista seja filtrada conforme o input
+                                    const filtered = filterObras(e.target.value, obras2);
+                                    setFilteredObras2(filtered);
+                                }}
                                 placeholder="Selecione outra Entidade"
                                 style={{
                                     width: "100%",
@@ -1610,8 +2094,9 @@ const OficiosPage = (props) => {
                                     fontSize: "16px",
                                     boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                                 }}
-                                onFocus={() => setShowOptions2(true)} // Abre a lista ao focar no campo
+                                onFocus={handleFocus}  // Garante que as opções sejam carregadas quando o campo é focado
                             />
+
                             {showOptions2 && (
                                 <ul
                                     style={{
@@ -1631,24 +2116,29 @@ const OficiosPage = (props) => {
                                         boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                                     }}
                                 >
-                                    {filteredObras2.map((obra, index) => (
-                                        <li
-                                            key={index}
-                                            onClick={() => handleOptionClick2(obra)}
-                                            style={{
-                                                padding: "10px",
-                                                cursor: "pointer",
-                                                color: "#333",
-                                                background: selectedObra2?.Codigo === obra.Codigo ? "#e6f7ff" : "white",
-                                                borderRadius: "6px",
-                                                marginBottom: "5px",
-                                            }}
-                                        >
-                                            {obra?.Codigo || ""} - {obra?.Nome || ""}
-                              
-                                        </li>
-                                    ))}
+                                    {filteredObras2.length === 0 ? (
+                                        <li style={{ padding: "10px", color: "#999" }}>Escreva aqui para escolher a entidade pretendida</li>
+                                    ) : (
+                                        filteredObras2.map((obra, index) => (
+                                            <li
+                                                key={index}
+                                                onClick={() => handleOptionClick2(obra)}
+                                                style={{
+                                                    padding: "10px",
+                                                    cursor: "pointer",
+                                                    color: "#333",
+                                                    background: selectedObra2?.Codigo === obra.Codigo ? "#e6f7ff" : "white",
+                                                    borderRadius: "6px",
+                                                    marginBottom: "5px",
+                                                }}
+                                            >
+                                                {obra?.Codigo || ""} - {obra?.Nome || ""}
+                                            </li>
+                                        ))
+                                    )}
                                 </ul>
+                           
+                       
                     )}
                 </div>
 
@@ -1785,7 +2275,7 @@ const OficiosPage = (props) => {
                 {/* Campo de assunto */}
                 <input
                     type="text"
-                    placeholder="Assunto do Documento"
+                    placeholder="Assunto do Oficio"
                     value={assuntoDoc}
                     onChange={(e) => setAssuntoDoc(e.target.value)}
                     style={{
@@ -1799,14 +2289,17 @@ const OficiosPage = (props) => {
                     }}
                 />
                         {/* Campo de assunto2 */}
+                        <div style={{ fontSize: "14px", marginTop: "5px", color: "#555" }}>
+                            {textParts.part1.length} / 1600 caracteres
+                        </div>
                         <textarea
-                            placeholder="Assunto do Documento"
+                            placeholder="Texto do Oficio"
                             value={textParts.part1}  // O valor agora é igual a textParts.part1
                             onChange={(e) => {
                                 // Atualiza textParts.part1 com o novo valor
                                 setTextParts({ ...textParts, part1: e.target.value });
                             }}  // Atualiza textParts.part1 ao digitar
-                            maxLength={1020}  // Limite de 1020 caracteres
+                            maxLength={1600}  // Limite de 1600 caracteres
                             style={{
                                 width: "100%",
                                 padding: "12px",
@@ -1821,6 +2314,8 @@ const OficiosPage = (props) => {
                                 wordWrap: "break-word",  // Quebra as palavras longas
                             }}
                         />
+
+                        
                             {/* Campo de texto editável 1 - com limite de 1020 caracteres */}
                         <div
                             contentEditable="true"
@@ -1845,7 +2340,7 @@ const OficiosPage = (props) => {
 
                         {/* Campo de assunto2 */}
                         <textarea
-                            placeholder="Assunto do Documento"
+                            placeholder="Texto do Ofcio Timbrado"
                             value={textParts.part2}  // O valor agora é igual a textParts.part1
                             onChange={(e) => {
                                 // Atualiza textParts.part1 com o novo valor
@@ -1903,22 +2398,35 @@ const OficiosPage = (props) => {
                             }}
                             dangerouslySetInnerHTML={{ __html: textParts.part2 }} // Exibe a parte 2 sem limite
                         ></div>
-            
+                        <label style={styles.fileInputLabel}>
+                            <FaPaperclip /> Anexos
+                            <input
+                                type="file"
+                                multiple
+                                onChange={(e) => {
+                                    const files = Array.from(e.target.files);
+                                    const fileNames = files.map(file => file.name).join(", ");
+                                    setAnexostext(prevText => prevText ? `${prevText}, ${fileNames}` : fileNames);
+                                }}
+                                style={styles.fileInput}
+                            />
+                        </label>
+
                         <input
-                        type="text"
-                        placeholder="Anexos"
-                        value={anexostext}
-                        onChange={(e) => setAnexostext(e.target.value)} // Corrected here
-                        style={{
-                            width: "100%",
-                            padding: "12px",
-                            margin: "10px 0",
-                            border: "1px solid #ddd",
-                            borderRadius: "8px",
-                            fontSize: "16px",
-                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                        }}
-                    />
+                            type="text"
+                            placeholder="Anexos"
+                            value={anexostext}
+                            onChange={(e) => setAnexostext(e.target.value)}
+                            style={{
+                                width: "100%",
+                                padding: "12px",
+                                margin: "10px 0",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                fontSize: "16px",
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            }}
+                        />
             
                 {/* Botão de alternar entre pré-visualização e edição */}
                 <button
