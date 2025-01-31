@@ -109,18 +109,12 @@ const OficiosList = () => {
 
 
     const filteredOficios = oficios.filter((oficio) => {
-        const codigo = oficio.CDU_codigo ? oficio.CDU_codigo.toLowerCase() : '';
-        const assunto = oficio.cdu_assunto ? oficio.cdu_assunto.toLowerCase() : '';
-        const remetente = oficio.cdu_remetente ? oficio.cdu_remetente.toLowerCase() : '';
-        const query = searchQuery.toLowerCase();
-
-        return (
-            codigo.includes(query) ||
-            assunto.includes(query) ||
-            remetente.includes(query)
+        const query = searchQuery.toLowerCase().trim(); // Remover espaços extras
+ 
+        return ['CDU_codigo', 'CDU_assunto', 'CDU_remetente'].some((key) =>
+            oficio[key] && oficio[key].toLowerCase().includes(query)
         );
     });
-
     const renderOficio = ({ item }) => {
         const isInactive = item.CDU_isactive === false;
     
