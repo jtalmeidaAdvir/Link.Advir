@@ -37,7 +37,8 @@ const OficiosPage = (props) => {
     const [codigoPostal, setCodigoPostal] = useState("");
     const [localCopPostal, setLocalCopPostal] = useState("");
     const [paginasCriadas, setpaginasCriadas] = useState(0);
-
+    const [estadodoc, setEstado] = useState("");
+    const Executado = useRef(false);
     const contentEditableRef = useRef(null);
 
     const handleBlur = () => {
@@ -258,11 +259,10 @@ const OficiosPage = (props) => {
     const handleSavePDF = async () => {
         const containers = [docxContainer.current, docxContainer2.current]; // Containers de conteúdo
         const validContainers = containers.filter(container => container); // Filtra containers válidos
-
+        
         if (validContainers.length === 0) {
             return;
         }
-
         try {
             // Geração do primeiro PDF (apenas para o primeiro container)
             const pdf1 = new jsPDF("portrait", "mm", "a4");
@@ -319,9 +319,13 @@ const OficiosPage = (props) => {
 
             // Salva o segundo PDF com todas as páginas
             pdf2.save("oficio_segundo_container.pdf");
-
+           
         } catch (error) {
             console.error("Erro ao gerar os PDFs:", error);
+        }
+        if (!isButtonSave) {
+            console.log("Chamando handleSave com o estado 'Imprimir'");
+            handleSave("Imprimido");
         }
     };
 
@@ -329,64 +333,11 @@ const OficiosPage = (props) => {
 
 
 
-    
-
-
-    
-
-
 
     // ======================================
     // 7) Enviar PDF + anexos para o backend
     // ======================================
-    /*const handleSavePDFAndSendToBackend = async () => {
-        const container = docxContainer.current;
-        if (!container) {
-            return;
-        }
 
-        try {
-            // Gera o PDF
-            const canvas = await html2canvas(container, { scale: 2, useCORS: true });
-            const imgData = canvas.toDataURL("image/png");
-            const pdf = new jsPDF("portrait", "mm", "a4");
-            const pdfWidth = 210;
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-            pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-            const pdfBlob = pdf.output("blob");
-
-            // FormData para enviar PDF e anexos
-            const formData2 = new FormData();
-            formData2.append("file", pdfBlob, "oficio.pdf");
-            formData2.append("codigo", formData.codigo);
-
-
-
-            // Inclui anexos
-            anexos.forEach((anexo) => {
-                formData2.append("anexos", anexo, anexo.name);
-            });
-
-            const token = localStorage.getItem("painelAdminToken");
-            const urlempresa = localStorage.getItem("urlempresa");
-
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/save-pdf", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "urlempresa": urlempresa,
-                },
-                body: formData2,
-            });
-
-            if (response.ok) {
-            } else {
-            }
-        } catch (error) {
-            console.error("Erro ao gerar ou enviar o PDF:", error);
-        }
-    };*/
     const handleSavePDFAndSendToBackend = async () => {
         const containers = [docxContainer.current, docxContainer2.current]; // Containers de conteúdo
         const validContainers = containers.filter(container => container); // Filtra containers válidos
@@ -394,7 +345,7 @@ const OficiosPage = (props) => {
         if (validContainers.length === 0) {
             return;
         }
-
+        setEstado("Imprimido");
         try {
             const pdfWidth = 210; // Largura do PDF em mm
             const pdfHeight = 297; // Altura do PDF em mm (A4)
@@ -409,7 +360,7 @@ const OficiosPage = (props) => {
                 scrollY: 0,
             });
 
-            const imgData1 = canvas1.toDataURL("image/jpeg", 0.8);
+            const imgData1 = canvas1.toDataURL("image/jpeg", 1);
             const imgHeight1 = (canvas1.height * pdfWidth) / canvas1.width;
             pdf1.addImage(imgData1, "JPEG", 0, 0, pdfWidth, imgHeight1, undefined, "FAST");
 
@@ -478,6 +429,10 @@ const OficiosPage = (props) => {
         } catch (error) {
             console.error("Erro ao gerar os PDFs:", error);
         }
+        if (!isButtonSave) {
+            console.log("Chamando handleSave com o estado 'Imprimir'");
+            handleSave("Imprimido");
+        }
     };
 
     // ======================================
@@ -515,7 +470,6 @@ const OficiosPage = (props) => {
         if (!containers[0]) {
             return;
         }
-
         try {
             // Geração do primeiro PDF (apenas para o primeiro container)
             const pdf1 = new jsPDF("portrait", "mm", "a4");
@@ -549,43 +503,6 @@ const OficiosPage = (props) => {
             // Geração do segundo PDF (com várias páginas do segundo container)
             const pdf2 = new jsPDF("portrait", "mm", "a4");
             const container2 = containers[1];
-
-            // Captura o conteúdo do segundo container
-            const canvas2 = await html2canvas(container2, {
-                scale: 2,
-                useCORS: true,
-                logging: true,
-                scrollX: 0,
-                scrollY: 0,
-            });
-
-            const imgData2 = canvas2.toDataURL("image/jpeg", 0.5);
-            const imgHeight2 = (canvas2.height * pdfWidth) / canvas2.width;
-
-            let currentHeight = 0; // Altura inicial para adicionar imagem
-
-            // Adiciona páginas até o conteúdo ser totalmente coberto
-            let valor = pageCount2 - 1;
-            for (var i = 1; i < valor; i++) {
-                const pageHeight = pdfHeight; // Altura de uma página A4
-                if (currentHeight > 0) {
-                    pdf2.addPage(); // Adiciona uma nova página se não for a primeira
-                }
-
-                // Adiciona a imagem no PDF, ajustando a posição Y
-                pdf2.addImage(imgData2, "JPEG", 0, -currentHeight, pdfWidth, imgHeight2, undefined, "FAST");
-                currentHeight += pdfHeight; // Atualiza a altura para a próxima página
-            }
-
-
-            const pdf2Blob = pdf2.output("blob");
-            const pdf2Base64 = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result.split(",")[1]);
-                reader.onerror = (error) => reject(error);
-                reader.readAsDataURL(pdf2Blob);
-            });
-
             // Converter anexos adicionais
             const processedAnexos = await Promise.all(
                 anexos.map((file) =>
@@ -600,53 +517,105 @@ const OficiosPage = (props) => {
                     })
                 )
             );
+            if (container2) {
+                const canvas2 = await html2canvas(container2, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: true,
+                    scrollX: 0,
+                    scrollY: 0,
+                });
 
-            // Adicionar os dois PDFs gerados à lista de anexos
-            processedAnexos.push({
-                name: "oficio_primeiro_container.pdf",
-                content: pdf1Base64,
-            });
-            processedAnexos.push({
-                name: "oficio_segundo_container.pdf",
-                content: pdf2Base64,
-            });
+                const imgData2 = canvas2.toDataURL("image/jpeg", 0.5);
+                const imgHeight2 = (canvas2.height * pdfWidth) / canvas2.width;
 
-            // Montar payload com os dados do modal
-            const payload = {
-                emailDestinatario: emailTo,
-                emailCC: emailCC,
-                assunto: emailAssunto,
-                texto: emailTexto,
-                remetente: formData.remetente, // ou outro valor fixo, se necessário
-                anexos: processedAnexos,
-            };
+                let yPosition = 0;
+                let remainingHeight = imgHeight2;
 
-            // Enviar para o backend
-            const response = await fetch("https://webapiprimavera.advir.pt/sendmailoficios", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-            });
+                    for (var i = 0; i < pageCount2; i++) {
+                        if (yPosition > 0) {
+                            pdf2.addPage(); // Adiciona nova página depois da primeira
+                        }
 
-            if (response.ok) {
-            } else {
-                const errorData = await response.json();
-                console.error("Erro ao enviar email:", errorData);
-           
+                        pdf2.addImage(
+                            imgData2,
+                            "JPEG",
+                            0,
+                            -yPosition, // Ajusta a posição Y para cada página
+                            pdfWidth,
+                            imgHeight2,
+                            undefined,
+                            "FAST"
+                        );
+
+                        yPosition += pdfHeight;
+                        remainingHeight -= pdfHeight;
+                    }
+
+                
+
+                const pdf2Blob = pdf2.output("blob");
+                const pdf2Base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(",")[1]);
+                    reader.onerror = (error) => reject(error);
+                    reader.readAsDataURL(pdf2Blob);
+                });
+                processedAnexos.push({
+                    name: "oficio_segundo_container.pdf",
+                    content: pdf2Base64,
+                });
             }
+
+
+                // Adicionar os dois PDFs gerados à lista de anexos
+                processedAnexos.push({
+                    name: "oficio_primeiro_container.pdf",
+                    content: pdf1Base64,
+                });
+
+
+
+                const formattedEmailTexto = emailTexto.replace(/\n/g, "<br />");
+
+                // Montar payload com os dados do modal
+                const payload = {
+                    emailDestinatario: emailTo,
+                    emailCC: emailCC,
+                    assunto: emailAssunto,
+                    texto: formattedEmailTexto,
+                    remetente: formData.remetente,
+                    anexos: processedAnexos,
+                };
+                // Enviar para o backend
+            const response = await fetch("https://webapiprimavera.advir.pt/sendmailoficios", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (response.ok) {
+                    console.log("E-mail enviado com sucesso!");
+                } else {
+                    const errorData = await response.json();
+                    console.error("Erro ao enviar email:", errorData);
+                }
+            
+
+        console.log("Chamando handleSave com o estado 'Imprimir'");
+        handleSave("Enviado Por Email");
         } catch (error) {
             console.error("Erro ao gerar ou enviar o PDF com anexos:", error);
-   
+            handleSave("Erro no envio");
         } finally {
             setIsModalOpen(false);
         }
     };
 
 
-
-
+    
     // ======================================
     // 10) Adicionar anexos
     // ======================================
@@ -676,7 +645,13 @@ const OficiosPage = (props) => {
     // ======================================
     // 12) Salvar dados do documento (criar ofício) no backend
     // ======================================
-    const handleSave = async () => {
+
+    useEffect(() => {
+        
+    }, [estadodoc]);
+
+    const handleSave = async (estado) => {
+        console.log("teste" + estado);
     const token = localStorage.getItem("painelAdminToken");
     const urlempresa = localStorage.getItem("urlempresa");
     const usernome = localStorage.getItem("userNome");
@@ -729,7 +704,8 @@ const OficiosPage = (props) => {
             return chunks;
         };
         const part2Chunks = splitText(textParts.part2 || "");
-    // Vamos inserir assuntoDoc e textoDoc dentro de formData, para enviar e gravar no backend
+        // Vamos inserir assuntoDoc e textoDoc dentro de formData, para enviar e gravar no backend
+
     const payloadDoc = {
         ...formData,
         codigo: formData?.codigo || "",
@@ -750,6 +726,7 @@ const OficiosPage = (props) => {
         anexos: anexostext || "",
         texto4: part2Chunks[2],
         texto5: part2Chunks[3],
+        estado: estado,
         
     };
  
@@ -956,13 +933,13 @@ const OficiosPage = (props) => {
     };
 
 
-
     // ======================================
     // 16) Templates do Documento
     // ======================================
     const getTemplate1 = () => {
         const usernome = formData.nome || localStorage.getItem("userNome") || 'Email não disponível';
         const useremail = formData.email || localStorage.getItem("userEmail") || 'Email não disponível';
+        console.log(selectedObra);
         setPageCount2(0);
         return `
 <!DOCTYPE html>
@@ -1026,11 +1003,12 @@ const OficiosPage = (props) => {
 </tr>
 <tr>
 <td></td>
-<td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
-        EXMO(s) SR(s) ${donoObra.Nome || ''}<br>
-        ${donoObra.Morada || morada}<br>
-        ${donoObra.Localidade || localidade}<br>
-        ${donoObra.CodPostal || codigoPostal} ${donoObra.CodPostalLocal || localCopPostal}
+<td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
+    <span style="font-size: 11px;">EXMO(s) SR(s)<br></span>
+    <span style="font-size: 9px;">${donoObra.Nome || ''}<br></span>
+    <span style="font-size: 9px;">${donoObra.Morada || morada}<br></span>
+    <span style="font-size: 9px;">${donoObra.Localidade || localidade}<br></span>
+    <span style="font-size: 9px;">${donoObra.CodPostal || codigoPostal} ${donoObra.CodPostalLocal || localCopPostal}</span>
 </td>
 
 </tr>
@@ -1055,66 +1033,77 @@ const OficiosPage = (props) => {
 </td>
 </tr>
 <tr>
-<td style="
-    width: 28%; 
-    font-size: 6pt;
-    font-family: 'TitilliumText22L', sans-serif; 
-    color: black;
-    text-align: left;
-    font-weight: bold; 
-  "  contentEditable="false" id="editableCellCodigo" >
-        REF: ${formData?.codigo}<br>
-        DATA: ${formData.data}<br>
-        ANEXOS: ${anexostext || ""}<br><br><br><br><br>
-        REMETENTE<br><br>
-        ${usernome || 'Remetente não disponível'}<br>
-        ${useremail || 'Email não existe'}<br><br><br><br><br>
+<td style="width: 28%; font-size: 6pt; font-family: 'TitilliumText22L', sans-serif; color: black; text-align: left; font-weight: bold;" contentEditable="false" id="editableCellCodigo">
+  REF: ${formData?.codigo}<br>
+  DATA: ${formData.data}<br>
+  ANEXOS: </br>${anexostext || ""}<br><br><br><br><br>
+  REMETENTE<br><br>
+
+  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+    ${usernome || 'Remetente não disponível'}
+  </span><br>
+
+  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+    ${useremail || 'Email não existe'}
+  </span><br><br><br><br><br>
+
+  <strong>JPA - CONSTRUTORA</strong><br>
+  <span style="color: #999;">Rua de Longras, nº 44</span><br>
+  <span style="color: #999;">4730-360 Pedregais,</span><br>
+  <span style="color: #999;">Vila Verde - Portugal</span><br><br>
+
+  <span style="color: #999;">www.jpaconstrutora.com</span><br>
+  <span style="color: #999;">geral@jpaconstrutora.com</span><br>
+  <span style="color: #999;">t. (+351) 253 38 13 10</span><br>
+  <span style="color: #999;">f. (+351) 253 38 22 44</span><br>
+</td>
 
 
-        <strong>JPA - CONSTRUTORA</strong><br>
-        <span style="color: #999;">Rua de Longras, nº 44</span><br>
-<span style="color: #999;">4730-360 Pedregais,</span><br>
-<span style="color: #999;">Vila Verde - Portugal</span><br><br>
-
-<span style="color: #999;">www.jpaconstrutora.com</span><br>
-<span style="color: #999;">geral@jpaconstrutora.com</span><br>
-<span style="color: #999;">t. (+351) 253 38 13 10</span><br>
-<span style="color: #999;">f. (+351) 253 38 22 44</span><br>
 
 
 <td style="vertical-align: top;">
-<div
-          contentEditable="false"
-          id="editableCellAssunto"
-          oninput="window.updateTexto(this.innerText)"
-          style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
->
-          <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
-              ASSUNTO:  ${assuntoDoc}
-          </span><br><br>
-          <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
-              EXMO(s) SR(s) 
-          </span><br><br>
-          ${textParts.part1 || ""}
-</div>
+  <div
+    contentEditable="false"
+    id="editableCellAssunto"
+    oninput="window.updateTexto(this.innerText)"
+    style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
+  >
+    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
+      ASSUNTO:  ${assuntoDoc}
+    </span><br><br>
+    <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
+      EXMO(s) SR(s) 
+    </span><br><br>
+    ${textParts.part1.replace(/\n/g, "<br>").replace(/ /g, "&nbsp;")}
+<br><br>
+
+    <span>
+      Sem outro assunto,
+    </span><br>
+    Com os melhores cumprimentos,<br>
+    De V/Exas.<br>
+    Atentamente<br>
+    <span contentEditable="true">
+      ${usernome}
+    </span>
+  </div>
 </td>
+
 
 </tr>
 <tr>
+
 <td>
 </td>
 <td style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 13px; color: black;" contentEditable="true">
-        Sem outro assunto,<br>
-        Com os melhores cumprimentos,<br>
-        De V/Exas.<br>
-        Atentamente
+
 </td>
 </tr>
 <tr>
 <td class="PMEPreto">
 <img src="${PMEPreto}" alt="Logo" />
 <img src="${QualidadePreto}" alt="Logo" />
-<img src="${Logo50}" alt="Logo" style="max-width: 43%;"/>
+
 </td>
 <td style="
     font-size: 8px;">
@@ -1206,6 +1195,7 @@ const OficiosPage = (props) => {
         font-size: 10pt; /* Changed font size to 10pt */
         height: 1095.5px;
         font-size: 13pt;
+        text-align: justify;
       }
       .logo { text-align: left; }
       .logo img { max-width: 30%; height: auto; }
@@ -1220,21 +1210,11 @@ const OficiosPage = (props) => {
             <img src="${logo}" alt="Logo JPA Construtora" />
           </td>
         </tr>
-        <tr>
-        <td colspan="2"></td>
-        </tr>
-        
-        <tr>
-        <td colspan="2"></td>
-        </tr>
-        
-        <tr>
-        <td colspan="2"></td>
-        </tr>
+
         <tr>      
-        <td style="padding-left:300px; padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
+        <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
         ${isFirstPage ? `
-              EXMO(s) SR(s) ${donoObra.Nome}<br>` : ""}
+              EXMO(s) SR(s)${donoObra.Nome}<br>` : ""}
             
           </td>
         </tr>
@@ -1266,7 +1246,7 @@ const OficiosPage = (props) => {
           display: block;
         "
       >
-        ASSUNTO: ${assuntoDoc}
+        ASSUNTO: ${donoObra.Nome} - ${assuntoDoc}
       </span>
       <br><br>
       <span
@@ -1285,7 +1265,8 @@ const OficiosPage = (props) => {
         Exmo(s) Senhores,
       </span>
       <br><br>` : ""}
-    ${content}
+       ${content.replace(/\n/g, "<br>")}
+
   </div>
 </td>
 
@@ -1308,11 +1289,6 @@ const OficiosPage = (props) => {
     </html>
     `;
     };
-
-
-
-
-
 
 
     const getTemplate2 = () => {
@@ -1381,11 +1357,12 @@ const OficiosPage = (props) => {
 </tr>
 <tr>
 <td></td>
-<td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
-        EXMO(s) SR(s) ${donoObra.Nome || ''}<br>
-        ${donoObra.Morada || morada}<br>
-        ${donoObra.Localidade || localidade}<br>
-        ${donoObra.CodPostal || codigoPostal} ${donoObra.CodPostalLocal || localCopPostal}
+<td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
+    <span style="font-size: 11px;">EXMO(s) SR(s)<br></span>
+    <span style="font-size: 9px;">${donoObra.Nome || ''}<br></span>
+    <span style="font-size: 9px;">${donoObra.Morada || morada}<br></span>
+    <span style="font-size: 9px;">${donoObra.Localidade || localidade}<br></span>
+    <span style="font-size: 9px;">${donoObra.CodPostal || codigoPostal} ${donoObra.CodPostalLocal || localCopPostal}</span>
 </td>
 
 </tr>
@@ -1410,68 +1387,73 @@ const OficiosPage = (props) => {
 </td>
 </tr>
 <tr>
-<td style="
-    width: 28%; 
-    font-size: 6pt;
-    font-family: 'TitilliumText22L', sans-serif; 
-    color: black;
-    text-align: left;
-    font-weight: bold; 
-  "  contentEditable="false" id="editableCellCodigo" >
-        REF: ${formData?.codigo}<br>
-        DATA: ${formData.data}<br>
-        ANEXOS: ${anexostext || ""}<br><br><br><br><br>
-        REMETENTE<br><br>
-        ${usernome || 'Remetente não disponível'}<br>
-        ${useremail || 'Email não existe'}<br><br><br><br><br>
+<td style="width: 28%; font-size: 6pt; font-family: 'TitilliumText22L', sans-serif; color: black; text-align: left; font-weight: bold;" contentEditable="false" id="editableCellCodigo">
+  REF: ${formData?.codigo}<br>
+  DATA: ${formData.data}<br>
+  ANEXOS: </br>${anexostext || ""}<br><br><br><br><br>
+  REMETENTE<br><br>
 
+  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+    ${usernome || 'Remetente não disponível'}
+  </span><br>
 
-        <div style="visibility: hidden;">
-    <strong>JPA - CONSTRUTORA</strong><br>
-    <span style="color: #999;">Rua de Longras, nº 44</span><br>
-    <span style="color: #999;">4730-360 Pedregais,</span><br>
-    <span style="color: #999;">Vila Verde - Portugal</span><br><br>
+  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+    ${useremail || 'Email não existe'}
+  </span><br><br><br><br><br>
 
-    <span style="color: #999;">www.jpaconstrutora.com</span><br>
-    <span style="color: #999;">geral@jpaconstrutora.com</span><br>
-    <span style="color: #999;">t. (+351) 253 38 13 10</span><br>
-    <span style="color: #999;">f. (+351) 253 38 22 44</span><br>
-</div>
+  <strong>JPA - CONSTRUTORA</strong><br>
+  <span style="color: #999;">Rua de Longras, nº 44</span><br>
+  <span style="color: #999;">4730-360 Pedregais,</span><br>
+  <span style="color: #999;">Vila Verde - Portugal</span><br><br>
 
+  <span style="color: #999;">www.jpaconstrutora.com</span><br>
+  <span style="color: #999;">geral@jpaconstrutora.com</span><br>
+  <span style="color: #999;">t. (+351) 253 38 13 10</span><br>
+  <span style="color: #999;">f. (+351) 253 38 22 44</span><br>
+</td>
 
 <td style="vertical-align: top;">
-<div
-          contentEditable="false"
-          id="editableCellAssunto"
-          oninput="window.updateTexto(this.innerText)"
-          style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
->
-          <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
-              ASSUNTO:  ${assuntoDoc}
-          </span><br><br>
-          <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
-              EXMO(s) SR(s) 
-          </span><br><br>
-          ${textParts.part1 || ""}
-</div>
+  <div
+    contentEditable="false"
+    id="editableCellAssunto"
+    oninput="window.updateTexto(this.innerText)"
+    style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
+  >
+    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
+      ASSUNTO:  ${assuntoDoc}
+    </span><br><br>
+    <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
+      EXMO(s) SR(s) 
+    </span><br><br>
+    ${textParts.part1.replace(/\n/g, "<br>").replace(/ /g, "&nbsp;")}
+<br><br>
+
+    <span>
+      Sem outro assunto,
+    </span><br>
+    Com os melhores cumprimentos,<br>
+    De V/Exas.<br>
+    Atentamente<br>
+    <span contentEditable="true">
+      ${usernome}
+    </span>
+  </div>
 </td>
+
+
 
 </tr>
 <tr>
 <td>
 </td>
-<td style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 13px; color: black;" contentEditable="true">
-        Sem outro assunto,<br>
-        Com os melhores cumprimentos,<br>
-        De V/Exas.<br>
-        Atentamente
+<td >
+
 </td>
 </tr>
 <tr>
 <td class="PMEPreto">
 <img src="${PMEPreto}" alt="Logo"  style="visibility: hidden;"/>
 <img src="${QualidadePreto}" alt="Logo" style="visibility: hidden;"/>
-<img src="${Logo50}" alt="Logo" style="max-width: 43%; visibility: hidden;"/>
 </td>
 <td style="visibility: hidden;
     font-size: 8px;">
@@ -1584,9 +1566,9 @@ const OficiosPage = (props) => {
         <td colspan="2"></td>
         </tr>
         <tr>      
-        <td style="padding-left:300px; padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
+                <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
         ${isFirstPage ? `
-              EXMO(s) SR(s) ${donoObra.Nome}<br>` : ""}
+              EXMO(s) SR(s)${donoObra.Nome}<br>` : ""}
             
           </td>
         </tr>
@@ -1618,7 +1600,7 @@ const OficiosPage = (props) => {
           display: block;
         "
       >
-        ASSUNTO: ${assuntoDoc}
+        ASSUNTO: ${donoObra.Nome} - ${assuntoDoc}
       </span>
       <br><br>
       <span
@@ -1637,7 +1619,8 @@ const OficiosPage = (props) => {
         Exmo(s) Senhores,
       </span>
       <br><br>` : ""}
-    ${content}
+       ${content.replace(/\n/g, "<br>")}
+
   </div>
 </td>
 
@@ -1710,12 +1693,10 @@ const OficiosPage = (props) => {
         setShowOptions(true);
     };
 
-
     const filteredObras = obras.filter((obra) =>
         obra.Codigo.toLowerCase().includes(inputValue.toLowerCase()) ||
         obra.Descricao.toLowerCase().includes(inputValue.toLowerCase())
     );
-
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -1743,8 +1724,6 @@ const OficiosPage = (props) => {
         setShowOptions2(true); // Sempre exibe as opções ao digitar
        
     };
-
-    
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -1931,7 +1910,7 @@ const OficiosPage = (props) => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
                                         handleSavePDF(); 
-                                        handleSave();
+                                    
                                     } else {
                                         handleSavePDF();
                                         handleSaveOrUpdate();
@@ -1945,7 +1924,6 @@ const OficiosPage = (props) => {
                                 onClick={() => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
-                                        handleSave();
                                         setIsModalOpen(true);
                                     } else {
                                         setIsModalOpen(true);
@@ -1961,8 +1939,8 @@ const OficiosPage = (props) => {
                                 onClick={() => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
-                                        handleSave();
                                         handleSavePDFAndSendToBackend();
+                                   
                                     } else {
                                         handleSaveOrUpdate();
                                         handleSavePDFAndSendToBackend();
@@ -2052,6 +2030,8 @@ const OficiosPage = (props) => {
                                     onClick={() => {
                                         handleOptionClick(obra);
                                         setDonoObra(obra.Codigo);
+                                        setInputValue(`${obra.Codigo} - ${obra.Descricao}`);
+                                        setShowOptions(false);
                                     }}
                                     style={{
                                         padding: "10px",
@@ -2290,16 +2270,35 @@ const OficiosPage = (props) => {
                 />
                         {/* Campo de assunto2 */}
                         <div style={{ fontSize: "14px", marginTop: "5px", color: "#555" }}>
-                            {textParts.part1.length} / 1600 caracteres
+                            {textParts.part1.length} / 1600 caracteres | {textParts.part1.split("\n").length} / 19 linhas
                         </div>
                         <textarea
-                            placeholder="Texto do Oficio"
-                            value={textParts.part1}  // O valor agora é igual a textParts.part1
+                            placeholder="Texto do Ofício"
+                            value={textParts.part1}
                             onChange={(e) => {
-                                // Atualiza textParts.part1 com o novo valor
-                                setTextParts({ ...textParts, part1: e.target.value });
-                            }}  // Atualiza textParts.part1 ao digitar
-                            maxLength={1600}  // Limite de 1600 caracteres
+                                const newValue = e.target.value;
+                                const lineCount = (newValue.match(/\n/g) || []).length; // Conta linhas
+
+                                if (lineCount <= 19) {
+                                    setTextParts({ ...textParts, part1: newValue });
+                                }
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Tab") {
+                                    e.preventDefault(); // Impede o foco para outro campo
+                                    const cursorPos = e.target.selectionStart;
+                                    const newValue =
+                                        textParts.part1.substring(0, cursorPos) + "    " + textParts.part1.substring(cursorPos);
+
+                                    setTextParts({ ...textParts, part1: newValue });
+
+                                    // Reposiciona o cursor após os espaços
+                                    setTimeout(() => {
+                                        e.target.selectionStart = e.target.selectionEnd = cursorPos + 4;
+                                    }, 0);
+                                }
+                            }}
+                            maxLength={1600}
                             style={{
                                 width: "100%",
                                 padding: "12px",
@@ -2307,13 +2306,14 @@ const OficiosPage = (props) => {
                                 border: "1px solid #ddd",
                                 borderRadius: "8px",
                                 fontSize: "16px",
-                                minHeight: "100px",  // Ajuste a altura mínima para acomodar múltiplas linhas
-                                overflowY: "auto",  // Adiciona barra de rolagem se o texto for muito longo
+                                minHeight: "100px",
+                                overflowY: "auto",
                                 boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                                whiteSpace: "pre-wrap",  // Mantém as quebras de linha
-                                wordWrap: "break-word",  // Quebra as palavras longas
+                                whiteSpace: "pre-wrap",
+                                wordWrap: "break-word",
                             }}
                         />
+
 
                         
                             {/* Campo de texto editável 1 - com limite de 1020 caracteres */}
@@ -2339,14 +2339,35 @@ const OficiosPage = (props) => {
                         ></div>
 
                         {/* Campo de assunto2 */}
+                        {/* Campo de texto editável 2 - com limite de 1600 caracteres */}
                         <textarea
-                            placeholder="Texto do Ofcio Timbrado"
-                            value={textParts.part2}  // O valor agora é igual a textParts.part1
+                            placeholder="Texto do Ofício"
+                            value={textParts.part2}
                             onChange={(e) => {
-                                // Atualiza textParts.part1 com o novo valor
-                                setTextParts({ ...textParts, part2: e.target.value });
-                            }}  // Atualiza textParts.part1 ao digitar
-                        
+                                const newValue = e.target.value;
+                                const lineCount = (newValue.match(/\n/g) || []).length; // Conta linhas
+
+                                if (lineCount <= 19) {
+                                    setTextParts({ ...textParts, part2: newValue });
+                                }
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Tab") {
+                                    e.preventDefault(); // Impede o foco para outro campo
+                                    const cursorPos = e.target.selectionStart; // Posição atual do cursor
+
+                                    // Adiciona quatro espaços no ponto do cursor
+                                    const newValue =
+                                        textParts.part2.substring(0, cursorPos) + "    " + textParts.part2.substring(cursorPos);
+
+                                    setTextParts({ ...textParts, part2: newValue }); // Atualiza o estado com os novos dados
+
+                                    // Reposiciona o cursor após os espaços
+                                    setTimeout(() => {
+                                        e.target.selectionStart = e.target.selectionEnd = cursorPos + 4; // Nova posição após os 4 espaços
+                                    }, 0);
+                                }
+                            }}
                             style={{
                                 width: "100%",
                                 padding: "12px",
@@ -2354,50 +2375,17 @@ const OficiosPage = (props) => {
                                 border: "1px solid #ddd",
                                 borderRadius: "8px",
                                 fontSize: "16px",
-                                minHeight: "100px",  // Ajuste a altura mínima para acomodar múltiplas linhas
-                                overflowY: "auto",  // Adiciona barra de rolagem se o texto for muito longo
+                                minHeight: "100px",
+                                overflowY: "auto",
                                 boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                                whiteSpace: "pre-wrap",  // Mantém as quebras de linha
-                                wordWrap: "break-word",  // Quebra as palavras longas
-                            }}
-                        />
-                        {/* Campo de texto editável 2 - sem limite */}
-                        <div
-                            ref={contentEditableRef}
-                            contentEditable="true"
-                            dir="ltr"
-                            onInput={handleInputPart2} // Atualiza part2 sem limite
-                            onKeyDown={(e) => {
-                                if (e.key === "Tab") {
-                                    e.preventDefault();
-                                    const selection = window.getSelection();
-                                    const range = selection.getRangeAt(0);
-
-                                    const tabNode = document.createTextNode("\u00A0\u00A0\u00A0\u00A0");
-                                    range.insertNode(tabNode);
-
-                                    range.setStartAfter(tabNode);
-                                    range.setEndAfter(tabNode);
-                                    selection.removeAllRanges();
-                                    selection.addRange(range);
-                                }
-                            }}
-                            style={{
                                 whiteSpace: "pre-wrap",
                                 wordWrap: "break-word",
-                                backgroundColor: "white",
-                                border: "1px solid #ddd",
-                                borderRadius: "8px",
-                                padding: "12px",
-                                minHeight: "200px",
-                                overflowY: "auto",
-                                fontSize: "16px",
-                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                                direction: "ltr", 
-                                display: "none",
                             }}
-                            dangerouslySetInnerHTML={{ __html: textParts.part2 }} // Exibe a parte 2 sem limite
-                        ></div>
+                        />
+
+
+
+
                         <label style={styles.fileInputLabel}>
                             <FaPaperclip /> Anexos
                             <input
@@ -2405,20 +2393,18 @@ const OficiosPage = (props) => {
                                 multiple
                                 onChange={(e) => {
                                     const files = Array.from(e.target.files);
-                                    const fileNames = files.map(file => file.name).join(", ");
+                                    const fileNames = files.map(file => file.name).join("</br> ");
                                     setAnexostext(prevText => prevText ? `${prevText}, ${fileNames}` : fileNames);
                                 }}
                                 style={styles.fileInput}
                             />
                         </label>
 
-                        <input
-                            type="text"
-                            placeholder="Anexos"
-                            value={anexostext}
-                            onChange={(e) => setAnexostext(e.target.value)}
+                        {/* Exibindo o texto com a quebra de linha corretamente renderizada */}
+                        <div
                             style={{
-                                width: "100%",
+                                whiteSpace: 'pre-wrap',  // Faz com quebras de linha apareçam corretamente no texto
+                                wordWrap: 'break-word',
                                 padding: "12px",
                                 margin: "10px 0",
                                 border: "1px solid #ddd",
@@ -2426,6 +2412,7 @@ const OficiosPage = (props) => {
                                 fontSize: "16px",
                                 boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                             }}
+                            dangerouslySetInnerHTML={{ __html: anexostext }} // Exibe o texto com <br />
                         />
             
                 {/* Botão de alternar entre pré-visualização e edição */}

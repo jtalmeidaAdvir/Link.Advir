@@ -97,7 +97,7 @@ router.post("/Criar", async (req, res) => {
         }
 
         // Extraindo os parâmetros do corpo da requisição
-        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra, donoObra, Morada, Localidade, CodPostal, CodPostalLocal, anexos, texto4, texto5 } = req.body;
+        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra, donoObra, Morada, Localidade, CodPostal, CodPostalLocal, anexos, texto4, texto5, estado } = req.body;
 
         // Construindo a URL da API
         const apiUrl = `http://${urlempresa}/WebApi/Word/Criar`;
@@ -124,6 +124,7 @@ router.post("/Criar", async (req, res) => {
             anexos,
             texto4,
             texto5,
+            estado,
         };
         console.log('Dados a serem enviados:', requestData);
 

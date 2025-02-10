@@ -293,14 +293,8 @@ const EditOficio = (props) => {
             console.error("Erro ao gerar os PDFs:", error);
             alert("Erro ao gerar os PDFs. Verifique o console para mais detalhes.");
         }
+
     };
-
-
-
-
-
-
-
 
 
 
@@ -431,14 +425,12 @@ const EditOficio = (props) => {
     // 9) Enviar Email com Office API (usando dados do modal)
     // ======================================
     const handleSendEmailWithOfficeAPI = async () => {
-        console.log(pageCount);
+
         const containers = [docxContainer.current, docxContainer2.current]; // Lista de contêineres para as páginas
 
         if (!containers[0]) {
-            alert("Erro: não foi possível encontrar o conteúdo para gerar o PDF.");
             return;
         }
-
         try {
             // Geração do primeiro PDF (apenas para o primeiro container)
             const pdf1 = new jsPDF("portrait", "mm", "a4");
@@ -454,7 +446,7 @@ const EditOficio = (props) => {
                 scrollY: 0,
             });
 
-            const imgData1 = canvas1.toDataURL("image/jpeg", 0.5);
+            const imgData1 = canvas1.toDataURL("image/jpeg", 0.1);
             const imgHeight1 = (canvas1.height * pdfWidth) / canvas1.width;
 
             // Adiciona a imagem no primeiro PDF
@@ -472,41 +464,6 @@ const EditOficio = (props) => {
             // Geração do segundo PDF (com várias páginas do segundo container)
             const pdf2 = new jsPDF("portrait", "mm", "a4");
             const container2 = containers[1];
-
-            // Captura o conteúdo do segundo container
-            const canvas2 = await html2canvas(container2, {
-                scale: 2,
-                useCORS: true,
-                logging: true,
-                scrollX: 0,
-                scrollY: 0,
-            });
-
-            const imgData2 = canvas2.toDataURL("image/jpeg", 0.5);
-            const imgHeight2 = (canvas2.height * pdfWidth) / canvas2.width;
-
-            let currentHeight = 0; // Altura inicial para adicionar imagem
-
-            // Adiciona páginas até o conteúdo ser totalmente coberto
-            while (currentHeight < canvas2.height) {
-                const pageHeight = pdfHeight; // Altura de uma página A4
-                if (currentHeight > 0) {
-                    pdf2.addPage(); // Adiciona uma nova página se não for a primeira
-                }
-
-                // Adiciona a imagem no PDF, ajustando a posição Y
-                pdf2.addImage(imgData2, "JPEG", 0, -currentHeight, pdfWidth, imgHeight2, undefined, "FAST");
-                currentHeight += pdfHeight; // Atualiza a altura para a próxima página
-            }
-
-            const pdf2Blob = pdf2.output("blob");
-            const pdf2Base64 = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result.split(",")[1]);
-                reader.onerror = (error) => reject(error);
-                reader.readAsDataURL(pdf2Blob);
-            });
-
             // Converter anexos adicionais
             const processedAnexos = await Promise.all(
                 anexos.map((file) =>
@@ -521,27 +478,76 @@ const EditOficio = (props) => {
                     })
                 )
             );
+            if (container2) {
+                const canvas2 = await html2canvas(container2, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: true,
+                    scrollX: 0,
+                    scrollY: 0,
+                });
+
+                const imgData2 = canvas2.toDataURL("image/jpeg", 0.1);
+                const imgHeight2 = (canvas2.height * pdfWidth) / canvas2.width;
+
+                let yPosition = 0;
+                let remainingHeight = imgHeight2;
+
+                for (var i = 0; i < pageCount2; i++) {
+                    if (yPosition > 0) {
+                        pdf2.addPage(); // Adiciona nova página depois da primeira
+                    }
+
+                    pdf2.addImage(
+                        imgData2,
+                        "JPEG",
+                        0,
+                        -yPosition, // Ajusta a posição Y para cada página
+                        pdfWidth,
+                        imgHeight2,
+                        undefined,
+                        "FAST"
+                    );
+
+                    yPosition += pdfHeight;
+                    remainingHeight -= pdfHeight;
+                }
+
+
+
+                const pdf2Blob = pdf2.output("blob");
+                const pdf2Base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(",")[1]);
+                    reader.onerror = (error) => reject(error);
+                    reader.readAsDataURL(pdf2Blob);
+                });
+                processedAnexos.push({
+                    name: "oficio_segundo_container.pdf",
+                    content: pdf2Base64,
+                });
+            }
+
 
             // Adicionar os dois PDFs gerados à lista de anexos
             processedAnexos.push({
                 name: "oficio_primeiro_container.pdf",
                 content: pdf1Base64,
             });
-            processedAnexos.push({
-                name: "oficio_segundo_container.pdf",
-                content: pdf2Base64,
-            });
+
+
+
+            const formattedEmailTexto = emailTexto.replace(/\n/g, "<br />");
 
             // Montar payload com os dados do modal
             const payload = {
-                emailDestinatario: emailTo,
+                emailDestinatario: EmailUP,
                 emailCC: emailCC,
                 assunto: emailAssunto,
-                texto: emailTexto,
-                remetente: formData.remetente, // ou outro valor fixo, se necessário
+                texto: formattedEmailTexto,
+                remetente: formData.remetente,
                 anexos: processedAnexos,
             };
-
             // Enviar para o backend
             const response = await fetch("https://webapiprimavera.advir.pt/sendmailoficios", {
                 method: "POST",
@@ -552,15 +558,17 @@ const EditOficio = (props) => {
             });
 
             if (response.ok) {
-            
+                console.log("E-mail enviado com sucesso!");
             } else {
                 const errorData = await response.json();
                 console.error("Erro ao enviar email:", errorData);
-                alert("Erro ao enviar email.");
             }
+
+
         } catch (error) {
             console.error("Erro ao gerar ou enviar o PDF com anexos:", error);
-            alert("Erro ao processar o PDF ou anexos.");
+          
+          
         } finally {
             setIsModalOpen(false);
         }
@@ -843,12 +851,17 @@ const EditOficio = (props) => {
 </tr>
 <tr>
 <td></td>
+
 <td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
-        EXMO(s) SR(s) ${NomeDestinatario || ''}<br>
-        ${Morada || ""}<br>
-        ${Localidade || ""}<br>
-        ${CodPostal || ""} ${CodPostalLocal || ""}
+    <span style="font-size: 11px;">EXMO(s) SR(s)<br></span>
+    <span style="font-size: 9px;">${NomeDestinatario || ''}<br></span>
+    <span style="font-size: 9px;">${Morada || ""}<br></span>
+    <span style="font-size: 9px;">${Localidade || ""}<br></span>
+    <span style="font-size: 9px;">${CodPostal || ""} ${CodPostalLocal || ""}</span>
 </td>
+
+
+
 </tr>
 <tr>
 <td  >
@@ -870,55 +883,68 @@ const EditOficio = (props) => {
 </td>
 </tr>
 <tr>
-<td style="
-    width: 28%; 
-    font-size: 6pt;
-    font-family: 'TitilliumText22L', sans-serif; 
-    color: black;
-    text-align: left;
-    font-weight: bold; 
-  "  contentEditable="false" id="editableCellCodigo" >
-        REF: ${codigo}<br>
-        DATA: ${formData.data}<br>
-        ANEXOS: ${AnexosUP || "Nenhum anexo"}<br><br><br><br><br>
-        REMETENTE<br><br>
-        ${usernome || 'Remetente não disponível'}<br>
-        ${useremail || 'Email não existe'}<br><br><br><br><br>
 
-                <strong>JPA - CONSTRUTORA</strong><br>
-        <span style="color: #999;">Rua de Longras, nº 44</span><br>
-<span style="color: #999;">4730-360 Pedregais,</span><br>
-<span style="color: #999;">Vila Verde - Portugal</span><br><br>
+<td style="width: 28%; font-size: 6pt; font-family: 'TitilliumText22L', sans-serif; color: black; text-align: left; font-weight: bold;" contentEditable="false" id="editableCellCodigo">
+  REF: ${codigo}<br>
+  DATA: ${formData.data}<br>
+  ANEXOS: </br>${AnexosUP || ""}<br><br><br><br><br>
+  REMETENTE<br><br>
 
-<span style="color: #999;">www.jpaconstrutora.com</span><br>
-<span style="color: #999;">geral@jpaconstrutora.com</span><br>
-<span style="color: #999;">t. (+351) 253 38 13 10</span><br>
-<span style="color: #999;">f. (+351) 253 38 22 44</span><br>
+  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+    ${usernome || 'Remetente não disponível'}
+  </span><br>
+
+  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+    ${useremail || 'Email não existe'}
+  </span><br><br><br><br><br>
+
+  <strong>JPA - CONSTRUTORA</strong><br>
+  <span style="color: #999;">Rua de Longras, nº 44</span><br>
+  <span style="color: #999;">4730-360 Pedregais,</span><br>
+  <span style="color: #999;">Vila Verde - Portugal</span><br><br>
+
+  <span style="color: #999;">www.jpaconstrutora.com</span><br>
+  <span style="color: #999;">geral@jpaconstrutora.com</span><br>
+  <span style="color: #999;">t. (+351) 253 38 13 10</span><br>
+  <span style="color: #999;">f. (+351) 253 38 22 44</span><br>
 </td>
+
 <td style="vertical-align: top;">
-<div
-          contentEditable="false"
-          id="editableCellAssunto"
-          oninput="window.updateTexto(this.innerText)"
-          style="width: 100%; min-height: 565px;; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
->
-            <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
-          ASSUNTO: ${assunto}</span><br><br>
-          <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
-          Exmo. Senhores,<br><br>
-          </span><br><br>
-          ${textopart1 || ""}
-</div>
+  <div
+    contentEditable="false"
+    id="editableCellAssunto"
+    oninput="window.updateTexto(this.innerText)"
+    style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
+  >
+    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
+      ASSUNTO:  ${assunto}
+    </span><br><br>
+    <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
+      EXMO(s) SR(s) 
+    </span><br><br>
+    ${textopart1.replace(/\n/g, "<br>").replace(/ /g, "&nbsp;")}
+<br><br>
+
+    <span>
+      Sem outro assunto,
+    </span><br>
+    Com os melhores cumprimentos,<br>
+    De V/Exas.<br>
+    Atentamente<br>
+    <span contentEditable="true">
+      ${usernome}
+    </span>
+  </div>
 </td>
+
+
+
 </tr>
 <tr>
 <td>
 </td>
-<td contentEditable="true" >
-        Sem outro assunto,<br>
-        Com os melhores cumprimentos,<br>
-        De V/Exas.<br>
-        Atentamente
+<td  >
+
 </td>
 </tr>
 <tr>
@@ -1028,7 +1054,7 @@ const EditOficio = (props) => {
       <table style="width:100%; border:0px solid #ccc;height: 100%;">
         <tr>
           <td class="logo" colspan="2">
-          
+          <img src="${logo}" alt="Logo JPA Construtora" />
           </td>
         </tr>
         <tr>
@@ -1045,11 +1071,15 @@ const EditOficio = (props) => {
         </td>
         </tr>
         <tr>
-        <td style="padding-left:300px; padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
+
+
+          <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
         ${isFirstPage ? `
-              EXMO(s) SR(s) ${NomeDestinatario}<br>` : ""}
+              EXMO(s) SR(s)${NomeDestinatario}<br>` : ""}
             
           </td>
+
+
         </tr>
         <tr>
         
@@ -1060,13 +1090,13 @@ const EditOficio = (props) => {
     oninput="window.updateTexto(this.innerText)"
     style="
       width: 100%;
-      min-height: 874px;
+      min-height: 764px;
       max-height: 600px;
       overflow: auto;
     "
   >
-            ${isFirstPage ? `
-            <span
+    ${isFirstPage ? `
+      <span 
         style="
           font-family: 'TitilliumText22L', sans-serif;
           font-size: 8pt;
@@ -1079,8 +1109,10 @@ const EditOficio = (props) => {
           display: block;
         "
       >
-              ASSUNTO: ${assunto}
-              </span><br><br><span
+        ASSUNTO: ${NomeDestinatario} - ${assunto}
+      </span>
+      <br><br>
+      <span
         style="
           font-family: 'TitilliumText22L', sans-serif;
           font-size: 9pt;
@@ -1093,11 +1125,13 @@ const EditOficio = (props) => {
           display: block;
         "
       >
-              Exmo. Senhores,</span><br><br>` : ""}
+        Exmo(s) Senhores,
+      </span>
+      <br><br>` : ""}
+       ${content.replace(/\n/g, "<br>")}
 
-              ${content}
-            </div>
-          </td>
+  </div>
+</td>
         </tr>
         <tr>
 <td class="PMEPreto">
@@ -1190,11 +1224,12 @@ const EditOficio = (props) => {
 </tr>
 <tr>
 <td></td>
-<td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
-        EXMO(s) SR(s) ${NomeDestinatario || ''}<br>
-        ${Morada || ""}<br>
-        ${Localidade || ""}<br>
-        ${CodPostal || ""} ${CodPostalLocal || ""}
+<td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
+    <span style="font-size: 11px;">EXMO(s) SR(s)<br></span>
+    <span style="font-size: 9px;">${NomeDestinatario || ''}<br></span>
+    <span style="font-size: 9px;">${Morada || ""}<br></span>
+    <span style="font-size: 9px;">${Localidade || ""}<br></span>
+    <span style="font-size: 9px;">${CodPostal || ""} ${CodPostalLocal || ""}</span>
 </td>
 
 </tr>
@@ -1219,61 +1254,67 @@ const EditOficio = (props) => {
 </td>
 </tr>
 <tr>
-<td style="
-    width: 28%; 
-    font-size: 6pt;
-    font-family: 'TitilliumText22L', sans-serif; 
-    color: black;
-    text-align: left;
-    font-weight: bold; 
-  "  contentEditable="false" id="editableCellCodigo" >
-        REF: ${codigo}<br>
-        DATA: ${formData.data}<br>
-        ANEXOS: ${AnexosUP || "Nenhum anexo"}<br><br><br><br><br>
-        REMETENTE<br><br>
-        ${usernome || 'Remetente não disponível'}<br>
-        ${useremail || 'Email não existe'}<br><br><br><br><br>
+<td style="width: 28%; font-size: 6pt; font-family: 'TitilliumText22L', sans-serif; color: black; text-align: left; font-weight: bold;" contentEditable="false" id="editableCellCodigo">
+  REF: ${codigo}<br>
+  DATA: ${formData.data}<br>
+  ANEXOS: </br>${AnexosUP || ""}<br><br><br><br><br>
+  REMETENTE<br><br>
 
+  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+    ${usernome || 'Remetente não disponível'}
+  </span><br>
 
-        <div style="visibility: hidden;">
-    <strong>JPA - CONSTRUTORA</strong><br>
-    <span style="color: #999;">Rua de Longras, nº 44</span><br>
-    <span style="color: #999;">4730-360 Pedregais,</span><br>
-    <span style="color: #999;">Vila Verde - Portugal</span><br><br>
+  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+    ${useremail || 'Email não existe'}
+  </span><br><br><br><br><br>
 
-    <span style="color: #999;">www.jpaconstrutora.com</span><br>
-    <span style="color: #999;">geral@jpaconstrutora.com</span><br>
-    <span style="color: #999;">t. (+351) 253 38 13 10</span><br>
-    <span style="color: #999;">f. (+351) 253 38 22 44</span><br>
-</div>
+  <strong>JPA - CONSTRUTORA</strong><br>
+  <span style="color: #999;">Rua de Longras, nº 44</span><br>
+  <span style="color: #999;">4730-360 Pedregais,</span><br>
+  <span style="color: #999;">Vila Verde - Portugal</span><br><br>
+
+  <span style="color: #999;">www.jpaconstrutora.com</span><br>
+  <span style="color: #999;">geral@jpaconstrutora.com</span><br>
+  <span style="color: #999;">t. (+351) 253 38 13 10</span><br>
+  <span style="color: #999;">f. (+351) 253 38 22 44</span><br>
+</td>
 
 
 <td style="vertical-align: top;">
-<div
-          contentEditable="false"
-          id="editableCellAssunto"
-          oninput="window.updateTexto(this.innerText)"
-          style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
->
-          <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
-              ASSUNTO:  ${assunto}
-          </span><br><br>
-          <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
-              EXMO(s) SR(s) 
-          </span><br><br>
-          ${textopart1 || ""}
-</div>
+  <div
+    contentEditable="false"
+    id="editableCellAssunto"
+    oninput="window.updateTexto(this.innerText)"
+    style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
+  >
+    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
+      ASSUNTO:  ${assunto}
+    </span><br><br>
+    <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
+      EXMO(s) SR(s) 
+    </span><br><br>
+    ${textopart1.replace(/\n/g, "<br>").replace(/ /g, "&nbsp;")}
+<br><br>
+
+    <span>
+      Sem outro assunto,
+    </span><br>
+    Com os melhores cumprimentos,<br>
+    De V/Exas.<br>
+    Atentamente<br>
+    <span contentEditable="true">
+      ${usernome}
+    </span>
+  </div>
 </td>
+
 
 </tr>
 <tr>
 <td>
 </td>
-<td style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 13px; color: black;" contentEditable="true">
-        Sem outro assunto,<br>
-        Com os melhores cumprimentos,<br>
-        De V/Exas.<br>
-        Atentamente
+<td >
+
 </td>
 </tr>
 <tr>
@@ -1391,15 +1432,15 @@ const EditOficio = (props) => {
         <td colspan="2"></td>
         </tr>
         <tr>      
-        <td style="padding-left:300px; padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
+            <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
         ${isFirstPage ? `
-              EXMO(s) SR(s) ${NomeDestinatario}<br>` : ""}
+              EXMO(s) SR(s)${NomeDestinatario}<br>` : ""}
             
           </td>
         </tr>
         <tr>
         
-          <td colspan="2">
+         <td colspan="2">
   <div
     contentEditable="true"
     id="editableCellAssunto"
@@ -1425,7 +1466,7 @@ const EditOficio = (props) => {
           display: block;
         "
       >
-        ASSUNTO: ${assunto}
+        ASSUNTO: ${NomeDestinatario} - ${assunto}
       </span>
       <br><br>
       <span
@@ -1444,7 +1485,8 @@ const EditOficio = (props) => {
         Exmo(s) Senhores,
       </span>
       <br><br>` : ""}
-    ${content}
+       ${content.replace(/\n/g, "<br>")}
+
   </div>
 </td>
 
@@ -1490,16 +1532,7 @@ const EditOficio = (props) => {
         }
     }, [currentTemplate, donoObra, formData, textParts, assuntoDoc]);
 
-    // Função para gerar o PDF quando o conteúdo estiver pronto
-    const handleGeneratePDF = async () => {
-        // Verifique se o conteúdo foi atualizado antes de gerar o PDF
-        if (docxContainerUpdated.current) {
-            await handleSavePDF(); // Chama a função de gerar PDF
-            docxContainerUpdated.current = false; // Reseta para evitar a geração do PDF de novo sem mudança
-        } else {
-            console.log('Conteúdo ainda não foi atualizado!');
-        }
-    };
+
 
     // ======================================
     // 18) Filtro de obras (comboBox)

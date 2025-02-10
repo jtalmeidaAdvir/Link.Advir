@@ -26,6 +26,24 @@ const ConfirmModal = ({ visible, onCancel, onConfirm, codigo }) => (
     </Modal>
 );
 
+const groupByObra = (oficios) => {
+    const grouped = oficios.reduce((acc, oficio) => {
+        const obra = oficio.CDU_DonoObra || "Sem Obra";
+        if (!acc[obra]) {
+            acc[obra] = [];
+        }
+        acc[obra].push(oficio);
+        return acc;
+    }, {});
+
+    // Retorna a lista agrupada por 'Dono da Obra'
+    return Object.keys(grouped).map((obra) => ({
+        title: obra,
+        data: grouped[obra],
+        expanded: false // Definir o estado expandido para falso inicialmente
+    }));
+};
+
 
 
 const OficiosList = () => {
@@ -35,9 +53,9 @@ const OficiosList = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-     // Estado para o modal
-     const [modalVisible, setModalVisible] = useState(false);
-     const [selectedOficio, setSelectedOficio] = useState(null);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [selectedOficio, setSelectedOficio] = useState(null);
+    const [groupedOficios, setGroupedOficios] = useState([]);
 
     useFocusEffect(
         useCallback(() => {
@@ -51,16 +69,16 @@ const OficiosList = () => {
                 setLoading(true);
                 setOficios([]);
                 setError(null);
-            
+
                 const token = localStorage.getItem('painelAdminToken');
                 const urlempresa = localStorage.getItem('urlempresa');
-            
+
                 if (!urlempresa) {
                     setError('URL da empresa não encontrada.');
                     setLoading(false);
                     return;
                 }
-            
+
                 try {
                     const response = await fetch('https://webapiprimavera.advir.pt/oficio/Listar', {
                         method: 'GET',
@@ -70,24 +88,24 @@ const OficiosList = () => {
                             'Content-Type': 'application/json',
                         },
                     });
-            
+
                     if (!response.ok) {
                         throw new Error(`Error: ${response.statusText}`);
                     }
-            
+
                     const data = await response.json();
                     if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
-                        // Ordenar com base no número dentro do código
                         const sortedOficios = data.DataSet.Table.sort((a, b) => {
-                            // Extrai os números do código
                             const numA = parseInt(a.CDU_codigo.match(/\d+/g)[0], 10);
                             const numB = parseInt(b.CDU_codigo.match(/\d+/g)[0], 10);
-            
-                            // Ordenação decrescente (mais recente primeiro)
                             return numB - numA;
                         });
-            
-                        setOficios(sortedOficios);
+
+                        setOficios(sortedOficios); 
+
+
+                        const grouped = groupByObra(sortedOficios);  // Agrupa os ofícios por 'CDU_DonoObra'
+                        setGroupedOficios(grouped); // Atualiza a lista agrupada
                     } else {
                         setOficios([]);
                         setError('Dados não encontrados ou estrutura inesperada');
@@ -99,25 +117,67 @@ const OficiosList = () => {
                     setLoading(false);
                 }
             };
-            
-            
-            
 
             fetchOficios();
-        }, []) // Assegure-se de passar um array vazio para evitar redefinir em loops desnecessários
+        }, [])
     );
 
 
-    const filteredOficios = oficios.filter((oficio) => {
-        const query = searchQuery.toLowerCase().trim(); // Remover espaços extras
- 
-        return ['CDU_codigo', 'CDU_assunto', 'CDU_remetente'].some((key) =>
-            oficio[key] && oficio[key].toLowerCase().includes(query)
-        );
-    });
+    const groupAndFilterOficios = () => {
+        let filteredOficios = oficios;
+
+        // Aplica o filtro de pesquisa pelo "CDU_DonoObra"
+        if (searchQuery) {
+            filteredOficios = oficios.filter((oficio) =>
+                oficio.CDU_DonoObra.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
+
+        // Agrupar os ofícios por "CDU_DonoObra"
+        const grouped = groupByObra(filteredOficios);
+        setGroupedOficios(grouped);  // Atualiza a lista agrupada
+    };
+
+    useEffect(() => {
+        // Quando a pesquisa for alterada, chama a função para filtrar e agrupar os ofícios
+        groupAndFilterOficios();
+    }, [searchQuery, oficios]);
+
+    const toggleGroupExpand = (index) => {
+        setGroupedOficios(prevState => {
+            const newState = [...prevState];
+            newState[index].expanded = !newState[index].expanded;
+            return newState;
+        });
+    };
+
+    const renderGroup = ({ item, index }) => (
+        <View>
+            <TouchableOpacity
+                onPress={() => toggleGroupExpand(index)}
+                style={styles.groupHeader}
+            >
+                <Text style={styles.groupTitle}>{item.title}</Text>
+            
+            </TouchableOpacity>
+
+            {item.expanded && (
+                <FlatList
+                    data={item.data}
+                    renderItem={renderOficio}
+                    keyExtractor={(oficio) => oficio.CDU_codigo.toString()}
+                />
+            )}
+        </View>
+    );
+
+
+
     const renderOficio = ({ item }) => {
         const isInactive = item.CDU_isactive === false;
-    
+        const isEmailSent = item.CDU_estado === "Enviado Por Email";
+        const isPrinted = item.CDU_estado === "Imprimido";
+
         return (
             <View style={[styles.itemContainer, isInactive && styles.inactiveContainer]}>
                 <View style={styles.textContainer}>
@@ -126,22 +186,30 @@ const OficiosList = () => {
                         <Icon name="hash" size={16} color="#007bff" style={styles.icon} />
                         <Text style={[styles.title, isInactive && styles.inactiveText]}>{item.CDU_codigo}</Text>
                     </View>
-    
+
                     {/* Ícone e assunto do ofício */}
                     <View style={styles.row}>
                         <Icon name="file-text" size={16} color="#007bff" style={styles.icon} />
                         <Text style={[styles.description, isInactive && styles.inactiveText]}>{item.CDU_assunto}</Text>
                     </View>
-    
+
                     {/* Ícone e remetente do ofício */}
                     <View style={styles.row}>
                         <Icon name="user" size={16} color="#007bff" style={styles.icon} />
                         <Text style={[styles.description, isInactive && styles.inactiveText]}>{item.CDU_remetente}</Text>
                     </View>
+
+                    {/* Estado do ofício */}
+                    <View style={styles.row}>
+                        <Icon name="check-circle" size={16} color={isEmailSent ? "green" : isPrinted ? "red" : "gray"} style={styles.icon} />
+                        <Text style={[styles.statusText, isEmailSent && styles.emailSentText, isPrinted && styles.printedText]}>
+                            {item.CDU_estado}
+                        </Text>
+                    </View>
                 </View>
-    
+
                 {/* Botões apenas se ativo */}
-                {!isInactive && (
+                {!isInactive && !isEmailSent && (
                     <>
                         <TouchableOpacity
                             style={styles.editButton}
@@ -149,7 +217,7 @@ const OficiosList = () => {
                         >
                             <Icon name="edit" size={20} color="#fff" style={styles.editIcon} />
                         </TouchableOpacity>
-    
+
                         <TouchableOpacity
                             style={styles.deleteButton}
                             onPress={() => {
@@ -164,68 +232,7 @@ const OficiosList = () => {
             </View>
         );
     };
-    
-    
-    // Usando o useFocusEffect para recarregar os dados quando a tela for focada
-    useFocusEffect(
-        useCallback(() => {
-            fetchOficios();
-        }, []) // Recarrega os dados sempre que a tela for trazida de volta
-    );
-    // Função para buscar os dados
-    const fetchOficios = async () => {
-        setLoading(true);
-        setOficios([]);
-        setError(null);
-    
-        const token = localStorage.getItem('painelAdminToken');
-        const urlempresa = localStorage.getItem('urlempresa');
-    
-        if (!urlempresa) {
-            setError('URL da empresa não encontrada.');
-            setLoading(false);
-            return;
-        }
-    
-        try {
-            const response = await fetch('https://webapiprimavera.advir.pt/oficio/Listar', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'urlempresa': urlempresa,
-                    'Content-Type': 'application/json',
-                },
-            });
-    
-            if (!response.ok) {
-                throw new Error(`Error: ${response.statusText}`);
-            }
-    
-            const data = await response.json();
-            if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
-                // Ordenar com base no número dentro do código
-                const sortedOficios = data.DataSet.Table.sort((a, b) => {
-                    // Extrai os números do código
-                    const numA = parseInt(a.CDU_codigo.match(/\d+/g)[0], 10);
-                    const numB = parseInt(b.CDU_codigo.match(/\d+/g)[0], 10);
-    
-                    // Ordenação decrescente (mais recente primeiro)
-                    return numB - numA;
-                });
-    
-                setOficios(sortedOficios);
-            } else {
-                setOficios([]);
-                setError('Dados não encontrados ou estrutura inesperada');
-            }
-        } catch (error) {
-            setError('Erro ao carregar os dados');
-            setOficios([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-    
+
     return (
         <View style={styles.container}>
             <TextInput
@@ -234,7 +241,6 @@ const OficiosList = () => {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
             />
-            
 
             {loading ? (
                 <Text>A carregar...</Text>
@@ -242,14 +248,10 @@ const OficiosList = () => {
                 <Text>{error}</Text>
             ) : (
                 <FlatList
-                    data={filteredOficios}
-                    renderItem={renderOficio}
-                    keyExtractor={(item) => item.CDU_codigo.toString()}
-                    getItemLayout={(data, index) => (
-                        { length: 80, offset: 80 * index, index } // Define uma altura fixa de 80px por item
-                    )}
+                    data={groupedOficios}
+                    renderItem={renderGroup}
+                    keyExtractor={(item, index) => index.toString()}
                 />
-
             )}
 
             <TouchableOpacity
@@ -258,21 +260,22 @@ const OficiosList = () => {
             >
                 <Text style={styles.buttonText}>Criar Novo Ofício</Text>
             </TouchableOpacity>
+
             {/* Modal de confirmação */}
             <ConfirmModal
                 visible={modalVisible}
                 codigo={selectedOficio}
-                onCancel={() => setModalVisible(false)} // Fecha o modal
+                onCancel={() => setModalVisible(false)}
                 onConfirm={async () => {
                     console.log('Código do ofício a eliminar:', selectedOficio);
                     const token = localStorage.getItem('painelAdminToken');
                     const urlempresa = localStorage.getItem('urlempresa');
-                
+
                     if (!urlempresa) {
                         alert('URL da empresa não encontrada.');
                         return;
                     }
-                
+
                     try {
                         const response = await fetch(`https://webapiprimavera.advir.pt/oficio/Eliminar/${selectedOficio}`, {
                             method: 'GET',
@@ -282,31 +285,57 @@ const OficiosList = () => {
                                 'Content-Type': 'application/json',
                             },
                         });
-                    
-                        const responseText = await response.text(); // Obtém a resposta como texto
+
+                        const responseText = await response.text();
                         console.log('Resposta do servidor:', responseText);
-                    
+
                         if (!response.ok) {
                             throw new Error(`Erro ao eliminar o ofício: ${response.statusText}`);
                         }
-                    
-                        const responseData = JSON.parse(responseText); // Converte em JSON, se possível
+
+                        const responseData = JSON.parse(responseText);
                         alert(`Ofício ${selectedOficio} eliminado com sucesso.`);
                         setModalVisible(false);
-                        fetchOficios(); // Atualiza a lista
+                        fetchOficios();
                     } catch (error) {
                         console.error('Erro na requisição:', error.message);
                         alert(`Erro ao eliminar o ofício: ${error.message}`);
                     }
-                    
                 }}
-                
             />
         </View>
     );
 };
 
+
 const styles = StyleSheet.create({
+    groupContainer: {
+        marginBottom: 20,
+    },
+    groupTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        backgroundColor: '#f1f1f1',
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 10,
+    },
+    // ... outros estilos
+    emailSentContainer: {
+        backgroundColor: "#d4f8d4", // Verde claro para ofícios enviados por email
+    },
+    emailSentText: {
+        color: "green", // Verde escuro para destacar
+        fontWeight: "bold",
+    },
+    printedText: {
+        color: "red", // Vermelho para indicar que foi impresso
+        fontWeight: "bold",
+    },
+    statusText: {
+        fontSize: 14,
+        marginLeft: 8,
+    },
     container: {
         flex: 1,
         padding: 16,

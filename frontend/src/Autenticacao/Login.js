@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { View, TouchableOpacity, Text, Image } from 'react-native';
+import { View, TouchableOpacity, Text, Image, StyleSheet, ImageBackground } from 'react-native';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
 import logo from '../../assets/img_logo.png';
+
+
 
 const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {  // Adicione setIsLoggedIn como prop
     const [username, setLocalUsername] = useState('');
@@ -80,6 +82,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
     };
 
     return (
+
         <div
             style={{
                 display: 'flex',
@@ -167,7 +170,9 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 </form>
             </div>
         </div>
+
     );
 };
+
 
 export default Login;

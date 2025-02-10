@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
-import { View, Image, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Image, Text, ActivityIndicator, TouchableOpacity, ImageBackground, StyleSheet } from 'react-native';
 import { List } from 'react-native-paper';
 import { FaHome, FaUser, FaTool, FaClock, FaBriefcase, FaSignOutAlt, FaCog } from 'react-icons/fa';
 import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native'; // Importa o hook
+import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
+
 
  
  
@@ -486,8 +488,25 @@ const AppNavigator = () => {
  
 export default function App() {
     return (
-        <NavigationContainer linking={linking}>
-            <AppNavigator />
-        </NavigationContainer>
+        <NavigationContainer>
+      <ImageBackground source={backgroundPattern} style={styles.background}>
+        <View style={styles.overlay}>
+          <AppNavigator />
+        </View>
+      </ImageBackground>
+    </NavigationContainer>
     );
 }
+
+const styles = StyleSheet.create({
+    background: {
+        flex: 1,
+        width: "100%",
+        height: "100%",
+        justifyContent: "center", // Garante que o conteúdo está centrado
+      },
+      overlay: {
+        flex: 1,
+        backgroundColor: "rgba(255, 255, 255, 0.7)", // Ajusta a opacidade para suavizar o padrão
+      },
+});
