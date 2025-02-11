@@ -890,11 +890,11 @@ const EditOficio = (props) => {
   ANEXOS: </br>${AnexosUP || ""}<br><br><br><br><br>
   REMETENTE<br><br>
 
-  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+  <span contentEditable="true" >
     ${usernome || 'Remetente não disponível'}
   </span><br>
 
-  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+  <span contentEditable="true" >
     ${useremail || 'Email não existe'}
   </span><br><br><br><br><br>
 
@@ -914,7 +914,7 @@ const EditOficio = (props) => {
     contentEditable="false"
     id="editableCellAssunto"
     oninput="window.updateTexto(this.innerText)"
-    style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
+    style="width: 100%; min-height: 594px; max-height: 600px;max-width: 490px; overflow: auto; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
   >
     <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
       ASSUNTO:  ${assunto}
@@ -1154,10 +1154,6 @@ const EditOficio = (props) => {
 
 
 
-
-
-
-
     const getTemplate2 = () => {
         const usernome = formData.nome || localStorage.getItem("userNome") || 'Email não disponível';
         const useremail = formData.email || localStorage.getItem("userEmail") || 'Email não disponível';
@@ -1285,7 +1281,7 @@ const EditOficio = (props) => {
     contentEditable="false"
     id="editableCellAssunto"
     oninput="window.updateTexto(this.innerText)"
-    style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
+    style="width: 100%; min-height: 594px; max-height: 600px; max-width: 490px; overflow: auto;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
   >
     <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
       ASSUNTO:  ${assunto}

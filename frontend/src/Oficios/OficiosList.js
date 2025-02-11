@@ -65,63 +65,63 @@ const OficiosList = () => {
             setError(null);
             setLoading(true);
 
-            const fetchOficios = async () => {
-                setLoading(true);
-                setOficios([]);
-                setError(null);
-
-                const token = localStorage.getItem('painelAdminToken');
-                const urlempresa = localStorage.getItem('urlempresa');
-
-                if (!urlempresa) {
-                    setError('URL da empresa não encontrada.');
-                    setLoading(false);
-                    return;
-                }
-
-                try {
-                    const response = await fetch('https://webapiprimavera.advir.pt/oficio/Listar', {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'urlempresa': urlempresa,
-                            'Content-Type': 'application/json',
-                        },
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`Error: ${response.statusText}`);
-                    }
-
-                    const data = await response.json();
-                    if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
-                        const sortedOficios = data.DataSet.Table.sort((a, b) => {
-                            const numA = parseInt(a.CDU_codigo.match(/\d+/g)[0], 10);
-                            const numB = parseInt(b.CDU_codigo.match(/\d+/g)[0], 10);
-                            return numB - numA;
-                        });
-
-                        setOficios(sortedOficios); 
-
-
-                        const grouped = groupByObra(sortedOficios);  // Agrupa os ofícios por 'CDU_DonoObra'
-                        setGroupedOficios(grouped); // Atualiza a lista agrupada
-                    } else {
-                        setOficios([]);
-                        setError('Dados não encontrados ou estrutura inesperada');
-                    }
-                } catch (error) {
-                    setError('Erro ao carregar os dados');
-                    setOficios([]);
-                } finally {
-                    setLoading(false);
-                }
-            };
+            
 
             fetchOficios();
         }, [])
     );
+    const fetchOficios = async () => {
+        setLoading(true);
+        setOficios([]);
+        setError(null);
 
+        const token = localStorage.getItem('painelAdminToken');
+        const urlempresa = localStorage.getItem('urlempresa');
+
+        if (!urlempresa) {
+            setError('URL da empresa não encontrada.');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('https://webapiprimavera.advir.pt/oficio/Listar', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'urlempresa': urlempresa,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
+                const sortedOficios = data.DataSet.Table.sort((a, b) => {
+                    const numA = parseInt(a.CDU_codigo.match(/\d+/g)[0], 10);
+                    const numB = parseInt(b.CDU_codigo.match(/\d+/g)[0], 10);
+                    return numB - numA;
+                });
+
+                setOficios(sortedOficios);
+
+
+                const grouped = groupByObra(sortedOficios);  // Agrupa os ofícios por 'CDU_DonoObra'
+                setGroupedOficios(grouped); // Atualiza a lista agrupada
+            } else {
+                setOficios([]);
+                setError('Dados não encontrados ou estrutura inesperada');
+            }
+        } catch (error) {
+            setError('Erro ao carregar os dados');
+            setOficios([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const groupAndFilterOficios = () => {
         let filteredOficios = oficios;

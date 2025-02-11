@@ -51,7 +51,7 @@ const OficiosPage = (props) => {
 
 
     // Estado para guardar a divisão do texto (se exceder um limite)
-    const [textParts, setTextParts] = useState({ part1: "JOAQUIM PEIXOTO AZEVEDO, & FILHOS, LDA, com sede na Rua de Longras, n.º 44, 4730-360 Vila Verde, na qualidade de", part2: "" });
+    const [textParts, setTextParts] = useState({ part1: "JOAQUIM PEIXOTO AZEVEDO, & FILHOS, LDA, com sede na Rua de Longras, n.º 44, 4730 360 Vila Verde, na qualidade de", part2: "" });
 
     // formData para o documento (sem campos de email do modal)
     const [formData, setFormData] = useState({
@@ -1039,11 +1039,11 @@ const OficiosPage = (props) => {
   ANEXOS: </br>${anexostext || ""}<br><br><br><br><br>
   REMETENTE<br><br>
 
-  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+  <span contentEditable="true" >
     ${usernome || 'Remetente não disponível'}
   </span><br>
 
-  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+  <span contentEditable="true" >
     ${useremail || 'Email não existe'}
   </span><br><br><br><br><br>
 
@@ -1066,7 +1066,7 @@ const OficiosPage = (props) => {
     contentEditable="false"
     id="editableCellAssunto"
     oninput="window.updateTexto(this.innerText)"
-    style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
+    style="width: 100%; min-height: 594px; max-height: 600px; max-width: 490px; overflow: auto;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
   >
     <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
       ASSUNTO:  ${assuntoDoc}
@@ -1393,11 +1393,11 @@ const OficiosPage = (props) => {
   ANEXOS: </br>${anexostext || ""}<br><br><br><br><br>
   REMETENTE<br><br>
 
-  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+  <span contentEditable="true" >
     ${usernome || 'Remetente não disponível'}
   </span><br>
 
-  <span contentEditable="true" style="font-weight: normal; font-size: 6pt;">
+  <span contentEditable="true" >
     ${useremail || 'Email não existe'}
   </span><br><br><br><br><br>
 
@@ -1417,7 +1417,7 @@ const OficiosPage = (props) => {
     contentEditable="false"
     id="editableCellAssunto"
     oninput="window.updateTexto(this.innerText)"
-    style="width: 100%; min-height: 594px; max-height: 600px; overflow: auto; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
+    style="width: 100%; min-height: 594px; max-height: 600px; max-width: 490px; overflow: auto;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
   >
     <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
       ASSUNTO:  ${assuntoDoc}
@@ -1425,6 +1425,8 @@ const OficiosPage = (props) => {
     <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
       EXMO(s) SR(s) 
     </span><br><br>
+
+
     ${textParts.part1.replace(/\n/g, "<br>").replace(/ /g, "&nbsp;")}
 <br><br>
 
@@ -2270,7 +2272,7 @@ const OficiosPage = (props) => {
                 />
                         {/* Campo de assunto2 */}
                         <div style={{ fontSize: "14px", marginTop: "5px", color: "#555" }}>
-                            {textParts.part1.length} / 1600 caracteres | {textParts.part1.split("\n").length} / 19 linhas
+                            {textParts.part1.length} / 1120 caracteres | {textParts.part1.split("\n").length} / 19 linhas
                         </div>
                         <textarea
                             placeholder="Texto do Ofício"
@@ -2298,7 +2300,7 @@ const OficiosPage = (props) => {
                                     }, 0);
                                 }
                             }}
-                            maxLength={1600}
+                            maxLength={1120}
                             style={{
                                 width: "100%",
                                 padding: "12px",
