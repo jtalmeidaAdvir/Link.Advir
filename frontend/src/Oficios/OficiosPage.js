@@ -2621,6 +2621,7 @@ const styles = {
         cursor: "pointer",
         transition: "background-color 0.3s ease",
         boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+        margin: "0 !important",
     },
     docxContainer: {
         marginTop: "20px",
@@ -2687,7 +2688,7 @@ const styles = {
         borderRadius: "6px",
         cursor: "pointer",
         transition: "background-color 0.3s ease",
-        margin: "20px auto", display: "block"
+       
     },
     modalOverlay: {
         position: "fixed",
@@ -2711,9 +2712,10 @@ const styles = {
     },
     modalActions: {
         marginTop: "20px",
+        marginBottom:"50px",
         display: "flex",
         justifyContent: "center",
-        gap: "10px",
+        gap: "5px",
     },
     formContainer: {
         maxWidth: "600px",
