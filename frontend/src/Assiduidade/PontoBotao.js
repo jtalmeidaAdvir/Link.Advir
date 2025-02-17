@@ -39,7 +39,7 @@ const PontoBotao = () => {
                 const token = localStorage.getItem('loginToken');
     
                 try {
-                    const response = await fetch('https://192.168.1.4/api/registoPonto/diario', {
+                    const response = await fetch('https://backend.advir.pt/api/registoPonto/diario', {
                         headers: {
                             'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json',
@@ -159,7 +159,7 @@ const filtrarRegistos = useCallback(() => {
     const fetchRegistosDiarios = async () => {
         try {
             const token = localStorage.getItem('loginToken');
-            const response = await fetch('https://192.168.1.4/api/registoPonto/diario', {
+            const response = await fetch('https://backend.advir.pt/api/registoPonto/diario', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
@@ -273,7 +273,7 @@ useEffect(() => {
             try {
                 // Recuperar estado do backend
                 const token = localStorage.getItem('loginToken');
-                const response = await fetch('https://192.168.1.4/api/registoPonto/estado-ponto', {
+                const response = await fetch('https://backend.advir.pt/api/registoPonto/estado-ponto', {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
@@ -310,7 +310,7 @@ useEffect(() => {
 
 const obterCoordenadasDoBackend = async () => {
     const token = localStorage.getItem('loginToken');
-    const response = await fetch('https://192.168.1.4/api/registoPonto/diario', {
+    const response = await fetch('https://backend.advir.pt/api/registoPonto/diario', {
         headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -350,7 +350,7 @@ const registarPonto = async () => {
          setInicioTemporizador(new Date(horaAtual));
          setTemporizadorAtivo(true);
 
-        const response = await fetch('https://192.168.1.4/api/registoPonto/registar-ponto', {
+        const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
@@ -396,7 +396,7 @@ const iniciarIntervalo = async () => {
             intervaloAberto: true,
         }));
 
-        const response = await fetch('https://192.168.1.4/api/intervalo/iniciarIntervalo', {
+        const response = await fetch('https://backend.advir.pt/api/intervalo/iniciarIntervalo', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -424,7 +424,7 @@ const iniciarIntervalo = async () => {
 const finalizarIntervalo = async () => {
     try {
         const token = localStorage.getItem('loginToken');
-        const response = await fetch('https://192.168.1.4/api/intervalo/finalizarIntervalo', {
+        const response = await fetch('https://backend.advir.pt/api/intervalo/finalizarIntervalo', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,

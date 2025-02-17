@@ -14,15 +14,21 @@ const sendmailoficios = async (req, res) => {
 
     try {
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            service: 'Office365',
+            host: 'smtp.office365.com', // Servidor SMTP do Office365
+            port: 587,  // Porta para TLS
+            secure: false, // Não usar SSL, mas usar TLS
             auth: {
-                user: 'noreply.advir@gmail.com',
-                pass: 'ihpgedswadmqtceh', // Usar vari�vel de ambiente
+                user: 'oficio@jpaconstrutora.com', // Novo e-mail de envio
+                pass: 'K%355647331570on', // Nova senha
             },
+            tls: {
+                ciphers: 'SSLv3'
+            }
         });
 
         const mailOptions = {
-            from: remetente || 'noreply.advir@gmail.com',
+            from: remetente || 'oficio@jpaconstrutora.com',
             to: emailDestinatario,
             cc: emailCC, 
             replyTo: emailCC.split(',')[0].trim(), // Pega apenas o primeiro email
@@ -49,7 +55,4 @@ const sendmailoficios = async (req, res) => {
 };
 
 module.exports = sendmailoficios;
-
-
-
 
