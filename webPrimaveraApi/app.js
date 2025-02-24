@@ -9,6 +9,7 @@ const routePedidos_STP = require('./routes/Servicos/routePedidos_STP');
 const listarIntervencoes = require('./routes/Servicos/listarIntervencoes');
 const clientArea = require('./routes/ClientArea/clientArea');
 const sendEmail = require('./servives/emailServicos');
+const sendEmailContactForm = require('./servives/emailcontactos');
 const sendmailoficios = require('./routes/Oficios/sendEmailOficios');
 const oficio = require('./routes/Oficios/oficios');
 
@@ -48,6 +49,7 @@ app.use('/routePedidos_STP', routePedidos_STP);
 app.use('/listarIntervencoes', listarIntervencoes);
 app.use('/oficio', oficio);
 app.post('/send-email', sendEmail);
+app.post('/send-email-contact', sendEmailContactForm);
 
 app.post('/connect-database/token', async (req, res) => {
     const { username, password, company, instance, line, urlempresa } = req.body;
