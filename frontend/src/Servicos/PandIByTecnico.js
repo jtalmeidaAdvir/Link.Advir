@@ -7,6 +7,7 @@ import {
     Alert,
     StyleSheet,
     Picker,
+    ScrollView
 } from 'react-native';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -122,7 +123,7 @@ const PandIByTecnico = () => {
     };
     
     return (
-        <View style={styles.container}>
+        <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
             <Text style={styles.title}>Dashboard Técnico</Text>
             <Picker
             selectedValue={tecnicoID}
@@ -209,7 +210,7 @@ const PandIByTecnico = () => {
             )}
             
 
-        </View>
+        </ScrollView>
         
     );
 };
