@@ -5,6 +5,8 @@ import { FaFileContract, FaPhone, FaBoxOpen, FaQuestionCircle, FaBars } from 're
 import { motion } from 'framer-motion';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n from './i18n'; // Import do i18n
+import backgroundImage from '../images/ImagemFundo.png';
+
 
 const Home = () => {
     const { t } = useTranslation();
@@ -25,6 +27,11 @@ const Home = () => {
     const [contratoLoading, setContratoLoading] = useState(false);
     const [initialDataLoading, setInitialDataLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
+
+    const currentYear = new Date().getFullYear(); // Obtém o ano atual
+
+    const [selectedYear, setSelectedYear] = useState(currentYear);
+
 
     
 
@@ -219,30 +226,33 @@ const [dataLists, setDataLists] = useState({
   // Filtrar pedidos com base no termo de pesquisa
   const filteredPedidos = groupedPedidos
   ? Object.fromEntries(
-      Object.entries(groupedPedidos).filter(([processo, pedidos]) =>
-          pedidos.some(
-              (pedido) =>
-                  (selectedEstado === '' || pedido.DescricaoEstado === selectedEstado) &&
-                  (pedido.Processo.toLowerCase().includes(searchTerm) ||
-                      pedido.DescricaoEstado.toLowerCase().includes(searchTerm) ||
-                      pedido.DescricaoProb.toLowerCase().includes(searchTerm) ||
-                      pedido.DescricaoResp.toLowerCase().includes(searchTerm) ||
-                      pedido.NomeTecnico.toLowerCase().includes(searchTerm))
-          )
-      ).map(([processo, pedidos]) => [
+      Object.entries(groupedPedidos)
+        .map(([processo, pedidos]) => [
           processo,
-          pedidos.filter(
-              (pedido) =>
-                  (selectedEstado === '' || pedido.DescricaoEstado === selectedEstado) &&
-                  (pedido.Processo.toLowerCase().includes(searchTerm) ||
-                      pedido.DescricaoEstado.toLowerCase().includes(searchTerm) ||
-                      pedido.DescricaoProb.toLowerCase().includes(searchTerm) ||
-                      pedido.DescricaoResp.toLowerCase().includes(searchTerm) ||
-                      pedido.NomeTecnico.toLowerCase().includes(searchTerm))
-          ),
-      ])
-  )
+          pedidos
+            .filter((pedido) => {
+              console.log("Pedido DataHoraInicio:", pedido.DataHoraInicio); // Verificar formato da data
+              return (
+                (selectedEstado === '' || pedido.DescricaoEstado === selectedEstado) &&
+                (selectedYear === '' || new Date(pedido.DataHoraInicio).getFullYear() === selectedYear) &&
+                (pedido.Processo.toLowerCase().includes(searchTerm) ||
+                  pedido.DescricaoEstado.toLowerCase().includes(searchTerm) ||
+                  pedido.DescricaoProb.toLowerCase().includes(searchTerm) ||
+                  pedido.DescricaoResp.toLowerCase().includes(searchTerm) ||
+                  pedido.NomeTecnico.toLowerCase().includes(searchTerm))
+              );
+            })
+            .sort((a, b) => new Date(b.DataHoraInicio) - new Date(a.DataHoraInicio)), // Ordenação correta
+        ])
+        .filter(([_, pedidos]) => pedidos.length > 0) // Remove grupos vazios
+    )
   : {};
+
+
+
+
+
+
 
 
       // Função para calcular os processos a serem exibidos na página atual
@@ -267,19 +277,40 @@ const [dataLists, setDataLists] = useState({
         { title: t('Home.menu.faq'), icon: <FaQuestionCircle size={22} />, ref: faqRef },
     ];
 
+
+    
     useEffect(() => {
         if (pedidosInfo) {
             const grouped = pedidosInfo.DataSet.Table.reduce((acc, pedido) => {
+                console.log("Antes da conversão - DataHoraInicio:", pedido.DataHoraInicio); // Confirma o formato original
+    
                 const processo = pedido.Processo;
                 if (!acc[processo]) {
                     acc[processo] = [];
                 }
+    
                 acc[processo].push(pedido);
                 return acc;
             }, {});
+    
+            // Ordenar os pedidos dentro de cada processo do mais recente para o mais antigo
+            Object.keys(grouped).forEach((processo) => {
+                grouped[processo].sort((a, b) => {
+                    const dateA = new Date(a.DataHoraInicio);
+                    const dateB = new Date(b.DataHoraInicio);
+    
+                    console.log(`Comparando ${dateA} com ${dateB}`); // Confirma que está a comparar corretamente
+    
+                    return dateB - dateA; // Ordem decrescente (mais recente primeiro)
+                });
+            });
+    
             setGroupedPedidos(grouped);
         }
     }, [pedidosInfo]);
+    
+    
+    
 
     useEffect(() => {
         const fetchPedidosInfo = async () => {
@@ -386,81 +417,95 @@ const [dataLists, setDataLists] = useState({
 
 
     
- useEffect(() => {
-    const fetchData = async () => {
-        console.log("Iniciando fetch de dados iniciais e contrato.");
-        setContratoLoading(true);
-        setLoading(true);
-
-        try {
-            const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
-            const urlempresa = await AsyncStorage.getItem('urlempresaAdvir');
-            const clienteID = await AsyncStorage.getItem('empresa_areacliente');
-
-            console.log('Token:', token, 'URL Empresa:', urlempresa, 'Cliente ID:', clienteID);
-
-            if (!clienteID || !token || !urlempresa) {
-                console.error('Token, URL ou ID de cliente estão ausentes.');
-                return;
+    useEffect(() => {
+        const fetchData = async () => {
+            console.log("Iniciando fetch de dados iniciais e contrato.");
+            setContratoLoading(true);
+            setLoading(true);
+    
+            try {
+                const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
+                const urlempresa = await AsyncStorage.getItem('urlempresaAdvir');
+                const clienteID = await AsyncStorage.getItem('empresa_areacliente');
+    
+                console.log('Token:', token, 'URL Empresa:', urlempresa, 'Cliente ID:', clienteID);
+    
+                if (!clienteID || !token || !urlempresa) {
+                    console.error('Token, URL ou ID de cliente estão ausentes.');
+                    return;
+                }
+    
+                // Fetch contrato
+                const contratoResponse = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${clienteID}`, {
+                    headers: { Authorization: `Bearer ${token}`, urlempresa },
+                });
+    
+                if (!contratoResponse.ok) {
+                    throw new Error(`Erro ao buscar contrato: ${contratoResponse.statusText}`);
+                }
+    
+                const contratoData = await contratoResponse.json();
+                console.log('Contrato Data:', contratoData);
+    
+                // Filtrar contrato com estado === 3
+                const contratoFiltrado = contratoData?.DataSet?.Table?.find(c => c.Estado === 3);
+    
+                if (contratoFiltrado) {
+                    setContratoInfo(contratoFiltrado);
+    
+                    // Atualizar contratoID no formulário automaticamente
+                    setFormData((prev) => ({ ...prev, contratoID: contratoFiltrado.ID }));
+                } else {
+                    console.warn("Nenhum contrato encontrado com estado === 3.");
+                    setContratoInfo(null);
+                    setFormData((prev) => ({ ...prev, contratoID: null }));
+                }
+    
+                // Fetch contactos
+                const contactosResponse = await fetch(
+                    `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${clienteID}`,
+                    { headers: { Authorization: `Bearer ${token}`, urlempresa } }
+                );
+                const contactosData = await contactosResponse.json();
+                setDataLists((prev) => ({ ...prev, contactos: contactosData.DataSet.Table || [] }));
+    
+                // Fetch prioridades
+                const prioridadesResponse = await fetch(
+                    `https://webapiprimavera.advir.pt/routePedidos_STP/ListarTiposPrioridades`,
+                    { headers: { Authorization: `Bearer ${token}`, urlempresa } }
+                );
+                const prioridadesData = await prioridadesResponse.json();
+                setDataLists((prev) => ({ ...prev, prioridades: prioridadesData.DataSet.Table || [] }));
+    
+                // Preencher cliente no formulário
+                setFormData((prev) => ({ ...prev, cliente: clienteID }));
+            } catch (error) {
+                console.error('Erro ao buscar dados:', error);
+                setErrorMessage(error.message);
+            } finally {
+                setContratoLoading(false);
+                setLoading(false);
+                console.log("Finalizado fetch de dados iniciais e contrato.");
             }
-
-            // Fetch contrato
-            const contratoResponse = await fetch(`https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${clienteID}`, {
-                headers: { Authorization: `Bearer ${token}`, urlempresa },
-            });
-
-            if (!contratoResponse.ok) {
-                throw new Error(`Erro ao buscar contrato: ${contratoResponse.statusText}`);
-            }
-            const contratoData = await contratoResponse.json();
-            console.log('Contrato Data:', contratoData);
-
-            // Atualizar informações do contrato
-            setContratoInfo(contratoData);
-
-            // Atualizar contratoID no formulário automaticamente
-            if (contratoData?.DataSet?.Table?.length > 0) {
-                const contratoID = contratoData.DataSet.Table[0]?.ID; // Obter o contratoID
-                setFormData((prev) => ({ ...prev, contratoID }));
-            }
-
-            // Fetch contactos
-            const contactosResponse = await fetch(
-                `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${clienteID}`,
-                { headers: { Authorization: `Bearer ${token}`, urlempresa } }
-            );
-            const contactosData = await contactosResponse.json();
-            setDataLists((prev) => ({ ...prev, contactos: contactosData.DataSet.Table || [] }));
-
-            // Fetch prioridades
-            const prioridadesResponse = await fetch(
-                `https://webapiprimavera.advir.pt/routePedidos_STP/ListarTiposPrioridades`,
-                { headers: { Authorization: `Bearer ${token}`, urlempresa } }
-            );
-            const prioridadesData = await prioridadesResponse.json();
-            setDataLists((prev) => ({ ...prev, prioridades: prioridadesData.DataSet.Table || [] }));
-
-            // Preencher cliente no formulário
-            setFormData((prev) => ({ ...prev, cliente: clienteID }));
-        } catch (error) {
-            console.error('Erro ao buscar dados:', error);
-            setErrorMessage(error.message);
-        } finally {
-            setContratoLoading(false);
-            setLoading(false);
-            console.log("Finalizado fetch de dados iniciais e contrato.");
+        };
+    
+        if (activeMenu === t('Home.menu.contract')) {
+            fetchData();
         }
-    };
-
-    if (activeMenu === t('Home.menu.contract')) {
-        fetchData();
-    }
-}, [activeMenu, t]);
+    }, [activeMenu, t]);
+    
 
 
     return (
 
-        <div style={{ height: '100vh', overflowY: 'auto', fontFamily: 'Poppins, sans-serif', background: 'linear-gradient(135deg, #f3f6fb, #d4e4ff)' }}>
+        <div style={{ height: '100vh', 
+            overflowY: 'auto', 
+            fontFamily: 'Poppins, sans-serif',backgroundImage: `url(${backgroundImage})`,
+                backgroundSize: 'cover', // Ajusta para cobrir todo o ecrã
+                backgroundPosition: 'center', // Centraliza a imagem
+                backgroundRepeat: 'no-repeat',
+                backgroundAttachment: 'fixed',
+              }}>
             <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet" />
 
             {/* Sticky Navbar */}
@@ -497,7 +542,12 @@ const [dataLists, setDataLists] = useState({
                 padding: '50px 20px',
                 backgroundColor: '#d4e4ff',
                 minHeight: '100vh',
-                fontFamily: 'Poppins, sans-serif',
+                fontFamily: 'Poppins, sans-serif',backgroundImage: `url(${backgroundImage})`,
+                backgroundSize: 'cover', // Ajusta para cobrir todo o ecrã
+                backgroundPosition: 'center', // Centraliza a imagem
+                backgroundRepeat: 'no-repeat',
+                backgroundAttachment: 'fixed',
+                
             }}>
                 <h2 style={{ fontWeight: '600', color: '#1792FE', marginBottom: '20px' }}>{t('Home.welcome')}</h2>
 
@@ -508,6 +558,7 @@ const [dataLists, setDataLists] = useState({
                     flexWrap: 'wrap',
                     gap: '20px',
                     marginBottom: '40px',
+                    
                 }}>
                     {menus.map((menu, index) => (
                         <div
@@ -539,54 +590,55 @@ const [dataLists, setDataLists] = useState({
 
                 {/* Content Based on Active Menu */}
                 <div ref={contractRef}>
-                {activeMenu === t('Home.menu.contract') && (
-                    
-                    <>
-                        {loading ? (
-                            <p>{t('loading')}</p>
-                        ) : errorMessage ? (
-                            <p style={{ color: 'red', fontSize: '18px' }}>{errorMessage}</p>
-                        ) : contratoInfo?.DataSet?.Table?.length > 0 ? (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.5 }}
-                                style={{
-                                    maxWidth: '600px',
-                                    margin: '0 auto',
-                                    padding: '30px',
-                                    backgroundColor: '#FFFFFF',
-                                    borderRadius: '15px',
-                                    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
-                                    textAlign: 'left',
-                                }}
-                            > 
-                                        <h2 style={{ fontWeight: '300', color: '#1792FE', marginBottom: '20px' }}>{t('Home.contratoinfo.title')}</h2>
-                                <div style={{ borderBottom: '1px solid #E0E0E0', paddingBottom: '15px', marginBottom: '15px' }}>
-                                    <p style={{ margin: '5px 0' }}>
-                                                <strong style={{ color: '#555' }}>{t('Home.contratoinfo.codigo')}</strong> {contratoInfo.DataSet.Table[0]?.Codigo}
-                                    </p>
-                                    <p style={{ margin: '5px 0' }}>
-                                                <strong style={{ color: '#555' }}>{t('Home.contratoinfo.descricao')}</strong> {contratoInfo.DataSet.Table[0]?.Descricao}
-                                    </p>
-                                </div>
-                                <p style={{ margin: '10px 0' }}>
-                                            <strong style={{ color: '#555' }}>{t('Home.contratoinfo.horascontrato')}</strong> {contratoInfo.DataSet.Table[0]?.HorasTotais} h
-                                </p>
-                                <p style={{ margin: '10px 0' }}>
-                                            <strong style={{ color: '#555' }}>{t('Home.contratoinfo.horasgastas')}</strong> {contratoInfo.DataSet.Table[0]?.HorasGastas} h
-                                </p>
-                        
-                                <p style={{ margin: '10px 0' }}>
-                        <strong style={{ color: '#555' }}>{t('Home.contratoinfo.horasdisponiveis')}</strong> {contratoInfo.DataSet.Table[0]?.HorasTotais - contratoInfo.DataSet.Table[0]?.HorasGastas} h
+    {activeMenu === t('Home.menu.contract') && (
+        <>
+            {loading ? (
+                <p>{t('loading')}</p>
+            ) : errorMessage ? (
+                <p style={{ color: 'red', fontSize: '18px' }}>{errorMessage}</p>
+            ) : contratoInfo ? (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    style={{
+                        maxWidth: '600px',
+                        margin: '0 auto',
+                        padding: '30px',
+                        backgroundColor: '#FFFFFF',
+                        borderRadius: '15px',
+                        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+                        textAlign: 'left',
+                    }}
+                > 
+                    <h2 style={{ fontWeight: '300', color: '#1792FE', marginBottom: '20px' }}>
+                        {t('Home.contratoinfo.title')}
+                    </h2>
+                    <div style={{ borderBottom: '1px solid #E0E0E0', paddingBottom: '15px', marginBottom: '15px' }}>
+                        <p style={{ margin: '5px 0' }}>
+                            <strong style={{ color: '#555' }}>{t('Home.contratoinfo.codigo')}</strong> {contratoInfo.Codigo}
+                        </p>
+                        <p style={{ margin: '5px 0' }}>
+                            <strong style={{ color: '#555' }}>{t('Home.contratoinfo.descricao')}</strong> {contratoInfo.Descricao}
+                        </p>
+                    </div>
+                    <p style={{ margin: '10px 0' }}>
+                        <strong style={{ color: '#555' }}>{t('Home.contratoinfo.horascontrato')}</strong> {contratoInfo.HorasTotais} h
                     </p>
-                                
-                            </motion.div>
-                        ) : (
-                                        <p style={{ fontSize: '18px', color: '#333' }}>{t('Home.contratoinfo.error')}</p>
-                        )}
-                    </>
-                )}</div>
+                    <p style={{ margin: '10px 0' }}>
+                        <strong style={{ color: '#555' }}>{t('Home.contratoinfo.horasgastas')}</strong> {contratoInfo.HorasGastas} h
+                    </p>
+                    <p style={{ margin: '10px 0' }}>
+                        <strong style={{ color: '#555' }}>{t('Home.contratoinfo.horasdisponiveis')}</strong> {contratoInfo.HorasTotais - contratoInfo.HorasGastas} h
+                    </p>
+                </motion.div>
+            ) : (
+                <p style={{ fontSize: '18px', color: '#333' }}>{t('Home.contratoinfo.error')}</p>
+            )}
+        </>
+    )}
+</div>
+
 
 
 
@@ -838,103 +890,120 @@ const [dataLists, setDataLists] = useState({
             </button>
         ))}
     </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+    <label htmlFor="yearFilter" style={{ fontWeight: 'bold', color: '#555' }}>
+        {t('Ano')}:
+    </label>
+    <select
+        id="yearFilter"
+        value={selectedYear}
+        onChange={(e) => setSelectedYear(Number(e.target.value))}
+        style={{
+            padding: '10px',
+            borderRadius: '10px',
+            border: '1px solid #ddd',
+            backgroundColor: '#FFFFFF',
+            cursor: 'pointer',
+        }}
+    >
+        {[...new Set(pedidosInfo?.DataSet?.Table?.map((pedido) => new Date(pedido.DataHoraInicio).getFullYear()))]
+            .sort((a, b) => b - a) // Ordena do mais recente para o mais antigo
+            .map((year) => (
+                <option key={year} value={year}>
+                    {year}
+                </option>
+            ))}
+    </select>
 </div>
 
+</div>
 
-                {paginatedPedidos.length > 0 ? (
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5 }}
-                        style={{
-                            maxWidth: '800px',
-                            margin: '0 auto',
-                            padding: '30px',
-                            backgroundColor: '#FFFFFF',
-                            borderRadius: '15px',
-                            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
-                            textAlign: 'left',
-                        }}
-                    >
-                        <h2 style={{ fontWeight: '300', color: '#1792FE', marginBottom: '20px' }}>
-                            {t('Pedidos de Assistência')}
-                        </h2>
+{paginatedPedidos.length > 0 ? (
+    <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        style={{
+            maxWidth: '800px',
+            margin: '0 auto',
+            padding: '30px',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '15px',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+            textAlign: 'left',
+        }}
+    >
+        <h2 style={{ fontWeight: '600', color: '#1792FE', marginBottom: '20px', textAlign: 'center' }}>
+            {t('Pedidos de Assistência')}
+        </h2>
 
-                        {paginatedPedidos.map((processo, index) => (
-    <div key={index}>
-        <h5 style={{ fontWeight: '400', color: '#0056FF' }}>
-            {t('Processo')}: {processo}
-            
-        </h5>
-        {filteredPedidos[processo].map((pedido, i) => {
-            const isExpanded = expandedInterv[`${processo}-${i}`];
-            return (
-                <div
-                    key={i}
-                    style={{
-                        marginLeft: '20px',
-                        marginTop: '10px',
-                        paddingBottom: '20px',
-                        backgroundColor: '#F9F9F9',
-                        borderRadius: '10px',
-                        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.1)',
-                        padding: '15px',
-                    }}
-                >
-                    <p>
-                        <strong>{t('Intervenção nº')}:</strong> {pedido.Interv}
-                    </p>
-                    <p>
-                        <strong>{t('Problema')}:</strong> {pedido.DescricaoProb}
-                    </p>
+        {paginatedPedidos.map((processo, index) => (
+            <div key={index} style={{ marginBottom: '20px', padding: '15px', borderRadius: '10px', background: '#F5F8FF', boxShadow: '0 2px 10px rgba(0, 0, 0, 0.05)' }}>
+                <h5 style={{ fontWeight: '500', color: '#0056FF', marginBottom: '10px' }}>
+                    {t('Processo')}: {processo}
+                </h5>
+                {filteredPedidos[processo]
+                    .slice()
+                    .sort((a, b) => new Date(b.DataHoraInicio) - new Date(a.DataHoraInicio))
+                    .map((pedido, i) => {
+                        const isExpanded = expandedInterv[`${processo}-${i}`];
+                        return (
+                            <div
+                                key={i}
+                                style={{
+                                    marginLeft: '20px',
+                                    marginTop: '10px',
+                                    padding: '15px',
+                                    backgroundColor: '#FFFFFF',
+                                    borderRadius: '10px',
+                                    boxShadow: '0 2px 5px rgba(0, 0, 0, 0.1)',
+                                    transition: '0.3s ease-in-out',
+                                }}
+                            >
+                                <p>
+                                    <strong>{t('Intervenção nº')}:</strong> {pedido.Interv}
+                                </p>
+                                <p>
+                                    <strong>{t('Problema')}:</strong> {pedido.DescricaoProb}
+                                </p>
 
-                    {isExpanded && (
-                        <>
-                            <p>
-                                <strong>{t('Intervenção')}:</strong> {pedido.DescricaoResp}
-                            </p>
-                            <p>
-                                <strong>{t('Intervencionado por')}:</strong> {pedido.NomeTecnico}
-                            </p>
-                            <p><strong>{t('Estado')}:</strong> {pedido.DescricaoEstado}</p>
-                            <p>
-                                <strong>{t('Duração')}:</strong> {pedido.Duracao} min
-                            </p>
-                            <p>
-                                <strong>{t('Inicio')}:</strong> {formatDateTime(pedido.DataHoraInicio)}
-                            </p>
-                            <p>
-                                <strong>{t('Fim')}:</strong> {formatDateTime(pedido.DataHoraFim)}
-                            </p>
-                        </>
-                    )}
+                                {isExpanded && (
+                                    <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #E0E0E0' }}>
+                                        <p><strong>{t('Intervenção')}:</strong> {pedido.DescricaoResp}</p>
+                                        <p><strong>{t('Intervencionado por')}:</strong> {pedido.NomeTecnico}</p>
+                                        <p><strong>{t('Estado')}:</strong> {pedido.DescricaoEstado}</p>
+                                        <p><strong>{t('Duração')}:</strong> {pedido.Duracao} min</p>
+                                        <p><strong>{t('Início')}:</strong> {formatDateTime(pedido.DataHoraInicio)}</p>
+                                        <p><strong>{t('Fim')}:</strong> {formatDateTime(pedido.DataHoraFim)}</p>
+                                    </div>
+                                )}
 
-                    <button
-                        onClick={() => toggleExpand(processo, i)}
-                        style={{
-                            backgroundColor: 'transparent',
-                            color: isExpanded ? '#FF0000' : '#0056FF',
-                            border: 'none',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            marginTop: '10px',
-                        }}
-                    >
-                        <span style={{ fontSize: '18px', marginRight: '5px' }}>
-                            {isExpanded ? '-' : '+'}
-                        </span>
-                        {isExpanded ? t('Ver Menos') : t('Ver Mais')}
-                    </button>
-                </div>
-            );
-        })}
-    </div>
-))}
-                    </motion.div>
-                ) : (
-                    <p style={{ fontSize: '18px', color: '#333' }}>{t('Pedidos não encontrados')}</p>
-                )}
+                                <button
+                                    onClick={() => toggleExpand(processo, i)}
+                                    style={{
+                                        marginTop: '10px',
+                                        background: 'none',
+                                        border: 'none',
+                                        color: isExpanded ? '#FF0000' : '#0056FF',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        fontSize: '16px',
+                                        fontWeight: 'bold',
+                                    }}
+                                >
+                                    <span style={{ fontSize: '18px', marginRight: '5px' }}>{isExpanded ? '-' : '+'}</span>
+                                    {isExpanded ? t('Ver Menos') : t('Ver Mais')}
+                                </button>
+                            </div>
+                        );
+                    })}
+            </div>
+        ))}
+    </motion.div>
+) : (
+    <p style={{ fontSize: '18px', color: '#333', textAlign: 'center' }}>{t('Pedidos não encontrados')}</p>
+)}
 
                 {/* Paginação */}
                 <div

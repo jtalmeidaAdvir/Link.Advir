@@ -181,9 +181,7 @@ const RegistoAssistencia = (props) => {
                 body: JSON.stringify(payload),
             });
     
-            if (!response.ok) {
-                throw new Error('Erro na requisição: ' + response.status);
-            }
+ 
     
             const data = await response.json();
             setMessage(t("RegistoAssistencia.Aviso.2"));

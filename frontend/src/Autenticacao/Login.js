@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { View, TouchableOpacity, Text, Image, StyleSheet, ImageBackground } from 'react-native';
+import { View, TouchableOpacity, Text, Image } from 'react-native';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
 import logo from '../../assets/img_logo.png';
-
-
-
+import backgroundImage from '../../images/ImagemFundo.png';
 const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {  // Adicione setIsLoggedIn como prop
     const [username, setLocalUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -82,7 +80,6 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
     };
 
     return (
-
         <div
             style={{
                 display: 'flex',
@@ -93,6 +90,11 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 backgroundColor: '#d4e4ff',
                 margin: '0',
                 padding: '0',
+                backgroundImage: `url(${backgroundImage})`,
+                backgroundSize: 'cover', // Ajusta para cobrir todo o ecrã
+                backgroundPosition: 'center', // Centraliza a imagem
+                backgroundRepeat: 'no-repeat',
+                backgroundAttachment: 'fixed', 
             }}
         >
             <div
@@ -170,9 +172,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 </form>
             </div>
         </div>
-
     );
 };
-
 
 export default Login;

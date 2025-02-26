@@ -3,6 +3,7 @@ import { ActivityIndicator, View, TouchableOpacity, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
+import backgroundImage from '../../images/ImagemFundo.png';
 const SelecaoEmpresa = ({ setEmpresa }) => {
     const [empresas, setEmpresas] = useState([]);
     const [empresaSelecionada, setEmpresaSelecionada] = useState('');
@@ -131,6 +132,11 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
                 backgroundColor: '#d4e4ff',
                 margin: '0',
                 padding: '0',
+                 backgroundImage: `url(${backgroundImage})`,
+                                backgroundSize: 'cover', // Ajusta para cobrir todo o ecrã
+                                backgroundPosition: 'center', // Centraliza a imagem
+                                backgroundRepeat: 'no-repeat',
+                                backgroundAttachment: 'fixed', 
             }}
         >
             <View

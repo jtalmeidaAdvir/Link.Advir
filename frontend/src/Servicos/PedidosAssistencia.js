@@ -15,6 +15,7 @@ const PedidosAssistencia = ({ navigation }) => {
     const [expandedSections, setExpandedSections] = useState({});
     const [loading, setLoading] = useState(true);
     const [filterPrioridade, setFilterPrioridade] = useState(''); 
+    const [filterSerie, setFilterSerie] = useState(''); 
     const [filterEstado, setFilterEstado] = useState('1'); 
     const { t } = useTranslation();
     const [filteredData, setFilteredData] = useState([]);
@@ -102,6 +103,14 @@ const PedidosAssistencia = ({ navigation }) => {
             );
         }
     
+
+        // Filtrar por Serie
+        if (filterSerie && filterSerie.trim()) {
+            filteredPedidos = filteredPedidos.filter((pedido) =>
+                pedido.serie?.toString().toLowerCase() === filterSerie.toLowerCase()
+            );
+        }
+
         // Filtrar por Estado
         if (filterEstado) {
             if (filterEstado === 'pendentes') {
@@ -225,6 +234,20 @@ const PedidosAssistencia = ({ navigation }) => {
         }
     };
 
+
+     // Get prioridade based on the input
+     const getSerie = (serie) => {
+        switch (serie) {
+            case '2024':
+                return '2024';
+            case '2025':
+                return '2025';
+            default:
+                return 'Desconhecida';
+        }
+    };
+
+
     // Toggle section expansion
     const toggleSection = (numProcesso) => {
         setExpandedSections(prevState => ({
@@ -248,13 +271,14 @@ const PedidosAssistencia = ({ navigation }) => {
         <View style={styles.pedidoDetailContainer}>
             <Text style={styles.pedidoDetailLabel}>{t("PedidosAssistencia.Pedido.TxtCliente")}</Text>
             <Text style={styles.pedidoDetailValue}>{pedido.Cliente} - {pedido.Nome}</Text>
-
             <Text style={styles.pedidoDetailLabel}>{t("PedidosAssistencia.Pedido.TxtDataAbert")}</Text>
             <Text style={styles.pedidoDetailValue}>{new Date(pedido.DataHoraAbertura).toLocaleString()}</Text>
             <Text style={styles.pedidoDetailLabel}>{t("PedidosAssistencia.Pedido.TxtPrioridade")}</Text>
             <Text style={styles.pedidoDetailValue}>{getPrioridade(pedido.Prioridade)}</Text>
             <Text style={styles.pedidoDetailLabel}>{t("PedidosAssistencia.Pedido.TxtEstado")}</Text>
             <Text style={styles.pedidoDetailValue}>{getEstado(pedido.Estado)}</Text>
+            <Text style={styles.pedidoDetailLabel}>{t("PedidosAssistencia.Pedido.TxtSerie")}</Text>
+            <Text style={styles.pedidoDetailValue}>{getSerie(pedido.Serie)}</Text>
             <Text style={styles.pedidoDetailLabel}>{t("PedidosAssistencia.Pedido.TxtDescricao")}</Text>
             <Text style={styles.pedidoDetailValue}>{pedido.DescricaoProb}</Text>
         </View>
@@ -270,6 +294,12 @@ const PedidosAssistencia = ({ navigation }) => {
         { label: t("PedidosAssistencia.Estados.1"), value: '1', descricao: 'Aguardar intervenção equipa Advir' },
         { label: t("PedidosAssistencia.Estados.2"), value: 'pendentes', descricao: 'Inclui: Em curso Equipa Advir, Reportado para Parceiro, Aguarda resposta Cliente' },
         { label: t("PedidosAssistencia.Estados.3"), value: '0', descricao: 'Terminado' },
+    ];
+
+    const series = [
+        { label: t("2024"), value: '2024', descricao: '2024' },
+        { label: t("2025"), value: '2025', descricao: '2025' },
+
     ];
     
     
@@ -298,6 +328,8 @@ const PedidosAssistencia = ({ navigation }) => {
             >
                 {label} {/* Exibe o valor visual */}
             </Text>
+
+            
         </TouchableOpacity>
     ))}
 </View>
@@ -326,7 +358,30 @@ const PedidosAssistencia = ({ navigation }) => {
                 </TouchableOpacity>
             ))}
         </View>
-    
+        <Text style={styles.filterLabel}>{t("Serie")}</Text>
+            <View style={styles.filterGroup}>
+            {series.map(({ label, value }) => (
+                    <TouchableOpacity
+                    key={value}
+                    style={[
+                        styles.filterButton,
+                        filterSerie === value && styles.filterButtonSelected,
+                    ]}
+                    onPress={() =>
+                        setFilterSerie((prev) => (prev === value ? '' : value)) // Define o valor interno
+                    }
+                >
+                    <Text
+                        style={[
+                            styles.filterButtonText,
+                            filterSerie === value && styles.filterButtonTextSelected,
+                        ]}
+                    >
+                        {label} {/* Exibe o valor visual */}
+                    </Text>
+                </TouchableOpacity>
+            ))}
+        </View>
           
         </View>
     );
