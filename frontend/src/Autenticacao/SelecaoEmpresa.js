@@ -1,18 +1,21 @@
+
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, View, TouchableOpacity, Text } from 'react-native';
+import { ActivityIndicator, View, TouchableOpacity, Text, StyleSheet, Dimensions, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
 import backgroundImage from '../../images/ImagemFundo.png';
+
 const SelecaoEmpresa = ({ setEmpresa }) => {
     const [empresas, setEmpresas] = useState([]);
     const [empresaSelecionada, setEmpresaSelecionada] = useState('');
-    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(true);
-    const [loadingButton, setLoadingButton] = useState(false); // Novo estado para controlar o loading do botão
+    const [loadingButton, setLoadingButton] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const navigation = useNavigation();
     const { t } = useTranslation();
+    const windowWidth = Dimensions.get('window').width;
+    
     useEffect(() => {
         const fetchEmpresas = async () => {
             try {
@@ -30,8 +33,8 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
     
                     // Verificar se só há uma empresa
                     if (data.length === 1) {
-                        setEmpresaSelecionada(data[0].empresa); // Define a empresa no estado
-                        await handleEntrarEmpresa(data[0].empresa); // Passa a empresa explicitamente
+                        setEmpresaSelecionada(data[0].empresa);
+                        await handleEntrarEmpresa(data[0].empresa);
                     }
                 } else {
                     setErrorMessage(t("SelecaoEmpresa.Error.1"));
@@ -48,14 +51,14 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
     }, []);
     
     const handleEntrarEmpresa = async (empresaForcada) => {
-        const empresa = empresaForcada || empresaSelecionada; // Usa o valor forçado ou selecionado
+        const empresa = empresaForcada || empresaSelecionada;
     
         if (!empresa) {
             setErrorMessage(t("SelecaoEmpresa.Aviso.1"));
             return;
         }
     
-        console.log("Empresa enviada para a API:", empresa); // Para debug
+        console.log("Empresa enviada para a API:", empresa);
     
         setLoadingButton(true);
     
@@ -116,117 +119,208 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
             setLoadingButton(false);
         }
     };
-    
-    
-    
-    
+
+    // Renderizar empresas como botões individuais
+    const renderEmpresasButtons = () => {
+        if (empresas.length === 0) {
+            return <Text style={styles.infoText}>Nenhuma empresa disponível</Text>;
+        }
+
+        return (
+            <View style={styles.empresasGrid}>
+                {empresas.map((empresa, index) => (
+                    <TouchableOpacity
+                        key={index}
+                        style={[
+                            styles.empresaButton,
+                            empresaSelecionada === empresa.empresa && styles.empresaButtonSelected
+                        ]}
+                        onPress={() => setEmpresaSelecionada(empresa.empresa)}
+                    >
+                        <Text 
+                            style={[
+                                styles.empresaButtonText,
+                                empresaSelecionada === empresa.empresa && styles.empresaButtonTextSelected
+                            ]}
+                        >
+                            {empresa.empresa}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+        );
+    };
 
     return (
-        <View
-            style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100vh',
-                width: '100vw',
-                backgroundColor: '#d4e4ff',
-                margin: '0',
-                padding: '0',
-                 backgroundImage: `url(${backgroundImage})`,
-                                backgroundSize: 'cover', // Ajusta para cobrir todo o ecrã
-                                backgroundPosition: 'center', // Centraliza a imagem
-                                backgroundRepeat: 'no-repeat',
-                                backgroundAttachment: 'fixed', 
-            }}
-        >
-            <View
-                style={{
-                    maxWidth: '400px',
-                    width: '100%',
-                    padding: '20px',
-                    borderRadius: '15px',
-                }}
-            >
-                <h1
-                    style={{
-                        textAlign: 'center',
-                        color: '#1792FE',
-                        fontWeight: '600',
-                        fontSize: '2rem',
-                        marginBottom: '50px',
-                    }}
-                >
-                    {t("SelecaoEmpresa.Title")}
-                </h1>
+        <View style={styles.container}>
+            <View style={styles.card}>
+                <Text style={styles.title}>{t("SelecaoEmpresa.Title")}</Text>
 
                 {loading ? (
-                    <View style={{ textAlign: 'center', marginBottom: '20px' }}>
+                    <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color="#1792FE" />
+                        <Text style={styles.loadingText}>Carregando empresas...</Text>
                     </View>
                 ) : (
-                    <>
-                        <View style={{ marginBottom: '20px' }}>
-                        <select
-                            value={empresaSelecionada}
-                            onChange={(e) => {
-                                const valorSelecionado = e.target.value.trim(); // Remove espaços desnecessários
-                                console.log("Empresa selecionada:", valorSelecionado); // Para debug
-                                setEmpresaSelecionada(valorSelecionado); // Atualiza o estado
-                            }}
-                            required
-                            style={{
-                                borderRadius: '30px',
-                                padding: '10px 20px',
-                                width: '100%',
-                                marginBottom: '10px',
-                                fontSize: '1rem',
-                                border: '1px solid #ccc',
-                            }}
-                        >
-                                    <option value="">{t("SelecaoEmpresa.CbSelecionar")}</option>
-                            {empresas.map((empresa, index) => (
-                                <option key={index} value={empresa.empresa}>
-                                    {empresa.empresa}
-                                </option>
-                            ))}
-                        </select>
+                    <View style={styles.contentContainer}>
+                        
+                        
+                        {renderEmpresasButtons()}
 
-                        </View>
-
-                       
-
-                        {errorMessage && (
-                            <View style={{ color: 'red', marginBottom: '20px', textAlign: 'center' }}>
-                                {errorMessage}
+                        {errorMessage ? (
+                            <View style={styles.errorContainer}>
+                                <Text style={styles.errorText}>{errorMessage}</Text>
                             </View>
-                        )}
+                        ) : null}
 
-                        <button
-                            onClick={() => handleEntrarEmpresa()} // Garante que não estás a passar o evento
-                            style={{
-                                borderRadius: '10px',
-                                padding: '12px',
-                                fontSize: '1.1rem',
-                                backgroundColor: '#1792FE',
-                                color: 'white',
-                                width: '100%',
-                                border: 'none',
-                                alignContent: 'center',
-                            }}
-                            disabled={loadingButton} // Desabilita o botão enquanto carrega
+                        <TouchableOpacity
+                            style={[styles.entrarButton, !empresaSelecionada && styles.entrarButtonDisabled]}
+                            onPress={() => handleEntrarEmpresa()}
+                            disabled={loadingButton || !empresaSelecionada}
                         >
                             {loadingButton ? (
                                 <ActivityIndicator size="small" color="#ffffff" />
                             ) : (
-                                        t("SelecaoEmpresa.BtEntrar") 
+                                <Text style={styles.entrarButtonText}>{t("SelecaoEmpresa.BtEntrar")}</Text>
                             )}
-                        </button>
-
-                    </>
+                        </TouchableOpacity>
+                    </View>
                 )}
             </View>
         </View>
     );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        width: '100%',
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundColor: '#d4e4ff',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+        padding: 20,
+    },
+    card: {
+        backgroundColor: 'rgba(255, 255, 255, 0.92)',
+        borderRadius: 24,
+        padding: 30,
+        width: '100%',
+        maxWidth: 480,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 5,
+    },
+    title: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#1792FE',
+        textAlign: 'center',
+        marginBottom: 30,
+    },
+    subtitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#555',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    contentContainer: {
+        width: '100%',
+    },
+    empresasGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        marginBottom: 24,
+    },
+    empresaButton: {
+        backgroundColor: '#f0f7ff',
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        margin: 6,
+        minWidth: 140,
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#e0e9f7',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+        transition: 'all 0.2s ease',
+    },
+    empresaButtonSelected: {
+        backgroundColor: '#1792FE',
+        borderColor: '#1792FE',
+        transform: [{scale: 1.05}],
+    },
+    empresaButtonText: {
+        color: '#444',
+        fontWeight: '600',
+        fontSize: 15,
+    },
+    empresaButtonTextSelected: {
+        color: '#fff',
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        marginVertical: 30,
+    },
+    loadingText: {
+        marginTop: 12,
+        color: '#666',
+        fontSize: 16,
+    },
+    errorContainer: {
+        backgroundColor: '#fff1f0',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 20,
+        borderLeftWidth: 4,
+        borderLeftColor: '#ff4d4f',
+    },
+    errorText: {
+        color: '#cf1322',
+        fontSize: 14,
+    },
+    entrarButton: {
+        backgroundColor: '#1792FE',
+        borderRadius: 12,
+        height: 52,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 8,
+        shadowColor: '#1792FE',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    entrarButtonDisabled: {
+        backgroundColor: '#a0c8f0',
+        shadowOpacity: 0,
+    },
+    entrarButtonText: {
+        color: '#fff',
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    infoText: {
+        textAlign: 'center',
+        color: '#888',
+        fontSize: 15,
+        marginBottom: 20,
+        fontStyle: 'italic',
+    },
+});
 
 export default SelecaoEmpresa;

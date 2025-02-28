@@ -1063,7 +1063,7 @@ export default PandIByTecnico;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#f0f7ff",
+        backgroundColor: '#d4e4ff',
     },
     contentContainer: {
         padding: 20,

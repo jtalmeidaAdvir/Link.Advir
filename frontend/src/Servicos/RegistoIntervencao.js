@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import Modal from './Modal';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
-const RegistoIntervencao = (props) => {
 
+const RegistoIntervencao = (props) => {
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const { t } = useTranslation();
 
@@ -46,12 +47,13 @@ const RegistoIntervencao = (props) => {
     const [artigosDisponiveis, setArtigosDisponiveis] = useState([]);
     const [expandedIndexes, setExpandedIndexes] = useState({}); 
     const [editingIndex, setEditingIndex] = useState(null);
-    const [isLoading, setIsLoading] = useState(false); // Estado de loading
+    const [isLoading, setIsLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
-    const token = localStorage.getItem('painelAdminToken');  // Usando localStorage para obter o token
-    const empresaSelecionada = localStorage.getItem('empresaSelecionada'); // Recuperando empresa
-    const urlempresa = localStorage.getItem('urlempresa'); // Recuperando urlempresa
-    const [isModalOpen, setIsModalOpen] = useState(false); 
+    const token = localStorage.getItem('painelAdminToken');
+    const empresaSelecionada = localStorage.getItem('empresaSelecionada');
+    const urlempresa = localStorage.getItem('urlempresa');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState("detalhes");
 
     const [qtdeCusto, setQtdeCusto] = useState(0);
     const [precoCusto, setPrecoCusto] = useState(0);
@@ -59,7 +61,7 @@ const RegistoIntervencao = (props) => {
     const [precoCliente, setPrecoCliente] = useState(0);
     const [descontoCliente, setDescontoCliente] = useState(0);
 
-    // States for desloca��o service inputs
+    // States for deslocação service inputs
     const [qtdeCustoDeslocacao, setQtdeCustoDeslocacao] = useState(0);
     const [precoCustoDeslocacao, setPrecoCustoDeslocacao] = useState(0);
     const [qtdeClienteDeslocacao, setQtdeClienteDeslocacao] = useState(0);
@@ -74,9 +76,9 @@ const RegistoIntervencao = (props) => {
             const response = await fetch('https://webapiprimavera.advir.pt/routePedidos_STP/LstTiposIntervencao', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`, // Passando o token no cabeçalho
-                            'urlempresa': urlempresa, // Passando o urlempresa no cabeçalho
-                            'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'urlempresa': urlempresa,
+                    'Content-Type': 'application/json',
                 },
             });
             const data = await response.json();
@@ -90,9 +92,9 @@ const RegistoIntervencao = (props) => {
             const response = await fetch('https://webapiprimavera.advir.pt/routePedidos_STP/LstArtigos', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`, // Passando o token no cabeçalho
-                            'urlempresa': urlempresa, // Passando o urlempresa no cabeçalho
-                            'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'urlempresa': urlempresa,
+                    'Content-Type': 'application/json',
                 },
             });
             const data = await response.json();
@@ -106,15 +108,15 @@ const RegistoIntervencao = (props) => {
             const response = await fetch('https://webapiprimavera.advir.pt/routePedidos_STP/ListarTiposPrioridades', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`, // Passando o token no cabeçalho
-                            'urlempresa': urlempresa, // Passando o urlempresa no cabeçalho
-                            'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'urlempresa': urlempresa,
+                    'Content-Type': 'application/json',
                 },
             });
             const data = await response.json();
             setTiposIntervencao(data.DataSet.Table);
         } catch (error) {
-            console.error('Erro ao buscar tipos de interven��o:', error);
+            console.error('Erro ao buscar tipos de intervenção:', error);
         }
     };
     const fetchTecnicos = async () => {
@@ -122,15 +124,15 @@ const RegistoIntervencao = (props) => {
             const response = await fetch('https://webapiprimavera.advir.pt/routePedidos_STP/LstTecnicosTodos', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`, // Passando o token no cabeçalho
-                            'urlempresa': urlempresa, // Passando o urlempresa no cabeçalho
-                            'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'urlempresa': urlempresa,
+                    'Content-Type': 'application/json',
                 },
             });
             const data = await response.json();
             setTecnicos(data.DataSet.Table);
         } catch (error) {
-            console.error('Erro ao buscar t�cnicos:', error);
+            console.error('Erro ao buscar técnicos:', error);
         }
     };
     const fetchEstados = async () => {
@@ -138,9 +140,9 @@ const RegistoIntervencao = (props) => {
             const response = await fetch('https://webapiprimavera.advir.pt/routePedidos_STP/LstEstadosTodos', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}`, // Passando o token no cabeçalho
-                            'urlempresa': urlempresa, // Passando o urlempresa no cabeçalho
-                            'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'urlempresa': urlempresa,
+                    'Content-Type': 'application/json',
                 },
             });
             const data = await response.json();
@@ -153,7 +155,7 @@ const RegistoIntervencao = (props) => {
     const toggleArtigoExpansion = (index) => {
         setExpandedIndexes((prev) => ({
             ...prev,
-            [index]: !prev[index], // Alterna entre expandir e recolher
+            [index]: !prev[index],
         }));
     };
 
@@ -195,14 +197,14 @@ const RegistoIntervencao = (props) => {
     const handleFormChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
-        console.log(formData);
     };
+    
     const handleDeleteArtigo = (index) => {
         const updatedArtigos = addedArtigos.filter((_, i) => i !== index);
         setAddedArtigos(updatedArtigos);
         if (editingIndex === index) {
-            setEditingIndex(null); // Reset editing index if the edited item is deleted
-            setArtigoForm(initialArtigoForm()); // Reset form if the current item being edited is deleted
+            setEditingIndex(null);
+            setArtigoForm(initialArtigoForm());
         }
     };
 
@@ -277,44 +279,30 @@ const RegistoIntervencao = (props) => {
             const dataHoraFim = new Date(`${formData.dataFim}T${formData.horaFim}`);
             const duracaoEmMinutos = Math.floor((dataHoraFim - dataHoraInicio) / (1000 * 60));
 
-
-
             try {
                 // Making the API request
                 const Emailresponse = await fetch(`${apiBaseUrl}/ObterContactoIntervencao/${processoID}`, {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${token}`,  // Include the token if necessary
+                        'Authorization': `Bearer ${token}`,
                         'urlempresa': urlempresa,
                         'Content-Type': 'application/json',
                     }
                 });
 
-                // Check if the response is successful
                 if (!Emailresponse.ok) {
-                    // Log the status code and status text for debugging
                     throw new Error(`Erro ao buscar dados: ${Emailresponse.status} - ${Emailresponse.statusText}`);
                 }
 
-                // Convert the response to JSON
                 const data = await Emailresponse.json();
 
-                // For example, check if the data contains a specific property
                 if (data.DataSet && data.DataSet.Table) {
                     email = data.DataSet.Table[0].Email;
-                    console.log("Email recebido: ", emailDestinatario);  // Verifique se está correto
                 }
-
-
             } catch (error) {
-                // Log any errors that occur during the fetch operation
                 console.error('Erro ao fazer a requisição:', error.message);
             }
 
-            // Calculate duration
-           // const dataHoraInicio = new Date(`${formData.dataInicio}T${formData.horaInicio}`);
-            //const dataHoraFim = new Date(`${formData.dataFim}T${formData.horaFim}`);
-            //const duracaoEmMinutos = Math.floor((dataHoraFim - dataHoraInicio) / (1000 * 60));
             const duracaoRealEmHoras = Math.floor(duracaoEmMinutos / 60);
 
             // Add base article based on intervention type
@@ -336,19 +324,18 @@ const RegistoIntervencao = (props) => {
                     ImplicaDeslocacoes: tipoIntervencaoSelecionado.ImplicaDeslocacoes,
                     ServicoDeslocacao: tipoIntervencaoSelecionado.ServicoDeslocacao,
                     ObrigaRegCaractVar: tipoIntervencaoSelecionado.ObrigaRegCaractVar,
-                    qtdeCusto: qtdeCusto, // Using modal input value
-                    precoCusto: precoCusto, // Using modal input value
-                    qtdeCliente: qtdeCliente, // Using modal input value
-                    precoCliente: precoCliente, // Using modal input value
-                    descontoCliente: descontoCliente, // Using modal input value
-                    
+                    qtdeCusto: qtdeCusto,
+                    precoCusto: precoCusto,
+                    qtdeCliente: qtdeCliente,
+                    precoCliente: precoCliente,
+                    descontoCliente: descontoCliente,
                 };
 
                 // If the transport service is not null, create an additional article
                 if (tipoIntervencaoSelecionado.ServicoDeslocacao) {
                     const artigoDeslocacao = {
                         artigo: tipoIntervencaoSelecionado.ServicoDeslocacao,
-                        descricao: "Descri��o do Servi�o de Desloca��o",
+                        descricao: "Descrição do Serviço de Deslocação",
                         ContabilizaMO: false,
                         TipoContabilizacao: 0,
                         TempoFixo: 0,
@@ -357,12 +344,11 @@ const RegistoIntervencao = (props) => {
                         ImplicaDeslocacoes: false,
                         ServicoDeslocacao: null,
                         ObrigaRegCaractVar: false,
-                        qtdeCusto: qtdeCustoDeslocacao, // Using desloca��o modal input value
-                        precoCusto: precoCustoDeslocacao, // Using desloca��o modal input value
-                        qtdeCliente: qtdeClienteDeslocacao, // Using desloca��o modal input value
-                        precoCliente: precoClienteDeslocacao, // Using desloca��o modal input value
+                        qtdeCusto: qtdeCustoDeslocacao,
+                        precoCusto: precoCustoDeslocacao,
+                        qtdeCliente: qtdeClienteDeslocacao,
+                        precoCliente: precoClienteDeslocacao,
                         descontoCliente: descontoClienteDeslocacao,
-                        
                     };
 
                     // Add the transport article to the added articles array
@@ -373,18 +359,16 @@ const RegistoIntervencao = (props) => {
                 artigosAdicionados.push(artigoBase);
             }
 
-
             const dataHoraInicioFormatted = `${formData.dataInicio}T${formData.horaInicio}:00`; // Adiciona segundos
             const dataHoraFimFormatted = `${formData.dataFim}T${formData.horaFim}:00`;
 
-    
             const dataToSave = {
                 processoID,
                 tipoIntervencao: formData.tipo,
                 duracao: duracaoEmMinutos,
                 duracaoReal: duracaoEmMinutos,
-                DataHoraInicio: dataHoraInicioFormatted, // Envia no formato correto
-                DataHoraFim: dataHoraFimFormatted, // Envia no formato correto
+                DataHoraInicio: dataHoraInicioFormatted,
+                DataHoraFim: dataHoraFimFormatted,
                 tecnico: formData.tecnico,
                 estadoAnt: ultimoEstado.toString(),
                 estado: formData.estado,
@@ -395,8 +379,6 @@ const RegistoIntervencao = (props) => {
                 artigos: artigosAdicionados,
             };
             console.log(dataToSave);
-
-
 
             // Call the API to save the intervention
             const intervencaoResponse = await fetch(`${apiBaseUrl}/CriarIntervencoes`, {
@@ -420,24 +402,22 @@ const RegistoIntervencao = (props) => {
             const numeroDetalhes = intervencaoData.detalhes;
             console.log('Número de detalhes:', numeroDetalhes);
 
-
             let ResponseData;
             // Realiza a chamada ao endpoint
             try {
                 const emailResponse = await fetch(`${apiBaseUrl}/ObterInfoEmail/${processoID}/${numeroDetalhes}`, {
-                    method: 'GET',  // Método GET, conforme sua rota no servidor
+                    method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${token}`, // Substitua pelo token de autenticação correto
-                        'Content-Type': 'application/json', // Define o tipo de conteúdo
-                        'urlempresa': urlempresa, // Substitua pelo valor correto ou configure o cabeçalho dinâmico
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'urlempresa': urlempresa,
                     }
                 });
 
-                // Verifica se a resposta foi bem-sucedida
                 if (emailResponse.ok) {
                     const responseData = await emailResponse.json();
                     console.log('Resposta de e-mail obtida com sucesso:', responseData);
-                    ResponseData = responseData;  // Atribui corretamente a resposta
+                    ResponseData = responseData;
                 } else {
                     console.error('Erro ao obter informações de e-mail:', emailResponse.status, await emailResponse.text());
                 }
@@ -481,8 +461,6 @@ const RegistoIntervencao = (props) => {
 
             // Chame a função para enviar o e-mail
             enviarEmail();
-
-            
     
             // Reset form
             setIsSuccessModalOpen(true);
@@ -508,11 +486,8 @@ const RegistoIntervencao = (props) => {
         }
     };
     
-
     const handleSave = () => {
-        // Set the selected intervention type before opening the modal
-
-        // Verifica se todos os campos obrigat�rios est�o preenchidos
+        // Verifica se todos os campos obrigatórios estão preenchidos
         if (
             !formData.tipo ||
             !formData.tipoIntervencao ||
@@ -538,632 +513,940 @@ const RegistoIntervencao = (props) => {
         setIsModalOpen(false);
     };
 
-
-
-
     return (
         <div style={containerStyle}>
-            <h1 style={headerStyle}>{t("RegistoIntervencao.Title")}</h1>
-
-            <div style={formRowStyle}>
-                <div style={selectColumnStyle}>
-                    <select
-                        name="tipoIntervencao"
-                        value={formData.tipoIntervencao}
-                        onChange={handleFormChange}
-                        style={selectStyle}
-                        onClick={fetchTiposIntervencao}
-                        required 
-                    >
-                        <option value="">{t("RegistoIntervencao.TxtTipoInter")}</option>
-                        {tiposIntervencao.map((tipo) => (
-                            <option key={tipo.Prioridade} value={tipo.Prioridade}>
-                                {tipo.Prioridade} - {tipo.Descricao}
-                            </option>
-                        ))}
-                    </select>
-                    {/* Nova div para centralizar as datas e horas */}
-                
-                </div>
-
-                <div style={selectColumnStyle}>
-                    <select
-                        name="tecnico"
-                        value={formData.tecnico}
-                        onChange={handleFormChange}
-                        style={selectStyle}
-                        onClick={fetchTecnicos}
-                        required 
-                    >
-                        <option value="">{t("RegistoIntervencao.TxtTecnico")}</option>
-                        {tecnicos.map((tecnico) => (
-                            <option key={tecnico.Tecnico} value={tecnico.Tecnico}>
-                                {tecnico.Tecnico} - {tecnico.Nome}
-                            </option>
-                        ))}
-                    </select>
-                    
-                </div>
-            </div>
-            <div style={dateTimeContainerStyle}>
-                <label>
-                    {t("RegistoIntervencao.DataInicio")} </label>
-                    <input
-                        type="date"
-                        name="dataInicio"
-                        value={formData.dataInicio} // Vinculação ao estado
-                        style={inputStyle}
-                        onChange={handleFormChange}
-                        required
-                    />
-               
-
-                <label>
-                    {t("RegistoIntervencao.DataFim")} </label>
-                    <input
-                        type="date"
-                        name="dataFim"
-                        value={formData.dataFim} // Vinculação ao estado
-                        style={inputStyle}
-                        onChange={handleFormChange}
-                        required
-                    />
-               
-
-                <label>
-                    {t("RegistoIntervencao.HoraInicio")} </label>
-                    <input
-                        type="time"
-                        name="horaInicio"
-                        value={formData.horaInicio} // Vinculação ao estado
-                        style={inputStyle}
-                        onChange={handleFormChange}
-                        required
-                    />
-                
-
-                <label>
-                    {t("RegistoIntervencao.HoraFim")}</label>
-                    <input
-                        type="time"
-                        name="horaFim"
-                        value={formData.horaFim} // Vinculação ao estado
-                        style={inputStyle}
-                        onChange={handleFormChange}
-                        required
-                    />
-                
-            </div>
-
-            <div style={descricaodiv}>
-                <label>
-                    {t("RegistoIntervencao.Descricao")}</label>
-                <textarea
-                    type="text"
-                    name="descricao"
-                    placeholder="Descricao"
-                    value={formData.descricao}
-                    onChange={handleFormChange}
-                    style={textareaStyle}  // Pode manter o estilo do textarea ou ajust�-lo conforme necess�rio
-                    required
-                />
-            </div >
-            <div style={formRowStyle}>
-                <div style={selectColumnStyle}>
-
-                    <select
-                        name="estado"
-                        value={formData.estado}
-                        onChange={handleFormChange}
-                        style={selectStyle}
-                        onClick={fetchEstados}
-                        required 
-                    >
-                        <option value="">{t("RegistoIntervencao.Estado")}</option>
-                        {estados.map((estado) => (
-                            <option key={estado.Estado} value={estado.Estado}>
-                                {estado.Descricao}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                {/* Novo ComboBox de Tipo ao lado de Estado */}
-                <div style={selectColumnStyle}>
-                    <select
-                        name="tipo"
-                        value={formData.tipo}
-                        onChange={handleFormChange}
-                        style={selectStyle}
-                        onClick={fetchTipos}
-                        required 
-                    >
-                        <option value="">{t("RegistoIntervencao.Tipo")}</option>
-                        {tipos.map((tipo) => (
-                            <option key={tipo.TipoIntervencao} value={tipo.TipoIntervencao}>
-                                {tipo.TipoIntervencao}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-            </div>
-
-            <h2 style={detailsHeaderStyle}>{t("RegistoIntervencao.SubTitulo")}</h2>
-            <button style={toggleButtonStyle} onClick={toggleArtigoSection}>
-                {isArtigoSectionOpen ? t("RegistoIntervencao.OcultarArtigo") :  t("RegistoIntervencao.AddArtigo") }
-            </button>
-
-            {isArtigoSectionOpen && (
-                <div style={collapsibleSectionStyle}>
-                    <div style={formRowStyle}>
-                        <select
-                            name="artigo"
-                            value={artigoForm.artigo}
-                            onChange={handleInputChange}
-                            onClick={fetchArtigos}
-                            style={selectStyle}
+            <div style={cardStyle}>
+                <header style={headerStyle}>
+                    <h1 style={titleStyle}>{t("RegistoIntervencao.Title")}</h1>
+                    <div style={tabsContainerStyle}>
+                        <button 
+                            style={activeTab === "detalhes" ? activeTabStyle : tabStyle}
+                            onClick={() => setActiveTab("detalhes")}
                         >
-                            <option value="">{t("RegistoIntervencao.SelecioneArtigo")}</option>
-                            {artigosDisponiveis.map((art) => (
-                                <option key={art.Artigo} value={art.Artigo}>
-                                    {art.Artigo}
-                                </option>
-                            ))}
-                        </select>
-                        <button
-                            style={{
-                                borderRadius: '10px',
-                                padding: '10px',
-                                fontSize: '1rem',
-                                backgroundColor: 'rgb(40, 167, 69)',
-                                color: 'white',
-                                border: 'none',
-                                marginBottom: '10px',
-                            }}
-                            onClick={handleAddArtigo}
+                            Detalhes da Intervenção
+                        </button>
+                        <button 
+                            style={activeTab === "cronograma" ? activeTabStyle : tabStyle}
+                            onClick={() => setActiveTab("cronograma")}
                         >
-                            {editingIndex !== null ? t("RegistoIntervencao.Atualizar") : t("RegistoIntervencao.Add") }
+                            Cronograma
+                        </button>
+                        <button 
+                            style={activeTab === "artigos" ? activeTabStyle : tabStyle}
+                            onClick={() => setActiveTab("artigos")}
+                        >
+                            Artigos
                         </button>
                     </div>
-                </div>
-            )}
+                </header>
 
-                
-                    
+                {successMessage && <div style={messageStyle}>{successMessage}</div>}
 
-            <div style={artigoListContainerStyle}>
-                {addedArtigos.map((artigo, index) => (
-                    <div key={index} style={artigoItemStyle}>
-                        <div
-                            style={{
-                                ...artigoHeaderStyle,
-                                ...(expandedIndexes[index] ? artigoHeaderHoverStyle : {}), // Conditionally apply styles
-                                display: 'flex', // Flexbox for horizontal alignment
-                                justifyContent: 'space-between', // Space between items
-                                alignItems: 'center', // Center items vertically
-                            }}
-                            onClick={() => toggleArtigoExpansion(index)}
-                        >
-                            <span>{artigo.artigo}</span>
-                            <div>
-                                <button style={expandButtonStyle}>
-                                    {expandedIndexes[index] ? t("RegistoIntervencao.Recolher") : t("RegistoIntervencao.Expandir")}
-                                </button>
-                                <button
-                                    style={{
-                                        marginLeft: '10px', // Space between buttons
-                                        padding: '5px 10px',
-                                        border: 'none',
-                                        borderRadius: '5px',
-                                        cursor: 'pointer',
-                                        backgroundColor: 'rgb(255, 0, 0)', // Red color for remove action
-                                        color: 'white',
-                                        fontWeight: 'bold', // Added for consistency
-                                        fontSize: '1rem',   // Added for consistency
-                                    }}
-                                    onClick={() => handleDeleteArtigo(index)}
-                                >
-                                    {t("RegistoIntervencao.Remover")}
+                <form onSubmit={(e) => e.preventDefault()} style={formStyle}>
+                    {activeTab === "detalhes" && (
+                        <div className="tab-content" style={tabContentStyle}>
+                            <div style={sectionTitleContainerStyle}>
+                                <div style={sectionTitleLineStyle}></div>
+                                <h2 style={sectionTitleStyle}>Informações da Intervenção</h2>
+                                <div style={sectionTitleLineStyle}></div>
+                            </div>
+                            
+                            <div style={formRowStyle}>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoIntervencao.TxtTipoInter")}</label>
+                                    <select
+                                        name="tipoIntervencao"
+                                        value={formData.tipoIntervencao}
+                                        onChange={handleFormChange}
+                                        onClick={fetchTiposIntervencao}
+                                        style={selectStyle}
+                                        required 
+                                    >
+                                        <option value="">{t("RegistoIntervencao.TxtTipoInter")}</option>
+                                        {tiposIntervencao.map((tipo) => (
+                                            <option key={tipo.Prioridade} value={tipo.Prioridade}>
+                                                {tipo.Prioridade} - {tipo.Descricao}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoIntervencao.TxtTecnico")}</label>
+                                    <select
+                                        name="tecnico"
+                                        value={formData.tecnico}
+                                        onChange={handleFormChange}
+                                        onClick={fetchTecnicos}
+                                        style={selectStyle}
+                                        required 
+                                    >
+                                        <option value="">{t("RegistoIntervencao.TxtTecnico")}</option>
+                                        {tecnicos.map((tecnico) => (
+                                            <option key={tecnico.Tecnico} value={tecnico.Tecnico}>
+                                                {tecnico.Tecnico} - {tecnico.Nome}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style={formRowStyle}>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoIntervencao.Estado")}</label>
+                                    <select
+                                        name="estado"
+                                        value={formData.estado}
+                                        onChange={handleFormChange}
+                                        onClick={fetchEstados}
+                                        style={selectStyle}
+                                        required 
+                                    >
+                                        <option value="">{t("RegistoIntervencao.Estado")}</option>
+                                        {estados.map((estado) => (
+                                            <option key={estado.Estado} value={estado.Estado}>
+                                                {estado.Descricao}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoIntervencao.Tipo")}</label>
+                                    <select
+                                        name="tipo"
+                                        value={formData.tipo}
+                                        onChange={handleFormChange}
+                                        onClick={fetchTipos}
+                                        style={selectStyle}
+                                        required 
+                                    >
+                                        <option value="">{t("RegistoIntervencao.Tipo")}</option>
+                                        {tipos.map((tipo) => (
+                                            <option key={tipo.TipoIntervencao} value={tipo.TipoIntervencao}>
+                                                {tipo.TipoIntervencao}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style={formGroupStyle}>
+                                <label style={labelStyle}>{t("RegistoIntervencao.Descricao")}</label>
+                                <textarea
+                                    name="descricao"
+                                    placeholder={t("RegistoIntervencao.Descricao")}
+                                    value={formData.descricao}
+                                    onChange={handleFormChange}
+                                    style={textareaStyle}
+                                    rows={5}
+                                    required
+                                />
+                            </div>
+                            
+                            <div style={navigationButtonsStyle}>
+                                <button type="button" style={nextButtonStyle} onClick={() => setActiveTab("cronograma")}>
+                                    Próximo
                                 </button>
                             </div>
                         </div>
+                    )}
 
-                        {expandedIndexes[index] && (
-                            <div style={artigoDetailsStyle}>
-                                {Object.entries(artigo).map(([key, value], i) => (
-                                    <div key={i} style={detailRowStyle}>
-                                        <strong>{key}:</strong>
-                                        <input
-                                            type="text"
-                                            name={key}
-                                            value={value}
-                                            onChange={(e) => handleArtigoChange(e, index)}
-                                            style={{ marginLeft: '10px', flex: 1 }}
-                                        />
-                                    </div>
-                                ))}
-
-                                
+                    {activeTab === "cronograma" && (
+                        <div className="tab-content" style={tabContentStyle}>
+                            <div style={sectionTitleContainerStyle}>
+                                <div style={sectionTitleLineStyle}></div>
+                                <h2 style={sectionTitleStyle}>Cronograma</h2>
+                                <div style={sectionTitleLineStyle}></div>
                             </div>
-                        )}
-                    </div>
-                ))}
+                            
+                            <div style={formRowStyle}>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoIntervencao.DataInicio")}</label>
+                                    <input
+                                        type="date"
+                                        name="dataInicio"
+                                        value={formData.dataInicio}
+                                        onChange={handleFormChange}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoIntervencao.DataFim")}</label>
+                                    <input
+                                        type="date"
+                                        name="dataFim"
+                                        value={formData.dataFim}
+                                        onChange={handleFormChange}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                            </div>
 
+                            <div style={formRowStyle}>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoIntervencao.HoraInicio")}</label>
+                                    <input
+                                        type="time"
+                                        name="horaInicio"
+                                        value={formData.horaInicio}
+                                        onChange={handleFormChange}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoIntervencao.HoraFim")}</label>
+                                    <input
+                                        type="time"
+                                        name="horaFim"
+                                        value={formData.horaFim}
+                                        onChange={handleFormChange}
+                                        style={inputStyle}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div style={navigationButtonsStyle}>
+                                <button type="button" style={backButtonStyle} onClick={() => setActiveTab("detalhes")}>
+                                    Voltar
+                                </button>
+                                <button type="button" style={nextButtonStyle} onClick={() => setActiveTab("artigos")}>
+                                    Próximo
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
+                    {activeTab === "artigos" && (
+                        <div className="tab-content" style={tabContentStyle}>
+                            <div style={sectionTitleContainerStyle}>
+                                <div style={sectionTitleLineStyle}></div>
+                                <h2 style={sectionTitleStyle}>{t("RegistoIntervencao.SubTitulo")}</h2>
+                                <div style={sectionTitleLineStyle}></div>
+                            </div>
+
+                            <div style={artigoActionsStyle}>
+                                <button type="button" style={toggleButtonStyle} onClick={toggleArtigoSection}>
+                                    {isArtigoSectionOpen ? t("RegistoIntervencao.OcultarArtigo") : t("RegistoIntervencao.AddArtigo")}
+                                </button>
+                            </div>
+
+                            {isArtigoSectionOpen && (
+                                <div style={artigoFormContainerStyle}>
+                                    <div style={formRowStyle}>
+                                        <div style={formGroupStyle}>
+                                            <label style={labelStyle}>Artigo</label>
+                                            <select
+                                                name="artigo"
+                                                value={artigoForm.artigo}
+                                                onChange={handleInputChange}
+                                                onClick={fetchArtigos}
+                                                style={selectStyle}
+                                            >
+                                                <option value="">{t("RegistoIntervencao.SelecioneArtigo")}</option>
+                                                {artigosDisponiveis.map((art) => (
+                                                    <option key={art.Artigo} value={art.Artigo}>
+                                                        {art.Artigo}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div style={formGroupStyle}>
+                                            <label style={labelStyle}>Ação</label>
+                                            <button
+                                                type="button"
+                                                style={addArtigoButtonStyle}
+                                                onClick={handleAddArtigo}
+                                            >
+                                                {editingIndex !== null ? t("RegistoIntervencao.Atualizar") : t("RegistoIntervencao.Add")}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div style={artigosListStyle}>
+                                {addedArtigos.length > 0 ? (
+                                    addedArtigos.map((artigo, index) => (
+                                        <div key={index} style={artigoCardStyle}>
+                                            <div style={artigoCardHeaderStyle}>
+                                                <div style={artigoCardTitleStyle}>
+                                                    <span>{artigo.artigo}</span>
+                                                    <span style={artigoCardDescriptionStyle}>{artigo.descricao}</span>
+                                                </div>
+                                                <div style={artigoCardActionsStyle}>
+                                                    <button 
+                                                        type="button" 
+                                                        style={artigoExpandButtonStyle}
+                                                        onClick={() => toggleArtigoExpansion(index)}
+                                                    >
+                                                        {expandedIndexes[index] ? t("RegistoIntervencao.Recolher") : t("RegistoIntervencao.Expandir")}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        style={artigoDeleteButtonStyle}
+                                                        onClick={() => handleDeleteArtigo(index)}
+                                                    >
+                                                        {t("RegistoIntervencao.Remover")}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {expandedIndexes[index] && (
+                                                <div style={artigoCardDetailsStyle}>
+                                                    <div style={artigoDetailsGridStyle}>
+                                                        {Object.entries(artigo).map(([key, value], i) => (
+                                                            <div key={i} style={artigoDetailItemStyle}>
+                                                                <label style={artigoDetailLabelStyle}>{key}:</label>
+                                                                <input
+                                                                    type="text"
+                                                                    name={key}
+                                                                    value={value}
+                                                                    onChange={(e) => handleArtigoChange(e, index)}
+                                                                    style={artigoDetailInputStyle}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div style={noArtigosStyle}>
+                                        <p>Nenhum artigo adicionado.</p>
+                                        <p>Clique em "Adicionar Artigo" para incluir artigos à intervenção.</p>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <div style={navigationButtonsStyle}>
+                                <button type="button" style={backButtonStyle} onClick={() => setActiveTab("cronograma")}>
+                                    Voltar
+                                </button>
+                                <button type="button" style={submitButtonStyle} onClick={handleSave} disabled={isLoading}>
+                                    {isLoading ? t("RegistoIntervencao.BtGravando") : t("RegistoIntervencao.Criar")}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </form>
+                
                 <div style={buttonContainerStyle}>
                     <button
-                        style={cancelButtonStyle}
+                        type="button"
                         onClick={() => props.navigation.navigate('Intervencoes')}
+                        style={cancelButtonStyle}
                     >
                         {t("RegistoIntervencao.Cancelar")}
                     </button>
-
-                    <button
-                        style={saveButtonStyle}
-                        onClick={handleSave}
-                    >
-                        {t("RegistoIntervencao.Criar")}
-                    </button>
                 </div>
-
-                {/* Loading Spinner */}
-                {isLoading && <div style={loadingStyle}>{t("RegistoIntervencao.Loading")}</div>}
-
-                {/* Mensagem de Sucesso */}
-                {isSuccessModalOpen && (
-                        <Modal onClose={() => setIsSuccessModalOpen(false)}>
-                        <h2 style={modalTitleStyle}>{t("RegistoIntervencao.Aviso.3")}</h2>
-                        <p>{t("RegistoIntervencao.Aviso.2")}</p>
-                            <div style={buttonContainerStyle}>
-                                <button
-                                    style={saveButtonStyle}
-                                    onClick={() => {
-                                        setIsSuccessModalOpen(false);
-                                        props.navigation.navigate('Intervencoes');
-                                    }}
-                                >
-                                {t("RegistoIntervencao.Aviso.4")}
-                                </button>
-                            </div>
-                        </Modal>
-                    )}
-                
-                {isModalOpen && (
-                    <Modal onClose={handleCloseModal}>
-                        <h2 style={modalTitleStyle}>Confirmar Dados</h2>
-
-                        {/* Tabela para Dados do Servi�o Base */}
-                        <h3 style={sectionTitleStyle}>Dados do Servico Base</h3>
-                        <table style={tableStyle2}>
-
-                            <tbody>
-                                <tr>
-                                    <td>Duracao Real:</td>
-                                    <td>
-                                        <input
-                                            type="number"
-                                            value={qtdeCusto}
-                                            onChange={(e) => setQtdeCusto(Number(e.target.value))}
-                                            style={inputStyle2}
-                                        />
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>Valor Hora:</td>
-                                    <td>
-                                        <input
-                                            type="number"
-                                            value={precoCusto}
-                                            onChange={(e) => setPrecoCusto(Number(e.target.value))}
-                                            style={inputStyle2}
-                                        />
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>Duracao Cliente:</td>
-                                    <td>
-                                        <input
-                                            type="number"
-                                            value={qtdeCliente}
-                                            onChange={(e) => setQtdeCliente(Number(e.target.value))}
-                                            style={inputStyle2}
-                                        />
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>Valor hora:</td>
-                                    <td>
-                                        <input
-                                            type="number"
-                                            value={precoCliente}
-                                            onChange={(e) => setPrecoCliente(Number(e.target.value))}
-                                            style={inputStyle2}
-                                        />
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>Desconto:</td>
-                                    <td>
-                                        <input
-                                            type="number"
-                                            value={descontoCliente}
-                                            onChange={(e) => setDescontoCliente(Number(e.target.value))}
-                                            style={inputStyle2}
-                                        />
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-
-                        {/* Tabela para Dados do Servi�o de Desloca��o */}
-                        {tipoIntervencaoSelecionado?.ServicoDeslocacao && (
-                            <>
-                                <h3 style={sectionTitleStyle}>Dados do Servico de Deslocacao</h3>
-                                <table style={tableStyle2}>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>Distancia Real:</td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    value={qtdeCustoDeslocacao}
-                                                    onChange={(e) => setQtdeCustoDeslocacao(Number(e.target.value))}
-                                                    style={inputStyle2}
-                                                />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>Preco por Km:</td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    value={precoCustoDeslocacao}
-                                                    onChange={(e) => setPrecoCustoDeslocacao(Number(e.target.value))}
-                                                    style={inputStyle2}
-                                                />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>Distancia Cliente:</td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    value={qtdeClienteDeslocacao}
-                                                    onChange={(e) => setQtdeClienteDeslocacao(Number(e.target.value))}
-                                                    style={inputStyle2}
-                                                />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>Valor Cliente:</td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    value={precoClienteDeslocacao}
-                                                    onChange={(e) => setPrecoClienteDeslocacao(Number(e.target.value))}
-                                                    style={inputStyle2}
-                                                />
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>Desconto:</td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    value={descontoClienteDeslocacao}
-                                                    onChange={(e) => setDescontoClienteDeslocacao(Number(e.target.value))}
-                                                    style={inputStyle2}
-                                                />
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </>
-                        )}
-
-                        <div style={buttonContainerStyle}>
-                            <button onClick={handleCloseModal} style={cancelButtonStyle}>
-                                Cancelar
-                            </button>
-                            <button onClick={handleConfirmSave} disabled={isLoading} style={saveButtonStyle}>
-                                {isLoading ? 'Gravando...' : 'Confirmar'}
-                            </button>
-                        </div>
-                        
-                    </Modal>
-
-                    
-                )}
-
             </div>
+
+            {/* Loading Spinner */}
+            {isLoading && <div style={loadingOverlayStyle}>
+                <div style={spinnerStyle}></div>
+                <div style={loadingTextStyle}>{t("RegistoIntervencao.Loading")}</div>
+            </div>}
+
+            {/* Mensagem de Sucesso */}
+            {isSuccessModalOpen && (
+                <Modal onClose={() => setIsSuccessModalOpen(false)}>
+                    <h2 style={modalTitleStyle}>{t("RegistoIntervencao.Aviso.3")}</h2>
+                    <p>{t("RegistoIntervencao.Aviso.2")}</p>
+                    <div style={modalButtonsStyle}>
+                        <button
+                            style={modalButtonStyle}
+                            onClick={() => {
+                                setIsSuccessModalOpen(false);
+                                props.navigation.navigate('Intervencoes');
+                            }}
+                        >
+                            {t("RegistoIntervencao.Aviso.4")}
+                        </button>
+                    </div>
+                </Modal>
+            )}
+            
+            {isModalOpen && (
+                <Modal onClose={handleCloseModal}>
+                    <h2 style={modalTitleStyle}>Confirmar Dados</h2>
+
+                    {/* Tabela para Dados do Serviço Base */}
+                    <h3 style={modalSectionTitleStyle}>Dados do Serviço Base</h3>
+                    <table style={modalTableStyle}>
+                        <tbody>
+                            <tr>
+                                <td>Duração Real:</td>
+                                <td>
+                                    <input
+                                        type="number"
+                                        value={qtdeCusto}
+                                        onChange={(e) => setQtdeCusto(Number(e.target.value))}
+                                        style={modalInputStyle}
+                                    />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Valor Hora:</td>
+                                <td>
+                                    <input
+                                        type="number"
+                                        value={precoCusto}
+                                        onChange={(e) => setPrecoCusto(Number(e.target.value))}
+                                        style={modalInputStyle}
+                                    />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Duração Cliente:</td>
+                                <td>
+                                    <input
+                                        type="number"
+                                        value={qtdeCliente}
+                                        onChange={(e) => setQtdeCliente(Number(e.target.value))}
+                                        style={modalInputStyle}
+                                    />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Valor hora:</td>
+                                <td>
+                                    <input
+                                        type="number"
+                                        value={precoCliente}
+                                        onChange={(e) => setPrecoCliente(Number(e.target.value))}
+                                        style={modalInputStyle}
+                                    />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Desconto:</td>
+                                <td>
+                                    <input
+                                        type="number"
+                                        value={descontoCliente}
+                                        onChange={(e) => setDescontoCliente(Number(e.target.value))}
+                                        style={modalInputStyle}
+                                    />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    {/* Tabela para Dados do Serviço de Deslocação */}
+                    {tipoIntervencaoSelecionado?.ServicoDeslocacao && (
+                        <>
+                            <h3 style={modalSectionTitleStyle}>Dados do Serviço de Deslocação</h3>
+                            <table style={modalTableStyle}>
+                                <tbody>
+                                    <tr>
+                                        <td>Distância Real:</td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                value={qtdeCustoDeslocacao}
+                                                onChange={(e) => setQtdeCustoDeslocacao(Number(e.target.value))}
+                                                style={modalInputStyle}
+                                            />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Preço por Km:</td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                value={precoCustoDeslocacao}
+                                                onChange={(e) => setPrecoCustoDeslocacao(Number(e.target.value))}
+                                                style={modalInputStyle}
+                                            />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Distância Cliente:</td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                value={qtdeClienteDeslocacao}
+                                                onChange={(e) => setQtdeClienteDeslocacao(Number(e.target.value))}
+                                                style={modalInputStyle}
+                                            />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Valor Cliente:</td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                value={precoClienteDeslocacao}
+                                                onChange={(e) => setPrecoClienteDeslocacao(Number(e.target.value))}
+                                                style={modalInputStyle}
+                                            />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Desconto:</td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                value={descontoClienteDeslocacao}
+                                                onChange={(e) => setDescontoClienteDeslocacao(Number(e.target.value))}
+                                                style={modalInputStyle}
+                                            />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </>
+                    )}
+
+                    <div style={modalButtonsStyle}>
+                        <button type="button" onClick={handleCloseModal} style={modalCancelButtonStyle}>
+                            Cancelar
+                        </button>
+                        <button type="button" onClick={handleConfirmSave} disabled={isLoading} style={modalConfirmButtonStyle}>
+                            {isLoading ? 'Gravando...' : 'Confirmar'}
+                        </button>
+                    </div>
+                </Modal>
+            )}
         </div>
     );
 };
 
-const descricaodiv = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    width: '100%',
-}
-const tableStyle2 = {
-    width: '100%',
-    borderCollapse: 'collapse', // Remove espa�os entre as c�lulas
-    marginBottom: '20px', // Espa�amento inferior para separar das pr�ximas se��es
-};
-const modalTitleStyle = {
-    textAlign: 'center',
-    color: '#1792FE',
-    margin: 0,
-};
-const inputStyle2 = {
-    width: '100%', // Faz o input ocupar a largura total da c�lula
-    padding: '5px', // Espa�amento interno para o input
-    boxSizing: 'border-box', // Inclui padding no total width
-};
-const sectionTitleStyle = {
-    color: '#1792FE',
-    margin: '10px 0 5px',
+// Estilos modernos
+const containerStyle = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    minHeight: "100vh",
+    width: "100%",
+    backgroundColor: '#d4e4ff',
+    padding: "20px",
+    boxSizing: "border-box",
 };
 
-const containerStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: '20px',
-    backgroundColor: '#d4e4ff',
-    overflowY: 'auto',
-    maxHeight: '100vh'
+const cardStyle = {
+    width: "90%",
+    maxWidth: "1000px",
+    backgroundColor: "#ffffff",
+    borderRadius: "12px",
+    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+    overflow: "hidden",
+    marginBottom: "30px",
 };
-const artigoListContainerStyle = {
-    width: '100%',
-    marginTop: '20px',
-};
+
 const headerStyle = {
-    color: '#1792FE',
-    fontSize: '2rem',
-    fontWeight: '600',
-    marginBottom: '30px',
+    backgroundColor: "#1792FE",
+    padding: "25px",
+    textAlign: "center",
+    position: "relative",
 };
-const detailsHeaderStyle = {
-    fontSize: '1.5rem',
-    color: '#1792FE',
-    marginBottom: '20px',
+
+const titleStyle = {
+    color: "#ffffff",
+    fontSize: "1.8rem",
+    fontWeight: "600",
+    marginTop: "0",
+    marginBottom: "20px",
+    textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
 };
+
+const tabsContainerStyle = {
+    display: "flex",
+    justifyContent: "center",
+    gap: "5px",
+    marginTop: "10px",
+};
+
+const tabStyle = {
+    padding: "10px 20px",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "20px",
+    cursor: "pointer",
+    fontWeight: "500",
+    fontSize: "0.9rem",
+    transition: "all 0.2s ease",
+};
+
+const activeTabStyle = {
+    ...tabStyle,
+    backgroundColor: "#ffffff",
+    color: "#1792FE",
+    fontWeight: "600",
+    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+};
+
+const formStyle = {
+    padding: "0 20px",
+};
+
+const tabContentStyle = {
+    padding: "20px 0",
+    animation: "fadeIn 0.3s ease-in-out",
+};
+
+const sectionTitleContainerStyle = {
+    display: "flex",
+    alignItems: "center",
+    margin: "10px 0 25px 0",
+};
+
+const sectionTitleLineStyle = {
+    flex: 1,
+    height: "1px",
+    backgroundColor: "#e0e0e0",
+};
+
+const sectionTitleStyle = {
+    fontSize: "1.2rem",
+    fontWeight: "500",
+    color: "#1792FE",
+    margin: "0 15px",
+    padding: "0 10px",
+};
+
+const formGroupStyle = {
+    marginBottom: "20px",
+    width: "100%",
+};
+
 const formRowStyle = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    width: '100%',
-    gap: '20px',  // Espa�o entre as colunas
+    display: "flex",
+    gap: "20px",
+    marginBottom: "5px",
 };
-const selectColumnStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    flex: '1',
-    gap: '10px',
+
+const labelStyle = {
+    display: "block",
+    marginBottom: "8px",
+    fontSize: "0.95rem",
+    fontWeight: "500",
+    color: "#555",
 };
-const dateTimeContainerStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    width: '100%', // Ocupa toda a largura da coluna
-    gap: '10px',
-};
-const inputStyle = {
-    padding: '10px',
-    borderRadius: '10px',
-    border: '1px solid #ccc',
-    marginBottom: '10px',
-    width:'100%',
-};
-const textareaStyle = {
-    padding: '10px',
-    borderRadius: '10px',
-    border: '1px solid #ccc',
-    marginBottom: '10px',
-    height: '100px', // Maintain a fixed height
-    width: '100%',
-    resize: 'none', // Prevents resizing, optional
-};
+
 const selectStyle = {
-    padding: '10px',
-    borderRadius: '10px',
-    border: '1px solid #ccc',
-    fontSize: '1rem',
-    marginBottom: '10px',
+    width: "100%",
+    padding: "12px 15px",
+    borderRadius: "8px",
+    border: "1px solid #ddd",
+    fontSize: "0.95rem",
+    backgroundColor: "#f9f9f9",
+    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+    boxSizing: "border-box",
+    appearance: "none",
+    backgroundImage: "url('data:image/svg+xml;utf8,<svg fill=\"%23555\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7 10l5 5 5-5z\"/><path d=\"M0 0h24v24H0z\" fill=\"none\"/></svg>')",
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 10px center",
 };
+
+const inputStyle = {
+    width: "100%",
+    padding: "12px 15px",
+    borderRadius: "8px",
+    border: "1px solid #ddd",
+    fontSize: "0.95rem",
+    backgroundColor: "#f9f9f9",
+    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+    boxSizing: "border-box",
+};
+
+const textareaStyle = {
+    width: "100%",
+    padding: "12px 15px",
+    borderRadius: "8px",
+    border: "1px solid #ddd",
+    fontSize: "0.95rem",
+    backgroundColor: "#f9f9f9",
+    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+    boxSizing: "border-box",
+    resize: "vertical",
+    minHeight: "120px",
+};
+
+const navigationButtonsStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    marginTop: "30px",
+    paddingBottom: "10px",
+};
+
+const buttonBaseStyle = {
+    padding: "12px 25px",
+    borderRadius: "8px",
+    border: "none",
+    fontSize: "1rem",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+};
+
+const backButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: "#e0e0e0",
+    color: "#555",
+};
+
+const nextButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: "#1792FE",
+    color: "white",
+};
+
+const submitButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: "#4CAF50",
+    color: "white",
+};
+
 const buttonContainerStyle = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    width: '100%',
+    display: "flex",
+    justifyContent: "center",
+    padding: "20px",
+    borderTop: "1px solid #eee",
 };
+
 const cancelButtonStyle = {
-    borderRadius: '10px',
-    padding: '12px',
-    fontSize: '1.1rem',
-    backgroundColor: '#A3C1FF',
-    color: 'white',
-    width: '48%',
-    border: 'none',
+    ...buttonBaseStyle,
+    backgroundColor: "#f44336",
+    color: "white",
+    padding: "10px 30px",
 };
-const saveButtonStyle = {
-    borderRadius: '10px',
-    padding: '12px',
-    fontSize: '1.1rem',
-    backgroundColor: '#1792FE',
-    color: 'white',
-    width: '48%',
-    border: 'none',
+
+const messageStyle = {
+    backgroundColor: "#e8f5e9",
+    border: "1px solid #c8e6c9",
+    color: "#2e7d32",
+    padding: "12px 15px",
+    borderRadius: "8px",
+    margin: "10px 20px",
+    textAlign: "center",
+    fontWeight: "500",
 };
+
+const artigoActionsStyle = {
+    display: "flex",
+    justifyContent: "center",
+    marginBottom: "20px",
+};
+
 const toggleButtonStyle = {
-    borderRadius: '10px',
-    padding: '10px',
-    fontSize: '1rem',
-    backgroundColor: '#007BFF',
-    color: 'white',
-    border: 'none',
+    padding: "10px 20px",
+    backgroundColor: "#1792FE",
+    color: "white",
+    border: "none",
+    borderRadius: "8px",
+    fontSize: "0.95rem",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "background-color 0.2s ease",
 };
-const collapsibleSectionStyle = {
-    marginBottom: '20px',
+
+const artigoFormContainerStyle = {
+    backgroundColor: "#f9f9f9",
+    padding: "20px",
+    borderRadius: "8px",
+    marginBottom: "20px",
+    border: "1px solid #eee",
 };
-const artigoItemStyle = {
-    border: '1px solid #e0e0e0',
-    borderRadius: '15px',
-    marginBottom: '15px',
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-    overflow: 'hidden',
-    transition: 'all 0.3s ease-in-out',
+
+const addArtigoButtonStyle = {
+    padding: "12px 15px",
+    backgroundColor: "#4CAF50",
+    color: "white",
+    border: "none",
+    borderRadius: "8px",
+    fontSize: "0.95rem",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "background-color 0.2s ease",
+    width: "100%",
+    marginTop: "25px",
 };
-const artigoHeaderStyle = {
-    backgroundColor: '#0288D1', // Azul claro
-    color: 'white',
-    padding: '15px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    fontSize: '1.1rem',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'background-color 0.3s',
+
+const artigosListStyle = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "15px",
 };
-const artigoHeaderHoverStyle = {
-    backgroundColor: '#0277BD', // Mudan�a de cor ao passar o mouse
+
+const artigoCardStyle = {
+    border: "1px solid #e0e0e0",
+    borderRadius: "8px",
+    overflow: "hidden",
+    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
 };
-const artigoDetailsStyle = {
-    padding: '10px',
-    border: '1px solid #ccc',
-    borderRadius: '10px',
-    marginTop: '5px',
-    maxHeight: '200px', // Limit the height of the details section
-    overflowY: 'auto', // Allow scrolling if content exceeds max height
+
+const artigoCardHeaderStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "15px",
+    backgroundColor: "#f5f9ff",
+    borderBottom: "1px solid #e0e0e0",
 };
-const detailRowStyle = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '10px',
-    padding: '8px 0',
-    borderBottom: '1px dashed #ddd',
+
+const artigoCardTitleStyle = {
+    display: "flex",
+    flexDirection: "column",
 };
-const expandButtonStyle = {
-    backgroundColor: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#0288D1',
-    fontWeight: 'bold',
-    fontSize: '1rem',
-    borderRadius: '5px', // Added for consistency
-    padding: '5px 10px', // Added for consistency
+
+const artigoCardDescriptionStyle = {
+    fontSize: "0.85rem",
+    color: "#666",
+    marginTop: "5px",
 };
-const loadingStyle = {
-    marginTop: '10px',
-    fontSize: '1.2rem',
-    color: '#007BFF',
+
+const artigoCardActionsStyle = {
+    display: "flex",
+    gap: "8px",
 };
-const successMessageStyle = {
-    marginTop: '10px',
-    fontSize: '1.2rem',
-    color: '#28a745',
+
+const artigoExpandButtonStyle = {
+    padding: "6px 12px",
+    backgroundColor: "#1792FE",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    fontSize: "0.8rem",
+    cursor: "pointer",
+};
+
+const artigoDeleteButtonStyle = {
+    padding: "6px 12px",
+    backgroundColor: "#f44336",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    fontSize: "0.8rem",
+    cursor: "pointer",
+};
+
+const artigoCardDetailsStyle = {
+    padding: "15px",
+};
+
+const artigoDetailsGridStyle = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+    gap: "15px",
+};
+
+const artigoDetailItemStyle = {
+    display: "flex",
+    flexDirection: "column",
+};
+
+const artigoDetailLabelStyle = {
+    fontSize: "0.85rem",
+    fontWeight: "500",
+    color: "#555",
+    marginBottom: "5px",
+};
+
+const artigoDetailInputStyle = {
+    padding: "8px 10px",
+    borderRadius: "4px",
+    border: "1px solid #ddd",
+    fontSize: "0.9rem",
+};
+
+const noArtigosStyle = {
+    textAlign: "center",
+    padding: "30px",
+    backgroundColor: "#f9f9f9",
+    borderRadius: "8px",
+    color: "#666",
+};
+
+const loadingOverlayStyle = {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+};
+
+const spinnerStyle = {
+    border: "4px solid rgba(255, 255, 255, 0.3)",
+    borderRadius: "50%",
+    borderTop: "4px solid #ffffff",
+    width: "40px",
+    height: "40px",
+    animation: "spin 1s linear infinite",
+};
+
+const loadingTextStyle = {
+    color: "#ffffff",
+    marginTop: "15px",
+    fontSize: "1.1rem",
+};
+
+const modalTitleStyle = {
+    color: "#1792FE",
+    fontSize: "1.5rem",
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: "20px",
+};
+
+const modalSectionTitleStyle = {
+    color: "#1792FE",
+    fontSize: "1.2rem",
+    marginTop: "15px",
+    marginBottom: "10px",
+};
+
+const modalTableStyle = {
+    width: "100%",
+    borderCollapse: "collapse",
+};
+
+const modalInputStyle = {
+    width: "100%",
+    padding: "8px 10px",
+    borderRadius: "4px",
+    border: "1px solid #ddd",
+    fontSize: "0.9rem",
+};
+
+const modalButtonsStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    marginTop: "25px",
+};
+
+const modalButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: "#4CAF50",
+    color: "white",
+    padding: "10px 20px",
+    width: "100%",
+};
+
+const modalCancelButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: "#e0e0e0",
+    color: "#555",
+    marginRight: "10px",
+    flex: 1,
+};
+
+const modalConfirmButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: "#4CAF50",
+    color: "white",
+    flex: 1,
 };
 
 export default RegistoIntervencao;

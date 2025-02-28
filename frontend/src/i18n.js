@@ -331,8 +331,8 @@ i18n
                         Home: "Inicio",
                         SelecaoEmpresa: "Selecionar Empresa",
                         Obra: "Obras",
-                        Servicos: "Pedido de Servicos",
-                        ServicosTecnicos: "Pedidos Tecnicos",
+                        Servicos: "Pedido de Assistência",
+                        ServicosTecnicos: "Dashboard Técnico",
                         PontoQR: "Assiduidade (QR Code)",
                         PontoBT: "Assiduidade (Botao)",
 
