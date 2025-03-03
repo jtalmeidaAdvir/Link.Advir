@@ -239,6 +239,7 @@ const RegistoAssistencia = (props) => {
     };
 
     return (
+        <div style={scrollViewStyle}>
         <div style={containerStyle}>
             <div style={cardStyle}>
                 <header style={headerStyle}>
@@ -352,28 +353,29 @@ const RegistoAssistencia = (props) => {
                                 </div>
                             </div>
 
-                            <div style={formRowStyle}>
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>Data de Abertura</label>
-                                    <input
-                                        type="date"
-                                        name="dataInicio"
-                                        style={inputStyle}
-                                        onChange={handleFormChange}
-                                        required
-                                    />
-                                </div>
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>Hora de Abertura</label>
-                                    <input
-                                        type="time"
-                                        name="horaInicio"
-                                        style={inputStyle}
-                                        onChange={handleFormChange}
-                                        required
-                                    />
-                                </div>
+                            <div style={window.innerWidth < 768 ? responsiveFormRowStyle : formRowStyle}>
+                            <div style={formGroupStyle}>
+                                <label style={labelStyle}>Data de Abertura</label>
+                                <input
+                                    type="date"
+                                    name="dataInicio"
+                                    style={inputStyle}
+                                    onChange={handleFormChange}
+                                    required
+                                />
                             </div>
+                            <div style={formGroupStyle}>
+                                <label style={labelStyle}>Hora de Abertura</label>
+                                <input
+                                    type="time"
+                                    name="horaInicio"
+                                    style={inputStyle}
+                                    onChange={handleFormChange}
+                                    required
+                                />
+                            </div>
+                        </div>
+
                             
                             <div style={navigationButtonsStyle}>
                                 <button type="button" style={nextButtonStyle} onClick={() => setActiveTab("detalhes")}>
@@ -641,6 +643,7 @@ const RegistoAssistencia = (props) => {
                 </div>
             </div>
         </div>
+        </div>
     );
 };
 
@@ -684,12 +687,16 @@ const titleStyle = {
 
 const tabsContainerStyle = {
     display: "flex",
+    flexWrap: "wrap", // Permite quebra de linha
     justifyContent: "center",
     gap: "5px",
     marginTop: "10px",
 };
 
+
 const tabStyle = {
+    flex: "1 1 auto", // Faz com que os botões ocupem o espaço disponível sem forçar um tamanho fixo
+
     padding: "10px 20px",
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     color: "#fff",
@@ -745,8 +752,14 @@ const formGroupStyle = {
 
 const formRowStyle = {
     display: "flex",
+    flexDirection: "row", // Padrão: lado a lado em ecrãs grandes
     gap: "20px",
     marginBottom: "5px",
+};
+/* Quando a largura do ecrã for menor que 768px (tablets e telemóveis), empilha os campos */
+const responsiveFormRowStyle = {
+    ...formRowStyle,
+    flexDirection: "column",
 };
 
 const labelStyle = {
@@ -755,7 +768,9 @@ const labelStyle = {
     fontSize: "0.95rem",
     fontWeight: "500",
     color: "#555",
+
 };
+
 
 const selectStyle = {
     width: "100%",
@@ -855,5 +870,17 @@ const messageStyle = {
     textAlign: "center",
     fontWeight: "500",
 };
+
+const scrollViewStyle = {
+
+    overflowY: "auto", // Ativa scroll vertical quando necessário
+    width: "100%",
+    padding: "10px",
+    backgroundColor: '#d4e4ff',
+
+
+};
+
+
 
 export default RegistoAssistencia;

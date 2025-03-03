@@ -514,6 +514,7 @@ const RegistoIntervencao = (props) => {
     };
 
     return (
+        <div style={scrollViewStyle}>
         <div style={containerStyle}>
             <div style={cardStyle}>
                 <header style={headerStyle}>
@@ -658,30 +659,56 @@ const RegistoIntervencao = (props) => {
                                 <div style={sectionTitleLineStyle}></div>
                             </div>
                             
-                            <div style={formRowStyle}>
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoIntervencao.DataInicio")}</label>
-                                    <input
-                                        type="date"
-                                        name="dataInicio"
-                                        value={formData.dataInicio}
-                                        onChange={handleFormChange}
-                                        style={inputStyle}
-                                        required
-                                    />
-                                </div>
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoIntervencao.DataFim")}</label>
-                                    <input
-                                        type="date"
-                                        name="dataFim"
-                                        value={formData.dataFim}
-                                        onChange={handleFormChange}
-                                        style={inputStyle}
-                                        required
-                                    />
-                                </div>
-                            </div>
+                            <div style={window.innerWidth < 768 ? responsiveFormRowStyle : formRowStyle}>
+    <div style={formGroupStyle}>
+        <label style={labelStyle}>{t("RegistoIntervencao.DataInicio")}</label>
+        <input
+            type="date"
+            name="dataInicio"
+            value={formData.dataInicio}
+            onChange={handleFormChange}
+            style={inputStyle}
+            required
+        />
+    </div>
+    <div style={formGroupStyle}>
+        <label style={labelStyle}>{t("RegistoIntervencao.HoraInicio")}</label>
+        <input
+            type="time"
+            name="horaInicio"
+            value={formData.horaInicio}
+            onChange={handleFormChange}
+            style={inputStyle}
+            required
+        />
+    </div>
+</div>
+
+<div style={window.innerWidth < 768 ? responsiveFormRowStyle : formRowStyle}>
+    <div style={formGroupStyle}>
+        <label style={labelStyle}>{t("RegistoIntervencao.DataFim")}</label>
+        <input
+            type="date"
+            name="dataFim"
+            value={formData.dataFim}
+            onChange={handleFormChange}
+            style={inputStyle}
+            required
+        />
+    </div>
+    <div style={formGroupStyle}>
+        <label style={labelStyle}>{t("RegistoIntervencao.HoraFim")}</label>
+        <input
+            type="time"
+            name="horaFim"
+            value={formData.horaFim}
+            onChange={handleFormChange}
+            style={inputStyle}
+            required
+        />
+    </div>
+</div>
+
 
                             <div style={formRowStyle}>
                                 <div style={formGroupStyle}>
@@ -1013,6 +1040,7 @@ const RegistoIntervencao = (props) => {
                 </Modal>
             )}
         </div>
+        </div>
     );
 };
 
@@ -1056,6 +1084,7 @@ const titleStyle = {
 
 const tabsContainerStyle = {
     display: "flex",
+    flexWrap: "wrap", // Permite quebra de linha
     justifyContent: "center",
     gap: "5px",
     marginTop: "10px",
@@ -1117,8 +1146,16 @@ const formGroupStyle = {
 
 const formRowStyle = {
     display: "flex",
+    flexDirection: "row", // Padrão: lado a lado em ecrãs grandes
     gap: "20px",
     marginBottom: "5px",
+};
+
+
+// Versão responsiva para telemóveis
+const responsiveFormRowStyle = {
+    ...formRowStyle,
+    flexDirection: "column", // Empilha os elementos
 };
 
 const labelStyle = {
@@ -1447,6 +1484,14 @@ const modalConfirmButtonStyle = {
     backgroundColor: "#4CAF50",
     color: "white",
     flex: 1,
+};
+
+const scrollViewStyle = {
+    backgroundColor: '#d4e4ff',
+    overflowY: "auto", // Ativa scroll vertical quando necessário
+    width: "100%",
+    padding: "10px",
+
 };
 
 export default RegistoIntervencao;

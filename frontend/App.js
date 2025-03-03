@@ -439,36 +439,36 @@ const AppNavigator = () => {
                 </>
             )}
  
-            <Drawer.Screen name="ListarRegistos" component={ListarRegistos} options={{ drawerItemStyle: { display: 'none' } }} />
+            <Drawer.Screen name="ListarRegistos" component={ListarRegistos} options={{title: "AdvirLink - Registos", drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
             <Drawer.Screen name="Obras" component={Obras} />
             <Drawer.Screen name="PontoBotao" component={PontoBotao} />
-            <Drawer.Screen name="Perfil">
+            <Drawer.Screen name="Perfil"options={{title: "AdvirLink - Perfil"}}>
                 {props => (
                     <Perfil {...props} user={{ name: userNome, company: empresa }} />
                 )}
             </Drawer.Screen>
            
-            <Drawer.Screen name="PedidosAssistencia" component={PedidosAssistencia} />
-            <Drawer.Screen name="PandIByTecnico" component={PandIByTecnico} />
-            <Drawer.Screen name="RegistoIntervencao" component={RegistoIntervencao} options={{ drawerItemStyle: { display: 'none' } }} />
+            <Drawer.Screen name="PedidosAssistencia" component={PedidosAssistencia} options={{ title: "AdvirLink - Pedidos de Assistência" }} />
+            <Drawer.Screen name="PandIByTecnico" component={PandIByTecnico} options={{ title: "AdvirLink - Dashboard Técnico" }} />
+            <Drawer.Screen name="RegistoIntervencao" component={RegistoIntervencao} options={{ title: "AdvirLink - Intervenção",drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="DetalhesObra" component={DetalhesObra} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="AutosMedicaoExecucao" component={AutosMedicaoExecucao} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="PartesDiarias" component={PartesDiarias} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="AddPartesDiarias" component={AddPartesDiarias} options={{ drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="RegistarPedido" component={RegistoPedido} options={{ drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="Intervencoes" component={intervencoes} options={{ drawerItemStyle: { display: 'none' } }} />
+            <Drawer.Screen name="RegistarPedido" component={RegistoPedido} options={{ title: "AdvirLink - Pedido",drawerItemStyle: { display: 'none' } }} />
+            <Drawer.Screen name="Intervencoes" component={intervencoes} options={{ title: "AdvirLink - Intervenção",drawerItemStyle: { display: 'none' } }} />
            
             <Drawer.Screen name="RegistoPontoAdmin" component={RegistoPontoAdmin} />
             <Drawer.Screen name="PedidosAlteracaoAdmin" component={PedidosAlteracaoAdmin} />
             <Drawer.Screen name="UserModulesManagement" component={UserModulesManagement} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="VerificaConta" component={VerificaConta} options={{ drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="OficiosPage" component={OficiosPage} />
-            <Drawer.Screen name="OficiosList" component={OficiosList} />
-            <Drawer.Screen name="EditOficio" component={EditOficio} />
-            <Drawer.Screen name="Home" component={Home} />
+            <Drawer.Screen name="OficiosPage" component={OficiosPage} options={{ title: "AdvirLink - Oficios" }} />
+            <Drawer.Screen name="OficiosList" component={OficiosList} options={{ title: "AdvirLink - Oficios" }} />
+            <Drawer.Screen name="EditOficio" component={EditOficio} options={{ title: "AdvirLink - Oficios" }} />
+            <Drawer.Screen name="Home" component={Home} options={{ title: "AdvirLink - Home" }} />
             {isLoggedIn && (
-                <Drawer.Screen name="SelecaoEmpresa">
+                <Drawer.Screen name="SelecaoEmpresa" options={{ title: "AdvirLink - Empresa" }}>
                     {props => <SelecaoEmpresa {...props} setEmpresa={setEmpresa} />}
                 </Drawer.Screen>
             )}
