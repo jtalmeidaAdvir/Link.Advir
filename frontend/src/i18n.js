@@ -496,7 +496,7 @@ i18n
                             4: "Fechar",
                         },
                         Title: "Registo de Intervenções",
-                        TxtTipoInter: "Tipo de Intervencao",
+                        TxtTipoInter: "Tipo",
                         TxtTecnico: "Tecnico",
                         DataInicio: "Data Inicio",
                         DataFim: "Data Fim",

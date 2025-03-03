@@ -684,43 +684,20 @@ const RegistoIntervencao = (props) => {
     </div>
 </div>
 
-<div style={window.innerWidth < 768 ? responsiveFormRowStyle : formRowStyle}>
-    <div style={formGroupStyle}>
-        <label style={labelStyle}>{t("RegistoIntervencao.DataFim")}</label>
-        <input
-            type="date"
-            name="dataFim"
-            value={formData.dataFim}
-            onChange={handleFormChange}
-            style={inputStyle}
-            required
-        />
-    </div>
-    <div style={formGroupStyle}>
-        <label style={labelStyle}>{t("RegistoIntervencao.HoraFim")}</label>
-        <input
-            type="time"
-            name="horaFim"
-            value={formData.horaFim}
-            onChange={handleFormChange}
-            style={inputStyle}
-            required
-        />
-    </div>
-</div>
+
 
 
                             <div style={formRowStyle}>
                                 <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoIntervencao.HoraInicio")}</label>
-                                    <input
-                                        type="time"
-                                        name="horaInicio"
-                                        value={formData.horaInicio}
-                                        onChange={handleFormChange}
-                                        style={inputStyle}
-                                        required
-                                    />
+                                <label style={labelStyle}>{t("RegistoIntervencao.DataFim")}</label>
+                                <input
+                                    type="date"
+                                    name="dataFim"
+                                    value={formData.dataFim}
+                                    onChange={handleFormChange}
+                                    style={inputStyle}
+                                    required
+                                />
                                 </div>
                                 <div style={formGroupStyle}>
                                     <label style={labelStyle}>{t("RegistoIntervencao.HoraFim")}</label>

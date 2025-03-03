@@ -1,24 +1,33 @@
+
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Modal } from "react-native";
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Modal, Image, Animated, ActivityIndicator } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Feather as Icon } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-
-
-// Componente ConfirmModal
+// Componente ConfirmModal melhorado
 const ConfirmModal = ({ visible, onCancel, onConfirm, codigo }) => (
-    <Modal visible={visible} transparent={true} animationType="slide">
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" }}>
-            <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 8, width: "80%" }}>
-                <Text style={{ fontSize: 16, marginBottom: 10, textAlign:"center" }}>
-                    Tem a certeza que deseja eliminar o ofício com o código {codigo}?
+    <Modal visible={visible} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+                <View style={styles.modalHeader}>
+                    <MaterialCommunityIcons name="alert-circle-outline" size={40} color="#FF6B6B" />
+                    <Text style={styles.modalTitle}>Confirmação</Text>
+                </View>
+                
+                <Text style={styles.modalMessage}>
+                    Tem certeza que deseja eliminar o ofício com o código <Text style={styles.modalHighlight}>{codigo}</Text>?
                 </Text>
-                <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
-                    <TouchableOpacity onPress={onCancel}>
-                        <Text style={{ color: "#007bff" }}>Cancelar</Text>
+                
+                <View style={styles.modalActions}>
+                    <TouchableOpacity style={styles.modalCancelButton} onPress={onCancel}>
+                        <Text style={styles.modalCancelText}>Cancelar</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={onConfirm}>
-                        <Text style={{ color: "#ff0000" }}>Eliminar</Text>
+                    
+                    <TouchableOpacity style={styles.modalConfirmButton} onPress={onConfirm}>
+                        <MaterialCommunityIcons name="delete-outline" size={18} color="#fff" />
+                        <Text style={styles.modalConfirmText}>Eliminar</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -26,28 +35,9 @@ const ConfirmModal = ({ visible, onCancel, onConfirm, codigo }) => (
     </Modal>
 );
 
-const groupByObra = (oficios) => {
-    const grouped = oficios.reduce((acc, oficio) => {
-        const obra = oficio.CDU_DonoObra || "Sem Obra";
-        if (!acc[obra]) {
-            acc[obra] = [];
-        }
-        acc[obra].push(oficio);
-        return acc;
-    }, {});
-
-    // Retorna a lista agrupada por 'Dono da Obra'
-    return Object.keys(grouped).map((obra) => ({
-        title: obra,
-        data: grouped[obra],
-        expanded: false // Definir o estado expandido para falso inicialmente
-    }));
-};
-
-
-
 const OficiosList = () => {
     const navigation = useNavigation();
+    const [fadeAnim] = useState(new Animated.Value(0));
 
     const [oficios, setOficios] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
@@ -57,19 +47,43 @@ const OficiosList = () => {
     const [selectedOficio, setSelectedOficio] = useState(null);
     const [groupedOficios, setGroupedOficios] = useState([]);
 
+    // Animação de fade-in
+    useEffect(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true
+        }).start();
+    }, []);
+
+    // Agrupar ofícios por obra
+    const groupByObra = (oficios) => {
+        const grouped = oficios.reduce((acc, oficio) => {
+            const obra = oficio.CDU_DonoObra || "Sem Obra";
+            if (!acc[obra]) {
+                acc[obra] = [];
+            }
+            acc[obra].push(oficio);
+            return acc;
+        }, {});
+
+        return Object.keys(grouped).map((obra) => ({
+            title: obra,
+            data: grouped[obra],
+            expanded: false
+        }));
+    };
+
     useFocusEffect(
         useCallback(() => {
-            // Limpa os estados quando a página é focada
             setSearchQuery("");
             setOficios([]);
             setError(null);
             setLoading(true);
-
-            
-
             fetchOficios();
         }, [])
     );
+
     const fetchOficios = async () => {
         setLoading(true);
         setOficios([]);
@@ -107,10 +121,8 @@ const OficiosList = () => {
                 });
 
                 setOficios(sortedOficios);
-
-
-                const grouped = groupByObra(sortedOficios);  // Agrupa os ofícios por 'CDU_DonoObra'
-                setGroupedOficios(grouped); // Atualiza a lista agrupada
+                const grouped = groupByObra(sortedOficios);
+                setGroupedOficios(grouped);
             } else {
                 setOficios([]);
                 setError('Dados não encontrados ou estrutura inesperada');
@@ -126,20 +138,19 @@ const OficiosList = () => {
     const groupAndFilterOficios = () => {
         let filteredOficios = oficios;
 
-        // Aplica o filtro de pesquisa pelo "CDU_DonoObra"
         if (searchQuery) {
             filteredOficios = oficios.filter((oficio) =>
-                oficio.CDU_DonoObra.toLowerCase().includes(searchQuery.toLowerCase())
+                oficio.CDU_DonoObra.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                oficio.CDU_assunto.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                oficio.CDU_codigo.toLowerCase().includes(searchQuery.toLowerCase())
             );
         }
 
-        // Agrupar os ofícios por "CDU_DonoObra"
         const grouped = groupByObra(filteredOficios);
-        setGroupedOficios(grouped);  // Atualiza a lista agrupada
+        setGroupedOficios(grouped);
     };
 
     useEffect(() => {
-        // Quando a pesquisa for alterada, chama a função para filtrar e agrupar os ofícios
         groupAndFilterOficios();
     }, [searchQuery, oficios]);
 
@@ -152,26 +163,49 @@ const OficiosList = () => {
     };
 
     const renderGroup = ({ item, index }) => (
-        <View>
-            <TouchableOpacity
-                onPress={() => toggleGroupExpand(index)}
-                style={styles.groupHeader}
-            >
-                <Text style={styles.groupTitle}>{item.title}</Text>
-            
-            </TouchableOpacity>
+        <Animated.View style={{ opacity: fadeAnim }}>
+            <View style={styles.groupContainer}>
+                <TouchableOpacity
+                    onPress={() => toggleGroupExpand(index)}
+                    style={styles.groupHeader}
+                >
+                    <LinearGradient
+                        colors={['#4481EB', '#04BEFE']}
+                        style={styles.groupHeaderGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                    >
+                        <View style={styles.groupTitleContainer}>
+                            <MaterialCommunityIcons 
+                                name="office-building" 
+                                size={22} 
+                                color="#fff" 
+                            />
+                            <Text style={styles.groupTitle}>{item.title}</Text>
+                        </View>
+                        
+                        <View style={styles.groupCounter}>
+                            <Text style={styles.groupCountText}>{item.data.length}</Text>
+                            <Ionicons 
+                                name={item.expanded ? "chevron-up" : "chevron-down"} 
+                                size={24} 
+                                color="#fff" 
+                            />
+                        </View>
+                    </LinearGradient>
+                </TouchableOpacity>
 
-            {item.expanded && (
-                <FlatList
-                    data={item.data}
-                    renderItem={renderOficio}
-                    keyExtractor={(oficio) => oficio.CDU_codigo.toString()}
-                />
-            )}
-        </View>
+                {item.expanded && (
+                    <FlatList
+                        data={item.data}
+                        renderItem={renderOficio}
+                        keyExtractor={(oficio) => oficio.CDU_codigo.toString()}
+                        contentContainerStyle={styles.oficiosList}
+                    />
+                )}
+            </View>
+        </Animated.View>
     );
-
-
 
     const renderOficio = ({ item }) => {
         const isInactive = item.CDU_isactive === false;
@@ -179,55 +213,74 @@ const OficiosList = () => {
         const isPrinted = item.CDU_estado === "Imprimido";
 
         return (
-            <View style={[styles.itemContainer, isInactive && styles.inactiveContainer]}>
-                <View style={styles.textContainer}>
-                    {/* Ícone e código do ofício */}
-                    <View style={styles.row}>
-                        <Icon name="hash" size={16} color="#007bff" style={styles.icon} />
-                        <Text style={[styles.title, isInactive && styles.inactiveText]}>{item.CDU_codigo}</Text>
+            <View style={[
+                styles.oficioCard, 
+                isInactive && styles.inactiveCard,
+                isEmailSent && styles.emailSentCard,
+                isPrinted && styles.printedCard
+            ]}>
+                <View style={styles.oficioHeader}>
+                    <View style={styles.codeContainer}>
+                        <MaterialCommunityIcons name="file-document-outline" size={22} color="#4481EB" />
+                        <Text style={styles.oficioCode}>{item.CDU_codigo}</Text>
                     </View>
-
-                    {/* Ícone e assunto do ofício */}
-                    <View style={styles.row}>
-                        <Icon name="file-text" size={16} color="#007bff" style={styles.icon} />
-                        <Text style={[styles.description, isInactive && styles.inactiveText]}>{item.CDU_assunto}</Text>
-                    </View>
-
-                    {/* Ícone e remetente do ofício */}
-                    <View style={styles.row}>
-                        <Icon name="user" size={16} color="#007bff" style={styles.icon} />
-                        <Text style={[styles.description, isInactive && styles.inactiveText]}>{item.CDU_remetente}</Text>
-                    </View>
-
-                    {/* Estado do ofício */}
-                    <View style={styles.row}>
-                        <Icon name="check-circle" size={16} color={isEmailSent ? "green" : isPrinted ? "red" : "gray"} style={styles.icon} />
-                        <Text style={[styles.statusText, isEmailSent && styles.emailSentText, isPrinted && styles.printedText]}>
-                            {item.CDU_estado}
+                    
+                    <View style={[
+                        styles.statusBadge, 
+                        isEmailSent && styles.emailSentBadge,
+                        isPrinted && styles.printedBadge,
+                        isInactive && styles.inactiveBadge
+                    ]}>
+                        <MaterialCommunityIcons 
+                            name={
+                                isEmailSent ? "email-check-outline" : 
+                                isPrinted ? "printer-check" : 
+                                isInactive ? "cancel" : "progress-check"
+                            } 
+                            size={16} 
+                            color="#fff" 
+                        />
+                        <Text style={styles.statusBadgeText}>
+                            {item.CDU_estado || "Pendente"}
                         </Text>
                     </View>
                 </View>
 
-                {/* Botões apenas se ativo */}
+                <View style={styles.oficioBody}>
+                    <View style={styles.infoRow}>
+                        <MaterialCommunityIcons name="text-subject" size={18} color="#555" style={styles.infoIcon} />
+                        <Text style={[styles.oficioSubject, isInactive && styles.inactiveText]} numberOfLines={2}>
+                            {item.CDU_assunto}
+                        </Text>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <MaterialCommunityIcons name="account" size={18} color="#555" style={styles.infoIcon} />
+                        <Text style={[styles.oficioSender, isInactive && styles.inactiveText]}>
+                            {item.CDU_remetente}
+                        </Text>
+                    </View>
+                </View>
+
                 {!isInactive && !isEmailSent && (
-                    <>
+                    <View style={styles.actionButtons}>
                         <TouchableOpacity
                             style={styles.editButton}
                             onPress={() => navigation.navigate("EditOficio", { oficioId: item.CDU_codigo, oficioData: item })}
                         >
-                            <Icon name="edit" size={20} color="#fff" style={styles.editIcon} />
+                            <MaterialCommunityIcons name="pencil" size={20} color="#fff" />
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={styles.deleteButton}
                             onPress={() => {
-                                setSelectedOficio(item.CDU_codigo); // Armazena o código do ofício
-                                setModalVisible(true); // Mostra o modal
+                                setSelectedOficio(item.CDU_codigo);
+                                setModalVisible(true);
                             }}
                         >
-                            <Icon name="trash" size={20} color="#fff" />
+                            <MaterialCommunityIcons name="delete" size={20} color="#fff" />
                         </TouchableOpacity>
-                    </>
+                    </View>
                 )}
             </View>
         );
@@ -235,31 +288,87 @@ const OficiosList = () => {
 
     return (
         <View style={styles.container}>
-            <TextInput
-                style={styles.searchBar}
-                placeholder="Pesquisar Ofício"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-            />
-
-            {loading ? (
-                <Text>A carregar...</Text>
-            ) : error ? (
-                <Text>{error}</Text>
-            ) : (
-                <FlatList
-                    data={groupedOficios}
-                    renderItem={renderGroup}
-                    keyExtractor={(item, index) => index.toString()}
-                />
-            )}
-
-            <TouchableOpacity
-                style={styles.button}
-                onPress={() => navigation.navigate("OficiosPage")}
+            <LinearGradient
+                colors={['#4481EB', '#04BEFE']}
+                style={styles.header}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
             >
-                <Text style={styles.buttonText}>Criar Novo Ofício</Text>
-            </TouchableOpacity>
+                <View style={styles.headerContent}>
+                    <Text style={styles.headerTitle}>Gestão de Ofícios</Text>
+                    <Text style={styles.headerSubtitle}>Visualize e gira todos os ofícios</Text>
+                </View>
+            </LinearGradient>
+
+            <Animated.View 
+                style={[
+                    styles.contentContainer, 
+                    { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [50, 0],
+                    })}] }
+                ]}
+            >
+                <View style={styles.searchContainer}>
+                    <View style={styles.searchBar}>
+                        <MaterialCommunityIcons name="magnify" size={22} color="#666" />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Pesquisar por código, assunto ou destinatário"
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <MaterialCommunityIcons name="close-circle" size={20} color="#999" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </View>
+
+                {loading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#4481EB" />
+                        <Text style={styles.loadingText}>A carregar ofícios...</Text>
+                    </View>
+                ) : error ? (
+                    <View style={styles.errorContainer}>
+                        <MaterialCommunityIcons name="alert-circle-outline" size={60} color="#FF6B6B" />
+                        <Text style={styles.errorTitle}>Erro ao carregar dados</Text>
+                        <Text style={styles.errorText}>{error}</Text>
+                    </View>
+                ) : groupedOficios.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <MaterialCommunityIcons name="file-document-outline" size={70} color="#d1dbed" />
+                        <Text style={styles.emptyTitle}>Nenhum ofício encontrado</Text>
+                        <Text style={styles.emptyText}>
+                            Não foram encontrados ofícios. Clique no botão abaixo para criar um novo.
+                        </Text>
+                    </View>
+                ) : (
+                    <FlatList
+                        data={groupedOficios}
+                        renderItem={renderGroup}
+                        keyExtractor={(item, index) => index.toString()}
+                        contentContainerStyle={styles.listContainer}
+                        showsVerticalScrollIndicator={false}
+                    />
+                )}
+
+                <TouchableOpacity
+                    style={styles.fabButton}
+                    onPress={() => navigation.navigate("OficiosPage")}
+                >
+                    <LinearGradient
+                        colors={['#4481EB', '#04BEFE']}
+                        style={styles.fabGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                    >
+                        <MaterialCommunityIcons name="plus" size={26} color="#fff" />
+                    </LinearGradient>
+                </TouchableOpacity>
+            </Animated.View>
 
             {/* Modal de confirmação */}
             <ConfirmModal
@@ -267,7 +376,6 @@ const OficiosList = () => {
                 codigo={selectedOficio}
                 onCancel={() => setModalVisible(false)}
                 onConfirm={async () => {
-                    console.log('Código do ofício a eliminar:', selectedOficio);
                     const token = localStorage.getItem('painelAdminToken');
                     const urlempresa = localStorage.getItem('urlempresa');
 
@@ -277,6 +385,9 @@ const OficiosList = () => {
                     }
 
                     try {
+                        setModalVisible(false);
+                        setLoading(true);
+                        
                         const response = await fetch(`https://webapiprimavera.advir.pt/oficio/Eliminar/${selectedOficio}`, {
                             method: 'GET',
                             headers: {
@@ -287,19 +398,21 @@ const OficiosList = () => {
                         });
 
                         const responseText = await response.text();
-                        console.log('Resposta do servidor:', responseText);
 
                         if (!response.ok) {
                             throw new Error(`Erro ao eliminar o ofício: ${response.statusText}`);
                         }
 
                         const responseData = JSON.parse(responseText);
+                        await fetchOficios();
+                        
+                        // Mostrar notificação de sucesso
                         alert(`Ofício ${selectedOficio} eliminado com sucesso.`);
-                        setModalVisible(false);
-                        fetchOficios();
                     } catch (error) {
                         console.error('Erro na requisição:', error.message);
                         alert(`Erro ao eliminar o ofício: ${error.message}`);
+                    } finally {
+                        setLoading(false);
                     }
                 }}
             />
@@ -307,127 +420,364 @@ const OficiosList = () => {
     );
 };
 
-
 const styles = StyleSheet.create({
-    groupContainer: {
-        marginBottom: 20,
-    },
-    groupTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        backgroundColor: '#f1f1f1',
-        padding: 10,
-        borderRadius: 8,
-        marginBottom: 10,
-    },
-    // ... outros estilos
-    emailSentContainer: {
-        backgroundColor: "#d4f8d4", // Verde claro para ofícios enviados por email
-    },
-    emailSentText: {
-        color: "green", // Verde escuro para destacar
-        fontWeight: "bold",
-    },
-    printedText: {
-        color: "red", // Vermelho para indicar que foi impresso
-        fontWeight: "bold",
-    },
-    statusText: {
-        fontSize: 14,
-        marginLeft: 8,
-    },
     container: {
         flex: 1,
-        padding: 16,
-        backgroundColor: "#d4e4ff",
+        backgroundColor: '#d4e4ff',
+    },
+    header: {
+        width: '100%',
+        paddingTop: 40,
+        paddingBottom: 30,
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 25,
+        borderBottomRightRadius: 25,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+    },
+    headerContent: {
+        alignItems: 'center',
+    },
+    headerTitle: {
+        fontSize: 26,
+        fontWeight: '700',
+        color: '#ffffff',
+        marginBottom: 5,
+    },
+    headerSubtitle: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.9)',
+    },
+    contentContainer: {
+        flex: 1,
+        marginTop: -20,
+        paddingHorizontal: 16,
+        paddingBottom: 80, // Espaço para o FAB
+    },
+    searchContainer: {
+        marginBottom: 16,
     },
     searchBar: {
-        backgroundColor: "#fff",
-        padding: 12,
-        
-        borderRadius: 8,
-        marginBottom: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    itemContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        backgroundColor: "#fff",
-        padding: 16,
-        marginBottom: 8,
-        borderRadius: 8,
-        shadowColor: "#000",
+        alignItems: 'center',
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        paddingHorizontal: 15,
+        paddingVertical: 12,
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
         elevation: 2,
-        height: 100, // Ajuste a altura se necessário
     },
-    textContainer: {
+    searchInput: {
+        flex: 1,
+        fontSize: 16,
+        marginLeft: 10,
+        color: '#333',
+    },
+    loadingContainer: {
         flex: 1,
         justifyContent: 'center',
-        marginRight: 10,
+        alignItems: 'center',
+        paddingVertical: 50,
     },
-    row: {
+    loadingText: {
+        marginTop: 15,
+        fontSize: 16,
+        color: '#666',
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 50,
+    },
+    errorTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#333',
+        marginTop: 15,
+        marginBottom: 8,
+    },
+    errorText: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 50,
+    },
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#333',
+        marginTop: 15,
+        marginBottom: 8,
+    },
+    emptyText: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+        maxWidth: '80%',
+        marginBottom: 20,
+    },
+    listContainer: {
+        paddingBottom: 20,
+    },
+    groupContainer: {
+        marginBottom: 16,
+        borderRadius: 16,
+        overflow: 'hidden',
+        backgroundColor: '#fff',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 2,
+    },
+    groupHeader: {
+        overflow: 'hidden',
+        borderRadius: 16,
+    },
+    groupHeaderGradient: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 15,
+        paddingHorizontal: 16,
+    },
+    groupTitleContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 4,
     },
-    title: {
+    groupTitle: {
         fontSize: 16,
-        fontWeight: "bold",
-        marginLeft: 8, // Espaço entre o ícone e o texto
+        fontWeight: '600',
+        color: '#ffffff',
+        marginLeft: 8,
     },
-    description: {
+    groupCounter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    groupCountText: {
+        color: '#ffffff',
+        fontWeight: '600',
+        marginRight: 5,
         fontSize: 14,
-        color: "#666",
-        marginLeft: 8, // Espaço entre o ícone e o texto
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 12,
     },
-    icon: {
-        marginRight: 8, // Espaço entre os ícones para separação visual
+    oficiosList: {
+        paddingTop: 10,
+        paddingHorizontal: 10,
+        paddingBottom: 10,
     },
-    button: {
-        backgroundColor: "#007bff",
-        padding: 12,
-        borderRadius: 8,
-        alignItems: "center",
-        marginTop: 16,
+    oficioCard: {
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        marginBottom: 10,
+        padding: 15,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 1,
+        borderLeftWidth: 4,
+        borderLeftColor: '#4481EB',
     },
-    buttonText: {
-        color: "#fff",
+    inactiveCard: {
+        borderLeftColor: '#aaa',
+        backgroundColor: '#f8f8f8',
+    },
+    emailSentCard: {
+        borderLeftColor: '#28a745',
+    },
+    printedCard: {
+        borderLeftColor: '#dc3545',
+    },
+    oficioHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    codeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    oficioCode: {
         fontSize: 16,
-        fontWeight: "bold",
+        fontWeight: '600',
+        color: '#333',
+        marginLeft: 8,
     },
-    editButton: {
-        width: 40,
-        height: 40,
+    statusBadge: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: "#007bff",
-        borderRadius: 8,
+        backgroundColor: '#6c757d',
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        borderRadius: 12,
     },
-    deleteButton: {
-        width: 40,
-        height: 40,
-        marginLeft:10,
+    emailSentBadge: {
+        backgroundColor: '#28a745',
+    },
+    printedBadge: {
+        backgroundColor: '#dc3545',
+    },
+    inactiveBadge: {
+        backgroundColor: '#aaa',
+    },
+    statusBadgeText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '500',
+        marginLeft: 4,
+    },
+    oficioBody: {
+        marginBottom: 12,
+    },
+    infoRow: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: "#007bff",
-        borderRadius: 8,
+        marginBottom: 8,
     },
-    editIcon: {
-        margin: 0,
+    infoIcon: {
+        marginRight: 8,
     },
-    inactiveContainer: {
-        backgroundColor: "#f0f0f0", // Cor mais clara para indicar inatividade
-        opacity: 0.9, // Efeito de "sombreado"
+    oficioSubject: {
+        fontSize: 15,
+        color: '#333',
+        flex: 1,
+    },
+    oficioSender: {
+        fontSize: 14,
+        color: '#666',
     },
     inactiveText: {
-        color: "#aaa", // Texto acinzentado para indicar inatividade
+        color: '#999',
+    },
+    actionButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+    },
+    editButton: {
+        backgroundColor: '#4481EB',
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 10,
+    },
+    deleteButton: {
+        backgroundColor: '#ff6b6b',
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fabButton: {
+        position: 'absolute',
+        bottom: 20,
+        right: 20,
+        borderRadius: 30,
+        overflow: 'hidden',
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+    },
+    fabGradient: {
+        width: 60,
+        height: 60,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    // Estilos do Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalContainer: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        width: '90%',
+        padding: 20,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    modalHeader: {
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#333',
+        marginTop: 10,
+    },
+    modalMessage: {
+        fontSize: 16,
+        color: '#555',
+        textAlign: 'center',
+        marginBottom: 20,
+        lineHeight: 22,
+    },
+    modalHighlight: {
+        fontWeight: '700',
+        color: '#4481EB',
+    },
+    modalActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+    },
+    modalCancelButton: {
+        flex: 1,
+        paddingVertical: 14,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 12,
+        marginRight: 8,
+        alignItems: 'center',
+    },
+    modalCancelText: {
+        color: '#666',
+        fontWeight: '600',
+    },
+    modalConfirmButton: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#ff6b6b',
+        paddingVertical: 14,
+        borderRadius: 12,
+        marginLeft: 8,
+    },
+    modalConfirmText: {
+        color: '#fff',
+        fontWeight: '600',
+        marginLeft: 5,
     },
 });
 

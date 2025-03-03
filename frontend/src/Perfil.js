@@ -181,6 +181,7 @@ const Perfil = ({ user }) => {
     };
 
     return (
+        
         <View style={styles.container}>
             {showSuccessMessage && (
                 <View style={styles.messageContainer}>
@@ -527,6 +528,13 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         fontSize: 16,
     },
+     scrollViewStyle : {
+        backgroundColor: '#d4e4ff',
+        overflowY: "auto", // Ativa scroll vertical quando necessário
+        width: "100%",
+        padding: "10px",
+    
+    }
 });
 
 export default Perfil;

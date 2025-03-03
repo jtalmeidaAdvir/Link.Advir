@@ -1,10 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { View, Text, ScrollView, Dimensions, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Dimensions, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-
+import { LinearGradient } from 'expo-linear-gradient';
 
 const LeitorQRCode = () => {
     const [horaAtual, setHoraAtual] = useState(new Date());
@@ -13,8 +14,10 @@ const LeitorQRCode = () => {
     const [intervaloAberto, setIntervaloAberto] = useState(false);
     const [horaInicioIntervalo, setHoraInicioIntervalo] = useState(null);
     const [tempoDecorrido, setTempoDecorrido] = useState('00:00:00');
+    const [fadeAnimation] = useState(new Animated.Value(0));
+    const [scannerVisible, setScannerVisible] = useState(false);
 
-    const navigation = useNavigation(); // Hook de navegação
+    const navigation = useNavigation();
 
     const irParaListarRegistos = () => {
         navigation.navigate('ListarRegistos');
@@ -25,11 +28,22 @@ const LeitorQRCode = () => {
     const ultimoRegisto = registosDiarios[registosDiarios.length - 1];
     const existeSaida = ultimoRegisto?.horaSaida !== null;
 
+    // Animação de fade-in para os componentes
+    useEffect(() => {
+        Animated.timing(fadeAnimation, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true
+        }).start();
+    }, []);
+
+    // Atualizar relógio a cada segundo
     useEffect(() => {
         const interval = setInterval(() => setHoraAtual(new Date()), 1000);
         return () => clearInterval(interval);
     }, []);
 
+    // Temporizador para intervalo
     useEffect(() => {
         let intervaloCronometro;
         if (intervaloAberto && horaInicioIntervalo) {
@@ -52,46 +66,60 @@ const LeitorQRCode = () => {
         fetchRegistosDiarios();
     }, []);
 
+    // Inicializar o scanner QR quando o componente é renderizado
     useEffect(() => {
-        const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-        scanner.render(
-            async (text) => {
-                if (text === qrData) {
-                    try {
-                        const response = await fetch('https://backend.advir.pt/api/registoPonto/ler-qr', {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
-                                'Content-Type': 'application/json',
-                            },
-                        });
+        let scanner = null;
+        
+        if (scannerVisible) {
+            setTimeout(() => {
+                scanner = new Html5QrcodeScanner("reader", { 
+                    fps: 10, 
+                    qrbox: { width: 250, height: 250 },
+                    rememberLastUsedCamera: true,
+                    showTorchButtonIfSupported: true,
+                });
+                
+                scanner.render(
+                    async (text) => {
+                        if (text === qrData) {
+                            try {
+                                const response = await fetch('https://backend.advir.pt/api/registoPonto/ler-qr', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+                                        'Content-Type': 'application/json',
+                                    },
+                                });
 
-                        if (response.ok) {
-                            const result = await response.json();
-                            alert(result.message);
-                            await fetchRegistosDiarios();
+                                if (response.ok) {
+                                    const result = await response.json();
+                                    alert(result.message);
+                                    await fetchRegistosDiarios();
+                                } else {
+                                    const errorData = await response.json();
+                                    alert(errorData.message || 'Erro ao registar ponto.');
+                                }
+                            } catch (error) {
+                                console.error('Erro ao registar ponto:', error);
+                                alert('Erro de comunicação com o servidor.');
+                            }
                         } else {
-                            const errorData = await response.json();
-                            alert(errorData.message || 'Erro ao registar ponto.');
+                            alert('Código QR inválido para registo de ponto.');
                         }
-                    } catch (error) {
-                        console.error('Erro ao registar ponto:', error);
-                        alert('Erro de comunicação com o servidor.');
+                    },
+                    (error) => {
+                        console.error(error);
                     }
-                } else {
-                    alert('Código QR inválido para registo de ponto.');
-                }
-            },
-            (error) => {
-                console.error(error);
-                alert('Erro ao ler o QR code.');
-            }
-        );
+                );
+            }, 1000);
+        }
 
         return () => {
-            scanner.clear().catch((error) => console.error("Erro ao limpar scanner:", error));
+            if (scanner) {
+                scanner.clear().catch((error) => console.error("Erro ao limpar scanner:", error));
+            }
         };
-    }, []);
+    }, [scannerVisible]);
 
     const fetchRegistosDiarios = async () => {
         try {
@@ -180,211 +208,535 @@ const LeitorQRCode = () => {
         }
     };
 
-    const renderItem = ({ item }) => {
+    const toggleScanner = () => {
+        setScannerVisible(!scannerVisible);
+    };
+
+    const formatDate = (dateString) => {
+        const options = { weekday: 'short', day: 'numeric', month: 'long' };
+        return new Date(dateString).toLocaleDateString('pt-PT', options);
+    };
+
+    const renderRegistoDiario = () => {
+        if (registosDiarios.length === 0) {
+            return (
+                <View style={styles.emptyContainer}>
+                    <MaterialCommunityIcons name="calendar-blank" size={60} color="#d1dbed" />
+                    <Text style={styles.emptyTitle}>Sem registos para hoje</Text>
+                    <Text style={styles.emptyText}>Use o QR code para registar o seu ponto.</Text>
+                </View>
+            );
+        }
+
+        const item = registosDiarios[0];
         const totalHorasTrabalhadas = item.totalHorasTrabalhadas || 0;
         const totalTempoIntervalo = item.totalTempoIntervalo || 0;
-
         const totalHorasDia = !isNaN(totalHorasTrabalhadas) && !isNaN(totalTempoIntervalo)
             ? (totalHorasTrabalhadas - totalTempoIntervalo).toFixed(2)
             : '0.00';
 
         const horaEntrada = item.horaEntrada
-            ? new Date(new Date(item.horaEntrada).getTime() - 60 * 60 * 1000).toLocaleTimeString()
-            : 'N/A';
+            ? new Date(item.horaEntrada).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
+            : '—';
         
         const horaSaida = item.horaSaida
-            ? new Date(new Date(item.horaSaida).getTime() - 60 * 60 * 1000).toLocaleTimeString()
-            : 'N/A';
+            ? new Date(item.horaSaida).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
+            : '—';
 
         return (
             <View style={styles.card}>
-                <Text style={styles.cardDate}>Dia: {item.data}</Text>
-                <View style={styles.cardContent}>
-                    <View style={styles.cardRow}>
-                        <FontAwesome name="sign-in" size={16} color="#1792FE" style={styles.icon} />
-                        <Text style={styles.registoText}>Entrada: {horaEntrada}</Text>
+                <LinearGradient
+                    colors={['#f8f9ff', '#ffffff']}
+                    style={styles.cardGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                >
+                    <View style={styles.cardHeader}>
+                        <View style={styles.dateContainer}>
+                            <MaterialCommunityIcons name="calendar" size={18} color="#4481EB" style={styles.icon} />
+                            <Text style={styles.cardDate}>{formatDate(item.data)}</Text>
+                        </View>
                     </View>
-                    <View style={styles.cardRow}>
-                        <FontAwesome name="sign-out" size={16} color="#1792FE" style={styles.icon} />
-                        <Text style={styles.registoText}>Saída: {horaSaida}</Text>
+
+                    <View style={styles.timeRowContainer}>
+                        <View style={styles.timeItem}>
+                            <MaterialCommunityIcons name="login" size={18} color="#4481EB" />
+                            <Text style={styles.timeLabel}>Entrada</Text>
+                            <Text style={styles.timeValue}>{horaEntrada}</Text>
+                        </View>
+                        
+                        <View style={styles.timeSeparator}>
+                            <View style={styles.timeLine}></View>
+                        </View>
+                        
+                        <View style={styles.timeItem}>
+                            <MaterialCommunityIcons name="logout" size={18} color="#4481EB" />
+                            <Text style={styles.timeLabel}>Saída</Text>
+                            <Text style={styles.timeValue}>{horaSaida}</Text>
+                        </View>
                     </View>
-                    <View style={styles.cardRow}>
-                        <FontAwesome name="clock-o" size={16} color="#1792FE" style={styles.icon} />
-                        <Text style={styles.registoText}>Total Horas: {totalHorasDia} horas</Text>
+
+                    <View style={styles.hoursContainer}>
+                        <View style={styles.hoursItem}>
+                            <MaterialCommunityIcons name="clock-outline" size={16} color="#4481EB" />
+                            <Text style={styles.hoursText}>{totalHorasDia} horas</Text>
+                        </View>
+                        <View style={styles.hoursSeparator}></View>
+                        <View style={styles.hoursItem}>
+                            <MaterialCommunityIcons name="coffee-outline" size={16} color="#4481EB" />
+                            <Text style={styles.hoursText}>{parseFloat(totalTempoIntervalo).toFixed(2)} pausa</Text>
+                        </View>
                     </View>
-                    <View style={styles.cardRow}>
-                        <FontAwesome name="pause-circle" size={16} color="#1792FE" style={styles.icon} />
-                        <Text style={styles.registoText}>Total Pausa: {parseFloat(totalTempoIntervalo).toFixed(2)} horas</Text>
-                    </View>
-                </View>
+                </LinearGradient>
             </View>
         );
     };
 
     return (
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-            <View style={styles.container}>
-                <Text style={styles.title}>Registo Ponto</Text>
-                <View style={styles.clockContainer}>
-                    <Text style={styles.clock}>{horaAtual.toLocaleTimeString()}</Text>
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+            <LinearGradient
+                colors={['#4481EB', '#04BEFE']}
+                style={styles.header}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+            >
+                <View style={styles.headerContent}>
+                    <Text style={styles.headerTitle}>Registo por QR Code</Text>
+                    <Text style={styles.headerSubtitle}>Scaneie o código para registar seu ponto</Text>
+                    <View style={styles.clockContainer}>
+                        <Text style={styles.clockText}>{horaAtual.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</Text>
+                    </View>
+                </View>
+            </LinearGradient>
+            
+            <Animated.View 
+                style={[
+                    styles.contentContainer, 
+                    { opacity: fadeAnimation, transform: [{ translateY: fadeAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [50, 0],
+                    })}] }
+                ]}
+            >
+                <View style={styles.qrSection}>
+                    <View style={styles.qrContainer}>
+                        <LinearGradient
+                            colors={['#fff', '#f5f7fa']}
+                            style={styles.qrCard}
+                        >
+                            <QRCode
+                                value={qrData}
+                                size={Dimensions.get('window').width * 0.4}
+                                color="#333"
+                                backgroundColor="transparent"
+                            />
+                            <Text style={styles.qrInstructions}>
+                                Use este QR code para registar sua entrada/saída
+                            </Text>
+                        </LinearGradient>
+                    </View>
+
+                    <TouchableOpacity 
+                        style={styles.scanButton}
+                        onPress={toggleScanner}
+                    >
+                        <LinearGradient
+                            colors={['#4481EB', '#04BEFE']}
+                            style={styles.scanButtonGradient}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                        >
+                            <MaterialCommunityIcons name="qrcode-scan" size={20} color="#fff" />
+                            <Text style={styles.scanButtonText}>
+                                {scannerVisible ? 'Ocultar Scanner' : 'Abrir Scanner'}
+                            </Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+                    
+                    {scannerVisible && (
+                        <View style={styles.scannerWrapper}>
+                            <View id="reader" style={styles.qrScanner}></View>
+                        </View>
+                    )}
+
+                    <View style={styles.actionsContainer}>
+                        <TouchableOpacity
+                            style={[styles.actionButton, intervaloAberto ? styles.actionButtonActive : null]}
+                            onPress={iniciarIntervalo}
+                            disabled={intervaloAberto || existeSaida}
+                        >
+                            <MaterialCommunityIcons 
+                                name="pause-circle" 
+                                size={24} 
+                                color={intervaloAberto ? "#fff" : "#4481EB"} 
+                            />
+                            <Text style={[styles.actionButtonText, intervaloAberto ? styles.actionButtonTextActive : null]}>
+                                Iniciar Pausa
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionButton, !intervaloAberto ? styles.actionButtonDisabled : null]}
+                            onPress={finalizarIntervalo}
+                            disabled={!intervaloAberto || existeSaida}
+                        >
+                            <MaterialCommunityIcons 
+                                name="play-circle" 
+                                size={24} 
+                                color={!intervaloAberto ? "#aaa" : "#4481EB"} 
+                            />
+                            <Text style={[styles.actionButtonText, !intervaloAberto ? styles.actionButtonTextDisabled : null]}>
+                                Finalizar Pausa
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {intervaloAberto && (
+                        <View style={styles.pauseTimerContainer}>
+                            <MaterialCommunityIcons name="timer-sand" size={20} color="#FF9800" />
+                            <Text style={styles.pauseTimerText}>
+                                Tempo em pausa: {tempoDecorrido}
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
-                <View style={styles.qrContainer}>
-                    <QRCode value={qrData} size={Dimensions.get('window').width * 0.3} />
-                    <Text style={styles.instructions}>Use o telemóvel para ler o QR code e registar o ponto.</Text>
+                <View style={styles.registoSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Registo de Hoje</Text>
+                        <TouchableOpacity 
+                            style={styles.viewAllButton}
+                            onPress={irParaListarRegistos}
+                        >
+                            <Text style={styles.viewAllText}>Ver Histórico</Text>
+                            <Ionicons name="chevron-forward" size={16} color="#4481EB" />
+                        </TouchableOpacity>
+                    </View>
+                    
+                    {renderRegistoDiario()}
+                    
+                    {errorMessage ? (
+                        <View style={styles.errorContainer}>
+                            <MaterialCommunityIcons name="alert-circle" size={40} color="#ff6b6b" />
+                            <Text style={styles.errorText}>{errorMessage}</Text>
+                        </View>
+                    ) : null}
                 </View>
-
-                <View id="reader" style={styles.qrScanner}></View>
-
-                <TouchableOpacity
-                    style={[styles.button, styles.buttonWarning]}
-                    onPress={iniciarIntervalo}
-                    disabled={intervaloAberto || existeSaida}
-                >
-                    <FontAwesome name="pause" size={20} color="#1792FE" style={styles.icon} />
-                    <Text style={styles.buttonText}></Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.button, styles.buttonSuccess]}
-                    onPress={finalizarIntervalo}
-                    disabled={!intervaloAberto || existeSaida}
-                >
-                    <FontAwesome name="play" size={20} color="#1792FE" style={styles.icon} />
-                    <Text style={styles.buttonText}></Text>
-                </TouchableOpacity>
-
-                {intervaloAberto && (
-                    <Text style={styles.tempoDecorrido}>Tempo em Intervalo: {tempoDecorrido}</Text>
-                )}
-                
-                {registosDiarios.length > 0 ? (
-                    renderItem({ item: registosDiarios[0] })
-                ) : (
-                    <Text>Sem registo para o dia de hoje.</Text>
-                )}
-                <TouchableOpacity
-                    style={[styles.button, styles.buttonPrimary, styles.buttonText]}
-                    onPress={irParaListarRegistos} // Chama a função de navegação
-                >Ver Registos</TouchableOpacity>
-            </View>
+            </Animated.View>
         </ScrollView>
     );
 };
 
 const styles = StyleSheet.create({
-    scrollContainer: {
-        flexGrow: 1,
-    },
     container: {
         flex: 1,
-        alignItems: 'center',
-        padding: 20,
-        backgroundColor: '#d4e4ff',
+        backgroundColor: '#f8f9fa',
     },
-    title: {
+    header: {
+        width: '100%',
+        paddingTop: 40,
+        paddingBottom: 30,
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 25,
+        borderBottomRightRadius: 25,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+    },
+    headerContent: {
+        alignItems: 'center',
+    },
+    headerTitle: {
         fontSize: 26,
         fontWeight: '700',
-        color: '#1792FE',
-        marginVertical: 20,
+        color: '#ffffff',
+        marginBottom: 5,
+    },
+    headerSubtitle: {
+        fontSize: 14,
+        color: 'rgba(255, 255, 255, 0.9)',
+        marginBottom: 15,
     },
     clockContainer: {
-        padding: 15,
-        backgroundColor: '#e3ebff',
-        borderRadius: 10,
-        marginBottom: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 20,
+        marginTop: 5,
     },
-    clock: {
-        fontSize: 48,
-        fontWeight: 'bold',
-        color: '#333',
+    clockText: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#ffffff',
+    },
+    contentContainer: {
+        flex: 1,
+        marginTop: -20,
+        paddingHorizontal: 16,
+        paddingBottom: 20,
+    },
+    qrSection: {
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 2,
+        alignItems: 'center',
     },
     qrContainer: {
         alignItems: 'center',
-        marginBottom: 20,
+        marginVertical: 10,
+    },
+    qrCard: {
+        padding: 20,
+        borderRadius: 16,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 1,
+    },
+    qrInstructions: {
+        marginTop: 15,
+        textAlign: 'center',
+        fontSize: 14,
+        color: '#555',
+        maxWidth: '90%',
+    },
+    scanButton: {
+        width: '100%',
+        marginVertical: 15,
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    scanButtonGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+    },
+    scanButtonText: {
+        color: '#fff',
+        fontWeight: '600',
+        marginLeft: 8,
+        fontSize: 16,
+    },
+    scannerWrapper: {
+        width: '100%',
+        marginVertical: 10,
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: '#f5f7fa',
+        padding: 10,
     },
     qrScanner: {
-        width: 300,
+        width: '100%',
         height: 300,
-        marginBottom: 20,
     },
-    instructions: {
-        fontSize: 16,
-        color: '#333',
-        textAlign: 'center',
+    actionsContainer: {
+        flexDirection: 'row',
+        width: '100%',
+        justifyContent: 'space-between',
         marginTop: 10,
     },
-    button: {
-        width: '80%',
-        padding: 15,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginVertical: 8,
+    actionButton: {
+        flex: 1,
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 3,
+        backgroundColor: '#f5f7fa',
+        paddingVertical: 12,
+        marginHorizontal: 5,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
     },
-    buttonWarning: {
-        backgroundColor: '#e3ebff',
-        borderWidth: 2,
-        borderColor: '#1792FE',
+    actionButtonActive: {
+        backgroundColor: '#4481EB',
+        borderColor: '#4481EB',
     },
-    buttonSuccess: {
-        backgroundColor: '#e3ebff',
-        borderWidth: 2,
-        borderColor: '#1792FE',
+    actionButtonDisabled: {
+        backgroundColor: '#f0f0f0',
+        borderColor: '#e0e0e0',
     },
-    buttonText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#1792FE',
-        marginLeft: 8,
+    actionButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#4481EB',
+        marginLeft: 6,
     },
-    card: {
-        padding: 15,
-        marginVertical: 10,
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        width: '90%',
-        alignSelf: 'center',
-        borderLeftWidth: 5,
-        borderLeftColor: '#1792FE',
+    actionButtonTextActive: {
+        color: '#fff',
     },
-    cardDate: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#1792FE',
-        marginBottom: 5,
+    actionButtonTextDisabled: {
+        color: '#aaa',
     },
-    cardContent: {
-        marginTop: 8,
-    },
-    cardRow: {
+    pauseTimerContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: 2,
+        backgroundColor: '#FFF9C4',
+        paddingVertical: 8,
+        paddingHorizontal: 15,
+        borderRadius: 12,
+        marginTop: 15,
     },
-    registoText: {
+    pauseTimerText: {
         fontSize: 16,
-        color: '#333',
+        fontWeight: '600',
+        color: '#FF9800',
         marginLeft: 8,
     },
-    tempoDecorrido: {
+    registoSection: {
+        marginBottom: 10,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10,
+        paddingHorizontal: 5,
+    },
+    sectionTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#ff9800',
-        marginTop: 20,
+        color: '#333',
     },
-    error: {
-        color: 'red',
+    viewAllButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    viewAllText: {
+        fontSize: 14,
+        color: '#4481EB',
+        fontWeight: '500',
+    },
+    card: {
+        marginBottom: 15,
+        borderRadius: 16,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 2,
+    },
+    cardGradient: {
+        borderRadius: 16,
+        padding: 15,
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    dateContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    cardDate: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#333',
+        marginLeft: 6,
+        textTransform: 'capitalize',
+    },
+    timeRowContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+    },
+    timeItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    timeSeparator: {
+        width: 40,
+        alignItems: 'center',
+    },
+    timeLine: {
+        height: 1,
+        width: '100%',
+        backgroundColor: '#e0e0e0',
+    },
+    timeLabel: {
+        fontSize: 12,
+        color: '#777',
+        marginTop: 6,
+    },
+    timeValue: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#333',
+        marginTop: 2,
+    },
+    hoursContainer: {
+        flexDirection: 'row',
+        paddingVertical: 10,
+        backgroundColor: '#f8f9ff',
+        borderRadius: 8,
         marginTop: 10,
+    },
+    hoursItem: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    hoursSeparator: {
+        width: 1,
+        height: '80%',
+        backgroundColor: '#e0e0e0',
+    },
+    hoursText: {
+        fontSize: 14,
+        color: '#555',
+        marginLeft: 8,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 30,
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 2,
+    },
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#333',
+        marginTop: 15,
+        marginBottom: 8,
+    },
+    emptyText: {
+        fontSize: 14,
+        color: '#777',
+        textAlign: 'center',
+    },
+    errorContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        marginTop: 10,
+    },
+    errorText: {
+        marginTop: 10,
+        fontSize: 16,
+        color: '#ff6b6b',
+        textAlign: 'center',
     },
 });
 
