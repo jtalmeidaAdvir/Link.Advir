@@ -112,65 +112,7 @@ const getDaysInWeek = (weekNumber, year) => {
     return days;
 };
 
-// Endpoint para buscar intervenções detalhadas por técnico com sistema de retry
-const fetchIntervencoesByTecnico = async (tecnicoID, token, urlempresa, maxRetries = 3) => {
-    let tentativaAtual = 0;
-    let ultimoErro = null;
-    
-    while (tentativaAtual < maxRetries) {
-        try {
-            const response = await fetch(
-                `https://webapiprimavera.advir.pt/routePedidos_STP/ListaIntervencoesTecnico/${tecnicoID}`,
-                {
-                    method: "GET",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                        urlempresa,
-                    },
-                },
-            );
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Status ${response.status}: ${errorText}`);
-            }
-
-            const data = await response.json();
-
-            // Verificar se há dados válidos e retornar
-            if (data?.DataSet?.Table && Array.isArray(data.DataSet.Table)) {
-                console.log("Intervenções detalhadas recebidas:", data.DataSet.Table);
-                return data.DataSet.Table;
-            } else {
-                console.warn(
-                    "API retornou um formato inesperado para intervenções:",
-                    data,
-                );
-                return [];
-            }
-        } catch (error) {
-            tentativaAtual++;
-            ultimoErro = error;
-            
-            // Se não for a última tentativa, espere antes de tentar novamente
-            if (tentativaAtual < maxRetries) {
-                console.log(`Tentativa ${tentativaAtual} falhou, tentando novamente em ${tentativaAtual * 1000}ms...`);
-                await new Promise(resolve => setTimeout(resolve, tentativaAtual * 1000));
-            }
-        }
-    }
-    
-    // Se chegou aqui, todas as tentativas falharam
-    console.error("Erro ao buscar intervenções após várias tentativas:", ultimoErro);
-    if (Platform.OS !== 'web') {
-        Alert.alert(
-            "Erro",
-            "Não foi possível obter intervenções após várias tentativas: " + (ultimoErro?.message || "Erro de conexão"),
-        );
-    }
-    return [];
-};
 
 const PandIByTecnico = () => {
     const [tecnicoID, setTecnicoID] = useState("");
@@ -246,10 +188,7 @@ const PandIByTecnico = () => {
             };
             
             // Busca intervenções e processos do técnico com sistema de retry
-            const intervencoesResPromise = fetchWithRetry(
-                `https://webapiprimavera.advir.pt/routePedidos_STP/ListaIntervencoesTecnico/${tecnicoID}`,
-                { method: "GET", headers }
-            );
+
             
             const processosResPromise = fetchWithRetry(
                 `https://webapiprimavera.advir.pt/routePedidos_STP/ListaProcessosTecnico/${tecnicoID}`,
@@ -257,24 +196,19 @@ const PandIByTecnico = () => {
             );
             
             // Fazer chamadas em paralelo para melhorar desempenho
-            const [intervencoesRes, processosRes] = await Promise.all([
-                intervencoesResPromise,
+            const [ processosRes] = await Promise.all([
+
                 processosResPromise
             ]);
             
-            // Buscar intervenções detalhadas com retry
-            const intervencoesDetalhadasRes = await fetchIntervencoesByTecnico(tecnicoID, token, urlempresa);
-
-            const intervencoesData = await intervencoesRes.json();
             const processosData = await processosRes.json();
-            const intervencoesDetalhadasResFinal = intervencoesDetalhadasRes || [];
+
 
             // Log para debug
             console.log("Dados carregados com sucesso:", {
-                intervencoes: intervencoesData?.DataSet?.Table?.length || 0,
-                processos: processosData?.DataSet?.Table?.length || 0,
-                intervencoesDetalhadas: intervencoesDetalhadasResFinal.length || 0
+                processos: processosData
             });
+            
 
             // Criar mapa de processos por ID para acesso rápido
             const processosMap = (processosData?.DataSet?.Table || []).reduce(
@@ -297,31 +231,8 @@ const PandIByTecnico = () => {
                 };
             });
 
-            // Depois, adicionar todas as intervenções aos processos correspondentes
-            (intervencoesDetalhadasResFinal || []).forEach((intv) => {
-                const processoID = intv.ProcessoID;
 
-                // Se o processo não existir no mapa (caso raro), crie-o
-                if (!todosProcessos[processoID]) {
-                    todosProcessos[processoID] = {
-                        processoID: processoID,
-                        detalhesProcesso: processosMap[processoID] || null,
-                        intervencoes: [],
-                    };
-                }
 
-                // Adicionar a intervenção ao processo
-                todosProcessos[processoID].intervencoes.push({
-                    DataHoraInicio: intv.DataHoraInicio,
-                    DataHoraFim: intv.DataHoraFim,
-                    DescricaoResp: intv.DescricaoResp,
-                    Duracao: intv.Duracao,
-                    TipoInterv: intv.TipoInterv,
-                    ID: intv.ID,
-                });
-            });
-
-            setIntervencoes(intervencoesData?.DataSet?.Table || []);
             setProcessos(processosData?.DataSet?.Table || []);
             setIntervencoesDetalhadas(Object.values(todosProcessos));
 
@@ -360,6 +271,25 @@ const PandIByTecnico = () => {
         const date = new Date(dateToCheck);
         return date.getMonth() + 1 === mes && date.getFullYear() === ano;
     };
+
+
+    const filterProcessosByPeriodo = () => {
+        return processos.filter((processo) => {
+            const dataInicio = new Date(processo.DataHoraInicio);
+            
+            if (filtro === "semana") {
+                return isDateInSelectedWeek(dataInicio);
+            }
+            if (filtro === "mes") {
+                return isDateInSelectedMonth(dataInicio);
+            }
+            if (filtro === "anual") {
+                return dataInicio.getFullYear() === ano;
+            }
+            return true;
+        });
+    };
+    
 
     // Função para organizar os processos por dia
     const getProcessosPorDia = () => {
@@ -406,8 +336,8 @@ const PandIByTecnico = () => {
             }
 
             // Caso contrário, usar a data de abertura do processo
-            if (processo.detalhesProcesso?.DataHoraAbertura) {
-                return new Date(processo.detalhesProcesso.DataHoraAbertura)
+            if (processo.detalhesProcesso?.DataHoraInicio) {
+                return new Date(processo.detalhesProcesso.DataHoraInicio)
                     .toISOString()
                     .split("T")[0];
             }
@@ -437,18 +367,18 @@ const PandIByTecnico = () => {
                 }
             } else {
                 // Para processos sem intervenções, verificar a data de abertura
-                if (processo.detalhesProcesso?.DataHoraAbertura) {
+                if (processo.detalhesProcesso?.DataHoraInicio) {
                     if (filtro === "semana") {
                         temIntervencoesNoFiltro = isDateInSelectedWeek(
-                            processo.detalhesProcesso.DataHoraAbertura,
+                            processo.detalhesProcesso.DataHoraInicio,
                         );
                     } else if (filtro === "mes") {
                         temIntervencoesNoFiltro = isDateInSelectedMonth(
-                            processo.detalhesProcesso.DataHoraAbertura,
+                            processo.detalhesProcesso.DataHoraInicio,
                         );
                     } else if (filtro === "anual") {
                         // Verificar se a data está no ano selecionado
-                        const date = new Date(processo.detalhesProcesso.DataHoraAbertura);
+                        const date = new Date(processo.detalhesProcesso.DataHoraInicio);
                         temIntervencoesNoFiltro = date.getFullYear() === ano;
                     }
                 }
@@ -505,50 +435,43 @@ const PandIByTecnico = () => {
 
     // Função para obter dados para o gráfico de tipos de intervenção
     const getInterventionTypeData = () => {
-        // Contagem de tipos de intervenção
         const tiposCounts = {};
-
-        intervencoesDetalhadas.forEach(processo => {
-            processo.intervencoes.forEach(interv => {
-                const tipo = interv.TipoInterv || "Outro";
-                tiposCounts[tipo] = (tiposCounts[tipo] || 0) + 1;
-            });
+        filterProcessosByPeriodo().forEach(processo => {
+            const tipo = processo.TipoInterv || "Outro";
+            tiposCounts[tipo] = (tiposCounts[tipo] || 0) + 1;
         });
-
-        // Converter para o formato esperado pelo PieChart
+    
         return Object.keys(tiposCounts).map(tipo => ({
             name: tipo,
             value: tiposCounts[tipo]
         }));
     };
+    
+    
 
     // Função para obter dados para o gráfico de horas por dia
     const getHoursPerDayData = () => {
         const horasPorDia = {};
-
-        // Obter todos os dias no período selecionado
-        dadosPorDia.forEach(dia => {
-            const dataStr = dia.data.toISOString().split('T')[0];
-            horasPorDia[dataStr] = 0;
-
-            // Somar as durações de todas as intervenções para este dia
-            dia.processos.forEach(processo => {
-                processo.intervencoes.forEach(interv => {
-                    if (interv.Duracao) {
-                        horasPorDia[dataStr] += interv.Duracao / 60; // Converter minutos para horas
-                    }
-                });
-            });
+        filterProcessosByPeriodo().forEach(processo => {
+            if (processo.DataHoraInicio && processo.Duracao) {
+                const dataStr = new Date(processo.DataHoraInicio).toISOString().split('T')[0];
+                if (!horasPorDia[dataStr]) {
+                    horasPorDia[dataStr] = 0;
+                }
+                horasPorDia[dataStr] += processo.Duracao / 60;
+            }
         });
-
-        // Converter para o formato esperado pelo BarChart
+    
         return Object.keys(horasPorDia).map(dataStr => ({
             day: new Date(dataStr).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }),
             hours: parseFloat(horasPorDia[dataStr].toFixed(1))
         }));
     };
+    
+    
 
     return (
+        
         <ScrollView
             style={styles.container}
             contentContainerStyle={styles.contentContainer}
@@ -744,97 +667,76 @@ const PandIByTecnico = () => {
                 )}
             </View>
 
-            {/* Dashboard Section */}
-            {dadosPorDia.length > 0 && (
-                <View style={styles.dashboardContainer}>
-                    <Text style={styles.dashboardTitle}>Dashboard do Técnico</Text>
+          {/* Dashboard Section */}
+{processos.length > 0 && (
+    <View style={styles.dashboardContainer}>
+        <Text style={styles.dashboardTitle}>Dashboard do Técnico</Text>
 
-                    <View style={styles.dashboardRow}>
-                        {/* Card 1: Total de Processos */}
-                        <View style={styles.dashboardCard}>
-                            <Text style={styles.cardTitle}>Total de Processos</Text>
-                            <Text style={styles.cardValue}>
-                                {intervencoesDetalhadas.length}
-                            </Text>
-                        </View>
+        <View style={styles.dashboardRow}>
+            {/* Card 1: Total de Intervenções */}
+            <View style={styles.dashboardCard}>
+    <Text style={styles.cardTitle}>Total de Intervenções</Text>
+    <Text style={styles.cardValue}>
+        {filterProcessosByPeriodo().length}
+    </Text>
+</View>
 
-                        {/* Card 2: Intervenções Realizadas */}
-                        <View style={styles.dashboardCard}>
-                            <Text style={styles.cardTitle}>Intervenções</Text>
-                            <Text style={styles.cardValue}>
-                                {intervencoesDetalhadas.reduce(
-                                    (total, processo) => total + processo.intervencoes.length,
-                                    0
-                                )}
-                            </Text>
-                        </View>
 
-                        {/* Card 3: Horas Trabalhadas */}
-                        <View style={styles.dashboardCard}>
-                            <Text style={styles.cardTitle}>Horas Totais</Text>
-                            <Text style={styles.cardValue}>
-                                {(intervencoesDetalhadas.reduce(
-                                    (total, processo) => total + processo.intervencoes.reduce(
-                                        (subtotal, interv) => subtotal + (interv.Duracao || 0),
-                                        0
-                                    ),
-                                    0
-                                ) / 60).toFixed(1)}h
-                            </Text>
-                        </View>
+
+            {/* Card 3: Horas Trabalhadas */}
+            <View style={styles.dashboardCard}>
+    <Text style={styles.cardTitle}>Horas Totais</Text>
+    <Text style={styles.cardValue}>
+        {(filterProcessosByPeriodo().reduce(
+            (total, processo) => total + (processo.Duracao || 0),
+            0
+        ) / 60).toFixed(1)}h
+    </Text>
+</View>
+
                     </View>
 
                     {/* Charts row */}
                     <View style={styles.chartsContainer}>
                         {/* Pie Chart - Tipos de Intervenção */}
-                        <View style={styles.chartBox}>
-                            <Text style={styles.chartTitle}>Tipos de Intervenção</Text>
-                            <ResponsiveContainer width="100%" height={220}>
-                                <PieChart>
-                                    <Pie
-                                        data={getInterventionTypeData()}
-                                        cx="50%"
-                                        cy="50%"
-                                        labelLine={false}
-                                        outerRadius={80}
-                                        fill="#8884d8"
-                                        dataKey="value"
-                                        label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                    >
-                                        {getInterventionTypeData().map((entry, index) => (
-                                            <Cell 
-                                                key={`cell-${index}`} 
-                                                fill={COLORS[index % COLORS.length]} 
-                                            />
-                                        ))}
-                                    </Pie>
-                                    <Legend />
-                                    <Tooltip />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </View>
+<View style={styles.chartBox}>
+    <Text style={styles.chartTitle}>Tipos de Intervenção</Text>
+    <ResponsiveContainer width="100%" height={220}>
+        <PieChart>
+            <Pie
+                data={getInterventionTypeData()}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+            >
+                {getInterventionTypeData().map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+            </Pie>
+            <Legend />
+            <Tooltip />
+        </PieChart>
+    </ResponsiveContainer>
+</View>
 
-                        {/* Bar Chart - Horas por Dia */}
-                        <View style={styles.chartBox}>
-                            <Text style={styles.chartTitle}>Horas por Dia</Text>
-                            <ResponsiveContainer width="100%" height={220}>
-                                <BarChart
-                                    data={getHoursPerDayData()}
-                                    margin={{
-                                        top: 5,
-                                        right: 30,
-                                        left: 20,
-                                        bottom: 5,
-                                    }}
-                                >
-                                    <XAxis dataKey="day" />
-                                    <YAxis />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Bar dataKey="hours" fill="#1792FE" name="Horas" />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </View>
+{/* Bar Chart - Horas por Dia */}
+<View style={styles.chartBox}>
+    <Text style={styles.chartTitle}>Horas por Dia</Text>
+    <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={getHoursPerDayData()} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <XAxis dataKey="day" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="hours" fill="#1792FE" name="Horas" />
+        </BarChart>
+    </ResponsiveContainer>
+</View>
+
                     </View>
                 </View>
             )}
@@ -919,7 +821,7 @@ const PandIByTecnico = () => {
                                                 20,
                                             ) ||
                                                 processo.detalhesProcesso
-                                                    ?.Cliente ||
+                                                    ?.NomeCliente ||
                                                 "N/A"}
                                             {processo.detalhesProcesso?.Nome
                                                 ?.length > 20
@@ -933,7 +835,7 @@ const PandIByTecnico = () => {
 
                                     {/* Coluna de estado */}
                                     <View style={styles.tableCell}>
-                                        {processo.intervencoes.length === 0 ? (
+                                        {processo.detalhesProcesso.length === 0 ? (
                                             <View style={styles.estadoPendente}>
                                                 <Text
                                                     style={
@@ -958,82 +860,17 @@ const PandIByTecnico = () => {
                                         )}
                                     </View>
 
-                                    {/* Coluna das intervenções */}
-                                    <View style={styles.tableCellInterv}>
-                                        {processo.intervencoes.length > 0 ? (
-                                            processo.intervencoes.map(
-                                                (intv, intervIndex) => (
-                                                    <View
-                                                        key={intervIndex}
-                                                        style={
-                                                            styles.intervCard
-                                                        }
-                                                    >
-                                                        <View
-                                                            style={
-                                                                styles.intervHeader
-                                                            }
-                                                        >
-                                                            <Text
-                                                                style={
-                                                                    styles.intervType
-                                                                }
-                                                            >
-                                                                {
-                                                                    intv.TipoInterv
-                                                                }
-                                                            </Text>
-                                                            <Text
-                                                                style={
-                                                                    styles.intervDuration
-                                                                }
-                                                            >
-                                                                {intv.Duracao}{" "}
-                                                                min
-                                                            </Text>
-                                                        </View>
-                                                        <Text
-                                                            style={
-                                                                styles.intervTime
-                                                            }
-                                                        >
-                                                            {new Date(
-                                                                intv.DataHoraInicio,
-                                                            ).toLocaleTimeString(
-                                                                [],
-                                                                {
-                                                                    hour: "2-digit",
-                                                                    minute: "2-digit",
-                                                                },
-                                                            )}{" "}
-                                                            -
-                                                            {new Date(
-                                                                intv.DataHoraFim,
-                                                            ).toLocaleTimeString(
-                                                                [],
-                                                                {
-                                                                    hour: "2-digit",
-                                                                    minute: "2-digit",
-                                                                },
-                                                            )}
-                                                        </Text>
-                                                        <Text
-                                                            style={
-                                                                styles.intervDesc
-                                                            }
-                                                            numberOfLines={3}
-                                                        >
-                                                            {intv.DescricaoResp}
-                                                        </Text>
-                                                    </View>
-                                                ),
-                                            )
-                                        ) : (
-                                            <Text style={styles.intervPendente}>
-                                                Aguarda atendimento
-                                            </Text>
-                                        )}
+                                    {/* Coluna do cliente */}
+                                    <View style={styles.tableCell}>
+                                        <Text style={styles.tableCellTitle}>
+                                            {processo.detalhesProcesso?.DescricaoResp}
+                                        </Text>
+                                        <Text>
+                                            {processo.detalhesProcesso?.Duracao } min
+                                        </Text>
+
                                     </View>
+
                                 </View>
                             ))}
                         </View>
