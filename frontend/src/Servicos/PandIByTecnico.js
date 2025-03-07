@@ -829,7 +829,7 @@ const PandIByTecnico = () => {
                                                 : ""}
                                         </Text>
                                         <Text style={styles.tableCellSubtext}>
-                                            {`${processo.detalhesProcesso?.PrimeiroNome || ""} ${processo.detalhesProcesso?.UltimoNome || ""}`}
+                                            {`${processo.detalhesProcesso?.NomeContacto || ""} ${processo.detalhesProcesso?.ApelidoContacto || ""}`}
                                         </Text>
                                     </View>
 
