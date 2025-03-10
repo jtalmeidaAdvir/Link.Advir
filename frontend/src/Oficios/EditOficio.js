@@ -66,6 +66,7 @@ const EditOficio = (props) => {
     const [estadodoc, setEstado] = useState("");
     const Executado = useRef(false);
     const contentEditableRef = useRef(null);
+    const [atencao, setAtencao] = useState(""); // Novo estado para o campo de atenção
 
     const handleBlur = () => {
         // Atualiza o estado apenas ao perder o foco
@@ -113,7 +114,9 @@ const EditOficio = (props) => {
     // ==============================
     // 2) Estados para o modal de envio de email
     // ==============================
-    const [emailTo, setEmailTo] = useState(oficioData?.CDU_email || ""); // Destinatário do email
+    const [emailTo, setEmailTo] = useState(
+        oficioData?.CDU_email || "jtalmeida@advir.pt",
+    ); // Destinatário do email
     const [emailCC, setEmailCC] = useState(""); // Destinatário do email
     const [emailAssunto, setEmailAssunto] = useState(""); // Assunto do email
     const [emailTexto, setEmailTexto] = useState(""); // Corpo do email
@@ -146,12 +149,16 @@ const EditOficio = (props) => {
             setAssuntoDoc(oficioData?.CDU_assunto || "");
             setAnexostext(oficioData?.CDU_Anexos || "");
             setTextParts({
-                part1: oficioData?.CDU_texto1 || "JOAQUIM PEIXOTO AZEVEDO, & FILHOS, LDA, com sede na Rua de Longras, n.º 44, 4730 360 Vila Verde, na qualidade de",
+                part1:
+                    oficioData?.CDU_texto1 ||
+                    "JOAQUIM PEIXOTO AZEVEDO, & FILHOS, LDA, com sede na Rua de Longras, n.º 44, 4730 360 Vila Verde, na qualidade de",
                 part2: oficioData?.CDU_texto2 || "",
             });
             setFormData({
                 codigo: oficioData?.CDU_codigo || "",
-                data: oficioData?.CDU_Datadoc || new Date().toISOString().slice(0, 10),
+                data:
+                    oficioData?.CDU_Datadoc ||
+                    new Date().toISOString().slice(0, 10),
                 remetente: oficioData?.CDU_remetente || "",
                 email: oficioData?.CDU_email || "",
                 texto1: oficioData?.CDU_texto1 || "",
@@ -163,6 +170,7 @@ const EditOficio = (props) => {
             });
             setInputValue(oficioData?.CDU_obra || "");
             setEmailTo(oficioData?.CDU_email || "");
+            setAtencao(oficioData?.CDU_atencao || ""); // Initialize atencao from oficioData
         }
     }, [oficioId, oficioData]);
 
@@ -581,6 +589,11 @@ const EditOficio = (props) => {
     // 9) Enviar Email com Office API (usando dados do modal)
     // ======================================
     const handleSendEmailWithOfficeAPI = async () => {
+        // Se o assunto do email estiver vazio, use o assunto do documento
+        if (!emailAssunto && assuntoDoc) {
+            setEmailAssunto(assuntoDoc);
+        }
+
         console.log(pageCount2);
         const containers = [docxContainer.current, docxContainer2.current]; // Lista de contêineres para as páginas
 
@@ -703,7 +716,26 @@ const EditOficio = (props) => {
                 content: pdf1Base64,
             });
 
-            const formattedEmailTexto = emailTexto.replace(/\n/g, "<br />");
+            let formattedEmailTexto = emailTexto.replace(/\n/g, "<br />");
+
+            // Obter o email de resposta do localStorage
+            const useremail = localStorage.getItem("userEmail");
+
+            // Adicionar mensagem informativa sobre respostas
+            formattedEmailTexto += `<br /><br /><div style='color: #777; font-size: 12px; border-top: 1px solid #eee; padding-top: 10px;'><p>Este email é enviado automaticamente de oficio@jpaconstrutora.com. Para responder, por favor envie email para ${useremail}.</p></div>`;
+
+            // Verificar se a assinatura deve ser incluída
+            const includeSignature =
+                document.getElementById("includeSignature").checked;
+            if (includeSignature) {
+                // Capturar o conteúdo HTML da assinatura
+                const signatureElement =
+                    document.getElementById("emailSignature");
+                const signatureHtml = signatureElement.innerHTML;
+
+                // Adicionar a assinatura ao final do texto do email
+                formattedEmailTexto += "<br /><br />--<br />" + signatureHtml;
+            }
 
             // Montar payload com os dados do modal
             const payload = {
@@ -713,6 +745,8 @@ const EditOficio = (props) => {
                 texto: formattedEmailTexto,
                 remetente: formData.remetente,
                 anexos: processedAnexos,
+                replyTo: useremail, // Configura o email de resposta para o email do usuário atual
+                from: "oficio@jpaconstrutora.com", // Mantém o email de envio como oficio@jpaconstrutora.com
             };
 
             // Enviar para o backend
@@ -729,9 +763,13 @@ const EditOficio = (props) => {
 
             if (response.ok) {
                 console.log("E-mail enviado com sucesso!");
+                alert("E-mail enviado com sucesso!");
             } else {
                 const errorData = await response.json();
                 console.error("Erro ao enviar email:", errorData);
+                alert(
+                    "Erro ao enviar email. Verifique os logs para mais detalhes.",
+                );
             }
 
             console.log("Chamando handleSave com o estado 'Imprimir'");
@@ -739,6 +777,7 @@ const EditOficio = (props) => {
         } catch (error) {
             console.error("Erro ao gerar ou enviar o PDF com anexos:", error);
             handleSave("Erro no envio");
+            alert("Erro ao gerar ou enviar o PDF com anexos.");
         } finally {
             setIsModalOpen(false);
         }
@@ -841,7 +880,7 @@ const EditOficio = (props) => {
             email: useremail,
             template: templateestado,
             donoObra: nomeDonoObra,
-            Morada: moradaDonoObra,
+            Morrada: moradaDonoObra,
             Localidade: localidadeDonoObra,
             CodPostal: codPostalDonoObra,
             CodPostalLocal: codPostalLocalDonoObra,
@@ -849,6 +888,7 @@ const EditOficio = (props) => {
             texto4: part2Chunks[2],
             texto5: part2Chunks[3],
             estado: estado,
+            atencao: atencao, // Include atencao field in payload
         };
 
         try {
@@ -980,85 +1020,9 @@ const EditOficio = (props) => {
     }, [donoObra]);
 
     // ======================================
-    // 14) Gerar automaticamente o "código" do ofício
-    // ======================================
-    const generateCodigo = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
-        const emailrementente = localStorage.getItem("userEmail");
-        const userNome = localStorage.getItem("userNome");
-
-        try {
-            const response = await fetch(
-                "https://webapiprimavera.advir.pt/oficio/GetId",
-                {
-                    method: "GET",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        urlempresa: urlempresa,
-                        "Content-Type": "application/json",
-                    },
-                },
-            );
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(
-                    `Erro https: ${response.status} - ${errorData.error}`,
-                );
-            }
-
-            const data = await response.json();
-            let conteudoCentral =
-                data?.DataSet?.Table?.[0]?.Conteudo_Central || "000";
-
-            const novoConteudoCentral = String(
-                parseInt(conteudoCentral, 10) + 1,
-            ).padStart(3, "0");
-
-            const currentYear = new Date().getFullYear();
-            const currentMonth = new Date().getMonth() + 1;
-            const formattedMonth = currentMonth.toString().padStart(2, "0");
-
-            let iniciais = "";
-            if (userNome) {
-                const palavras = userNome.split(/\s+/); // Divide o nome em palavras
-                if (palavras.length >= 2) {
-                    iniciais =
-                        palavras[0][0].toUpperCase() +
-                        palavras[1][0].toUpperCase(); // Só as iniciais das duas primeiras palavras
-                } else if (palavras.length === 1) {
-                    iniciais = palavras[0][0].toUpperCase(); // Caso só exista uma palavra
-                }
-            }
-
-            const updatedCodigo = `OFI${currentYear}${formattedMonth}${novoConteudoCentral}${iniciais}`;
-
-            const editableCellCodigo =
-                document.getElementById("editableCellCodigo");
-            if (editableCellCodigo) {
-                editableCellCodigo.innerHTML = `
-                    REF: ${updatedCodigo}<br>
-                    DATA: ${formData.data}<br>
-                    ANEXOS: ${anexos.map((a) => a.name).join(", ") || ""}<br>
-                `;
-            }
-
-            setFormData((prevFormData) => ({
-                ...prevFormData,
-                codigo: updatedCodigo,
-            }));
-        } catch (error) {
-            console.error("Erro ao obter o último ID:", error);
-            throw error;
-        }
-    };
-
-    // ======================================
     // 15) Mudar Template
     // ======================================
     const changeTemplate = () => {
-        generateCodigo();
         const newTemplate = currentTemplate === 1 ? 2 : 1;
         setCurrentTemplate(newTemplate);
 
@@ -1142,7 +1106,7 @@ const EditOficio = (props) => {
   .logo { text-align: left; }
   .logo img { max-width: 30%; height: auto; }
   .PMEPreto img { max-width: 25%; height: auto; }
-  @media (max-width: 768px) {
+  @media (maxWidth: 768pxx) {
     .page1 { padding: 1rem; }
     th, td { font-size: 6pt; padding: 0.3rem; }
   }
@@ -1161,6 +1125,7 @@ const EditOficio = (props) => {
 <td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
     <span style="font-size: 11px;">EXMO(s) SR(s)<br></span>
     <span style="font-size: 9px;">${donoObra.Nome || ""}<br></span>
+    <span style="font-size: 9px;">${atencao ? atencao + "<br>" : ""}</span>
     <span style="font-size: 9px;">${donoObra.Morada || morada}<br></span>
     <span style="font-size: 9px;">${donoObra.Localidade || localidade}<br></span>
     <span style="font-size: 9px;">${donoObra.CodPostal || codigoPostal} ${donoObra.CodPostalLocal || localCopPostal}</span>
@@ -1223,7 +1188,7 @@ const EditOficio = (props) => {
     oninput="window.updateTexto(this.innerText)"
     style="width: 100%; min-height: 594px; max-height: 600px; max-width: 490px; overflow: auto;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
   >
-    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
+    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 10px;">
       ASSUNTO:  ${assuntoDoc}
     </span><br><br>
     <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
@@ -1397,7 +1362,7 @@ const EditOficio = (props) => {
       <span 
         style="
           font-family: 'TitilliumText22L', sans-serif;
-          font-size: 8pt;
+          font-size: 10pt;
           font-weight: bold; /* Negrito ON */
           font-style: normal; /* Itálico OFF */
           text-decoration: none; /* Sublinhado OFF */
@@ -1509,7 +1474,7 @@ const EditOficio = (props) => {
   .logo { text-align: left; visibility: hidden;}
   .logo img { max-width: 30%; height: auto; visibility: hidden;}
   .PMEPreto img { max-width: 25%; height: auto; visibility: hidden;}
-  @media (max-width: 768px) {
+  @media (maxWidth: 768px) {
     .page1 { padding: 1rem; }
     th, td { font-size: 6pt; padding: 0.3rem; }
   }
@@ -1528,6 +1493,7 @@ const EditOficio = (props) => {
 <td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
     <span style="font-size: 11px;">EXMO(s) SR(s)<br></span>
     <span style="font-size: 9px;">${donoObra.Nome || ""}<br></span>
+    <span style="font-size: 9px;">${atencao ? atencao + "<br>" : ""}</span>
     <span style="font-size: 9px;">${donoObra.Morada || morada}<br></span>
     <span style="font-size: 9px;">${donoObra.Localidade || localidade}<br></span>
     <span style="font-size: 9px;">${donoObra.CodPostal || codigoPostal} ${donoObra.CodPostalLocal || localCopPostal}</span>
@@ -1587,7 +1553,7 @@ const EditOficio = (props) => {
     oninput="window.updateTexto(this.innerText)"
     style="width: 100%; min-height: 594px; max-height: 600px; max-width: 490px; overflow: auto;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
   >
-    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
+    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 10px;">
       ASSUNTO:  ${assuntoDoc}
     </span><br><br>
     <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
@@ -1732,7 +1698,6 @@ const EditOficio = (props) => {
         <tr>
         <td colspan="2"></td>
         </tr>
-
         <tr>
         <td colspan="2"></td>
         </tr>
@@ -1765,7 +1730,7 @@ const EditOficio = (props) => {
       <span 
         style="
           font-family: 'TitilliumText22L', sans-serif;
-          font-size: 8pt;
+          font-size: 10pt;
           font-weight: bold; /* Negrito ON */
           font-style: normal; /* Itálico OFF */
           text-decoration: none; /* Sublinhado OFF */
@@ -1842,7 +1807,27 @@ const EditOficio = (props) => {
             // Marca que o conteúdo foi atualizado
             docxContainerUpdated.current = true;
         }
-    }, [currentTemplate, donoObra, formData, textParts, assuntoDoc]);
+    }, [currentTemplate, donoObra, formData, textParts, assuntoDoc, atencao]);
+
+    // Adicionar efeito para fechar o dropdown ao clicar em qualquer lugar fora dele
+    useEffect(() => {
+        function handleClickOutside(event) {
+            const dropdown = document.getElementById("emailDropdown");
+            if (
+                dropdown &&
+                dropdown.classList.contains("show") &&
+                !event.target.closest(".dropdown-content") &&
+                !event.target.matches("button")
+            ) {
+                dropdown.classList.remove("show");
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     // Função para gerar o PDF quando o conteúdo estiver pronto
     const handleGeneratePDF = async () => {
@@ -1959,6 +1944,7 @@ const EditOficio = (props) => {
             texto4: part2Chunks[2],
             texto5: part2Chunks[3],
             estado: estadodoc || oficioData?.CDU_estado || "",
+            atencao: atencao, // Include atencao field in payload
         };
 
         try {
@@ -1995,6 +1981,15 @@ const EditOficio = (props) => {
 
     const goBackToOficiosList = () => {
         navigation.navigate("OficiosList"); // Navigate to OficiosList screen
+    };
+
+    const handleOptionClick2 = (obra) => {
+        var input = obra.Codigo + " - " + obra.Nome;
+        setInputValue2(input);
+        setSelectedObra2(obra);
+        setShowOptions2(false);
+        setDonoObra(obra);
+        setAtencao(`A/C.: ${obra.Nome}`); // Define o campo de atenção
     };
 
     return (
@@ -2063,6 +2058,19 @@ const EditOficio = (props) => {
                             </button>
                             <button
                                 onClick={() => {
+                                    // Set email subject from document subject
+                                    if (assuntoDoc) {
+                                        setEmailAssunto(assuntoDoc);
+                                    }
+
+                                    // Certifica que o corpo do email está vazio antes de abrir o modal
+                                    if (emailTexto === "") {
+                                        setEmailTexto(
+                                            "Segue em anexo o ofício com referência: " +
+                                            formData.codigo,
+                                        );
+                                    }
+
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
                                         setIsModalOpen(true);
@@ -2098,6 +2106,125 @@ const EditOficio = (props) => {
             {/* Renderiza os inputs ou a pré-visualização */}
             {isPreviewVisible ? (
                 <>
+                    {/* Barra de ferramentas de edição do tipo Word */}
+                    <div style={styles.editorToolbar}>
+                        <div style={styles.toolbarGroup}>
+                            <select
+                                onChange={(e) => {
+                                    document.execCommand(
+                                        "fontName",
+                                        false,
+                                        e.target.value,
+                                    );
+                                }}
+                                style={styles.toolbarSelect}
+                            >
+                                <option value="">Fonte</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Calibri">Calibri</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Tahoma">Tahoma</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Segoe UI">Segoe UI</option>
+                            </select>
+
+                            <select
+                                onChange={(e) => {
+                                    document.execCommand(
+                                        "fontSize",
+                                        false,
+                                        e.target.value,
+                                    );
+                                }}
+                                style={styles.toolbarSelect}
+                            >
+                                <option value="">Tamanho</option>
+                                <option value="1">8pt</option>
+                                <option value="2">10pt</option>
+                                <option value="3">12pt</option>
+                                <option value="4">14pt</option>
+                                <option value="5">18pt</option>
+                                <option value="6">24pt</option>
+                                <option value="7">36pt</option>
+                            </select>
+                        </div>
+
+                        <div style={styles.toolbarGroup}>
+                            <button
+                                onClick={() => document.execCommand("bold", false, null)}
+                                style={styles.toolbarButton}
+                                title="Negrito (Ctrl+B)"
+                            >
+                                <b>N</b>
+                            </button>
+                            <button
+                                onClick={() => document.execCommand("italic", false, null)}
+                                style={styles.toolbarButton}
+                                title="Itálico (Ctrl+I)"
+                            >
+                                <i>I</i>
+                            </button>
+                            <button
+                                onClick={() => document.execCommand("underline", false, null)}
+                                style={styles.toolbarButton}
+                                title="Sublinhado (Ctrl+U)"
+                            >
+                                <u>S</u>
+                            </button>
+                            <button
+                                onClick={() => document.execCommand("strikeThrough", false, null)}
+                                style={styles.toolbarButton}
+                                title="Tachado"
+                            >
+                                <span style={{ textDecoration: "line-through" }}>T</span>
+                            </button>
+                        </div>
+
+                        <div style={styles.toolbarGroup}>
+                            <button
+                                onClick={() => document.execCommand("justifyLeft", false, null)}
+                                style={styles.toolbarButton}
+                                title="Alinhar à esquerda"
+                            >
+                                <span role="img" aria-label="Alinhar à esquerda">⫷</span>
+                            </button>
+                            <button
+                                onClick={() => document.execCommand("justifyCenter", false, null)}
+                                style={styles.toolbarButton}
+                                title="Centralizar"
+                            >
+                                <span role="img" aria-label="Centralizar">≡</span>
+                            </button>
+                            <button
+                                onClick={() => document.execCommand("justifyRight", false, null)}
+                                style={styles.toolbarButton}
+                                title="Alinhar à direita"
+                            >
+                                <span role="img" aria-label="Alinhar à direita">⫸</span>
+                            </button>
+                            <button
+                                onClick={() => document.execCommand("justifyFull", false, null)}
+                                style={styles.toolbarButton}
+                                title="Justificar"
+                            >
+                                <span role="img" aria-label="Justificar">☰</span>
+                            </button>
+                        </div>
+
+                        <div style={styles.toolbarGroup}>
+                            <label style={styles.toolbarLabel} title="Cor do texto">
+                                <span role="img" aria-label="Cor do texto" style={{ marginRight: "5px" }}>🎨</span>
+                                <input
+                                    type="color"
+                                    onChange={(e) => document.execCommand("foreColor", false, e.target.value)}
+                                    style={styles.colorPicker}
+                                />
+                            </label>
+                        </div>
+                    </div>
+
                     {/* Área de visualização do DOCUMENTO (template) */}
                     <div ref={docxContainer} style={styles.docxContainer}></div>
                     {textParts.part2 && <div ref={docxContainer2}></div>}
@@ -2650,6 +2777,29 @@ const EditOficio = (props) => {
                         dangerouslySetInnerHTML={{ __html: anexostext }} // Exibe o texto com <br />
                     />
 
+                    {/* Text box that appears when an entity is selected */}
+                    {selectedObra2 && (
+                        <div
+                            style={{ marginTop: "10px", marginBottom: "20px" }}
+                        >
+                            <input
+                                type="text"
+                                placeholder="A/C.:"
+                                value={atencao}
+                                onChange={(e) => setAtencao(e.target.value)}
+                                style={{
+                                    width: "100%",
+                                    padding: "12px",
+                                    margin: "10px 0",
+                                    border: "1px solid #ddd",
+                                    borderRadius: "8px",
+                                    fontSize: "16px",
+                                    boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                }}
+                            />
+                        </div>
+                    )}
+
                     {/* Botão de alternar entre pré-visualização e edição */}
                     <button
                         onClick={() => {
@@ -2680,67 +2830,295 @@ const EditOficio = (props) => {
             {isModalOpen && (
                 <div style={styles.modalOverlay}>
                     <div style={styles.modalContent}>
-                        <input
-                            type="text"
-                            placeholder="Para:"
-                            value={emailTo}
-                            onChange={(e) => setEmailTo(e.target.value)}
-                            style={styles.input}
-                        />
-
-                        <input
-                            type="text"
-                            placeholder="CC:"
-                            value={emailCC}
-                            onChange={(e) => setEmailCC(e.target.value)}
-                            style={styles.input}
-                        />
-
-                        <input
-                            type="text"
-                            placeholder="Assunto do Email"
-                            value={emailAssunto}
-                            onChange={(e) => setEmailAssunto(e.target.value)}
-                            style={styles.input}
-                        />
-
-                        <textarea
-                            placeholder="Mensagem do Email"
-                            value={emailTexto}
-                            onChange={(e) => setEmailTexto(e.target.value)}
-                            style={{ ...styles.input, height: "150px" }}
-                        />
-
-                        <label style={styles.fileInputLabel}>
-                            <FaPaperclip /> Anexos
+                        <div style={styles.modalBody}>
                             <input
-                                type="file"
-                                multiple
-                                onChange={handleAddAnexo}
-                                style={styles.fileInput}
+                                type="text"
+                                placeholder="Para:"
+                                value={emailTo}
+                                onChange={(e) => setEmailTo(e.target.value)}
+                                style={styles.input}
                             />
-                        </label>
 
-                        {anexos.length > 0 && (
-                            <div style={styles.anexosList}>
-                                <h4 style={styles.h4}>Anexos:</h4>
-                                <ul style={styles.ul}>
-                                    {anexos.map((anexo, index) => (
-                                        <li key={index} style={styles.li}>
-                                            {anexo.name}
-                                            <button
-                                                onClick={() =>
-                                                    handleRemoveAnexo(index)
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    marginBottom: "10px",
+                                }}
+                            >
+                                <input
+                                    type="text"
+                                    placeholder="CC:"
+                                    value={emailCC}
+                                    onChange={(e) => setEmailCC(e.target.value)}
+                                    style={{
+                                        ...styles.input,
+                                        marginBottom: 0,
+                                        flex: 1,
+                                    }}
+                                />
+                                <div style={{ position: "relative" }}>
+                                    <button
+                                        onClick={() =>
+                                            document
+                                                .getElementById("emailDropdown")
+                                                .classList.toggle("show")
+                                        }
+                                        style={{
+                                            marginLeft: "10px",
+                                            padding: "8px 15px",
+                                            backgroundColor: "#1792FE",
+                                            color: "white",
+                                            border: "none",
+                                            borderRadius: "5px",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Adicionar
+                                    </button>
+                                    <div
+                                        id="emailDropdown"
+                                        style={{
+                                            display: "none",
+                                            position: "absolute",
+                                            right: 0,
+                                            top: "100%",
+                                            backgroundColor: "white",
+                                            minWidth: "200px",
+                                            boxShadow:
+                                                "0px 8px 16px 0px rgba(0,0,0,0.2)",
+                                            zIndex: 1,
+                                            borderRadius: "5px",
+                                            marginTop: "5px",
+                                        }}
+                                        className="dropdown-content"
+                                    >
+                                        {[
+                                            "comercial@jpaconstrutora.com",
+                                            "geral@jpaconstrutora.com",
+                                            "qualidade@jpaconstrutora.com",
+                                            "tecnico@jpaconstrutora.com",
+                                        ].map((email, index) => (
+                                            <div
+                                                key={index}
+                                                onClick={() => {
+                                                    const currentEmails =
+                                                        emailCC
+                                                            ? emailCC
+                                                                .split(";")
+                                                                .map((e) =>
+                                                                    e.trim(),
+                                                                )
+                                                            : [];
+                                                    if (
+                                                        !currentEmails.includes(
+                                                            email,
+                                                        )
+                                                    ) {
+                                                        const newEmailCC =
+                                                            currentEmails.length >
+                                                                0
+                                                                ? `${emailCC}; ${email}`
+                                                                : email;
+                                                        setEmailCC(newEmailCC);
+                                                    }
+                                                    document
+                                                        .getElementById(
+                                                            "emailDropdown",
+                                                        )
+                                                        .classList.remove(
+                                                            "show",
+                                                        );
+                                                }}
+                                                style={{
+                                                    padding: "10px 15px",
+                                                    cursor: "pointer",
+                                                    borderBottom:
+                                                        index < 3
+                                                            ? "1px solid #eee"
+                                                            : "none",
+                                                    borderRadius:
+                                                        index === 0
+                                                            ? "5px 5px 0 0"
+                                                            : index === 3
+                                                                ? "0 0 5px 5px"
+                                                                : "0",
+                                                }}
+                                                onMouseOver={(e) =>
+                                                (e.currentTarget.style.backgroundColor =
+                                                    "#f1f1f1")
                                                 }
-                                                style={styles.removeButton}
+                                                onMouseOut={(e) =>
+                                                (e.currentTarget.style.backgroundColor =
+                                                    "white")
+                                                }
                                             >
-                                                Remover
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
+                                                {email}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
-                        )}
+
+                            <input
+                                type="text"
+                                placeholder="Assunto do Email"
+                                value={emailAssunto}
+                                onChange={(e) =>
+                                    setEmailAssunto(e.target.value)
+                                }
+                                style={styles.input}
+                            />
+
+                            <textarea
+                                placeholder="Mensagem do Email"
+                                value={emailTexto}
+                                onChange={(e) => setEmailTexto(e.target.value)}
+                                style={{
+                                    ...styles.input,
+                                    height: "150px",
+                                    minHeight: "80px",
+                                    resize: "vertical",
+                                }}
+                            />
+
+                            <div style={styles.signatureSection}>
+                                <div style={styles.signatureHeader}>
+                                    <input
+                                        type="checkbox"
+                                        id="includeSignature"
+                                        defaultChecked={true}
+                                        onChange={(e) => {
+                                            document.getElementById(
+                                                "emailSignature",
+                                            ).style.display = e.target.checked
+                                                    ? "block"
+                                                    : "none";
+                                        }}
+                                        style={{ marginRight: "5px" }}
+                                    />
+                                    <label htmlFor="includeSignature">
+                                        Incluir assinatura
+                                    </label>
+                                </div>
+                                <div
+                                    id="emailSignature"
+                                    style={styles.signaturePreview}
+                                >
+                                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                        <tbody>
+                                            <tr>
+                                                <td style={{ width: "70%", paddingRight: "15px", verticalAlign: "top" }}>
+
+                                                    <div style={{ display: "flex", alignItems: "center", marginTop: "10px" }}>
+                                                        <span style={{ color: "#1792FE", marginRight: "8px", fontSize: "14px" }}>
+                                                            ✉
+                                                        </span>
+                                                        <a
+                                                            href="mailto:oficio@jpaconstrutora.com"
+                                                            style={{
+                                                                color: "#1792FE",
+                                                                textDecoration: "none",
+                                                                fontSize: "13px"
+                                                            }}
+                                                        >
+                                                            oficio@jpaconstrutora.com
+                                                        </a>
+                                                    </div>
+                                                    <div style={{ display: "flex", alignItems: "center", marginTop: "5px" }}>
+                                                        <span style={{ color: "#666", marginRight: "8px", fontSize: "14px" }}>
+                                                            📞
+                                                        </span>
+                                                        <span style={{ color: "#666", fontSize: "13px" }}>
+                                                            t. (+351) 253 38 13 10 (Chamada rede fixa nacional)
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ display: "flex", alignItems: "center", marginTop: "5px" }}>
+                                                        <span style={{ color: "#666", marginRight: "8px", fontSize: "14px" }}>
+                                                            📱
+                                                        </span>
+                                                        <span style={{ color: "#666", fontSize: "13px" }}>
+                                                            tel. (+351) 910 11 76 22 (Chamada rede móvel nacional)
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ display: "flex", alignItems: "flex-start", marginTop: "5px" }}>
+                                                        <span style={{ color: "#666", marginRight: "8px", marginTop: "2px", fontSize: "14px" }}>
+                                                            📍
+                                                        </span>
+                                                        <div>
+                                                            <div style={{ color: "#666", fontSize: "13px" }}>
+                                                                Rua Das Longras 44,
+                                                            </div>
+                                                            <div style={{ color: "#666", fontSize: "13px" }}>
+                                                                4730-360 Pedregais
+                                                            </div>
+                                                            <div style={{ color: "#666", fontSize: "13px" }}>
+                                                                Vila Verde - Portugal
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td style={{ width: "30%", textAlign: "right", verticalAlign: "top" }}>
+                                                    <div style={{ marginBottom: "10px" }}>
+                                                        <img src={logo} alt="JPA Construtora" style={{ maxWidth: "120px", height: "auto" }} />
+                                                    </div>
+                                                    <div style={{ textAlign: "right", marginTop: "5px" }}>
+                                                        <a
+                                                            href="https://www.jpaconstrutora.com"
+                                                            style={{
+                                                                color: "#1792FE",
+                                                                textDecoration: "none",
+                                                                fontWeight: "bold",
+                                                                display: "block",
+                                                                marginBottom: "5px",
+                                                                fontSize: "13px"
+                                                            }}
+                                                        >
+                                                            WWW.JPACONSTRUTORA.COM
+                                                        </a>
+                                                    </div>
+                                                    <div style={{ marginTop: "10px", textAlign: "right" }}>
+                                                        <img src={PMEPreto} alt="PME Logo" style={{ height: "30px", marginRight: "5px" }} />
+                                                        <img src={QualidadePreto} alt="Qualidade Logo" style={{ height: "30px" }} />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <label style={styles.fileInputLabel}>
+                                <FaPaperclip /> Anexos
+                                <input
+                                    type="file"
+                                    multiple
+                                    onChange={handleAddAnexo}
+                                    style={styles.fileInput}
+                                />
+                            </label>
+
+                            {anexos.length > 0 && (
+                                <div style={styles.anexosList}>
+                                    <h4 style={styles.h4}>Anexos:</h4>
+                                    <ul style={styles.ul}>
+                                        {anexos.map((anexo, index) => (
+                                            <li key={index} style={styles.li}>
+                                                {anexo.name}
+                                                <button
+                                                    onClick={() =>
+                                                        handleRemoveAnexo(index)
+                                                    }
+                                                    style={styles.removeButton}
+                                                >
+                                                    Remover
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
 
                         <div style={styles.modalActions}>
                             <button
@@ -2766,6 +3144,17 @@ const EditOficio = (props) => {
 // ==============================
 // Estilos
 // ==============================
+// Adicionar uma regra CSS global para o dropdown
+if (typeof document !== "undefined") {
+    const style = document.createElement("style");
+    style.textContent = `
+        .dropdown-content.show {
+            display: block !important;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 const styles = {
     pageContainer: {
         display: "flex",
@@ -2776,6 +3165,74 @@ const styles = {
         backgroundColor: "#d4e4ff",
         overflowY: "auto",
         padding: "20px",
+    },
+    editorToolbar: {
+        display: "flex",
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: "10px",
+        padding: "10px",
+        backgroundColor: "#f0f0f0",
+        borderRadius: "8px",
+        marginBottom: "10px",
+        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+        width: "793.7px",
+        flexWrap: "wrap",
+        position: "sticky",
+        top: 0,
+        zIndex: 100,
+    },
+    toolbarGroup: {
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: "5px",
+        borderRight: "1px solid #ddd",
+        paddingRight: "10px",
+        marginRight: "10px",
+    },
+    toolbarButton: {
+        padding: "6px 10px",
+        backgroundColor: "#fff",
+        border: "1px solid #ccc",
+        borderRadius: "4px",
+        cursor: "pointer",
+        fontSize: "14px",
+        color: "#333",
+        transition: "all 0.2s ease",
+        minWidth: "32px",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    toolbarSelect: {
+        padding: "6px 10px",
+        backgroundColor: "#fff",
+        border: "1px solid #ccc",
+        borderRadius: "4px",
+        cursor: "pointer",
+        fontSize: "14px",
+        color: "#333",
+        minWidth: "120px",
+    },
+    colorPicker: {
+        width: "30px",
+        height: "30px",
+        padding: "0",
+        border: "1px solid #ccc",
+        borderRadius: "4px",
+        cursor: "pointer",
+        backgroundColor: "transparent",
+    },
+    toolbarLabel: {
+        display: "flex",
+        alignItems: "center",
+        cursor: "pointer",
+        padding: "4px 8px",
+        borderRadius: "4px",
+        backgroundColor: "#fff",
+        border: "1px solid #ccc",
     },
     body: {
         margin: 0,
@@ -2804,13 +3261,17 @@ const styles = {
         alignItems: "center",
     },
     input: {
-        width: "100%", // Ajusta para preencher a largura disponível
+        width: "100%",
         padding: "10px",
         fontSize: "16px",
         border: "1px solid #ccc",
         borderRadius: "5px",
-        marginBottom: "10px", // Espaçamento entre campos
-        boxSizing: "border-box", // Inclui padding e border no cálculo da largura
+        marginBottom: "10px",
+        boxSizing: "border-box",
+        "@media (maxWidth: 768px)": {
+            padding: "8px",
+            fontSize: "14px",
+        },
     },
     textarea: {
         width: "100%",
@@ -2937,16 +3398,79 @@ const styles = {
         backgroundColor: "#fff",
         padding: "20px",
         borderRadius: "10px",
-        width: "400px",
-        boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+        width: "700px",
+        maxWidth: "95%",
+        maxHeight: "90vh",
+        minHeight: "50vh",
+        overflowY: "hidden",
+        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+        textAlign: "center",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+    },
+    modalBody: {
+        overflowY: "auto",
+        flex: "1 1 auto",
+        marginBottom: "15px",
+        paddingRight: "5px",
+    },
+    modalContentMobile: {
+        "@media (maxWidth: 768px)": {
+            padding: "15px",
+            maxWidth: "100%",
+            borderRadius: "8px",
+        },
+    },
+    signatureSection: {
+        marginTop: "15px",
+        marginBottom: "15px",
+        border: "1px solid #eee",
+        borderRadius: "8px",
+        padding: "10px",
+        backgroundColor: "#f9f9f9",
+    },
+    signatureHeader: {
+        display: "flex",
+        alignItems: "center",
+        marginBottom: "10px",
+        padding: "5px 0",
+        borderBottom: "1px solid #eee",
+    },
+    signaturePreview: {
+        backgroundColor: "#fff",
+        border: "1px solid #eee",
+        borderRadius: "5px",
+        padding: "10px",
+        maxHeight: "200px",
+        overflowY: "auto",
+    },
+    signatureTable: {
+        width: "100%",
+        borderCollapse: "collapse",
+    },
+    signatureMainContent: {
+        width: "70%",
+        padding: "10px",
+        verticalAlign: "top",
+        textAlign: "left",
+    },
+    signatureLogoContainer: {
+        width: "30%",
+        padding: "10px",
+        verticalAlign: "top",
         textAlign: "center",
     },
     modalActions: {
-        marginTop: "20px",
-        marginBottom: "50px",
+        marginTop: "15px",
         display: "flex",
         justifyContent: "center",
-        gap: "5px",
+        gap: "10px",
+        flexWrap: "wrap",
+        width: "100%",
+        flex: "0 0 auto",
+        borderTop: "1px solid #eee",
+        paddingTop: "15px",
     },
     formContainer: {
         maxWidth: "600px",

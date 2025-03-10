@@ -1,17 +1,24 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    StyleSheet,
+    Alert,
+} from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import logo from '../../images/jpa-construtora.png';
+import logo from "../../images/jpa-construtora.png";
 import { FaSave, FaEnvelope, FaFilePdf, FaPaperclip } from "react-icons/fa";
-import { useFocusEffect } from '@react-navigation/native';
-import PMEPreto from '../../images/PMEPRETO.png';
-import QualidadePreto from '../../images/QUALIDADEPRETO.png';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
-import Logo50 from '../../images/Logo50.jpg';
+import { useFocusEffect } from "@react-navigation/native";
+import PMEPreto from "../../images/PMEPRETO.png";
+import QualidadePreto from "../../images/QUALIDADEPRETO.png";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
+import Logo50 from "../../images/Logo50.jpg";
 const OficiosPage = (props) => {
     // ==============================
     // 1) Estados para o documento
@@ -23,8 +30,8 @@ const OficiosPage = (props) => {
     const navigation = useNavigation();
     const [isEditable, setIsEditable] = useState(false);
     const [selectedObra, setSelectedObra] = useState("");
-    const [assuntoDoc, setAssuntoDoc] = useState("");   // <--- Assunto do documento
-    const [textoDoc, setTextoDoc] = useState("");       // <--- Texto do documento
+    const [assuntoDoc, setAssuntoDoc] = useState(""); // <--- Assunto do documento
+    const [textoDoc, setTextoDoc] = useState(""); // <--- Texto do documento
     const [anexos, setAnexos] = useState([]);
     const [anexostext, setAnexostext] = useState("");
     const docxContainer = useRef(null);
@@ -40,6 +47,7 @@ const OficiosPage = (props) => {
     const [estadodoc, setEstado] = useState("");
     const Executado = useRef(false);
     const contentEditableRef = useRef(null);
+    const [atencao, setAtencao] = useState(""); // Novo estado para o campo de atenção
 
     const handleBlur = () => {
         // Atualiza o estado apenas ao perder o foco
@@ -48,14 +56,14 @@ const OficiosPage = (props) => {
         }
     };
 
-
-
     // Estado para guardar a divisão do texto (se exceder um limite)
-    const [textParts, setTextParts] = useState({ part1: "JOAQUIM PEIXOTO AZEVEDO, & FILHOS, LDA, com sede na Rua de Longras, n.º 44, 4730 360 Vila Verde, na qualidade de", part2: "" });
+    const [textParts, setTextParts] = useState({
+        part1: "JOAQUIM PEIXOTO AZEVEDO, & FILHOS, LDA, com sede na Rua de Longras, n.º 44, 4730 360 Vila Verde, na qualidade de",
+        part2: "",
+    });
 
     // formData para o documento (sem campos de email do modal)
     const [formData, setFormData] = useState({
-
         codigo: "",
         data: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
         remetente: "",
@@ -76,25 +84,19 @@ const OficiosPage = (props) => {
     const comboBoxRef = useRef(null);
     // Estados para a segunda combobox
     const comboBoxRef2 = useRef(null);
-    const [inputValue2, setInputValue2] = useState('');
+    const [inputValue2, setInputValue2] = useState("");
     const [showOptions2, setShowOptions2] = useState(false);
     const [filteredObras2, setFilteredObras2] = useState([]);
     const [selectedObra2, setSelectedObra2] = useState(null);
-    const [donoObra2, setDonoObra2] = useState('');
-
-
-
-
-
-
+    const [donoObra2, setDonoObra2] = useState("");
 
     // ==============================
     // 2) Estados para o modal de envio de email
     // ==============================
     const [emailTo, setEmailTo] = useState(""); // Destinatário do email
     const [emailCC, setEmailCC] = useState(""); // Destinatário do email
-    const [emailAssunto, setEmailAssunto] = useState("");         // Assunto do email
-    const [emailTexto, setEmailTexto] = useState("");             // Corpo do email
+    const [emailAssunto, setEmailAssunto] = useState(""); // Assunto do email
+    const [emailTexto, setEmailTexto] = useState(""); // Corpo do email
 
     // ======================================
     // 3) Efeito para acompanhar o texto digitado no contentEditable
@@ -134,26 +136,27 @@ const OficiosPage = (props) => {
         }));
     };
 
-
     // ======================================
     // 5) Carregar lista de obras do backend
     // ======================================
     useEffect(() => {
-
         const fetchObras = async () => {
             const token = localStorage.getItem("painelAdminToken");
             const urlempresa = localStorage.getItem("urlempresa");
             if (!urlempresa) return;
 
             try {
-                const response = await fetch("https://webapiprimavera.advir.pt/oficio/ListarObras", {
-                    method: "GET",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "urlempresa": urlempresa,
-                        "Content-Type": "application/json",
+                const response = await fetch(
+                    "https://webapiprimavera.advir.pt/oficio/ListarObras",
+                    {
+                        method: "GET",
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            urlempresa: urlempresa,
+                            "Content-Type": "application/json",
+                        },
                     },
-                });
+                );
 
                 if (!response.ok) {
                     throw new Error(`Error: ${response.statusText}`);
@@ -174,14 +177,17 @@ const OficiosPage = (props) => {
             if (!urlempresa) return;
 
             try {
-                const response = await fetch("https://webapiprimavera.advir.pt/oficio/ListarEntidades", {
-                    method: "GET",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "urlempresa": urlempresa,
-                        "Content-Type": "application/json",
+                const response = await fetch(
+                    "https://webapiprimavera.advir.pt/oficio/ListarEntidades",
+                    {
+                        method: "GET",
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            urlempresa: urlempresa,
+                            "Content-Type": "application/json",
+                        },
                     },
-                });
+                );
 
                 if (!response.ok) {
                     throw new Error(`Error: ${response.statusText}`);
@@ -204,15 +210,16 @@ const OficiosPage = (props) => {
     // Usando onFocus no input para garantir que a lista apareça ao focar
     // Adicionando o evento de foco no input
     const handleFocus = () => {
-        if (filteredObras2.length === 0 && !showOptions2) {  // Se não houver obras e as opções ainda não foram mostradas
-            fetchEntidades();  // Carrega as opções ao focar no campo
-            setShowOptions2(true);  // Exibe as opções ao focar
+        if (filteredObras2.length === 0 && !showOptions2) {
+            // Se não houver obras e as opções ainda não foram mostradas
+            fetchEntidades(); // Carrega as opções ao focar no campo
+            setShowOptions2(true); // Exibe as opções ao focar
         }
     };
 
     const handleComboBoxClick = () => {
-        setShowOptions2(true);  // Garante que a lista de opções seja exibida ao clicar
-        fetchEntidades();       // Carrega as opções ao clicar
+        setShowOptions2(true); // Garante que a lista de opções seja exibida ao clicar
+        fetchEntidades(); // Carrega as opções ao clicar
     };
     const fetchEntidades = async () => {
         const token = localStorage.getItem("painelAdminToken");
@@ -220,14 +227,17 @@ const OficiosPage = (props) => {
         if (!urlempresa) return;
 
         try {
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/ListarEntidades", {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "urlempresa": urlempresa,
-                    "Content-Type": "application/json",
+            const response = await fetch(
+                "https://webapiprimavera.advir.pt/oficio/ListarEntidades",
+                {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        urlempresa: urlempresa,
+                        "Content-Type": "application/json",
+                    },
                 },
-            });
+            );
 
             if (!response.ok) {
                 throw new Error(`Error: ${response.statusText}`);
@@ -237,18 +247,19 @@ const OficiosPage = (props) => {
             // Se data.DataSet.Table for array, atualiza
             if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
                 console.log(data.DataSet.Table);
-                setObras2(data.DataSet.Table);  // Atualiza a lista de obras
+                setObras2(data.DataSet.Table); // Atualiza a lista de obras
             }
         } catch (error) {
             console.error("Erro ao carregar obras:", error);
         } finally {
-
         }
     };
     const filterObras = (inputValue, obras) => {
         return obras.filter((obra) => {
             return (
-                obra?.Codigo?.toLowerCase().includes(inputValue.toLowerCase()) ||
+                obra?.Codigo?.toLowerCase().includes(
+                    inputValue.toLowerCase(),
+                ) ||
                 obra?.Nome?.toLowerCase().includes(inputValue.toLowerCase())
             );
         });
@@ -258,7 +269,7 @@ const OficiosPage = (props) => {
     // ======================================
     const handleSavePDF = async () => {
         const containers = [docxContainer.current, docxContainer2.current]; // Containers de conteúdo
-        const validContainers = containers.filter(container => container); // Filtra containers válidos
+        const validContainers = containers.filter((container) => container); // Filtra containers válidos
 
         if (validContainers.length === 0) {
             return;
@@ -282,7 +293,16 @@ const OficiosPage = (props) => {
             const imgHeight1 = (canvas1.height * pdfWidth) / canvas1.width;
 
             // Adiciona a imagem no primeiro PDF
-            pdf1.addImage(imgData1, "JPEG", 0, 0, pdfWidth, imgHeight1, undefined, "FAST");
+            pdf1.addImage(
+                imgData1,
+                "JPEG",
+                0,
+                0,
+                pdfWidth,
+                imgHeight1,
+                undefined,
+                "FAST",
+            );
 
             // Salva o primeiro PDF
             pdf1.save("oficio_primeiro_container.pdf");
@@ -307,19 +327,35 @@ const OficiosPage = (props) => {
             let pageIndex = 0; // Índice da página
 
             // Adiciona a primeira página
-            pdf2.addImage(imgData2, "JPEG", 0, 0, pdfWidth, imgHeight2, undefined, "FAST");
+            pdf2.addImage(
+                imgData2,
+                "JPEG",
+                0,
+                0,
+                pdfWidth,
+                imgHeight2,
+                undefined,
+                "FAST",
+            );
             currentHeight += pdfHeight; // Aumenta a altura
             for (var i = 1; i < pageCount; i++) {
                 pdf2.addPage(); // Adiciona uma nova página
-                pdf2.addImage(imgData2, "JPEG", 0, -currentHeight, pdfWidth, imgHeight2, undefined, "FAST");
+                pdf2.addImage(
+                    imgData2,
+                    "JPEG",
+                    0,
+                    -currentHeight,
+                    pdfWidth,
+                    imgHeight2,
+                    undefined,
+                    "FAST",
+                );
                 currentHeight += pdfHeight; // Atualiza a altura
                 pageIndex++; // Atualiza o número da página
             }
 
-
             // Salva o segundo PDF com todas as páginas
             pdf2.save("oficio_segundo_container.pdf");
-
         } catch (error) {
             console.error("Erro ao gerar os PDFs:", error);
         }
@@ -329,18 +365,13 @@ const OficiosPage = (props) => {
         }
     };
 
-
-
-
-
-
     // ======================================
     // 7) Enviar PDF + anexos para o backend
     // ======================================
 
     const handleSavePDFAndSendToBackend = async () => {
         const containers = [docxContainer.current, docxContainer2.current]; // Containers de conteúdo
-        const validContainers = containers.filter(container => container); // Filtra containers válidos
+        const validContainers = containers.filter((container) => container); // Filtra containers válidos
 
         if (validContainers.length === 0) {
             return;
@@ -362,7 +393,16 @@ const OficiosPage = (props) => {
 
             const imgData1 = canvas1.toDataURL("image/jpeg", 1);
             const imgHeight1 = (canvas1.height * pdfWidth) / canvas1.width;
-            pdf1.addImage(imgData1, "JPEG", 0, 0, pdfWidth, imgHeight1, undefined, "FAST");
+            pdf1.addImage(
+                imgData1,
+                "JPEG",
+                0,
+                0,
+                pdfWidth,
+                imgHeight1,
+                undefined,
+                "FAST",
+            );
 
             // Permite o usuário escolher o local para salvar o primeiro PDF
             const fileHandle1 = await window.showSaveFilePicker({
@@ -393,8 +433,6 @@ const OficiosPage = (props) => {
             const imgData2 = canvas2.toDataURL("image/jpeg", 0.8);
             const imgHeight2 = (canvas2.height * pdfWidth) / canvas2.width;
 
-
-
             // Adiciona múltiplas páginas se necessário
             console.log(pageCount2);
 
@@ -403,11 +441,29 @@ const OficiosPage = (props) => {
             let currentHeight = 0; // Altura inicial para adicionar imagem
 
             let pageCount = pageCount2;
-            pdf2.addImage(imgData2, "JPEG", 0, 0, pdfWidth, imgHeight2, undefined, "FAST");
+            pdf2.addImage(
+                imgData2,
+                "JPEG",
+                0,
+                0,
+                pdfWidth,
+                imgHeight2,
+                undefined,
+                "FAST",
+            );
             currentHeight += pdfHeight;
             for (let i = 1; i < pageCount; i++) {
                 pdf2.addPage();
-                pdf2.addImage(imgData2, "JPEG", 0, -currentHeight, pdfWidth, imgHeight2, undefined, "FAST");
+                pdf2.addImage(
+                    imgData2,
+                    "JPEG",
+                    0,
+                    -currentHeight,
+                    pdfWidth,
+                    imgHeight2,
+                    undefined,
+                    "FAST",
+                );
                 currentHeight += pdfHeight;
                 pageIndex++;
             }
@@ -443,16 +499,19 @@ const OficiosPage = (props) => {
             const updatedAnexos = prevAnexos.filter((_, i) => i !== index);
 
             // Reconstroi a lista de anexos no rodapé do doc
-            const anexosNomes = updatedAnexos.map((file) => file.name).join(", ");
-            const editableCellCodigo = document.getElementById("editableCellCodigo");
+            const anexosNomes = updatedAnexos
+                .map((file) => file.name)
+                .join(", ");
+            const editableCellCodigo =
+                document.getElementById("editableCellCodigo");
             if (editableCellCodigo) {
                 editableCellCodigo.innerHTML = `
           REF: ${formData.codigo}<br>
           DATA: ${formData.data}<br>
           ANEXOS: ${anexosNomes || ""}<br><br><br><br>
           REMETENTE<br><br>
-          ${formData.remetente ? formData.remetente : 'Remetente não disponível'}<br>
-          ${formData.email || 'Email não existe'}
+          ${formData.remetente ? formData.remetente : "Remetente não disponível"}<br>
+          ${formData.email || "Email não existe"}
         `;
             }
 
@@ -464,6 +523,10 @@ const OficiosPage = (props) => {
     // 9) Enviar Email com Office API (usando dados do modal)
     // ======================================
     const handleSendEmailWithOfficeAPI = async () => {
+        // Se o assunto do email estiver vazio, use o assunto do documento
+        if (!emailAssunto && assuntoDoc) {
+            setEmailAssunto(assuntoDoc);
+        }
         console.log(pageCount2);
         const containers = [docxContainer.current, docxContainer2.current]; // Lista de contêineres para as páginas
 
@@ -489,7 +552,16 @@ const OficiosPage = (props) => {
             const imgHeight1 = (canvas1.height * pdfWidth) / canvas1.width;
 
             // Adiciona a imagem no primeiro PDF
-            pdf1.addImage(imgData1, "JPEG", 0, 0, pdfWidth, imgHeight1, undefined, "FAST");
+            pdf1.addImage(
+                imgData1,
+                "JPEG",
+                0,
+                0,
+                pdfWidth,
+                imgHeight1,
+                undefined,
+                "FAST",
+            );
 
             // Salva o primeiro PDF
             const pdf1Blob = pdf1.output("blob");
@@ -505,17 +577,22 @@ const OficiosPage = (props) => {
             const container2 = containers[1];
             // Converter anexos adicionais
             const processedAnexos = await Promise.all(
-                anexos.map((file) =>
-                    new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                            const base64Content = reader.result.split(",")[1];
-                            resolve({ name: file.name, content: base64Content });
-                        };
-                        reader.onerror = (error) => reject(error);
-                        reader.readAsDataURL(file);
-                    })
-                )
+                anexos.map(
+                    (file) =>
+                        new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                                const base64Content =
+                                    reader.result.split(",")[1];
+                                resolve({
+                                    name: file.name,
+                                    content: base64Content,
+                                });
+                            };
+                            reader.onerror = (error) => reject(error);
+                            reader.readAsDataURL(file);
+                        }),
+                ),
             );
             if (container2) {
                 const canvas2 = await html2canvas(container2, {
@@ -545,19 +622,18 @@ const OficiosPage = (props) => {
                         pdfWidth,
                         imgHeight2,
                         undefined,
-                        "FAST"
+                        "FAST",
                     );
 
                     yPosition += pdfHeight;
                     remainingHeight -= pdfHeight;
                 }
 
-
-
                 const pdf2Blob = pdf2.output("blob");
                 const pdf2Base64 = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result.split(",")[1]);
+                    reader.onloadend = () =>
+                        resolve(reader.result.split(",")[1]);
                     reader.onerror = (error) => reject(error);
                     reader.readAsDataURL(pdf2Blob);
                 });
@@ -567,16 +643,32 @@ const OficiosPage = (props) => {
                 });
             }
 
-
             // Adicionar os dois PDFs gerados à lista de anexos
             processedAnexos.push({
                 name: "oficio_primeiro_container.pdf",
                 content: pdf1Base64,
             });
 
+            let formattedEmailTexto = emailTexto.replace(/\n/g, "<br />");
 
+            // Obter o email de resposta do localStorage
+            const useremail = localStorage.getItem("userEmail");
 
-            const formattedEmailTexto = emailTexto.replace(/\n/g, "<br />");
+            // Adicionar mensagem informativa sobre respostas
+            formattedEmailTexto += `<br /><br /><div style='color: #777; font-size: 12px; border-top: 1px solid #eee; padding-top: 10px;'><p>Este email é enviado automaticamente de oficio@jpaconstrutora.com. Para responder, por favor envie email para ${useremail}.</p></div>`;
+
+            // Verificar se a assinatura deve ser incluída
+            const includeSignature =
+                document.getElementById("includeSignature").checked;
+            if (includeSignature) {
+                // Capturar o conteúdo HTML da assinatura
+                const signatureElement =
+                    document.getElementById("emailSignature");
+                const signatureHtml = signatureElement.innerHTML;
+
+                // Adicionar a assinatura ao final do texto do email
+                formattedEmailTexto += "<br /><br />--<br />" + signatureHtml;
+            }
 
             // Montar payload com os dados do modal
             const payload = {
@@ -586,15 +678,20 @@ const OficiosPage = (props) => {
                 texto: formattedEmailTexto,
                 remetente: formData.remetente,
                 anexos: processedAnexos,
+                replyTo: useremail, // Configura o email de resposta para o email do usuário atual
+                from: "oficio@jpaconstrutora.com", // Mantém o email de envio como oficio@jpaconstrutora.com
             };
             // Enviar para o backend
-            const response = await fetch("https://webapiprimavera.advir.pt/sendmailoficios", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
+            const response = await fetch(
+                "https://webapiprimavera.advir.pt/sendmailoficios",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(payload),
                 },
-                body: JSON.stringify(payload),
-            });
+            );
 
             if (response.ok) {
                 console.log("E-mail enviado com sucesso!");
@@ -602,7 +699,6 @@ const OficiosPage = (props) => {
                 const errorData = await response.json();
                 console.error("Erro ao enviar email:", errorData);
             }
-
 
             console.log("Chamando handleSave com o estado 'Imprimir'");
             handleSave("Enviado Por Email");
@@ -614,8 +710,6 @@ const OficiosPage = (props) => {
         }
     };
 
-
-
     // ======================================
     // 10) Adicionar anexos
     // ======================================
@@ -624,16 +718,19 @@ const OficiosPage = (props) => {
         setAnexos((prevAnexos) => {
             const updatedAnexos = [...prevAnexos, ...files];
 
-            const anexosNomes = updatedAnexos.map((file) => file.name).join(", ");
-            const editableCellCodigo = document.getElementById("editableCellCodigo");
+            const anexosNomes = updatedAnexos
+                .map((file) => file.name)
+                .join(", ");
+            const editableCellCodigo =
+                document.getElementById("editableCellCodigo");
             if (editableCellCodigo) {
                 editableCellCodigo.innerHTML = `
           REF: ${formData.codigo}<br>
           DATA: ${formData.data}<br>
           ANEXOS: ${anexosNomes}<br><br><br><br><br>
           REMETENTE<br><br>
-          ${formData.remetente ? formData.remetente : 'Remetente não disponível'}<br>
-          ${formData.email || 'Email não existe'}
+          ${formData.remetente ? formData.remetente : "Remetente não disponível"}<br>
+          ${formData.email || "Email não existe"}
         `;
             }
 
@@ -641,14 +738,11 @@ const OficiosPage = (props) => {
         });
     };
 
-
     // ======================================
     // 12) Salvar dados do documento (criar ofício) no backend
     // ======================================
 
-    useEffect(() => {
-
-    }, [estadodoc]);
+    useEffect(() => { }, [estadodoc]);
 
     const handleSave = async (estado) => {
         console.log("teste" + estado);
@@ -664,9 +758,8 @@ const OficiosPage = (props) => {
         var codPostalLocalDonoObra = "";
         var obraSlecionadaSave = "";
 
-        const nomesAnexos = anexos.map(anexo => anexo.name).join(", ");
+        const nomesAnexos = anexos.map((anexo) => anexo.name).join(", ");
         if (inputValue === "Não tem obra") {
-
             console.log(donoObra.Nome);
             nomeDonoObra = donoObra.Nome || "";
             moradaDonoObra = morada || "";
@@ -675,8 +768,6 @@ const OficiosPage = (props) => {
             codPostalLocalDonoObra = localCopPostal || "";
             console.log(formData?.codigo);
             obraSlecionadaSave = inputValue || "";
-
-
         } else {
             nomeDonoObra = donoObra.Nome;
 
@@ -685,14 +776,12 @@ const OficiosPage = (props) => {
             codPostalDonoObra = donoObra.CodPostal;
             codPostalLocalDonoObra = donoObra.CodPostalLocal;
             obraSlecionadaSave = selectedObra?.Codigo || "";
-
         }
 
-
         if (currentTemplate === 1) {
-            var templateestado = "2"
+            var templateestado = "2";
         } else if (currentTemplate === 2) {
-            var templateestado = "1"
+            var templateestado = "1";
         }
 
         // Função para dividir texto em partes de 4000 caracteres
@@ -711,7 +800,7 @@ const OficiosPage = (props) => {
             codigo: formData?.codigo || "",
             assunto: assuntoDoc,
             texto1: textParts.part1 || "",
-            texto2: part2Chunks[0] || "",  // Adiciona a primeira parte
+            texto2: part2Chunks[0] || "", // Adiciona a primeira parte
             texto3: part2Chunks[1] || "",
             obra: obraSlecionadaSave || "",
             remetente: usernome,
@@ -727,23 +816,28 @@ const OficiosPage = (props) => {
             texto4: part2Chunks[2],
             texto5: part2Chunks[3],
             estado: estado,
-
+            atencao: atencao, // Incluindo o campo de atenção
         };
 
         try {
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/Criar", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "urlempresa": urlempresa,
-                    "Content-Type": "application/json",
+            const response = await fetch(
+                "https://webapiprimavera.advir.pt/oficio/Criar",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        urlempresa: urlempresa,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(payloadDoc),
                 },
-                body: JSON.stringify(payloadDoc),
-            });
+            );
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`Erro https: ${response.status} - ${errorData.error}`);
+                throw new Error(
+                    `Erro https: ${response.status} - ${errorData.error}`,
+                );
             }
 
             const data = await response.json();
@@ -762,7 +856,6 @@ const OficiosPage = (props) => {
         const selectedObra = obra;
         const entidadeid = selectedObra.EntidadeIDA;
 
-
         const token = localStorage.getItem("painelAdminToken");
         const urlempresa = localStorage.getItem("urlempresa");
 
@@ -770,21 +863,29 @@ const OficiosPage = (props) => {
 
         const fetchDonoObra = async () => {
             try {
-                const response = await fetch(`https://webapiprimavera.advir.pt/oficio/GetEntidade/${entidadeid}`, {
-                    method: "GET",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "urlempresa": urlempresa,
-                        "Content-Type": "application/json",
+                const response = await fetch(
+                    `https://webapiprimavera.advir.pt/oficio/GetEntidade/${entidadeid}`,
+                    {
+                        method: "GET",
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            urlempresa: urlempresa,
+                            "Content-Type": "application/json",
+                        },
                     },
-                });
+                );
 
                 if (!response.ok) {
                     throw new Error(`Error: ${response.statusText}`);
                 }
 
                 const data = await response.json();
-                if (data && data.DataSet && data.DataSet.Table && data.DataSet.Table.length > 0) {
+                if (
+                    data &&
+                    data.DataSet &&
+                    data.DataSet.Table &&
+                    data.DataSet.Table.length > 0
+                ) {
                     const donoObra = data.DataSet.Table[0].Nome;
                     setDonoObra(data.DataSet.Table[0]);
 
@@ -794,14 +895,11 @@ const OficiosPage = (props) => {
                     }));
                 }
             } catch (error) {
-                console.error('Erro ao buscar obras:', error);
+                console.error("Erro ao buscar obras:", error);
             }
         };
 
-
-
         fetchDonoObra();
-
     };
     const fetchEmailObra = async () => {
         try {
@@ -809,28 +907,36 @@ const OficiosPage = (props) => {
             const urlempresa = localStorage.getItem("urlempresa");
             const emailuser = localStorage.getItem("userEmail");
 
-            const response = await fetch(`https://webapiprimavera.advir.pt/oficio/GetEmail/${donoObra.ID}`, {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "urlempresa": urlempresa,
-                    "Content-Type": "application/json",
+            const response = await fetch(
+                `https://webapiprimavera.advir.pt/oficio/GetEmail/${donoObra.ID}`,
+                {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        urlempresa: urlempresa,
+                        "Content-Type": "application/json",
+                    },
                 },
-            });
+            );
 
             if (!response.ok) {
                 throw new Error(`Error: ${response.statusText}`);
             }
 
             const data = await response.json();
-            if (data && data.DataSet && data.DataSet.Table && data.DataSet.Table.length > 0) {
+            if (
+                data &&
+                data.DataSet &&
+                data.DataSet.Table &&
+                data.DataSet.Table.length > 0
+            ) {
                 const email = data.DataSet.Table[0].Email;
                 setEmailTo(email);
                 setEmailCC(emailuser);
                 console.log("Email: " + email);
             }
         } catch (error) {
-            console.error('Erro ao buscar email da obra:', error);
+            console.error("Erro ao buscar email da obra:", error);
         }
     };
     useEffect(() => {
@@ -848,35 +954,45 @@ const OficiosPage = (props) => {
         const userNome = localStorage.getItem("userNome");
 
         try {
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/GetId", {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "urlempresa": urlempresa,
-                    "Content-Type": "application/json",
+            const response = await fetch(
+                "https://webapiprimavera.advir.pt/oficio/GetId",
+                {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        urlempresa: urlempresa,
+                        "Content-Type": "application/json",
+                    },
                 },
-            });
+            );
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`Erro https: ${response.status} - ${errorData.error}`);
+                throw new Error(
+                    `Erro https: ${response.status} - ${errorData.error}`,
+                );
             }
 
             const data = await response.json();
-            let conteudoCentral = data?.DataSet?.Table?.[0]?.Conteudo_Central || "000";
+            let conteudoCentral =
+                data?.DataSet?.Table?.[0]?.Conteudo_Central || "000";
 
-            const novoConteudoCentral = String(parseInt(conteudoCentral, 10) + 1).padStart(3, '0');
+            const novoConteudoCentral = String(
+                parseInt(conteudoCentral, 10) + 1,
+            ).padStart(3, "0");
 
             const currentYear = new Date().getFullYear().toString().slice(-2);
 
             const currentMonth = new Date().getMonth() + 1;
-            const formattedMonth = currentMonth.toString().padStart(2, '0');
+            const formattedMonth = currentMonth.toString().padStart(2, "0");
 
             let iniciais = "";
             if (userNome) {
                 const palavras = userNome.split(/\s+/); // Divide o nome em palavras
                 if (palavras.length >= 2) {
-                    iniciais = palavras[0][0].toUpperCase() + palavras[1][0].toUpperCase(); // Só as iniciais das duas primeiras palavras
+                    iniciais =
+                        palavras[0][0].toUpperCase() +
+                        palavras[1][0].toUpperCase(); // Só as iniciais das duas primeiras palavras
                 } else if (palavras.length === 1) {
                     iniciais = palavras[0][0].toUpperCase(); // Caso só exista uma palavra
                 }
@@ -884,12 +1000,13 @@ const OficiosPage = (props) => {
 
             const updatedCodigo = `OFI${currentYear}${formattedMonth}${novoConteudoCentral}${iniciais}`;
 
-            const editableCellCodigo = document.getElementById("editableCellCodigo");
+            const editableCellCodigo =
+                document.getElementById("editableCellCodigo");
             if (editableCellCodigo) {
                 editableCellCodigo.innerHTML = `
                     REF: ${updatedCodigo}<br>
                     DATA: ${formData.data}<br>
-                    ANEXOS: ${anexos.map(a => a.name).join(", ") || ""}<br>
+                    ANEXOS: ${anexos.map((a) => a.name).join(", ") || ""}<br>
                 `;
             }
 
@@ -902,8 +1019,6 @@ const OficiosPage = (props) => {
             throw error;
         }
     };
-
-
 
     // ======================================
     // 15) Mudar Template
@@ -933,13 +1048,18 @@ const OficiosPage = (props) => {
         }
     };
 
-
     // ======================================
     // 16) Templates do Documento
     // ======================================
     const getTemplate1 = () => {
-        const usernome = formData.nome || localStorage.getItem("userNome") || 'Email não disponível';
-        const useremail = formData.email || localStorage.getItem("userEmail") || 'Email não disponível';
+        const usernome =
+            formData.nome ||
+            localStorage.getItem("userNome") ||
+            "Email não disponível";
+        const useremail =
+            formData.email ||
+            localStorage.getItem("userEmail") ||
+            "Email não disponível";
         console.log(selectedObra);
         setPageCount2(0);
         return `
@@ -956,7 +1076,7 @@ const OficiosPage = (props) => {
     background-color: #f4f4f4; color: #333;
     font-size: 13pt;
   }
-  
+
   .page1 {
     max-width: 100%;
     margin: auto;
@@ -1006,7 +1126,8 @@ const OficiosPage = (props) => {
 <td></td>
 <td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
     <span style="font-size: 11px;">EXMO(s) SR(s)<br></span>
-    <span style="font-size: 9px;">${donoObra.Nome || ''}<br></span>
+    <span style="font-size: 9px;">${donoObra.Nome || ""}<br></span>
+    <span style="font-size: 9px;">${atencao ? atencao + "<br>" : ""}</span>
     <span style="font-size: 9px;">${donoObra.Morada || morada}<br></span>
     <span style="font-size: 9px;">${donoObra.Localidade || localidade}<br></span>
     <span style="font-size: 9px;">${donoObra.CodPostal || codigoPostal} ${donoObra.CodPostalLocal || localCopPostal}</span>
@@ -1026,7 +1147,7 @@ const OficiosPage = (props) => {
 </tr>
 <tr>
 <td  style="font-weight: bold; text-align: center;">
-  
+
     <hr style="border: 3px solid black; margin: 0;">
 </td>
 <td  style="font-weight: bold; text-align: center;">
@@ -1041,11 +1162,11 @@ const OficiosPage = (props) => {
   REMETENTE<br><br>
 
   <span contentEditable="true" >
-    ${usernome || 'Remetente não disponível'}
+    ${usernome || "Remetente não disponível"}
   </span><br>
 
   <span contentEditable="true" >
-    ${useremail || 'Email não existe'}
+    ${useremail || "Email não existe"}
   </span><br><br><br><br><br>
 
   <strong>JPA - CONSTRUTORA</strong><br>
@@ -1069,7 +1190,7 @@ const OficiosPage = (props) => {
     oninput="window.updateTexto(this.innerText)"
     style="width: 100%; min-height: 594px; max-height: 600px; max-width: 490px; overflow: auto;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
   >
-    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
+    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 10px;">
       ASSUNTO:  ${assuntoDoc}
     </span><br><br>
     <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
@@ -1140,8 +1261,9 @@ const OficiosPage = (props) => {
         }
 
         // Agora, adicionamos os containers adequados para cada página
-        return pages.map((page, index) => {
-            return `
+        return pages
+            .map((page, index) => {
+                return `
             <div 
                 ref={docxContainer${index + 2}} 
                 style="
@@ -1157,7 +1279,8 @@ const OficiosPage = (props) => {
                 ${page}
             </div>
         `;
-        }).join('');
+            })
+            .join("");
     };
 
     const calculateTextHeight = (text) => {
@@ -1170,7 +1293,7 @@ const OficiosPage = (props) => {
         pageCount++;
         const isFirstPage = pageCount === 1;
 
-        setPageCount2(prevCount => prevCount + 1);
+        setPageCount2((prevCount) => prevCount + 1);
         console.log(pageCount2);
         return `
     <!DOCTYPE html>
@@ -1214,13 +1337,16 @@ const OficiosPage = (props) => {
 
         <tr>      
         <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="true" colspan="2">
-        ${isFirstPage ? `
-              EXMO(s) SR(s)${donoObra.Nome}<br>` : ""}
-            
+        ${isFirstPage
+                ? `
+              EXMO(s) SR(s)${donoObra.Nome}<br>`
+                : ""
+            }
+
           </td>
         </tr>
         <tr>
-        
+
           <td colspan="2">
   <div
     contentEditable="true"
@@ -1233,11 +1359,12 @@ const OficiosPage = (props) => {
       overflow: auto;
     "
   >
-    ${isFirstPage ? `
+    ${isFirstPage
+                ? `
       <span 
         style="
           font-family: 'TitilliumText22L', sans-serif;
-          font-size: 8pt;
+          font-size: 10pt;
           font-weight: bold; /* Negrito ON */
           font-style: normal; /* Itálico OFF */
           text-decoration: none; /* Sublinhado OFF */
@@ -1265,7 +1392,9 @@ const OficiosPage = (props) => {
       >
         Exmo(s) Senhores,
       </span>
-      <br><br>` : ""}
+      <br><br>`
+                : ""
+            }
        ${content.replace(/\n/g, "<br>")}
 
   </div>
@@ -1291,10 +1420,15 @@ const OficiosPage = (props) => {
     `;
     };
 
-
     const getTemplate2 = () => {
-        const usernome = formData.nome || localStorage.getItem("userNome") || 'Email não disponível';
-        const useremail = formData.email || localStorage.getItem("userEmail") || 'Email não disponível';
+        const usernome =
+            formData.nome ||
+            localStorage.getItem("userNome") ||
+            "Email não disponível";
+        const useremail =
+            formData.email ||
+            localStorage.getItem("userEmail") ||
+            "Email não disponível";
         setPageCount2(0);
         return `
 <!DOCTYPE html>
@@ -1310,7 +1444,7 @@ const OficiosPage = (props) => {
     background-color: #f4f4f4; color: #333;
     font-size: 13pt;
   }
-  
+
   .page1 {
     max-width: 100%;
     margin: auto;
@@ -1360,7 +1494,8 @@ const OficiosPage = (props) => {
 <td></td>
 <td style="padding-left:99px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;">
     <span style="font-size: 11px;">EXMO(s) SR(s)<br></span>
-    <span style="font-size: 9px;">${donoObra.Nome || ''}<br></span>
+    <span style="font-size: 9px;">${donoObra.Nome || ""}<br></span>
+    <span style="font-size: 9px;">${atencao ? atencao + "<br>" : ""}</span>
     <span style="font-size: 9px;">${donoObra.Morada || morada}<br></span>
     <span style="font-size: 9px;">${donoObra.Localidade || localidade}<br></span>
     <span style="font-size: 9px;">${donoObra.CodPostal || codigoPostal} ${donoObra.CodPostalLocal || localCopPostal}</span>
@@ -1380,7 +1515,7 @@ const OficiosPage = (props) => {
 </tr>
 <tr>
 <td  style="font-weight: bold; text-align: center; visibility: hidden;">
-  
+
     <hr style="border: 3px solid black; margin: 0; visibility: hidden;">
 </td>
 <td  style="font-weight: bold; text-align: center; visibility: hidden;">
@@ -1395,11 +1530,11 @@ const OficiosPage = (props) => {
   REMETENTE<br><br>
 
   <span contentEditable="true" >
-    ${usernome || 'Remetente não disponível'}
+    ${usernome || "Remetente não disponível"}
   </span><br>
 
   <span contentEditable="true" >
-    ${useremail || 'Email não existe'}
+    ${useremail || "Email não existe"}
   </span><br><br><br><br><br>
 
   <strong>JPA - CONSTRUTORA</strong><br>
@@ -1420,7 +1555,7 @@ const OficiosPage = (props) => {
     oninput="window.updateTexto(this.innerText)"
     style="width: 100%; min-height: 594px; max-height: 600px; max-width: 490px; overflow: auto;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
   >
-    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 8px;">
+    <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 10px;">
       ASSUNTO:  ${assuntoDoc}
     </span><br><br>
     <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
@@ -1471,7 +1606,6 @@ const OficiosPage = (props) => {
 `;
     };
 
-
     const getTemplate2SecondPage = () => {
         if (!textParts.part2) {
             return "";
@@ -1493,8 +1627,9 @@ const OficiosPage = (props) => {
         }
 
         // Add appropriate containers for each page
-        return pages.map((page, index) => {
-            return `
+        return pages
+            .map((page, index) => {
+                return `
             <div 
                 ref={docxContainer${index + 2}} 
                 style="
@@ -1510,14 +1645,15 @@ const OficiosPage = (props) => {
                 ${page}
             </div>
         `;
-        }).join('');
+            })
+            .join("");
     };
 
     const createPage2 = (content) => {
         pageCount++;
         const isFirstPage = pageCount === 1;
 
-        setPageCount2(prevCount => prevCount + 1);
+        setPageCount2((prevCount) => prevCount + 1);
         console.log(pageCount2);
         return `
     <!DOCTYPE html>
@@ -1560,23 +1696,25 @@ const OficiosPage = (props) => {
         <tr>
         <td colspan="2"></td>
         </tr>
-        
+
         <tr>
         <td colspan="2"></td>
         </tr>
-        
         <tr>
         <td colspan="2"></td>
         </tr>
         <tr>      
                 <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="true" colspan="2">
-        ${isFirstPage ? `
-              EXMO(s) SR(s)${donoObra.Nome}<br>` : ""}
-            
+        ${isFirstPage
+                ? `
+              EXMO(s) SR(s)${donoObra.Nome}<br>`
+                : ""
+            }
+
           </td>
         </tr>
         <tr>
-        
+
           <td colspan="2">
   <div
     contentEditable="true"
@@ -1589,11 +1727,12 @@ const OficiosPage = (props) => {
       overflow: auto;
     "
   >
-    ${isFirstPage ? `
+    ${isFirstPage
+                ? `
       <span 
         style="
           font-family: 'TitilliumText22L', sans-serif;
-          font-size: 8pt;
+          font-size: 10pt;
           font-weight: bold; /* Negrito ON */
           font-style: normal; /* Itálico OFF */
           text-decoration: none; /* Sublinhado OFF */
@@ -1621,7 +1760,9 @@ const OficiosPage = (props) => {
       >
         Exmo(s) Senhores,
       </span>
-      <br><br>` : ""}
+      <br><br>`
+                : ""
+            }
        ${content.replace(/\n/g, "<br>")}
 
   </div>
@@ -1637,7 +1778,7 @@ const OficiosPage = (props) => {
 <td style="visibility: hidden;
     font-size: 8px;">
         <br>_____________________________________________________________________________________________________________________<br>
-        Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750.000.00 €
+        Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750000.00 €
 </td>
 </tr>
       </table>
@@ -1647,8 +1788,6 @@ const OficiosPage = (props) => {
     `;
     };
 
-
-
     // ======================================
     // 17) Ao mudar algo de doc, recarregamos template
     // ======================================
@@ -1656,19 +1795,42 @@ const OficiosPage = (props) => {
     const docxContainerUpdated = useRef(false);
     useEffect(() => {
         if (docxContainer.current) {
-            const newContent = currentTemplate === 1 ? getTemplate1() : getTemplate2();
+            const newContent =
+                currentTemplate === 1 ? getTemplate1() : getTemplate2();
             docxContainer.current.innerHTML = newContent;
 
             if (docxContainer2.current) {
                 const secondPageContent =
-                    currentTemplate === 1 ? getTemplate1SecondPage() : getTemplate2SecondPage();
+                    currentTemplate === 1
+                        ? getTemplate1SecondPage()
+                        : getTemplate2SecondPage();
                 docxContainer2.current.innerHTML = secondPageContent;
             }
 
             // Marca que o conteúdo foi atualizado
             docxContainerUpdated.current = true;
         }
-    }, [currentTemplate, donoObra, formData, textParts, assuntoDoc]);
+    }, [currentTemplate, donoObra, formData, textParts, assuntoDoc, atencao]);
+
+    // Adicionar efeito para fechar o dropdown ao clicar em qualquer lugar fora dele
+    useEffect(() => {
+        function handleClickOutside(event) {
+            const dropdown = document.getElementById("emailDropdown");
+            if (
+                dropdown &&
+                dropdown.classList.contains("show") &&
+                !event.target.closest(".dropdown-content") &&
+                !event.target.matches("button")
+            ) {
+                dropdown.classList.remove("show");
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     // Função para gerar o PDF quando o conteúdo estiver pronto
     const handleGeneratePDF = async () => {
@@ -1677,7 +1839,7 @@ const OficiosPage = (props) => {
             await handleSavePDF(); // Chama a função de gerar PDF
             docxContainerUpdated.current = false; // Reseta para evitar a geração do PDF de novo sem mudança
         } else {
-            console.log('Conteúdo ainda não foi atualizado!');
+            console.log("Conteúdo ainda não foi atualizado!");
         }
     };
 
@@ -1696,14 +1858,18 @@ const OficiosPage = (props) => {
         setShowOptions(true);
     };
 
-    const filteredObras = obras.filter((obra) =>
-        obra.Codigo.toLowerCase().includes(inputValue.toLowerCase()) ||
-        obra.Descricao.toLowerCase().includes(inputValue.toLowerCase())
+    const filteredObras = obras.filter(
+        (obra) =>
+            obra.Codigo.toLowerCase().includes(inputValue.toLowerCase()) ||
+            obra.Descricao.toLowerCase().includes(inputValue.toLowerCase()),
     );
 
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (comboBoxRef.current && !comboBoxRef.current.contains(event.target)) {
+            if (
+                comboBoxRef.current &&
+                !comboBoxRef.current.contains(event.target)
+            ) {
                 setShowOptions(false);
             }
         };
@@ -1719,18 +1885,21 @@ const OficiosPage = (props) => {
         const value = e.target.value;
         setInputValue2(value);
         setFilteredObras2(
-            obras2.filter((obra) =>
-                obra.Codigo.toLowerCase().includes(value.toLowerCase()) ||
-                obra.Nome.toLowerCase().includes(value.toLowerCase())
-            )
+            obras2.filter(
+                (obra) =>
+                    obra.Codigo.toLowerCase().includes(value.toLowerCase()) ||
+                    obra.Nome.toLowerCase().includes(value.toLowerCase()),
+            ),
         );
         setShowOptions2(true); // Sempre exibe as opções ao digitar
-
     };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (comboBoxRef2.current && !comboBoxRef2.current.contains(event.target)) {
+            if (
+                comboBoxRef2.current &&
+                !comboBoxRef2.current.contains(event.target)
+            ) {
                 setShowOptions2(false);
             }
         };
@@ -1739,7 +1908,8 @@ const OficiosPage = (props) => {
         document.addEventListener("mousedown", handleClickOutside);
 
         // Cleanup the event listener when the component unmounts or when comboBoxRef2 changes
-        return () => document.removeEventListener("mousedown", handleClickOutside);
+        return () =>
+            document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
     const handleOptionClick2 = (obra) => {
@@ -1748,7 +1918,7 @@ const OficiosPage = (props) => {
         setSelectedObra2(obra);
         setShowOptions2(false);
         setDonoObra(obra);
-
+        setAtencao(`A/C.: ${obra.Nome}`); // Define o campo de atenção
     };
 
     // ======================================
@@ -1768,9 +1938,8 @@ const OficiosPage = (props) => {
         var codPostalLocalDonoObra = "";
         var obraSlecionadaSave = "";
 
-        const nomesAnexos = anexos.map(anexo => anexo.name).join(", ");
+        const nomesAnexos = anexos.map((anexo) => anexo.name).join(", ");
         if (inputValue === "Não tem obra") {
-
             console.log(donoObra.Nome);
             nomeDonoObra = donoObra.Nome || "";
             moradaDonoObra = morada || "";
@@ -1779,8 +1948,6 @@ const OficiosPage = (props) => {
             codPostalLocalDonoObra = localCopPostal || "";
             console.log(formData?.codigo);
             obraSlecionadaSave = inputValue || "";
-
-
         } else {
             nomeDonoObra = donoObra.Nome;
 
@@ -1789,7 +1956,6 @@ const OficiosPage = (props) => {
             codPostalDonoObra = donoObra.CodPostal;
             codPostalLocalDonoObra = donoObra.CodPostalLocal;
             obraSlecionadaSave = selectedObra?.Codigo || "";
-
         }
 
         // Função para dividir texto em partes de 4000 caracteres
@@ -1808,7 +1974,7 @@ const OficiosPage = (props) => {
             codigo: formData?.codigo || "",
             assunto: assuntoDoc,
             texto1: textParts.part1 || "",
-            texto2: part2Chunks[0] || "",  // Adiciona a primeira parte
+            texto2: part2Chunks[0] || "", // Adiciona a primeira parte
             texto3: part2Chunks[1] || "",
             obra: obraSlecionadaSave || "",
             remetente: usernome,
@@ -1823,26 +1989,30 @@ const OficiosPage = (props) => {
             anexos: anexostext || "",
             texto4: part2Chunks[2],
             texto5: part2Chunks[3],
-
+            atencao: atencao, // Incluindo o campo de atenção
         };
-
 
         try {
             const method = "PUT";
 
-            const response = await fetch("https://webapiprimavera.advir.pt/oficio/atualizar", {
-                method,
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "urlempresa": urlempresa,
-                    "Content-Type": "application/json",
+            const response = await fetch(
+                "https://webapiprimavera.advir.pt/oficio/atualizar",
+                {
+                    method,
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        urlempresa: urlempresa,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(payloadDoc),
                 },
-                body: JSON.stringify(payloadDoc),
-            });
+            );
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`Erro https: ${response.status} - ${errorData.error}`);
+                throw new Error(
+                    `Erro https: ${response.status} - ${errorData.error}`,
+                );
             }
 
             const data = await response.json();
@@ -1850,7 +2020,10 @@ const OficiosPage = (props) => {
 
             // Se necessário, atualize o estado local com a resposta
         } catch (error) {
-            console.error(`Erro ao ${isButtonSave ? "criar" : "atualizar"} o ofício:`, error);
+            console.error(
+                `Erro ao ${isButtonSave ? "criar" : "atualizar"} o ofício:`,
+                error,
+            );
         }
     };
 
@@ -1858,25 +2031,59 @@ const OficiosPage = (props) => {
 
     // Lista básica de palavras em português para simulação de verificação ortográfica
     const dicionarioSimples = [
-        "joaquim", "peixoto", "azevedo", "filhos", "sede", "longras", "vila", "verde", "qualidade",
-        "construtora", "ofício", "texto", "assunto", "anexo", "documento", "empresa", "obra",
-        "email", "enviar", "guardar", "imprimir", "editar", "template", "modelo", "destinatário",
-        "remetente", "morada", "localidade", "código", "postal", "data", "referência"
+        "joaquim",
+        "peixoto",
+        "azevedo",
+        "filhos",
+        "sede",
+        "longras",
+        "vila",
+        "verde",
+        "qualidade",
+        "construtora",
+        "ofício",
+        "texto",
+        "assunto",
+        "anexo",
+        "documento",
+        "empresa",
+        "obra",
+        "email",
+        "enviar",
+        "guardar",
+        "imprimir",
+        "editar",
+        "template",
+        "modelo",
+        "destinatário",
+        "remetente",
+        "morada",
+        "localidade",
+        "código",
+        "postal",
+        "data",
+        "referência",
     ];
 
     // Função básica para verificação ortográfica
     const checkSpelling = (texto) => {
         // Divide o texto em palavras
-        const palavras = texto.toLowerCase().match(/[a-záàâãéèêíïóôõöúçñ]+/g) || [];
+        const palavras =
+            texto.toLowerCase().match(/[a-záàâãéèêíïóôõöúçñ]+/g) || [];
         const erros = [];
 
         // Verifica cada palavra
-        palavras.forEach(palavra => {
+        palavras.forEach((palavra) => {
             // Remove pontuação e converte para minúsculas
-            const palavraLimpa = palavra.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").toLowerCase();
+            const palavraLimpa = palavra
+                .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+                .toLowerCase();
 
             // Verifica se a palavra está no dicionário
-            if (palavraLimpa.length > 3 && !dicionarioSimples.includes(palavraLimpa)) {
+            if (
+                palavraLimpa.length > 3 &&
+                !dicionarioSimples.includes(palavraLimpa)
+            ) {
                 if (!erros.includes(palavraLimpa)) {
                     erros.push(palavraLimpa);
                 }
@@ -1888,13 +2095,17 @@ const OficiosPage = (props) => {
 
     const goBackToOficiosList = () => {
         // Verificar se há alterações para confirmar saída
-        const hasChanges = assuntoDoc || textParts.part1 || textParts.part2 || anexos.length > 0;
+        const hasChanges =
+            assuntoDoc ||
+            textParts.part1 ||
+            textParts.part2 ||
+            anexos.length > 0;
 
         if (hasChanges) {
             setShowExitModal(true);
         } else {
             // Se não houver alterações, voltar diretamente
-            navigation.navigate('OficiosList');
+            navigation.navigate("OficiosList");
         }
     };
 
@@ -1903,7 +2114,10 @@ const OficiosPage = (props) => {
         setDonoObra("");
         setAssuntoDoc("");
         setTextoDoc("");
-        setTextParts({ part1: "JOAQUIM PEIXOTO AZEVEDO, & FILHOS, LDA, com sede na Rua de Longras, n.º 44, 4730 360 Vila Verde, na qualidade de", part2: "" });
+        setTextParts({
+            part1: "JOAQUIM PEIXOTO AZEVEDO, & FILHOS, LDA, com sede na Rua de Longras, n.º 44, 4730 360 Vila Verde, na qualidade de",
+            part2: "",
+        });
         setAnexos([]);
         setAnexostext("");
         setInputValue("");
@@ -1914,10 +2128,11 @@ const OficiosPage = (props) => {
         setLocalidade("");
         setCodigoPostal("");
         setLocalCopPostal("");
+        setAtencao(""); // Limpa o campo de atenção
 
         // Fechar o modal e navegar para a lista de ofícios
         setShowExitModal(false);
-        navigation.navigate('OficiosList');
+        navigation.navigate("OficiosList");
     };
     return (
         <div style={styles.pageContainer}>
@@ -1926,41 +2141,37 @@ const OficiosPage = (props) => {
                     <button
                         onClick={goBackToOficiosList}
                         style={{
-                            position: 'absolute', // Posiciona o botão fora do fluxo normal
+                            position: "absolute", // Posiciona o botão fora do fluxo normal
                             top: 10, // Define a distância do topo
                             left: 10, // Define a distância da esquerda
-                            display: 'flex',
-                            flexDirection: 'row',
-                            alignItems: 'center',
+                            display: "flex",
+                            flexDirection: "row",
+                            alignItems: "center",
                             padding: 10,
                             borderRadius: 30,
-                            borderColor: '#1792FE',
+                            borderColor: "#1792FE",
                             borderWidth: 1,
-                            borderStyle: 'solid',
-                            backgroundColor: 'transparent',
-                            cursor: 'pointer',
+                            borderStyle: "solid",
+                            backgroundColor: "transparent",
+                            cursor: "pointer",
                             zIndex: 1000, // Garante que o botão fique acima de outros elementos
                         }}
                     >
                         <FontAwesomeIcon
                             icon={faArrowLeft}
-                            style={{ color: '#1792FE', marginRight: 5 }}
+                            style={{ color: "#1792FE", marginRight: 5 }}
                         />
-                        <span style={{ color: '#1792FE' }}>Voltar</span>
+                        <span style={{ color: "#1792FE" }}>Voltar</span>
                     </button>
 
                     {/* Botão Mudar Template só aparece na pré-visualização */}
                     {isPreviewVisible && (
                         <>
-
-
                             <button
                                 onClick={() => {
                                     setIsPreviewVisible(!isPreviewVisible); // Alterna entre pré-visualização e edição
                                     if (!isPreviewVisible) {
-
                                         changeTemplate(); // Garante que o template é inicializado ao ativar a pré-visualização
-
                                     }
                                 }}
                                 style={styles.button}
@@ -1969,7 +2180,10 @@ const OficiosPage = (props) => {
                             </button>
                             <button
                                 onClick={changeTemplate}
-                                style={{ ...styles.button, backgroundColor: "#28a745" }}
+                                style={{
+                                    ...styles.button,
+                                    backgroundColor: "#28a745",
+                                }}
                             >
                                 Alterar Template
                             </button>
@@ -1979,7 +2193,6 @@ const OficiosPage = (props) => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
                                         handleSavePDF();
-
                                     } else {
                                         handleSavePDF();
                                         handleSaveOrUpdate();
@@ -1991,6 +2204,11 @@ const OficiosPage = (props) => {
                             </button>
                             <button
                                 onClick={() => {
+                                    // Set email subject from document subject
+                                    if (assuntoDoc) {
+                                        setEmailAssunto(assuntoDoc);
+                                    }
+
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
                                         setIsModalOpen(true);
@@ -2009,7 +2227,6 @@ const OficiosPage = (props) => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
                                         handleSavePDFAndSendToBackend();
-
                                     } else {
                                         handleSaveOrUpdate();
                                         handleSavePDFAndSendToBackend();
@@ -2019,13 +2236,9 @@ const OficiosPage = (props) => {
                             >
                                 <FaSave /> Guardar
                             </button>
-
                         </>
                     )}
-
                 </div>
-
-
             </header>
 
             {/* Renderiza os inputs ou a pré-visualização */}
@@ -2036,29 +2249,42 @@ const OficiosPage = (props) => {
                         <div style={styles.toolbarGroup}>
                             <select
                                 onChange={(e) => {
-                                    document.execCommand('fontName', false, e.target.value);
+                                    document.execCommand(
+                                        "fontName",
+                                        false,
+                                        e.target.value,
+                                    );
                                 }}
                                 style={styles.toolbarSelect}
                             >
                                 <option value="">Fonte</option>
                                 <option value="Arial">Arial</option>
                                 <option value="Calibri">Calibri</option>
-                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Times New Roman">
+                                    Times New Roman
+                                </option>
                                 <option value="Verdana">Verdana</option>
                                 <option value="Tahoma">Tahoma</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Segoe UI">Segoe UI</option>
                             </select>
 
                             <select
                                 onChange={(e) => {
-                                    document.execCommand('fontSize', false, e.target.value);
+                                    document.execCommand(
+                                        "fontSize",
+                                        false,
+                                        e.target.value,
+                                    );
                                 }}
                                 style={styles.toolbarSelect}
                             >
                                 <option value="">Tamanho</option>
-                                <option value="1">10pt</option>
-                                <option value="2">12pt</option>
-                                <option value="3">14pt</option>
-                                <option value="4">16pt</option>
+                                <option value="1">8pt</option>
+                                <option value="2">10pt</option>
+                                <option value="3">12pt</option>
+                                <option value="4">14pt</option>
                                 <option value="5">18pt</option>
                                 <option value="6">24pt</option>
                                 <option value="7">36pt</option>
@@ -2067,72 +2293,287 @@ const OficiosPage = (props) => {
 
                         <div style={styles.toolbarGroup}>
                             <button
-                                onClick={() => document.execCommand('bold', false, null)}
+                                onClick={() =>
+                                    document.execCommand("bold", false, null)
+                                }
                                 style={styles.toolbarButton}
+                                title="Negrito (Ctrl+B)"
                             >
                                 <b>N</b>
                             </button>
                             <button
-                                onClick={() => document.execCommand('italic', false, null)}
+                                onClick={() =>
+                                    document.execCommand("italic", false, null)
+                                }
                                 style={styles.toolbarButton}
+                                title="Itálico (Ctrl+I)"
                             >
                                 <i>I</i>
                             </button>
                             <button
-                                onClick={() => document.execCommand('underline', false, null)}
+                                onClick={() =>
+                                    document.execCommand(
+                                        "underline",
+                                        false,
+                                        null,
+                                    )
+                                }
                                 style={styles.toolbarButton}
+                                title="Sublinhado (Ctrl+U)"
                             >
                                 <u>S</u>
                             </button>
-                        </div>
-
-                        <div style={styles.toolbarGroup}>
                             <button
-                                onClick={() => document.execCommand('justifyLeft', false, null)}
+                                onClick={() =>
+                                    document.execCommand(
+                                        "strikeThrough",
+                                        false,
+                                        null,
+                                    )
+                                }
                                 style={styles.toolbarButton}
+                                title="Tachado"
                             >
-                                ⫷
-                            </button>
-                            <button
-                                onClick={() => document.execCommand('justifyCenter', false, null)}
-                                style={styles.toolbarButton}
-                            >
-                                ≡
-                            </button>
-                            <button
-                                onClick={() => document.execCommand('justifyRight', false, null)}
-                                style={styles.toolbarButton}
-                            >
-                                ⫸
+                                <span
+                                    style={{ textDecoration: "line-through" }}
+                                >
+                                    T
+                                </span>
                             </button>
                         </div>
 
                         <div style={styles.toolbarGroup}>
-                            <input
-                                type="color"
-                                onChange={(e) => document.execCommand('foreColor', false, e.target.value)}
-                                style={styles.colorPicker}
-                            />
+                            <button
+                                onClick={() =>
+                                    document.execCommand(
+                                        "justifyLeft",
+                                        false,
+                                        null,
+                                    )
+                                }
+                                style={styles.toolbarButton}
+                                title="Alinhar à esquerda"
+                            >
+                                <span
+                                    role="img"
+                                    aria-label="Alinhar à esquerda"
+                                >
+                                    ⫷
+                                </span>
+                            </button>
+                            <button
+                                onClick={() =>
+                                    document.execCommand(
+                                        "justifyCenter",
+                                        false,
+                                        null,
+                                    )
+                                }
+                                style={styles.toolbarButton}
+                                title="Centralizar"
+                            >
+                                <span role="img" aria-label="Centralizar">
+                                    ≡
+                                </span>
+                            </button>
+                            <button
+                                onClick={() =>
+                                    document.execCommand(
+                                        "justifyRight",
+                                        false,
+                                        null,
+                                    )
+                                }
+                                style={styles.toolbarButton}
+                                title="Alinhar à direita"
+                            >
+                                <span role="img" aria-label="Alinhar à direita">
+                                    ⫸
+                                </span>
+                            </button>
+                            <button
+                                onClick={() =>
+                                    document.execCommand(
+                                        "justifyFull",
+                                        false,
+                                        null,
+                                    )
+                                }
+                                style={styles.toolbarButton}
+                                title="Justificar"
+                            >
+                                <span role="img" aria-label="Justificar">
+                                    ☰
+                                </span>
+                            </button>
+                        </div>
 
+                        <div style={styles.toolbarGroup}>
+                            <button
+                                onClick={() =>
+                                    document.execCommand(
+                                        "insertUnorderedList",
+                                        false,
+                                        null,
+                                    )
+                                }
+                                style={styles.toolbarButton}
+                                title="Lista com marcadores"
+                            >
+                                <span
+                                    role="img"
+                                    aria-label="Lista com marcadores"
+                                >
+                                    •
+                                </span>
+                            </button>
+                            <button
+                                onClick={() =>
+                                    document.execCommand(
+                                        "insertOrderedList",
+                                        false,
+                                        null,
+                                    )
+                                }
+                                style={styles.toolbarButton}
+                                title="Lista numerada"
+                            >
+                                <span role="img" aria-label="Lista numerada">
+                                    1.
+                                </span>
+                            </button>
+                            <button
+                                onClick={() =>
+                                    document.execCommand("indent", false, null)
+                                }
+                                style={styles.toolbarButton}
+                                title="Aumentar recuo"
+                            >
+                                <span role="img" aria-label="Aumentar recuo">
+                                    ⇥
+                                </span>
+                            </button>
+                            <button
+                                onClick={() =>
+                                    document.execCommand("outdent", false, null)
+                                }
+                                style={styles.toolbarButton}
+                                title="Diminuir recuo"
+                            >
+                                <span role="img" aria-label="Diminuir recuo">
+                                    ⇤
+                                </span>
+                            </button>
+                        </div>
+
+                        <div style={styles.toolbarGroup}>
+                            <label
+                                style={styles.toolbarLabel}
+                                title="Cor do texto"
+                            >
+                                <span
+                                    role="img"
+                                    aria-label="Cor do texto"
+                                    style={{ marginRight: "5px" }}
+                                >
+                                    🎨
+                                </span>
+                                <input
+                                    type="color"
+                                    onChange={(e) =>
+                                        document.execCommand(
+                                            "foreColor",
+                                            false,
+                                            e.target.value,
+                                        )
+                                    }
+                                    style={styles.colorPicker}
+                                />
+                            </label>
+
+                            <label
+                                style={styles.toolbarLabel}
+                                title="Cor de fundo"
+                            >
+                                <span
+                                    role="img"
+                                    aria-label="Cor de fundo"
+                                    style={{ marginRight: "5px" }}
+                                >
+                                    🖌️
+                                </span>
+                                <input
+                                    type="color"
+                                    onChange={(e) =>
+                                        document.execCommand(
+                                            "hiliteColor",
+                                            false,
+                                            e.target.value,
+                                        )
+                                    }
+                                    style={styles.colorPicker}
+                                />
+                            </label>
+                        </div>
+
+                        <div style={styles.toolbarGroup}>
+                            <button
+                                onClick={() =>
+                                    document.execCommand("undo", false, null)
+                                }
+                                style={styles.toolbarButton}
+                                title="Desfazer (Ctrl+Z)"
+                            >
+                                <span role="img" aria-label="Desfazer">
+                                    ↩️
+                                </span>
+                            </button>
+                            <button
+                                onClick={() =>
+                                    document.execCommand("redo", false, null)
+                                }
+                                style={styles.toolbarButton}
+                                title="Refazer (Ctrl+Y)"
+                            >
+                                <span role="img" aria-label="Refazer">
+                                    ↪️
+                                </span>
+                            </button>
                             <button
                                 onClick={() => {
                                     const selection = window.getSelection();
                                     if (selection.toString().length > 0) {
                                         const text = selection.toString();
                                         // Simulação simples de verificação ortográfica
-                                        const possibleErrors = checkSpelling(text);
+                                        const possibleErrors =
+                                            checkSpelling(text);
                                         if (possibleErrors.length > 0) {
-                                            alert(`Possíveis erros ortográficos: ${possibleErrors.join(", ")}`);
+                                            alert(
+                                                `Possíveis erros ortográficos: ${possibleErrors.join(", ")}`,
+                                            );
                                         } else {
-                                            alert("Nenhum erro ortográfico encontrado.");
+                                            alert(
+                                                "Nenhum erro ortográfico encontrado.",
+                                            );
                                         }
                                     } else {
-                                        alert("Selecione um texto para verificar a ortografia.");
+                                        alert(
+                                            "Selecione um texto para verificar a ortografia.",
+                                        );
                                     }
                                 }}
-                                style={{ ...styles.toolbarButton, backgroundColor: '#28a745' }}
+                                style={{
+                                    ...styles.toolbarButton,
+                                    backgroundColor: "#28a745",
+                                }}
+                                title="Verificar ortografia"
                             >
-                                ABC✓
+                                <span
+                                    role="img"
+                                    aria-label="Verificar ortografia"
+                                >
+                                    ABC✓
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -2161,9 +2602,25 @@ const OficiosPage = (props) => {
                     )}
                 </>
             ) : (
-                <div style={{ width: "60%", margin: "0 auto", padding: "20px", backgroundColor: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)" }}>
+                <div
+                    style={{
+                        width: "60%",
+                        margin: "0 auto",
+                        padding: "20px",
+                        backgroundColor: "#ffffff",
+                        borderRadius: "12px",
+                        boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
+                    }}
+                >
                     {/* Campo para selecionar obra */}
-                    <div style={{ position: "relative", width: "100%", marginBottom: "20px" }} ref={comboBoxRef}>
+                    <div
+                        style={{
+                            position: "relative",
+                            width: "100%",
+                            marginBottom: "20px",
+                        }}
+                        ref={comboBoxRef}
+                    >
                         <input
                             type="text"
                             value={inputValue}
@@ -2205,6 +2662,7 @@ const OficiosPage = (props) => {
                                         setInputValue("Não tem obra");
                                         setShowOptions(false);
                                         setDonoObra("");
+                                        setAtencao(""); // Limpa o campo de atenção
                                     }}
                                     style={{
                                         padding: "10px",
@@ -2222,7 +2680,9 @@ const OficiosPage = (props) => {
                                         onClick={() => {
                                             handleOptionClick(obra);
                                             setDonoObra(obra.Codigo);
-                                            setInputValue(`${obra.Codigo} - ${obra.Descricao}`);
+                                            setInputValue(
+                                                `${obra.Codigo} - ${obra.Descricao}`,
+                                            );
                                             setShowOptions(false);
                                         }}
                                         style={{
@@ -2230,12 +2690,16 @@ const OficiosPage = (props) => {
                                             cursor: "pointer",
                                             color: "#333",
                                             background:
-                                                selectedObra?.Codigo === obra.Codigo ? "#e6f7ff" : "white",
+                                                selectedObra?.Codigo ===
+                                                    obra.Codigo
+                                                    ? "#e6f7ff"
+                                                    : "white",
                                             borderRadius: "6px",
                                             marginBottom: "5px",
                                         }}
                                     >
-                                        {obra?.Codigo || ""} - {obra?.Descricao || ""}
+                                        {obra?.Codigo || ""} -{" "}
+                                        {obra?.Descricao || ""}
                                     </li>
                                 ))}
                             </ul>
@@ -2243,7 +2707,11 @@ const OficiosPage = (props) => {
                     </div>
 
                     <div
-                        style={{ position: "relative", width: "100%", marginBottom: "20px" }}
+                        style={{
+                            position: "relative",
+                            width: "100%",
+                            marginBottom: "20px",
+                        }}
                         ref={comboBoxRef2}
                         onClick={handleComboBoxClick} // Chama a função ao clicar
                     >
@@ -2253,7 +2721,10 @@ const OficiosPage = (props) => {
                             onChange={(e) => {
                                 setInputValue2(e.target.value);
                                 // Aplica o filtro diretamente ao digitar, para que a lista seja filtrada conforme o input
-                                const filtered = filterObras(e.target.value, obras2);
+                                const filtered = filterObras(
+                                    e.target.value,
+                                    obras2,
+                                );
                                 setFilteredObras2(filtered);
                             }}
                             placeholder="Selecione outra Entidade"
@@ -2266,7 +2737,7 @@ const OficiosPage = (props) => {
                                 fontSize: "16px",
                                 boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                             }}
-                            onFocus={handleFocus}  // Garante que as opções sejam carregadas quando o campo é focado
+                            onFocus={handleFocus} // Garante que as opções sejam carregadas quando o campo é focado
                         />
 
                         {showOptions2 && (
@@ -2289,32 +2760,66 @@ const OficiosPage = (props) => {
                                 }}
                             >
                                 {filteredObras2.length === 0 ? (
-                                    <li style={{ padding: "10px", color: "#999" }}>Escreva aqui para escolher a entidade pretendida</li>
+                                    <li
+                                        style={{
+                                            padding: "10px",
+                                            color: "#999",
+                                        }}
+                                    >
+                                        Escreva aqui para escolher a entidade
+                                        pretendida
+                                    </li>
                                 ) : (
                                     filteredObras2.map((obra, index) => (
                                         <li
                                             key={index}
-                                            onClick={() => handleOptionClick2(obra)}
+                                            onClick={() =>
+                                                handleOptionClick2(obra)
+                                            }
                                             style={{
                                                 padding: "10px",
                                                 cursor: "pointer",
                                                 color: "#333",
-                                                background: selectedObra2?.Codigo === obra.Codigo ? "#e6f7ff" : "white",
+                                                background:
+                                                    selectedObra2?.Codigo ===
+                                                        obra.Codigo
+                                                        ? "#e6f7ff"
+                                                        : "white",
                                                 borderRadius: "6px",
                                                 marginBottom: "5px",
                                             }}
                                         >
-                                            {obra?.Codigo || ""} - {obra?.Nome || ""}
+                                            {obra?.Codigo || ""} -{" "}
+                                            {obra?.Nome || ""}
                                         </li>
                                     ))
                                 )}
                             </ul>
-
-
                         )}
                     </div>
 
-
+                    {/* Text box that appears when an entity is selected */}
+                    {selectedObra2 && (
+                        <div
+                            style={{ marginTop: "10px", marginBottom: "20px" }}
+                        >
+                            <input
+                                type="text"
+                                placeholder="A/C.:"
+                                value={atencao}
+                                onChange={(e) => setAtencao(e.target.value)}
+                                style={{
+                                    width: "100%",
+                                    padding: "12px",
+                                    margin: "10px 0",
+                                    border: "1px solid #ddd",
+                                    borderRadius: "8px",
+                                    fontSize: "16px",
+                                    boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                }}
+                            />
+                        </div>
+                    )}
 
                     {/* Campo de destinatário */}
                     <input
@@ -2345,13 +2850,8 @@ const OficiosPage = (props) => {
                         <input
                             type="text"
                             placeholder="Morada"
-                            value={donoObra?.Morada || ""}
-                            onChange={(e) =>
-                                setDonoObra((prev) => ({
-                                    ...prev,
-                                    Morada: e.target.value,
-                                }))
-                            }
+                            value={morada}
+                            onChange={(e) => setMorada(e.target.value)}
                             style={{
                                 width: "100%",
                                 padding: "12px",
@@ -2367,13 +2867,8 @@ const OficiosPage = (props) => {
                         <input
                             type="text"
                             placeholder="Localidade"
-                            value={donoObra?.Localidade || ""}
-                            onChange={(e) =>
-                                setDonoObra((prev) => ({
-                                    ...prev,
-                                    Localidade: e.target.value,
-                                }))
-                            }
+                            value={localidade}
+                            onChange={(e) => setLocalidade(e.target.value)}
                             style={{
                                 width: "100%",
                                 padding: "12px",
@@ -2385,16 +2880,19 @@ const OficiosPage = (props) => {
                             }}
                         />
                         {/* Campo de código postal e local coppostal lado a lado */}
-                        <div style={{ display: "flex", gap: "10px", margin: "10px 0" }}>
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: "10px",
+                                margin: "10px 0",
+                            }}
+                        >
                             <input
                                 type="text"
                                 placeholder="Código Postal"
-                                value={donoObra?.CodPostal || ""}
+                                value={codigoPostal}
                                 onChange={(e) =>
-                                    setDonoObra((prev) => ({
-                                        ...prev,
-                                        CodPostal: e.target.value,
-                                    }))
+                                    setCodigoPostal(e.target.value)
                                 }
                                 style={{
                                     flex: 1,
@@ -2408,12 +2906,9 @@ const OficiosPage = (props) => {
                             <input
                                 type="text"
                                 placeholder="Local CopPostal"
-                                value={donoObra?.CodPostalLocal || ""}
+                                value={localCopPostal}
                                 onChange={(e) =>
-                                    setDonoObra((prev) => ({
-                                        ...prev,
-                                        CodPostalLocal: e.target.value,
-                                    }))
+                                    setLocalCopPostal(e.target.value)
                                 }
                                 style={{
                                     flex: 1,
@@ -2461,15 +2956,23 @@ const OficiosPage = (props) => {
                         }}
                     />
                     {/* Campo de assunto2 */}
-                    <div style={{ fontSize: "14px", marginTop: "5px", color: "#555" }}>
-                        {textParts.part1.length} / 1120 caracteres | {textParts.part1.split("\n").length} / 19 linhas
+                    <div
+                        style={{
+                            fontSize: "14px",
+                            marginTop: "5px",
+                            color: "#555",
+                        }}
+                    >
+                        {textParts.part1.length} / 1120 caracteres |{" "}
+                        {textParts.part1.split("\n").length} / 19 linhas
                     </div>
                     <textarea
                         placeholder="Texto do Ofício"
                         value={textParts.part1}
                         onChange={(e) => {
                             const newValue = e.target.value;
-                            const lineCount = (newValue.match(/\n/g) || []).length; // Conta linhas
+                            const lineCount = (newValue.match(/\n/g) || [])
+                                .length; // Conta linhas
 
                             if (lineCount <= 19) {
                                 setTextParts({ ...textParts, part1: newValue });
@@ -2480,13 +2983,16 @@ const OficiosPage = (props) => {
                                 e.preventDefault(); // Impede o foco para outro campo
                                 const cursorPos = e.target.selectionStart;
                                 const newValue =
-                                    textParts.part1.substring(0, cursorPos) + "    " + textParts.part1.substring(cursorPos);
+                                    textParts.part1.substring(0, cursorPos) +
+                                    "    " +
+                                    textParts.part1.substring(cursorPos);
 
                                 setTextParts({ ...textParts, part1: newValue });
 
                                 // Reposiciona o cursor após os espaços
                                 setTimeout(() => {
-                                    e.target.selectionStart = e.target.selectionEnd = cursorPos + 4;
+                                    e.target.selectionStart =
+                                        e.target.selectionEnd = cursorPos + 4;
                                 }, 0);
                             }
                         }}
@@ -2506,8 +3012,6 @@ const OficiosPage = (props) => {
                         }}
                     />
 
-
-
                     {/* Campo de texto editável 1 - com limite de 1020 caracteres */}
                     <div
                         contentEditable="true"
@@ -2525,7 +3029,7 @@ const OficiosPage = (props) => {
                             fontSize: "16px",
                             boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                             textAlign: "left",
-                            display: "none",   // Torna o conteúdo invisível, mas o espaço permanece
+                            display: "none", // Torna o conteúdo invisível, mas o espaço permanece
                         }}
                         dangerouslySetInnerHTML={{ __html: textParts.part1 }}
                     ></div>
@@ -2537,7 +3041,8 @@ const OficiosPage = (props) => {
                         value={textParts.part2}
                         onChange={(e) => {
                             const newValue = e.target.value;
-                            const lineCount = (newValue.match(/\n/g) || []).length; // Conta linhas
+                            const lineCount = (newValue.match(/\n/g) || [])
+                                .length; // Conta linhas
 
                             if (lineCount <= 19) {
                                 setTextParts({ ...textParts, part2: newValue });
@@ -2550,13 +3055,16 @@ const OficiosPage = (props) => {
 
                                 // Adiciona quatro espaços no ponto do cursor
                                 const newValue =
-                                    textParts.part2.substring(0, cursorPos) + "    " + textParts.part2.substring(cursorPos);
+                                    textParts.part2.substring(0, cursorPos) +
+                                    "    " +
+                                    textParts.part2.substring(cursorPos);
 
                                 setTextParts({ ...textParts, part2: newValue }); // Atualiza o estado com os novos dados
 
                                 // Reposiciona o cursor após os espaços
                                 setTimeout(() => {
-                                    e.target.selectionStart = e.target.selectionEnd = cursorPos + 4; // Nova posição após os 4 espaços
+                                    e.target.selectionStart =
+                                        e.target.selectionEnd = cursorPos + 4; // Nova posição após os 4 espaços
                                 }, 0);
                             }
                         }}
@@ -2575,9 +3083,6 @@ const OficiosPage = (props) => {
                         }}
                     />
 
-
-
-
                     <label style={styles.fileInputLabel}>
                         <FaPaperclip /> Anexos
                         <input
@@ -2585,8 +3090,14 @@ const OficiosPage = (props) => {
                             multiple
                             onChange={(e) => {
                                 const files = Array.from(e.target.files);
-                                const fileNames = files.map(file => file.name).join("</br> ");
-                                setAnexostext(prevText => prevText ? `${prevText}, ${fileNames}` : fileNames);
+                                const fileNames = files
+                                    .map((file) => file.name)
+                                    .join("</br> ");
+                                setAnexostext((prevText) =>
+                                    prevText
+                                        ? `${prevText}, ${fileNames}`
+                                        : fileNames,
+                                );
                             }}
                             style={styles.fileInput}
                         />
@@ -2595,8 +3106,8 @@ const OficiosPage = (props) => {
                     {/* Exibindo o texto com a quebra de linha corretamente renderizada */}
                     <div
                         style={{
-                            whiteSpace: 'pre-wrap',  // Faz com quebras de linha apareçam corretamente no texto
-                            wordWrap: 'break-word',
+                            whiteSpace: "pre-wrap", // Faz com quebras de linha apareçam corretamente no texto
+                            wordWrap: "break-word",
                             padding: "12px",
                             margin: "10px 0",
                             border: "1px solid #ddd",
@@ -2631,12 +3142,7 @@ const OficiosPage = (props) => {
                         {isPreviewVisible ? "Editar" : "Pré-visualizar"}
                     </button>
                 </div>
-
             )}
-
-
-
-
 
             {/* Modal de confirmação para sair */}
             {showExitModal && (
@@ -2644,10 +3150,14 @@ const OficiosPage = (props) => {
                     <div style={styles.modalContent}>
                         <h3 style={styles.modalTitle}>Confirmar saída</h3>
                         <p style={styles.modalMessage}>
-                            Se sair agora, perderá todas as alterações feitas. Deseja realmente sair?
+                            Se sair agora, perderá todas as alterações feitas.
+                            Deseja realmente sair?
                         </p>
                         <div style={styles.modalActions}>
-                            <button onClick={() => setShowExitModal(false)} style={styles.cancelButton}>
+                            <button
+                                onClick={() => setShowExitModal(false)}
+                                style={styles.cancelButton}
+                            >
                                 Não
                             </button>
                             <button onClick={confirmExit} style={styles.button}>
@@ -2662,8 +3172,6 @@ const OficiosPage = (props) => {
             {isModalOpen && (
                 <div style={styles.modalOverlay}>
                     <div style={styles.modalContent}>
-
-
                         <input
                             type="text"
                             placeholder="Para:"
@@ -2672,14 +3180,120 @@ const OficiosPage = (props) => {
                             style={styles.input}
                         />
 
-                        <input
-                            type="text"
-                            placeholder="CC:"
-                            value={emailCC}
-                            onChange={(e) => setEmailCC(e.target.value)}
-                            style={styles.input}
-                        />
-
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                marginBottom: "10px",
+                            }}
+                        >
+                            <input
+                                type="text"
+                                placeholder="CC:"
+                                value={emailCC}
+                                onChange={(e) => setEmailCC(e.target.value)}
+                                style={{
+                                    ...styles.input,
+                                    marginBottom: 0,
+                                    flex: 1,
+                                }}
+                            />
+                            <div style={{ position: "relative" }}>
+                                <button
+                                    onClick={() =>
+                                        document
+                                            .getElementById("emailDropdown")
+                                            .classList.toggle("show")
+                                    }
+                                    style={{
+                                        marginLeft: "10px",
+                                        padding: "8px 15px",
+                                        backgroundColor: "#1792FE",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "5px",
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Adicionar
+                                </button>
+                                <div
+                                    id="emailDropdown"
+                                    style={{
+                                        display: "none",
+                                        position: "absolute",
+                                        right: 0,
+                                        top: "100%",
+                                        backgroundColor: "white",
+                                        minWidth: "200px",
+                                        boxShadow:
+                                            "0px 8px 16px 0px rgba(0,0,0,0.2)",
+                                        zIndex: 1,
+                                        borderRadius: "5px",
+                                        marginTop: "5px",
+                                    }}
+                                    className="dropdown-content"
+                                >
+                                    {[
+                                        "comercial@jpaconstrutora.com",
+                                        "geral@jpaconstrutora.com",
+                                        "qualidade@jpaconstrutora.com",
+                                        "tecnico@jpaconstrutora.com",
+                                    ].map((email, index) => (
+                                        <div
+                                            key={index}
+                                            onClick={() => {
+                                                const currentEmails = emailCC
+                                                    ? emailCC
+                                                        .split(";")
+                                                        .map((e) => e.trim())
+                                                    : [];
+                                                if (
+                                                    !currentEmails.includes(
+                                                        email,
+                                                    )
+                                                ) {
+                                                    const newEmailCC =
+                                                        currentEmails.length > 0
+                                                            ? `${emailCC}; ${email}`
+                                                            : email;
+                                                    setEmailCC(newEmailCC);
+                                                }
+                                                document
+                                                    .getElementById(
+                                                        "emailDropdown",
+                                                    )
+                                                    .classList.remove("show");
+                                            }}
+                                            style={{
+                                                padding: "10px 15px",
+                                                cursor: "pointer",
+                                                borderBottom:
+                                                    index < 3
+                                                        ? "1px solid #eee"
+                                                        : "none",
+                                                borderRadius:
+                                                    index === 0
+                                                        ? "5px 5px 0 0"
+                                                        : index === 3
+                                                            ? "0 0 5px 5px"
+                                                            : "0",
+                                            }}
+                                            onMouseOver={(e) =>
+                                            (e.currentTarget.style.backgroundColor =
+                                                "#f1f1f1")
+                                            }
+                                            onMouseOut={(e) =>
+                                            (e.currentTarget.style.backgroundColor =
+                                                "white")
+                                            }
+                                        >
+                                            {email}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
 
                         <input
                             type="text"
@@ -2695,6 +3309,111 @@ const OficiosPage = (props) => {
                             onChange={(e) => setEmailTexto(e.target.value)}
                             style={{ ...styles.input, height: "150px" }}
                         />
+
+                        <div style={styles.signatureSection}>
+                            <div style={styles.signatureHeader}>
+                                <input
+                                    type="checkbox"
+                                    id="includeSignature"
+                                    defaultChecked={true}
+                                    onChange={(e) => {
+                                        document.getElementById(
+                                            "emailSignature",
+                                        ).style.display = e.target.checked
+                                                ? "block"
+                                                : "none";
+                                    }}
+                                />
+                                <label htmlFor="includeSignature">
+                                    Incluir assinatura
+                                </label>
+                            </div>
+                            <div
+                                id="emailSignature"
+                                style={styles.signaturePreview}
+                            >
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <tbody>
+                                        <tr>
+                                            <td style={{ width: "70%", paddingRight: "15px", verticalAlign: "top" }}>
+                          
+                                                <div style={{ display: "flex", alignItems: "center", marginTop: "10px" }}>
+                                                    <span style={{ color: "#1792FE", marginRight: "8px", fontSize: "14px" }}>
+                                                        ✉
+                                                    </span>
+                                                    <a
+                                                        href="mailto:oficio@jpaconstrutora.com"
+                                                        style={{
+                                                            color: "#1792FE",
+                                                            textDecoration: "none",
+                                                            fontSize: "13px"
+                                                        }}
+                                                    >
+                                                        oficio@jpaconstrutora.com
+                                                    </a>
+                                                </div>
+                                                <div style={{ display: "flex", alignItems: "center", marginTop: "5px" }}>
+                                                    <span style={{ color: "#666", marginRight: "8px", fontSize: "14px" }}>
+                                                        📞
+                                                    </span>
+                                                    <span style={{ color: "#666", fontSize: "13px" }}>
+                                                        t. (+351) 253 38 13 10 (Chamada rede fixa nacional)
+                                                    </span>
+                                                </div>
+                                                <div style={{ display: "flex", alignItems: "center", marginTop: "5px" }}>
+                                                    <span style={{ color: "#666", marginRight: "8px", fontSize: "14px" }}>
+                                                        📱
+                                                    </span>
+                                                    <span style={{ color: "#666", fontSize: "13px" }}>
+                                                        tel. (+351) 910 11 76 22 (Chamada rede móvel nacional)
+                                                    </span>
+                                                </div>
+                                                <div style={{ display: "flex", alignItems: "flex-start", marginTop: "5px" }}>
+                                                    <span style={{ color: "#666", marginRight: "8px", marginTop: "2px", fontSize: "14px" }}>
+                                                        📍
+                                                    </span>
+                                                    <div>
+                                                        <div style={{ color: "#666", fontSize: "13px" }}>
+                                                            Rua Das Longras 44,
+                                                        </div>
+                                                        <div style={{ color: "#666", fontSize: "13px" }}>
+                                                            4730-360 Pedregais
+                                                        </div>
+                                                        <div style={{ color: "#666", fontSize: "13px" }}>
+                                                            Vila Verde - Portugal
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td style={{ width: "30%", textAlign: "right", verticalAlign: "top" }}>
+                                                <div style={{ marginBottom: "10px" }}>
+                                                    <img src={logo} alt="JPA Construtora" style={{ maxWidth: "120px", height: "auto" }} />
+                                                </div>
+                                                <div style={{ textAlign: "right", marginTop: "5px" }}>
+                                                    <a
+                                                        href="https://www.jpaconstrutora.com"
+                                                        style={{
+                                                            color: "#1792FE",
+                                                            textDecoration: "none",
+                                                            fontWeight: "bold",
+                                                            display: "block",
+                                                            marginBottom: "5px",
+                                                            fontSize: "13px"
+                                                        }}
+                                                    >
+                                                        WWW.JPACONSTRUTORA.COM
+                                                    </a>
+                                                </div>
+                                                <div style={{ marginTop: "10px", textAlign: "right" }}>
+                                                    <img src={PMEPreto} alt="PME Logo" style={{ height: "30px", marginRight: "5px" }} />
+                                                    <img src={QualidadePreto} alt="Qualidade Logo" style={{ height: "30px" }} />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 
                         <label style={styles.fileInputLabel}>
                             <FaPaperclip /> Anexos
@@ -2714,7 +3433,9 @@ const OficiosPage = (props) => {
                                         <li key={index} style={styles.li}>
                                             {anexo.name}
                                             <button
-                                                onClick={() => handleRemoveAnexo(index)}
+                                                onClick={() =>
+                                                    handleRemoveAnexo(index)
+                                                }
                                                 style={styles.removeButton}
                                             >
                                                 Remover
@@ -2726,10 +3447,16 @@ const OficiosPage = (props) => {
                         )}
 
                         <div style={styles.modalActions}>
-                            <button onClick={handleSendEmailWithOfficeAPI} style={styles.button}>
+                            <button
+                                onClick={handleSendEmailWithOfficeAPI}
+                                style={styles.button}
+                            >
                                 Enviar
                             </button>
-                            <button onClick={() => setIsModalOpen(false)} style={styles.cancelButton}>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                style={styles.cancelButton}
+                            >
                                 Cancelar
                             </button>
                         </div>
@@ -2743,8 +3470,18 @@ const OficiosPage = (props) => {
 // ==============================
 // Estilos
 // ==============================
-const styles = {
+// Adicionar uma regra CSS global para o dropdown
+if (typeof document !== "undefined") {
+    const style = document.createElement("style");
+    style.textContent = `
+        .dropdown-content.show {
+            display: block !important;
+        }
+    `;
+    document.head.appendChild(style);
+}
 
+const styles = {
     pageContainer: {
         display: "flex",
         flexDirection: "column",
@@ -2768,6 +3505,9 @@ const styles = {
         boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
         width: "793.7px",
         flexWrap: "wrap",
+        position: "sticky",
+        top: 0,
+        zIndex: 100,
     },
     toolbarGroup: {
         display: "flex",
@@ -2786,7 +3526,11 @@ const styles = {
         cursor: "pointer",
         fontSize: "14px",
         color: "#333",
-        transition: "background-color 0.2s",
+        transition: "all 0.2s ease",
+        minWidth: "32px",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
     },
     toolbarSelect: {
         padding: "6px 10px",
@@ -2796,6 +3540,7 @@ const styles = {
         cursor: "pointer",
         fontSize: "14px",
         color: "#333",
+        minWidth: "120px",
     },
     colorPicker: {
         width: "30px",
@@ -2804,6 +3549,16 @@ const styles = {
         border: "1px solid #ccc",
         borderRadius: "4px",
         cursor: "pointer",
+        backgroundColor: "transparent",
+    },
+    toolbarLabel: {
+        display: "flex",
+        alignItems: "center",
+        cursor: "pointer",
+        padding: "4px 8px",
+        borderRadius: "4px",
+        backgroundColor: "#fff",
+        border: "1px solid #ccc",
     },
     body: {
         margin: 0,
@@ -2812,7 +3567,7 @@ const styles = {
         justifycontent: "center",
         alignItems: "center",
         minheight: "100vh",
-        backgroundColor: "#d4e4ff", /* fundo azul claro */
+        backgroundColor: "#d4e4ff" /* fundo azul claro */,
     },
     header: {
         display: "flex",
@@ -2948,7 +3703,6 @@ const styles = {
         borderRadius: "6px",
         cursor: "pointer",
         transition: "background-color 0.3s ease",
-
     },
     modalOverlay: {
         position: "fixed",
@@ -2964,10 +3718,53 @@ const styles = {
     },
     modalContent: {
         backgroundColor: "#fff",
-        padding: "20px",
+        padding: "30px",
         borderRadius: "10px",
-        width: "400px",
-        boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+        width: "700px",
+        maxWidth: "90%",
+        maxHeight: "90vh",
+        overflowY: "auto",
+        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+        textAlign: "center",
+    },
+    signatureSection: {
+        marginTop: "15px",
+        marginBottom: "15px",
+        border: "1px solid #eee",
+        borderRadius: "8px",
+        padding: "10px",
+        backgroundColor: "#f9f9f9",
+    },
+    signatureHeader: {
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        marginBottom: "10px",
+        padding: "5px 0",
+        borderBottom: "1px solid #eee",
+    },
+    signaturePreview: {
+        backgroundColor: "#fff",
+        border: "1px solid #eee",
+        borderRadius: "5px",
+        padding: "15px",
+        maxHeight: "250px",
+        overflowY: "auto",
+    },
+    signatureTable: {
+        width: "100%",
+        borderCollapse: "collapse",
+    },
+    signatureMainContent: {
+        width: "70%",
+        padding: "10px",
+        verticalAlign: "top",
+        textAlign: "left",
+    },
+    signatureLogoContainer: {
+        width: "30%",
+        padding: "10px",
+        verticalAlign: "top",
         textAlign: "center",
     },
     modalTitle: {
@@ -3002,5 +3799,3 @@ const styles = {
 };
 
 export default OficiosPage;
-
-
