@@ -15,16 +15,16 @@ const ConfirmModal = ({ visible, onCancel, onConfirm, codigo }) => (
                     <MaterialCommunityIcons name="alert-circle-outline" size={40} color="#FF6B6B" />
                     <Text style={styles.modalTitle}>Confirmação</Text>
                 </View>
-                
+
                 <Text style={styles.modalMessage}>
                     Tem certeza que deseja eliminar o ofício com o código <Text style={styles.modalHighlight}>{codigo}</Text>?
                 </Text>
-                
+
                 <View style={styles.modalActions}>
                     <TouchableOpacity style={styles.modalCancelButton} onPress={onCancel}>
                         <Text style={styles.modalCancelText}>Cancelar</Text>
                     </TouchableOpacity>
-                    
+
                     <TouchableOpacity style={styles.modalConfirmButton} onPress={onConfirm}>
                         <MaterialCommunityIcons name="delete-outline" size={18} color="#fff" />
                         <Text style={styles.modalConfirmText}>Eliminar</Text>
@@ -176,20 +176,20 @@ const OficiosList = () => {
                         end={{ x: 1, y: 0 }}
                     >
                         <View style={styles.groupTitleContainer}>
-                            <MaterialCommunityIcons 
-                                name="office-building" 
-                                size={22} 
-                                color="#fff" 
+                            <MaterialCommunityIcons
+                                name="office-building"
+                                size={22}
+                                color="#fff"
                             />
                             <Text style={styles.groupTitle}>{item.title}</Text>
                         </View>
-                        
+
                         <View style={styles.groupCounter}>
                             <Text style={styles.groupCountText}>{item.data.length}</Text>
-                            <Ionicons 
-                                name={item.expanded ? "chevron-up" : "chevron-down"} 
-                                size={24} 
-                                color="#fff" 
+                            <Ionicons
+                                name={item.expanded ? "chevron-up" : "chevron-down"}
+                                size={24}
+                                color="#fff"
                             />
                         </View>
                     </LinearGradient>
@@ -214,7 +214,7 @@ const OficiosList = () => {
 
         return (
             <View style={[
-                styles.oficioCard, 
+                styles.oficioCard,
                 isInactive && styles.inactiveCard,
                 isEmailSent && styles.emailSentCard,
                 isPrinted && styles.printedCard
@@ -224,21 +224,21 @@ const OficiosList = () => {
                         <MaterialCommunityIcons name="file-document-outline" size={22} color="#4481EB" />
                         <Text style={styles.oficioCode}>{item.CDU_codigo}</Text>
                     </View>
-                    
+
                     <View style={[
-                        styles.statusBadge, 
+                        styles.statusBadge,
                         isEmailSent && styles.emailSentBadge,
                         isPrinted && styles.printedBadge,
                         isInactive && styles.inactiveBadge
                     ]}>
-                        <MaterialCommunityIcons 
+                        <MaterialCommunityIcons
                             name={
-                                isEmailSent ? "email-check-outline" : 
-                                isPrinted ? "printer-check" : 
-                                isInactive ? "cancel" : "progress-check"
-                            } 
-                            size={16} 
-                            color="#fff" 
+                                isEmailSent ? "email-check-outline" :
+                                    isPrinted ? "printer-check" :
+                                        isInactive ? "cancel" : "progress-check"
+                            }
+                            size={16}
+                            color="#fff"
                         />
                         <Text style={styles.statusBadgeText}>
                             {item.CDU_estado || "Pendente"}
@@ -266,7 +266,15 @@ const OficiosList = () => {
                     <View style={styles.actionButtons}>
                         <TouchableOpacity
                             style={styles.editButton}
-                            onPress={() => navigation.navigate("EditOficio", { oficioId: item.CDU_codigo, oficioData: item })}
+                            onPress={() => {
+                                // Navigate with fresh parameters each time
+                                navigation.setParams({}); // Clear any existing params
+                                navigation.navigate("EditOficio", {
+                                    oficioId: item.CDU_codigo,
+                                    oficioData: item,
+                                    timestamp: new Date().getTime() // Add timestamp to ensure uniqueness
+                                });
+                            }}
                         >
                             <MaterialCommunityIcons name="pencil" size={20} color="#fff" />
                         </TouchableOpacity>
@@ -300,13 +308,17 @@ const OficiosList = () => {
                 </View>
             </LinearGradient>
 
-            <Animated.View 
+            <Animated.View
                 style={[
-                    styles.contentContainer, 
-                    { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [50, 0],
-                    })}] }
+                    styles.contentContainer,
+                    {
+                        opacity: fadeAnim, transform: [{
+                            translateY: fadeAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [50, 0],
+                            })
+                        }]
+                    }
                 ]}
             >
                 <View style={styles.searchContainer}>
@@ -387,7 +399,7 @@ const OficiosList = () => {
                     try {
                         setModalVisible(false);
                         setLoading(true);
-                        
+
                         const response = await fetch(`https://webapiprimavera.advir.pt/oficio/Eliminar/${selectedOficio}`, {
                             method: 'GET',
                             headers: {
@@ -405,7 +417,7 @@ const OficiosList = () => {
 
                         const responseData = JSON.parse(responseText);
                         await fetchOficios();
-                        
+
                         // Mostrar notificação de sucesso
                         alert(`Ofício ${selectedOficio} eliminado com sucesso.`);
                     } catch (error) {

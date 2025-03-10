@@ -139,7 +139,7 @@ const OficiosPage = (props) => {
     // 5) Carregar lista de obras do backend
     // ======================================
     useEffect(() => {
-     
+
         const fetchObras = async () => {
             const token = localStorage.getItem("painelAdminToken");
             const urlempresa = localStorage.getItem("urlempresa");
@@ -215,36 +215,36 @@ const OficiosPage = (props) => {
         fetchEntidades();       // Carrega as opções ao clicar
     };
     const fetchEntidades = async () => {
-    const token = localStorage.getItem("painelAdminToken");
-    const urlempresa = localStorage.getItem("urlempresa");
-    if (!urlempresa) return;
+        const token = localStorage.getItem("painelAdminToken");
+        const urlempresa = localStorage.getItem("urlempresa");
+        if (!urlempresa) return;
 
-    try {
-        const response = await fetch("https://webapiprimavera.advir.pt/oficio/ListarEntidades", {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${token}`,
-                "urlempresa": urlempresa,
-                "Content-Type": "application/json",
-            },
-        });
+        try {
+            const response = await fetch("https://webapiprimavera.advir.pt/oficio/ListarEntidades", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "urlempresa": urlempresa,
+                    "Content-Type": "application/json",
+                },
+            });
 
-        if (!response.ok) {
-            throw new Error(`Error: ${response.statusText}`);
+            if (!response.ok) {
+                throw new Error(`Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            // Se data.DataSet.Table for array, atualiza
+            if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
+                console.log(data.DataSet.Table);
+                setObras2(data.DataSet.Table);  // Atualiza a lista de obras
+            }
+        } catch (error) {
+            console.error("Erro ao carregar obras:", error);
+        } finally {
+
         }
-
-        const data = await response.json();
-        // Se data.DataSet.Table for array, atualiza
-        if (data && data.DataSet && Array.isArray(data.DataSet.Table)) {
-            console.log(data.DataSet.Table);
-            setObras2(data.DataSet.Table);  // Atualiza a lista de obras
-        }
-    } catch (error) {
-        console.error("Erro ao carregar obras:", error);
-    } finally {
-
-    }
-};
+    };
     const filterObras = (inputValue, obras) => {
         return obras.filter((obra) => {
             return (
@@ -259,7 +259,7 @@ const OficiosPage = (props) => {
     const handleSavePDF = async () => {
         const containers = [docxContainer.current, docxContainer2.current]; // Containers de conteúdo
         const validContainers = containers.filter(container => container); // Filtra containers válidos
-        
+
         if (validContainers.length === 0) {
             return;
         }
@@ -319,7 +319,7 @@ const OficiosPage = (props) => {
 
             // Salva o segundo PDF com todas as páginas
             pdf2.save("oficio_segundo_container.pdf");
-           
+
         } catch (error) {
             console.error("Erro ao gerar os PDFs:", error);
         }
@@ -392,13 +392,13 @@ const OficiosPage = (props) => {
 
             const imgData2 = canvas2.toDataURL("image/jpeg", 0.8);
             const imgHeight2 = (canvas2.height * pdfWidth) / canvas2.width;
-     
-            
+
+
 
             // Adiciona múltiplas páginas se necessário
             console.log(pageCount2);
 
-             // Aumenta a altura
+            // Aumenta a altura
             let pageIndex = 0;
             let currentHeight = 0; // Altura inicial para adicionar imagem
 
@@ -532,27 +532,27 @@ const OficiosPage = (props) => {
                 let yPosition = 0;
                 let remainingHeight = imgHeight2;
 
-                    for (var i = 0; i < pageCount2; i++) {
-                        if (yPosition > 0) {
-                            pdf2.addPage(); // Adiciona nova página depois da primeira
-                        }
-
-                        pdf2.addImage(
-                            imgData2,
-                            "JPEG",
-                            0,
-                            -yPosition, // Ajusta a posição Y para cada página
-                            pdfWidth,
-                            imgHeight2,
-                            undefined,
-                            "FAST"
-                        );
-
-                        yPosition += pdfHeight;
-                        remainingHeight -= pdfHeight;
+                for (var i = 0; i < pageCount2; i++) {
+                    if (yPosition > 0) {
+                        pdf2.addPage(); // Adiciona nova página depois da primeira
                     }
 
-                
+                    pdf2.addImage(
+                        imgData2,
+                        "JPEG",
+                        0,
+                        -yPosition, // Ajusta a posição Y para cada página
+                        pdfWidth,
+                        imgHeight2,
+                        undefined,
+                        "FAST"
+                    );
+
+                    yPosition += pdfHeight;
+                    remainingHeight -= pdfHeight;
+                }
+
+
 
                 const pdf2Blob = pdf2.output("blob");
                 const pdf2Base64 = await new Promise((resolve, reject) => {
@@ -568,44 +568,44 @@ const OficiosPage = (props) => {
             }
 
 
-                // Adicionar os dois PDFs gerados à lista de anexos
-                processedAnexos.push({
-                    name: "oficio_primeiro_container.pdf",
-                    content: pdf1Base64,
-                });
+            // Adicionar os dois PDFs gerados à lista de anexos
+            processedAnexos.push({
+                name: "oficio_primeiro_container.pdf",
+                content: pdf1Base64,
+            });
 
 
 
-                const formattedEmailTexto = emailTexto.replace(/\n/g, "<br />");
+            const formattedEmailTexto = emailTexto.replace(/\n/g, "<br />");
 
-                // Montar payload com os dados do modal
-                const payload = {
-                    emailDestinatario: emailTo,
-                    emailCC: emailCC,
-                    assunto: emailAssunto,
-                    texto: formattedEmailTexto,
-                    remetente: formData.remetente,
-                    anexos: processedAnexos,
-                };
-                // Enviar para o backend
+            // Montar payload com os dados do modal
+            const payload = {
+                emailDestinatario: emailTo,
+                emailCC: emailCC,
+                assunto: emailAssunto,
+                texto: formattedEmailTexto,
+                remetente: formData.remetente,
+                anexos: processedAnexos,
+            };
+            // Enviar para o backend
             const response = await fetch("https://webapiprimavera.advir.pt/sendmailoficios", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(payload),
-                });
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
 
-                if (response.ok) {
-                    console.log("E-mail enviado com sucesso!");
-                } else {
-                    const errorData = await response.json();
-                    console.error("Erro ao enviar email:", errorData);
-                }
-            
+            if (response.ok) {
+                console.log("E-mail enviado com sucesso!");
+            } else {
+                const errorData = await response.json();
+                console.error("Erro ao enviar email:", errorData);
+            }
 
-        console.log("Chamando handleSave com o estado 'Imprimir'");
-        handleSave("Enviado Por Email");
+
+            console.log("Chamando handleSave com o estado 'Imprimir'");
+            handleSave("Enviado Por Email");
         } catch (error) {
             console.error("Erro ao gerar ou enviar o PDF com anexos:", error);
             handleSave("Erro no envio");
@@ -615,7 +615,7 @@ const OficiosPage = (props) => {
     };
 
 
-    
+
     // ======================================
     // 10) Adicionar anexos
     // ======================================
@@ -647,52 +647,52 @@ const OficiosPage = (props) => {
     // ======================================
 
     useEffect(() => {
-        
+
     }, [estadodoc]);
 
     const handleSave = async (estado) => {
         console.log("teste" + estado);
-    const token = localStorage.getItem("painelAdminToken");
-    const urlempresa = localStorage.getItem("urlempresa");
-    const usernome = localStorage.getItem("userNome");
-    const useremail = localStorage.getItem("userEmail");
- 
-    var nomeDonoObra = "";
-    var moradaDonoObra = "";
-    var localidadeDonoObra = "";
-    var codPostalDonoObra = "";
-    var codPostalLocalDonoObra = "";
-    var obraSlecionadaSave = "";
+        const token = localStorage.getItem("painelAdminToken");
+        const urlempresa = localStorage.getItem("urlempresa");
+        const usernome = localStorage.getItem("userNome");
+        const useremail = localStorage.getItem("userEmail");
 
-    const nomesAnexos = anexos.map(anexo => anexo.name).join(", ");
-    if (inputValue === "Não tem obra") {
- 
-        console.log(donoObra.Nome);
-        nomeDonoObra = donoObra.Nome || "";
-        moradaDonoObra = morada || "";
-        localidadeDonoObra = localidade || "";
-        codPostalDonoObra = codigoPostal || "";
-        codPostalLocalDonoObra = localCopPostal || "";
-        console.log(formData?.codigo);
-        obraSlecionadaSave = inputValue || "";
- 
- 
-    }else {
-        nomeDonoObra = donoObra.Nome;
- 
-        moradaDonoObra = donoObra.Morada;
-        localidadeDonoObra = donoObra.Localidade;
-        codPostalDonoObra = donoObra.CodPostal;
-        codPostalLocalDonoObra = donoObra.CodPostalLocal;
-        obraSlecionadaSave = selectedObra?.Codigo || "";
- 
-    }
- 
-    
-    if (currentTemplate === 1) {
-        var templateestado = "2"
-    } else if (currentTemplate === 2) {
-        var templateestado = "1"
+        var nomeDonoObra = "";
+        var moradaDonoObra = "";
+        var localidadeDonoObra = "";
+        var codPostalDonoObra = "";
+        var codPostalLocalDonoObra = "";
+        var obraSlecionadaSave = "";
+
+        const nomesAnexos = anexos.map(anexo => anexo.name).join(", ");
+        if (inputValue === "Não tem obra") {
+
+            console.log(donoObra.Nome);
+            nomeDonoObra = donoObra.Nome || "";
+            moradaDonoObra = morada || "";
+            localidadeDonoObra = localidade || "";
+            codPostalDonoObra = codigoPostal || "";
+            codPostalLocalDonoObra = localCopPostal || "";
+            console.log(formData?.codigo);
+            obraSlecionadaSave = inputValue || "";
+
+
+        } else {
+            nomeDonoObra = donoObra.Nome;
+
+            moradaDonoObra = donoObra.Morada;
+            localidadeDonoObra = donoObra.Localidade;
+            codPostalDonoObra = donoObra.CodPostal;
+            codPostalLocalDonoObra = donoObra.CodPostalLocal;
+            obraSlecionadaSave = selectedObra?.Codigo || "";
+
+        }
+
+
+        if (currentTemplate === 1) {
+            var templateestado = "2"
+        } else if (currentTemplate === 2) {
+            var templateestado = "1"
         }
 
         // Função para dividir texto em partes de 4000 caracteres
@@ -706,54 +706,54 @@ const OficiosPage = (props) => {
         const part2Chunks = splitText(textParts.part2 || "");
         // Vamos inserir assuntoDoc e textoDoc dentro de formData, para enviar e gravar no backend
 
-    const payloadDoc = {
-        ...formData,
-        codigo: formData?.codigo || "",
-        assunto: assuntoDoc,
-        texto1: textParts.part1 || "",
-        texto2: part2Chunks[0] || "",  // Adiciona a primeira parte
-        texto3: part2Chunks[1] || "",  
-        obra: obraSlecionadaSave || "",
-        remetente: usernome,
-        createdby: usernome,
-        email: useremail,
-        template: templateestado,
-        donoObra: nomeDonoObra,
-        Morada: moradaDonoObra,
-        Localidade: localidadeDonoObra,
-        CodPostal: codPostalDonoObra,
-        CodPostalLocal: codPostalLocalDonoObra,
-        anexos: anexostext || "",
-        texto4: part2Chunks[2],
-        texto5: part2Chunks[3],
-        estado: estado,
-        
-    };
- 
-    try {
-        const response = await fetch("https://webapiprimavera.advir.pt/oficio/Criar", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${token}`,
-                "urlempresa": urlempresa,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payloadDoc),
-        });
- 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Erro https: ${response.status} - ${errorData.error}`);
+        const payloadDoc = {
+            ...formData,
+            codigo: formData?.codigo || "",
+            assunto: assuntoDoc,
+            texto1: textParts.part1 || "",
+            texto2: part2Chunks[0] || "",  // Adiciona a primeira parte
+            texto3: part2Chunks[1] || "",
+            obra: obraSlecionadaSave || "",
+            remetente: usernome,
+            createdby: usernome,
+            email: useremail,
+            template: templateestado,
+            donoObra: nomeDonoObra,
+            Morada: moradaDonoObra,
+            Localidade: localidadeDonoObra,
+            CodPostal: codPostalDonoObra,
+            CodPostalLocal: codPostalLocalDonoObra,
+            anexos: anexostext || "",
+            texto4: part2Chunks[2],
+            texto5: part2Chunks[3],
+            estado: estado,
+
+        };
+
+        try {
+            const response = await fetch("https://webapiprimavera.advir.pt/oficio/Criar", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "urlempresa": urlempresa,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payloadDoc),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Erro https: ${response.status} - ${errorData.error}`);
+            }
+
+            const data = await response.json();
+            // Depois de criar o ofício, podemos também salvar o PDF e anexos
+
+            console.log("Resposta do servidor:", data);
+        } catch (error) {
+            console.error("Erro ao criar o ofício:", error);
         }
- 
-        const data = await response.json();
-        // Depois de criar o ofício, podemos também salvar o PDF e anexos
-  
-        console.log("Resposta do servidor:", data);
-    } catch (error) {
-        console.error("Erro ao criar o ofício:", error);
-    }
-};
+    };
 
     // ======================================
     // 13) Atualizar formData ao selecionar a Obra
@@ -867,7 +867,8 @@ const OficiosPage = (props) => {
 
             const novoConteudoCentral = String(parseInt(conteudoCentral, 10) + 1).padStart(3, '0');
 
-            const currentYear = new Date().getFullYear();
+            const currentYear = new Date().getFullYear().toString().slice(-2);
+
             const currentMonth = new Date().getMonth() + 1;
             const formattedMonth = currentMonth.toString().padStart(2, '0');
 
@@ -1033,7 +1034,7 @@ const OficiosPage = (props) => {
 </td>
 </tr>
 <tr>
-<td style="width: 28%; font-size: 6pt; font-family: 'TitilliumText22L', sans-serif; color: black; text-align: left; font-weight: bold;" contentEditable="false" id="editableCellCodigo">
+<td style="width: 28%; font-size: 6pt; font-family: 'TitilliumText22L', sans-serif; color: black; text-align: left; font-weight: bold;" contentEditable="true" id="editableCellCodigo">
   REF: ${formData?.codigo}<br>
   DATA: ${formData.data}<br>
   ANEXOS: </br>${anexostext || ""}<br><br><br><br><br>
@@ -1063,7 +1064,7 @@ const OficiosPage = (props) => {
 
 <td style="vertical-align: top;">
   <div
-    contentEditable="false"
+    contentEditable="true"
     id="editableCellAssunto"
     oninput="window.updateTexto(this.innerText)"
     style="width: 100%; min-height: 594px; max-height: 600px; max-width: 490px; overflow: auto;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
@@ -1164,7 +1165,7 @@ const OficiosPage = (props) => {
         const avgCharHeight = 20; // altura média de um caractere, ajustável
         return text.length * avgCharHeight;
     };
-    let pageCount = 0; 
+    let pageCount = 0;
     const createPage = (content) => {
         pageCount++;
         const isFirstPage = pageCount === 1;
@@ -1212,7 +1213,7 @@ const OficiosPage = (props) => {
         </tr>
 
         <tr>      
-        <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
+        <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="true" colspan="2">
         ${isFirstPage ? `
               EXMO(s) SR(s)${donoObra.Nome}<br>` : ""}
             
@@ -1387,7 +1388,7 @@ const OficiosPage = (props) => {
 </td>
 </tr>
 <tr>
-<td style="width: 28%; font-size: 6pt; font-family: 'TitilliumText22L', sans-serif; color: black; text-align: left; font-weight: bold;" contentEditable="false" id="editableCellCodigo">
+<td style="width: 28%; font-size: 6pt; font-family: 'TitilliumText22L', sans-serif; color: black; text-align: left; font-weight: bold;" contentEditable="true" id="editableCellCodigo">
   REF: ${formData?.codigo}<br>
   DATA: ${formData.data}<br>
   ANEXOS: </br>${anexostext || ""}<br><br><br><br><br>
@@ -1414,7 +1415,7 @@ const OficiosPage = (props) => {
 
 <td style="vertical-align: top;">
   <div
-    contentEditable="false"
+    contentEditable="true"
     id="editableCellAssunto"
     oninput="window.updateTexto(this.innerText)"
     style="width: 100%; min-height: 594px; max-height: 600px; max-width: 490px; overflow: auto;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
@@ -1568,7 +1569,7 @@ const OficiosPage = (props) => {
         <td colspan="2"></td>
         </tr>
         <tr>      
-                <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="false" colspan="2">
+                <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="true" colspan="2">
         ${isFirstPage ? `
               EXMO(s) SR(s)${donoObra.Nome}<br>` : ""}
             
@@ -1652,7 +1653,7 @@ const OficiosPage = (props) => {
     // 17) Ao mudar algo de doc, recarregamos template
     // ======================================
 
-    const docxContainerUpdated = useRef(false); 
+    const docxContainerUpdated = useRef(false);
     useEffect(() => {
         if (docxContainer.current) {
             const newContent = currentTemplate === 1 ? getTemplate1() : getTemplate2();
@@ -1724,7 +1725,7 @@ const OficiosPage = (props) => {
             )
         );
         setShowOptions2(true); // Sempre exibe as opções ao digitar
-       
+
     };
 
     useEffect(() => {
@@ -1827,7 +1828,7 @@ const OficiosPage = (props) => {
 
 
         try {
-            const method =  "PUT";
+            const method = "PUT";
 
             const response = await fetch("https://webapiprimavera.advir.pt/oficio/atualizar", {
                 method,
@@ -1853,47 +1854,113 @@ const OficiosPage = (props) => {
         }
     };
 
+    const [showExitModal, setShowExitModal] = useState(false);
+
+    // Lista básica de palavras em português para simulação de verificação ortográfica
+    const dicionarioSimples = [
+        "joaquim", "peixoto", "azevedo", "filhos", "sede", "longras", "vila", "verde", "qualidade",
+        "construtora", "ofício", "texto", "assunto", "anexo", "documento", "empresa", "obra",
+        "email", "enviar", "guardar", "imprimir", "editar", "template", "modelo", "destinatário",
+        "remetente", "morada", "localidade", "código", "postal", "data", "referência"
+    ];
+
+    // Função básica para verificação ortográfica
+    const checkSpelling = (texto) => {
+        // Divide o texto em palavras
+        const palavras = texto.toLowerCase().match(/[a-záàâãéèêíïóôõöúçñ]+/g) || [];
+        const erros = [];
+
+        // Verifica cada palavra
+        palavras.forEach(palavra => {
+            // Remove pontuação e converte para minúsculas
+            const palavraLimpa = palavra.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").toLowerCase();
+
+            // Verifica se a palavra está no dicionário
+            if (palavraLimpa.length > 3 && !dicionarioSimples.includes(palavraLimpa)) {
+                if (!erros.includes(palavraLimpa)) {
+                    erros.push(palavraLimpa);
+                }
+            }
+        });
+
+        return erros;
+    };
+
     const goBackToOficiosList = () => {
-        navigation.navigate('OficiosList'); // Navigate to OficiosList screen
+        // Verificar se há alterações para confirmar saída
+        const hasChanges = assuntoDoc || textParts.part1 || textParts.part2 || anexos.length > 0;
+
+        if (hasChanges) {
+            setShowExitModal(true);
+        } else {
+            // Se não houver alterações, voltar diretamente
+            navigation.navigate('OficiosList');
+        }
+    };
+
+    const confirmExit = () => {
+        // Limpar todos os dados do formulário
+        setDonoObra("");
+        setAssuntoDoc("");
+        setTextoDoc("");
+        setTextParts({ part1: "JOAQUIM PEIXOTO AZEVEDO, & FILHOS, LDA, com sede na Rua de Longras, n.º 44, 4730 360 Vila Verde, na qualidade de", part2: "" });
+        setAnexos([]);
+        setAnexostext("");
+        setInputValue("");
+        setInputValue2("");
+        setSelectedObra(null);
+        setSelectedObra2(null);
+        setMorada("");
+        setLocalidade("");
+        setCodigoPostal("");
+        setLocalCopPostal("");
+
+        // Fechar o modal e navegar para a lista de ofícios
+        setShowExitModal(false);
+        navigation.navigate('OficiosList');
     };
     return (
         <div style={styles.pageContainer}>
             <header style={styles.header}>
                 <div style={styles.controlsAlignedLeft}>
-                    <TouchableOpacity
-                                        onPress={goBackToOficiosList}
-                                        style={{
-                                            position: 'absolute', // Posiciona o botão fora do fluxo normal
-                                            top: 10, // Define a distância do topo
-                                            left: 10, // Define a distância da esquerda
-                                            flexDirection: 'row',
-                                            alignItems: 'center',
-                                            padding: 10,
-                                            borderRadius: 30,
-                                            borderColor: '#1792FE',
-                                            borderWidth: 1,
-                                            zIndex: 1000, // Garante que o botão fique acima de outros elementos
-                                        }}
-                                    >
-                                        <FontAwesomeIcon
-                                            icon={faArrowLeft}
-                                            style={{ color: '#1792FE', marginRight: 5 }}
-                                        />
-                                        <Text style={{ color: '#1792FE' }}>Voltar</Text>
-                                    </TouchableOpacity>
+                    <button
+                        onClick={goBackToOficiosList}
+                        style={{
+                            position: 'absolute', // Posiciona o botão fora do fluxo normal
+                            top: 10, // Define a distância do topo
+                            left: 10, // Define a distância da esquerda
+                            display: 'flex',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            padding: 10,
+                            borderRadius: 30,
+                            borderColor: '#1792FE',
+                            borderWidth: 1,
+                            borderStyle: 'solid',
+                            backgroundColor: 'transparent',
+                            cursor: 'pointer',
+                            zIndex: 1000, // Garante que o botão fique acima de outros elementos
+                        }}
+                    >
+                        <FontAwesomeIcon
+                            icon={faArrowLeft}
+                            style={{ color: '#1792FE', marginRight: 5 }}
+                        />
+                        <span style={{ color: '#1792FE' }}>Voltar</span>
+                    </button>
 
                     {/* Botão Mudar Template só aparece na pré-visualização */}
                     {isPreviewVisible && (
                         <>
-                        
-                        
+
+
                             <button
                                 onClick={() => {
                                     setIsPreviewVisible(!isPreviewVisible); // Alterna entre pré-visualização e edição
                                     if (!isPreviewVisible) {
-                                        
+
                                         changeTemplate(); // Garante que o template é inicializado ao ativar a pré-visualização
-                                        
+
                                     }
                                 }}
                                 style={styles.button}
@@ -1906,13 +1973,13 @@ const OficiosPage = (props) => {
                             >
                                 Alterar Template
                             </button>
-                           
+
                             <button
                                 onClick={() => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
-                                        handleSavePDF(); 
-                                    
+                                        handleSavePDF();
+
                                     } else {
                                         handleSavePDF();
                                         handleSaveOrUpdate();
@@ -1942,7 +2009,7 @@ const OficiosPage = (props) => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
                                         handleSavePDFAndSendToBackend();
-                                   
+
                                     } else {
                                         handleSaveOrUpdate();
                                         handleSavePDFAndSendToBackend();
@@ -1964,21 +2031,302 @@ const OficiosPage = (props) => {
             {/* Renderiza os inputs ou a pré-visualização */}
             {isPreviewVisible ? (
                 <>
-                    {/* Área de visualização do DOCUMENTO (template) */}
-                    <div ref={docxContainer} style={styles.docxContainer}></div>
+                    {/* Barra de ferramentas de edição do tipo Word */}
+                    <div style={styles.editorToolbar}>
+                        <div style={styles.toolbarGroup}>
+                            <select
+                                onChange={(e) => {
+                                    document.execCommand('fontName', false, e.target.value);
+                                }}
+                                style={styles.toolbarSelect}
+                            >
+                                <option value="">Fonte</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Calibri">Calibri</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Tahoma">Tahoma</option>
+                            </select>
+
+                            <select
+                                onChange={(e) => {
+                                    document.execCommand('fontSize', false, e.target.value);
+                                }}
+                                style={styles.toolbarSelect}
+                            >
+                                <option value="">Tamanho</option>
+                                <option value="1">10pt</option>
+                                <option value="2">12pt</option>
+                                <option value="3">14pt</option>
+                                <option value="4">16pt</option>
+                                <option value="5">18pt</option>
+                                <option value="6">24pt</option>
+                                <option value="7">36pt</option>
+                            </select>
+                        </div>
+
+                        <div style={styles.toolbarGroup}>
+                            <button
+                                onClick={() => document.execCommand('bold', false, null)}
+                                style={styles.toolbarButton}
+                            >
+                                <b>N</b>
+                            </button>
+                            <button
+                                onClick={() => document.execCommand('italic', false, null)}
+                                style={styles.toolbarButton}
+                            >
+                                <i>I</i>
+                            </button>
+                            <button
+                                onClick={() => document.execCommand('underline', false, null)}
+                                style={styles.toolbarButton}
+                            >
+                                <u>S</u>
+                            </button>
+                        </div>
+
+                        <div style={styles.toolbarGroup}>
+                            <button
+                                onClick={() => document.execCommand('justifyLeft', false, null)}
+                                style={styles.toolbarButton}
+                            >
+                                ⫷
+                            </button>
+                            <button
+                                onClick={() => document.execCommand('justifyCenter', false, null)}
+                                style={styles.toolbarButton}
+                            >
+                                ≡
+                            </button>
+                            <button
+                                onClick={() => document.execCommand('justifyRight', false, null)}
+                                style={styles.toolbarButton}
+                            >
+                                ⫸
+                            </button>
+                        </div>
+
+                        <div style={styles.toolbarGroup}>
+                            <input
+                                type="color"
+                                onChange={(e) => document.execCommand('foreColor', false, e.target.value)}
+                                style={styles.colorPicker}
+                            />
+
+                            <button
+                                onClick={() => {
+                                    const selection = window.getSelection();
+                                    if (selection.toString().length > 0) {
+                                        const text = selection.toString();
+                                        // Simulação simples de verificação ortográfica
+                                        const possibleErrors = checkSpelling(text);
+                                        if (possibleErrors.length > 0) {
+                                            alert(`Possíveis erros ortográficos: ${possibleErrors.join(", ")}`);
+                                        } else {
+                                            alert("Nenhum erro ortográfico encontrado.");
+                                        }
+                                    } else {
+                                        alert("Selecione um texto para verificar a ortografia.");
+                                    }
+                                }}
+                                style={{ ...styles.toolbarButton, backgroundColor: '#28a745' }}
+                            >
+                                ABC✓
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Área de visualização do DOCUMENTO (template) com conteúdo editável */}
+                    <div
+                        ref={docxContainer}
+                        style={styles.docxContainer}
+                        contentEditable={true}
+                        onInput={(e) => {
+                            // Captura as alterações quando o usuário edita o documento
+                            const newContent = e.currentTarget.innerHTML;
+                            // Você pode salvar o conteúdo atualizado em um estado se quiser
+                        }}
+                    ></div>
                     {textParts.part2 && (
-                        <div ref={docxContainer2} ></div>
+                        <div
+                            ref={docxContainer2}
+                            contentEditable={true}
+                            onInput={(e) => {
+                                // Captura as alterações quando o usuário edita o documento
+                                const newContent = e.currentTarget.innerHTML;
+                                // Você pode salvar o conteúdo atualizado em um estado se quiser
+                            }}
+                        ></div>
                     )}
                 </>
             ) : (
                 <div style={{ width: "60%", margin: "0 auto", padding: "20px", backgroundColor: "#ffffff", borderRadius: "12px", boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)" }}>
-                {/* Campo para selecionar obra */}
-                <div style={{ position: "relative", width: "100%", marginBottom: "20px" }} ref={comboBoxRef}>
+                    {/* Campo para selecionar obra */}
+                    <div style={{ position: "relative", width: "100%", marginBottom: "20px" }} ref={comboBoxRef}>
+                        <input
+                            type="text"
+                            value={inputValue}
+                            onChange={handleInputChange}
+                            placeholder="Selecione ou escreva a obra"
+                            style={{
+                                width: "100%",
+                                padding: "12px",
+                                margin: "10px 0",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                fontSize: "16px",
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            }}
+                            onFocus={() => setShowOptions(true)}
+                        />
+                        {showOptions && (
+                            <ul
+                                style={{
+                                    position: "absolute",
+                                    top: "100%",
+                                    left: 0,
+                                    right: 0,
+                                    margin: 0,
+                                    padding: "10px",
+                                    listStyle: "none",
+                                    border: "1px solid #ddd",
+                                    borderRadius: "8px",
+                                    background: "white",
+                                    maxHeight: "150px",
+                                    overflowY: "auto",
+                                    zIndex: 10,
+                                    boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                }}
+                            >
+                                <li
+                                    onClick={() => {
+                                        setSelectedObra(null);
+                                        setInputValue("Não tem obra");
+                                        setShowOptions(false);
+                                        setDonoObra("");
+                                    }}
+                                    style={{
+                                        padding: "10px",
+                                        cursor: "pointer",
+                                        color: "#333",
+                                        background: "#f9f9f9",
+                                        borderRadius: "6px",
+                                    }}
+                                >
+                                    Não tem obra
+                                </li>
+                                {filteredObras.map((obra, index) => (
+                                    <li
+                                        key={index}
+                                        onClick={() => {
+                                            handleOptionClick(obra);
+                                            setDonoObra(obra.Codigo);
+                                            setInputValue(`${obra.Codigo} - ${obra.Descricao}`);
+                                            setShowOptions(false);
+                                        }}
+                                        style={{
+                                            padding: "10px",
+                                            cursor: "pointer",
+                                            color: "#333",
+                                            background:
+                                                selectedObra?.Codigo === obra.Codigo ? "#e6f7ff" : "white",
+                                            borderRadius: "6px",
+                                            marginBottom: "5px",
+                                        }}
+                                    >
+                                        {obra?.Codigo || ""} - {obra?.Descricao || ""}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+
+                    <div
+                        style={{ position: "relative", width: "100%", marginBottom: "20px" }}
+                        ref={comboBoxRef2}
+                        onClick={handleComboBoxClick} // Chama a função ao clicar
+                    >
+                        <input
+                            type="text"
+                            value={inputValue2}
+                            onChange={(e) => {
+                                setInputValue2(e.target.value);
+                                // Aplica o filtro diretamente ao digitar, para que a lista seja filtrada conforme o input
+                                const filtered = filterObras(e.target.value, obras2);
+                                setFilteredObras2(filtered);
+                            }}
+                            placeholder="Selecione outra Entidade"
+                            style={{
+                                width: "100%",
+                                padding: "12px",
+                                margin: "10px 0",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                fontSize: "16px",
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            }}
+                            onFocus={handleFocus}  // Garante que as opções sejam carregadas quando o campo é focado
+                        />
+
+                        {showOptions2 && (
+                            <ul
+                                style={{
+                                    position: "absolute",
+                                    top: "100%",
+                                    left: 0,
+                                    right: 0,
+                                    margin: 0,
+                                    padding: "10px",
+                                    listStyle: "none",
+                                    border: "1px solid #ddd",
+                                    borderRadius: "8px",
+                                    background: "white",
+                                    maxHeight: "150px",
+                                    overflowY: "auto",
+                                    zIndex: 10,
+                                    boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                }}
+                            >
+                                {filteredObras2.length === 0 ? (
+                                    <li style={{ padding: "10px", color: "#999" }}>Escreva aqui para escolher a entidade pretendida</li>
+                                ) : (
+                                    filteredObras2.map((obra, index) => (
+                                        <li
+                                            key={index}
+                                            onClick={() => handleOptionClick2(obra)}
+                                            style={{
+                                                padding: "10px",
+                                                cursor: "pointer",
+                                                color: "#333",
+                                                background: selectedObra2?.Codigo === obra.Codigo ? "#e6f7ff" : "white",
+                                                borderRadius: "6px",
+                                                marginBottom: "5px",
+                                            }}
+                                        >
+                                            {obra?.Codigo || ""} - {obra?.Nome || ""}
+                                        </li>
+                                    ))
+                                )}
+                            </ul>
+
+
+                        )}
+                    </div>
+
+
+
+                    {/* Campo de destinatário */}
                     <input
                         type="text"
-                        value={inputValue}
-                        onChange={handleInputChange}
-                        placeholder="Selecione ou escreva a obra"
+                        placeholder="Destinatário"
+                        value={donoObra?.Nome || ""}
+                        onChange={(e) =>
+                            setDonoObra((prev) => ({
+                                ...prev,
+                                Nome: e.target.value,
+                            }))
+                        }
                         style={{
                             width: "100%",
                             padding: "12px",
@@ -1988,465 +2336,327 @@ const OficiosPage = (props) => {
                             fontSize: "16px",
                             boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                         }}
-                        onFocus={() => setShowOptions(true)}
                     />
-                    {showOptions && (
-                        <ul
+
+                    {/* Exibe campos somente quando a opção "Não tem obra" está selecionada */}
+
+                    <>
+                        {/* Campo de morada */}
+                        <input
+                            type="text"
+                            placeholder="Morada"
+                            value={donoObra?.Morada || ""}
+                            onChange={(e) =>
+                                setDonoObra((prev) => ({
+                                    ...prev,
+                                    Morada: e.target.value,
+                                }))
+                            }
                             style={{
-                                position: "absolute",
-                                top: "100%",
-                                left: 0,
-                                right: 0,
-                                margin: 0,
-                                padding: "10px",
-                                listStyle: "none",
+                                width: "100%",
+                                padding: "12px",
+                                margin: "10px 0",
                                 border: "1px solid #ddd",
                                 borderRadius: "8px",
-                                background: "white",
-                                maxHeight: "150px",
-                                overflowY: "auto",
-                                zIndex: 10,
+                                fontSize: "16px",
                                 boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                             }}
-                        >
-                            <li
-                                onClick={() => {
-                                    setSelectedObra(null);
-                                    setInputValue("Não tem obra");
-                                    setShowOptions(false);
-                                    setDonoObra("");
-                                }}
-                                style={{
-                                    padding: "10px",
-                                    cursor: "pointer",
-                                    color: "#333",
-                                    background: "#f9f9f9",
-                                    borderRadius: "6px",
-                                }}
-                            >
-                                Não tem obra
-                            </li>
-                            {filteredObras.map((obra, index) => (
-                                <li
-                                    key={index}
-                                    onClick={() => {
-                                        handleOptionClick(obra);
-                                        setDonoObra(obra.Codigo);
-                                        setInputValue(`${obra.Codigo} - ${obra.Descricao}`);
-                                        setShowOptions(false);
-                                    }}
-                                    style={{
-                                        padding: "10px",
-                                        cursor: "pointer",
-                                        color: "#333",
-                                        background:
-                                            selectedObra?.Codigo === obra.Codigo ? "#e6f7ff" : "white",
-                                        borderRadius: "6px",
-                                        marginBottom: "5px",
-                                    }}
-                                >
-                                    {obra?.Codigo || ""} - {obra?.Descricao || ""}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                        </div>
+                        />
 
-                        <div
-                            style={{ position: "relative", width: "100%", marginBottom: "20px" }}
-                            ref={comboBoxRef2}
-                            onClick={handleComboBoxClick} // Chama a função ao clicar
-                        >
+                        {/* Campo de localidade */}
+                        <input
+                            type="text"
+                            placeholder="Localidade"
+                            value={donoObra?.Localidade || ""}
+                            onChange={(e) =>
+                                setDonoObra((prev) => ({
+                                    ...prev,
+                                    Localidade: e.target.value,
+                                }))
+                            }
+                            style={{
+                                width: "100%",
+                                padding: "12px",
+                                margin: "10px 0",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                fontSize: "16px",
+                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            }}
+                        />
+                        {/* Campo de código postal e local coppostal lado a lado */}
+                        <div style={{ display: "flex", gap: "10px", margin: "10px 0" }}>
                             <input
                                 type="text"
-                                value={inputValue2}
-                                onChange={(e) => {
-                                    setInputValue2(e.target.value);
-                                    // Aplica o filtro diretamente ao digitar, para que a lista seja filtrada conforme o input
-                                    const filtered = filterObras(e.target.value, obras2);
-                                    setFilteredObras2(filtered);
-                                }}
-                                placeholder="Selecione outra Entidade"
+                                placeholder="Código Postal"
+                                value={donoObra?.CodPostal || ""}
+                                onChange={(e) =>
+                                    setDonoObra((prev) => ({
+                                        ...prev,
+                                        CodPostal: e.target.value,
+                                    }))
+                                }
                                 style={{
-                                    width: "100%",
+                                    flex: 1,
                                     padding: "12px",
-                                    margin: "10px 0",
                                     border: "1px solid #ddd",
                                     borderRadius: "8px",
                                     fontSize: "16px",
                                     boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                                 }}
-                                onFocus={handleFocus}  // Garante que as opções sejam carregadas quando o campo é focado
                             />
-
-                            {showOptions2 && (
-                                <ul
-                                    style={{
-                                        position: "absolute",
-                                        top: "100%",
-                                        left: 0,
-                                        right: 0,
-                                        margin: 0,
-                                        padding: "10px",
-                                        listStyle: "none",
-                                        border: "1px solid #ddd",
-                                        borderRadius: "8px",
-                                        background: "white",
-                                        maxHeight: "150px",
-                                        overflowY: "auto",
-                                        zIndex: 10,
-                                        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                                    }}
-                                >
-                                    {filteredObras2.length === 0 ? (
-                                        <li style={{ padding: "10px", color: "#999" }}>Escreva aqui para escolher a entidade pretendida</li>
-                                    ) : (
-                                        filteredObras2.map((obra, index) => (
-                                            <li
-                                                key={index}
-                                                onClick={() => handleOptionClick2(obra)}
-                                                style={{
-                                                    padding: "10px",
-                                                    cursor: "pointer",
-                                                    color: "#333",
-                                                    background: selectedObra2?.Codigo === obra.Codigo ? "#e6f7ff" : "white",
-                                                    borderRadius: "6px",
-                                                    marginBottom: "5px",
-                                                }}
-                                            >
-                                                {obra?.Codigo || ""} - {obra?.Nome || ""}
-                                            </li>
-                                        ))
-                                    )}
-                                </ul>
-                           
-                       
-                    )}
-                </div>
-
-
-
-                {/* Campo de destinatário */}
-                <input
-                    type="text"
-                    placeholder="Destinatário"
-                    value={donoObra?.Nome || ""}
-                    onChange={(e) =>
-                        setDonoObra((prev) => ({
-                            ...prev,
-                            Nome: e.target.value,
-                        }))
-                    }
-                    style={{
-                        width: "100%",
-                        padding: "12px",
-                        margin: "10px 0",
-                        border: "1px solid #ddd",
-                        borderRadius: "8px",
-                        fontSize: "16px",
-                        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                    }}
-                />
-
-                {/* Exibe campos somente quando a opção "Não tem obra" está selecionada */}
-
-<>
-          {/* Campo de morada */}
-<input
-              type="text"
-              placeholder="Morada"
-            value={donoObra?.Morada || ""}
-            onChange={(e) =>
-                setDonoObra((prev) => ({
-                    ...prev,
-                    Morada: e.target.value,
-                }))
-            }
-              style={{
-                  width: "100%",
-                  padding: "12px",
-                  margin: "10px 0",
-                  border: "1px solid #ddd",
-                  borderRadius: "8px",
-                  fontSize: "16px",
-                  boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-              }}
-          />
- 
-          {/* Campo de localidade */}
-<input
-              type="text"
-            placeholder="Localidade"
-            value={donoObra?.Localidade || ""}
-            onChange={(e) =>
-                setDonoObra((prev) => ({
-                    ...prev,
-                    Localidade: e.target.value,
-                }))
-            }
-              style={{
-                  width: "100%",
-                  padding: "12px",
-                  margin: "10px 0",
-                  border: "1px solid #ddd",
-                  borderRadius: "8px",
-                  fontSize: "16px",
-                  boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-              }}
-          />
-          {/* Campo de código postal e local coppostal lado a lado */}
-            <div style={{ display: "flex", gap: "10px", margin: "10px 0" }}>
-            <input
-                            type="text"
-                            placeholder="Código Postal"
-                                    value={donoObra?.CodPostal ||""}
-                                    onChange={(e) =>
-                                        setDonoObra((prev) => ({
-                                            ...prev,
-                                            CodPostal: e.target.value,
-                                        }))
-                                    }
-                            style={{
-                                flex: 1,
-                                padding: "12px",
-                                border: "1px solid #ddd",
-                                borderRadius: "8px",
-                                fontSize: "16px",
-                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                            }}
-                        />
-            <input
-                            type="text"
-                            placeholder="Local CopPostal"
-                                    value={donoObra?.CodPostalLocal || ""}
-                                    onChange={(e) =>
-                                        setDonoObra((prev) => ({
-                                            ...prev,
-                                            CodPostalLocal: e.target.value,
-                                        }))
-                                    }
-                            style={{
-                                flex: 1,
-                                padding: "12px",
-                                border: "1px solid #ddd",
-                                borderRadius: "8px",
-                                fontSize: "16px",
-                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                            }}
-                        />
-            </div>
-            </>
-
-                        {/* Campo de assunto */}
-                        <input
-                            type="text"
-                            placeholder="Email"
-                            value={emailTo}
-                            onChange={(e) => setEmailTo(e.target.value)}
-                            style={{
-                                width: "100%",
-                                padding: "12px",
-                                margin: "10px 0",
-                                border: "1px solid #ddd",
-                                borderRadius: "8px",
-                                fontSize: "16px",
-                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                            }}
-                        />
-            
-                {/* Campo de assunto */}
-                <input
-                    type="text"
-                    placeholder="Assunto do Oficio"
-                    value={assuntoDoc}
-                    onChange={(e) => setAssuntoDoc(e.target.value)}
-                    style={{
-                        width: "100%",
-                        padding: "12px",
-                        margin: "10px 0",
-                        border: "1px solid #ddd",
-                        borderRadius: "8px",
-                        fontSize: "16px",
-                        boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                    }}
-                />
-                        {/* Campo de assunto2 */}
-                        <div style={{ fontSize: "14px", marginTop: "5px", color: "#555" }}>
-                            {textParts.part1.length} / 1120 caracteres | {textParts.part1.split("\n").length} / 19 linhas
-                        </div>
-                        <textarea
-                            placeholder="Texto do Ofício"
-                            value={textParts.part1}
-                            onChange={(e) => {
-                                const newValue = e.target.value;
-                                const lineCount = (newValue.match(/\n/g) || []).length; // Conta linhas
-
-                                if (lineCount <= 19) {
-                                    setTextParts({ ...textParts, part1: newValue });
-                                }
-                            }}
-                            onKeyDown={(e) => {
-                                if (e.key === "Tab") {
-                                    e.preventDefault(); // Impede o foco para outro campo
-                                    const cursorPos = e.target.selectionStart;
-                                    const newValue =
-                                        textParts.part1.substring(0, cursorPos) + "    " + textParts.part1.substring(cursorPos);
-
-                                    setTextParts({ ...textParts, part1: newValue });
-
-                                    // Reposiciona o cursor após os espaços
-                                    setTimeout(() => {
-                                        e.target.selectionStart = e.target.selectionEnd = cursorPos + 4;
-                                    }, 0);
-                                }
-                            }}
-                            maxLength={1120}
-                            style={{
-                                width: "100%",
-                                padding: "12px",
-                                margin: "10px 0",
-                                border: "1px solid #ddd",
-                                borderRadius: "8px",
-                                fontSize: "16px",
-                                minHeight: "100px",
-                                overflowY: "auto",
-                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                                whiteSpace: "pre-wrap",
-                                wordWrap: "break-word",
-                            }}
-                        />
-
-
-                        
-                            {/* Campo de texto editável 1 - com limite de 1020 caracteres */}
-                        <div
-                            contentEditable="true"
-                            dir="ltr"
-                            onInput={handleInputPart1}
-                            style={{
-                                whiteSpace: "pre-wrap",
-                                wordWrap: "break-word",
-                                backgroundColor: "white",
-                                border: "1px solid #ddd",
-                                borderRadius: "8px",
-                                padding: "12px",
-                                minHeight: "200px",
-                                overflowY: "auto",
-                                fontSize: "16px",
-                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                                textAlign: "left",
-                                display: "none",   // Torna o conteúdo invisível, mas o espaço permanece
-                            }}
-                            dangerouslySetInnerHTML={{ __html: textParts.part1 }}
-                        ></div>
-
-                        {/* Campo de assunto2 */}
-                        {/* Campo de texto editável 2 - com limite de 1600 caracteres */}
-                        <textarea
-                            placeholder="Texto do Ofício"
-                            value={textParts.part2}
-                            onChange={(e) => {
-                                const newValue = e.target.value;
-                                const lineCount = (newValue.match(/\n/g) || []).length; // Conta linhas
-
-                                if (lineCount <= 19) {
-                                    setTextParts({ ...textParts, part2: newValue });
-                                }
-                            }}
-                            onKeyDown={(e) => {
-                                if (e.key === "Tab") {
-                                    e.preventDefault(); // Impede o foco para outro campo
-                                    const cursorPos = e.target.selectionStart; // Posição atual do cursor
-
-                                    // Adiciona quatro espaços no ponto do cursor
-                                    const newValue =
-                                        textParts.part2.substring(0, cursorPos) + "    " + textParts.part2.substring(cursorPos);
-
-                                    setTextParts({ ...textParts, part2: newValue }); // Atualiza o estado com os novos dados
-
-                                    // Reposiciona o cursor após os espaços
-                                    setTimeout(() => {
-                                        e.target.selectionStart = e.target.selectionEnd = cursorPos + 4; // Nova posição após os 4 espaços
-                                    }, 0);
-                                }
-                            }}
-                            style={{
-                                width: "100%",
-                                padding: "12px",
-                                margin: "10px 0",
-                                border: "1px solid #ddd",
-                                borderRadius: "8px",
-                                fontSize: "16px",
-                                minHeight: "100px",
-                                overflowY: "auto",
-                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
-                                whiteSpace: "pre-wrap",
-                                wordWrap: "break-word",
-                            }}
-                        />
-
-
-
-
-                        <label style={styles.fileInputLabel}>
-                            <FaPaperclip /> Anexos
                             <input
-                                type="file"
-                                multiple
-                                onChange={(e) => {
-                                    const files = Array.from(e.target.files);
-                                    const fileNames = files.map(file => file.name).join("</br> ");
-                                    setAnexostext(prevText => prevText ? `${prevText}, ${fileNames}` : fileNames);
+                                type="text"
+                                placeholder="Local CopPostal"
+                                value={donoObra?.CodPostalLocal || ""}
+                                onChange={(e) =>
+                                    setDonoObra((prev) => ({
+                                        ...prev,
+                                        CodPostalLocal: e.target.value,
+                                    }))
+                                }
+                                style={{
+                                    flex: 1,
+                                    padding: "12px",
+                                    border: "1px solid #ddd",
+                                    borderRadius: "8px",
+                                    fontSize: "16px",
+                                    boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                                 }}
-                                style={styles.fileInput}
                             />
-                        </label>
+                        </div>
+                    </>
 
-                        {/* Exibindo o texto com a quebra de linha corretamente renderizada */}
-                        <div
-                            style={{
-                                whiteSpace: 'pre-wrap',  // Faz com quebras de linha apareçam corretamente no texto
-                                wordWrap: 'break-word',
-                                padding: "12px",
-                                margin: "10px 0",
-                                border: "1px solid #ddd",
-                                borderRadius: "8px",
-                                fontSize: "16px",
-                                boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                    {/* Campo de assunto */}
+                    <input
+                        type="text"
+                        placeholder="Email"
+                        value={emailTo}
+                        onChange={(e) => setEmailTo(e.target.value)}
+                        style={{
+                            width: "100%",
+                            padding: "12px",
+                            margin: "10px 0",
+                            border: "1px solid #ddd",
+                            borderRadius: "8px",
+                            fontSize: "16px",
+                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                        }}
+                    />
+
+                    {/* Campo de assunto */}
+                    <input
+                        type="text"
+                        placeholder="Assunto do Oficio"
+                        value={assuntoDoc}
+                        onChange={(e) => setAssuntoDoc(e.target.value)}
+                        style={{
+                            width: "100%",
+                            padding: "12px",
+                            margin: "10px 0",
+                            border: "1px solid #ddd",
+                            borderRadius: "8px",
+                            fontSize: "16px",
+                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                        }}
+                    />
+                    {/* Campo de assunto2 */}
+                    <div style={{ fontSize: "14px", marginTop: "5px", color: "#555" }}>
+                        {textParts.part1.length} / 1120 caracteres | {textParts.part1.split("\n").length} / 19 linhas
+                    </div>
+                    <textarea
+                        placeholder="Texto do Ofício"
+                        value={textParts.part1}
+                        onChange={(e) => {
+                            const newValue = e.target.value;
+                            const lineCount = (newValue.match(/\n/g) || []).length; // Conta linhas
+
+                            if (lineCount <= 19) {
+                                setTextParts({ ...textParts, part1: newValue });
+                            }
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === "Tab") {
+                                e.preventDefault(); // Impede o foco para outro campo
+                                const cursorPos = e.target.selectionStart;
+                                const newValue =
+                                    textParts.part1.substring(0, cursorPos) + "    " + textParts.part1.substring(cursorPos);
+
+                                setTextParts({ ...textParts, part1: newValue });
+
+                                // Reposiciona o cursor após os espaços
+                                setTimeout(() => {
+                                    e.target.selectionStart = e.target.selectionEnd = cursorPos + 4;
+                                }, 0);
+                            }
+                        }}
+                        maxLength={1120}
+                        style={{
+                            width: "100%",
+                            padding: "12px",
+                            margin: "10px 0",
+                            border: "1px solid #ddd",
+                            borderRadius: "8px",
+                            fontSize: "16px",
+                            minHeight: "100px",
+                            overflowY: "auto",
+                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            whiteSpace: "pre-wrap",
+                            wordWrap: "break-word",
+                        }}
+                    />
+
+
+
+                    {/* Campo de texto editável 1 - com limite de 1020 caracteres */}
+                    <div
+                        contentEditable="true"
+                        dir="ltr"
+                        onInput={handleInputPart1}
+                        style={{
+                            whiteSpace: "pre-wrap",
+                            wordWrap: "break-word",
+                            backgroundColor: "white",
+                            border: "1px solid #ddd",
+                            borderRadius: "8px",
+                            padding: "12px",
+                            minHeight: "200px",
+                            overflowY: "auto",
+                            fontSize: "16px",
+                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            textAlign: "left",
+                            display: "none",   // Torna o conteúdo invisível, mas o espaço permanece
+                        }}
+                        dangerouslySetInnerHTML={{ __html: textParts.part1 }}
+                    ></div>
+
+                    {/* Campo de assunto2 */}
+                    {/* Campo de texto editável 2 - com limite de 1600 caracteres */}
+                    <textarea
+                        placeholder="Texto do Ofício"
+                        value={textParts.part2}
+                        onChange={(e) => {
+                            const newValue = e.target.value;
+                            const lineCount = (newValue.match(/\n/g) || []).length; // Conta linhas
+
+                            if (lineCount <= 19) {
+                                setTextParts({ ...textParts, part2: newValue });
+                            }
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === "Tab") {
+                                e.preventDefault(); // Impede o foco para outro campo
+                                const cursorPos = e.target.selectionStart; // Posição atual do cursor
+
+                                // Adiciona quatro espaços no ponto do cursor
+                                const newValue =
+                                    textParts.part2.substring(0, cursorPos) + "    " + textParts.part2.substring(cursorPos);
+
+                                setTextParts({ ...textParts, part2: newValue }); // Atualiza o estado com os novos dados
+
+                                // Reposiciona o cursor após os espaços
+                                setTimeout(() => {
+                                    e.target.selectionStart = e.target.selectionEnd = cursorPos + 4; // Nova posição após os 4 espaços
+                                }, 0);
+                            }
+                        }}
+                        style={{
+                            width: "100%",
+                            padding: "12px",
+                            margin: "10px 0",
+                            border: "1px solid #ddd",
+                            borderRadius: "8px",
+                            fontSize: "16px",
+                            minHeight: "100px",
+                            overflowY: "auto",
+                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                            whiteSpace: "pre-wrap",
+                            wordWrap: "break-word",
+                        }}
+                    />
+
+
+
+
+                    <label style={styles.fileInputLabel}>
+                        <FaPaperclip /> Anexos
+                        <input
+                            type="file"
+                            multiple
+                            onChange={(e) => {
+                                const files = Array.from(e.target.files);
+                                const fileNames = files.map(file => file.name).join("</br> ");
+                                setAnexostext(prevText => prevText ? `${prevText}, ${fileNames}` : fileNames);
                             }}
-                            dangerouslySetInnerHTML={{ __html: anexostext }} // Exibe o texto com <br />
+                            style={styles.fileInput}
                         />
-            
-                {/* Botão de alternar entre pré-visualização e edição */}
-                <button
-                    onClick={() => {
-                        setIsPreviewVisible(!isPreviewVisible);
-                        if (!isPreviewVisible) {
-                            changeTemplate();
-                        }
-                    }}
-                    style={{
-                        width: "100%",
-                        padding: "12px",
-                        marginTop: "20px",
-                        backgroundColor: "#1792FE",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "8px",
-                        fontSize: "16px",
-                        cursor: "pointer",
-                        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-                    }}
-                >
-                    {isPreviewVisible ? "Editar" : "Pré-visualizar"}
-                </button>
-            </div>
+                    </label>
+
+                    {/* Exibindo o texto com a quebra de linha corretamente renderizada */}
+                    <div
+                        style={{
+                            whiteSpace: 'pre-wrap',  // Faz com quebras de linha apareçam corretamente no texto
+                            wordWrap: 'break-word',
+                            padding: "12px",
+                            margin: "10px 0",
+                            border: "1px solid #ddd",
+                            borderRadius: "8px",
+                            fontSize: "16px",
+                            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                        }}
+                        dangerouslySetInnerHTML={{ __html: anexostext }} // Exibe o texto com <br />
+                    />
+
+                    {/* Botão de alternar entre pré-visualização e edição */}
+                    <button
+                        onClick={() => {
+                            setIsPreviewVisible(!isPreviewVisible);
+                            if (!isPreviewVisible) {
+                                changeTemplate();
+                            }
+                        }}
+                        style={{
+                            width: "100%",
+                            padding: "12px",
+                            marginTop: "20px",
+                            backgroundColor: "#1792FE",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "8px",
+                            fontSize: "16px",
+                            cursor: "pointer",
+                            boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+                        }}
+                    >
+                        {isPreviewVisible ? "Editar" : "Pré-visualizar"}
+                    </button>
+                </div>
 
             )}
 
 
 
 
+
+            {/* Modal de confirmação para sair */}
+            {showExitModal && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modalContent}>
+                        <h3 style={styles.modalTitle}>Confirmar saída</h3>
+                        <p style={styles.modalMessage}>
+                            Se sair agora, perderá todas as alterações feitas. Deseja realmente sair?
+                        </p>
+                        <div style={styles.modalActions}>
+                            <button onClick={() => setShowExitModal(false)} style={styles.cancelButton}>
+                                Não
+                            </button>
+                            <button onClick={confirmExit} style={styles.button}>
+                                Sim
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* MODAL para envio de email (campos independentes) */}
             {isModalOpen && (
@@ -2534,7 +2744,7 @@ const OficiosPage = (props) => {
 // Estilos
 // ==============================
 const styles = {
-    
+
     pageContainer: {
         display: "flex",
         flexDirection: "column",
@@ -2545,6 +2755,56 @@ const styles = {
         overflowY: "auto",
         padding: "20px",
     },
+    editorToolbar: {
+        display: "flex",
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: "10px",
+        padding: "10px",
+        backgroundColor: "#f0f0f0",
+        borderRadius: "8px",
+        marginBottom: "10px",
+        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+        width: "793.7px",
+        flexWrap: "wrap",
+    },
+    toolbarGroup: {
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: "5px",
+        borderRight: "1px solid #ddd",
+        paddingRight: "10px",
+        marginRight: "10px",
+    },
+    toolbarButton: {
+        padding: "6px 10px",
+        backgroundColor: "#fff",
+        border: "1px solid #ccc",
+        borderRadius: "4px",
+        cursor: "pointer",
+        fontSize: "14px",
+        color: "#333",
+        transition: "background-color 0.2s",
+    },
+    toolbarSelect: {
+        padding: "6px 10px",
+        backgroundColor: "#fff",
+        border: "1px solid #ccc",
+        borderRadius: "4px",
+        cursor: "pointer",
+        fontSize: "14px",
+        color: "#333",
+    },
+    colorPicker: {
+        width: "30px",
+        height: "30px",
+        padding: "0",
+        border: "1px solid #ccc",
+        borderRadius: "4px",
+        cursor: "pointer",
+    },
     body: {
         margin: 0,
         padding: 0,
@@ -2553,7 +2813,7 @@ const styles = {
         alignItems: "center",
         minheight: "100vh",
         backgroundColor: "#d4e4ff", /* fundo azul claro */
-      },
+    },
     header: {
         display: "flex",
         flexDirection: "column",
@@ -2688,7 +2948,7 @@ const styles = {
         borderRadius: "6px",
         cursor: "pointer",
         transition: "background-color 0.3s ease",
-       
+
     },
     modalOverlay: {
         position: "fixed",
@@ -2710,9 +2970,21 @@ const styles = {
         boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
         textAlign: "center",
     },
+    modalTitle: {
+        fontSize: "20px",
+        fontWeight: "600",
+        color: "#333",
+        marginBottom: "15px",
+    },
+    modalMessage: {
+        fontSize: "16px",
+        color: "#555",
+        marginBottom: "20px",
+        lineHeight: "1.5",
+    },
     modalActions: {
         marginTop: "20px",
-        marginBottom:"50px",
+        marginBottom: "50px",
         display: "flex",
         justifyContent: "center",
         gap: "5px",
