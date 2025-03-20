@@ -210,7 +210,7 @@ const OficiosList = () => {
     const renderOficio = ({ item }) => {
         const isInactive = item.CDU_isactive === false;
         const isEmailSent = item.CDU_estado === "Enviado Por Email";
-        const isPrinted = item.CDU_estado === "Imprimido";
+        const isPrinted = item.CDU_estado === "Impresso";
 
         return (
             <View style={[
@@ -296,7 +296,7 @@ const OficiosList = () => {
             >
                 <View style={styles.headerContent}>
                     <Text style={styles.headerTitle}>Gestão de Ofícios</Text>
-                    <Text style={styles.headerSubtitle}>Visualize e gira todos os ofícios</Text>
+                    <Text style={styles.headerSubtitle}>Visualize todos os ofícios</Text>
                 </View>
             </LinearGradient>
 
