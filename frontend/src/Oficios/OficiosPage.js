@@ -1188,7 +1188,7 @@ const OficiosPage = (props) => {
     contentEditable="true"
     id="editableCellAssunto"
     oninput="window.updateTexto(this.innerText)"
-    style="width: 100%; min-height: 594px; max-height: 600px; max-width: 490px; overflow: auto;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
+    style="width: 100%; min-height: 594px; max-height: 600px; max-width: 490px;  font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;"
   >
     <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 10px;">
       ASSUNTO:  ${assuntoDoc}
@@ -1196,7 +1196,7 @@ const OficiosPage = (props) => {
     <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
       EXMO(s) SR(s) 
     </span><br><br>
-    ${textParts.part1.replace(/\n/g, "<br>").replace(/ /g, "&nbsp;")}
+    ${textParts.part1.replace(/\n/g, "<br>")}
 <br><br>
 
     <span>
