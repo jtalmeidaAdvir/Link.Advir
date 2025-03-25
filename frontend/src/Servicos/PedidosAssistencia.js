@@ -216,8 +216,8 @@ const PedidosAssistencia = ({ navigation }) => {
             setPedidos((prevPedidos) => prevPedidos.filter(pedido => pedido.ID !== id));
             setModalVisible(false);
         } catch (error) {
-            console.error('Erro ao eliminar pedido:', error);
-            setErrorMessage('Não foi possível eliminar o pedido. Tente novamente.');
+            console.error('Erro ao fechar pedido:', error);
+            setErrorMessage('Não foi possível fechar o pedido. Tente novamente.');
         }
     };
 
