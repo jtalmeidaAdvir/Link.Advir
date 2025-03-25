@@ -1290,13 +1290,14 @@ router.post('/FechaProcessoID/:ProcessoID', async (req, res) => {
         const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/FechaProcessoID/${ProcessoID}`;
         console.log('Enviando solicitação para a URL:', apiUrl);
 
-        const response = await axios.post(apiUrl, {
+        const response = await axios.post(apiUrl, {}, {
             headers: {
                 Authorization: `Bearer ${painelAdminToken}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             },
         });
+        
 
         if (response.status === 200) {
             return res.status(200).json(response.data);
