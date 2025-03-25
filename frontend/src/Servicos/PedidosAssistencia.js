@@ -16,6 +16,8 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { 
     faClose, 
+    faDoorClosed,
+    faLock,
     faExpand, 
     faTrash, 
     faSearch, 
@@ -46,6 +48,9 @@ const PedidosAssistencia = ({ navigation }) => {
     const { t } = useTranslation();
     const [filteredData, setFilteredData] = useState([]);
     const [errorMessage, setErrorMessage] = useState('');
+    const [modalCloseVisible, setModalCloseVisible] = useState(false);
+    const [processoParaFechar, setProcessoParaFechar] = useState(null);
+
 
     useEffect(() => {
         const updatedData = Object.values(
@@ -163,6 +168,39 @@ const PedidosAssistencia = ({ navigation }) => {
     
             const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/EliminarPedido/${id}`, {
                 method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'urlempresa': urlempresa,
+                    'Content-Type': 'application/json',
+                },
+            });
+    
+            if (!response.ok) {
+                throw new Error(`Error: ${response.statusText}`);
+            }
+    
+            // Remove o pedido eliminado do estado local
+            setPedidos((prevPedidos) => prevPedidos.filter(pedido => pedido.ID !== id));
+            setModalVisible(false);
+        } catch (error) {
+            console.error('Erro ao eliminar pedido:', error);
+            setErrorMessage('Não foi possível eliminar o pedido. Tente novamente.');
+        }
+    };
+
+
+     // Delete pedido
+     const FechaPedido = async (id) => {
+        try {
+            const token = localStorage.getItem('painelAdminToken');
+            const urlempresa = localStorage.getItem('urlempresa');
+    
+            if (!token || !urlempresa) {
+                throw new Error('Token ou URL da empresa não encontrados.');
+            }
+    
+            const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/FechaProcessoID/${processoParaFechar}`, {
+                method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'urlempresa': urlempresa,
@@ -477,7 +515,7 @@ const PedidosAssistencia = ({ navigation }) => {
                     </TouchableOpacity>
                     
                     <View style={styles.actionButtonsContainer}>
-                        <TouchableOpacity 
+                    <TouchableOpacity 
                             style={styles.actionButton}
                             onPress={async () => {
                                 try {
@@ -490,6 +528,16 @@ const PedidosAssistencia = ({ navigation }) => {
                         >
                             <FontAwesomeIcon icon={faExpand} style={styles.icon} size={16} />
                         </TouchableOpacity>
+                        <TouchableOpacity 
+                            style={styles.actionButton}
+                            onPress={() => {
+                                setProcessoParaFechar(item[0].ID);
+                                setModalCloseVisible(true);
+                            }}
+                        >
+                            <FontAwesomeIcon icon={faLock} style={styles.icon} size={16} />
+                        </TouchableOpacity>
+
                         
                         <TouchableOpacity 
                             style={[styles.actionButton, styles.deleteButton]}
@@ -594,6 +642,7 @@ const PedidosAssistencia = ({ navigation }) => {
                 visible={modalVisible}
                 onRequestClose={() => setModalVisible(false)}
             >
+                
                 <View style={styles.modalBackground}>
                     <View style={styles.modalView}>
                         <View style={styles.modalHeader}>
@@ -620,6 +669,40 @@ const PedidosAssistencia = ({ navigation }) => {
                     </View>
                 </View>
             </Modal>
+            <Modal
+    animationType="fade"
+    transparent={true}
+    visible={modalCloseVisible}
+    onRequestClose={() => setModalCloseVisible(false)}
+>
+    <View style={styles.modalBackground}>
+        <View style={styles.modalView}>
+            <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Confirmar Fecho de Processo</Text>
+            </View>
+            <Text style={styles.modalText}>Tem a certeza que deseja fechar o processo?</Text>
+            <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                    style={[styles.modalButton, styles.cancelButton]} 
+                    onPress={() => setModalCloseVisible(false)}
+                >
+                    <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.modalButton, styles.deleteConfirmButton]}
+                    onPress={async () => {
+                        await FechaPedido(processoParaFechar);
+                        setModalCloseVisible(false);
+                    }}
+                >
+                    <Text style={styles.deleteConfirmButtonText}>Sim</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    </View>
+</Modal>
+
+
         </View>
     );
 };
