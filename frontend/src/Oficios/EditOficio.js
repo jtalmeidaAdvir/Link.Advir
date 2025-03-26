@@ -2747,7 +2747,8 @@ const EditOficio = (props) => {
                         <input
                             type="file"
                             multiple
-                            onChange={(e) => {
+                                onChange={(e) => {
+                                    handleAddAnexo(e);
                                 const files = Array.from(e.target.files);
                                 const fileNames = files
                                     .map((file) => file.name)
