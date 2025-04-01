@@ -52,6 +52,62 @@ const EditOficio = (props) => {
     const [isTemplateVisible, setIsTemplateVisible] = useState(false);
     const [isPreviewVisible, setIsPreviewVisible] = useState(false);
     const [isButtonSave, setIsButtonSave] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const initializeData = async () => {
+            if (oficioData) {
+                try {
+                    await Promise.all([
+                        new Promise((resolve) => {
+                            setDonoObra({
+                                Nome: oficioData?.CDU_DonoObra || "",
+                                Morada: oficioData?.CDU_Morada || "",
+                                Localidade: oficioData?.CDU_Localidade || "",
+                                CodPostal: oficioData?.CDU_CodPostal || "",
+                                CodPostalLocal:
+                                    oficioData?.CDU_CodPostalLocal || "",
+                            });
+                            resolve();
+                        }),
+                        new Promise((resolve) => {
+                            setMorada(oficioData?.CDU_Morada || "");
+                            setLocalidade(oficioData?.CDU_Localidade || "");
+                            setCodigoPostal(oficioData?.CDU_CodPostal || "");
+                            setLocalCopPostal(
+                                oficioData?.CDU_CodPostalLocal || "",
+                            );
+                            resolve();
+                        }),
+                        new Promise((resolve) => {
+                            setAssuntoDoc(oficioData?.CDU_assunto || "");
+                            setAnexostext(oficioData?.CDU_Anexos || "");
+                            setAtencao(oficioData?.CDU_atencao || "");
+                            setInputValue(oficioData?.CDU_obra || "");
+                            setEmailTo(oficioData?.CDU_email || "");
+                            resolve();
+                        }),
+                        new Promise((resolve) => {
+                            setCurrentTemplate(
+                                oficioData?.CDU_template === "1" ? 1 : 2,
+                            );
+                            setTextParts({
+                                part1: oficioData?.CDU_texto1 || "",
+                                part2: oficioData?.CDU_texto2 || "",
+                            });
+                            resolve();
+                        }),
+                    ]);
+                } catch (error) {
+                    console.error("Error initializing data:", error);
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        initializeData();
+    }, [oficioData]);
     const [morada, setMorada] = useState(oficioData?.CDU_Morada || "");
     const [localidade, setLocalidade] = useState(
         oficioData?.CDU_Localidade || "",
@@ -95,11 +151,32 @@ const EditOficio = (props) => {
         template: oficioData?.CDU_template || "",
         createdby: oficioData?.CDU_createdby || "",
         donoObra: oficioData?.CDU_DonoObra || "",
+        assunto: oficioData?.CDU_assunto || "",
+        obra: oficioData?.CDU_obra || "",
+        morada: oficioData?.CDU_Morada || "",
+        localidade: oficioData?.CDU_Localidade || "",
+        codPostal: oficioData?.CDU_CodPostal || "",
+        codPostalLocal: oficioData?.CDU_CodPostalLocal || "",
+        anexos: oficioData?.CDU_Anexos || "",
+        estado: oficioData?.CDU_estado || "",
+        atencao: oficioData?.CDU_atencao || "",
     });
 
     const [obras, setObras] = useState([]);
     const [obras2, setObras2] = useState([]);
-    const [inputValue, setInputValue] = useState(oficioData?.CDU_obra || "");
+    const [inputValue, setInputValue] = useState("");
+
+    // Effect to find and select the obra when the component loads
+    useEffect(() => {
+        if (oficioData?.CDU_obra && obras.length > 0) {
+            const matchingObra = obras.find(obra => obra.Codigo === oficioData.CDU_obra);
+            if (matchingObra) {
+                setInputValue(`${matchingObra.Codigo} - ${matchingObra.Descricao}`);
+                setSelectedObra(matchingObra);
+                handleObraChange(matchingObra);
+            }
+        }
+    }, [oficioData?.CDU_obra, obras]);
 
     const [showOptions, setShowOptions] = useState(false);
     const comboBoxRef = useRef(null);
@@ -136,7 +213,7 @@ const EditOficio = (props) => {
 
     // Resetar estado quando o componente é montado com novos props
     useEffect(() => {
-        if (oficioId && oficioData) {
+        if (oficioData) {
             // Reset all states with data from the current oficioData
             setCurrentTemplate(oficioData?.CDU_template === "1" ? 1 : 2);
             setDonoObra({
@@ -146,6 +223,10 @@ const EditOficio = (props) => {
                 CodPostal: oficioData?.CDU_CodPostal || "",
                 CodPostalLocal: oficioData?.CDU_CodPostalLocal || "",
             });
+            setMorada(oficioData?.CDU_Morada || "");
+            setLocalidade(oficioData?.CDU_Localidade || "");
+            setCodigoPostal(oficioData?.CDU_CodPostal || "");
+            setLocalCopPostal(oficioData?.CDU_CodPostalLocal || "");
             setAssuntoDoc(oficioData?.CDU_assunto || "");
             setAnexostext(oficioData?.CDU_Anexos || "");
             setTextParts({
@@ -167,6 +248,15 @@ const EditOficio = (props) => {
                 template: oficioData?.CDU_template || "",
                 createdby: oficioData?.CDU_createdby || "",
                 donoObra: oficioData?.CDU_DonoObra || "",
+                assunto: oficioData?.CDU_assunto || "",
+                obra: oficioData?.CDU_obra || "",
+                morada: oficioData?.CDU_Morada || "",
+                localidade: oficioData?.CDU_Localidade || "",
+                codPostal: oficioData?.CDU_CodPostal || "",
+                codPostalLocal: oficioData?.CDU_CodPostalLocal || "",
+                anexos: oficioData?.CDU_Anexos || "",
+                estado: oficioData?.CDU_estado || "",
+                atencao: oficioData?.CDU_atencao || "",
             });
             setInputValue(oficioData?.CDU_obra || "");
             setEmailTo(oficioData?.CDU_email || "");
@@ -268,7 +358,7 @@ const EditOficio = (props) => {
         };
 
         fetchObras();
-        setDonoObra("");
+        //setDonoObra("");
     }, []);
 
     // Usando onFocus no input para garantir que a lista apareça ao focar
@@ -832,6 +922,7 @@ const EditOficio = (props) => {
 
         const nomesAnexos = anexos.map((anexo) => anexo.name).join(", ");
         if (inputValue === "Não tem obra") {
+            xml;
             console.log(donoObra.Nome);
             nomeDonoObra = donoObra.Nome || "";
             moradaDonoObra = morada || "";
@@ -845,7 +936,7 @@ const EditOficio = (props) => {
 
             moradaDonoObra = donoObra.Morada;
             localidadeDonoObra = donoObra.Localidade;
-            codPostalDonoObra = donoObra.CodPostal;
+            CodPostalDonoObra = donoObra.CodPostal;
             codPostalLocalDonoObra = donoObra.CodPostalLocal;
             obraSlecionadaSave = selectedObra?.Codigo || "";
         }
@@ -897,7 +988,7 @@ const EditOficio = (props) => {
                 {
                     method: "POST",
                     headers: {
-                        Authorization: `Bearer ${token}`,
+                        Authorization: `Bearer ${token} `,
                         urlempresa: urlempresa,
                         "Content-Type": "application/json",
                     },
@@ -908,7 +999,7 @@ const EditOficio = (props) => {
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(
-                    `Erro https: ${response.status} - ${errorData.error}`,
+                    `Erro https: ${response.status} - ${errorData.error} `,
                 );
             }
 
@@ -958,13 +1049,9 @@ const EditOficio = (props) => {
                     data.DataSet.Table &&
                     data.DataSet.Table.length > 0
                 ) {
-                    const donoObra = data.DataSet.Table[0].Nome;
-                    setDonoObra(data.DataSet.Table[0]);
-
-                    setFormData((prevFormData) => ({
-                        ...prevFormData,
-                        donoObra: donoObra,
-                    }));
+                    // Do not update any recipient information
+                    // Just store the data for reference if needed
+                    const obraData = data.DataSet.Table[0];
                 }
             } catch (error) {
                 console.error("Erro ao buscar obras:", error);
@@ -1051,7 +1138,7 @@ const EditOficio = (props) => {
     // ======================================
     const getTemplate1 = () => {
         const usernome =
-            formData.nome ||
+            formData.remetente ||
             localStorage.getItem("userNome") ||
             "Email não disponível";
         const useremail =
@@ -1113,7 +1200,9 @@ const EditOficio = (props) => {
 </style>
 </head>
 <body>
-<div class="page1">
+<div class="page1" style="
+    padding-left: 31px;
+">
 <table>
 <tr>
 <td class="logo" colspan="2">
@@ -1178,9 +1267,7 @@ const EditOficio = (props) => {
   <span style="color: #999;">f. (+351) 253 38 22 44</span><br>
 </td>
 
-
-
-
+</td>
 <td style="vertical-align: top;">
   <div
     contentEditable="true"
@@ -1420,7 +1507,7 @@ const EditOficio = (props) => {
 
     const getTemplate2 = () => {
         const usernome =
-            formData.nome ||
+            formData.remetente ||
             localStorage.getItem("userNome") ||
             "Email não disponível";
         const useremail =
@@ -1481,7 +1568,9 @@ const EditOficio = (props) => {
 </style>
 </head>
 <body>
-<div class="page1">
+<div class="page1" style="
+    padding-left: 31px;
+">
 <table>
 <tr>
 <td class="logo" colspan="2">
@@ -1535,15 +1624,7 @@ const EditOficio = (props) => {
     ${useremail || "Email não existe"}
   </span><br><br><br><br><br>
 
-  <strong>JPA - CONSTRUTORA</strong><br>
-  <span style="color: #999;">Rua de Longras, nº 44</span><br>
-  <span style="color: #999;">4730-360 Pedregais,</span><br>
-  <span style="color: #999;">Vila Verde - Portugal</span><br><br>
 
-  <span style="color: #999;">www.jpaconstrutora.com</span><br>
-  <span style="color: #999;">geral@jpaconstrutora.com</span><br>
-  <span style="color: #999;">t. (+351) 253 38 13 10</span><br>
-  <span style="color: #999;">f. (+351) 253 38 22 44</span><br>
 </td>
 
 <td style="vertical-align: top;">
@@ -1560,7 +1641,6 @@ const EditOficio = (props) => {
       EXMO(s) SR(s) 
     </span><br><br>
 
-
     ${textParts.part1.replace(/\n/g, "<br>").replace(/ /g, "&nbsp;")}
 <br><br>
 
@@ -1575,7 +1655,6 @@ const EditOficio = (props) => {
     </span>
   </div>
 </td>
-
 
 
 </tr>
@@ -1676,56 +1755,57 @@ const EditOficio = (props) => {
         box-sizing: border-box;
         font-size: 10pt; /* Changed font size to 10pt */
         height: 1095.5px;
-        font-size: 13pt;
-      }
-      .logo { text-align: left; }
-      .logo img { max-width: 30%; height: auto; }
-      .PMEPreto img { max-width: 25%; height: auto; }
-    </style>
-    </head>
+    font - size: 13pt;
+}
+      .logo { text - align: left; }
+      .logo img { max - width: 30 %; height: auto; }
+      .PMEPreto img { max - width: 25 %; height: auto; }
+    </style >
+    </head >
     <body>
-    <div class="page">
-      <table style="width:100%; border:0px solid #ccc;height: 100%;">
-        <tr>
-          <td class="logo" colspan="2">
+        <div class="page">
+            <table style="width:100%; border:0px solid #ccc;height: 100%;">
+                <tr>
+                    <td
+        < td class="logo" colspan = "2" >
             <img src="${logo}" alt="Logo JPA Construtora" />
-          </td>
-        </tr>
-        <tr>
-        <td colspan="2"></td>
-        </tr>
+                    </td >
+                </tr >
+                <tr>
+                    <td colspan="2"></td>
+                </tr>
 
-        <tr>
-        <td colspan="2"></td>
-        </tr>
-        <tr>
-        <td colspan="2"></td>
-        </tr>
-        <tr>      
-                <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="true" colspan="2">
-        ${isFirstPage
+                <tr>
+                    <td colspan="2"></td>
+                </tr>
+                <tr>
+                    <td colspan="2"></td>
+                </tr>
+                <tr>
+                    <td style="padding-left:300px; padding-left:243px; font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="true" colspan="2">
+                        ${isFirstPage
                 ? `
               EXMO(s) SR(s)${donoObra.Nome}<br>`
                 : ""
             }
 
-          </td>
-        </tr>
-        <tr>
+                    </td>
+                </tr>
+                <tr>
 
-          <td colspan="2">
-  <div
-    contentEditable="true"
-    id="editableCellAssunto"
-    oninput="window.updateTexto(this.innerText)"
-    style="
+                    <td colspan="2">
+                        <div
+                            contentEditable="true"
+                            id="editableCellAssunto"
+                            oninput="window.updateTexto(this.innerText)"
+                            style="
       width: 100%;
       min-height: 764px;
       max-height: 600px;
       overflow: auto;
     "
-  >
-    ${isFirstPage
+                        >
+                            ${isFirstPage
                 ? `
       <span 
         style="
@@ -1761,28 +1841,28 @@ const EditOficio = (props) => {
       <br><br>`
                 : ""
             }
-       ${content.replace(/\n/g, "<br>")}
+                            ${content.replace(/\n/g, "<br>")}
 
-  </div>
-</td>
+                        </div>
+                    </td>
 
-        </tr>
-<tr>
-<td class="PMEPreto">
-<img src="${PMEPreto}" alt="Logo" />
-<img src="${QualidadePreto}" alt="Logo" />
-<img src="${Logo50}" alt="Logo" style="max-width: 43%;"/>
-</td>
-<td style="visibility: hidden;
+                </tr>
+                <tr>
+                    <td class="PMEPreto">
+                        <img src="${PMEPreto}" alt="Logo" />
+                        <img src="${QualidadePreto}" alt="Logo" />
+                        <img src="${Logo50}" alt="Logo" style="max-width: 43%;" />
+                    </td>
+                    <td style="visibility: hidden;
     font-size: 8px;">
-        <br>_____________________________________________________________________________________________________________________<br>
-        Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750.000.00 €
-</td>
-</tr>
-      </table>
-    </div>
-    </body>
-    </html>
+                        <br>_____________________________________________________________________________________________________________________<br>
+                            Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750.000.00 €
+                        </td>
+                        </tr>
+                    </table>
+                </div>
+            </body >
+        </html >
     `;
     };
 
@@ -1869,6 +1949,12 @@ const EditOficio = (props) => {
             ) {
                 setShowOptions(false);
             }
+            if (
+                comboBoxRef2.current &&
+                !comboBoxRef2.current.contains(event.target)
+            ) {
+                setShowOptions2(false);
+            }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
@@ -1882,8 +1968,21 @@ const EditOficio = (props) => {
     const handleSaveOrUpdate = async () => {
         const token = localStorage.getItem("painelAdminToken");
         const urlempresa = localStorage.getItem("urlempresa");
-        const usernome = localStorage.getItem("userNome");
-        const useremail = localStorage.getItem("userEmail");
+
+        // Get the current values from the contentEditable spans
+        const remetenteSpan = document.querySelector(
+            "#editableCellCodigo span:nth-of-type(1)",
+        );
+        const emailSpan = document.querySelector(
+            "#editableCellCodigo span:nth-of-type(2)",
+        );
+
+        const usernome = remetenteSpan
+            ? remetenteSpan.textContent.trim()
+            : localStorage.getItem("userNome");
+        const useremail = emailSpan
+            ? emailSpan.textContent.trim()
+            : localStorage.getItem("userEmail");
         const templateestado = currentTemplate === 1 ? "1" : "2";
 
         var nomeDonoObra = "";
@@ -1953,7 +2052,7 @@ const EditOficio = (props) => {
                 {
                     method: "PUT",
                     headers: {
-                        Authorization: `Bearer ${token}`,
+                        Authorization: `Bearer ${token} `,
                         urlempresa: urlempresa,
                         "Content-Type": "application/json",
                     },
@@ -1964,7 +2063,7 @@ const EditOficio = (props) => {
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(
-                    `Erro https: ${response.status} - ${errorData.error}`,
+                    `Erro https: ${response.status} - ${errorData.error} `,
                 );
             }
 
@@ -1980,7 +2079,12 @@ const EditOficio = (props) => {
     };
 
     const goBackToOficiosList = () => {
-        navigation.navigate("OficiosList"); // Navigate to OficiosList screen
+        if (confirm("Se Sair agora, perderá todas as alterações feitas. Deseja realmente sair?")) {
+            navigation.reset({
+                index: 0,
+                routes: [{ name: "OficiosList" }],
+            });
+        }
     };
 
     const handleOptionClick2 = (obra) => {
@@ -1989,8 +2093,24 @@ const EditOficio = (props) => {
         setSelectedObra2(obra);
         setShowOptions2(false);
         setDonoObra(obra);
-        setAtencao(`A/C.: ${obra.Nome}`); // Define o campo de atenção
+        setAtencao(`A / C.: ${obra.Nome} `); // Define o campo de atenção
     };
+
+    if (isLoading) {
+        return (
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    height: "100vh",
+                    backgroundColor: "#d4e4ff",
+                }}
+            >
+                <div>Loading...</div>
+            </div>
+        );
+    }
 
     return (
         <div style={styles.pageContainer}>
@@ -2024,9 +2144,6 @@ const EditOficio = (props) => {
                             <button
                                 onClick={() => {
                                     setIsPreviewVisible(!isPreviewVisible); // Alterna entre pré-visualização e edição
-                                    if (!isPreviewVisible) {
-                                        changeTemplate(); // Garante que o template é inicializado ao ativar a pré-visualização
-                                    }
                                 }}
                                 style={styles.button}
                             >
@@ -2043,10 +2160,21 @@ const EditOficio = (props) => {
                             </button>
 
                             <button
+                                onClick={handleSaveOrUpdate}
+                                style={{
+                                    ...styles.button,
+                                    backgroundColor: "#ff9800"
+                                }}
+                            >
+                                <FaSave /> Guardar Alterações
+                            </button>
+
+                            <button
                                 onClick={() => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
                                         handleSavePDF();
+                                        handleSaveOrUpdate();
                                     } else {
                                         handleSavePDF();
                                         handleSaveOrUpdate();
@@ -2074,6 +2202,7 @@ const EditOficio = (props) => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
                                         setIsModalOpen(true);
+                                        handleSaveOrUpdate();
                                     } else {
                                         setIsModalOpen(true);
                                         handleSaveOrUpdate();
@@ -2089,6 +2218,7 @@ const EditOficio = (props) => {
                                     if (!isButtonSave) {
                                         setIsButtonSave(true);
                                         handleSavePDFAndSendToBackend();
+                                        handleSaveOrUpdate();
                                     } else {
                                         handleSaveOrUpdate();
                                         handleSavePDFAndSendToBackend();
@@ -2122,7 +2252,9 @@ const EditOficio = (props) => {
                                 <option value="">Fonte</option>
                                 <option value="Arial">Arial</option>
                                 <option value="Calibri">Calibri</option>
-                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Times New Roman">
+                                    Times New Roman
+                                </option>
                                 <option value="Verdana">Verdana</option>
                                 <option value="Tahoma">Tahoma</option>
                                 <option value="Georgia">Georgia</option>
@@ -2153,72 +2285,142 @@ const EditOficio = (props) => {
 
                         <div style={styles.toolbarGroup}>
                             <button
-                                onClick={() => document.execCommand("bold", false, null)}
+                                onClick={() =>
+                                    document.execCommand("bold", false, null)
+                                }
                                 style={styles.toolbarButton}
                                 title="Negrito (Ctrl+B)"
                             >
                                 <b>N</b>
                             </button>
                             <button
-                                onClick={() => document.execCommand("italic", false, null)}
+                                onClick={() =>
+                                    document.execCommand("italic", false, null)
+                                }
                                 style={styles.toolbarButton}
                                 title="Itálico (Ctrl+I)"
                             >
                                 <i>I</i>
                             </button>
                             <button
-                                onClick={() => document.execCommand("underline", false, null)}
+                                onClick={() =>
+                                    document.execCommand(
+                                        "underline",
+                                        false,
+                                        null,
+                                    )
+                                }
                                 style={styles.toolbarButton}
                                 title="Sublinhado (Ctrl+U)"
                             >
                                 <u>S</u>
                             </button>
                             <button
-                                onClick={() => document.execCommand("strikeThrough", false, null)}
+                                onClick={() =>
+                                    document.execCommand(
+                                        "strikeThrough",
+                                        false,
+                                        null,
+                                    )
+                                }
                                 style={styles.toolbarButton}
                                 title="Tachado"
                             >
-                                <span style={{ textDecoration: "line-through" }}>T</span>
+                                <span
+                                    style={{ textDecoration: "line-through" }}
+                                >
+                                    T
+                                </span>
                             </button>
                         </div>
 
                         <div style={styles.toolbarGroup}>
                             <button
-                                onClick={() => document.execCommand("justifyLeft", false, null)}
+                                onClick={() =>
+                                    document.execCommand(
+                                        "justifyLeft",
+                                        false,
+                                        null,
+                                    )
+                                }
                                 style={styles.toolbarButton}
                                 title="Alinhar à esquerda"
                             >
-                                <span role="img" aria-label="Alinhar à esquerda">⫷</span>
+                                <span
+                                    role="img"
+                                    aria-label="Alinhar à esquerda"
+                                >
+                                    ⫷
+                                </span>
                             </button>
                             <button
-                                onClick={() => document.execCommand("justifyCenter", false, null)}
+                                onClick={() =>
+                                    document.execCommand(
+                                        "justifyCenter",
+                                        false,
+                                        null,
+                                    )
+                                }
                                 style={styles.toolbarButton}
                                 title="Centralizar"
                             >
-                                <span role="img" aria-label="Centralizar">≡</span>
+                                <span role="img" aria-label="Centralizar">
+                                    ≡
+                                </span>
                             </button>
                             <button
-                                onClick={() => document.execCommand("justifyRight", false, null)}
+                                onClick={() =>
+                                    document.execCommand(
+                                        "justifyRight",
+                                        false,
+                                        null,
+                                    )
+                                }
                                 style={styles.toolbarButton}
                                 title="Alinhar à direita"
                             >
-                                <span role="img" aria-label="Alinhar à direita">⫸</span>
+                                <span role="img" aria-label="Alinhar à direita">
+                                    ⫸
+                                </span>
                             </button>
                             <button
-                                onClick={() => document.execCommand("justifyFull", false, null)}
+                                onClick={() =>
+                                    document.execCommand(
+                                        "justifyFull",
+                                        false,
+                                        null,
+                                    )
+                                }
                                 style={styles.toolbarButton}
                                 title="Justificar"
                             >
-                                <span role="img" aria-label="Justificar">☰</span>
+                                <span role="img" aria-label="Justificar">
+                                    ☰
+                                </span>
                             </button>
                         </div>
 
                         <div style={styles.toolbarGroup}>
-                            <label style={styles.toolbarLabel} title="Cor do texto">
-                                <span role="img" aria-label="Cor do texto" style={{ marginRight: "5px" }}>🎨</span>
+                            <label
+                                style={styles.toolbarLabel}
+                                title="Cor do texto"
+                            >
+                                <span
+                                    role="img"
+                                    aria-label="Cor do texto"
+                                    style={{ marginRight: "5px" }}
+                                >
+                                    🎨
+                                </span>
                                 <input
                                     type="color"
-                                    onChange={(e) => document.execCommand("foreColor", false, e.target.value)}
+                                    onChange={(e) =>
+                                        document.execCommand(
+                                            "foreColor",
+                                            false,
+                                            e.target.value,
+                                        )
+                                    }
                                     style={styles.colorPicker}
                                 />
                             </label>
@@ -2308,7 +2510,7 @@ const EditOficio = (props) => {
                                             handleOptionClick(obra);
                                             setDonoObra(obra.Codigo);
                                             setInputValue(
-                                                `${obra.Codigo} - ${obra.Descricao}`,
+                                                `${obra.Codigo} - ${obra.Descricao} `,
                                             );
                                             setShowOptions(false);
                                         }}
@@ -2747,15 +2949,15 @@ const EditOficio = (props) => {
                         <input
                             type="file"
                             multiple
-                                onChange={(e) => {
-                                    handleAddAnexo(e);
+                            onChange={(e) => {
+                                handleAddAnexo(e);
                                 const files = Array.from(e.target.files);
                                 const fileNames = files
                                     .map((file) => file.name)
                                     .join("</br> ");
                                 setAnexostext((prevText) =>
                                     prevText
-                                        ? `${prevText}, ${fileNames}`
+                                        ? `${prevText}, ${fileNames} `
                                         : fileNames,
                                 );
                             }}
@@ -2919,7 +3121,7 @@ const EditOficio = (props) => {
                                                         const newEmailCC =
                                                             currentEmails.length >
                                                                 0
-                                                                ? `${emailCC}; ${email}`
+                                                                ? `${emailCC}; ${email} `
                                                                 : email;
                                                         setEmailCC(newEmailCC);
                                                     }
@@ -3006,81 +3208,240 @@ const EditOficio = (props) => {
                                     id="emailSignature"
                                     style={styles.signaturePreview}
                                 >
-                                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <table
+                                        style={{
+                                            width: "100%",
+                                            borderCollapse: "collapse",
+                                        }}
+                                    >
                                         <tbody>
                                             <tr>
-                                                <td style={{ width: "70%", paddingRight: "15px", verticalAlign: "top" }}>
-
-                                                    <div style={{ display: "flex", alignItems: "center", marginTop: "10px" }}>
-                                                        <span style={{ color: "#1792FE", marginRight: "8px", fontSize: "14px" }}>
+                                                <td
+                                                    style={{
+                                                        width: "70%",
+                                                        paddingRight: "15px",
+                                                        verticalAlign: "top",
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            marginTop: "10px",
+                                                        }}
+                                                    >
+                                                        <span
+                                                            style={{
+                                                                color: "#1792FE",
+                                                                marginRight:
+                                                                    "8px",
+                                                                fontSize:
+                                                                    "14px",
+                                                            }}
+                                                        >
                                                             ✉
                                                         </span>
                                                         <a
                                                             href="mailto:oficio@jpaconstrutora.com"
                                                             style={{
                                                                 color: "#1792FE",
-                                                                textDecoration: "none",
-                                                                fontSize: "13px"
+                                                                textDecoration:
+                                                                    "none",
+                                                                fontSize:
+                                                                    "13px",
                                                             }}
                                                         >
                                                             oficio@jpaconstrutora.com
                                                         </a>
                                                     </div>
-                                                    <div style={{ display: "flex", alignItems: "center", marginTop: "5px" }}>
-                                                        <span style={{ color: "#666", marginRight: "8px", fontSize: "14px" }}>
+                                                    <div
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            marginTop: "5px",
+                                                        }}
+                                                    >
+                                                        <span
+                                                            style={{
+                                                                color: "#666",
+                                                                marginRight:
+                                                                    "8px",
+                                                                fontSize:
+                                                                    "14px",
+                                                            }}
+                                                        >
                                                             📞
                                                         </span>
-                                                        <span style={{ color: "#666", fontSize: "13px" }}>
-                                                            t. (+351) 253 38 13 10 (Chamada rede fixa nacional)
+                                                        <span
+                                                            style={{
+                                                                color: "#666",
+                                                                fontSize:
+                                                                    "13px",
+                                                            }}
+                                                        >
+                                                            t. (+351) 253 38 13
+                                                            10 (Chamada rede
+                                                            fixa nacional)
                                                         </span>
                                                     </div>
-                                                    <div style={{ display: "flex", alignItems: "center", marginTop: "5px" }}>
-                                                        <span style={{ color: "#666", marginRight: "8px", fontSize: "14px" }}>
+                                                    <div
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            marginTop: "5px",
+                                                        }}
+                                                    >
+                                                        <span
+                                                            style={{
+                                                                color: "#666",
+                                                                marginRight:
+                                                                    "8px",
+                                                                fontSize:
+                                                                    "14px",
+                                                            }}
+                                                        >
                                                             📱
                                                         </span>
-                                                        <span style={{ color: "#666", fontSize: "13px" }}>
-                                                            tel. (+351) 910 11 76 22 (Chamada rede móvel nacional)
+                                                        <span
+                                                            style={{
+                                                                color: "#666",
+                                                                fontSize:
+                                                                    "13px",
+                                                            }}
+                                                        >
+                                                            tel. (+351) 910 11
+                                                            76 22 (Chamada rede
+                                                            móvel nacional)
                                                         </span>
                                                     </div>
-                                                    <div style={{ display: "flex", alignItems: "flex-start", marginTop: "5px" }}>
-                                                        <span style={{ color: "#666", marginRight: "8px", marginTop: "2px", fontSize: "14px" }}>
+                                                    <div
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "flex-start",
+                                                            marginTop: "5px",
+                                                        }}
+                                                    >
+                                                        <span
+                                                            style={{
+                                                                color: "#666",
+                                                                marginRight:
+                                                                    "8px",
+                                                                marginTop:
+                                                                    "2px",
+                                                                fontSize:
+                                                                    "14px",
+                                                            }}
+                                                        >
                                                             📍
                                                         </span>
                                                         <div>
-                                                            <div style={{ color: "#666", fontSize: "13px" }}>
-                                                                Rua Das Longras 44,
+                                                            <div
+                                                                style={{
+                                                                    color: "#666",
+                                                                    fontSize:
+                                                                        "13px",
+                                                                }}
+                                                            >
+                                                                Rua Das Longras
+                                                                44,
                                                             </div>
-                                                            <div style={{ color: "#666", fontSize: "13px" }}>
-                                                                4730-360 Pedregais
+                                                            <div
+                                                                style={{
+                                                                    color: "#666",
+                                                                    fontSize:
+                                                                        "13px",
+                                                                }}
+                                                            >
+                                                                4730-360
+                                                                Pedregais
                                                             </div>
-                                                            <div style={{ color: "#666", fontSize: "13px" }}>
-                                                                Vila Verde - Portugal
+                                                            <div
+                                                                style={{
+                                                                    color: "#666",
+                                                                    fontSize:
+                                                                        "13px",
+                                                                }}
+                                                            >
+                                                                Vila Verde -
+                                                                Portugal
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td style={{ width: "30%", textAlign: "right", verticalAlign: "top" }}>
-                                                    <div style={{ marginBottom: "10px" }}>
-                                                        <img src={logo} alt="JPA Construtora" style={{ maxWidth: "120px", height: "auto" }} />
+                                                <td
+                                                    style={{
+                                                        width: "30%",
+                                                        textAlign: "right",
+                                                        verticalAlign: "top",
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            marginBottom:
+                                                                "10px",
+                                                        }}
+                                                    >
+                                                        <img
+                                                            src={logo}
+                                                            alt="JPA Construtora"
+                                                            style={{
+                                                                maxWidth:
+                                                                    "120px",
+                                                                height: "auto",
+                                                            }}
+                                                        />
                                                     </div>
-                                                    <div style={{ textAlign: "right", marginTop: "5px" }}>
+                                                    <div
+                                                        style={{
+                                                            textAlign: "right",
+                                                            marginTop: "5px",
+                                                        }}
+                                                    >
                                                         <a
                                                             href="https://www.jpaconstrutora.com"
                                                             style={{
                                                                 color: "#1792FE",
-                                                                textDecoration: "none",
-                                                                fontWeight: "bold",
-                                                                display: "block",
-                                                                marginBottom: "5px",
-                                                                fontSize: "13px"
+                                                                textDecoration:
+                                                                    "none",
+                                                                fontWeight:
+                                                                    "bold",
+                                                                display:
+                                                                    "block",
+                                                                marginBottom:
+                                                                    "5px",
+                                                                fontSize:
+                                                                    "13px",
                                                             }}
                                                         >
                                                             WWW.JPACONSTRUTORA.COM
                                                         </a>
                                                     </div>
-                                                    <div style={{ marginTop: "10px", textAlign: "right" }}>
-                                                        <img src={PMEPreto} alt="PME Logo" style={{ height: "30px", marginRight: "5px" }} />
-                                                        <img src={QualidadePreto} alt="Qualidade Logo" style={{ height: "30px" }} />
+                                                    <div
+                                                        style={{
+                                                            marginTop: "10px",
+                                                            textAlign: "right",
+                                                        }}
+                                                    >
+                                                        <img
+                                                            src={PMEPreto}
+                                                            alt="PME Logo"
+                                                            style={{
+                                                                height: "30px",
+                                                                marginRight:
+                                                                    "5px",
+                                                            }}
+                                                        />
+                                                        <img
+                                                            src={QualidadePreto}
+                                                            alt="Qualidade Logo"
+                                                            style={{
+                                                                height: "30px",
+                                                            }}
+                                                        />
                                                     </div>
                                                 </td>
                                             </tr>
@@ -3149,10 +3510,10 @@ const EditOficio = (props) => {
 if (typeof document !== "undefined") {
     const style = document.createElement("style");
     style.textContent = `
-        .dropdown-content.show {
-            display: block !important;
-        }
-    `;
+    .dropdown - content.show {
+    display: block!important;
+}
+`;
     document.head.appendChild(style);
 }
 
@@ -3403,7 +3764,7 @@ const styles = {
         maxWidth: "95%",
         maxHeight: "90vh",
         minHeight: "50vh",
-        overflowY: "hidden",
+        overflowY: "auto",
         boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
         textAlign: "center",
         display: "flex",

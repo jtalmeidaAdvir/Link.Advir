@@ -1,30 +1,31 @@
 // Funções que geram os templates HTML dos documentos
-
+import logo from "../../images/jpa-construtora.png";
+import PMEPreto from "../../images/PMEPRETO.png";
+import QualidadePreto from "../../images/QUALIDADEPRETO.png";
+import Logo50 from "../../images/Logo50.jpg";
 export const getTemplate1 = ({
-    formData,
-    assuntoDoc,
-    textParts,
-    donoObra,
-    morada,
-    localidade,
-    codigoPostal,
-    localCopPostal,
-    anexostext,
-    atencao,
-    logo,
-    Logo50,
-    PMEPreto,
-    QualidadePreto,
-  }) => {
-    const usernome =
-      formData.nome ||
-      localStorage.getItem("userNome") ||
-      "Email não disponível";
-    const useremail =
-      formData.email ||
-      localStorage.getItem("userEmail") ||
-      "Email não disponível";
-    return `
+  formData,
+  assuntoDoc,
+  textParts,
+  donoObra,
+  morada,
+  localidade,
+  codigoPostal,
+  localCopPostal,
+  anexostext,
+  atencao,
+  logo,
+  Logo50,
+  PMEPreto,
+  QualidadePreto,
+}) => {
+  const usernome =
+    formData.nome || localStorage.getItem("userNome") || "Email não disponível";
+  const useremail =
+    formData.email ||
+    localStorage.getItem("userEmail") ||
+    "Email não disponível";
+  return `
   <!DOCTYPE html>
   <html lang="pt">
   <head>
@@ -160,20 +161,28 @@ export const getTemplate1 = ({
   </body>
   </html>
   `;
-  };
-  
-  export const getTemplate1SecondPage = ({ textParts, calculateTextHeight, createPage }) => {
-    if (!textParts.part2) return "";
-    let pages = [];
+};
+
+export const getTemplate1SecondPage = ({
+  textParts,
+  calculateTextHeight,
+  createPage,
+  donoObra,
+}) => {
+  if (!textParts.part2) return "";
+  let pages = [];
     let remainingText = textParts.part2;
-    while (remainingText.length > 0) {
-      const pageContent = remainingText.substring(0, 1800);
-      remainingText = remainingText.substring(1800);
-      pages.push(createPage(pageContent));
-    }
-    return pages
-      .map((page, index) => {
-        return `
+    let isFirstPage = true;
+
+  while (remainingText.length > 0) {
+    const pageContent = remainingText.substring(0, 1800);
+    remainingText = remainingText.substring(1800);
+      pages.push(createPage(pageContent, { donoObra, isFirstPage }));
+      isFirstPage = false;
+  }
+  return pages
+    .map((page, index) => {
+      return `
               <div style="
                       width: 793.7px;
                       height: 1122.5px;
@@ -186,21 +195,33 @@ export const getTemplate1 = ({
                   ${page}
               </div>
           `;
-      })
-      .join("");
-  };
-  
-  export const getTemplate2 = ({ formData, assuntoDoc, textParts, donoObra, morada, localidade, codigoPostal, localCopPostal, anexostext, atencao, logo,PMEPreto,QualidadePreto
-    , Logo50 }) => {
-    const usernome =
-      formData.nome ||
-      localStorage.getItem("userNome") ||
-      "Email não disponível";
-    const useremail =
-      formData.email ||
-      localStorage.getItem("userEmail") ||
-      "Email não disponível";
-    return `
+    })
+    .join("");
+};
+
+export const getTemplate2 = ({
+  formData,
+  assuntoDoc,
+  textParts,
+  donoObra,
+  morada,
+  localidade,
+  codigoPostal,
+  localCopPostal,
+  anexostext,
+  atencao,
+  logo,
+  PMEPreto,
+  QualidadePreto,
+  Logo50,
+}) => {
+  const usernome =
+    formData.nome || localStorage.getItem("userNome") || "Email não disponível";
+  const useremail =
+    formData.email ||
+    localStorage.getItem("userEmail") ||
+    "Email não disponível";
+  return `
   <!DOCTYPE html>
   <html lang="pt">
   <head>
@@ -336,20 +357,28 @@ export const getTemplate1 = ({
   </body>
   </html>
   `;
-  };
+};
+
+export const getTemplate2SecondPage = ({
+  textParts,
+  calculateTextHeight,
+  createPage2,
+  donoObra,
+}) => {
+  if (!textParts.part2) return "";
+  let pages = [];
+  let remainingText = textParts.part2;
+  let isFirstPage = true;
   
-  export const getTemplate2SecondPage = ({ textParts, calculateTextHeight, createPage2 }) => {
-    if (!textParts.part2) return "";
-    let pages = [];
-    let remainingText = textParts.part2;
-    while (remainingText.length > 0) {
-      const pageContent = remainingText.substring(0, 1800);
-      remainingText = remainingText.substring(1800);
-      pages.push(createPage2(pageContent));
-    }
-    return pages
-      .map((page, index) => {
-        return `
+  while (remainingText.length > 0) {
+    const pageContent = remainingText.substring(0, 1800);
+    remainingText = remainingText.substring(1800);
+    pages.push(createPage2(pageContent, { donoObra, isFirstPage }));
+    isFirstPage = false;
+  }
+  return pages
+    .map((page, index) => {
+      return `
               <div style="
                       width: 793.7px;
                       height: 1122.5px;
@@ -362,13 +391,13 @@ export const getTemplate1 = ({
                   ${page}
               </div>
           `;
-      })
-      .join("");
-  };
-  
-  export const createPage = (content) => {
-    // Nesta função, pode ser acrescentada lógica extra (por exemplo, atualizar contadores)
-    return `
+    })
+    .join("");
+};
+
+export const createPage = (content, { donoObra, isFirstPage = true } = {}) => {
+  donoObra = donoObra || {};
+  return `
       <!DOCTYPE html>
       <html lang="pt">
       <head>
@@ -404,12 +433,14 @@ export const getTemplate1 = ({
         <table style="width:100%; border:0px solid #ccc;height: 100%;">
           <tr>
             <td class="logo" colspan="2">
-              <img src="{LOGO}" alt="Logo JPA Construtora" />
+              <img src="${logo}" alt="Logo JPA Construtora" />
             </td>
           </tr>
           <tr>      
           <td style="padding-left:243px; font-weight: bold; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="true" colspan="2">
-            EXMO(s) SR(s){/* Pode incluir dados dinâmicos aqui se necessário */}
+                       ${
+      isFirstPage ? `EXMO(s) SR(s) ${donoObra?.Nome || ""}<br>` : ""
+                }
           </td>
           </tr>
           <tr>
@@ -421,11 +452,11 @@ export const getTemplate1 = ({
           </tr>
   <tr>
   <td class="PMEPreto">
-  <img src="{PMEPreto}" alt="Logo" />
-  <img src="{QualidadePreto}" alt="Logo" />
-  <img src="{Logo50}" alt="Logo" style="max-width: 43%;"/>
+  <img src="${PMEPreto}" alt="Logo" />
+  <img src="${QualidadePreto}" alt="Logo" />
+  <img src="${Logo50}" alt="Logo" style="max-width: 43%;"/>
   </td>
-  <td style="visibility: hidden; font-size: 8px;">
+  <td style=" font-size: 8px;">
           <br>_____________________________________________________________________________________________________________________<br>
           Joaquim Peixoto Azevedo & Filhos, Lda * Alvará n.º 44085 . NIF / Nºmatrícula reg.c.r.c.:502244585 . Capital social: 750000.00 €
   </td>
@@ -435,10 +466,10 @@ export const getTemplate1 = ({
       </body>
       </html>
       `;
-  };
-  
-  export const createPage2 = (content) => {
-    return `
+};
+export const createPage2 = (content, { donoObra, isFirstPage = true } = {}) => {
+  donoObra = donoObra || {};
+  return `
       <!DOCTYPE html>
       <html lang="pt">
       <head>
@@ -473,7 +504,7 @@ export const getTemplate1 = ({
         <table style="width:100%; border:0px solid #ccc;height: 100%;">
           <tr>
             <td class="logo" colspan="2">
-              <img src="{LOGO}" alt="Logo JPA Construtora" />
+              <img src="${logo}" alt="Logo JPA Construtora" />
             </td>
           </tr>
           <tr>
@@ -486,10 +517,14 @@ export const getTemplate1 = ({
           <td colspan="2"></td>
           </tr>
           <tr>      
+          <tr>      
             <td style="padding-left:243px; font-weight: bold; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="true" colspan="2">
-              EXMO(s) SR(s){/* Dados dinâmicos se necessário */}
+                ${
+                  isFirstPage ? `EXMO(s) SR(s) ${donoObra?.Nome || ""}<br>` : ""
+                }
             </td>
           </tr>
+
           <tr>
             <td colspan="2">
     <div contentEditable="true" id="editableCellAssunto" oninput="window.updateTexto(this.innerText)" style="width: 100%; min-height: 764px; max-height: 600px; overflow: auto;">
@@ -499,9 +534,9 @@ export const getTemplate1 = ({
           </tr>
   <tr>
   <td class="PMEPreto">
-  <img src="{PMEPreto}" alt="Logo" />
-  <img src="{QualidadePreto}" alt="Logo" />
-  <img src="{Logo50}" alt="Logo" style="max-width: 43%;"/>
+  <img src="${PMEPreto}" alt="Logo" />
+  <img src="${QualidadePreto}" alt="Logo" />
+  <img src="${Logo50}" alt="Logo" style="max-width: 43%;"/>
   </td>
   <td style="visibility: hidden; font-size: 8px;">
           <br>_____________________________________________________________________________________________________________________<br>
@@ -513,5 +548,4 @@ export const getTemplate1 = ({
       </body>
       </html>
       `;
-  };
-  
+};
