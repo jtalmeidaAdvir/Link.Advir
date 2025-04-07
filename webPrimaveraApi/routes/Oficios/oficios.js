@@ -97,7 +97,7 @@ router.post("/Criar", async (req, res) => {
         }
 
         // Extraindo os parâmetros do corpo da requisição
-        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra, donoObra, Morada, Localidade, CodPostal, CodPostalLocal, anexos, texto4, texto5, estado } = req.body;
+        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra, donoObra, Morada, Localidade, CodPostal, CodPostalLocal, anexos, texto4, texto5, estado, atencao } = req.body;
 
         // Construindo a URL da API
         const apiUrl = `http://${urlempresa}/WebApi/Word/Criar`;
@@ -125,6 +125,7 @@ router.post("/Criar", async (req, res) => {
             texto4,
             texto5,
             estado,
+            atencao,
         };
         console.log('Dados a serem enviados:', requestData);
 
@@ -234,7 +235,7 @@ router.put('/atualizar', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa n�o fornecida.' });
         }
         // Extraindo os parâmetros do corpo da requisição
-        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra, donoObra, Morada, Localidade, CodPostal, CodPostalLocal, anexos, texto4, texto5 } = req.body;
+        const { codigo, assunto, data, remetente, email, texto1, texto2, template, createdby, texto3, obra, donoObra, Morada, Localidade, CodPostal, CodPostalLocal, anexos, texto4, texto5, atencao } = req.body;
 
         // Extraindo os par�metros do corpo da requisi��o
         const requestData = {
@@ -257,6 +258,7 @@ router.put('/atualizar', async (req, res) => {
             anexos,
             texto4,
             texto5,
+            atencao,
         };
 
 

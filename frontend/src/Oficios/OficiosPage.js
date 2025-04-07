@@ -1769,8 +1769,12 @@ const OficiosPage = (props) => {
                         <input
                             type="text"
                             placeholder="Morada"
-                            value={morada}
-                            onChange={(e) => setMorada(e.target.value)}
+                            value={donoObra?.Morada || morada}
+                            onChange={(e) => {
+                                const newValue = e.target.value;
+                                setMorada(newValue);
+                                setDonoObra(prev => ({ ...prev, Morada: newValue }));
+                            }}
                             style={{
                                 width: "100%",
                                 padding: "12px",
@@ -1784,8 +1788,12 @@ const OficiosPage = (props) => {
                         <input
                             type="text"
                             placeholder="Localidade"
-                            value={localidade}
-                            onChange={(e) => setLocalidade(e.target.value)}
+                            value={donoObra?.Localidade || localidade}
+                            onChange={(e) => {
+                                const newValue = e.target.value;
+                                setLocalidade(newValue);
+                                setDonoObra(prev => ({ ...prev, Localidade: newValue }));
+                            }}
                             style={{
                                 width: "100%",
                                 padding: "12px",
@@ -1800,8 +1808,12 @@ const OficiosPage = (props) => {
                             <input
                                 type="text"
                                 placeholder="Código Postal"
-                                value={codigoPostal}
-                                onChange={(e) => setCodigoPostal(e.target.value)}
+                                value={donoObra?.CodPostal || codigoPostal}
+                                onChange={(e) => {
+                                    const newValue = e.target.value;
+                                    setCodigoPostal(newValue);
+                                    setDonoObra(prev => ({ ...prev, CodPostal: newValue }));
+                                }}
                                 style={{
                                     flex: 1,
                                     padding: "12px",
@@ -1814,8 +1826,12 @@ const OficiosPage = (props) => {
                             <input
                                 type="text"
                                 placeholder="Local CopPostal"
-                                value={localCopPostal}
-                                onChange={(e) => setLocalCopPostal(e.target.value)}
+                                value={donoObra?.CodPostalLocal || localCopPostal}
+                                onChange={(e) => {
+                                    const newValue = e.target.value;
+                                    setLocalCopPostal(newValue);
+                                    setDonoObra(prev => ({ ...prev, CodPostalLocal: newValue }));
+                                }}
                                 style={{
                                     flex: 1,
                                     padding: "12px",

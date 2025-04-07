@@ -53,7 +53,6 @@ const EditOficio = (props) => {
     const [isPreviewVisible, setIsPreviewVisible] = useState(false);
     const [isButtonSave, setIsButtonSave] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-
     useEffect(() => {
         const initializeData = async () => {
             if (oficioData) {
@@ -82,7 +81,7 @@ const EditOficio = (props) => {
                         new Promise((resolve) => {
                             setAssuntoDoc(oficioData?.CDU_assunto || "");
                             setAnexostext(oficioData?.CDU_Anexos || "");
-                            setAtencao(oficioData?.CDU_atencao || "");
+                            setAtencao(oficioData?.CDU_AC || "");
                             setInputValue(oficioData?.CDU_obra || "");
                             setEmailTo(oficioData?.CDU_email || "");
                             resolve();
@@ -122,7 +121,7 @@ const EditOficio = (props) => {
     const [estadodoc, setEstado] = useState("");
     const Executado = useRef(false);
     const contentEditableRef = useRef(null);
-    const [atencao, setAtencao] = useState(""); // Novo estado para o campo de atenção
+    const [atencao, setAtencao] = useState(oficioData?.CDU_AC || ""); // Novo estado para o campo de atenção
 
     const handleBlur = () => {
         // Atualiza o estado apenas ao perder o foco
@@ -159,7 +158,7 @@ const EditOficio = (props) => {
         codPostalLocal: oficioData?.CDU_CodPostalLocal || "",
         anexos: oficioData?.CDU_Anexos || "",
         estado: oficioData?.CDU_estado || "",
-        atencao: oficioData?.CDU_atencao || "",
+        atencao: oficioData?.CDU_AC || "",
     });
 
     const [obras, setObras] = useState([]);
@@ -256,11 +255,11 @@ const EditOficio = (props) => {
                 codPostalLocal: oficioData?.CDU_CodPostalLocal || "",
                 anexos: oficioData?.CDU_Anexos || "",
                 estado: oficioData?.CDU_estado || "",
-                atencao: oficioData?.CDU_atencao || "",
+                atencao: oficioData?.CDU_AC || "",
             });
             setInputValue(oficioData?.CDU_obra || "");
             setEmailTo(oficioData?.CDU_email || "");
-            setAtencao(oficioData?.CDU_atencao || ""); // Initialize atencao from oficioData
+            setAtencao(oficioData?.CDU_AC || ""); // Initialize atencao from oficioData
         }
     }, [oficioId, oficioData]);
 
@@ -2628,6 +2627,26 @@ const EditOficio = (props) => {
                     </div>
 
                     {/* Campo de destinatário */}
+                    {(
+                        <div style={{ marginTop: "10px", marginBottom: "20px" }}>
+                            <input
+                                type="text"
+                                placeholder="A/C.:"
+                                value={atencao}
+                                onChange={(e) => setAtencao(e.target.value)}
+                                style={{
+                                    width: "100%",
+                                    padding: "12px",
+                                    margin: "10px 0",
+                                    border: "1px solid #ddd",
+                                    borderRadius: "8px",
+                                    fontSize: "16px",
+                                    boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
+                                }}
+                            />
+                        </div>
+                    )}
+
                     <input
                         type="text"
                         placeholder="Destinatário"

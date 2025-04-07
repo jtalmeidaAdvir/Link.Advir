@@ -286,8 +286,9 @@ const OficiosList = () => {
                                     CDU_Anexos: item.CDU_Anexos,
                                     CDU_template: item.CDU_template,
                                     CDU_estado: item.CDU_estado,
-                                    CDU_atencao: item.CDU_atencao,
+                                    CDU_AC: item.CDU_AC,
                                     CDU_createdby: item.CDU_createdby
+
                                 }
                             })}
                         >
