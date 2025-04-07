@@ -578,12 +578,12 @@ const OficiosPage = (props) => {
         let obraSlecionadaSave = "";
         const nomesAnexos = anexos.map((anexo) => anexo.name).join(", ");
         if (inputValue === "Não tem obra") {
-            nomeDonoObra = donoObra.Nome || "";
-            moradaDonoObra = morada || "";
-            localidadeDonoObra = localidade || "";
-            codPostalDonoObra = codigoPostal || "";
-            codPostalLocalDonoObra = localCopPostal || "";
-            obraSlecionadaSave = inputValue || "";
+            nomeDonoObra = donoObra?.Nome || donoObra2?.Nome || "";
+            moradaDonoObra = donoObra?.Morada || morada || "";
+            localidadeDonoObra = donoObra?.Localidade || localidade || "";
+            codPostalDonoObra = donoObra?.CodPostal || codigoPostal || "";
+            codPostalLocalDonoObra = donoObra?.CodPostalLocal || localCopPostal || "";
+            obraSlecionadaSave = "Não tem obra";
         } else {
             nomeDonoObra = donoObra.Nome;
             moradaDonoObra = donoObra.Morada;
@@ -902,7 +902,8 @@ const OficiosPage = (props) => {
 
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (comboBoxRef.current && !comboBoxRef.current.contains(event.target)) {
+            const comboBox = document.getElementById('comboBoxObras');
+            if (comboBox && !comboBox.contains(event.target)) {
                 setShowOptions(false);
             }
         };
@@ -956,12 +957,12 @@ const OficiosPage = (props) => {
         let obraSlecionadaSave = "";
         const nomesAnexos = anexos.map((anexo) => anexo.name).join(", ");
         if (inputValue === "Não tem obra") {
-            nomeDonoObra = donoObra.Nome || "";
-            moradaDonoObra = morada || "";
-            localidadeDonoObra = localidade || "";
-            codPostalDonoObra = codigoPostal || "";
-            codPostalLocalDonoObra = localCopPostal || "";
-            obraSlecionadaSave = inputValue || "";
+            nomeDonoObra = donoObra?.Nome || donoObra2?.Nome || "";
+            moradaDonoObra = donoObra?.Morada || morada || "";
+            localidadeDonoObra = donoObra?.Localidade || localidade || "";
+            codPostalDonoObra = donoObra?.CodPostal || codigoPostal || "";
+            codPostalLocalDonoObra = donoObra?.CodPostalLocal || localCopPostal || "";
+            obraSlecionadaSave = "Não tem obra";
         } else {
             nomeDonoObra = donoObra.Nome;
             moradaDonoObra = donoObra.Morada;
@@ -996,7 +997,7 @@ const OficiosPage = (props) => {
         try {
             // Decide if it's a create or update operation
             const isUpdate = formData?.codigo && formData.codigo.length > 0;
-            const endpoint = "atualizar";
+            const endpoint = isUpdate ? "atualizar" : "Criar";
             const method = isUpdate ? "PUT" : "POST";
 
             const response = await fetch(`https://webapiprimavera.advir.pt/oficio/${endpoint}`, {
@@ -1104,7 +1105,7 @@ const OficiosPage = (props) => {
     // Renderização do componente
     // ==============================
     return (
-        <div style={styles.pageContainer}>
+        <div style={styles.pageContainer} translate="no">
             <header style={styles.header}>
                 <div style={styles.controlsAlignedLeft}>
                     <button
@@ -1578,7 +1579,7 @@ const OficiosPage = (props) => {
                         boxShadow: "0 4px 10px rgba(0, 0, 0, 0.1)",
                     }}
                 >
-                    <div style={{ position: "relative", width: "100%", marginBottom: "20px" }} ref={constComboBoxRef}>
+                    <div id="comboBoxObras" style={{ position: "relative", width: "100%", marginBottom: "20px" }} ref={constComboBoxRef}>
                         <input
                             type="text"
                             value={inputValue}

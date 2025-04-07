@@ -59,7 +59,7 @@ const OficiosList = () => {
     // Agrupar ofícios por obra
     const groupByObra = (oficios) => {
         const grouped = oficios.reduce((acc, oficio) => {
-            const obra = oficio.CDU_DonoObra || "Sem Obra";
+            const obra = oficio.CDU_codigo + " - " + oficio.CDU_DonoObra || "Sem Obra";
             if (!acc[obra]) {
                 acc[obra] = [];
             }
@@ -311,7 +311,7 @@ const OficiosList = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={styles.container} translate="no">
             <LinearGradient
                 colors={['#4481EB', '#04BEFE']}
                 style={styles.header}

@@ -2112,7 +2112,7 @@ const EditOficio = (props) => {
     }
 
     return (
-        <div style={styles.pageContainer}>
+        <div style={styles.pageContainer} translate="no">
             <header style={styles.header}>
                 <div style={styles.controlsAlignedLeft}>
                     <TouchableOpacity
