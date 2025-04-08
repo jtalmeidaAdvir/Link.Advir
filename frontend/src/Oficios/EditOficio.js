@@ -1184,7 +1184,7 @@ const EditOficio = (props) => {
   table, th, td { border: 0px solid #ccc; }
   th, td {
     padding: 0.5rem;
-    text-align: left;
+    text-align: justify;
     vertical-align: top;
   }
   .footer { font-size: 8pt; line-height: 1.6; }
@@ -1277,10 +1277,10 @@ const EditOficio = (props) => {
     <span style="font-weight: bold; font-style: normal; text-decoration: none; text-transform: none; font-size: 10px;">
       ASSUNTO:  ${assuntoDoc}
     </span><br><br>
-    <span style="font-weight: normal; font-style: normal; text-decoration: none; text-transform: none; font-size: 9px;">
+    <span style="font-weight: normal; font-style: normal;textAlign: justify; text-decoration: none; text-transform: none; font-size: 9px;">
       EXMO(s) SR(s) 
     </span><br><br>
-    ${textParts.part1.replace(/\n/g, "<br>").replace(/ /g, "&nbsp;")}
+    ${textParts.part1.replace(/\n/g, "<br>")}
 <br><br>
 
     <span>
@@ -1552,7 +1552,7 @@ const EditOficio = (props) => {
   table, th, td { border: 0px solid #ccc; }
   th, td {
     padding: 0.5rem;
-    text-align: left;
+    text-align: justify;
     vertical-align: top;
   }
   .footer { font-size: 8pt; line-height: 1.6; }
@@ -1640,7 +1640,7 @@ const EditOficio = (props) => {
       EXMO(s) SR(s) 
     </span><br><br>
 
-    ${textParts.part1.replace(/\n/g, "<br>").replace(/ /g, "&nbsp;")}
+    ${textParts.part1.replace(/\n/g, "<br>")}
 <br><br>
 
     <span>
@@ -2852,6 +2852,7 @@ const EditOficio = (props) => {
                             boxShadow: "0 2px 5px rgba(0, 0, 0, 0.1)",
                             whiteSpace: "pre-wrap",
                             wordWrap: "break-word",
+                            textAlign: "justify",
                         }}
                     />
 
