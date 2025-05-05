@@ -236,6 +236,7 @@ const loginUtilizador = async (req, res) => {
             isAdmin: user.isAdmin,
             superAdmin: user.superAdmin,  // Inclua o campo superAdmin aqui
             empresa_areacliente: user.empresa_areacliente,
+            id_tecnico: user.id_tecnico,
             userNome: user.nome,
             userEmail: user.email
         });

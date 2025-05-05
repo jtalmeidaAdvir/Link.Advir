@@ -123,7 +123,9 @@ const PandIByTecnico = () => {
     const [loading, setLoading] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [processoSelecionado, setProcessoSelecionado] = useState(null);
-    
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [userTecnicoID, setUserTecnicoID] = useState("");
+
     // Obtém o ano e mês atual
     const dataAtual = new Date();
     const anoAtual = dataAtual.getFullYear();
@@ -135,6 +137,21 @@ const PandIByTecnico = () => {
     const [semana, setSemana] = useState(semanaAtual);
     const [filtro, setFiltro] = useState("semana"); // Default para semana
 
+
+
+    
+    useEffect(() => {
+        const storedIsAdmin = localStorage.getItem("isAdmin") === "true";
+        const storedTecnicoID = localStorage.getItem("id_tecnico") || "";
+    
+        setIsAdmin(storedIsAdmin);
+        setUserTecnicoID(storedTecnicoID);
+    
+        if (!storedIsAdmin) {
+            setTecnicoID(storedTecnicoID); // forçar seleção automática se não for admin
+        }
+    }, []);
+    
     // Função para tentar uma requisição com tentativas automáticas
     const fetchWithRetry = async (url, options, maxRetries = 3, delayMs = 1000) => {
         let lastError;
@@ -520,17 +537,32 @@ const PandIByTecnico = () => {
             <View style={styles.controlsContainer}>
                 <View style={styles.controlBox}>
                     <Text style={styles.controlLabel}>Técnico:</Text>
-                    <Picker
-                        selectedValue={tecnicoID}
-                        onValueChange={(value) => setTecnicoID(value)}
-                        style={styles.picker}
-                    >
-                        <Picker.Item label="Selecione um Técnico" value="" />
-                        <Picker.Item label="José Alves" value="001" />
-                        <Picker.Item label="José Vale" value="002" />
-                        <Picker.Item label="Jorge Almeida" value="003" />
-                        <Picker.Item label="Vitor Mendes" value="004" />
-                    </Picker>
+                    {isAdmin ? (
+    <Picker
+        selectedValue={tecnicoID}
+        onValueChange={(value) => setTecnicoID(value)}
+        style={styles.picker}
+    >
+        <Picker.Item label="Selecione um Técnico" value="" />
+        <Picker.Item label="José Alves" value="001" />
+        <Picker.Item label="José Vale" value="002" />
+        <Picker.Item label="Jorge Almeida" value="003" />
+        <Picker.Item label="Vitor Mendes" value="004" />
+    </Picker>
+) : (
+    <Text style={{ padding: 10, fontSize: 16 }}>
+        {tecnicoID === "001"
+            ? "José Alves"
+            : tecnicoID === "002"
+            ? "José Vale"
+            : tecnicoID === "003"
+            ? "Jorge Almeida"
+            : tecnicoID === "004"
+            ? "Vitor Mendes"
+            : tecnicoID}
+    </Text>
+)}
+
                 </View>
 
                 <View style={styles.controlRow}>

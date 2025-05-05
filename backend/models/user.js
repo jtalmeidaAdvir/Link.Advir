@@ -64,7 +64,12 @@ const User = sequelize.define('User', {
     empresa_areacliente: {
         type: DataTypes.STRING, // Corrigido para DataTypes.STRING
         allowNull: false, // Ou true se opcional
-    }
+    },
+    id_tecnico: {
+        type: DataTypes.STRING,
+        allowNull: true
+      }
+      
 }, {
     timestamps: false,
     tableName: 'user',

@@ -40,6 +40,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 localStorage.setItem('userEmail', data.userEmail);
                 //localStorage.setItem('nomeuser', data.nome);
                 localStorage.setItem('empresa_areacliente', data.empresa_areacliente);
+                localStorage.setItem('id_tecnico', data.id_tecnico);
 
                 // Atualiza o estado de login e permissões
                 setUsername(username);

@@ -52,6 +52,11 @@ const PedidosAssistencia = ({ navigation }) => {
     const [processoParaFechar, setProcessoParaFechar] = useState(null);
 
 
+    const [isAdmin, setIsAdmin] = useState(false);
+const [userTecnicoID, setUserTecnicoID] = useState('');
+
+
+
     useEffect(() => {
         const updatedData = Object.values(
             applyFilters().reduce((acc, pedido) => {
@@ -72,6 +77,12 @@ const PedidosAssistencia = ({ navigation }) => {
             const fetchPedidos = async () => {
                 const token = localStorage.getItem('painelAdminToken');
                 const urlempresa = localStorage.getItem('urlempresa');
+                const storedIsAdmin = localStorage.getItem('isAdmin') === 'true';
+                const storedTecnicoID = localStorage.getItem('id_tecnico') || '';
+
+                setIsAdmin(storedIsAdmin);
+                setUserTecnicoID(storedTecnicoID);
+
             
                 if (!urlempresa) {
                     setErrorMessage('URL da empresa não encontrada.');
@@ -112,37 +123,44 @@ const PedidosAssistencia = ({ navigation }) => {
     
         // Filtrar pedidos válidos
         filteredPedidos = filteredPedidos.filter((pedido) => pedido && pedido.Cliente);
+        console.log("userTecnicoID:", userTecnicoID);
+        console.log("Exemplo de pedido.Tecnico:", pedidos[0]?.Tecnico);
+        console.log("Pedido completo:", pedidos[0]);
+        
+        // Se não for admin, filtrar apenas os do seu técnico
+        if (!isAdmin && userTecnicoID) {
+            filteredPedidos = filteredPedidos.filter(pedido =>
+                pedido.Tecnico?.toString().trim() === userTecnicoID.toString().trim()
+            );
+        }
+        
     
-        // Filtrar por Termo de Pesquisa
+        // Filtros existentes...
         if (searchTerm && searchTerm.trim()) {
             const lowerSearchTerm = searchTerm.toLowerCase();
             filteredPedidos = filteredPedidos.filter((pedido) =>
                 pedido.Cliente?.toLowerCase().includes(lowerSearchTerm) ||
                 pedido.Nome?.toLowerCase().includes(lowerSearchTerm) ||
                 pedido.NumProcesso?.toString().toLowerCase().includes(lowerSearchTerm) ||
-                pedido.DescricaoProb?.toString().toLowerCase().includes(lowerSearchTerm) 
+                pedido.DescricaoProb?.toString().toLowerCase().includes(lowerSearchTerm)
             );
         }
     
-        // Filtrar por Prioridade
         if (filterPrioridade && filterPrioridade.trim()) {
             filteredPedidos = filteredPedidos.filter((pedido) =>
                 pedido.Prioridade?.toString().toLowerCase() === filterPrioridade.toLowerCase()
             );
         }
     
-        // Filtrar por Serie
         if (filterSerie && filterSerie.trim()) {
             filteredPedidos = filteredPedidos.filter((pedido) =>
                 pedido.serie?.toString().toLowerCase() === filterSerie.toLowerCase()
             );
         }
-
-        // Filtrar por Estado
+    
         if (filterEstado) {
             if (filterEstado === 'pendentes') {
-                // Agrupar os estados "pendentes"
-                const estadosPendentes = ['2', '3', '4']; // Valores que correspondem a pendentes
+                const estadosPendentes = ['2', '3', '4'];
                 filteredPedidos = filteredPedidos.filter((pedido) =>
                     estadosPendentes.includes(pedido.Estado?.toString())
                 );
@@ -155,6 +173,7 @@ const PedidosAssistencia = ({ navigation }) => {
     
         return filteredPedidos;
     };
+    
 
     // Delete pedido
     const deletePedido = async (id) => {
