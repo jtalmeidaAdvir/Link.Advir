@@ -4,28 +4,28 @@ import PMEPreto from "../../images/PMEPRETO.png";
 import QualidadePreto from "../../images/QUALIDADEPRETO.png";
 import Logo50 from "../../images/Logo50.jpg";
 export const getTemplate1 = ({
-  formData,
-  assuntoDoc,
-  textParts,
-  donoObra,
-  morada,
-  localidade,
-  codigoPostal,
-  localCopPostal,
-  anexostext,
-  atencao,
-  logo,
-  Logo50,
-  PMEPreto,
-  QualidadePreto,
+    formData,
+    assuntoDoc,
+    textParts,
+    donoObra,
+    morada,
+    localidade,
+    codigoPostal,
+    localCopPostal,
+    anexostext,
+    atencao,
+    logo,
+    Logo50,
+    PMEPreto,
+    QualidadePreto,
 }) => {
-  const usernome =
-    formData.nome || localStorage.getItem("userNome") || "Email não disponível";
-  const useremail =
-    formData.email ||
-    localStorage.getItem("userEmail") ||
-    "Email não disponível";
-  return `
+    const usernome =
+        formData.nome || localStorage.getItem("userNome") || "Email não disponível";
+    const useremail =
+        formData.email ||
+        localStorage.getItem("userEmail") ||
+        "Email não disponível";
+    return `
   <!DOCTYPE html>
   <html lang="pt">
   <head>
@@ -61,7 +61,7 @@ export const getTemplate1 = ({
     table, th, td { border: 0px solid #ccc; }
     th, td {
       padding: 0.5rem;
-      text-align: left;
+      text-align: justify;
       vertical-align: top;
     }
     .footer { font-size: 8pt; line-height: 1.6; }
@@ -164,25 +164,25 @@ export const getTemplate1 = ({
 };
 
 export const getTemplate1SecondPage = ({
-  textParts,
-  calculateTextHeight,
-  createPage,
-  donoObra,
+    textParts,
+    calculateTextHeight,
+    createPage,
+    donoObra,
 }) => {
-  if (!textParts.part2) return "";
-  let pages = [];
+    if (!textParts.part2) return "";
+    let pages = [];
     let remainingText = textParts.part2;
     let isFirstPage = true;
 
-  while (remainingText.length > 0) {
-    const pageContent = remainingText.substring(0, 1800);
-    remainingText = remainingText.substring(1800);
-      pages.push(createPage(pageContent, { donoObra, isFirstPage }));
-      isFirstPage = false;
-  }
-  return pages
-    .map((page, index) => {
-      return `
+    while (remainingText.length > 0) {
+        const pageContent = remainingText.substring(0, 1800);
+        remainingText = remainingText.substring(1800);
+        pages.push(createPage(pageContent, { donoObra, isFirstPage }));
+        isFirstPage = false;
+    }
+    return pages
+        .map((page, index) => {
+            return `
               <div style="
                       width: 793.7px;
                       height: 1122.5px;
@@ -195,33 +195,33 @@ export const getTemplate1SecondPage = ({
                   ${page}
               </div>
           `;
-    })
-    .join("");
+        })
+        .join("");
 };
 
 export const getTemplate2 = ({
-  formData,
-  assuntoDoc,
-  textParts,
-  donoObra,
-  morada,
-  localidade,
-  codigoPostal,
-  localCopPostal,
-  anexostext,
-  atencao,
-  logo,
-  PMEPreto,
-  QualidadePreto,
-  Logo50,
+    formData,
+    assuntoDoc,
+    textParts,
+    donoObra,
+    morada,
+    localidade,
+    codigoPostal,
+    localCopPostal,
+    anexostext,
+    atencao,
+    logo,
+    PMEPreto,
+    QualidadePreto,
+    Logo50,
 }) => {
-  const usernome =
-    formData.nome || localStorage.getItem("userNome") || "Email não disponível";
-  const useremail =
-    formData.email ||
-    localStorage.getItem("userEmail") ||
-    "Email não disponível";
-  return `
+    const usernome =
+        formData.nome || localStorage.getItem("userNome") || "Email não disponível";
+    const useremail =
+        formData.email ||
+        localStorage.getItem("userEmail") ||
+        "Email não disponível";
+    return `
   <!DOCTYPE html>
   <html lang="pt">
   <head>
@@ -257,7 +257,7 @@ export const getTemplate2 = ({
     table, th, td { border: 0px solid #ccc; }
     th, td {
       padding: 0.5rem;
-      text-align: left;
+      text-align: justify;
       vertical-align: top;
     }
     .footer { font-size: 8pt; line-height: 1.6; }
@@ -360,25 +360,25 @@ export const getTemplate2 = ({
 };
 
 export const getTemplate2SecondPage = ({
-  textParts,
-  calculateTextHeight,
-  createPage2,
-  donoObra,
+    textParts,
+    calculateTextHeight,
+    createPage2,
+    donoObra,
 }) => {
-  if (!textParts.part2) return "";
-  let pages = [];
-  let remainingText = textParts.part2;
-  let isFirstPage = true;
-  
-  while (remainingText.length > 0) {
-    const pageContent = remainingText.substring(0, 1800);
-    remainingText = remainingText.substring(1800);
-    pages.push(createPage2(pageContent, { donoObra, isFirstPage }));
-    isFirstPage = false;
-  }
-  return pages
-    .map((page, index) => {
-      return `
+    if (!textParts.part2) return "";
+    let pages = [];
+    let remainingText = textParts.part2;
+    let isFirstPage = true;
+
+    while (remainingText.length > 0) {
+        const pageContent = remainingText.substring(0, 1800);
+        remainingText = remainingText.substring(1800);
+        pages.push(createPage2(pageContent, { donoObra, isFirstPage }));
+        isFirstPage = false;
+    }
+    return pages
+        .map((page, index) => {
+            return `
               <div style="
                       width: 793.7px;
                       height: 1122.5px;
@@ -391,13 +391,13 @@ export const getTemplate2SecondPage = ({
                   ${page}
               </div>
           `;
-    })
-    .join("");
+        })
+        .join("");
 };
 
 export const createPage = (content, { donoObra, isFirstPage = true } = {}) => {
-  donoObra = donoObra || {};
-  return `
+    donoObra = donoObra || {};
+    return `
       <!DOCTYPE html>
       <html lang="pt">
       <head>
@@ -438,9 +438,8 @@ export const createPage = (content, { donoObra, isFirstPage = true } = {}) => {
           </tr>
           <tr>      
           <td style="padding-left:243px; font-weight: bold; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="true" colspan="2">
-                       ${
-      isFirstPage ? `EXMO(s) SR(s) ${donoObra?.Nome || ""}<br>` : ""
-                }
+                       ${isFirstPage ? `EXMO(s) SR(s) ${donoObra?.Nome || ""}<br>` : ""
+        }
           </td>
           </tr>
           <tr>
@@ -468,8 +467,8 @@ export const createPage = (content, { donoObra, isFirstPage = true } = {}) => {
       `;
 };
 export const createPage2 = (content, { donoObra, isFirstPage = true } = {}) => {
-  donoObra = donoObra || {};
-  return `
+    donoObra = donoObra || {};
+    return `
       <!DOCTYPE html>
       <html lang="pt">
       <head>
@@ -519,9 +518,8 @@ export const createPage2 = (content, { donoObra, isFirstPage = true } = {}) => {
           <tr>      
           <tr>      
             <td style="padding-left:243px; font-weight: bold; text-align: justify; font-family: 'TitilliumText22L', sans-serif; color: black; font-size: 13px;" contentEditable="true" colspan="2">
-                ${
-                  isFirstPage ? `EXMO(s) SR(s) ${donoObra?.Nome || ""}<br>` : ""
-                }
+                ${isFirstPage ? `EXMO(s) SR(s) ${donoObra?.Nome || ""}<br>` : ""
+        }
             </td>
           </tr>
 
