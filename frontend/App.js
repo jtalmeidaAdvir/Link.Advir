@@ -166,19 +166,12 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                             icon={() => <FontAwesome name="file" size={20} color="#1792FE" />}
                         />
                     )}
-                    {hasServicesModule && (
-                        <DrawerItem
-                            label=  {t("Drawer.ServicosTecnicos")}
-                            onPress={() => props.navigation.navigate('PandIByTecnico')}
-                            icon={() => <FontAwesome name="wrench" size={20} color="#1792FE" />}
-                        />
-                       
-                    )}
+                  
                     {hasQrCodeAssiduidadeModule && (
                         <DrawerItem
                             label={t("Drawer.PontoQR")}
                             onPress={() => props.navigation.navigate('LeitorQRCode')}
-                            icon={() => <FontAwesome name="clock-o" size={20} color="#1792FE" />}
+                            icon={() => <FontAwesome name="qrcode" size={20} color="#1792FE" />}
                         />
                     )}
                     {hasBotaoAssiduidadeModule && (
@@ -188,7 +181,16 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                             icon={() => <FontAwesome name="clock-o" size={20} color="#1792FE" />}
                         />
                     )}
+                      {hasServicesModule && (
+                        <DrawerItem
+                            label=  {t("Drawer.ServicosTecnicos")}
+                            onPress={() => props.navigation.navigate('PandIByTecnico')}
+                            icon={() => <FontAwesome name="bar-chart" size={20} color="#1792FE" />}
+                        />
+                       
+                    )}
                 </>
+                
             )}
             <View style={{ flexGrow: 1, justifyContent: 'flex-end', paddingBottom: 20 }}>
                 {isAdmin && (

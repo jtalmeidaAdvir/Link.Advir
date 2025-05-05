@@ -66,8 +66,8 @@ i18n
                         Obra: "Projects",
                         Servicos: "Service Request",
                         ServicosTecnicos: "Tech Requests",
-                        PontoQR: "Attendance (QR Code)",
-                        PontoBT: "Attendance (Button)",
+                        PontoQR: "Attendance ",
+                        PontoBT: "Attendance ",
 
                         Exit: "Logout",
                     },
@@ -332,9 +332,9 @@ i18n
                         SelecaoEmpresa: "Selecionar Empresa",
                         Obra: "Obras",
                         Servicos: "Pedido de Assistência",
-                        ServicosTecnicos: "Dashboard Técnico",
-                        PontoQR: "Assiduidade (QR Code)",
-                        PontoBT: "Assiduidade (Botao)",
+                        ServicosTecnicos: "Resumo Técnico",
+                        PontoQR: "Assiduidade",
+                        PontoBT: "Assiduidade",
 
                         Exit: "Sair",
                     },

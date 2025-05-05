@@ -9,6 +9,7 @@ import {
     Picker,
     ScrollView,
     Platform,
+    Modal,
     Dimensions,
 } from "react-native";
 import {
@@ -120,7 +121,9 @@ const PandIByTecnico = () => {
     const [processos, setProcessos] = useState([]);
     const [intervencoesDetalhadas, setIntervencoesDetalhadas] = useState([]);
     const [loading, setLoading] = useState(false);
-
+    const [modalVisible, setModalVisible] = useState(false);
+    const [processoSelecionado, setProcessoSelecionado] = useState(null);
+    
     // Obtém o ano e mês atual
     const dataAtual = new Date();
     const anoAtual = dataAtual.getFullYear();
@@ -164,9 +167,36 @@ const PandIByTecnico = () => {
         throw lastError || new Error("Falha após múltiplas tentativas");
     };
 
-    const fetchData = async () => {
+
+    const abrirModalProcesso = (processo) => {
+        setProcessoSelecionado(processo);
+        setModalVisible(true);
+    };
+    
+
+    const getTotalProcessosDoTecnico = () => {
+        return filterProcessosByPeriodo().filter(p => p.Tecnico1 === tecnicoID).length;
+    };
+    
+    
+    const getAssistanceTypeData = () => {
+        const tiposCounts = {};
+        filterProcessosByPeriodo().forEach(processo => {
+            const tipo = processo.TipoDoc1 || "Outro";
+            tiposCounts[tipo] = (tiposCounts[tipo] || 0) + 1;
+        });
+    
+        return Object.keys(tiposCounts).map(tipo => ({
+            name: tipo,
+            value: tiposCounts[tipo],
+        }));
+    };
+    
+
+        const fetchData = async () => {
         if (!tecnicoID) {
             Alert.alert("Erro", "Insira o ID do técnico.");
+            console.log(processos);
             return;
         }
 
@@ -227,9 +257,17 @@ const PandIByTecnico = () => {
                 todosProcessos[processo.ID] = {
                     processoID: processo.ID,
                     detalhesProcesso: processo,
-                    intervencoes: [],
+                    intervencoes: [
+                        {
+                            TipoInterv: processo.TipoInterv,
+                            DataHoraInicio: processo.DataHoraInicio,
+                            Duracao: processo.Duracao,
+                            Observacoes: processo.DescricaoResp
+                        }
+                    ]
                 };
             });
+            
 
 
 
@@ -471,7 +509,8 @@ const PandIByTecnico = () => {
     
 
     return (
-        
+        <View style={{ flex: 1 }}>
+
         <ScrollView
             style={styles.container}
             contentContainerStyle={styles.contentContainer}
@@ -490,6 +529,7 @@ const PandIByTecnico = () => {
                         <Picker.Item label="José Alves" value="001" />
                         <Picker.Item label="José Vale" value="002" />
                         <Picker.Item label="Jorge Almeida" value="003" />
+                        <Picker.Item label="Vitor Mendes" value="004" />
                     </Picker>
                 </View>
 
@@ -660,6 +700,7 @@ const PandIByTecnico = () => {
                         {loading ? "A carregar..." : "Obter Dados"}
                     </Text>
                 </TouchableOpacity>
+                
                 {loading && (
                     <Text style={styles.loadingInfo}>
                         A carregar dados, por favor aguarde...
@@ -670,7 +711,7 @@ const PandIByTecnico = () => {
           {/* Dashboard Section */}
 {processos.length > 0 && (
     <View style={styles.dashboardContainer}>
-        <Text style={styles.dashboardTitle}>Dashboard do Técnico</Text>
+        <Text style={styles.dashboardTitle}> </Text>
 
         <View style={styles.dashboardRow}>
             {/* Card 1: Total de Intervenções */}
@@ -680,6 +721,14 @@ const PandIByTecnico = () => {
         {filterProcessosByPeriodo().length}
     </Text>
 </View>
+
+<View style={styles.dashboardCard}>
+    <Text style={styles.cardTitle}>Pedidos do Técnico</Text>
+    <Text style={styles.cardValue}>
+        {getTotalProcessosDoTecnico()}
+    </Text>
+</View>
+
 
 
 
@@ -722,6 +771,32 @@ const PandIByTecnico = () => {
         </PieChart>
     </ResponsiveContainer>
 </View>
+<View style={styles.chartBox}>
+    <Text style={styles.chartTitle}>Tipos de Contratos</Text>
+    <ResponsiveContainer width="100%" height={220}>
+        <PieChart>
+            <Pie
+                data={getAssistanceTypeData()}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                outerRadius={80}
+                fill="#82ca9d"
+                dataKey="value"
+                label={({ name, percent }) =>
+                    `${name}: ${(percent * 100).toFixed(0)}%`
+                }
+            >
+                {getAssistanceTypeData().map((entry, index) => (
+                    <Cell key={`cell-assist-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+            </Pie>
+            <Legend />
+            <Tooltip />
+        </PieChart>
+    </ResponsiveContainer>
+</View>
+
 
 {/* Bar Chart - Horas por Dia */}
 <View style={styles.chartBox}>
@@ -742,137 +817,61 @@ const PandIByTecnico = () => {
             )}
 
             {dadosPorDia.length > 0 ? (
+                
                 <View style={styles.gridContainer}>
-                    {/* Cabeçalho da tabela com as datas */}
-                    <View style={styles.tableHeader}>
-                        <Text style={styles.tableHeaderLabel}>Data</Text>
-                        <Text style={styles.tableHeaderLabel}>Processos</Text>
-                        <Text style={styles.tableHeaderLabel}>Cliente</Text>
-                        <Text style={styles.tableHeaderLabel}>Estado</Text>
-                        <Text style={styles.tableHeaderLabel}>
-                            Intervenções
-                        </Text>
-                    </View>
 
-                    {/* Linhas da tabela com os dados */}
                     {dadosPorDia.map((dia, diaIndex) => (
                         <View key={diaIndex}>
                             {/* Data como cabeçalho de seção */}
-                            <View style={styles.dataSection}>
-                                <Text style={styles.dataSectionTitle}>
-                                    {dia.data.toLocaleDateString("pt-PT", {
-                                        weekday: "long",
-                                        year: "numeric",
-                                        month: "long",
-                                        day: "numeric",
-                                    })}
-                                </Text>
-                            </View>
+                            
 
                             {/* Processos para o dia */}
-                            {dia.processos.map((processo, processoIndex) => (
-                                <View
-                                    key={processoIndex}
-                                    style={[
-                                        styles.tableRow,
-                                        processoIndex % 2 === 0
-                                            ? styles.tableRowEven
-                                            : styles.tableRowOdd,
-                                        processo.intervencoes.length === 0
-                                            ? styles.tableRowPendente
-                                            : {},
-                                    ]}
-                                >
-                                    {/* Coluna da data */}
-                                    <View style={styles.tableCell}>
-                                        <Text style={styles.tableCellText}>
-                                            {dia.data.toLocaleDateString(
-                                                "pt-PT",
-                                                {
-                                                    day: "2-digit",
-                                                    month: "2-digit",
-                                                },
-                                            )}
-                                        </Text>
-                                    </View>
+                            {dia.processos.map((processo, i) => (
+  <TouchableOpacity
+    key={i}
+    onPress={() => abrirModalProcesso(processo)}
+    style={styles.processCard}
+  >
+    <Text style={styles.cardDate}>
+      {dia.data.toLocaleDateString("pt-PT", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })}
+    </Text>
 
-                                    {/* Coluna do processo */}
-                                    <View style={styles.tableCell}>
-                                        <Text style={styles.tableCellTitle}>
-                                            {processo.detalhesProcesso
-                                                ?.Processo ||
-                                                processo.processoID}
-                                        </Text>
-                                        <Text
-                                            style={styles.tableCellDesc}
-                                            numberOfLines={2}
-                                        >
-                                            {processo.detalhesProcesso
-                                                ?.DescricaoProb ||
-                                                "Sem descrição"}
-                                        </Text>
-                                    </View>
+    <Text style={styles.cardLine}>
+      <Text style={styles.cardLabel}>Processo: </Text>
+      {processo.detalhesProcesso?.Processo}
+    </Text>
 
-                                    {/* Coluna do cliente */}
-                                    <View style={styles.tableCell}>
-                                        <Text style={styles.tableCellTitle}>
-                                            {processo.detalhesProcesso?.Nome?.substring(
-                                                0,
-                                                20,
-                                            ) ||
-                                                processo.detalhesProcesso
-                                                    ?.NomeCliente ||
-                                                "N/A"}
-                                            {processo.detalhesProcesso?.Nome
-                                                ?.length > 20
-                                                ? "..."
-                                                : ""}
-                                        </Text>
-                                        <Text style={styles.tableCellSubtext}>
-                                            {`${processo.detalhesProcesso?.NomeContacto || ""} ${processo.detalhesProcesso?.ApelidoContacto || ""}`}
-                                        </Text>
-                                    </View>
+    <Text style={styles.cardLine}>
+      <Text style={styles.cardLabel}>Cliente: </Text>
+      {processo.detalhesProcesso?.Nome || "N/A"}
+    </Text>
 
-                                    {/* Coluna de estado */}
-                                    <View style={styles.tableCell}>
-                                        {processo.detalhesProcesso.length === 0 ? (
-                                            <View style={styles.estadoPendente}>
-                                                <Text
-                                                    style={
-                                                        styles.estadoPendenteText
-                                                    }
-                                                >
-                                                    Pendente
-                                                </Text>
-                                            </View>
-                                        ) : (
-                                            <View
-                                                style={styles.estadoConcluido}
-                                            >
-                                                <Text
-                                                    style={
-                                                        styles.estadoConcluidoText
-                                                    }
-                                                >
-                                                    Concluído
-                                                </Text>
-                                            </View>
-                                        )}
-                                    </View>
+    <Text style={styles.cardLine}>
+      <Text style={styles.cardLabel}>Contacto: </Text>
+      {processo.detalhesProcesso?.NomeContacto || "Sem contacto"}
+    </Text>
 
-                                    {/* Coluna do cliente */}
-                                    <View style={styles.tableCell}>
-                                        <Text style={styles.tableCellTitle}>
-                                            {processo.detalhesProcesso?.DescricaoResp}
-                                        </Text>
-                                        <Text>
-                                            {processo.detalhesProcesso?.Duracao } min
-                                        </Text>
+    <Text style={styles.cardLine}>
+      <Text style={styles.cardLabel}>Estado: </Text>
+      {processo.intervencoes.length > 0 ? "Concluído ✅" : "Pendente ⏳"}
+    </Text>
 
-                                    </View>
+    <Text style={styles.cardLine}>
+      <Text style={styles.cardLabel}>Duração: </Text>
+      {processo.detalhesProcesso?.Duracao || 0} minutos
+    </Text>
 
-                                </View>
-                            ))}
+    <Text style={styles.cardDesc}>
+      {processo.detalhesProcesso?.DescricaoResp || "Sem descrição."}
+    </Text>
+  </TouchableOpacity>
+))}
+
                         </View>
                     ))}
                 </View>
@@ -890,14 +889,144 @@ const PandIByTecnico = () => {
                         </Text>
                     )}
                 </View>
+                
             )}
         </ScrollView>
+          {/* Modal tem de estar AQUI FORA do ScrollView */}
+          {processoSelecionado && (
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={modalVisible}
+                onRequestClose={() => setModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>
+                            Processo {processoSelecionado.detalhesProcesso?.Processo}
+                        </Text>
+                        <Text style={styles.modalInfo}>
+                            <Text style={{ fontWeight: "bold" }}>Cliente: </Text>
+                            {processoSelecionado.detalhesProcesso?.NomeCliente || "N/A"}
+                        </Text>
+                        <Text style={styles.modalInfo}>
+                            <Text style={{ fontWeight: "bold" }}>Contacto: </Text>
+                            {processoSelecionado.detalhesProcesso?.NomeContacto || "N/A"}
+                        </Text>
+                        <Text style={styles.modalInfo}>
+                            <Text style={{ fontWeight: "bold" }}>Estado: </Text>
+                            {processoSelecionado.intervencoes.length > 0 ? "Concluído" : "Pendente"}
+                        </Text>
+                        <Text style={styles.modalInfo}>
+                            <Text style={{ fontWeight: "bold" }}>Duração: </Text>
+                            {processoSelecionado.detalhesProcesso?.Duracao || 0} minutos
+                        </Text>
+                        <Text style={styles.modalDesc}>
+                            {processoSelecionado.detalhesProcesso?.DescricaoProb || "Sem descrição."}
+                        </Text>
+
+                        {/* Intervenções no modal */}
+                        {processoSelecionado.intervencoes.length > 0 ? (
+                            <ScrollView style={{ maxHeight: 200, marginTop: 10 }}>
+                                {processoSelecionado.intervencoes.map((intv, idx) => (
+                                    <View
+                                        key={idx}
+                                        style={{
+                                            backgroundColor: "#f0f4ff",
+                                            padding: 10,
+                                            borderRadius: 8,
+                                            marginBottom: 6,
+                                        }}
+                                    >
+                                        <Text style={{ fontWeight: "bold", color: "#0056b3" }}>
+                                            {intv.TipoInterv || "Tipo não definido"}
+                                        </Text>
+                                       
+                                        <Text style={{ fontSize: 12, color: "#444" }}>
+                                            Duração: {intv.Duracao || 0} min
+                                        </Text>
+                                        {intv.Observacoes && (
+                                            <Text
+                                                style={{
+                                                    fontSize: 12,
+                                                    color: "#666",
+                                                    fontStyle: "italic",
+                                                    marginTop: 4,
+                                                }}
+                                            >
+                                                {intv.Observacoes}
+                                            </Text>
+                                        )}
+                                    </View>
+                                ))}
+                            </ScrollView>
+                        ) : (
+                            <Text style={styles.intervPendente}>
+                                Sem intervenções registadas.
+                            </Text>
+                        )}
+
+                        <TouchableOpacity
+                            style={styles.modalButton}
+                            onPress={() => setModalVisible(false)}
+                        >
+                            <Text style={styles.modalButtonText}>Fechar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        )}
+    </View>
     );
+    
 };
 
 export default PandIByTecnico;
 
 const styles = StyleSheet.create({
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        width: '85%',
+        backgroundColor: '#fff',
+        padding: 20,
+        borderRadius: 10,
+        elevation: 10,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        color: '#1792FE',
+    },
+    modalInfo: {
+        fontSize: 14,
+        marginBottom: 6,
+        color: '#444',
+    },
+    modalDesc: {
+        fontSize: 13,
+        color: '#666',
+        fontStyle: 'italic',
+        marginVertical: 10,
+    },
+    modalButton: {
+        backgroundColor: '#1792FE',
+        paddingVertical: 10,
+        borderRadius: 6,
+        marginTop: 10,
+        alignItems: 'center',
+    },
+    modalButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    
     container: {
         flex: 1,
         backgroundColor: '#d4e4ff',
@@ -1141,7 +1270,10 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#555",
         fontStyle: "italic",
+        flexWrap: "wrap",
+        wordBreak: "break-word", // para web
     },
+    
 
     // Estado dos processos
     estadoPendente: {
@@ -1238,4 +1370,49 @@ const styles = StyleSheet.create({
         color: "#777",
         textAlign: "center",
     },
+    processCard: {
+        backgroundColor: "#ffffff",
+        borderRadius: 16,
+        padding: 20,
+        marginVertical: 10,
+        marginHorizontal: 5,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+        elevation: 4,
+        borderLeftWidth: 5,
+        borderLeftColor: "#1792FE",
+    },
+    
+    cardDate: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: "#1792FE",
+        marginBottom: 12,
+        textTransform: "capitalize",
+    },
+    
+    cardLine: {
+        fontSize: 14,
+        color: "#333",
+        marginBottom: 6,
+    },
+    
+    cardLabel: {
+        fontWeight: "bold",
+        color: "#444",
+    },
+    
+    cardDesc: {
+        fontSize: 13,
+        fontStyle: "italic",
+        color: "#666",
+        marginTop: 10,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: "#eee",
+    },
+    
+      
 });
