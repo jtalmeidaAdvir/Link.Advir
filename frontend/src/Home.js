@@ -856,7 +856,12 @@ const [dataLists, setDataLists] = useState({
                                                     </div>
                                                 </div>
 
+
+
+
                                                 {/* Horas do contrato */}
+                                                {contratoInfo.TipoDoc !== 'PRJ' && (
+
                                                 <div style={{ 
                                                     display: 'flex',
                                                     flexWrap: 'wrap',
@@ -961,9 +966,11 @@ const [dataLists, setDataLists] = useState({
                                                             {(contratoInfo.HorasTotais - contratoInfo.HorasGastas).toFixed(2)} h
                                                         </p>
                                                     </div>
-                                                </div>
-
+                                                </div> 
+                                                )}
                                                 {/* Progress bar */}
+                                                
+                                                {contratoInfo.TipoDoc !== 'PRJ' && (
                                                 <div style={{ 
                                                     backgroundColor: 'white',
                                                     borderRadius: '12px',
@@ -991,7 +998,9 @@ const [dataLists, setDataLists] = useState({
                                                         }}></div>
                                                     </div>
                                                 </div>
-                                            </div>
+                                                )}
+                                           
+                                        </div>
                                         </div>
                                     </motion.div>
                                 ) : (
