@@ -224,6 +224,10 @@ const RegistoAssistencia = (props) => {
                 datahorafimprevista: "",
             });
             setSelectedObjeto(null);
+            setActiveTab("cliente");
+            setMessage("");
+            props.navigation.navigate("PedidosAssistencia");
+
         } catch (error) {
             setMessage("Erro ao enviar pedido.");
             console.error("Erro ao enviar pedido:", error);
@@ -280,18 +284,92 @@ const RegistoAssistencia = (props) => {
                             <div style={formGroupStyle}>
                                 <label style={labelStyle}>{t("RegistoAssistencia.TxtCliente")}</label>
                                 <select
-                                    name="cliente"
-                                    value={formData.cliente}
-                                    onChange={handleChange}
-                                    onClick={() =>
-                                        fetchData(
-                                            "routePedidos_STP/LstClientes",
-                                            "clientes",
-                                            "carregandoClientes",
-                                        )
-                                    }
-                                    style={selectStyle}
-                                >
+                                            name="cliente"
+                                            value={formData.cliente}
+                                            onChange={async (e) => {
+                                                const value = e.target.value;
+                                            
+                                                // Atualiza o cliente, limpa valores anteriores
+                                                setFormData((prev) => ({
+                                                    ...prev,
+                                                    cliente: value,
+                                                    contacto: "",
+                                                    contratoID: "",
+                                                }));
+                                            
+                                                // Buscar contactos
+                                                try {
+                                                    const contactosRes = await fetch(
+                                                        `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${value}`,
+                                                        {
+                                                            method: "GET",
+                                                            headers: {
+                                                                Authorization: `Bearer ${token}`,
+                                                                "Content-Type": "application/json",
+                                                                urlempresa: urlempresa,
+                                                            },
+                                                        }
+                                                    );
+                                                    const contactosData = await contactosRes.json();
+                                                    const contactos = contactosData?.DataSet?.Table || [];
+                                            
+                                                    setDataLists((prev) => ({
+                                                        ...prev,
+                                                        contactos,
+                                                    }));
+                                            
+                                                    if (contactos.length === 1) {
+                                                        setFormData((prev) => ({
+                                                            ...prev,
+                                                            contacto: contactos[0].Contacto,
+                                                        }));
+                                                    }
+                                                } catch (error) {
+                                                    console.error("Erro ao buscar contactos:", error);
+                                                }
+                                            
+                                                // Buscar contratos
+                                                try {
+                                                    const contratosRes = await fetch(
+                                                        `https://webapiprimavera.advir.pt/routePedidos_STP/Listarcontratos/${value}`,
+                                                        {
+                                                            method: "GET",
+                                                            headers: {
+                                                                Authorization: `Bearer ${token}`,
+                                                                "Content-Type": "application/json",
+                                                                urlempresa: urlempresa,
+                                                            },
+                                                        }
+                                                    );
+                                                    const contratosData = await contratosRes.json();
+                                                    const contratos = contratosData?.DataSet?.Table || [];
+                                            
+                                                    setDataLists((prev) => ({
+                                                        ...prev,
+                                                        contratosID: contratos,
+                                                    }));
+                                            
+                                                    if (contratos.length === 1) {
+                                                        setFormData((prev) => ({
+                                                            ...prev,
+                                                            contratoID: contratos[0].ID,
+                                                        }));
+                                                    }
+                                                } catch (error) {
+                                                    console.error("Erro ao buscar contratos:", error);
+                                                }
+                                            }}
+                                            
+                                            onClick={() =>
+                                                fetchData(
+                                                    "routePedidos_STP/LstClientes",
+                                                    "clientes",
+                                                    "carregandoClientes"
+                                                )
+                                            }
+                                            style={selectStyle}
+                                        >
+
                                     <option value="">{t("RegistoAssistencia.TxtCliente")}</option>
                                     {dataLists.clientes.map((c) => (
                                         <option key={c.Cliente} value={c.Cliente}>
@@ -634,12 +712,34 @@ const RegistoAssistencia = (props) => {
                 </form>
                 
                 <div style={buttonContainerStyle}>
-                    <button
-                        onClick={() => props.navigation.navigate("PedidosAssistencia")}
-                        style={cancelButtonStyle}
-                    >
-                        {t("RegistoAssistencia.BtCancelar")}
-                    </button>
+                <button
+    onClick={() => {
+        setActiveTab("cliente");
+        setMessage("");
+        props.navigation.navigate("PedidosAssistencia");
+        setFormData({
+            cliente: "",
+            contacto: "",
+            contratoID: "",
+            tecnico: "",
+            origem: "",
+            objeto: "",
+            prioridade: "",
+            secao: "",
+            estado: "",
+            tipoProcesso: "",
+            problema: "",
+            comoReproduzir: "",
+            datahoraabertura: "",
+            datahorafimprevista: "",
+        });
+        setSelectedObjeto(null);
+    }}
+    style={cancelButtonStyle}
+>
+    {t("RegistoAssistencia.BtCancelar")}
+</button>
+
                 </div>
             </div>
         </div>

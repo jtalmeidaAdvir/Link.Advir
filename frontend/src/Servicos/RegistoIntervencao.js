@@ -475,11 +475,13 @@ const RegistoIntervencao = (props) => {
                 horaFim: '',
                 descricao: '',
             });
+            setActiveTab("detalhes");
+            setSuccessMessage("");
+            props.navigation.navigate("PedidosAssistencia");
             setAddedArtigos([]);
             setArtigoForm(initialArtigoForm());
         } catch (error) {
             console.error('Erro:', error.message);
-            setSuccessMessage('Erro ao gravar intervenção.');
         } finally {
             setIsLoading(false);
             setIsModalOpen(false);
@@ -839,13 +841,29 @@ const RegistoIntervencao = (props) => {
                 </form>
                 
                 <div style={buttonContainerStyle}>
-                    <button
-                        type="button"
-                        onClick={() => props.navigation.navigate('Intervencoes')}
-                        style={cancelButtonStyle}
-                    >
-                        {t("RegistoIntervencao.Cancelar")}
-                    </button>
+                <button
+    type="button"
+    onClick={() => {
+        setActiveTab("detalhes");
+        props.navigation.navigate('Intervencoes');
+        setFormData({
+            tipoIntervencao: '',
+            tecnico: '',
+            estado: '',
+            tipo: '',
+            dataInicio: '',
+            dataFim: '',
+            horaInicio: '',
+            horaFim: '',
+            descricao: '',
+        });
+        
+    }}
+    style={cancelButtonStyle}
+>
+    {t("RegistoIntervencao.Cancelar")}
+</button>
+
                 </div>
             </div>
 
