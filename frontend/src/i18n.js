@@ -309,7 +309,7 @@ i18n
                             syslog: "Syslog",
                         },
                         contratoinfo: {
-                            title: "Informacoes do Contrato",
+                            title: "Informacões do Contrato",
                             codigo: "Codigo:",
                             descricao: "Descricao:",
                             horascontrato: "Horas Contratualizadas:",

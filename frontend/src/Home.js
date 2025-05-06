@@ -15,7 +15,7 @@ const Home = () => {
 
     const [isDrawerOpen, setDrawerOpen] = useState(false);
     const [activeMenu, setActiveMenu] = useState(t('Home.menu.products')); // Estado para o menu ativo
-    const [contratoInfo, setContratoInfo] = useState(null);
+    const [contratoInfo, setContratoInfo] = useState([]);
     const [pedidosInfo, setPedidosInfo] = useState(null);
     const [pedidosError, setPedidosError] = useState('');
     const [pedidosLoading, setPedidosLoading] = useState(false);
@@ -456,18 +456,16 @@ const [dataLists, setDataLists] = useState({
                 console.log('Contrato Data:', contratoData);
 
                 // Filtrar contrato com estado === 3
-                const contratoFiltrado = contratoData?.DataSet?.Table?.find(c => c.Estado === 3);
-
-                if (contratoFiltrado) {
-                    setContratoInfo(contratoFiltrado);
-
-                    // Atualizar contratoID no formulário automaticamente
-                    setFormData((prev) => ({ ...prev, contratoID: contratoFiltrado.ID }));
+                const contratosFiltrados = contratoData?.DataSet?.Table?.filter(c => c.Estado === 3) || [];
+                if (contratosFiltrados.length > 0) {
+                  setContratoInfo(contratosFiltrados);
+                  // opcional: guardar o primeiro ID no formulário ou permitir escolher
+                  setFormData(prev => ({ ...prev, contratoID: contratosFiltrados[0].ID }));
                 } else {
-                    console.warn("Nenhum contrato encontrado com estado === 3.");
-                    setContratoInfo(null);
-                    setFormData((prev) => ({ ...prev, contratoID: null }));
+                  setContratoInfo([]);
+                  setFormData(prev => ({ ...prev, contratoID: null }));
                 }
+
 
                 // Fetch contactos
                 const contactosResponse = await fetch(
@@ -751,280 +749,207 @@ const [dataLists, setDataLists] = useState({
                     </div>
                     {/* Content Based on Active Menu */}
                     <div ref={contractRef}>
-                        {activeMenu === t('Home.menu.contract') && (
-                            <>
-                                {loading ? (
-                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
-                                        <div className="spinner-border text-primary" role="status">
-                                            <span className="visually-hidden">{t('loading')}</span>
-                                        </div>
-                                    </div>
-                                ) : errorMessage ? (
-                                    <div style={{ 
-                                        maxWidth: '800px', 
-                                        margin: '0 auto', 
-                                        padding: '20px', 
-                                        backgroundColor: '#fff0f0', 
-                                        borderRadius: '8px',
-                                        border: '1px solid #ffcccb',
-                                        color: '#d8000c',
-                                        textAlign: 'center'
-                                    }}>
-                                        <p style={{ fontSize: '18px' }}>{errorMessage}</p>
-                                    </div>
-                                ) : contratoInfo ? (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.5 }}
-                                        style={{
-                                            maxWidth: '800px',
-                                            margin: '0 auto',
-                                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                            borderRadius: '16px',
-                                            overflow: 'hidden',
-                                            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
-                                        }}
-                                    > 
-                                        <div style={{ 
-                                            backgroundColor: '#1976D2', 
-                                            padding: '25px 30px',
-                                            borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-                                        }}>
-                                            <h2 style={{ 
-                                                fontWeight: '700', 
-                                                color: '#FFFFFF', 
-                                                margin: 0,
-                                                fontSize: '28px',
-                                                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
-                                            }}>
-                                                {t('Home.contratoinfo.title')}
-                                            </h2>
-                                        </div>
+  {activeMenu === t('Home.menu.contract') && (
+    <>
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">{t('loading')}</span>
+          </div>
+        </div>
+      ) : errorMessage ? (
+        <div style={{
+          maxWidth: '800px',
+          margin: '0 auto',
+          padding: '20px',
+          backgroundColor: '#fff0f0',
+          borderRadius: '8px',
+          border: '1px solid #ffcccb',
+          color: '#d8000c',
+          textAlign: 'center'
+        }}>
+          <p style={{ fontSize: '18px' }}>{errorMessage}</p>
+        </div>
+      ) : contratoInfo.length > 0 ? (
+        contratoInfo.map((c, idx) => (
+          <motion.div
+            key={c.ID}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: idx * 0.1 }}
+            style={{
+              maxWidth: '800px',
+              margin: '0 auto 40px',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
+            }}
+          >
+            {/* Cabeçalho */}
+            <div style={{
+              backgroundColor: '#1976D2',
+              padding: '25px 30px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+            }}>
+              <h2 style={{
+                fontWeight: 700,
+                color: '#FFFFFF',
+                margin: 0,
+                fontSize: '28px',
+                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
+              }}>
+                {t('Home.contratoinfo.title')} {c.Codigo}
+              </h2>
+            </div>
 
-                                        <div style={{ padding: '30px' }}>
-                                            <div style={{ 
-                                                display: 'flex', 
-                                                flexDirection: 'column', 
-                                                gap: '20px'
-                                            }}>
-                                                {/* Informações do contrato */}
-                                                <div style={{ 
-                                                    backgroundColor: '#f8f9fa',
-                                                    borderRadius: '12px',
-                                                    padding: '20px',
-                                                    borderLeft: '4px solid #1976D2'
-                                                }}>
-                                                    <h3 style={{ 
-                                                        color: '#1976D2', 
-                                                        margin: '0 0 15px 0',
-                                                        fontSize: '18px',
-                                                        fontWeight: '600'
-                                                    }}>
-                                                        {t('Detalhes do Contrato')}
-                                                    </h3>
-                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
-                                                        <div style={{ 
-                                                            minWidth: '200px', 
-                                                            flex: 1,
-                                                            backgroundColor: 'white',
-                                                            padding: '15px',
-                                                            borderRadius: '8px',
-                                                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                                                        }}>
-                                                            <p style={{ fontSize: '14px', color: '#757575', margin: '0 0 5px 0' }}>
-                                                                {t('Home.contratoinfo.codigo')}
-                                                            </p>
-                                                            <p style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>
-                                                                {contratoInfo.Codigo}
-                                                            </p>
-                                                        </div>
-                                                        <div style={{ 
-                                                            flex: 2,
-                                                            backgroundColor: 'white',
-                                                            padding: '15px',
-                                                            borderRadius: '8px',
-                                                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                                                        }}>
-                                                            <p style={{ fontSize: '14px', color: '#757575', margin: '0 0 5px 0' }}>
-                                                                {t('Home.contratoinfo.descricao')}
-                                                            </p>
-                                                            <p style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>
-                                                                {contratoInfo.Descricao}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
+            <div style={{ padding: '30px' }}>
+              {/* Detalhes */}
+              <div style={{
+                backgroundColor: '#f8f9fa',
+                borderRadius: '12px',
+                padding: '20px',
+                borderLeft: '4px solid #1976D2',
+                marginBottom: '20px'
+              }}>
+                <p><strong>{t('Home.contratoinfo.codigo')}:</strong> {c.Codigo}</p>
+                <p><strong>{t('Home.contratoinfo.descricao')}:</strong> {c.Descricao}</p>
+              </div>
 
+              {/* Horas e progresso (se não for PRJ) */}
+              {c.TipoDoc !== 'PRJ' && (
+  <>
+    <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+      {/* Horas Contrato */}
+      <div style={{
+        flex: 1,
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '25px 20px',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          margin: '0 auto 15px',
+          borderRadius: '50%',
+          backgroundColor: '#e3f2fd',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '24px'
+        }}>⏱️</div>
+        <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horascontrato')}</p>
+        <p style={{ fontSize: '24px', fontWeight: '700', color: '#1976D2', margin: 0 }}>{c.HorasTotais} h</p>
+      </div>
 
+      {/* Horas Gastas */}
+      <div style={{
+        flex: 1,
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '25px 20px',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          margin: '0 auto 15px',
+          borderRadius: '50%',
+          backgroundColor: '#ffe0e0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '24px'
+        }}>⌛</div>
+        <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horasgastas')}</p>
+        <p style={{ fontSize: '24px', fontWeight: '700', color: '#f44336', margin: 0 }}>{c.HorasGastas} h</p>
+      </div>
 
+      {/* Horas Disponíveis */}
+      <div style={{
+        flex: 1,
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '25px 20px',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          margin: '0 auto 15px',
+          borderRadius: '50%',
+          backgroundColor: '#e8f5e9',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '24px'
+        }}>✅</div>
+        <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horasdisponiveis')}</p>
+        <p style={{ fontSize: '24px', fontWeight: '700', color: '#4caf50', margin: 0 }}>
+          {(c.HorasTotais - c.HorasGastas).toFixed(2)} h
+        </p>
+      </div>
+    </div>
 
-                                                {/* Horas do contrato */}
-                                                {contratoInfo.TipoDoc !== 'PRJ' && (
+    {/* Barra de Progresso */}
+    <div style={{
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      padding: '20px',
+      boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+        <p style={{ margin: 0, fontWeight: '500' }}>{t('Progresso do Contrato')}</p>
+        <p style={{ margin: 0, fontWeight: '600' }}>
+          {Math.round((c.HorasGastas / c.HorasTotais) * 100)}%
+        </p>
+      </div>
+      <div style={{
+        height: '10px',
+        backgroundColor: '#e0e0e0',
+        borderRadius: '5px',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          height: '100%',
+          width: `${(c.HorasGastas / c.HorasTotais) * 100}%`,
+          backgroundColor: '#1976D2'
+        }} />
+      </div>
+    </div>
+  </>
+)}
 
-                                                <div style={{ 
-                                                    display: 'flex',
-                                                    flexWrap: 'wrap',
-                                                    gap: '20px',
-                                                    marginTop: '10px'
-                                                }}>
-                                                    <div style={{ 
-                                                        flex: 1,
-                                                        minWidth: '200px',
-                                                        backgroundColor: 'white',
-                                                        borderRadius: '12px',
-                                                        padding: '25px 20px',
-                                                        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                                                        textAlign: 'center',
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center'
-                                                    }}>
-                                                        <div style={{ 
-                                                            width: '50px',
-                                                            height: '50px',
-                                                            borderRadius: '50%',
-                                                            backgroundColor: '#e3f2fd',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            marginBottom: '15px'
-                                                        }}>
-                                                            <span style={{ fontSize: '24px' }}>⏱️</span>
-                                                        </div>
-                                                        <p style={{ fontSize: '14px', color: '#757575', margin: '0 0 5px 0' }}>
-                                                            {t('Home.contratoinfo.horascontrato')}
-                                                        </p>
-                                                        <p style={{ fontSize: '24px', fontWeight: '700', color: '#1976D2', margin: 0 }}>
-                                                            {contratoInfo.HorasTotais} h
-                                                        </p>
-                                                    </div>
+            </div>
+          </motion.div>
+        ))
+      ) : (
+        <div style={{
+          textAlign: 'center',
+          padding: '40px 20px',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '12px',
+          color: '#6c757d',
+          maxWidth: '800px',
+          margin: '0 auto'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '15px' }}>📋</div>
+          <p style={{ fontSize: '18px', fontWeight: '500', margin: 0 }}>
+            {t('Home.contratoinfo.error')}
+          </p>
+          <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
+            {t('Não foi possível encontrar informações de contrato ativo')}
+          </p>
+        </div>
+      )}
+    </>
+  )}
+</div>
 
-                                                    <div style={{ 
-                                                        flex: 1,
-                                                        minWidth: '200px',
-                                                        backgroundColor: 'white',
-                                                        borderRadius: '12px',
-                                                        padding: '25px 20px',
-                                                        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                                                        textAlign: 'center',
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center'
-                                                    }}>
-                                                        <div style={{ 
-                                                            width: '50px',
-                                                            height: '50px',
-                                                            borderRadius: '50%',
-                                                            backgroundColor: '#ffe0e0',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            marginBottom: '15px'
-                                                        }}>
-                                                            <span style={{ fontSize: '24px' }}>⌛</span>
-                                                        </div>
-                                                        <p style={{ fontSize: '14px', color: '#757575', margin: '0 0 5px 0' }}>
-                                                            {t('Home.contratoinfo.horasgastas')}
-                                                        </p>
-                                                        <p style={{ fontSize: '24px', fontWeight: '700', color: '#f44336', margin: 0 }}>
-                                                            {contratoInfo.HorasGastas} h
-                                                        </p>
-                                                    </div>
-
-                                                    <div style={{ 
-                                                        flex: 1,
-                                                        minWidth: '200px',
-                                                        backgroundColor: 'white',
-                                                        borderRadius: '12px',
-                                                        padding: '25px 20px',
-                                                        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                                                        textAlign: 'center',
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center'
-                                                    }}>
-                                                        <div style={{ 
-                                                            width: '50px',
-                                                            height: '50px',
-                                                            borderRadius: '50%',
-                                                            backgroundColor: '#e8f5e9',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            marginBottom: '15px'
-                                                        }}>
-                                                            <span style={{ fontSize: '24px' }}>✅</span>
-                                                        </div>
-                                                        <p style={{ fontSize: '14px', color: '#757575', margin: '0 0 5px 0' }}>
-                                                            {t('Home.contratoinfo.horasdisponiveis')}
-                                                        </p>
-                                                        <p style={{ fontSize: '24px', fontWeight: '700', color: '#4caf50', margin: 0 }}>
-                                                            {(contratoInfo.HorasTotais - contratoInfo.HorasGastas).toFixed(2)} h
-                                                        </p>
-                                                    </div>
-                                                </div> 
-                                                )}
-                                                {/* Progress bar */}
-                                                
-                                                {contratoInfo.TipoDoc !== 'PRJ' && (
-                                                <div style={{ 
-                                                    backgroundColor: 'white',
-                                                    borderRadius: '12px',
-                                                    padding: '20px',
-                                                    marginTop: '10px',
-                                                    boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
-                                                }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                                                        <p style={{ margin: 0, fontWeight: '500' }}>Progresso do Contrato</p>
-                                                        <p style={{ margin: 0, fontWeight: '600' }}>
-                                                            {Math.round((contratoInfo.HorasGastas / contratoInfo.HorasTotais) * 100)}%
-                                                        </p>
-                                                    </div>
-                                                    <div style={{ 
-                                                        height: '10px',
-                                                        backgroundColor: '#e0e0e0',
-                                                        borderRadius: '5px',
-                                                        overflow: 'hidden'
-                                                    }}>
-                                                        <div style={{ 
-                                                            height: '100%',
-                                                            width: `${(contratoInfo.HorasGastas / contratoInfo.HorasTotais) * 100}%`,
-                                                            backgroundColor: '#1976D2',
-                                                            borderRadius: '5px'
-                                                        }}></div>
-                                                    </div>
-                                                </div>
-                                                )}
-                                           
-                                        </div>
-                                        </div>
-                                    </motion.div>
-                                ) : (
-                                    <div style={{ 
-                                        textAlign: 'center', 
-                                        padding: '40px 20px', 
-                                        backgroundColor: '#f8f9fa',
-                                        borderRadius: '12px',
-                                        color: '#6c757d',
-                                        maxWidth: '800px',
-                                        margin: '0 auto'
-                                    }}>
-                                        <div style={{ fontSize: '48px', marginBottom: '15px' }}>📋</div>
-                                        <p style={{ fontSize: '18px', fontWeight: '500', margin: 0 }}>
-                                            {t('Home.contratoinfo.error')}
-                                        </p>
-                                        <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
-                                            {t('Não foi possível encontrar informações de contrato ativo')}
-                                        </p>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
 
                     <div ref={ordersRef}>
                         {activeMenu === t('Home.menu.orders') && (
