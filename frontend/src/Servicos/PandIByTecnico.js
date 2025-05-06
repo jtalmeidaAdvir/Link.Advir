@@ -880,7 +880,7 @@ const PandIByTecnico = () => {
 
     <Text style={styles.cardLine}>
       <Text style={styles.cardLabel}>Cliente: </Text>
-      {processo.detalhesProcesso?.Nome || "N/A"}
+      {processo.detalhesProcesso?.NomeCliente || "N/A"}
     </Text>
 
     <Text style={styles.cardLine}>
