@@ -42,7 +42,7 @@ const PedidosAssistencia = ({ navigation }) => {
     const [expandedSections, setExpandedSections] = useState({});
     const [loading, setLoading] = useState(true);
     const [filterPrioridade, setFilterPrioridade] = useState('');
-    const [filterSerie, setFilterSerie] = useState('');
+    const [filterSerie, setFilterSerie] = useState('2025');
     const [filterEstado, setFilterEstado] = useState('1');
     const [showFilters, setShowFilters] = useState(false);
     const { t } = useTranslation();
@@ -57,19 +57,26 @@ const [userTecnicoID, setUserTecnicoID] = useState('');
 
 
 
-    useEffect(() => {
-        const updatedData = Object.values(
-            applyFilters().reduce((acc, pedido) => {
-                const numProcesso = pedido.NumProcesso;
-                if (!acc[numProcesso]) {
-                    acc[numProcesso] = [];
-                }
-                acc[numProcesso].push(pedido);
-                return acc;
-            }, {})
-        );
-        setFilteredData(updatedData);
-    }, [pedidos, searchTerm, filterPrioridade, filterEstado, filterSerie]);
+useEffect(() => {
+    const groupedData = Object.values(
+        applyFilters().reduce((acc, pedido) => {
+            const numProcesso = pedido.NumProcesso;
+            if (!acc[numProcesso]) {
+                acc[numProcesso] = [];
+            }
+            acc[numProcesso].push(pedido);
+            return acc;
+        }, {})
+    );
+
+    // Ordenar por NumProcesso descendente
+    const sortedData = groupedData.sort((a, b) => {
+        return b[0].NumProcesso - a[0].NumProcesso;
+    });
+
+    setFilteredData(sortedData);
+}, [pedidos, searchTerm, filterPrioridade, filterEstado, filterSerie]);
+
 
     // Fetch pedidos quando o componente monta ou a tela recebe foco
     useFocusEffect(
