@@ -7,6 +7,8 @@ import { useTranslation } from 'react-i18next';
 const RegistoIntervencao = (props) => {
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const { t } = useTranslation();
+    const [enviarEmailCheck, setEnviarEmailCheck] = useState(true);
+
 
     const initialArtigoForm = () => ({
         artigo: '',
@@ -460,7 +462,10 @@ const RegistoIntervencao = (props) => {
             };
 
             // Chame a função para enviar o e-mail
-            enviarEmail();
+            if (enviarEmailCheck && email) {
+                enviarEmail();
+            }
+            
     
             // Reset form
             setIsSuccessModalOpen(true);
@@ -644,6 +649,16 @@ const RegistoIntervencao = (props) => {
                                     required
                                 />
                             </div>
+                            <div style={{ marginTop: "20px", display: "flex", alignItems: "center" }}>
+    <input
+        type="checkbox"
+        id="enviarEmail"
+        checked={enviarEmailCheck}
+        onChange={() => setEnviarEmailCheck(!enviarEmailCheck)}
+        style={{ marginRight: "10px" }}
+    />
+    <label htmlFor="enviarEmail">Enviar e-mail</label>
+</div>
                             
                             <div style={navigationButtonsStyle}>
                                 <button type="button" style={nextButtonStyle} onClick={() => setActiveTab("cronograma")}>
@@ -770,7 +785,10 @@ const RegistoIntervencao = (props) => {
                                             </button>
                                         </div>
                                     </div>
+                                   
+
                                 </div>
+                                
                             )}
 
                             <div style={artigosListStyle}>
