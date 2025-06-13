@@ -27,6 +27,10 @@ import VerificaConta from './src/Autenticacao/VerificaConta';
 import SelecaoEmpresa from './src/Autenticacao/SelecaoEmpresa';
 import RecuperarPassword from './src/Autenticacao/RecuperarPassword';
 import RedefinirPassword from './src/Autenticacao/RedefinirPassword';
+
+
+
+import ContratosList from './src/BackOffice/ContratosList';
  
 // SERVICOS
 import PedidosAssistencia from './src/Servicos/PedidosAssistencia';
@@ -99,6 +103,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                     onPress={() => props.navigation.navigate('RegistoAdmin')}
                     icon={() => <FontAwesome name="home" size={20} color="#1792FE" />}
                 />
+                
                 <DrawerItem
                     label="Meu Perfil"
                     onPress={() => props.navigation.navigate('Perfil')}
@@ -166,7 +171,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                             icon={() => <FontAwesome name="file" size={20} color="#1792FE" />}
                         />
                     )}
-                  
+                    
                     {hasQrCodeAssiduidadeModule && (
                         <DrawerItem
                             label={t("Drawer.PontoQR")}
@@ -181,7 +186,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                             icon={() => <FontAwesome name="clock-o" size={20} color="#1792FE" />}
                         />
                     )}
-                      {hasServicesModule && (
+                    {hasServicesModule && (
                         <DrawerItem
                             label=  {t("Drawer.ServicosTecnicos")}
                             onPress={() => props.navigation.navigate('PandIByTecnico')}
@@ -190,7 +195,6 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                        
                     )}
                 </>
-                
             )}
             <View style={{ flexGrow: 1, justifyContent: 'flex-end', paddingBottom: 20 }}>
                 {isAdmin && (
@@ -211,6 +215,12 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                    onPress={handlePress}
                    titleStyle={{ fontSize: 14, marginLeft: 0, flexDirection: 'row', alignItems: 'center' }}
                >
+                
+                    <List.Item
+                        title="> Contratos Ativos"
+                        onPress={() => props.navigation.navigate('ContratosList')}
+                    />
+
                    <List.Item
                             title={t("Drawer.ADM.1")}
                        onPress={() => props.navigation.navigate('PainelAdmin')}
@@ -481,6 +491,8 @@ const AppNavigator = () => {
                 <>
                     <Drawer.Screen name="PainelAdmin" component={PainelAdmin} />
                     <Drawer.Screen name="UsersEmpresa" component={UsersEmpresa} />
+                    <Drawer.Screen name="ContratosList" component={ContratosList} />
+
                     <Drawer.Screen name="RegistoUser" component={RegistoUser} />
                 </>
             )}
