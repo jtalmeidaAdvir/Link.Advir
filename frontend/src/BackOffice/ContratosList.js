@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, ScrollView
 } from 'react-native';
 
@@ -11,40 +11,37 @@ const ContratosList = () => {
   const [erro, setErro] = useState('');
   const [clientes, setClientes] = useState([]);
   const [carregandoClientes, setCarregandoClientes] = useState(false);
+  const [filtroEstado, setFiltroEstado] = useState('ativo'); // ativo, caducado, cancelado
 
+  const fetchClientes = async () => {
+    if (clientes.length > 0 || carregandoClientes) return;
 
+    setCarregandoClientes(true);
 
+    try {
+      const token = await localStorage.getItem('painelAdminTokenAdvir');
+      const urlempresa = await localStorage.getItem('urlempresaAdvir');
 
-const fetchClientes = async () => {
-  if (clientes.length > 0 || carregandoClientes) return;
+      const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/LstClientes`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          urlempresa,
+        },
+      });
 
-  setCarregandoClientes(true);
+      const data = await response.json();
+      setClientes(data?.DataSet?.Table || []);
+    } catch (error) {
+      console.error("Erro ao carregar clientes:", error);
+    } finally {
+      setCarregandoClientes(false);
+    }
+  };
 
-  try {
-    const token = await localStorage.getItem('painelAdminTokenAdvir');
-    const urlempresa = await localStorage.getItem('urlempresaAdvir');
-
-    const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/LstClientes`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        urlempresa,
-      },
-    });
-
-    const data = await response.json();
-    setClientes(data?.DataSet?.Table || []);
-  } catch (error) {
-    console.error("Erro ao carregar clientes:", error);
-  } finally {
-    setCarregandoClientes(false);
-  }
-};
-
-useEffect(() => {
-  fetchClientes();
-}, []);
-
+  useEffect(() => {
+    fetchClientes();
+  }, []);
 
   const fetchContratos = async () => {
     setErro('');
@@ -77,7 +74,6 @@ useEffect(() => {
         throw new Error('Nenhum contrato encontrado para este cliente.');
       }
 
-      // Calcular horas disponíveis para cada contrato
       const contratosComHoras = listaContratos.map(c => ({
         ...c,
         horasDisponiveis: ((c.HorasTotais ?? 0) - (c.HorasGastas ?? 0)).toFixed(2)
@@ -91,40 +87,64 @@ useEffect(() => {
     }
   };
 
+  const contratosFiltrados = contratos.filter((contrato) => {
+    if (filtroEstado === 'cancelado') return contrato.Cancelado === true;
+    if (filtroEstado === 'caducado') return contrato.Estado === 6 && contrato.Cancelado === false;
+    if (filtroEstado === 'ativo') return contrato.Estado === 3 && contrato.Cancelado === false;
+    return true;
+  });
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Consultar Contratos do Cliente</Text>
 
       <View style={styles.input}>
-  <Text style={{ marginBottom: 6, fontWeight: '600' }}>Seleciona o Cliente</Text>
-  <ScrollView nestedScrollEnabled>
-    <TouchableOpacity style={{ paddingVertical: 10 }}>
-      <select
-        value={clienteId}
-        onChange={(e) => setClienteId(e.target.value)}
-        style={{ padding: 12, borderRadius: 6, borderColor: '#ccc', borderWidth: 1, width: '100%' }}
-      >
-        <option value="">-- Escolha um cliente --</option>
-        {clientes.map((cliente) => (
-          <option key={cliente.Cliente} value={cliente.Cliente}>
-            {cliente.Cliente} - {cliente.Nome}
-          </option>
-        ))}
-      </select>
-    </TouchableOpacity>
-  </ScrollView>
-</View>
-
+        <Text style={{ marginBottom: 6, fontWeight: '600' }}>Seleciona o Cliente</Text>
+        <View style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 6 }}>
+          <select
+            value={clienteId}
+            onChange={(e) => setClienteId(e.target.value)}
+            style={{ padding: 12, width: '100%' }}
+          >
+            <option value="">-- Escolha um cliente --</option>
+            {clientes.map((cliente) => (
+              <option key={cliente.Cliente} value={cliente.Cliente}>
+                {cliente.Cliente} - {cliente.Nome}
+              </option>
+            ))}
+          </select>
+        </View>
+      </View>
 
       <TouchableOpacity style={styles.button} onPress={fetchContratos}>
         <Text style={styles.buttonText}>Consultar</Text>
       </TouchableOpacity>
 
-      {loading && <ActivityIndicator size="large" color="#1792FE" style={{ marginVertical: 20 }} />}
+      <View style={styles.filtroContainer}>
+        <TouchableOpacity
+          style={[styles.filtroBotao, filtroEstado === 'ativo' && styles.filtroAtivo]}
+          onPress={() => setFiltroEstado('ativo')}
+        >
+          <Text style={styles.filtroTexto}>Ativos</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filtroBotao, filtroEstado === 'caducado' && styles.filtroAtivo]}
+          onPress={() => setFiltroEstado('caducado')}
+        >
+          <Text style={styles.filtroTexto}>Caducados</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filtroBotao, filtroEstado === 'cancelado' && styles.filtroAtivo]}
+          onPress={() => setFiltroEstado('cancelado')}
+        >
+          <Text style={styles.filtroTexto}>Cancelados</Text>
+        </TouchableOpacity>
+      </View>
 
+      {loading && <ActivityIndicator size="large" color="#1792FE" style={{ marginVertical: 20 }} />}
       {erro !== '' && <Text style={styles.errorText}>{erro}</Text>}
 
-      {contratos.map((contrato, index) => (
+      {contratosFiltrados.map((contrato, index) => (
         <View key={index} style={styles.card}>
           <Text style={styles.label}>Código: <Text style={styles.value}>{contrato.Codigo}</Text></Text>
           <Text style={styles.label}>Descrição: <Text style={styles.value}>{contrato.Descricao}</Text></Text>
@@ -194,6 +214,25 @@ const styles = StyleSheet.create({
     color: '#E74C3C',
     textAlign: 'center',
     marginBottom: 10,
+  },
+  filtroContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 10,
+  },
+  filtroBotao: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    backgroundColor: '#e0e0e0',
+  },
+  filtroAtivo: {
+    backgroundColor: '#1792FE',
+  },
+  filtroTexto: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 
