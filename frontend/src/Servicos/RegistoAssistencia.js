@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import i18n from "../i18n";
 import { useTranslation } from "react-i18next";
@@ -15,7 +14,7 @@ const RegistoAssistencia = (props) => {
     const token = localStorage.getItem("painelAdminToken");
     const urlempresa = localStorage.getItem("urlempresa");
     const { t } = useTranslation();
-    
+
     // Variáveis de estado
     const [formData, setFormData] = useState({
         cliente: "",
@@ -46,6 +45,9 @@ const RegistoAssistencia = (props) => {
         estados: [],
         tiposProcessos: [],
     });
+
+    const [contratoSelecionado, setContratoSelecionado] = useState(null);
+    const [contratoExpandido, setContratoExpandido] = useState(false);
 
     // Atualizar handleChange
     const handleFormChange = (e) => {
@@ -244,63 +246,114 @@ const RegistoAssistencia = (props) => {
 
     return (
         <div style={scrollViewStyle}>
-        <div style={containerStyle}>
-            <div style={cardStyle}>
-                <header style={headerStyle}>
-                    <h1 style={titleStyle}>{t("RegistoAssistencia.Title")}</h1>
-                    <div style={tabsContainerStyle}>
-                        <button 
-                            style={activeTab === "cliente" ? activeTabStyle : tabStyle}
-                            onClick={() => setActiveTab("cliente")}
-                        >
-                            Informações do Cliente
-                        </button>
-                        <button 
-                            style={activeTab === "detalhes" ? activeTabStyle : tabStyle}
-                            onClick={() => setActiveTab("detalhes")}
-                        >
-                            Detalhes da Assistência
-                        </button>
-                        <button 
-                            style={activeTab === "descricao" ? activeTabStyle : tabStyle}
-                            onClick={() => setActiveTab("descricao")}
-                        >
-                            Descrição do Problema
-                        </button>
-                    </div>
-                </header>
+            <div style={containerStyle}>
+                <div style={cardStyle}>
+                    <header style={headerStyle}>
+                        <h1 style={titleStyle}>{t("RegistoAssistencia.Title")}</h1>
+                        <div style={tabsContainerStyle}>
+                            <button
+                                style={activeTab === "cliente" ? activeTabStyle : tabStyle}
+                                onClick={() => setActiveTab("cliente")}
+                            >
+                                Informações do Cliente
+                            </button>
+                            <button
+                                style={activeTab === "detalhes" ? activeTabStyle : tabStyle}
+                                onClick={() => setActiveTab("detalhes")}
+                            >
+                                Detalhes da Assistência
+                            </button>
+                            <button
+                                style={activeTab === "descricao" ? activeTabStyle : tabStyle}
+                                onClick={() => setActiveTab("descricao")}
+                            >
+                                Descrição do Problema
+                            </button>
+                        </div>
+                    </header>
 
-                {message && <div style={messageStyle}>{message}</div>}
+                    {message && <div style={messageStyle}>{message}</div>}
 
-                <form onSubmit={handleSubmit} style={formStyle}>
-                    {activeTab === "cliente" && (
-                        <div className="tab-content" style={tabContentStyle}>
-                            <div style={sectionTitleContainerStyle}>
-                                <div style={sectionTitleLineStyle}></div>
-                                <h2 style={sectionTitleStyle}>Informações do Cliente</h2>
-                                <div style={sectionTitleLineStyle}></div>
-                            </div>
-                            
-                            <div style={formGroupStyle}>
-                                <label style={labelStyle}>{t("RegistoAssistencia.TxtCliente")}</label>
-                                <select
-                                            name="cliente"
-                                            value={formData.cliente}
-                                            onChange={async (e) => {
-                                                const value = e.target.value;
-                                            
-                                                // Atualiza o cliente, limpa valores anteriores
-                                                setFormData((prev) => ({
+                    <form onSubmit={handleSubmit} style={formStyle}>
+                        {activeTab === "cliente" && (
+                            <div className="tab-content" style={tabContentStyle}>
+                                <div style={sectionTitleContainerStyle}>
+                                    <div style={sectionTitleLineStyle}></div>
+                                    <h2 style={sectionTitleStyle}>Informações do Cliente</h2>
+                                    <div style={sectionTitleLineStyle}></div>
+                                </div>
+
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtCliente")}</label>
+                                    <select
+                                        name="cliente"
+                                        value={formData.cliente}
+                                        onChange={async (e) => {
+                                            const value = e.target.value;
+
+                                            // Atualiza o cliente, limpa valores anteriores
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                cliente: value,
+                                                contacto: "",
+                                                contratoID: "",
+                                            }));
+
+                                            // Reset contract selection
+                                            setContratoSelecionado(null);
+
+                                            // Buscar contactos
+                                            try {
+                                                const contactosRes = await fetch(
+                                                    `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${value}`,
+                                                    {
+                                                        method: "GET",
+                                                        headers: {
+                                                            Authorization: `Bearer ${token}`,
+                                                            "Content-Type": "application/json",
+                                                            urlempresa: urlempresa,
+                                                        },
+                                                    }
+                                                );
+                                                const contactosData = await contactosRes.json();
+                                                const contactos = contactosData?.DataSet?.Table || [];
+
+                                                setDataLists((prev) => ({
                                                     ...prev,
-                                                    cliente: value,
-                                                    contacto: "",
-                                                    contratoID: "",
+                                                    contactos,
                                                 }));
-                                            
-                                                // Buscar contactos
+
+                                                if (contactos.length === 1) {
+                                                    setFormData((prev) => ({
+                                                        ...prev,
+                                                        contacto: contactos[0].Contacto,
+                                                    }));
+                                                }
+                                            } catch (error) {
+                                                console.error("Erro ao buscar contactos:", error);
+                                            }
+
+                                            // Buscar contratos
+                                            try {
+                                                // Primeiro busca a lista básica de contratos
+                                                const contratosRes = await fetch(
+                                                    `https://webapiprimavera.advir.pt/routePedidos_STP/Listarcontratos/${value}`,
+                                                    {
+                                                        method: "GET",
+                                                        headers: {
+                                                            Authorization: `Bearer ${token}`,
+                                                            "Content-Type": "application/json",
+                                                            urlempresa: urlempresa,
+                                                        },
+                                                    }
+                                                );
+                                                const contratosData = await contratosRes.json();
+                                                let contratos = contratosData?.DataSet?.Table || [];
+
+                                                // Busca informações detalhadas dos contratos (incluindo horas)
                                                 try {
-                                                    const contactosRes = await fetch(
-                                                        `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${value}`,
+                                                    const infoContratosRes = await fetch(
+                                                        `https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${value}`,
                                                         {
                                                             method: "GET",
                                                             headers: {
@@ -310,439 +363,541 @@ const RegistoAssistencia = (props) => {
                                                             },
                                                         }
                                                     );
-                                                    const contactosData = await contactosRes.json();
-                                                    const contactos = contactosData?.DataSet?.Table || [];
-                                            
-                                                    setDataLists((prev) => ({
-                                                        ...prev,
-                                                        contactos,
-                                                    }));
-                                            
-                                                    if (contactos.length === 1) {
-                                                        setFormData((prev) => ({
-                                                            ...prev,
-                                                            contacto: contactos[0].Contacto,
-                                                        }));
+
+                                                    if (infoContratosRes.ok) {
+                                                        const infoData = await infoContratosRes.json();
+                                                        const contratosDetalhados = infoData?.DataSet?.Table || [];
+
+                                                        // Combina as informações
+                                                        contratos = contratos.map(contrato => {
+                                                            const detalhe = contratosDetalhados.find(d => d.ID === contrato.ID);
+                                                            return {
+                                                                ...contrato,
+                                                                HorasTotais: detalhe?.HorasTotais || 0,
+                                                                HorasGastas: detalhe?.HorasGastas || 0
+                                                            };
+                                                        });
                                                     }
-                                                } catch (error) {
-                                                    console.error("Erro ao buscar contactos:", error);
+                                                } catch (infoError) {
+                                                    console.warn("Não foi possível obter detalhes dos contratos:", infoError);
                                                 }
-                                            
-                                                // Buscar contratos
-                                                try {
-                                                    const contratosRes = await fetch(
-                                                        `https://webapiprimavera.advir.pt/routePedidos_STP/Listarcontratos/${value}`,
-                                                        {
-                                                            method: "GET",
-                                                            headers: {
-                                                                Authorization: `Bearer ${token}`,
-                                                                "Content-Type": "application/json",
-                                                                urlempresa: urlempresa,
-                                                            },
-                                                        }
-                                                    );
-                                                    const contratosData = await contratosRes.json();
-                                                    const contratos = contratosData?.DataSet?.Table || [];
-                                            
-                                                    setDataLists((prev) => ({
+
+                                                setDataLists((prev) => ({
+                                                    ...prev,
+                                                    contratosID: contratos,
+                                                }));
+
+                                                if (contratos.length === 1) {
+                                                    const contrato = contratos[0];
+                                                    setFormData((prev) => ({
                                                         ...prev,
-                                                        contratosID: contratos,
+                                                        contratoID: contrato.ID,
                                                     }));
-                                            
-                                                    if (contratos.length === 1) {
-                                                        setFormData((prev) => ({
-                                                            ...prev,
-                                                            contratoID: contratos[0].ID,
-                                                        }));
-                                                    }
-                                                } catch (error) {
-                                                    console.error("Erro ao buscar contratos:", error);
+
+                                                    // Define automaticamente o contrato selecionado
+                                                    const horasDisponiveis = ((contrato.HorasTotais ?? 0) - (contrato.HorasGastas ?? 0)).toFixed(2);
+                                                    setContratoSelecionado({
+                                                        ...contrato,
+                                                        horasDisponiveis
+                                                    });
                                                 }
-                                            }}
-                                            
+                                            } catch (error) {
+                                                console.error("Erro ao buscar contratos:", error);
+                                            }
+                                        }}
+
+                                        onClick={() =>
+                                            fetchData(
+                                                "routePedidos_STP/LstClientes",
+                                                "clientes",
+                                                "carregandoClientes"
+                                            )
+                                        }
+                                        style={selectStyle}
+                                    >
+
+                                        <option value="">{t("RegistoAssistencia.TxtCliente")}</option>
+                                        {dataLists.clientes.map((c) => (
+                                            <option key={c.Cliente} value={c.Cliente}>
+                                                {c.Cliente} - {c.Nome}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div style={formRowStyle}>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtContacto")}</label>
+                                        <select
+                                            name="contacto"
+                                            value={formData.contacto}
+                                            onChange={handleChange}
                                             onClick={() =>
                                                 fetchData(
-                                                    "routePedidos_STP/LstClientes",
-                                                    "clientes",
-                                                    "carregandoClientes"
+                                                    `routePedidos_STP/ListarContactos/${formData.cliente}`,
+                                                    "contactos",
+                                                    "carregandoContactos",
+                                                )
+                                            }
+                                            style={selectStyle}
+                                            disabled={!formData.cliente}
+                                        >
+                                            <option value="">{t("RegistoAssistencia.TxtContacto")}</option>
+                                            {dataLists.contactos.map((co) => (
+                                                <option key={co.Contacto} value={co.Contacto}>
+                                                    {co.Contacto} - {co.PrimeiroNome} {co.UltimoNome}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtContrato")}</label>
+                                        <select
+                                            name="contratoID"
+                                            value={formData.contratoID}
+                                            onChange={async (e) => {
+                                                const contratoId = e.target.value;
+                                                handleChange(e);
+
+                                                if (contratoId && dataLists.contratosID.length > 0) {
+                                                    // Primeiro, procura no array local
+                                                    const contratoLocal = dataLists.contratosID.find(c => c.ID === contratoId);
+
+                                                    if (contratoLocal) {
+                                                        const horasDisponiveis = ((contratoLocal.HorasTotais ?? 0) - (contratoLocal.HorasGastas ?? 0)).toFixed(2);
+                                                        setContratoSelecionado({
+                                                            ...contratoLocal,
+                                                            horasDisponiveis
+                                                        });
+                                                    } else {
+                                                        // Se não encontrar, faz nova requisição
+                                                        try {
+                                                            const response = await fetch(
+                                                                `https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${formData.cliente}`,
+                                                                {
+                                                                    method: "GET",
+                                                                    headers: {
+                                                                        Authorization: `Bearer ${token}`,
+                                                                        "Content-Type": "application/json",
+                                                                        urlempresa: urlempresa,
+                                                                    },
+                                                                }
+                                                            );
+
+                                                            if (response.ok) {
+                                                                const data = await response.json();
+                                                                const contratos = data?.DataSet?.Table || [];
+                                                                const contratoEncontrado = contratos.find(c => c.ID === contratoId);
+
+                                                                if (contratoEncontrado) {
+                                                                    const horasDisponiveis = ((contratoEncontrado.HorasTotais ?? 0) - (contratoEncontrado.HorasGastas ?? 0)).toFixed(2);
+                                                                    setContratoSelecionado({
+                                                                        ...contratoEncontrado,
+                                                                        horasDisponiveis
+                                                                    });
+                                                                }
+                                                            }
+                                                        } catch (error) {
+                                                            console.error("Erro ao buscar informações do contrato:", error);
+                                                        }
+                                                    }
+                                                } else {
+                                                    setContratoSelecionado(null);
+                                                }
+                                            }}
+                                            onClick={() =>
+                                                fetchData(
+                                                    `routePedidos_STP/Listarcontratos/${formData.cliente}`,
+                                                    "contratosID",
+                                                    "carregandocontratosID",
+                                                )
+                                            }
+                                            style={selectStyle}
+                                            disabled={!formData.cliente}
+                                        >
+                                            <option value="">{t("RegistoAssistencia.TxtContrato")}</option>
+                                            {dataLists.contratosID.map((ct) => (
+                                                <option key={ct.ID} value={ct.ID}>
+                                                    {ct.Codigo} - {ct.Descricao1}
+                                                </option>
+                                            ))}
+                                        </select>
+
+                                        {/* Mostrar horas disponíveis logo abaixo do select */}
+                                        {contratoSelecionado && (
+                                            <div style={horasDisponiveisStyle}>
+                                                <span style={horasLabelStyle}>Horas Disponíveis: </span>
+                                                <span style={{
+                                                    ...horasValueStyle,
+                                                    color: parseFloat(contratoSelecionado.horasDisponiveis) > 0 ? '#4caf50' : '#f44336'
+                                                }}>
+                                                    {contratoSelecionado.horasDisponiveis} h
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Display contract hours information */}
+                                {contratoSelecionado && (
+                                    <div style={contratoInfoStyle}>
+                                        <div
+                                            style={contratoHeaderClickableStyle}
+                                            onClick={() => setContratoExpandido(!contratoExpandido)}
+                                        >
+                                            <h3 style={contratoTitleStyle}>Informações do Contrato</h3>
+                                            <div style={expandIconStyle}>
+                                                {contratoExpandido ? '▲' : '▼'}
+                                            </div>
+                                        </div>
+                                        {contratoExpandido && (
+                                            <div style={contratoDetailsStyle}>
+                                                <div style={contratoDetailItemStyle}>
+                                                    <div style={contratoIconStyle}>📋</div>
+                                                    <div>
+                                                        <div style={contratoLabelStyle}>Código:</div>
+                                                        <div style={contratoValueStyle}>{contratoSelecionado.Codigo}</div>
+                                                    </div>
+                                                </div>
+                                                <div style={contratoDetailItemStyle}>
+                                                    <div style={contratoIconStyle}>⏰</div>
+                                                    <div>
+                                                        <div style={contratoLabelStyle}>Horas Totais:</div>
+                                                        <div style={contratoValueStyle}>{contratoSelecionado.HorasTotais || 0} h</div>
+                                                    </div>
+                                                </div>
+                                                <div style={contratoDetailItemStyle}>
+                                                    <div style={contratoIconStyle}>⌛</div>
+                                                    <div>
+                                                        <div style={contratoLabelStyle}>Horas Gastas:</div>
+                                                        <div style={contratoValueStyle}>{contratoSelecionado.HorasGastas || 0} h</div>
+                                                    </div>
+                                                </div>
+                                                <div style={contratoDetailItemStyle}>
+                                                    <div style={contratoIconStyle}>✅</div>
+                                                    <div>
+                                                        <div style={contratoLabelStyle}>Horas Disponíveis:</div>
+                                                        <div style={{ ...contratoValueStyle, color: contratoSelecionado.horasDisponiveis > 0 ? '#4caf50' : '#f44336', fontWeight: '600' }}>{contratoSelecionado.horasDisponiveis} h</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div style={window.innerWidth < 768 ? responsiveFormRowStyle : formRowStyle}>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>Data de Abertura</label>
+                                        <input
+                                            type="date"
+                                            name="dataInicio"
+                                            style={inputStyle}
+                                            onChange={handleFormChange}
+                                            required
+                                        />
+                                    </div>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>Hora de Abertura</label>
+                                        <input
+                                            type="time"
+                                            name="horaInicio"
+                                            style={inputStyle}
+                                            onChange={handleFormChange}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+
+                                <div style={navigationButtonsStyle}>
+                                    <button type="button" style={nextButtonStyle} onClick={() => setActiveTab("detalhes")}>
+                                        Próximo
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === "detalhes" && (
+                            <div className="tab-content" style={tabContentStyle}>
+                                <div style={sectionTitleContainerStyle}>
+                                    <div style={sectionTitleLineStyle}></div>
+                                    <h2 style={sectionTitleStyle}>Detalhes da Assistência</h2>
+                                    <div style={sectionTitleLineStyle}></div>
+                                </div>
+
+                                <div style={formRowStyle}>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtTecnico")}</label>
+                                        <select
+                                            name="tecnico"
+                                            value={formData.tecnico}
+                                            onChange={handleChange}
+                                            onClick={() =>
+                                                fetchData(
+                                                    "routePedidos_STP/LstTecnicosTodos",
+                                                    "tecnicos",
+                                                    "carregandoTecnicos",
                                                 )
                                             }
                                             style={selectStyle}
                                         >
-
-                                    <option value="">{t("RegistoAssistencia.TxtCliente")}</option>
-                                    {dataLists.clientes.map((c) => (
-                                        <option key={c.Cliente} value={c.Cliente}>
-                                            {c.Cliente} - {c.Nome}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div style={formRowStyle}>
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtContacto")}</label>
-                                    <select
-                                        name="contacto"
-                                        value={formData.contacto}
-                                        onChange={handleChange}
-                                        onClick={() =>
-                                            fetchData(
-                                                `routePedidos_STP/ListarContactos/${formData.cliente}`,
-                                                "contactos",
-                                                "carregandoContactos",
-                                            )
-                                        }
-                                        style={selectStyle}
-                                        disabled={!formData.cliente}
-                                    >
-                                        <option value="">{t("RegistoAssistencia.TxtContacto")}</option>
-                                        {dataLists.contactos.map((co) => (
-                                            <option key={co.Contacto} value={co.Contacto}>
-                                                {co.Contacto} - {co.PrimeiroNome} {co.UltimoNome}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtContrato")}</label>
-                                    <select
-                                        name="contratoID"
-                                        value={formData.contratoID}
-                                        onChange={handleChange}
-                                        onClick={() =>
-                                            fetchData(
-                                                `routePedidos_STP/Listarcontratos/${formData.cliente}`,
-                                                "contratosID",
-                                                "carregandocontratosID",
-                                            )
-                                        }
-                                        style={selectStyle}
-                                        disabled={!formData.cliente}
-                                    >
-                                        <option value="">{t("RegistoAssistencia.TxtContrato")}</option>
-                                        {dataLists.contratosID.map((ct) => (
-                                            <option key={ct.ID} value={ct.ID}>
-                                                {ct.Codigo} - {ct.Descricao1}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div style={window.innerWidth < 768 ? responsiveFormRowStyle : formRowStyle}>
-                            <div style={formGroupStyle}>
-                                <label style={labelStyle}>Data de Abertura</label>
-                                <input
-                                    type="date"
-                                    name="dataInicio"
-                                    style={inputStyle}
-                                    onChange={handleFormChange}
-                                    required
-                                />
-                            </div>
-                            <div style={formGroupStyle}>
-                                <label style={labelStyle}>Hora de Abertura</label>
-                                <input
-                                    type="time"
-                                    name="horaInicio"
-                                    style={inputStyle}
-                                    onChange={handleFormChange}
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                            
-                            <div style={navigationButtonsStyle}>
-                                <button type="button" style={nextButtonStyle} onClick={() => setActiveTab("detalhes")}>
-                                    Próximo
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === "detalhes" && (
-                        <div className="tab-content" style={tabContentStyle}>
-                            <div style={sectionTitleContainerStyle}>
-                                <div style={sectionTitleLineStyle}></div>
-                                <h2 style={sectionTitleStyle}>Detalhes da Assistência</h2>
-                                <div style={sectionTitleLineStyle}></div>
-                            </div>
-                            
-                            <div style={formRowStyle}>
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtTecnico")}</label>
-                                    <select
-                                        name="tecnico"
-                                        value={formData.tecnico}
-                                        onChange={handleChange}
-                                        onClick={() =>
-                                            fetchData(
-                                                "routePedidos_STP/LstTecnicosTodos",
-                                                "tecnicos",
-                                                "carregandoTecnicos",
-                                            )
-                                        }
-                                        style={selectStyle}
-                                    >
-                                        <option value="">{t("RegistoAssistencia.TxtTecnico")}</option>
-                                        {dataLists.tecnicos.map((t) => (
-                                            <option key={t.Tecnico} value={t.Tecnico}>
-                                                {t.Tecnico} - {t.Nome}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtOrigem")}</label>
-                                    <select
-                                        name="origem"
-                                        value={formData.origem}
-                                        onChange={handleChange}
-                                        onClick={() =>
-                                            fetchData(
-                                                "routePedidos_STP/LstOrigensProcessos",
-                                                "origens",
-                                                "carregandoOrigens",
-                                            )
-                                        }
-                                        style={selectStyle}
-                                    >
-                                        <option value="">{t("RegistoAssistencia.TxtOrigem")}</option>
-                                        {dataLists.origens.map((o) => (
-                                            <option
-                                                key={o.OrigemProcesso}
-                                                value={o.OrigemProcesso}
-                                            >
-                                                {o.OrigemProcesso} - {o.Descricao}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div style={formRowStyle}>
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtObjeto")}</label>
-                                    <select
-                                        name="objeto"
-                                        value={formData.objeto}
-                                        onChange={(e) => {
-                                            handleChange(e);
-                                            const objeto = dataLists.objetos.find(
-                                                (o) => o.Objecto === e.target.value,
-                                            );
-                                            setSelectedObjeto(objeto);
-                                        }}
-                                        onClick={() =>
-                                            fetchData(
-                                                "routePedidos_STP/LstObjectos",
-                                                "objetos",
-                                                "carregandoObjetos",
-                                            )
-                                        }
-                                        style={selectStyle}
-                                    >
-                                        <option value="">{t("RegistoAssistencia.TxtObjeto")}</option>
-                                        {dataLists.objetos.map((o) => (
-                                            <option key={o.ID} value={o.Objecto}>
-                                                {o.Objecto}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtPrioridade")}</label>
-                                    <select
-                                        name="prioridade"
-                                        value={formData.prioridade}
-                                        onChange={handleChange}
-                                        onClick={() =>
-                                            fetchData(
-                                                "routePedidos_STP/ListarTiposPrioridades",
-                                                "prioridades",
-                                                "carregandoPrioridades",
-                                            )
-                                        }
-                                        style={selectStyle}
-                                    >
-                                        <option value="">{t("RegistoAssistencia.TxtPrioridade")}</option>
-                                        {dataLists.prioridades.map((p) => (
-                                            <option key={p.Prioridade} value={p.Prioridade}>
-                                                {p.Prioridade} - {p.Descricao}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div style={formRowStyle}>
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtSecao")}</label>
-                                    <select
-                                        name="secao"
-                                        value={formData.secao}
-                                        onChange={handleChange}
-                                        onClick={() =>
-                                            fetchData(
-                                                "routePedidos_STP/ListarSeccoes",
-                                                "seccoes",
-                                                "carregandoSeccoes",
-                                            )
-                                        }
-                                        style={selectStyle}
-                                    >
-                                        <option value="">{t("RegistoAssistencia.TxtSecao")}</option>
-                                        {dataLists.seccoes.map((s) => (
-                                            <option key={s.Seccao} value={s.Seccao}>
-                                                {s.Seccao} - {s.Nome}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtEstado")}</label>
-                                    <select
-                                        name="estado"
-                                        value={formData.estado}
-                                        onChange={handleChange}
-                                        onClick={() =>
-                                            fetchData(
-                                                "routePedidos_STP/LstEstadosTodos",
-                                                "estados",
-                                                "carregandoEstados",
-                                            )
-                                        }
-                                        style={selectStyle}
-                                    >
-                                        <option value="">{t("RegistoAssistencia.TxtEstado")}</option>
-                                        {dataLists.estados.map((e) => (
-                                            <option key={e.Estado} value={e.Estado}>
-                                                {e.Descricao}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div style={formGroupStyle}>
-                                <label style={labelStyle}>{t("RegistoAssistencia.TxtTipoProcesso")}</label>
-                                <select
-                                    name="tipoProcesso"
-                                    value={formData.tipoProcesso}
-                                    onChange={handleChange}
-                                    onClick={() =>
-                                        fetchData(
-                                            "routePedidos_STP/ListarTiposProcesso",
-                                            "tiposProcessos",
-                                            "carregandoTiposProcessos",
-                                        )
-                                    }
-                                    style={selectStyle}
-                                >
-                                    <option value="">{t("RegistoAssistencia.TxtTipoProcesso")}</option>
-                                    {dataLists.tiposProcessos.map((tp) => (
-                                        <option
-                                            key={tp.TipoProcesso}
-                                            value={tp.TipoProcesso}
+                                            <option value="">{t("RegistoAssistencia.TxtTecnico")}</option>
+                                            {dataLists.tecnicos.map((t) => (
+                                                <option key={t.Tecnico} value={t.Tecnico}>
+                                                    {t.Tecnico} - {t.Nome}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtOrigem")}</label>
+                                        <select
+                                            name="origem"
+                                            value={formData.origem}
+                                            onChange={handleChange}
+                                            onClick={() =>
+                                                fetchData(
+                                                    "routePedidos_STP/LstOrigensProcessos",
+                                                    "origens",
+                                                    "carregandoOrigens",
+                                                )
+                                            }
+                                            style={selectStyle}
                                         >
-                                            {tp.TipoProcesso} - {tp.Descricao}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            
-                            <div style={navigationButtonsStyle}>
-                                <button type="button" style={backButtonStyle} onClick={() => setActiveTab("cliente")}>
-                                    Voltar
-                                </button>
-                                <button type="button" style={nextButtonStyle} onClick={() => setActiveTab("descricao")}>
-                                    Próximo
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                                            <option value="">{t("RegistoAssistencia.TxtOrigem")}</option>
+                                            {dataLists.origens.map((o) => (
+                                                <option
+                                                    key={o.OrigemProcesso}
+                                                    value={o.OrigemProcesso}
+                                                >
+                                                    {o.OrigemProcesso} - {o.Descricao}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
 
-                    {activeTab === "descricao" && (
-                        <div className="tab-content" style={tabContentStyle}>
-                            <div style={sectionTitleContainerStyle}>
-                                <div style={sectionTitleLineStyle}></div>
-                                <h2 style={sectionTitleStyle}>Descrição do Problema</h2>
-                                <div style={sectionTitleLineStyle}></div>
-                            </div>
-                            
-                            <div style={formGroupStyle}>
-                                <label style={labelStyle}>{t("RegistoAssistencia.TxtProblema")}</label>
-                                <textarea
-                                    name="problema"
-                                    placeholder={t("RegistoAssistencia.TxtProblema")}
-                                    value={formData.problema}
-                                    onChange={handleChange}
-                                    style={textareaStyle}
-                                    rows={5}
-                                />
-                            </div>
-                            
-                            <div style={formGroupStyle}>
-                                <label style={labelStyle}>{t("RegistoAssistencia.TxtComoReproduzir")}</label>
-                                <textarea
-                                    name="comoReproduzir"
-                                    placeholder={t("RegistoAssistencia.TxtComoReproduzir")}
-                                    value={formData.comoReproduzir}
-                                    onChange={handleChange}
-                                    style={textareaStyle}
-                                    rows={5}
-                                />
-                            </div>
-                            
-                            <div style={navigationButtonsStyle}>
-                                <button type="button" style={backButtonStyle} onClick={() => setActiveTab("detalhes")}>
-                                    Voltar
-                                </button>
-                                <button type="submit" style={submitButtonStyle} disabled={isSubmitting}>
-                                    {isSubmitting
-                                        ? t("RegistoAssistencia.BtGravando")
-                                        : t("RegistoAssistencia.BtGravar")}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </form>
-                
-                <div style={buttonContainerStyle}>
-                <button
-    onClick={() => {
-        setActiveTab("cliente");
-        setMessage("");
-        props.navigation.navigate("PedidosAssistencia");
-        setFormData({
-            cliente: "",
-            contacto: "",
-            contratoID: "",
-            tecnico: "",
-            origem: "",
-            objeto: "",
-            prioridade: "",
-            secao: "",
-            estado: "",
-            tipoProcesso: "",
-            problema: "",
-            comoReproduzir: "",
-            datahoraabertura: "",
-            datahorafimprevista: "",
-        });
-        setSelectedObjeto(null);
-    }}
-    style={cancelButtonStyle}
->
-    {t("RegistoAssistencia.BtCancelar")}
-</button>
+                                <div style={formRowStyle}>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtObjeto")}</label>
+                                        <select
+                                            name="objeto"
+                                            value={formData.objeto}
+                                            onChange={(e) => {
+                                                handleChange(e);
+                                                const objeto = dataLists.objetos.find(
+                                                    (o) => o.Objecto === e.target.value,
+                                                );
+                                                setSelectedObjeto(objeto);
+                                            }}
+                                            onClick={() =>
+                                                fetchData(
+                                                    "routePedidos_STP/LstObjectos",
+                                                    "objetos",
+                                                    "carregandoObjetos",
+                                                )
+                                            }
+                                            style={selectStyle}
+                                        >
+                                            <option value="">{t("RegistoAssistencia.TxtObjeto")}</option>
+                                            {dataLists.objetos.map((o) => (
+                                                <option key={o.ID} value={o.Objecto}>
+                                                    {o.Objecto}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtPrioridade")}</label>
+                                        <select
+                                            name="prioridade"
+                                            value={formData.prioridade}
+                                            onChange={handleChange}
+                                            onClick={() =>
+                                                fetchData(
+                                                    "routePedidos_STP/ListarTiposPrioridades",
+                                                    "prioridades",
+                                                    "carregandoPrioridades",
+                                                )
+                                            }
+                                            style={selectStyle}
+                                        >
+                                            <option value="">{t("RegistoAssistencia.TxtPrioridade")}</option>
+                                            {dataLists.prioridades.map((p) => (
+                                                <option key={p.Prioridade} value={p.Prioridade}>
+                                                    {p.Prioridade} - {p.Descricao}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
 
+                                <div style={formRowStyle}>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtSecao")}</label>
+                                        <select
+                                            name="secao"
+                                            value={formData.secao}
+                                            onChange={handleChange}
+                                            onClick={() =>
+                                                fetchData(
+                                                    "routePedidos_STP/ListarSeccoes",
+                                                    "seccoes",
+                                                    "carregandoSeccoes",
+                                                )
+                                            }
+                                            style={selectStyle}
+                                        >
+                                            <option value="">{t("RegistoAssistencia.TxtSecao")}</option>
+                                            {dataLists.seccoes.map((s) => (
+                                                <option key={s.Seccao} value={s.Seccao}>
+                                                    {s.Seccao} - {s.Nome}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div style={formGroupStyle}>
+                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtEstado")}</label>
+                                        <select
+                                            name="estado"
+                                            value={formData.estado}
+                                            onChange={handleChange}
+                                            onClick={() =>
+                                                fetchData(
+                                                    "routePedidos_STP/LstEstadosTodos",
+                                                    "estados",
+                                                    "carregandoEstados",
+                                                )
+                                            }
+                                            style={selectStyle}
+                                        >
+                                            <option value="">{t("RegistoAssistencia.TxtEstado")}</option>
+                                            {dataLists.estados.map((e) => (
+                                                <option key={e.Estado} value={e.Estado}>
+                                                    {e.Descricao}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtTipoProcesso")}</label>
+                                    <select
+                                        name="tipoProcesso"
+                                        value={formData.tipoProcesso}
+                                        onChange={handleChange}
+                                        onClick={() =>
+                                            fetchData(
+                                                "routePedidos_STP/ListarTiposProcesso",
+                                                "tiposProcessos",
+                                                "carregandoTiposProcessos",
+                                            )
+                                        }
+                                        style={selectStyle}
+                                    >
+                                        <option value="">{t("RegistoAssistencia.TxtTipoProcesso")}</option>
+                                        {dataLists.tiposProcessos.map((tp) => (
+                                            <option
+                                                key={tp.TipoProcesso}
+                                                value={tp.TipoProcesso}
+                                            >
+                                                {tp.TipoProcesso} - {tp.Descricao}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div style={navigationButtonsStyle}>
+                                    <button type="button" style={backButtonStyle} onClick={() => setActiveTab("cliente")}>
+                                        Voltar
+                                    </button>
+                                    <button type="button" style={nextButtonStyle} onClick={() => setActiveTab("descricao")}>
+                                        Próximo
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === "descricao" && (
+                            <div className="tab-content" style={tabContentStyle}>
+                                <div style={sectionTitleContainerStyle}>
+                                    <div style={sectionTitleLineStyle}></div>
+                                    <h2 style={sectionTitleStyle}>Descrição do Problema</h2>
+                                    <div style={sectionTitleLineStyle}></div>
+                                </div>
+
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtProblema")}</label>
+                                    <textarea
+                                        name="problema"
+                                        placeholder={t("RegistoAssistencia.TxtProblema")}
+                                        value={formData.problema}
+                                        onChange={handleChange}
+                                        style={textareaStyle}
+                                        rows={5}
+                                    />
+                                </div>
+
+                                <div style={formGroupStyle}>
+                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtComoReproduzir")}</label>
+                                    <textarea
+                                        name="comoReproduzir"
+                                        placeholder={t("RegistoAssistencia.TxtComoReproduzir")}
+                                        value={formData.comoReproduzir}
+                                        onChange={handleChange}
+                                        style={textareaStyle}
+                                        rows={5}
+                                    />
+                                </div>
+
+                                <div style={navigationButtonsStyle}>
+                                    <button type="button" style={backButtonStyle} onClick={() => setActiveTab("detalhes")}>
+                                        Voltar
+                                    </button>
+                                    <button type="submit" style={submitButtonStyle} disabled={isSubmitting}>
+                                        {isSubmitting
+                                            ? t("RegistoAssistencia.BtGravando")
+                                            : t("RegistoAssistencia.BtGravar")}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </form>
+
+                    <div style={buttonContainerStyle}>
+                        <button
+                            onClick={() => {
+                                setActiveTab("cliente");
+                                setMessage("");
+                                props.navigation.navigate("PedidosAssistencia");
+                                setFormData({
+                                    cliente: "",
+                                    contacto: "",
+                                    contratoID: "",
+                                    tecnico: "",
+                                    origem: "",
+                                    objeto: "",
+                                    prioridade: "",
+                                    secao: "",
+                                    estado: "",
+                                    tipoProcesso: "",
+                                    problema: "",
+                                    comoReproduzir: "",
+                                    datahoraabertura: "",
+                                    datahorafimprevista: "",
+                                });
+                                setSelectedObjeto(null);
+                            }}
+                            style={cancelButtonStyle}
+                        >
+                            {t("RegistoAssistencia.BtCancelar")}
+                        </button>
+
+                    </div>
                 </div>
             </div>
-        </div>
         </div>
     );
 };
@@ -776,7 +931,8 @@ const headerStyle = {
     position: "relative",
 };
 
-const titleStyle = {
+const titleStyle = 
+ {
     color: "#ffffff",
     fontSize: "1.8rem",
     fontWeight: "600",
@@ -981,6 +1137,95 @@ const scrollViewStyle = {
 
 };
 
+const contratoInfoStyle = {
+    backgroundColor: "#f8f9fa",
+    borderRadius: "12px",
+    border: "1px solid #e9ecef",
+    marginBottom: "20px",
+    overflow: "hidden"
+};
+
+const contratoHeaderClickableStyle = {
+    backgroundColor: "#1792FE",
+    padding: "12px 16px",
+    borderRadius: "12px 12px 0 0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    cursor: "pointer"
+};
+
+const contratoHeaderStyle = {
+    backgroundColor: "#1792FE",
+    padding: "12px 16px",
+    borderRadius: "12px 12px 0 0"
+};
+
+const contratoTitleStyle = {
+    color: "#fff",
+    fontSize: "1rem",
+    fontWeight: "600",
+    margin: "0"
+};
+
+const contratoDetailsStyle = {
+    padding: "16px",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gap: "12px"
+};
+
+const contratoDetailItemStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px"
+};
+
+const contratoIconStyle = {
+    fontSize: "20px",
+    width: "24px",
+    textAlign: "center"
+};
+
+const contratoLabelStyle = {
+    fontSize: "0.85rem",
+    color: "#666",
+    fontWeight: "500"
+};
+
+const contratoValueStyle = {
+    fontSize: "0.95rem",
+    color: "#333",
+    fontWeight: "600"
+};
+
+const horasDisponiveisStyle = {
+    marginTop: "8px",
+    padding: "8px 12px",
+    backgroundColor: "#f8f9fa",
+    borderRadius: "6px",
+    border: "1px solid #e9ecef",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between"
+};
+
+const horasLabelStyle = {
+    fontSize: "0.9rem",
+    color: "#666",
+    fontWeight: "500"
+};
+
+const horasValueStyle = {
+    fontSize: "1rem",
+    fontWeight: "600"
+};
+
+const expandIconStyle = {
+    color: "#fff",
+    fontSize: "1.2rem",
+    cursor: "pointer"
+};
 
 
 export default RegistoAssistencia;

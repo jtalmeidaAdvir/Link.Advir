@@ -1,10 +1,11 @@
 {
   "ExpandedNodes": [
     "",
-    "\\frontend\\src\\Oficios",
-    "\\frontend\\src\\templates",
-    "\\webPrimaveraApi"
+    "\\frontend",
+    "\\frontend\\src",
+    "\\frontend\\src\\Servicos",
+    "\\webPrimaveraApi",
+    "\\webPrimaveraApi\\servives"
   ],
-  "SelectedNode": "\\frontend",
   "PreviewInSolutionExplorer": false
 }

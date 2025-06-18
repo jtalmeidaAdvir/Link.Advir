@@ -5,6 +5,7 @@ import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
 import logo from '../../assets/img_logo.png';
 import backgroundImage from '../../images/ImagemFundo.png';
+import { checkTokenExpired } from '../utils/authUtils';
 const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {  // Adicione setIsLoggedIn como prop
     const [username, setLocalUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -29,12 +30,17 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 const data = await response.json();
                 console.log('Login bem-sucedido:', data);
 
+                // Verificar se houve erro de token expirado mesmo com resposta OK
+                if (checkTokenExpired(data)) {
+                    return;
+                }
+
                 // Guardar o token no localStorage
                 localStorage.setItem('loginToken', data.token);
                 localStorage.setItem('isAdmin', data.isAdmin ? 'true' : 'false');
                 localStorage.setItem('superAdmin', data.superAdmin ? 'true' : 'false'); // Adiciona superAdmin ao localStorage
                 localStorage.setItem('username', username);
-                localStorage.setItem('email',email);
+                localStorage.setItem('email', email);
                 localStorage.setItem('userId', data.userId);
                 localStorage.setItem('userNome', data.userNome);
                 localStorage.setItem('userEmail', data.userEmail);
@@ -59,6 +65,12 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 }
             } else {
                 const errorData = await response.json();
+
+                // Verificar se é erro de token expirado
+                if (checkTokenExpired(errorData)) {
+                    return;
+                }
+
                 setErrorMessage(errorData.error || t("Login.Error.1"));
             }
         } catch (error) {
@@ -95,7 +107,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 backgroundSize: 'cover', // Ajusta para cobrir todo o ecrã
                 backgroundPosition: 'center', // Centraliza a imagem
                 backgroundRepeat: 'no-repeat',
-                backgroundAttachment: 'fixed', 
+                backgroundAttachment: 'fixed',
             }}
         >
             <div

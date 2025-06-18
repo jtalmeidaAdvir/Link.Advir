@@ -197,7 +197,7 @@ const Intervencoes = (props) => {
                                 <FontAwesomeIcon
                                     icon={faClock}
                                     style={styles.badgeIcon}
-                                    size={12}
+                                    size="xs"
                                 />
                                 <Text style={styles.durationText}>
                                     {formatDuration(item.Duracao)}
@@ -216,7 +216,7 @@ const Intervencoes = (props) => {
                             <FontAwesomeIcon
                                 icon={faPrint}
                                 style={styles.actionIcon}
-                                size={16}
+                                size="sm"
                             />
                         </TouchableOpacity>
 
@@ -227,14 +227,14 @@ const Intervencoes = (props) => {
                             <FontAwesomeIcon
                                 icon={faTrash}
                                 style={styles.actionIconDelete}
-                                size={16}
+                                size="sm"
                             />
                         </TouchableOpacity>
 
                         <FontAwesomeIcon
                             icon={isExpanded ? faChevronUp : faChevronDown}
                             style={styles.expandIcon}
-                            size={16}
+                            size="sm"
                         />
                     </View>
                 </TouchableOpacity>
@@ -247,7 +247,7 @@ const Intervencoes = (props) => {
                                     <FontAwesomeIcon
                                         icon={faCalendarAlt}
                                         style={styles.detailIcon}
-                                        size={14}
+                                        size="sm"
                                     />
                                 </View>
                                 <View>
@@ -271,7 +271,7 @@ const Intervencoes = (props) => {
                                     <FontAwesomeIcon
                                         icon={faCalendarAlt}
                                         style={styles.detailIcon}
-                                        size={14}
+                                        size="sm"
                                     />
                                 </View>
                                 <View>
@@ -295,7 +295,7 @@ const Intervencoes = (props) => {
                                     <FontAwesomeIcon
                                         icon={faUser}
                                         style={styles.detailIcon}
-                                        size={14}
+                                        size="sm"
                                     />
                                 </View>
                                 <View>
@@ -315,7 +315,7 @@ const Intervencoes = (props) => {
                                     <FontAwesomeIcon
                                         icon={faClock}
                                         style={styles.detailIcon}
-                                        size={14}
+                                        size="sm"
                                     />
                                 </View>
                                 <View>
@@ -336,7 +336,7 @@ const Intervencoes = (props) => {
                                 <FontAwesomeIcon
                                     icon={faFileAlt}
                                     style={styles.detailIcon}
-                                    size={14}
+                                    size="sm"
                                 />
                             </View>
                             <View style={styles.descriptionContent}>
@@ -366,7 +366,7 @@ const Intervencoes = (props) => {
                     <FontAwesomeIcon
                         icon={faArrowLeft}
                         style={styles.backIcon}
-                        size={16}
+                        size="sm"
                     />
                     <Text style={styles.backText}>
                         {t("Intervencoes.BtVoltar")}
@@ -381,7 +381,7 @@ const Intervencoes = (props) => {
                     <FontAwesomeIcon
                         icon={faSearch}
                         style={styles.searchIcon}
-                        size={18}
+                        size="lg"
                     />
                     <TextInput
                         placeholder={t("Intervencoes.Procurar")}
@@ -398,7 +398,7 @@ const Intervencoes = (props) => {
                     <FontAwesomeIcon
                         icon={faPlus}
                         style={styles.addButtonIcon}
-                        size={16}
+                        size="sm"
                     />
                     <Text style={styles.addButtonText}>
                         {"Intervenção"}

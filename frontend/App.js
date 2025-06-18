@@ -9,11 +9,11 @@ import { useNavigation } from '@react-navigation/native'; // Importa o hook
 import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
 
 
- 
- 
- 
+
+
+
 import 'bootstrap/dist/css/bootstrap.min.css';
- 
+
 // Importa as páginas
 import Login from './src/Autenticacao/Login';
 import Home from './src/Home';
@@ -31,29 +31,29 @@ import RedefinirPassword from './src/Autenticacao/RedefinirPassword';
 
 
 import ContratosList from './src/BackOffice/ContratosList';
- 
+
 // SERVICOS
 import PedidosAssistencia from './src/Servicos/PedidosAssistencia';
 import PandIByTecnico from './src/Servicos/PandIByTecnico';
 import RegistoPedido from './src/Servicos/RegistoAssistencia';
 import intervencoes from './src/Servicos/Intervencoes';
 import RegistoIntervencao from './src/Servicos/RegistoIntervencao';
- 
+
 // ASSIDUIDADE
 import LeitorQRCode from './src/Assiduidade/LeitorQRCode';
 import PontoBotao from './src/Assiduidade/PontoBotao';
 import RegistoPontoAdmin from './src/Assiduidade/RegistoPontoAdmin';
 import PedidosAlteracaoAdmin from './src/Assiduidade/PedidosAlteracaoAdmin';
 import ListarRegistos from './src/Assiduidade/ListarRegistos';
- 
- 
+
+
 import Obras from './src/Obras/Obras';
 import DetalhesObra from './src/Obras/DetalhesObra';
 import AutosMedicaoExecucao from './src/Obras/AutosMedicaoExecucao';
 import PartesDiarias from './src/Obras/PartesDiarias';
 import AddPartesDiarias from './src/Obras/AddPartesDiarias';
- 
- 
+
+
 import UserModulesManagement from './src/Autenticacao/UserModulesManagement';
 import logo from './assets/favicon1.ico';
 import i18n from './src/i18n';
@@ -63,9 +63,9 @@ import OficiosList from './src/Oficios/OficiosList';
 import EditOficio from './src/Oficios/EditOficio';
 
 const Drawer = createDrawerNavigator();
- 
- 
- 
+
+
+
 // Configuração de deep linking para reconhecer URLs com parâmetros dinâmicos como o token
 const linking = {
     prefixes: ['https://backend.advir.pt:8081'],
@@ -75,12 +75,12 @@ const linking = {
         },
     },
 };
- 
+
 const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...props }) => {
     const [expanded, setExpanded] = useState(false);
     const { t } = useTranslation();
     const handlePress = () => setExpanded(!expanded);
- 
+
     const handleLogout = () => {
         localStorage.clear();
         props.navigation.navigate('Login');
@@ -88,7 +88,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
             window.location.reload();
         }, 500);
     };
- 
+
     // Se for superAdmin, mostra apenas opções específicas
     if (isSuperAdmin) {
         return (
@@ -96,14 +96,14 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                 <DrawerItem
                     label="ADHome"
                     onPress={() => props.navigation.navigate('ADHome')}
-                    icon={() => <FontAwesome name="home"  size={20} color="#1792FE" />}
+                    icon={() => <FontAwesome name="home" size={20} color="#1792FE" />}
                 />
                 <DrawerItem
                     label="RegistoAdmin"
                     onPress={() => props.navigation.navigate('RegistoAdmin')}
                     icon={() => <FontAwesome name="home" size={20} color="#1792FE" />}
                 />
-                
+
                 <DrawerItem
                     label="Meu Perfil"
                     onPress={() => props.navigation.navigate('Perfil')}
@@ -117,13 +117,13 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
             </DrawerContentScrollView>
         );
     }
- 
+
     // Conteúdo do drawer para outros utilizadores
 
     const hasOficiosModule = modules.some(module => module.nome === "Oficios");
 
     const hasServicesModule = modules.some(module => module.nome === "Servicos");
-    
+
     const hasQrCodeAssiduidadeModule = modules.some(
         module => module.nome === "Assiduidade" && module.submodulos.some(sub => sub.nome === "QrCode")
     );
@@ -133,7 +133,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
     const hasObrasModule = modules.some(
         module => module.nome === "Obras" && module.submodulos.some(sub => sub.nome === "Controlo")
     );
- 
+
     return (
         <DrawerContentScrollView {...props} contentContainerStyle={{ flexGrow: 1 }}>
             <DrawerItem
@@ -149,21 +149,21 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                         icon={() => <FontAwesome name="briefcase" size={20} color="#1792FE" />}
                     />
                     {hasObrasModule && (
-                    <DrawerItem
+                        <DrawerItem
                             label={t("Drawer.Obra")}
-                        onPress={() => props.navigation.navigate('Obras')}
-                        icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
-                    />
+                            onPress={() => props.navigation.navigate('Obras')}
+                            icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
+                        />
                     )}
                     {hasServicesModule && (
                         <DrawerItem
-                            label=  {t("Drawer.Servicos")}
+                            label={t("Drawer.Servicos")}
                             onPress={() => props.navigation.navigate('PedidosAssistencia')}
                             icon={() => <FontAwesome name="wrench" size={20} color="#1792FE" />}
                         />
-                       
+
                     )}
-                    
+
                     {hasOficiosModule && (
                         <DrawerItem
                             label={t("Oficios")}
@@ -171,7 +171,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                             icon={() => <FontAwesome name="file" size={20} color="#1792FE" />}
                         />
                     )}
-                    
+
                     {hasQrCodeAssiduidadeModule && (
                         <DrawerItem
                             label={t("Drawer.PontoQR")}
@@ -188,62 +188,62 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                     )}
                     {hasServicesModule && (
                         <DrawerItem
-                            label=  {t("Drawer.ServicosTecnicos")}
+                            label={t("Drawer.ServicosTecnicos")}
                             onPress={() => props.navigation.navigate('PandIByTecnico')}
                             icon={() => <FontAwesome name="bar-chart" size={20} color="#1792FE" />}
                         />
-                       
+
                     )}
                 </>
             )}
             <View style={{ flexGrow: 1, justifyContent: 'flex-end', paddingBottom: 20 }}>
                 {isAdmin && (
-                   <List.Accordion
+                    <List.Accordion
                         title={t("Drawer.ADM.title")}
-                   left={() => (
-                       <FontAwesome name="cogs" size={18} color="#1792FE" style={{ marginLeft:15 }} />
-                   )}
-                   right={() => (
-                       <FontAwesome
-                           name={expanded ? "angle-down" : "angle-up"} // Seta para cima ou para baixo
-                           size={18}
-                           
-                           color="#1792FE"
-                       />
-                   )}
-                   expanded={expanded}
-                   onPress={handlePress}
-                   titleStyle={{ fontSize: 14, marginLeft: 0, flexDirection: 'row', alignItems: 'center' }}
-               >
-                
-                    <List.Item
-                        title="> Contratos Ativos"
-                        onPress={() => props.navigation.navigate('ContratosList')}
-                    />
+                        left={() => (
+                            <FontAwesome name="cogs" size={18} color="#1792FE" style={{ marginLeft: 15 }} />
+                        )}
+                        right={() => (
+                            <FontAwesome
+                                name={expanded ? "angle-down" : "angle-up"} // Seta para cima ou para baixo
+                                size={18}
 
-                   <List.Item
+                                color="#1792FE"
+                            />
+                        )}
+                        expanded={expanded}
+                        onPress={handlePress}
+                        titleStyle={{ fontSize: 14, marginLeft: 0, flexDirection: 'row', alignItems: 'center' }}
+                    >
+
+                        <List.Item
+                            title="> Contratos Ativos"
+                            onPress={() => props.navigation.navigate('ContratosList')}
+                        />
+
+                        <List.Item
                             title={t("Drawer.ADM.1")}
-                       onPress={() => props.navigation.navigate('PainelAdmin')}
-                   />
-                   <List.Item
+                            onPress={() => props.navigation.navigate('PainelAdmin')}
+                        />
+                        <List.Item
                             title={t("Drawer.ADM.2")}
-                       onPress={() => props.navigation.navigate('UsersEmpresa')}
-                   />
-                   <List.Item
+                            onPress={() => props.navigation.navigate('UsersEmpresa')}
+                        />
+                        <List.Item
                             title={t("Drawer.ADM.3")}
-                       onPress={() => props.navigation.navigate('RegistoUser')}
-                   />
-                   <List.Item
+                            onPress={() => props.navigation.navigate('RegistoUser')}
+                        />
+                        <List.Item
                             title={t("Drawer.ADM.4")}
-                       onPress={() => props.navigation.navigate('RegistoPontoAdmin')}
-                   />
-                   <List.Item
+                            onPress={() => props.navigation.navigate('RegistoPontoAdmin')}
+                        />
+                        <List.Item
                             title={t("Drawer.ADM.5")}
-                       onPress={() => props.navigation.navigate('PedidosAlteracaoAdmin')}
-                   />
-               </List.Accordion>
-               
-               
+                            onPress={() => props.navigation.navigate('PedidosAlteracaoAdmin')}
+                        />
+                    </List.Accordion>
+
+
                 )}
                 {localStorage.getItem('loginToken') && (
                     <DrawerItem
@@ -263,7 +263,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
         </DrawerContentScrollView>
     );
 };
- 
+
 const AppNavigator = () => {
     const navigation = useNavigation(); // Obtém o objeto de navegação
 
@@ -320,19 +320,19 @@ const AppNavigator = () => {
 
         fetchUserData();
     }, []);
- 
- 
+
+
     const toggleLanguageSelector = () => {
         setLanguageSelectorVisible(!languageSelectorVisible); // Alterna a visibilidade do combobox de idiomas
     };
     const handleLanguageHover = (language) => {
         setHoveredLanguage(language); // Atualiza o idioma que está em hover
     };
- 
+
     const handleLanguageLeave = () => {
         setHoveredLanguage(null); // Restaura quando o hover sai
     };
- 
+
     if (loading) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -341,18 +341,18 @@ const AppNavigator = () => {
             </View>
         );
     }
- 
+
     return (
         <Drawer.Navigator
-        initialRouteName={initialRoute} // Usa a rota inicial definida com base na autenticação
-        drawerContent={(props) => (
-            <CustomDrawerContent
-                {...props}
-                isAdmin={isAdmin}
-                isSuperAdmin={isSuperAdmin}
-                isLoggedIn={isLoggedIn}
-                modules={modules}
-            />
+            initialRouteName={initialRoute} // Usa a rota inicial definida com base na autenticação
+            drawerContent={(props) => (
+                <CustomDrawerContent
+                    {...props}
+                    isAdmin={isAdmin}
+                    isSuperAdmin={isSuperAdmin}
+                    isLoggedIn={isLoggedIn}
+                    modules={modules}
+                />
             )}
             screenOptions={({ navigation }) => ({
                 headerTitle: () => (
@@ -364,10 +364,10 @@ const AppNavigator = () => {
                     </View>
                 ),
                 headerRight: () => (
-                   
+
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
- 
- 
+
+
                         {/* Botão de perfil/login */}
                         <TouchableOpacity
                             onPress={() => {
@@ -387,7 +387,7 @@ const AppNavigator = () => {
                                 </Text>
                             )}
                         </TouchableOpacity>
- 
+
                         {/* Botão de Idioma */}
                         <TouchableOpacity
                             onPress={toggleLanguageSelector} // Alterna a visibilidade do combobox de idiomas
@@ -397,8 +397,8 @@ const AppNavigator = () => {
                                 {i18n.language === 'pt' ? 'PT' : 'EN'}
                             </Text>
                         </TouchableOpacity>
- 
-                      {/* Exibe o combobox de idiomas se estiver visível */}
+
+                        {/* Exibe o combobox de idiomas se estiver visível */}
                         {languageSelectorVisible && (
                             <View style={{
                                 position: 'absolute', top: 50, right: 0, width: 75, backgroundColor: 'white', borderRadius: 5, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3.5, elevation: 5
@@ -443,34 +443,34 @@ const AppNavigator = () => {
                     />
                 )}
             </Drawer.Screen>
- 
+
             {isSuperAdmin && (
                 <>
                     <Drawer.Screen name="ADHome" component={ADHome} />
                     <Drawer.Screen name="RegistoAdmin" component={RegistoAdmin} />
                 </>
             )}
- 
-            <Drawer.Screen name="ListarRegistos" component={ListarRegistos} options={{title: "AdvirLink - Registos", drawerItemStyle: { display: 'none' } }} />
+
+            <Drawer.Screen name="ListarRegistos" component={ListarRegistos} options={{ title: "AdvirLink - Registos", drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
             <Drawer.Screen name="Obras" component={Obras} />
             <Drawer.Screen name="PontoBotao" component={PontoBotao} />
-            <Drawer.Screen name="Perfil"options={{title: "AdvirLink - Perfil"}}>
+            <Drawer.Screen name="Perfil" options={{ title: "AdvirLink - Perfil" }}>
                 {props => (
                     <Perfil {...props} user={{ name: userNome, company: empresa }} />
                 )}
             </Drawer.Screen>
-           
+
             <Drawer.Screen name="PedidosAssistencia" component={PedidosAssistencia} options={{ title: "AdvirLink - Pedidos de Assistência" }} />
             <Drawer.Screen name="PandIByTecnico" component={PandIByTecnico} options={{ title: "AdvirLink - Dashboard Técnico" }} />
-            <Drawer.Screen name="RegistoIntervencao" component={RegistoIntervencao} options={{ title: "AdvirLink - Intervenção",drawerItemStyle: { display: 'none' } }} />
+            <Drawer.Screen name="RegistoIntervencao" component={RegistoIntervencao} options={{ title: "AdvirLink - Intervenção", drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="DetalhesObra" component={DetalhesObra} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="AutosMedicaoExecucao" component={AutosMedicaoExecucao} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="PartesDiarias" component={PartesDiarias} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="AddPartesDiarias" component={AddPartesDiarias} options={{ drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="RegistarPedido" component={RegistoPedido} options={{ title: "AdvirLink - Pedido",drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="Intervencoes" component={intervencoes} options={{ title: "AdvirLink - Intervenção",drawerItemStyle: { display: 'none' } }} />
-           
+            <Drawer.Screen name="RegistarPedido" component={RegistoPedido} options={{ title: "AdvirLink - Pedido", drawerItemStyle: { display: 'none' } }} />
+            <Drawer.Screen name="Intervencoes" component={intervencoes} options={{ title: "AdvirLink - Intervenção", drawerItemStyle: { display: 'none' } }} />
+
             <Drawer.Screen name="RegistoPontoAdmin" component={RegistoPontoAdmin} />
             <Drawer.Screen name="PedidosAlteracaoAdmin" component={PedidosAlteracaoAdmin} />
             <Drawer.Screen name="UserModulesManagement" component={UserModulesManagement} options={{ drawerItemStyle: { display: 'none' } }} />
@@ -486,7 +486,7 @@ const AppNavigator = () => {
             )}
             <Drawer.Screen name="RecuperarPassword" component={RecuperarPassword} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="RedefinirPassword" component={RedefinirPassword} options={{ drawerItemStyle: { display: 'none' } }} />
- 
+
             {isAdmin && (
                 <>
                     <Drawer.Screen name="PainelAdmin" component={PainelAdmin} />
@@ -499,16 +499,16 @@ const AppNavigator = () => {
         </Drawer.Navigator>
     );
 };
- 
+
 export default function App() {
     return (
         <NavigationContainer>
-      <ImageBackground source={backgroundPattern} style={styles.background}>
-        <View style={styles.overlay}>
-          <AppNavigator />
-        </View>
-      </ImageBackground>
-    </NavigationContainer>
+            <ImageBackground source={backgroundPattern} style={styles.background}>
+                <View style={styles.overlay}>
+                    <AppNavigator />
+                </View>
+            </ImageBackground>
+        </NavigationContainer>
     );
 }
 
@@ -518,9 +518,9 @@ const styles = StyleSheet.create({
         width: "100%",
         height: "100%",
         justifyContent: "center", // Garante que o conteúdo está centrado
-      },
-      overlay: {
+    },
+    overlay: {
         flex: 1,
         backgroundColor: "rgba(255, 255, 255, 0.7)", // Ajusta a opacidade para suavizar o padrão
-      },
+    },
 });
