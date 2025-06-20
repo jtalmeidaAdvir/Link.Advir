@@ -1,11 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\frontend",
     "\\frontend\\src",
     "\\frontend\\src\\Servicos",
-    "\\webPrimaveraApi",
-    "\\webPrimaveraApi\\servives"
+    "\\webPrimaveraApi\\routes"
   ],
   "PreviewInSolutionExplorer": false
 }

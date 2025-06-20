@@ -76,6 +76,50 @@ const RegistoIntervencao = (props) => {
     // State for lunch time
     const [tempoAlmoco, setTempoAlmoco] = useState(0);
 
+    // State for travel time
+    const [tempoDeslocacao, setTempoDeslocacao] = useState(0);
+
+    // Function to fetch predefined travel time
+    const fetchTempoDeslocacao = async (processoID) => {
+        try {
+            const response = await fetch(
+                `http://webapiprimavera.advir.pt/routePedidos_STP/GetTempoDeslocacao/${processoID}`,
+                {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        urlempresa: urlempresa,
+                        "Content-Type": "application/json",
+                    },
+                },
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log("Resposta da API GetTempoDeslocacao:", data);
+
+                // Verificar se existe DataSet com Table e o primeiro elemento tem CDU_TempoDeslocacao
+                if (data && data.DataSet && data.DataSet.Table && data.DataSet.Table.length > 0) {
+                    const tempoDeslocacaoHoras = data.DataSet.Table[0].CDU_TempoDeslocacao;
+                    if (tempoDeslocacaoHoras !== null && tempoDeslocacaoHoras !== undefined) {
+                        // O valor retornado é decimal em horas, converter para minutos
+                        const tempoEmMinutos = Math.round(tempoDeslocacaoHoras * 60);
+                        setTempoDeslocacao(tempoEmMinutos);
+                        console.log(`Tempo de deslocação predefinido: ${tempoDeslocacaoHoras} horas (${tempoEmMinutos} minutos)`);
+                    } else {
+                        console.log("Tempo de deslocação não definido para este cliente - valor null");
+                    }
+                } else {
+                    console.log("Tempo de deslocação não definido para este cliente - sem dados");
+                }
+            } else {
+                console.warn("Erro ao buscar tempo de deslocação predefinido");
+            }
+        } catch (error) {
+            console.error("Erro ao buscar tempo de deslocação:", error);
+        }
+    };
+
     const fetchTipos = async () => {
         try {
             const response = await fetch(
@@ -216,9 +260,17 @@ const RegistoIntervencao = (props) => {
         }
     };
 
-    const handleFormChange = (e) => {
+    const handleFormChange = async (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
+
+        // Se o tipo mudou para PRE, buscar o tempo de deslocação predefinido
+        if (name === "tipo" && value === "PRE") {
+            const processoID = localStorage.getItem("intervencaoId");
+            if (processoID) {
+                await fetchTempoDeslocacao(processoID);
+            }
+        }
     };
 
     const handleDeleteArtigo = (index) => {
@@ -324,9 +376,14 @@ const RegistoIntervencao = (props) => {
                 (dataHoraFim - dataHoraInicio) / (1000 * 60),
             );
 
-            // Subtract lunch time if intervention type is PRE (presencial)
-            if (formData.tipo === "PRE" && tempoAlmoco > 0) {
-                duracaoEmMinutos = duracaoEmMinutos - tempoAlmoco;
+            // Subtract lunch time and travel time if intervention type is PRE (presencial)
+            if (formData.tipo === "PRE") {
+                if (tempoAlmoco > 0) {
+                    duracaoEmMinutos = duracaoEmMinutos - tempoAlmoco;
+                }
+                if (tempoDeslocacao > 0) {
+                    duracaoEmMinutos = duracaoEmMinutos - tempoDeslocacao;
+                }
             }
 
             try {
@@ -442,7 +499,7 @@ const RegistoIntervencao = (props) => {
             console.log("Dados a enviar para API:", dataToSave);
             console.log("URL da API:", `${apiBaseUrl}/CriarIntervencoes`);
             console.log("Headers:", {
-                Authorization: `Bearer ${token ? 'TOKEN_PRESENT' : 'NO_TOKEN'}`,
+                Authorization: `Bearer ${token ? "TOKEN_PRESENT" : "NO_TOKEN"}`,
                 urlempresa: urlempresa,
                 "Content-Type": "application/json",
             });
@@ -469,16 +526,24 @@ const RegistoIntervencao = (props) => {
                 if (intervencaoResponse.ok) {
                     intervencaoData = await intervencaoResponse.json();
                     numeroDetalhes = intervencaoData.detalhes;
-                    console.log("Intervenção criada com sucesso:", intervencaoData);
+                    console.log(
+                        "Intervenção criada com sucesso:",
+                        intervencaoData,
+                    );
                     console.log("Número de detalhes:", numeroDetalhes);
                 } else {
                     // Log the error but don't fail the process
-                    console.warn("API retornou erro mas assumindo que intervenção foi criada:", intervencaoResponse.status);
+                    console.warn(
+                        "API retornou erro mas assumindo que intervenção foi criada:",
+                        intervencaoResponse.status,
+                    );
                     numeroDetalhes = "1"; // Default value for email processes
                 }
-
             } catch (error) {
-                console.warn("Erro na requisição mas assumindo que intervenção foi criada:", error.message);
+                console.warn(
+                    "Erro na requisição mas assumindo que intervenção foi criada:",
+                    error.message,
+                );
                 numeroDetalhes = "1"; // Default value for email processes
             }
 
@@ -501,13 +566,21 @@ const RegistoIntervencao = (props) => {
 
                     if (emailResponse.ok) {
                         const responseData = await emailResponse.json();
-                        console.log("Resposta de e-mail obtida com sucesso:", responseData);
+                        console.log(
+                            "Resposta de e-mail obtida com sucesso:",
+                            responseData,
+                        );
                         ResponseData = responseData;
                     } else {
-                        console.warn("Erro ao obter informações de e-mail, mas intervenção foi criada com sucesso");
+                        console.warn(
+                            "Erro ao obter informações de e-mail, mas intervenção foi criada com sucesso",
+                        );
                     }
                 } catch (error) {
-                    console.warn("Erro durante a requisição de email info, mas intervenção foi criada:", error.message);
+                    console.warn(
+                        "Erro durante a requisição de email info, mas intervenção foi criada:",
+                        error.message,
+                    );
                 }
 
                 // Email sending process
@@ -524,14 +597,22 @@ const RegistoIntervencao = (props) => {
                                     emailDestinatario: email,
                                     Pedido: ResponseData.Pedido,
                                     dadosIntervencao: {
-                                        NumIntervencao: ResponseData.NumIntervencao,
+                                        NumIntervencao:
+                                            ResponseData.NumIntervencao,
                                         Contacto: ResponseData.Contacto,
                                         processoID: ResponseData.NumProcesso,
-                                        HoraInicioPedido: ResponseData.HoraInicioPedido,
+                                        HoraInicioPedido:
+                                            ResponseData.HoraInicioPedido,
                                         tecnico: ResponseData.Tecnico,
-                                        descricaoResposta: dataToSave.descricaoResposta,
-                                        Estadointer: ResponseData.Estado.replace(/<|>/g, ""),
-                                        HoraInicioIntervencao: ResponseData.HoraInicioIntervencao,
+                                        descricaoResposta:
+                                            dataToSave.descricaoResposta,
+                                        Estadointer:
+                                            ResponseData.Estado.replace(
+                                                /<|>/g,
+                                                "",
+                                            ),
+                                        HoraInicioIntervencao:
+                                            ResponseData.HoraInicioIntervencao,
                                     },
                                 }),
                             },
@@ -541,13 +622,20 @@ const RegistoIntervencao = (props) => {
                             const data = await response.json();
                             console.log("Email enviado com sucesso:", data);
                         } else {
-                            console.warn("Erro ao enviar e-mail, mas intervenção foi criada com sucesso");
+                            console.warn(
+                                "Erro ao enviar e-mail, mas intervenção foi criada com sucesso",
+                            );
                         }
                     } catch (error) {
-                        console.warn("Erro ao enviar email, mas intervenção foi criada:", error);
+                        console.warn(
+                            "Erro ao enviar email, mas intervenção foi criada:",
+                            error,
+                        );
                     }
                 } else if (enviarEmailCheck && !ResponseData) {
-                    console.warn("Email não enviado: dados de email não disponíveis, mas intervenção foi criada com sucesso");
+                    console.warn(
+                        "Email não enviado: dados de email não disponíveis, mas intervenção foi criada com sucesso",
+                    );
                 }
             }
 
@@ -567,11 +655,15 @@ const RegistoIntervencao = (props) => {
             setActiveTab("detalhes");
             setSuccessMessage("");
             setTempoAlmoco(0);
+            setTempoDeslocacao(0);
             props.navigation.navigate("Intervencoes");
             setAddedArtigos([]);
             setArtigoForm(initialArtigoForm());
         } catch (error) {
-            console.warn("Erro durante o processo, mas assumindo que intervenção foi criada:", error.message);
+            console.warn(
+                "Erro durante o processo, mas assumindo que intervenção foi criada:",
+                error.message,
+            );
         } finally {
             setIsLoading(false);
             setIsModalOpen(false);
@@ -914,116 +1006,50 @@ const RegistoIntervencao = (props) => {
                                     </div>
                                 </div>
 
-                                {/* Lunch time field - only show for PRE intervention type */}
+                                {/* Lunch time and travel time fields - only show for PRE intervention type */}
                                 {formData.tipo === "PRE" && (
-                                    <div style={formRowStyle}>
-                                        <div style={formGroupStyle}>
-                                            <label style={labelStyle}>
-                                                Tempo de Almoço
-                                            </label>
-                                            <div
-                                                style={lunchTimeContainerStyle}
-                                            >
+                                    <>
+                                        <div style={formRowStyle}>
+                                            <div style={formGroupStyle}>
+                                                <label style={labelStyle}>
+                                                    Tempo de Almoço
+                                                </label>
                                                 <div
-                                                    style={timePickerGroupStyle}
+                                                    style={
+                                                        lunchTimeContainerStyle
+                                                    }
                                                 >
-                                                    <label
+                                                    <div
                                                         style={
-                                                            timePickerLabelStyle
+                                                            timePickerGroupStyle
                                                         }
                                                     >
-                                                        Horas
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        value={
-                                                            Math.floor(
-                                                                tempoAlmoco /
-                                                                60,
-                                                            ) || ""
-                                                        }
-                                                        onChange={(e) => {
-                                                            const inputValue =
-                                                                e.target.value;
-                                                            // Remove leading zeros and convert to number
-                                                            const horas =
-                                                                inputValue ===
-                                                                    ""
-                                                                    ? 0
-                                                                    : Math.max(
-                                                                        0,
-                                                                        parseInt(
-                                                                            inputValue.replace(
-                                                                                /^0+/,
-                                                                                "",
-                                                                            ) ||
-                                                                            "0",
-                                                                            10,
-                                                                        ),
-                                                                    );
-                                                            const minutosAtuais =
-                                                                tempoAlmoco %
-                                                                60;
-                                                            setTempoAlmoco(
-                                                                horas * 60 +
-                                                                minutosAtuais,
-                                                            );
-                                                        }}
-                                                        onBlur={(e) => {
-                                                            // Clean up the field on blur if empty
-                                                            if (
-                                                                e.target
-                                                                    .value ===
-                                                                ""
-                                                            ) {
-                                                                const minutosAtuais =
-                                                                    tempoAlmoco %
-                                                                    60;
-                                                                setTempoAlmoco(
-                                                                    0 * 60 +
-                                                                    minutosAtuais,
-                                                                );
+                                                        <label
+                                                            style={
+                                                                timePickerLabelStyle
                                                             }
-                                                        }}
-                                                        style={
-                                                            timePickerInputStyle
-                                                        }
-                                                        min="0"
-                                                        max="8"
-                                                        placeholder="0"
-                                                    />
-                                                </div>
-                                                <div style={timeSeparatorStyle}>
-                                                    :
-                                                </div>
-                                                <div
-                                                    style={timePickerGroupStyle}
-                                                >
-                                                    <label
-                                                        style={
-                                                            timePickerLabelStyle
-                                                        }
-                                                    >
-                                                        Minutos
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        value={
-                                                            tempoAlmoco % 60 ||
-                                                            ""
-                                                        }
-                                                        onChange={(e) => {
-                                                            const inputValue =
-                                                                e.target.value;
-                                                            // Remove leading zeros and convert to number
-                                                            const minutos =
-                                                                inputValue ===
-                                                                    ""
-                                                                    ? 0
-                                                                    : Math.max(
-                                                                        0,
-                                                                        Math.min(
-                                                                            59,
+                                                        >
+                                                            Horas
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={
+                                                                Math.floor(
+                                                                    tempoAlmoco /
+                                                                    60,
+                                                                ) || ""
+                                                            }
+                                                            onChange={(e) => {
+                                                                const inputValue =
+                                                                    e.target
+                                                                        .value;
+                                                                // Remove leading zeros and convert to number
+                                                                const horas =
+                                                                    inputValue ===
+                                                                        ""
+                                                                        ? 0
+                                                                        : Math.max(
+                                                                            0,
                                                                             parseInt(
                                                                                 inputValue.replace(
                                                                                     /^0+/,
@@ -1032,26 +1058,87 @@ const RegistoIntervencao = (props) => {
                                                                                 "0",
                                                                                 10,
                                                                             ),
-                                                                        ),
-                                                                    );
-                                                            const horasAtuais =
-                                                                Math.floor(
-                                                                    tempoAlmoco /
-                                                                    60,
+                                                                        );
+                                                                const minutosAtuais =
+                                                                    tempoAlmoco %
+                                                                    60;
+                                                                setTempoAlmoco(
+                                                                    horas * 60 +
+                                                                    minutosAtuais,
                                                                 );
-                                                            setTempoAlmoco(
-                                                                horasAtuais *
-                                                                60 +
-                                                                minutos,
-                                                            );
-                                                        }}
-                                                        onBlur={(e) => {
-                                                            // Clean up the field on blur if empty
-                                                            if (
-                                                                e.target
-                                                                    .value ===
-                                                                ""
-                                                            ) {
+                                                            }}
+                                                            onBlur={(e) => {
+                                                                // Clean up the field on blur if empty
+                                                                if (
+                                                                    e.target
+                                                                        .value ===
+                                                                    ""
+                                                                ) {
+                                                                    const minutosAtuais =
+                                                                        tempoAlmoco %
+                                                                        60;
+                                                                    setTempoAlmoco(
+                                                                        0 * 60 +
+                                                                        minutosAtuais,
+                                                                    );
+                                                                }
+                                                            }}
+                                                            style={
+                                                                timePickerInputStyle
+                                                            }
+                                                            min="0"
+                                                            max="8"
+                                                            placeholder="0"
+                                                        />
+                                                    </div>
+                                                    <div
+                                                        style={
+                                                            timeSeparatorStyle
+                                                        }
+                                                    >
+                                                        :
+                                                    </div>
+                                                    <div
+                                                        style={
+                                                            timePickerGroupStyle
+                                                        }
+                                                    >
+                                                        <label
+                                                            style={
+                                                                timePickerLabelStyle
+                                                            }
+                                                        >
+                                                            Minutos
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={
+                                                                tempoAlmoco %
+                                                                60 || ""
+                                                            }
+                                                            onChange={(e) => {
+                                                                const inputValue =
+                                                                    e.target
+                                                                        .value;
+                                                                // Remove leading zeros and convert to number
+                                                                const minutos =
+                                                                    inputValue ===
+                                                                        ""
+                                                                        ? 0
+                                                                        : Math.max(
+                                                                            0,
+                                                                            Math.min(
+                                                                                59,
+                                                                                parseInt(
+                                                                                    inputValue.replace(
+                                                                                        /^0+/,
+                                                                                        "",
+                                                                                    ) ||
+                                                                                    "0",
+                                                                                    10,
+                                                                                ),
+                                                                            ),
+                                                                        );
                                                                 const horasAtuais =
                                                                     Math.floor(
                                                                         tempoAlmoco /
@@ -1060,32 +1147,235 @@ const RegistoIntervencao = (props) => {
                                                                 setTempoAlmoco(
                                                                     horasAtuais *
                                                                     60 +
-                                                                    0,
+                                                                    minutos,
                                                                 );
+                                                            }}
+                                                            onBlur={(e) => {
+                                                                // Clean up the field on blur if empty
+                                                                if (
+                                                                    e.target
+                                                                        .value ===
+                                                                    ""
+                                                                ) {
+                                                                    const horasAtuais =
+                                                                        Math.floor(
+                                                                            tempoAlmoco /
+                                                                            60,
+                                                                        );
+                                                                    setTempoAlmoco(
+                                                                        horasAtuais *
+                                                                        60 +
+                                                                        0,
+                                                                    );
+                                                                }
+                                                            }}
+                                                            style={
+                                                                timePickerInputStyle
                                                             }
-                                                        }}
-                                                        style={
-                                                            timePickerInputStyle
-                                                        }
-                                                        min="0"
-                                                        max="59"
-                                                        placeholder="0"
-                                                    />
+                                                            min="0"
+                                                            max="59"
+                                                            placeholder="0"
+                                                        />
+                                                    </div>
                                                 </div>
+                                                <small
+                                                    style={{
+                                                        color: "#666",
+                                                        fontSize: "0.85rem",
+                                                        marginTop: "5px",
+                                                        display: "block",
+                                                    }}
+                                                >
+                                                    Este tempo será descontado
+                                                    da duração total da
+                                                    intervenção
+                                                </small>
                                             </div>
-                                            <small
-                                                style={{
-                                                    color: "#666",
-                                                    fontSize: "0.85rem",
-                                                    marginTop: "5px",
-                                                    display: "block",
-                                                }}
-                                            >
-                                                Este tempo será descontado da
-                                                duração total da intervenção
-                                            </small>
+
+                                            <div style={formGroupStyle}>
+                                                <label style={labelStyle}>
+                                                    Tempo de Deslocação
+                                                </label>
+                                                <div
+                                                    style={
+                                                        lunchTimeContainerStyle
+                                                    }
+                                                >
+                                                    <div
+                                                        style={
+                                                            timePickerGroupStyle
+                                                        }
+                                                    >
+                                                        <label
+                                                            style={
+                                                                timePickerLabelStyle
+                                                            }
+                                                        >
+                                                            Horas
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={
+                                                                Math.floor(
+                                                                    tempoDeslocacao /
+                                                                    60,
+                                                                ) || ""
+                                                            }
+                                                            onChange={(e) => {
+                                                                const inputValue =
+                                                                    e.target
+                                                                        .value;
+                                                                // Remove leading zeros and convert to number
+                                                                const horas =
+                                                                    inputValue ===
+                                                                        ""
+                                                                        ? 0
+                                                                        : Math.max(
+                                                                            0,
+                                                                            parseInt(
+                                                                                inputValue.replace(
+                                                                                    /^0+/,
+                                                                                    "",
+                                                                                ) ||
+                                                                                "0",
+                                                                                10,
+                                                                            ),
+                                                                        );
+                                                                const minutosAtuais =
+                                                                    tempoDeslocacao %
+                                                                    60;
+                                                                setTempoDeslocacao(
+                                                                    horas * 60 +
+                                                                    minutosAtuais,
+                                                                );
+                                                            }}
+                                                            onBlur={(e) => {
+                                                                // Clean up the field on blur if empty
+                                                                if (
+                                                                    e.target
+                                                                        .value ===
+                                                                    ""
+                                                                ) {
+                                                                    const minutosAtuais =
+                                                                        tempoDeslocacao %
+                                                                        60;
+                                                                    setTempoDeslocacao(
+                                                                        0 * 60 +
+                                                                        minutosAtuais,
+                                                                    );
+                                                                }
+                                                            }}
+                                                            style={
+                                                                timePickerInputStyle
+                                                            }
+                                                            min="0"
+                                                            max="8"
+                                                            placeholder="0"
+                                                        />
+                                                    </div>
+                                                    <div
+                                                        style={
+                                                            timeSeparatorStyle
+                                                        }
+                                                    >
+                                                        :
+                                                    </div>
+                                                    <div
+                                                        style={
+                                                            timePickerGroupStyle
+                                                        }
+                                                    >
+                                                        <label
+                                                            style={
+                                                                timePickerLabelStyle
+                                                            }
+                                                        >
+                                                            Minutos
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={
+                                                                tempoDeslocacao %
+                                                                60 || ""
+                                                            }
+                                                            onChange={(e) => {
+                                                                const inputValue =
+                                                                    e.target
+                                                                        .value;
+                                                                // Remove leading zeros and convert to number
+                                                                const minutos =
+                                                                    inputValue ===
+                                                                        ""
+                                                                        ? 0
+                                                                        : Math.max(
+                                                                            0,
+                                                                            Math.min(
+                                                                                59,
+                                                                                parseInt(
+                                                                                    inputValue.replace(
+                                                                                        /^0+/,
+                                                                                        "",
+                                                                                    ) ||
+                                                                                    "0",
+                                                                                    10,
+                                                                                ),
+                                                                            ),
+                                                                        );
+                                                                const horasAtuais =
+                                                                    Math.floor(
+                                                                        tempoDeslocacao /
+                                                                        60,
+                                                                    );
+                                                                setTempoDeslocacao(
+                                                                    horasAtuais *
+                                                                    60 +
+                                                                    minutos,
+                                                                );
+                                                            }}
+                                                            onBlur={(e) => {
+                                                                // Clean up the field on blur if empty
+                                                                if (
+                                                                    e.target
+                                                                        .value ===
+                                                                    ""
+                                                                ) {
+                                                                    const horasAtuais =
+                                                                        Math.floor(
+                                                                            tempoDeslocacao /
+                                                                            60,
+                                                                        );
+                                                                    setTempoDeslocacao(
+                                                                        horasAtuais *
+                                                                        60 +
+                                                                        0,
+                                                                    );
+                                                                }
+                                                            }}
+                                                            style={
+                                                                timePickerInputStyle
+                                                            }
+                                                            min="0"
+                                                            max="59"
+                                                            placeholder="0"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <small
+                                                    style={{
+                                                        color: "#666",
+                                                        fontSize: "0.85rem",
+                                                        marginTop: "5px",
+                                                        display: "block",
+                                                    }}
+                                                >
+                                                    Tempo de deslocação
+                                                    predefinido que será
+                                                    descontado da duração total
+                                                    da intervenção
+                                                </small>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </>
                                 )}
 
                                 <div style={navigationButtonsStyle}>
@@ -1381,6 +1671,7 @@ const RegistoIntervencao = (props) => {
                                     descricao: "",
                                 });
                                 setTempoAlmoco(0);
+                                setTempoDeslocacao(0);
                             }}
                             style={cancelButtonStyle}
                         >

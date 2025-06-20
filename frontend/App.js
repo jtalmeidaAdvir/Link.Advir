@@ -38,6 +38,7 @@ import PandIByTecnico from './src/Servicos/PandIByTecnico';
 import RegistoPedido from './src/Servicos/RegistoAssistencia';
 import intervencoes from './src/Servicos/Intervencoes';
 import RegistoIntervencao from './src/Servicos/RegistoIntervencao';
+import DashboardAnalytics from './src/Servicos/DashboardAnalytics';
 
 // ASSIDUIDADE
 import LeitorQRCode from './src/Assiduidade/LeitorQRCode';
@@ -470,6 +471,7 @@ const AppNavigator = () => {
             <Drawer.Screen name="AddPartesDiarias" component={AddPartesDiarias} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="RegistarPedido" component={RegistoPedido} options={{ title: "AdvirLink - Pedido", drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="Intervencoes" component={intervencoes} options={{ title: "AdvirLink - Intervenção", drawerItemStyle: { display: 'none' } }} />
+            <Drawer.Screen name="DashboardAnalytics" component={DashboardAnalytics} options={{ title: "AdvirLink - Dashboard Analytics" }} />
 
             <Drawer.Screen name="RegistoPontoAdmin" component={RegistoPontoAdmin} />
             <Drawer.Screen name="PedidosAlteracaoAdmin" component={PedidosAlteracaoAdmin} />

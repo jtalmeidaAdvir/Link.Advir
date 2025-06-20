@@ -264,6 +264,52 @@ router.get('/LstEstadosTodos', async (req, res) => {
     }
 });
 
+// Rota para listar seções
+router.get('/GetTempoDeslocacao/:processoID', async (req, res) => {
+    try {
+        const { processoID } = req.params;
+        const painelAdminToken = req.headers['authorization']?.split(' ')[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
+        }
+
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+        }
+
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/GetTempoDeslocacao/${processoID}`;
+        console.log('Enviando solicitação para a URL:', apiUrl);
+
+        const response = await axios.get(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${painelAdminToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            }
+        });
+
+        if (response.status === 200) {
+            return res.status(200).json(response.data);
+
+        } else if (response.status === 404) {
+            return res.status(404).json({
+                error: 'Nenhuma tempo encontrada.'
+            });
+        } else {
+            return res.status(400).json({
+                error: 'Falha ao listar tempos.',
+                details: response.data.ErrorMessage
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao listar tempos:', error.response ? error.response.data : error.message);
+        return res.status(500).json({
+            error: 'Erro inesperado ao listar tempos',
+            details: error.message
+        });
+    }
+});
 // Rota para listar tipos de intervenção
 router.get('/LstTiposIntervencao', async (req, res) => {
     try {

@@ -1,4 +1,5 @@
 ﻿
+
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -14,17 +15,18 @@ import {
     Dimensions
 } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { 
-    faClose, 
+import {
+    faClose,
     faDoorClosed,
     faLock,
-    faExpand, 
-    faTrash, 
-    faSearch, 
-    faPlus, 
-    faChevronDown, 
+    faExpand,
+    faTrash,
+    faSearch,
+    faPlus,
+    faChevronDown,
     faChevronUp,
-    faFilter
+    faFilter,
+    faChartLine
 } from '@fortawesome/free-solid-svg-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -53,29 +55,29 @@ const PedidosAssistencia = ({ navigation }) => {
 
 
     const [isAdmin, setIsAdmin] = useState(false);
-const [userTecnicoID, setUserTecnicoID] = useState('');
+    const [userTecnicoID, setUserTecnicoID] = useState('');
 
 
 
-useEffect(() => {
-    const groupedData = Object.values(
-        applyFilters().reduce((acc, pedido) => {
-            const numProcesso = pedido.NumProcesso;
-            if (!acc[numProcesso]) {
-                acc[numProcesso] = [];
-            }
-            acc[numProcesso].push(pedido);
-            return acc;
-        }, {})
-    );
+    useEffect(() => {
+        const groupedData = Object.values(
+            applyFilters().reduce((acc, pedido) => {
+                const numProcesso = pedido.NumProcesso;
+                if (!acc[numProcesso]) {
+                    acc[numProcesso] = [];
+                }
+                acc[numProcesso].push(pedido);
+                return acc;
+            }, {})
+        );
 
-    // Ordenar por NumProcesso descendente
-    const sortedData = groupedData.sort((a, b) => {
-        return b[0].NumProcesso - a[0].NumProcesso;
-    });
+        // Ordenar por NumProcesso descendente
+        const sortedData = groupedData.sort((a, b) => {
+            return b[0].NumProcesso - a[0].NumProcesso;
+        });
 
-    setFilteredData(sortedData);
-}, [pedidos, searchTerm, filterPrioridade, filterEstado, filterSerie]);
+        setFilteredData(sortedData);
+    }, [pedidos, searchTerm, filterPrioridade, filterEstado, filterSerie]);
 
 
     // Fetch pedidos quando o componente monta ou a tela recebe foco
@@ -90,13 +92,13 @@ useEffect(() => {
                 setIsAdmin(storedIsAdmin);
                 setUserTecnicoID(storedTecnicoID);
 
-            
+
                 if (!urlempresa) {
                     setErrorMessage('URL da empresa não encontrada.');
                     setLoading(false);
                     return;
                 }
-            
+
                 try {
                     const response = await fetch('https://webapiprimavera.advir.pt/listarPedidos/listarPedidos', {
                         method: 'GET',
@@ -106,11 +108,11 @@ useEffect(() => {
                             'Content-Type': 'application/json',
                         },
                     });
-            
+
                     if (!response.ok) {
                         throw new Error(`Error: ${response.statusText}`);
                     }
-            
+
                     const data = await response.json();
                     setPedidos(data.DataSet.Table);
                 } catch (error) {
@@ -120,28 +122,28 @@ useEffect(() => {
                     setLoading(false);
                 }
             };
-            
+
             fetchPedidos();
         }, [])
     );
-    
+
     const applyFilters = () => {
         let filteredPedidos = [...pedidos];
-    
+
         // Filtrar pedidos válidos
         filteredPedidos = filteredPedidos.filter((pedido) => pedido && pedido.Cliente);
         console.log("userTecnicoID:", userTecnicoID);
         console.log("Exemplo de pedido.Tecnico:", pedidos[0]?.Tecnico);
         console.log("Pedido completo:", pedidos[0]);
-        
+
         // Se não for admin, filtrar apenas os do seu técnico
         if (!isAdmin && userTecnicoID) {
             filteredPedidos = filteredPedidos.filter(pedido =>
                 pedido.Tecnico?.toString().trim() === userTecnicoID.toString().trim()
             );
         }
-        
-    
+
+
         // Filtros existentes...
         if (searchTerm && searchTerm.trim()) {
             const lowerSearchTerm = searchTerm.toLowerCase();
@@ -152,19 +154,19 @@ useEffect(() => {
                 pedido.DescricaoProb?.toString().toLowerCase().includes(lowerSearchTerm)
             );
         }
-    
+
         if (filterPrioridade && filterPrioridade.trim()) {
             filteredPedidos = filteredPedidos.filter((pedido) =>
                 pedido.Prioridade?.toString().toLowerCase() === filterPrioridade.toLowerCase()
             );
         }
-    
+
         if (filterSerie && filterSerie.trim()) {
             filteredPedidos = filteredPedidos.filter((pedido) =>
                 pedido.serie?.toString().toLowerCase() === filterSerie.toLowerCase()
             );
         }
-    
+
         if (filterEstado) {
             if (filterEstado === 'pendentes') {
                 const estadosPendentes = ['2', '3', '4'];
@@ -177,21 +179,21 @@ useEffect(() => {
                 );
             }
         }
-    
+
         return filteredPedidos;
     };
-    
+
 
     // Delete pedido
     const deletePedido = async (id) => {
         try {
             const token = localStorage.getItem('painelAdminToken');
             const urlempresa = localStorage.getItem('urlempresa');
-    
+
             if (!token || !urlempresa) {
                 throw new Error('Token ou URL da empresa não encontrados.');
             }
-    
+
             const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/EliminarPedido/${id}`, {
                 method: 'GET',
                 headers: {
@@ -200,11 +202,11 @@ useEffect(() => {
                     'Content-Type': 'application/json',
                 },
             });
-    
+
             if (!response.ok) {
                 throw new Error(`Error: ${response.statusText}`);
             }
-    
+
             // Remove o pedido eliminado do estado local
             setPedidos((prevPedidos) => prevPedidos.filter(pedido => pedido.ID !== id));
             setModalVisible(false);
@@ -215,16 +217,16 @@ useEffect(() => {
     };
 
 
-     // Delete pedido
-     const FechaPedido = async (id) => {
+    // Delete pedido
+    const FechaPedido = async (id) => {
         try {
             const token = localStorage.getItem('painelAdminToken');
             const urlempresa = localStorage.getItem('urlempresa');
-    
+
             if (!token || !urlempresa) {
                 throw new Error('Token ou URL da empresa não encontrados.');
             }
-    
+
             const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/FechaProcessoID/${processoParaFechar}`, {
                 method: 'POST',
                 headers: {
@@ -233,11 +235,11 @@ useEffect(() => {
                     'Content-Type': 'application/json',
                 },
             });
-    
+
             if (!response.ok) {
                 throw new Error(`Error: ${response.statusText}`);
             }
-    
+
             // Remove o pedido eliminado do estado local
             setPedidos((prevPedidos) => prevPedidos.filter(pedido => pedido.ID !== id));
             setModalVisible(false);
@@ -276,7 +278,7 @@ useEffect(() => {
                 return 'Desconhecido';
         }
     };
-    
+
     // Get estado color baseado no input
     const getEstadoColor = (estado) => {
         switch (estado) {
@@ -358,29 +360,29 @@ useEffect(() => {
                         <Text style={styles.pedidoDetailLabel}>Cliente</Text>
                         <Text style={styles.pedidoDetailValue}>{pedido.Cliente} - {pedido.Nome}</Text>
                     </View>
-                    
+
                     <View style={styles.infoGroup}>
                         <Text style={styles.pedidoDetailLabel}>Data de Abertura</Text>
                         <Text style={styles.pedidoDetailValue}>
-                            {new Date(pedido.DataHoraAbertura).toLocaleDateString()} {new Date(pedido.DataHoraAbertura).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            {new Date(pedido.DataHoraAbertura).toLocaleDateString()} {new Date(pedido.DataHoraAbertura).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </Text>
                     </View>
                 </View>
-                
+
                 <View style={styles.pedidoInfoColumn}>
                     <View style={styles.badgeRow}>
-                        <View style={[styles.badge, {backgroundColor: getPrioridadeColor(pedido.Prioridade) + '20', borderColor: getPrioridadeColor(pedido.Prioridade)}]}>
-                            <Text style={[styles.badgeText, {color: getPrioridadeColor(pedido.Prioridade)}]}>
+                        <View style={[styles.badge, { backgroundColor: getPrioridadeColor(pedido.Prioridade) + '20', borderColor: getPrioridadeColor(pedido.Prioridade) }]}>
+                            <Text style={[styles.badgeText, { color: getPrioridadeColor(pedido.Prioridade) }]}>
                                 {getPrioridade(pedido.Prioridade)}
                             </Text>
                         </View>
-                        
-                        <View style={[styles.badge, {backgroundColor: getEstadoColor(pedido.Estado) + '20', borderColor: getEstadoColor(pedido.Estado)}]}>
-                            <Text style={[styles.badgeText, {color: getEstadoColor(pedido.Estado)}]}>
+
+                        <View style={[styles.badge, { backgroundColor: getEstadoColor(pedido.Estado) + '20', borderColor: getEstadoColor(pedido.Estado) }]}>
+                            <Text style={[styles.badgeText, { color: getEstadoColor(pedido.Estado) }]}>
                                 {getEstado(pedido.Estado)}
                             </Text>
                         </View>
-                        
+
                         <View style={styles.badge}>
                             <Text style={styles.badgeText}>
                                 {getSerie(pedido.Serie)}
@@ -389,7 +391,7 @@ useEffect(() => {
                     </View>
                 </View>
             </View>
-            
+
             <View style={styles.descriptionContainer}>
                 <Text style={styles.pedidoDetailLabel}>Descrição</Text>
                 <Text style={styles.descriptionText}>{pedido.DescricaoProb}</Text>
@@ -413,23 +415,23 @@ useEffect(() => {
         { label: "2024", value: '2024', descricao: '2024' },
         { label: "2025", value: '2025', descricao: '2025' },
     ];
-    
+
     const renderFilterMenu = () => (
         <View style={[styles.filterMenu, !showFilters && styles.filterMenuClosed]}>
             <View style={styles.filterHeader}>
                 <Text style={styles.filterTitle}>Filtros</Text>
-                <TouchableOpacity 
-                    style={styles.toggleFiltersButton} 
+                <TouchableOpacity
+                    style={styles.toggleFiltersButton}
                     onPress={() => setShowFilters(!showFilters)}
                 >
-                    <FontAwesomeIcon 
-                        icon={showFilters ? faChevronUp : faChevronDown} 
-                        style={styles.filterIcon} 
-                        size={16} 
+                    <FontAwesomeIcon
+                        icon={showFilters ? faChevronUp : faChevronDown}
+                        style={styles.filterIcon}
+                        size={16}
                     />
                 </TouchableOpacity>
             </View>
-            
+
             {showFilters && (
                 <View style={styles.filterContent}>
                     <Text style={styles.filterLabel}>Prioridade</Text>
@@ -456,7 +458,7 @@ useEffect(() => {
                             </TouchableOpacity>
                         ))}
                     </View>
-            
+
                     <Text style={styles.filterLabel}>Estado</Text>
                     <View style={styles.filterGroup}>
                         {estados.map(({ label, value }) => (
@@ -481,7 +483,7 @@ useEffect(() => {
                             </TouchableOpacity>
                         ))}
                     </View>
-                    
+
                     <Text style={styles.filterLabel}>Série</Text>
                     <View style={styles.filterGroup}>
                         {series.map(({ label, value }) => (
@@ -514,17 +516,17 @@ useEffect(() => {
     // Render section for each NumProcesso
     const renderSection = ({ item }) => {
         if (!item || !item[0]) return null; // Evita erros com grupos inválidos
-    
+
         const numProcesso = item[0].NumProcesso || 'Desconhecido';
         const cliente = item[0].Nome || 'Cliente Desconhecido';
         const isExpanded = expandedSections[numProcesso];
         const estado = item[0].Estado || '0';
-    
+
         return (
             <View style={[styles.sectionContainer, { borderLeftColor: getEstadoColor(estado) }]}>
                 <View style={styles.sectionHeaderContainer}>
-                    <TouchableOpacity 
-                        style={styles.sectionHeader} 
+                    <TouchableOpacity
+                        style={styles.sectionHeader}
                         onPress={() => toggleSection(numProcesso)}
                         activeOpacity={0.7}
                     >
@@ -539,9 +541,9 @@ useEffect(() => {
                             </Text>
                         </View>
                     </TouchableOpacity>
-                    
+
                     <View style={styles.actionButtonsContainer}>
-                    <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.actionButton}
                             onPress={async () => {
                                 try {
@@ -554,7 +556,7 @@ useEffect(() => {
                         >
                             <FontAwesomeIcon icon={faExpand} style={styles.icon} size={16} />
                         </TouchableOpacity>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={styles.actionButton}
                             onPress={() => {
                                 setProcessoParaFechar(item[0].ID);
@@ -564,8 +566,8 @@ useEffect(() => {
                             <FontAwesomeIcon icon={faLock} style={styles.icon} size={16} />
                         </TouchableOpacity>
 
-                        
-                        <TouchableOpacity 
+
+                        <TouchableOpacity
                             style={[styles.actionButton, styles.deleteButton]}
                             onPress={() => {
                                 setPedidoToDelete(item[0].ID);
@@ -576,7 +578,7 @@ useEffect(() => {
                         </TouchableOpacity>
                     </View>
                 </View>
-                
+
                 {isExpanded && (
                     <View style={styles.pedidosContainer}>
                         {item.map((pedido) => (
@@ -606,7 +608,7 @@ useEffect(() => {
                         onChangeText={handleSearch}
                     />
                 </View>
-                
+
                 <TouchableOpacity
                     style={styles.addButton}
                     onPress={() => navigation.navigate('RegistarPedido')}
@@ -614,9 +616,17 @@ useEffect(() => {
                     <FontAwesomeIcon icon={faPlus} style={styles.addButtonIcon} size={16} />
                     <Text style={styles.addButtonText}>Criar Pedido</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.analyticsButton}
+                    onPress={() => navigation.navigate('DashboardAnalytics')}
+                >
+                    <FontAwesomeIcon icon={faChartLine} style={styles.analyticsButtonIcon} size={16} />
+                    <Text style={styles.analyticsButtonText}>Analytics</Text>
+                </TouchableOpacity>
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
                 style={styles.filterToggleButton}
                 onPress={() => setShowFilters(!showFilters)}
             >
@@ -668,25 +678,25 @@ useEffect(() => {
                 visible={modalVisible}
                 onRequestClose={() => setModalVisible(false)}
             >
-                
+
                 <View style={styles.modalBackground}>
                     <View style={styles.modalView}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Confirmar Eliminação</Text>
                         </View>
-                        
+
                         <Text style={styles.modalText}>Tem certeza que deseja eliminar este pedido? Esta ação não pode ser desfeita.</Text>
-                        
+
                         <View style={styles.modalButtons}>
-                            <TouchableOpacity 
-                                style={[styles.modalButton, styles.cancelButton]} 
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton]}
                                 onPress={() => setModalVisible(false)}
                             >
                                 <Text style={styles.cancelButtonText}>Cancelar</Text>
                             </TouchableOpacity>
-                            
-                            <TouchableOpacity 
-                                style={[styles.modalButton, styles.deleteConfirmButton]} 
+
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.deleteConfirmButton]}
                                 onPress={handleDeleteConfirmation}
                             >
                                 <Text style={styles.deleteConfirmButtonText}>Eliminar</Text>
@@ -696,37 +706,37 @@ useEffect(() => {
                 </View>
             </Modal>
             <Modal
-    animationType="fade"
-    transparent={true}
-    visible={modalCloseVisible}
-    onRequestClose={() => setModalCloseVisible(false)}
->
-    <View style={styles.modalBackground}>
-        <View style={styles.modalView}>
-            <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Confirmar Fecho de Processo</Text>
-            </View>
-            <Text style={styles.modalText}>Tem a certeza que deseja fechar o processo?</Text>
-            <View style={styles.modalButtons}>
-                <TouchableOpacity 
-                    style={[styles.modalButton, styles.cancelButton]} 
-                    onPress={() => setModalCloseVisible(false)}
-                >
-                    <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                    style={[styles.modalButton, styles.deleteConfirmButton]}
-                    onPress={async () => {
-                        await FechaPedido(processoParaFechar);
-                        setModalCloseVisible(false);
-                    }}
-                >
-                    <Text style={styles.deleteConfirmButtonText}>Sim</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    </View>
-</Modal>
+                animationType="fade"
+                transparent={true}
+                visible={modalCloseVisible}
+                onRequestClose={() => setModalCloseVisible(false)}
+            >
+                <View style={styles.modalBackground}>
+                    <View style={styles.modalView}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Confirmar Fecho de Processo</Text>
+                        </View>
+                        <Text style={styles.modalText}>Tem a certeza que deseja fechar o processo?</Text>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton]}
+                                onPress={() => setModalCloseVisible(false)}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.deleteConfirmButton]}
+                                onPress={async () => {
+                                    await FechaPedido(processoParaFechar);
+                                    setModalCloseVisible(false);
+                                }}
+                            >
+                                <Text style={styles.deleteConfirmButtonText}>Sim</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
 
         </View>
@@ -1015,7 +1025,8 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         justifyContent: 'flex-end',
     },
-    badge: {
+
+badge: {
         paddingHorizontal: 10,
         paddingVertical: 5,
         backgroundColor: '#f0f0f0',
@@ -1122,6 +1133,29 @@ const styles = StyleSheet.create({
     },
     deleteConfirmButtonText: {
         color: 'white',
+        fontWeight: '600',
+        fontSize: 15,
+    },
+    analyticsButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#28a745',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        shadowColor: '#28a745',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 3,
+        marginLeft: 10,
+    },
+    analyticsButtonIcon: {
+        color: '#fff',
+        marginRight: 6,
+    },
+    analyticsButtonText: {
+        color: '#fff',
         fontWeight: '600',
         fontSize: 15,
     },
