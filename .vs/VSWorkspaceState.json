@@ -1,9 +1,15 @@
 {
   "ExpandedNodes": [
     "",
+    "\\backend",
+    "\\backend\\controllers",
+    "\\backend\\middleware",
+    "\\backend\\models",
+    "\\backend\\routes",
+    "\\frontend",
     "\\frontend\\src",
-    "\\frontend\\src\\Servicos",
-    "\\webPrimaveraApi\\routes"
+    "\\frontend\\src\\Servicos"
   ],
+  "SelectedNode": "\\frontend\\src\\Servicos\\DashboardAnalytics.js",
   "PreviewInSolutionExplorer": false
 }

@@ -15,7 +15,9 @@ const {
     updateProfileImage,
     getProfileImage,
     redefinirPassword,
-    listarModulosDaEmpresaDoUser
+    listarModulosDaEmpresaDoUser,
+    obterEmpresaPredefinida,
+    definirEmpresaPredefinida
 } = require('../controllers/userController');
 const router = express.Router();
 
@@ -51,6 +53,9 @@ router.post('/:userId/uploadProfileImage', authMiddleware, updateProfileImage);
 // Corrija a rota para obter a imagem de perfil com o método GET
 router.get('/:userId/profileImage', authMiddleware, getProfileImage);
 
+// Rotas para empresa predefinida
+router.get('/:userId/empresa-predefinida', obterEmpresaPredefinida);
+router.put('/:userId/empresa-predefinida', definirEmpresaPredefinida);
 
 router.get('/:userId/empresa-modulos', listarModulosDaEmpresaDoUser);
 

@@ -36,7 +36,11 @@ const User = sequelize.define('User', {
     },
     superAdmin: {
         type: DataTypes.BOOLEAN,
-        defaultValue: false, // Define como `false` por padrão
+        defaultValue: false,
+    },
+    empresaPredefinida: {
+        type: DataTypes.STRING,
+        allowNull: true,
     },
     verificationToken: {
         type: DataTypes.STRING,
@@ -68,8 +72,8 @@ const User = sequelize.define('User', {
     id_tecnico: {
         type: DataTypes.STRING,
         allowNull: true
-      }
-      
+    }
+
 }, {
     timestamps: false,
     tableName: 'user',

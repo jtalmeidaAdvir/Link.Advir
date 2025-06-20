@@ -6,7 +6,7 @@ const Modulo = require('../models/modulo');
 const User_Modulo = require('../models/user_modulo');
 const User_Submodulo = require('../models/user_submodulo');
 const Submodulo = require('../models/submodulo');
-const bcryptjs  = require('bcryptjs');
+const bcryptjs = require('bcryptjs');
 const crypto = require('crypto');
 const transporter = require('../config/email'); // O ficheiro configurado para envio de e-mails
 const User_Empresa = require('../models/user_empresa');
@@ -39,16 +39,16 @@ const criarUtilizadorAdmin = async (req, res) => {
         // Criar o utilizador
         console.log({ nome, username, email, password, isAdmin, empresa_areacliente });
 
-const novoUser = await User.create({
-    nome,
-    username,
-    email,
-    password: hashedPassword,
-    isAdmin,
-    verificationToken,
-    isActive: false,
-    empresa_areacliente, // Verifique se este campo está correto
-});
+        const novoUser = await User.create({
+            nome,
+            username,
+            email,
+            password: hashedPassword,
+            isAdmin,
+            verificationToken,
+            isActive: false,
+            empresa_areacliente, // Verifique se este campo está correto
+        });
 
 
         // Enviar e-mail de verificação
@@ -93,7 +93,7 @@ const novoUser = await User.create({
 // Função para criar um novo utilizador e enviar e-mail de verificação
 const criarUtilizador = async (req, res) => {
     try {
-        const { nome,username, email, password, empresa_id, isAdmin = false,empresa_areacliente  } = req.body;
+        const { nome, username, email, password, empresa_id, isAdmin = false, empresa_areacliente } = req.body;
 
         // Verificar se a empresa existe
         const empresa = await Empresa.findByPk(empresa_id);
@@ -211,8 +211,8 @@ const loginUtilizador = async (req, res) => {
                 message: 'Primeiro login, redirecionar para alteração de password.',
                 redirect: '/verificaConta',
                 token: jwt.sign(
-                    { id: user.id, userNome: user.usernome, isAdmin: user.isAdmin, superAdmin: user.superAdmin }, 
-                    process.env.JWT_SECRET, 
+                    { id: user.id, userNome: user.usernome, isAdmin: user.isAdmin, superAdmin: user.superAdmin },
+                    process.env.JWT_SECRET,
                     { expiresIn: '24h' }
                 ),
                 userId: user.id,
@@ -223,8 +223,8 @@ const loginUtilizador = async (req, res) => {
 
         // Gera o token JWT para logins normais
         const token = jwt.sign(
-            { id: user.id, userNome: user.usernome, isAdmin: user.isAdmin, superAdmin: user.superAdmin }, 
-            process.env.JWT_SECRET, 
+            { id: user.id, userNome: user.usernome, isAdmin: user.isAdmin, superAdmin: user.superAdmin },
+            process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
 
@@ -306,7 +306,7 @@ const getUsersByEmpresa = async (req, res) => {
         }
 
         // Mapeia os utilizadores e associa a empresa a que pertencem
-        const usersInSameEmpresas = user.Empresas.flatMap(empresa => 
+        const usersInSameEmpresas = user.Empresas.flatMap(empresa =>
             empresa.Users.map(user => ({
                 ...user.dataValues,  // Inclui os dados do utilizador
                 empresa: empresa.empresa // Adiciona o nome da empresa
@@ -487,11 +487,11 @@ const listarModulosDoUtilizador = async (req, res) => {
                 { model: Modulo, as: 'modulos' }
             ]
         });
-  
+
         if (!utilizador) {
             return res.status(404).json({ error: 'Utilizador não encontrado.' });
         }
-  
+
         res.json({ modulos: utilizador.modulos });
     } catch (error) {
         res.status(500).json({ error: 'Erro ao listar módulos do utilizador.' });
@@ -591,7 +591,7 @@ const getProfileImage = async (req, res) => {
     try {
         const { userId } = req.params;
         const user = await User.findByPk(userId);
-        
+
         if (!user || !user.profileImage) {
             return res.status(404).json({ message: 'Imagem não encontrada.' });
         }
@@ -609,7 +609,7 @@ const getProfileImage = async (req, res) => {
 const uploadProfileImage = async (file) => {
     const token = localStorage.getItem('loginToken');
     const userId = localStorage.getItem('userId');
-    
+
     if (!token || !userId) {
         alert("Autenticação necessária.");
         return;
@@ -689,10 +689,62 @@ const listarModulosDaEmpresaDoUser = async (req, res) => {
     }
 };
 
+const removerEmpresa = async (req, res) => {
+    const { userId, empresaId } = req.body;
 
+    try {
+        const utilizador = await User.findByPk(userId);
+        const empresa = await Empresa.findByPk(empresaId);
 
+        if (!utilizador || !empresa) {
+            return res.status(404).json({ message: 'Utilizador ou Empresa não encontrados.' });
+        }
 
+        await utilizador.removeEmpresa(empresa);
 
+        res.status(200).json({ message: 'Empresa removida do utilizador com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao remover empresa do utilizador:', error);
+        res.status(500).json({ message: 'Erro ao remover empresa do utilizador.' });
+    }
+};
+
+const obterEmpresaPredefinida = async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const utilizador = await User.findByPk(userId);
+
+        if (!utilizador) {
+            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+        }
+
+        res.status(200).json({ empresaPredefinida: utilizador.empresaPredefinida });
+    } catch (error) {
+        console.error('Erro ao obter empresa predefinida:', error);
+        res.status(500).json({ message: 'Erro ao obter empresa predefinida.' });
+    }
+};
+
+const definirEmpresaPredefinida = async (req, res) => {
+    const { userId } = req.params;
+    const { empresaPredefinida } = req.body;
+
+    try {
+        const utilizador = await User.findByPk(userId);
+
+        if (!utilizador) {
+            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+        }
+
+        await utilizador.update({ empresaPredefinida });
+
+        res.status(200).json({ message: 'Empresa predefinida atualizada com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao definir empresa predefinida:', error);
+        res.status(500).json({ message: 'Erro ao definir empresa predefinida.' });
+    }
+};
 
 module.exports = {
     criarUtilizador,
@@ -713,5 +765,7 @@ module.exports = {
     parseImageToBinary,
     uploadProfileImage,
     listarModulosDaEmpresaDoUser,
-
+    removerEmpresa,
+    obterEmpresaPredefinida,
+    definirEmpresaPredefinida
 };

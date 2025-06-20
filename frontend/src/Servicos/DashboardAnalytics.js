@@ -59,7 +59,7 @@ const DashboardAnalytics = ({ navigation }) => {
 
             // Usar o endpoint local do backend que integra com Primavera
             const response = await fetch(
-                `http://backend.advir.pt/api/analytics/pedidos`, // backend.advir.pt
+                `https://backend.advir.pt/api/analytics/pedidos`, // https://backend.advir.pt
                 {
                     method: "GET",
                     headers: {
