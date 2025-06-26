@@ -147,6 +147,11 @@ const PandIByTecnico = () => {
         return processosFiltrados.filter(p => p.Tecnico1 === tecnicoID).length;
     };
     
+
+    const filterProcessosByPeriodo = () => {
+  return processosFiltrados.filter(p => p.Tecnico1 === tecnicoID);
+};
+
     
     const getAssistanceTypeData = () => {
         const tiposCounts = {};
