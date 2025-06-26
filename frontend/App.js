@@ -56,7 +56,7 @@ import AddPartesDiarias from './src/Pages/Obras/AddPartesDiarias';
 
 
 import UserModulesManagement from './src/Pages/Autenticacao/UserModulesManagement';
-import logo from './assets/favicon.ico';
+import logo from './assets/favicon1.ico';
 import i18n from './src/Pages/i18n';
 import { useTranslation } from 'react-i18next';
 import OficiosPage from './src/Pages/Oficios/OficiosPage';
