@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { getWeek } from '../../../utils/dateUtils'; // ajusta o path se necessário
-
+import { getWeek } from '../../Utils/dateUtils'; // ajusta o path se necessário
+ 
 export default function useProcessosFiltrados(processos, filtro, ano, mes, semana) {
   const isDateInSelectedWeek = (dateToCheck) => {
     if (!dateToCheck) return false;
