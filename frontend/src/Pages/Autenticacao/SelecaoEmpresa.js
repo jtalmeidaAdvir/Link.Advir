@@ -138,6 +138,9 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
                     }),
                 },
             );
+            console.log(`→ PUT /api/users/${userId}/empresa-predefinida status:`, response.status);
+console.log('→ body da resposta:', await response.text());
+
 
             if (response.ok) {
                 if (checked && empresaSelecionada) {
