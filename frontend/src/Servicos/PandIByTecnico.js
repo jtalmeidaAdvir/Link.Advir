@@ -18,6 +18,10 @@ import DashboardCards from './Components/PandIByTecnico/DashboardCards';
 import ProcessoListagem from './Components/PandIByTecnico/ProcessoListagem';
 import ChartsSection from './Components/PandIByTecnico/ChartsSection';
 import ModalDetalhesProcesso from './Components/PandIByTecnico/ModalDetalhesProcesso';
+import useProcessosPorDia from './Hooks/PandIByTecnico/useProcessosPorDia';
+import useProcessosFiltrados from './Hooks/PandIByTecnico/useProcessosFiltrados';
+
+
 
 
 
@@ -133,6 +137,7 @@ const PandIByTecnico = () => {
     const [semana, setSemana] = useState(semanaAtual);
     const [filtro, setFiltro] = useState("semana"); // Default para semana
 
+    const processosFiltrados = useProcessosFiltrados(processos, filtro, ano, mes, semana);
 
 
     
@@ -188,13 +193,13 @@ const PandIByTecnico = () => {
     
 
     const getTotalProcessosDoTecnico = () => {
-        return filterProcessosByPeriodo().filter(p => p.Tecnico1 === tecnicoID).length;
+        return processosFiltrados.filter(p => p.Tecnico1 === tecnicoID).length;
     };
     
     
     const getAssistanceTypeData = () => {
         const tiposCounts = {};
-        filterProcessosByPeriodo().forEach(processo => {
+        processosFiltrados.forEach(processo => {
             const tipo = processo.TipoDoc1 || "Outro";
             tiposCounts[tipo] = (tiposCounts[tipo] || 0) + 1;
         });
@@ -307,179 +312,13 @@ const PandIByTecnico = () => {
         }
     };
 
-    // Função para verificar se uma data está na semana selecionada
-    const isDateInSelectedWeek = (dateToCheck) => {
-        if (!dateToCheck) return false;
-
-        const date = new Date(dateToCheck);
-        return getWeek(date) === semana && date.getFullYear() === ano;
-    };
-
-    // Função para verificar se uma data está no mês selecionado
-    const isDateInSelectedMonth = (dateToCheck) => {
-        if (!dateToCheck) return false;
-
-        const date = new Date(dateToCheck);
-        return date.getMonth() + 1 === mes && date.getFullYear() === ano;
-    };
 
 
-    const filterProcessosByPeriodo = () => {
-        return processos.filter((processo) => {
-            const dataInicio = new Date(processo.DataHoraInicio);
-            
-            if (filtro === "semana") {
-                return isDateInSelectedWeek(dataInicio);
-            }
-            if (filtro === "mes") {
-                return isDateInSelectedMonth(dataInicio);
-            }
-            if (filtro === "anual") {
-                return dataInicio.getFullYear() === ano;
-            }
-            return true;
-        });
-    };
+
     
-
-    // Função para organizar os processos por dia
-    const getProcessosPorDia = () => {
-        // Obter os dias a serem exibidos com base no filtro
-        let diasParaExibir = [];
-
-        if (filtro === "semana") {
-            diasParaExibir = getDaysInWeek(semana, ano);
-        } else if (filtro === "mes") {
-            // Criar array com todos os dias do mês
-            const ultimoDiaDoMes = new Date(ano, mes, 0).getDate();
-            for (let i = 1; i <= ultimoDiaDoMes; i++) {
-                diasParaExibir.push(new Date(ano, mes - 1, i));
-            }
-        } else if (filtro === "anual"){
-            // Criar array com todos os dias do ano
-            for (let i = 1; i <= 365; i++) {
-                diasParaExibir.push(new Date(ano, 0, i));
-            }
-        } else {
-            // Apenas hoje para modo padrão
-            diasParaExibir = [new Date()];
-        }
-
-        // Organizar processos por dia
-        const processosPorDia = {};
-
-        // Inicializar objeto para cada dia
-        diasParaExibir.forEach((dia) => {
-            const dataString = dia.toISOString().split("T")[0];
-            processosPorDia[dataString] = {
-                data: new Date(dia),
-                processos: [],
-            };
-        });
-
-        // Função auxiliar para determinar em qual dia um processo deve aparecer
-        const getDiaProcesso = (processo) => {
-            // Se há intervenções, usar a data da primeira intervenção
-            if (processo.intervencoes.length > 0) {
-                return new Date(processo.intervencoes[0].DataHoraInicio)
-                    .toISOString()
-                    .split("T")[0];
-            }
-
-            // Caso contrário, usar a data de abertura do processo
-            if (processo.detalhesProcesso?.DataHoraInicio) {
-                return new Date(processo.detalhesProcesso.DataHoraInicio)
-                    .toISOString()
-                    .split("T")[0];
-            }
-
-            // Fallback para hoje
-            return new Date().toISOString().split("T")[0];
-        };
-
-        // Filtrar e distribuir os processos pelos dias correspondentes
-        intervencoesDetalhadas.forEach((processo) => {
-            // Verificar se o processo tem intervenções que devem ser mostradas
-            let temIntervencoesNoFiltro = false;
-
-            if (processo.intervencoes.length > 0) {
-                if (filtro === "semana") {
-                    temIntervencoesNoFiltro = processo.intervencoes.some(
-                        (intv) => isDateInSelectedWeek(intv.DataHoraInicio),
-                    );
-                } else if (filtro === "mes") {
-                    temIntervencoesNoFiltro = processo.intervencoes.some(
-                        (intv) => isDateInSelectedMonth(intv.DataHoraInicio),
-                    );
-                } else if (filtro === "anual") {
-                    temIntervencoesNoFiltro = processo.intervencoes.some(
-                        (intv) => new Date(intv.DataHoraInicio).getFullYear() === ano,
-                    );
-                }
-            } else {
-                // Para processos sem intervenções, verificar a data de abertura
-                if (processo.detalhesProcesso?.DataHoraInicio) {
-                    if (filtro === "semana") {
-                        temIntervencoesNoFiltro = isDateInSelectedWeek(
-                            processo.detalhesProcesso.DataHoraInicio,
-                        );
-                    } else if (filtro === "mes") {
-                        temIntervencoesNoFiltro = isDateInSelectedMonth(
-                            processo.detalhesProcesso.DataHoraInicio,
-                        );
-                    } else if (filtro === "anual") {
-                        // Verificar se a data está no ano selecionado
-                        const date = new Date(processo.detalhesProcesso.DataHoraInicio);
-                        temIntervencoesNoFiltro = date.getFullYear() === ano;
-                    }
-                }
-            }
-
-            // Se o processo deve ser exibido, adicionar ao dia correspondente
-            if (temIntervencoesNoFiltro || filtro === "anual") {
-                const diaProcesso = getDiaProcesso(processo);
-
-                // Verificar se o dia existe na nossa lista (pode não existir se for de outro período)
-                if (processosPorDia[diaProcesso]) {
-                    // Filtrar apenas as intervenções que pertencem ao período selecionado
-                    const intervencoesNoFiltro = processo.intervencoes.filter(
-                        (intv) => {
-                            if (filtro === "semana") {
-                                return isDateInSelectedWeek(
-                                    intv.DataHoraInicio,
-                                );
-                            } else if (filtro === "mes") {
-                                return isDateInSelectedMonth(
-                                    intv.DataHoraInicio,
-                                );
-                            } else if (filtro === "anual") {
-                                return new Date(intv.DataHoraInicio).getFullYear() === ano;
-                            }
-                            return true; // para o modo "todos"
-                        },
-                    );
-
-                    // Criar cópia do processo com apenas as intervenções filtradas
-                    const processoFiltrado = {
-                        ...processo,
-                        intervencoes: intervencoesNoFiltro,
-                    };
-
-                    processosPorDia[diaProcesso].processos.push(
-                        processoFiltrado,
-                    );
-                }
-            }
-        });
-
-        // Converter de objeto para array e ordenar por data
-        return Object.values(processosPorDia)
-            .filter((dia) => dia.processos.length > 0) // Remover dias sem processos
-            .sort((a, b) => a.data - b.data); // Ordenar do mais antigo para o mais recente
-    };
-
     // Obter os dados organizados por dias
-    const dadosPorDia = getProcessosPorDia();
+    const dadosPorDia = useProcessosPorDia(intervencoesDetalhadas, filtro, ano, mes, semana);
+
 
     // Cores para os gráficos
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B', '#6B66FF'];
@@ -487,7 +326,7 @@ const PandIByTecnico = () => {
     // Função para obter dados para o gráfico de tipos de intervenção
     const getInterventionTypeData = () => {
         const tiposCounts = {};
-        filterProcessosByPeriodo().forEach(processo => {
+        processosFiltrados.forEach(processo => {
             const tipo = processo.TipoInterv || "Outro";
             tiposCounts[tipo] = (tiposCounts[tipo] || 0) + 1;
         });
@@ -503,7 +342,7 @@ const PandIByTecnico = () => {
     // Função para obter dados para o gráfico de horas por dia
     const getHoursPerDayData = () => {
         const horasPorDia = {};
-        filterProcessosByPeriodo().forEach(processo => {
+        processosFiltrados.forEach(processo => {
             if (processo.DataHoraInicio && processo.Duracao) {
                 const dataStr = new Date(processo.DataHoraInicio).toISOString().split('T')[0];
                 if (!horasPorDia[dataStr]) {
