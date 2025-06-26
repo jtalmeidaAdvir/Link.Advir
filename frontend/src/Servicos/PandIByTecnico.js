@@ -29,7 +29,7 @@ import {
 import styles from './Styles/PandIByTecnicoStyles';
 import TecnicoFilterControls from './Components/PandIByTecnico/TecnicoFilterControls';
 import DashboardCards from './Components/PandIByTecnico/DashboardCards';
-import ProcessoListagem from './ProcessoListagem';
+import ProcessoListagem from './Components/PandIByTecnico/ProcessoListagem';
 import ChartsSection from './Components/PandIByTecnico/ChartsSection';
 
 
