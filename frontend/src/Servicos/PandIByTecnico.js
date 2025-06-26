@@ -1,17 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-    View,
-    FlatList,
-    Text,
-    TouchableOpacity,
-    Alert,
-    StyleSheet,
-    Picker,
-    ScrollView,
-    Platform,
-    Modal,
-    Dimensions,
-} from "react-native";
+import {View,Text,Alert,ScrollView} from "react-native";
 import styles from './Styles/PandIByTecnicoStyles';
 import TecnicoFilterControls from './Components/PandIByTecnico/TecnicoFilterControls';
 import DashboardCards from './Components/PandIByTecnico/DashboardCards';
@@ -20,50 +8,9 @@ import ChartsSection from './Components/PandIByTecnico/ChartsSection';
 import ModalDetalhesProcesso from './Components/PandIByTecnico/ModalDetalhesProcesso';
 import useProcessosPorDia from './Hooks/PandIByTecnico/useProcessosPorDia';
 import useProcessosFiltrados from './Hooks/PandIByTecnico/useProcessosFiltrados';
-import { getWeek, getWeeksInMonth, getDaysInWeek } from './Utils/dateUtils';
-
-
-
-
-
-
-
-// Componente personalizado para seleção de data
-const MyDatePicker = ({ value, onChange, ...props }) => {
-    if (Platform.OS === "web") {
-        // Formata a data para o formato YYYY-MM-DD
-        const dateString = value ? value.toISOString().substr(0, 10) : "";
-        return (
-            <input
-                type="date"
-                value={dateString}
-                onChange={(e) => {
-                    const newDate = new Date(e.target.value);
-                    // Simula o objeto de evento esperado no onChange do DateTimePicker nativo
-                    onChange(
-                        {
-                            type: "set",
-                            nativeEvent: { timestamp: newDate.getTime() },
-                        },
-                        newDate,
-                    );
-                }}
-                style={{ fontSize: 16, padding: 8, marginBottom: 15 }}
-                {...props}
-            />
-        );
-    } else {
-        const DateTimePicker =
-            require("@react-native-community/datetimepicker").default;
-        return <DateTimePicker value={value} onChange={onChange} {...props} />;
-    }
-};
-
-
-
-
-
-
+import useGraficoData from './Hooks/PandIByTecnico/useGraficoData';
+import { getWeek, getWeeksInMonth } from './Utils/dateUtils';
+import { fetchWithRetry } from './Utils/fetchUtils';
 
 
 const PandIByTecnico = () => {
@@ -89,7 +36,8 @@ const PandIByTecnico = () => {
     const [filtro, setFiltro] = useState("semana"); // Default para semana
 
     const processosFiltrados = useProcessosFiltrados(processos, filtro, ano, mes, semana);
-
+    const { getInterventionTypeData, getAssistanceTypeData, getHoursPerDayData } =
+    useGraficoData(processosFiltrados);
 
     
     useEffect(() => {
@@ -104,37 +52,7 @@ const PandIByTecnico = () => {
         }
     }, []);
     
-    // Função para tentar uma requisição com tentativas automáticas
-    const fetchWithRetry = async (url, options, maxRetries = 3, delayMs = 1000) => {
-        let lastError;
-        
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-            try {
-                const response = await fetch(url, options);
-                
-                if (response.ok) {
-                    return response;
-                }
-                
-                // Se a resposta não for ok, tratamos como erro
-                const errorData = await response.text();
-                lastError = new Error(`Status: ${response.status}. ${errorData}`);
-                
-                // Aguardar antes de tentar novamente (aumentando o tempo entre tentativas)
-                if (attempt < maxRetries - 1) {
-                    await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
-                }
-            } catch (error) {
-                lastError = error;
-                // Aguardar antes de tentar novamente
-                if (attempt < maxRetries - 1) {
-                    await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
-                }
-            }
-        }
-        
-        throw lastError || new Error("Falha após múltiplas tentativas");
-    };
+
 
 
     const abrirModalProcesso = (processo) => {
@@ -153,19 +71,7 @@ const PandIByTecnico = () => {
 };
 
     
-    const getAssistanceTypeData = () => {
-        const tiposCounts = {};
-        processosFiltrados.forEach(processo => {
-            const tipo = processo.TipoDoc1 || "Outro";
-            tiposCounts[tipo] = (tiposCounts[tipo] || 0) + 1;
-        });
-    
-        return Object.keys(tiposCounts).map(tipo => ({
-            name: tipo,
-            value: tiposCounts[tipo],
-        }));
-    };
-    
+
 
         const fetchData = async () => {
         if (!tecnicoID) {
@@ -268,9 +174,6 @@ const PandIByTecnico = () => {
         }
     };
 
-
-
-
     
     // Obter os dados organizados por dias
     const dadosPorDia = useProcessosPorDia(intervencoesDetalhadas, filtro, ano, mes, semana);
@@ -279,40 +182,6 @@ const PandIByTecnico = () => {
     // Cores para os gráficos
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B', '#6B66FF'];
 
-    // Função para obter dados para o gráfico de tipos de intervenção
-    const getInterventionTypeData = () => {
-        const tiposCounts = {};
-        processosFiltrados.forEach(processo => {
-            const tipo = processo.TipoInterv || "Outro";
-            tiposCounts[tipo] = (tiposCounts[tipo] || 0) + 1;
-        });
-    
-        return Object.keys(tiposCounts).map(tipo => ({
-            name: tipo,
-            value: tiposCounts[tipo]
-        }));
-    };
-    
-    
-
-    // Função para obter dados para o gráfico de horas por dia
-    const getHoursPerDayData = () => {
-        const horasPorDia = {};
-        processosFiltrados.forEach(processo => {
-            if (processo.DataHoraInicio && processo.Duracao) {
-                const dataStr = new Date(processo.DataHoraInicio).toISOString().split('T')[0];
-                if (!horasPorDia[dataStr]) {
-                    horasPorDia[dataStr] = 0;
-                }
-                horasPorDia[dataStr] += processo.Duracao / 60;
-            }
-        });
-    
-        return Object.keys(horasPorDia).map(dataStr => ({
-            day: new Date(dataStr).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }),
-            hours: parseFloat(horasPorDia[dataStr].toFixed(1))
-        }));
-    };
     
     
 
