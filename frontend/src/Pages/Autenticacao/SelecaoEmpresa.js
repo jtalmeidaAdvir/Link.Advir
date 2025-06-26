@@ -171,6 +171,11 @@ console.log('→ body da resposta:', await response.text());
             return;
         }
 
+            // Se o utilizador marcou como predefinida, garantir que o servidor foi actualizado
+        if (empresaPredefinida) {
+            await handlePredefinirEmpresa(true);
+        }
+
         console.log("Empresa enviada para a API:", empresa);
 
         setLoadingButton(true);
@@ -340,25 +345,18 @@ console.log('→ body da resposta:', await response.text());
                         ) : null}
 
                         <TouchableOpacity
-                            style={[
-                                styles.entrarButton,
-                                !empresaSelecionada &&
-                                styles.entrarButtonDisabled,
-                            ]}
-                            onPress={() => handleEntrarEmpresa()}
-                            disabled={loadingButton || !empresaSelecionada}
-                        >
-                            {loadingButton ? (
-                                <ActivityIndicator
-                                    size="small"
-                                    color="#ffffff"
-                                />
-                            ) : (
-                                <Text style={styles.entrarButtonText}>
-                                    {t("SelecaoEmpresa.BtEntrar")}
-                                </Text>
-                            )}
-                        </TouchableOpacity>
+  style={[
+    styles.entrarButton,
+    (!empresaSelecionada || !empresaPredefinida) && styles.entrarButtonDisabled
+  ]}
+  onPress={() => handleEntrarEmpresa()}
+  disabled={loadingButton || !empresaSelecionada || !empresaPredefinida}
+>
+  <Text style={styles.entrarButtonText}>
+    {empresaPredefinida ? t("SelecaoEmpresa.BtEntrar") : t("SelecaoEmpresa.Aviso.Pref")}
+  </Text>
+</TouchableOpacity>
+
                     </View>
                 )}
             </View>
