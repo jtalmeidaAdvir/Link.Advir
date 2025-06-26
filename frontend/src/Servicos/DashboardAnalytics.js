@@ -5,11 +5,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {faChartLine,faClock,faUsers,faCheckCircle,faExclamationTriangle,faCalendarAlt,faTrophy,faArrowUp,faArrowDown,faFilter,faDownload} from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from 'react-i18next';
 import styles from './Styles/DashboardAnalyticsStyles'; 
-import KPICard from './Components/KPICard';
-import TecnicoRankingCard from './Components/TecnicoRankingCard';
-import SimplePieChart from './Components/SimplePieChart';
-import SimpleBarChart from './Components/SimpleBarChart';
-import PedidoEmAndamentoCard from './Components/PedidoEmAndamentoCard';
+import KPICard from './Components/DashboardAnalytics/KPICard';
+import TecnicoRankingCard from './Components/DashboardAnalytics/TecnicoRankingCard';
+import SimplePieChart from './Components/DashboardAnalytics/SimplePieChart';
+import SimpleBarChart from './Components/DashboardAnalytics/SimpleBarChart';
+import PedidoEmAndamentoCard from './Components/DashboardAnalytics/PedidoEmAndamentoCard';
 
 
 

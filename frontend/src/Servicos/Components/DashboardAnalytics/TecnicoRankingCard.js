@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrophy } from '@fortawesome/free-solid-svg-icons';
-import styles from '../Styles/DashboardAnalyticsStyles';
+import styles from '../../Styles/DashboardAnalyticsStyles';
 
 const medalColors = ['#ffd700', '#c0c0c0', '#cd7f32'];
 

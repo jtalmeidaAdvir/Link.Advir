@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import styles from '../Styles/DashboardAnalyticsStyles';
+import styles from '../../Styles/DashboardAnalyticsStyles';
 
 const SimplePieChart = ({ data }) => (
   <View style={styles.simplePieContainer}>

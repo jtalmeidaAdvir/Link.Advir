@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { View, Text } from 'react-native';
-import styles from '../Styles/DashboardAnalyticsStyles';
+import styles from '../../Styles/DashboardAnalyticsStyles';
 
 const PedidoEmAndamentoCard = ({ pedido }) => {
   return (

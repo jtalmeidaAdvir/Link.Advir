@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowUp, faArrowDown } from '@fortawesome/free-solid-svg-icons';
-import styles from '../Styles/DashboardAnalyticsStyles';
+import styles from '../../Styles/DashboardAnalyticsStyles';
 
 const KPICard = ({ title, value, icon, color, trend = null }) => (
   <View style={[styles.kpiCard, { borderLeftColor: color }]}>

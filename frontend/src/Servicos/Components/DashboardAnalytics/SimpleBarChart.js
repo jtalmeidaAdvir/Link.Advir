@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import styles from '../Styles/DashboardAnalyticsStyles';
+import styles from '../../Styles/DashboardAnalyticsStyles';
 
 const COLORS = ['#1792FE', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#20c997'];
 
