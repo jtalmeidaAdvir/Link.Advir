@@ -238,7 +238,8 @@ const loginUtilizador = async (req, res) => {
             empresa_areacliente: user.empresa_areacliente,
             id_tecnico: user.id_tecnico,
             userNome: user.nome,
-            userEmail: user.email
+            userEmail: user.email,
+            empresaPredifinida: user.empresaPredifinida 
         });
     } catch (error) {
         console.error('Erro ao fazer login:', error);
