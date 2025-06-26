@@ -1,28 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TextInput, StyleSheet, Button, Alert } from 'react-native';
-import { Picker } from '@react-native-picker/picker'; // instala se não tiveres
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EditarModal = ({ registo, visible, onClose, onSave }) => {
-  const [tipoHora, setTipoHora] = useState('entrada');
-  const [horaSelecionada, setHoraSelecionada] = useState('');
+  const [horaEntrada, setHoraEntrada] = useState('');
+  const [horaSaida, setHoraSaida] = useState('');
   const [motivo, setMotivo] = useState('');
 
   useEffect(() => {
     if (registo) {
-      setHoraSelecionada('');
+      setHoraEntrada('');
+      setHoraSaida('');
       setMotivo('');
-      setTipoHora('entrada');
     }
   }, [registo]);
 
   const handleSave = async () => {
-    if (!horaSelecionada || motivo.length < 10) {
-      Alert.alert('Erro', 'Preencha todos os campos corretamente. O motivo deve ter pelo menos 10 caracteres.');
+    if (!horaEntrada && !horaSaida) {
+      Alert.alert('Erro', 'Preencha pelo menos a nova hora de entrada ou de saída.');
+      return;
+    }
+
+    if (motivo.length < 10) {
+      Alert.alert('Erro', 'O motivo deve ter pelo menos 10 caracteres.');
       return;
     }
 
     try {
-      const token = await AsyncStorage.getItem('loginToken'); // substitui se estiveres a usar outra forma
+      const token = await AsyncStorage.getItem('loginToken');
 
       const body = {
         user_id: registo.userId,
@@ -30,9 +35,8 @@ const EditarModal = ({ registo, visible, onClose, onSave }) => {
         motivo,
       };
 
-      // Só inclui o campo correto
-      if (tipoHora === 'entrada') body.novaHoraEntrada = horaSelecionada;
-      else body.novaHoraSaida = horaSelecionada;
+      if (horaEntrada) body.novaHoraEntrada = horaEntrada;
+      if (horaSaida) body.novaHoraSaida = horaSaida;
 
       const response = await fetch('https://backend.advir.pt/api/pedidoAlteracao/pedidos-alteracao', {
         method: 'POST',
@@ -64,21 +68,19 @@ const EditarModal = ({ registo, visible, onClose, onSave }) => {
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Criar Pedido de Alteração</Text>
 
-          <Text>Selecionar Hora a Alterar:</Text>
-          <Picker
-            selectedValue={tipoHora}
-            onValueChange={(itemValue) => setTipoHora(itemValue)}
-            style={styles.input}
-          >
-            <Picker.Item label="Hora de Entrada" value="entrada" />
-            <Picker.Item label="Hora de Saída" value="saida" />
-          </Picker>
-
-          <Text>Nova Hora:</Text>
+          <Text>Nova Hora Entrada (opcional):</Text>
           <TextInput
             style={styles.input}
-            value={horaSelecionada}
-            onChangeText={setHoraSelecionada}
+            value={horaEntrada}
+            onChangeText={setHoraEntrada}
+            placeholder="HH:MM"
+          />
+
+          <Text>Nova Hora Saída (opcional):</Text>
+          <TextInput
+            style={styles.input}
+            value={horaSaida}
+            onChangeText={setHoraSaida}
             placeholder="HH:MM"
           />
 
@@ -130,5 +132,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 });
+
+
+
+
 
 export default EditarModal;
