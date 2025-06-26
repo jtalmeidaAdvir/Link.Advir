@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text } from "react-native";
-import styles from "./Styles/PandIByTecnicoStyles";
+import styles from "../../Styles/PandIByTecnicoStyles";
 
 const DashboardCards = ({ processos, tecnicoID, filterProcessosByPeriodo, getTotalProcessosDoTecnico }) => {
   const totalIntervencoes = filterProcessosByPeriodo().length;

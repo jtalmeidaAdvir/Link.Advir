@@ -12,7 +12,7 @@ import {
   YAxis,
   ResponsiveContainer
 } from "recharts";
-import styles from "./Styles/PandIByTecnicoStyles";
+import styles from "../../Styles/PandIByTecnicoStyles";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B', '#6B66FF'];
 
