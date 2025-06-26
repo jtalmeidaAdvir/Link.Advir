@@ -15,53 +15,53 @@ import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem d
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // Importa as páginas
-import Login from './src/Autenticacao/Login';
+import Login from './src/Pages/Autenticacao/Login';
 import Home from './src/Home';
-import ADHome from './src/BackOffice/ADHome';
-import Perfil from './src/Perfil';
-import PainelAdmin from './src/Autenticacao/PainelAdmin';
-import UsersEmpresa from './src/Autenticacao/UsersEmpresa';
-import RegistoUser from './src/Autenticacao/RegistoUser';
-import RegistoAdmin from './src/Autenticacao/RegistoAdmin';
-import VerificaConta from './src/Autenticacao/VerificaConta';
-import SelecaoEmpresa from './src/Autenticacao/SelecaoEmpresa';
-import RecuperarPassword from './src/Autenticacao/RecuperarPassword';
-import RedefinirPassword from './src/Autenticacao/RedefinirPassword';
+import ADHome from './src/Pages/BackOffice/ADHome';
+import Perfil from './src/Pages/Perfil';
+import PainelAdmin from './src/Pages/Autenticacao/PainelAdmin';
+import UsersEmpresa from './src/Pages/Autenticacao/UsersEmpresa';
+import RegistoUser from './src/Pages/Autenticacao/RegistoUser';
+import RegistoAdmin from './src/Pages/Autenticacao/RegistoAdmin';
+import VerificaConta from './src/Pages/Autenticacao/VerificaConta';
+import SelecaoEmpresa from './src/Pages/Autenticacao/SelecaoEmpresa';
+import RecuperarPassword from './src/Pages/Autenticacao/RecuperarPassword';
+import RedefinirPassword from './src/Pages/Autenticacao/RedefinirPassword';
 
 
 
-import ContratosList from './src/BackOffice/ContratosList';
+import ContratosList from './src/Pages/BackOffice/ContratosList';
 
 // SERVICOS
-import PedidosAssistencia from './src/Servicos/PedidosAssistencia';
-import PandIByTecnico from './src/Servicos/PandIByTecnico';
-import RegistoPedido from './src/Servicos/RegistoAssistencia';
-import intervencoes from './src/Servicos/Intervencoes';
-import RegistoIntervencao from './src/Servicos/RegistoIntervencao';
-import DashboardAnalytics from './src/Servicos/DashboardAnalytics';
+import PedidosAssistencia from './src/Pages/Servicos/PedidosAssistencia';
+import PandIByTecnico from './src/Pages/Servicos/PandIByTecnico';
+import RegistoPedido from './src/Pages/Servicos/RegistoAssistencia';
+import intervencoes from './src/Pages/Servicos/Intervencoes';
+import RegistoIntervencao from './src/Pages/Servicos/RegistoIntervencao';
+import DashboardAnalytics from './src/Pages/Servicos/DashboardAnalytics';
 
 // ASSIDUIDADE
-import LeitorQRCode from './src/Assiduidade/LeitorQRCode';
-import PontoBotao from './src/Assiduidade/PontoBotao';
-import RegistoPontoAdmin from './src/Assiduidade/RegistoPontoAdmin';
-import PedidosAlteracaoAdmin from './src/Assiduidade/PedidosAlteracaoAdmin';
-import ListarRegistos from './src/Assiduidade/ListarRegistos';
+import LeitorQRCode from './src/Pages/Assiduidade/LeitorQRCode';
+import PontoBotao from './src/Pages/Assiduidade/PontoBotao';
+import RegistoPontoAdmin from './src/Pages/Assiduidade/RegistoPontoAdmin';
+import PedidosAlteracaoAdmin from './src/Pages/Assiduidade/PedidosAlteracaoAdmin';
+import ListarRegistos from './src/Pages/Assiduidade/ListarRegistos';
 
 
-import Obras from './src/Obras/Obras';
-import DetalhesObra from './src/Obras/DetalhesObra';
-import AutosMedicaoExecucao from './src/Obras/AutosMedicaoExecucao';
-import PartesDiarias from './src/Obras/PartesDiarias';
-import AddPartesDiarias from './src/Obras/AddPartesDiarias';
+import Obras from './src/Pages/Obras/Obras';
+import DetalhesObra from './src/Pages/Obras/DetalhesObra';
+import AutosMedicaoExecucao from './src/Pages/Obras/AutosMedicaoExecucao';
+import PartesDiarias from './src/Pages/Obras/PartesDiarias';
+import AddPartesDiarias from './src/Pages/Obras/AddPartesDiarias';
 
 
-import UserModulesManagement from './src/Autenticacao/UserModulesManagement';
+import UserModulesManagement from './src/Pages/Autenticacao/UserModulesManagement';
 import logo from './assets/favicon1.ico';
-import i18n from './src/i18n';
+import i18n from './src/Pages/i18n';
 import { useTranslation } from 'react-i18next';
-import OficiosPage from './src/Oficios/OficiosPage';
-import OficiosList from './src/Oficios/OficiosList';
-import EditOficio from './src/Oficios/EditOficio';
+import OficiosPage from './src/Pages/Oficios/OficiosPage';
+import OficiosList from './src/Pages/Oficios/OficiosList';
+import EditOficio from './src/Pages/Oficios/EditOficio';
 
 const Drawer = createDrawerNavigator();
 
