@@ -26,6 +26,8 @@ import {
     LineChart,
     Line,
 } from "recharts";
+import styles from './PandIByTecnicoStyles';
+
 
 // Componente personalizado para seleção de data
 const MyDatePicker = ({ value, onChange, ...props }) => {
