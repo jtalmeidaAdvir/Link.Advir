@@ -28,6 +28,10 @@ import {
 } from "recharts";
 import styles from './Styles/PandIByTecnicoStyles';
 import TecnicoFilterControls from './Components/PandIByTecnico/TecnicoFilterControls';
+import DashboardCards from './Components/PandIByTecnico/DashboardCards';
+import ProcessoListagem from './ProcessoListagem';
+import ChartsSection from './Components/PandIByTecnico/ChartsSection';
+
 
 
 
@@ -559,187 +563,28 @@ const PandIByTecnico = () => {
 
           {/* Dashboard Section */}
 {processos.length > 0 && (
-    <View style={styles.dashboardContainer}>
-        <Text style={styles.dashboardTitle}> </Text>
-
-        <View style={styles.dashboardRow}>
-            {/* Card 1: Total de Intervenções */}
-            <View style={styles.dashboardCard}>
-    <Text style={styles.cardTitle}>Total de Intervenções</Text>
-    <Text style={styles.cardValue}>
-        {filterProcessosByPeriodo().length}
-    </Text>
-</View>
-
-<View style={styles.dashboardCard}>
-    <Text style={styles.cardTitle}>Pedidos do Técnico</Text>
-    <Text style={styles.cardValue}>
-        {getTotalProcessosDoTecnico()}
-    </Text>
-</View>
+  <DashboardCards
+    processos={processos}
+    tecnicoID={tecnicoID}
+    filterProcessosByPeriodo={filterProcessosByPeriodo}
+    getTotalProcessosDoTecnico={getTotalProcessosDoTecnico}
+  />
+  
+)
+}
+<ChartsSection
+  getInterventionTypeData={getInterventionTypeData}
+  getAssistanceTypeData={getAssistanceTypeData}
+  getHoursPerDayData={getHoursPerDayData}
+/>
 
 
+<ProcessoListagem
+  dadosPorDia={dadosPorDia}
+  abrirModalProcesso={abrirModalProcesso}
+  loading={loading}
+/>
 
-
-            {/* Card 3: Horas Trabalhadas */}
-            <View style={styles.dashboardCard}>
-    <Text style={styles.cardTitle}>Horas Totais</Text>
-    <Text style={styles.cardValue}>
-        {(filterProcessosByPeriodo().reduce(
-            (total, processo) => total + (processo.Duracao || 0),
-            0
-        ) / 60).toFixed(1)}h
-    </Text>
-</View>
-
-                    </View>
-
-                    {/* Charts row */}
-                    <View style={styles.chartsContainer}>
-                        {/* Pie Chart - Tipos de Intervenção */}
-<View style={styles.chartBox}>
-    <Text style={styles.chartTitle}>Tipos de Intervenção</Text>
-    <ResponsiveContainer width="100%" height={220}>
-        <PieChart>
-            <Pie
-                data={getInterventionTypeData()}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-                label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-            >
-                {getInterventionTypeData().map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-            </Pie>
-            <Legend />
-            <Tooltip />
-        </PieChart>
-    </ResponsiveContainer>
-</View>
-<View style={styles.chartBox}>
-    <Text style={styles.chartTitle}>Tipos de Contratos</Text>
-    <ResponsiveContainer width="100%" height={220}>
-        <PieChart>
-            <Pie
-                data={getAssistanceTypeData()}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={80}
-                fill="#82ca9d"
-                dataKey="value"
-                label={({ name, percent }) =>
-                    `${name}: ${(percent * 100).toFixed(0)}%`
-                }
-            >
-                {getAssistanceTypeData().map((entry, index) => (
-                    <Cell key={`cell-assist-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-            </Pie>
-            <Legend />
-            <Tooltip />
-        </PieChart>
-    </ResponsiveContainer>
-</View>
-
-
-{/* Bar Chart - Horas por Dia */}
-<View style={styles.chartBox}>
-    <Text style={styles.chartTitle}>Horas por Dia</Text>
-    <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={getHoursPerDayData()} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <XAxis dataKey="day" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="hours" fill="#1792FE" name="Horas" />
-        </BarChart>
-    </ResponsiveContainer>
-</View>
-
-                    </View>
-                </View>
-            )}
-
-            {dadosPorDia.length > 0 ? (
-                
-                <View style={styles.gridContainer}>
-
-                    {dadosPorDia.map((dia, diaIndex) => (
-                        <View key={diaIndex}>
-                            {/* Data como cabeçalho de seção */}
-                            
-
-                            {/* Processos para o dia */}
-                            {dia.processos.map((processo, i) => (
-  <TouchableOpacity
-    key={i}
-    onPress={() => abrirModalProcesso(processo)}
-    style={styles.processCard}
-  >
-    <Text style={styles.cardDate}>
-      {dia.data.toLocaleDateString("pt-PT", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })}
-    </Text>
-
-    <Text style={styles.cardLine}>
-      <Text style={styles.cardLabel}>Processo: </Text>
-      {processo.detalhesProcesso?.Processo}
-    </Text>
-
-    <Text style={styles.cardLine}>
-      <Text style={styles.cardLabel}>Cliente: </Text>
-      {processo.detalhesProcesso?.NomeCliente || "N/A"}
-    </Text>
-
-    <Text style={styles.cardLine}>
-      <Text style={styles.cardLabel}>Contacto: </Text>
-      {processo.detalhesProcesso?.NomeContacto || "Sem contacto"}
-    </Text>
-
-    <Text style={styles.cardLine}>
-      <Text style={styles.cardLabel}>Estado: </Text>
-      {processo.intervencoes.length > 0 ? "Concluído ✅" : "Pendente ⏳"}
-    </Text>
-
-    <Text style={styles.cardLine}>
-      <Text style={styles.cardLabel}>Duração: </Text>
-      {processo.detalhesProcesso?.Duracao || 0} minutos
-    </Text>
-
-    <Text style={styles.cardDesc}>
-      {processo.detalhesProcesso?.DescricaoResp || "Sem descrição."}
-    </Text>
-  </TouchableOpacity>
-))}
-
-                        </View>
-                    ))}
-                </View>
-            ) : (
-                <View style={styles.noDataContainer}>
-                    {loading ? (
-                        <Text style={styles.noDataText}>
-                            A carregar dados...
-                        </Text>
-                    ) : (
-                        <Text style={styles.noDataText}>
-                            Nenhum processo encontrado para o período
-                            selecionado. Selecione um técnico e clique em "Obter
-                            Dados".
-                        </Text>
-                    )}
-                </View>
-                
-            )}
         </ScrollView>
           {/* Modal tem de estar AQUI FORA do ScrollView */}
           {processoSelecionado && (
