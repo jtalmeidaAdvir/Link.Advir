@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
-import BASE_URL from '../../config';
+import BASE_URL from '../../../config';
 
 const PedidosAlteracaoAdmin = () => {
     const [pedidos, setPedidos] = useState([]);
