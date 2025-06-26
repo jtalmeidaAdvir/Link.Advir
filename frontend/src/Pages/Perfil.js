@@ -204,7 +204,7 @@ const Perfil = ({ user }) => {
                             source={
                                 profileImage
                                     ? { uri: profileImage }
-                                    : require("../assets/icon.png")
+                                    : require("../../assets/icon.png")
                             }
                         />
                         <View style={styles.avatarOverlay}>
