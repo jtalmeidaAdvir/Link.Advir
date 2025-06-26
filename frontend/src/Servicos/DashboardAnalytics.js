@@ -7,6 +7,10 @@ import { useTranslation } from 'react-i18next';
 import styles from './Styles/DashboardAnalyticsStyles'; 
 import KPICard from './Components/KPICard';
 import TecnicoRankingCard from './Components/TecnicoRankingCard';
+import SimplePieChart from './Components/SimplePieChart';
+import SimpleBarChart from './Components/SimpleBarChart';
+import PedidoEmAndamentoCard from './Components/PedidoEmAndamentoCard';
+
 
 
 
@@ -222,40 +226,7 @@ const DashboardAnalytics = ({ navigation }) => {
         Alert.alert("Info", "Funcionalidade de exportação Excel será implementada em breve.");
     };
 
-    // Componente simples para substituir o gráfico de pizza
-    const SimplePieChart = ({ data }) => (
-        <View style={styles.simplePieContainer}>
-            {data.map((item, index) => (
-                <View key={index} style={styles.pieItem}>
-                    <View style={[styles.pieColor, { backgroundColor: item.color }]} />
-                    <Text style={styles.pieLabel}>{item.name}: {item.value}</Text>
-                </View>
-            ))}
-        </View>
-    );
 
-    // Componente simples para gráfico de barras
-    const SimpleBarChart = ({ data }) => (
-        <View style={styles.simpleBarContainer}>
-            {data.map((item, index) => (
-                <View key={index} style={styles.barItem}>
-                    <Text style={styles.barLabel}>{item.name}</Text>
-                    <View style={styles.barBackground}>
-                        <View
-                            style={[
-                                styles.barFill,
-                                {
-                                    width: `${(item.value / Math.max(...data.map(d => d.value))) * 100}%`,
-                                    backgroundColor: COLORS[index % COLORS.length]
-                                }
-                            ]}
-                        />
-                    </View>
-                    <Text style={styles.barValue}>{item.value}</Text>
-                </View>
-            ))}
-        </View>
-    );
 
     if (loading) {
         return (
@@ -383,39 +354,9 @@ const DashboardAnalytics = ({ navigation }) => {
                             Pedidos Em Andamento ({analyticsData.pedidosEmAndamento.length})
                         </Text>
                         {analyticsData.pedidosEmAndamento.map((pedido, index) => (
-                            <View key={index} style={styles.pedidoCard}>
-                                <View style={styles.pedidoHeader}>
-                                    <Text style={styles.pedidoNumero}>
-                                        {pedido.Processo || `#${pedido.NumProcesso}`}
-                                    </Text>
-                                    <View style={[styles.statusBadge, { backgroundColor: '#ffc107' }]}>
-                                        <Text style={styles.statusText}>Em Andamento</Text>
-                                    </View>
-                                </View>
-
-                                <Text style={styles.pedidoCliente}>
-                                    Cliente: {pedido.NomeCliente || pedido.Cliente}
-                                </Text>
-
-                                <Text style={styles.pedidoTecnico}>
-                                    Técnico: {pedido.NomeTecnico || 'Não atribuído'}
-                                </Text>
-
-                                <Text style={styles.pedidoTipo}>
-                                    Tipo: {pedido.TipoInterv || 'Não especificado'}
-                                </Text>
-
-                                <Text style={styles.pedidoData}>
-                                    Abertura: {new Date(pedido.DataHoraAbertura || pedido.DataHoraInicio).toLocaleDateString('pt-PT')}
-                                </Text>
-
-                                {pedido.DescricaoProb && (
-                                    <Text style={styles.pedidoDescricao}>
-                                        {pedido.DescricaoProb}
-                                    </Text>
-                                )}
-                            </View>
+                        <PedidoEmAndamentoCard key={index} pedido={pedido} />
                         ))}
+
                     </View>
                 )}
             </ScrollView>
