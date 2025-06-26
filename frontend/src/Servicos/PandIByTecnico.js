@@ -11,11 +11,13 @@ import useProcessosFiltrados from './Hooks/PandIByTecnico/useProcessosFiltrados'
 import useGraficoData from './Hooks/PandIByTecnico/useGraficoData';
 import { getWeek, getWeeksInMonth } from './Utils/dateUtils';
 import { fetchWithRetry } from './Utils/fetchUtils';
+import { filterProcessosByTecnico, countProcessosByTecnico } from './Utils/filters';
+import { fetchProcessosByTecnico } from './Utils/fetchProcessos';
+
 
 
 const PandIByTecnico = () => {
     const [tecnicoID, setTecnicoID] = useState("");
-    const [intervencoes, setIntervencoes] = useState([]);
     const [processos, setProcessos] = useState([]);
     const [intervencoesDetalhadas, setIntervencoesDetalhadas] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -39,7 +41,13 @@ const PandIByTecnico = () => {
     const { getInterventionTypeData, getAssistanceTypeData, getHoursPerDayData } =
     useGraficoData(processosFiltrados);
 
-    
+    const getTotalProcessosDoTecnico = () => countProcessosByTecnico(processosFiltrados, tecnicoID);
+    const filterProcessosByPeriodo = () => filterProcessosByTecnico(processosFiltrados, tecnicoID);
+    const dadosPorDia = useProcessosPorDia(intervencoesDetalhadas, filtro, ano, mes, semana);
+
+
+
+
     useEffect(() => {
         const storedIsAdmin = localStorage.getItem("isAdmin") === "true";
         const storedTecnicoID = localStorage.getItem("id_tecnico") || "";
@@ -60,129 +68,28 @@ const PandIByTecnico = () => {
         setModalVisible(true);
     };
     
+   const fetchData = async () => {
+  if (!tecnicoID) {
+    Alert.alert("Erro", "Insira o ID do técnico.");
+    return;
+  }
 
-    const getTotalProcessosDoTecnico = () => {
-        return processosFiltrados.filter(p => p.Tecnico1 === tecnicoID).length;
-    };
-    
+  try {
+    const { processos, intervencoesDetalhadas } = await fetchProcessosByTecnico(
+      tecnicoID, ano, mes, semana, setSemana, setLoading
+    );
 
-    const filterProcessosByPeriodo = () => {
-  return processosFiltrados.filter(p => p.Tecnico1 === tecnicoID);
+    setProcessos(processos);
+    setIntervencoesDetalhadas(intervencoesDetalhadas);
+
+  } catch (error) {
+    console.error("Erro na obtenção dos dados:", error);
+    Alert.alert("Erro", `Falha ao obter dados: ${error.message || 'Erro na conexão com o servidor'}`);
+  }
 };
-
     
+  
 
-
-        const fetchData = async () => {
-        if (!tecnicoID) {
-            Alert.alert("Erro", "Insira o ID do técnico.");
-            console.log(processos);
-            return;
-        }
-
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
-
-        if (!token || !urlempresa) {
-            Alert.alert("Erro", "Token ou URL da empresa não encontrados.");
-            return;
-        }
-
-        setLoading(true);
-        
-        try {
-            const headers = {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-                urlempresa,
-            };
-            
-            // Busca intervenções e processos do técnico com sistema de retry
-
-            
-            const processosResPromise = fetchWithRetry(
-                `https://webapiprimavera.advir.pt/routePedidos_STP/ListaProcessosTecnico/${tecnicoID}`,
-                { method: "GET", headers }
-            );
-            
-            // Fazer chamadas em paralelo para melhorar desempenho
-            const [ processosRes] = await Promise.all([
-
-                processosResPromise
-            ]);
-            
-            const processosData = await processosRes.json();
-
-
-            // Log para debug
-            console.log("Dados carregados com sucesso:", {
-                processos: processosData
-            });
-            
-
-            // Criar mapa de processos por ID para acesso rápido
-            const processosMap = (processosData?.DataSet?.Table || []).reduce(
-                (acc, processo) => {
-                    acc[processo.ID] = processo;
-                    return acc;
-                },
-                {},
-            );
-
-            // Primeiro, criar um objeto com todos os processos
-            const todosProcessos = {};
-
-            // Adicionar todos os processos primeiro (mesmo aqueles sem intervenções)
-            (processosData?.DataSet?.Table || []).forEach((processo) => {
-                todosProcessos[processo.ID] = {
-                    processoID: processo.ID,
-                    detalhesProcesso: processo,
-                    intervencoes: [
-                        {
-                            TipoInterv: processo.TipoInterv,
-                            DataHoraInicio: processo.DataHoraInicio,
-                            Duracao: processo.Duracao,
-                            Observacoes: processo.DescricaoResp
-                        }
-                    ]
-                };
-            });
-            
-
-
-
-            setProcessos(processosData?.DataSet?.Table || []);
-            setIntervencoesDetalhadas(Object.values(todosProcessos));
-
-            // Caso o modo de filtro seja semana e não haja semana selecionada
-            // ou a semana selecionada não esteja no mês atual, define para a semana atual
-            if (filtro === "semana") {
-                const semanasDoMes = getWeeksInMonth(mes, ano);
-                if (!semanasDoMes.includes(semana)) {
-                    setSemana(
-                        semanasDoMes.includes(semanaAtual)
-                            ? semanaAtual
-                            : semanasDoMes[0],
-                    );
-                }
-            }
-        } catch (error) {
-            console.error("Erro na obtenção dos dados:", error);
-            Alert.alert("Erro", `Falha ao obter dados: ${error.message || 'Erro na conexão com o servidor'}`);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    
-    // Obter os dados organizados por dias
-    const dadosPorDia = useProcessosPorDia(intervencoesDetalhadas, filtro, ano, mes, semana);
-
-
-    // Cores para os gráficos
-    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B', '#6B66FF'];
-
-    
     
 
     return (
