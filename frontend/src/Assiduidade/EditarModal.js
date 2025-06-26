@@ -17,11 +17,25 @@ const EditarModal = ({ registo, visible, onClose, onSave }) => {
     }
   }, [registo]);
 
-  const toFullDateTime = (timeStr) => {
-    if (!timeStr || !dataOriginal) return null;
-    const dataISO = new Date(dataOriginal).toISOString().split('T')[0]; // yyyy-mm-dd
-    return new Date(`${dataISO}T${timeStr}:00`);
-  };
+const toFullDateTime = (timeStr) => {
+  if (!timeStr || !dataOriginal) return null;
+
+  const data = new Date(dataOriginal);
+  const [hours, minutes] = timeStr.split(':');
+  data.setHours(parseInt(hours, 10));
+  data.setMinutes(parseInt(minutes, 10));
+  data.setSeconds(0);
+
+  // Formato: YYYY-MM-DD HH:mm (sem "T", sem Z)
+  const yyyy = data.getFullYear();
+  const mm = String(data.getMonth() + 1).padStart(2, '0');
+  const dd = String(data.getDate()).padStart(2, '0');
+  const hh = String(data.getHours()).padStart(2, '0');
+  const min = String(data.getMinutes()).padStart(2, '0');
+
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+};
+
 
   const handleSave = async () => {
     if (!horaEntrada && !horaSaida) {
