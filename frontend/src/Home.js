@@ -5,7 +5,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaFileContract, FaPhone, FaBoxOpen, FaQuestionCircle, FaBars } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import i18n from './i18n'; // Import do i18n
+import i18n from './Pages/i18n'; // Import do i18n
 import backgroundImage from '../images/ImagemFundo.png';
 
 

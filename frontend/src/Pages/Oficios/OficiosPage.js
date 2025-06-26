@@ -20,9 +20,9 @@ import {
     getTemplate2SecondPage,
     createPage,
     createPage2,
-} from "../templates/DocumentTemplates";
-import styles from "../styles/OficiosStyles";
-import { checkSpelling, limitText, splitText, calculateTextHeight } from "../utils/helpers";
+} from "../../templates/DocumentTemplates";
+import styles from "../../styles/OficiosStyles";
+import { checkSpelling, limitText, splitText, calculateTextHeight } from "../../utils/helpers";
 
 const OficiosPage = (props) => {
     // ==============================
