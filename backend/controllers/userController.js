@@ -737,9 +737,10 @@ const definirEmpresaPredefinida = async (req, res) => {
             return res.status(404).json({ message: 'Utilizador não encontrado.' });
         }
 
-        utilizador.empresaPredefinida = empresaPredefinida;
-await utilizador.save();
+        console.log('Empresa predefinida recebida:', empresaPredefinida);
 
+        utilizador.empresaPredefinida = empresaPredefinida; // <--- aqui
+        await utilizador.save(); // <--- aqui também
 
         res.status(200).json({ message: 'Empresa predefinida atualizada com sucesso.' });
     } catch (error) {
@@ -747,6 +748,7 @@ await utilizador.save();
         res.status(500).json({ message: 'Erro ao definir empresa predefinida.' });
     }
 };
+
 
 module.exports = {
     criarUtilizador,
