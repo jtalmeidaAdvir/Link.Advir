@@ -11,14 +11,14 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import logo from "../../images/jpa-construtora.png";
+import logo from "../../../images/jpa-construtora.png";
 import { FaSave, FaEnvelope, FaFilePdf, FaPaperclip } from "react-icons/fa";
 import { useFocusEffect } from "@react-navigation/native";
-import PMEPreto from "../../images/PMEPRETO.png";
-import QualidadePreto from "../../images/QUALIDADEPRETO.png";
+import PMEPreto from "../../../images/PMEPRETO.png";
+import QualidadePreto from "../../../images/QUALIDADEPRETO.png";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-import Logo50 from "../../images/Logo50.jpg";
+import Logo50 from "../../../images/Logo50.jpg";
 
 const EditOficio = (props) => {
     // Obter dados do ofício para edição
