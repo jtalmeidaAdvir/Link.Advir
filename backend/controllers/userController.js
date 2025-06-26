@@ -731,25 +731,30 @@ const definirEmpresaPredefinida = async (req, res) => {
     const { empresaPredefinida } = req.body;
 
     try {
-        console.log("→ Body:", empresaPredefinida);
+        console.log("→ UserID:", userId);
+        console.log("→ Empresa recebida no body:", empresaPredefinida);
 
-        const [affected] = await User.update(
+        const [numLinhasAfetadas] = await User.update(
             { empresaPredefinida },
             { where: { id: userId } }
         );
 
-        console.log("→ Linhas afetadas:", affected);
+        console.log("→ Nº linhas afetadas no UPDATE:", numLinhasAfetadas);
 
-        if (affected === 0) {
+        if (numLinhasAfetadas === 0) {
             return res.status(404).json({ message: 'Utilizador não encontrado ou sem alterações.' });
         }
 
-        return res.status(200).json({ message: 'Atualizada com sucesso.' });
+        const userAtualizado = await User.findByPk(userId);
+        console.log("→ Empresa predefinida atualizada na BD:", userAtualizado.empresaPredefinida);
+
+        res.status(200).json({ message: 'Empresa predefinida atualizada com sucesso.' });
     } catch (error) {
-        console.error("→ Erro:", error);
+        console.error("→ Erro ao atualizar empresa predefinida:", error);
         res.status(500).json({ message: 'Erro ao definir empresa predefinida.' });
     }
 };
+
 
 
 
