@@ -41,6 +41,9 @@ const LeitorQRCode = () => {
   // Data/hora local (se quiseres mostrar no topo)
   const [horaAtual, setHoraAtual] = useState(new Date());
 
+  const [isProcessing, setIsProcessing] = useState(false); // no topo do componente, se ainda não existir
+
+
   // QR
   const qrData = "registo-ponto";
 
@@ -423,49 +426,53 @@ const LeitorQRCode = () => {
     setScannerVisible(!scannerVisible);
   };
 
-  useEffect(() => {
-    let scanner = null;
+useEffect(() => {
+  let scanner = null;
 
-    if (scannerVisible) {
-      // Dá um pequeno delay para o container montar
-      setTimeout(() => {
-        scanner = new Html5QrcodeScanner("reader", {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          rememberLastUsedCamera: true,
-          showTorchButtonIfSupported: true,
-        });
+  if (scannerVisible) {
+    setTimeout(() => {
+      scanner = new Html5QrcodeScanner("reader", {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        rememberLastUsedCamera: true,
+        showTorchButtonIfSupported: true,
+      });
 
-        scanner.render(
-  async (text) => {
-    if (text === qrData) {
-      try {
-        await registarPonto();
-        await scanner.clear(); // Para o scanner imediatamente
-        setScannerVisible(false); // Fecha a interface
-      } catch (error) {
-        console.error('Erro ao registar ponto via QR:', error);
-        alert('Erro de comunicação com o servidor.');
-      }
-    } else {
-      alert('Código QR inválido para registo de ponto.');
-    }
-  },
-  (error) => {
-    // Não mostres erro de leitura continuamente
-    // console.error(error);
+      scanner.render(
+        async (text) => {
+          if (isProcessing) return;
+
+          if (text === qrData) {
+            setIsProcessing(true);
+            try {
+              // 🔒 para o scanner logo no início
+              await scanner.clear();
+              setScannerVisible(false);
+
+              await registarPonto();
+            } catch (error) {
+              console.error('Erro ao registar ponto via QR:', error);
+              alert('Erro de comunicação com o servidor.');
+            } finally {
+              setIsProcessing(false);
+            }
+          } else {
+            alert('Código QR inválido para registo de ponto.');
+          }
+        },
+        (error) => {
+          // opcional: console.log("Erro de leitura QR:", error);
+        }
+      );
+    }, 500);
   }
-);
 
-      }, 1000);
+  return () => {
+    if (scanner) {
+      scanner.clear().catch((error) => console.error("Erro ao limpar scanner:", error));
     }
-
-    return () => {
-      if (scanner) {
-        scanner.clear().catch((error) => console.error("Erro ao limpar scanner:", error));
-      }
-    };
-  }, [scannerVisible]);
+  };
+}, [scannerVisible]);
 
   // ----------------------------------------------------------------
   // Helpers de formatação
