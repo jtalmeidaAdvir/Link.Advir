@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { getDaysInWeek } from '../../Utils/dateUtils';
+import { getDaysInWeek } from '../../../utils/dateUtils'; // ajusta o path conforme a tua estrutura
 
 export default function useProcessosPorDia(intervencoesDetalhadas, filtro, ano, mes, semana) {
   return useMemo(() => {
