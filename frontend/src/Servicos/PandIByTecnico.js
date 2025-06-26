@@ -26,7 +26,7 @@ import {
     LineChart,
     Line,
 } from "recharts";
-import styles from './PandIByTecnicoStyles';
+import styles from './Styles/PandIByTecnicoStyles';
 
 
 // Componente personalizado para seleção de data
