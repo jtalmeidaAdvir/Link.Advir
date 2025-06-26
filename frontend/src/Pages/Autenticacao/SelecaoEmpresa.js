@@ -353,7 +353,7 @@ console.log('→ body da resposta:', await response.text());
                             disabled={loadingButton || !empresaSelecionada || !empresaPredefinida}
                             >
                             <Text style={styles.entrarButtonText}>
-                                {empresaPredefinida ? t("SelecaoEmpresa.BtEntrar") : t("SelecaoEmpresa.Aviso.Pref")}
+                                {empresaPredefinida ? t("SelecaoEmpresa.BtEntrar") : t("Entrar na Empresa")}
                             </Text>
                             </TouchableOpacity>
 
