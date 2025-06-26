@@ -323,35 +323,36 @@ const DashboardAnalytics = ({ navigation }) => {
                 <View style={styles.kpisContainer}>
                     <Text style={styles.sectionTitle}>Indicadores Principais</Text>
 
-                    <View style={styles.kpisGrid}>
-                        {renderKPICard(
-                            "Total de Pedidos",
-                            analyticsData.kpis.totalPedidos,
-                            faUsers,
-                            "#1792FE"
-                        )}
+                   <View style={styles.kpisGrid}>
+                    <KPICard
+                        title="Total de Pedidos"
+                        value={analyticsData.kpis.totalPedidos}
+                        icon={faUsers}
+                        color="#1792FE"
+                    />
 
-                        {renderKPICard(
-                            "Taxa de Resolução",
-                            `${analyticsData.kpis.taxaResolucao}%`,
-                            faCheckCircle,
-                            "#28a745"
-                        )}
+                    <KPICard
+                        title="Taxa de Resolução"
+                        value={`${analyticsData.kpis.taxaResolucao}%`}
+                        icon={faCheckCircle}
+                        color="#28a745"
+                    />
 
-                        {renderKPICard(
-                            "Tempo Médio",
-                            `${analyticsData.kpis.tempoMedioResolucao}h`,
-                            faClock,
-                            "#ffc107"
-                        )}
+                    <KPICard
+                        title="Tempo Médio"
+                        value={`${analyticsData.kpis.tempoMedioResolucao}h`}
+                        icon={faClock}
+                        color="#ffc107"
+                    />
 
-                        {renderKPICard(
-                            "Pedidos Abertos",
-                            analyticsData.kpis.pedidosAbertos,
-                            faExclamationTriangle,
-                            "#dc3545"
-                        )}
+                    <KPICard
+                        title="Pedidos Abertos"
+                        value={analyticsData.kpis.pedidosAbertos}
+                        icon={faExclamationTriangle}
+                        color="#dc3545"
+                    />
                     </View>
+
                 </View>
 
                 {/* Gráfico de Estados */}
