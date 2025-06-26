@@ -735,19 +735,21 @@ const definirEmpresaPredefinida = async (req, res) => {
         console.log("→ UserID:", userId);
         console.log("→ Empresa recebida no body:", empresaPredefinida);
 
-        const [numLinhasAfetadas] = await User.update(
-            { empresaPredefinida },
-            { where: { id: userId } }
-        );
+        const utilizador = await User.findByPk(userId);
 
-        console.log("→ Nº linhas afetadas no UPDATE:", numLinhasAfetadas);
-
-        if (numLinhasAfetadas === 0) {
-            return res.status(404).json({ message: 'Utilizador não encontrado ou sem alterações.' });
+        if (!utilizador) {
+            return res.status(404).json({ message: 'Utilizador não encontrado.' });
         }
 
-        const userAtualizado = await User.findByPk(userId);
-        console.log("→ Empresa predefinida atualizada na BD:", userAtualizado.empresaPredefinida);
+        if (utilizador.empresaPredefinida === empresaPredefinida) {
+            console.log("→ Valor já está definido. Nada a alterar.");
+            return res.status(200).json({ message: 'Empresa predefinida já estava definida.' });
+        }
+
+        utilizador.empresaPredefinida = empresaPredefinida;
+        await utilizador.save();
+
+        console.log("→ Empresa predefinida atualizada na BD:", utilizador.empresaPredefinida);
 
         res.status(200).json({ message: 'Empresa predefinida atualizada com sucesso.' });
     } catch (error) {
@@ -755,6 +757,7 @@ const definirEmpresaPredefinida = async (req, res) => {
         res.status(500).json({ message: 'Erro ao definir empresa predefinida.' });
     }
 };
+
 
 
 

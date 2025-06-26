@@ -142,20 +142,20 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
 console.log('→ body da resposta:', await response.text());
 
 
-            if (response.ok) {
-                if (checked && empresaSelecionada) {
-                    localStorage.setItem(
-                        "empresaPredefinida",
-                        empresaSelecionada,
-                    );
-                } else {
-                    localStorage.removeItem("empresaPredefinida");
-                }
-            } else {
-                console.error("Erro ao salvar empresa predefinida no servidor");
-                // Reverter o estado se houver erro
-                setEmpresaPredefinida(!checked);
-            }
+            if (response.ok || response.status === 200) {
+    if (checked && empresaSelecionada) {
+        localStorage.setItem("empresaPredefinida", empresaSelecionada);
+    } else {
+        localStorage.removeItem("empresaPredefinida");
+    }
+} else {
+    console.error("Erro ao salvar empresa predefinida no servidor");
+    // Só reverte se não for erro de "valor já era o mesmo"
+    if (response.status !== 200) {
+        setEmpresaPredefinida(!checked);
+    }
+}
+
         } catch (error) {
             console.error("Erro de rede ao salvar empresa predefinida:", error);
             // Reverter o estado se houver erro
