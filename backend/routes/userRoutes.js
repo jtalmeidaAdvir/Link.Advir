@@ -54,8 +54,8 @@ router.post('/:userId/uploadProfileImage', authMiddleware, updateProfileImage);
 router.get('/:userId/profileImage', authMiddleware, getProfileImage);
 
 // Rotas para empresa predefinida
-router.get('/:userId/empresa-predefinida', obterEmpresaPredefinida);
-router.put('/:userId/empresa-predefinida', definirEmpresaPredefinida);
+router.get('/:userId/empresa-predefinida', authMiddleware, obterEmpresaPredefinida);
+router.put('/:userId/empresa-predefinida', authMiddleware, definirEmpresaPredefinida);
 
 router.get('/:userId/empresa-modulos', listarModulosDaEmpresaDoUser);
 
