@@ -3,30 +3,45 @@ const RegistoPonto = require('../models/registoPonto');
 const User = require('../models/user');
 
 
-    const criarPedido = async(req, res) => {
-        try {
-            const { user_id, registo_ponto_id, novaHoraEntrada, novaHoraSaida, motivo } = req.body;
+  const criarPedido = async (req, res) => {
+  try {
+    const { user_id, registo_ponto_id, novaHoraEntrada, novaHoraSaida, motivo } = req.body;
 
-            // Validar se o registo de ponto existe
-            const registoPonto = await RegistoPonto.findByPk(registo_ponto_id);
-            if (!registoPonto) {
-                return res.status(404).json({ error: 'Registo de ponto não encontrado.' });
-            }
+    if (!novaHoraEntrada && !novaHoraSaida) {
+      return res.status(400).json({ error: 'Preencha pelo menos a nova hora de entrada ou de saída.' });
+    }
 
-            // Criar o pedido de alteração
-            const novoPedido = await PedidoAlteracao.create({
-                user_id, // Pode ser NULL
-                registo_ponto_id,
-                novaHoraEntrada,
-                novaHoraSaida,
-                motivo,
-            });
+    if (!motivo || motivo.length < 10) {
+      return res.status(400).json({ error: 'O motivo deve ter pelo menos 10 caracteres.' });
+    }
 
-            return res.status(201).json(novoPedido);
-        } catch (error) {
-            return res.status(500).json({ error: 'Erro ao criar pedido de alteração.', details: error.message });
-        }
+    const registoPonto = await RegistoPonto.findByPk(registo_ponto_id);
+    if (!registoPonto) {
+      return res.status(404).json({ error: 'Registo de ponto não encontrado.' });
+    }
+
+    // Função para converter "HH:MM" em Date com data de hoje
+    const toFullDateTime = (timeStr) => {
+      if (!timeStr) return null;
+      const today = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
+      return new Date(`${today}T${timeStr}:00`);
     };
+
+    const novoPedido = await PedidoAlteracao.create({
+      user_id,
+      registo_ponto_id,
+      novaHoraEntrada: toFullDateTime(novaHoraEntrada),
+      novaHoraSaida: toFullDateTime(novaHoraSaida),
+      motivo,
+      status: 'pendente',
+    });
+
+    return res.status(201).json(novoPedido);
+  } catch (error) {
+    console.error('Erro ao criar pedido de alteração:', error);
+    return res.status(500).json({ error: 'Erro ao criar pedido de alteração.', details: error.message });
+  }
+};
 
     const listarPedidos= async(req, res) => {
         try {
