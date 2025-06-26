@@ -20,7 +20,7 @@ import ChartsSection from './Components/PandIByTecnico/ChartsSection';
 import ModalDetalhesProcesso from './Components/PandIByTecnico/ModalDetalhesProcesso';
 import useProcessosPorDia from './Hooks/PandIByTecnico/useProcessosPorDia';
 import useProcessosFiltrados from './Hooks/PandIByTecnico/useProcessosFiltrados';
-import { getWeek, getWeeksInMonth, getDaysInWeek } from '../Utils/dateUtils';
+import { getWeek, getWeeksInMonth, getDaysInWeek } from './Utils/dateUtils';
 
 
 
