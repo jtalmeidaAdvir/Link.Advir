@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, Picker, TouchableOpacity } from "react-native";
-import styles from "./Styles/PandIByTecnicoStyles";
+import styles from "../../Styles/PandIByTecnicoStyles";
 
 const TecnicoFilterControls = ({
   isAdmin,
