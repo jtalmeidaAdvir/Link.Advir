@@ -437,26 +437,26 @@ const LeitorQRCode = () => {
         });
 
         scanner.render(
-          async (text) => {
-            // Se for o nosso QR pretendido, faz o registo de ponto
-            if (text === qrData) {
-              try {
-                // Em vez de chamar /ler-qr directamente,
-                // podemos chamar a função registarPonto para aproveitar a lógica
-                // (ou manter o fetch /ler-qr como no teu exemplo e lá dentro fazer o registarPonto)
-                await registarPonto();
-              } catch (error) {
-                console.error('Erro ao registar ponto via QR:', error);
-                alert('Erro de comunicação com o servidor.');
-              }
-            } else {
-              alert('Código QR inválido para registo de ponto.');
-            }
-          },
-          (error) => {
-            console.error(error);
-          }
-        );
+  async (text) => {
+    if (text === qrData) {
+      try {
+        await registarPonto();
+        await scanner.clear(); // Para o scanner imediatamente
+        setScannerVisible(false); // Fecha a interface
+      } catch (error) {
+        console.error('Erro ao registar ponto via QR:', error);
+        alert('Erro de comunicação com o servidor.');
+      }
+    } else {
+      alert('Código QR inválido para registo de ponto.');
+    }
+  },
+  (error) => {
+    // Não mostres erro de leitura continuamente
+    // console.error(error);
+  }
+);
+
       }, 1000);
     }
 
