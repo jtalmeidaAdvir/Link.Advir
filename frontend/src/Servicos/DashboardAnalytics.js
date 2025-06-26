@@ -1,31 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    ActivityIndicator,
-    TouchableOpacity,
-    Dimensions,
-    Alert
-} from 'react-native';
+import {View,Text,StyleSheet,ScrollView,ActivityIndicator,TouchableOpacity,Dimensions,Alert} from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faChartLine,
-    faClock,
-    faUsers,
-    faCheckCircle,
-    faExclamationTriangle,
-    faCalendarAlt,
-    faTrophy,
-    faArrowUp,
-    faArrowDown,
-    faFilter,
-    faDownload
-} from '@fortawesome/free-solid-svg-icons';
+import {faChartLine,faClock,faUsers,faCheckCircle,faExclamationTriangle,faCalendarAlt,faTrophy,faArrowUp,faArrowDown,faFilter,faDownload} from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from 'react-i18next';
 import styles from './Styles/DashboardAnalyticsStyles'; 
+import KPICard from './Components/KPICard';
+import TecnicoRankingCard from './Components/TecnicoRankingCard';
 
 
 
@@ -219,22 +200,7 @@ const DashboardAnalytics = ({ navigation }) => {
         });
     };
 
-    const renderKPICard = (title, value, icon, color, trend = null) => (
-        <View style={[styles.kpiCard, { borderLeftColor: color }]}>
-            <View style={styles.kpiHeader}>
-                <FontAwesomeIcon icon={icon} color={color} size="lg" />
-                {trend && (
-                    <FontAwesomeIcon
-                        icon={trend > 0 ? faArrowUp : faArrowDown}
-                        color={trend > 0 ? '#28a745' : '#dc3545'}
-                        size="sm"
-                    />
-                )}
-            </View>
-            <Text style={styles.kpiValue}>{value}</Text>
-            <Text style={styles.kpiTitle}>{title}</Text>
-        </View>
-    );
+
 
     const exportarRelatorio = () => {
         Alert.alert(
@@ -398,50 +364,9 @@ const DashboardAnalytics = ({ navigation }) => {
                 <View style={styles.chartContainer}>
                     <Text style={styles.chartTitle}>Ranking de Técnicos</Text>
                     {analyticsData.tecnicosPerformance.map((tecnico, index) => (
-                        <View key={index} style={styles.tecnicoCard}>
-                            <View style={styles.tecnicoHeader}>
-                                <View style={styles.tecnicoRank}>
-                                    <Text style={styles.rankNumber}>{index + 1}</Text>
-                                    {index < 3 && (
-                                        <FontAwesomeIcon
-                                            icon={faTrophy}
-                                            color={index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : '#cd7f32'}
-                                            size="sm"
-                                        />
-                                    )}
-                                </View>
-                                <Text style={styles.tecnicoNome}>{tecnico.nome}</Text>
-                            </View>
-
-                            <View style={styles.tecnicoStats}>
-                                <View style={styles.stat}>
-                                    <Text style={styles.statValue}>{tecnico.total}</Text>
-                                    <Text style={styles.statLabel}>Total</Text>
-                                </View>
-                                <View style={styles.stat}>
-                                    <Text style={styles.statValue}>{tecnico.resolvidos}</Text>
-                                    <Text style={styles.statLabel}>Resolvidos</Text>
-                                </View>
-                                <View style={styles.stat}>
-                                    <Text style={styles.statValue}>{Math.round(tecnico.eficiencia)}%</Text>
-                                    <Text style={styles.statLabel}>Eficiência</Text>
-                                </View>
-                                <View style={styles.stat}>
-                                    <Text style={styles.statValue}>{Math.round(tecnico.tempoMedio)}h</Text>
-                                    <Text style={styles.statLabel}>Tempo Médio</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.progressBar}>
-                                <View
-                                    style={[
-                                        styles.progressFill,
-                                        { width: `${Math.min(tecnico.eficiencia, 100)}%` }
-                                    ]}
-                                />
-                            </View>
-                        </View>
+                    <TecnicoRankingCard key={index} tecnico={tecnico} index={index} />
                     ))}
+
                 </View>
 
                 {/* Gráfico de Prioridades */}
