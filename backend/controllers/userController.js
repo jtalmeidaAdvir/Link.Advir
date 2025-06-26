@@ -737,7 +737,9 @@ const definirEmpresaPredefinida = async (req, res) => {
             return res.status(404).json({ message: 'Utilizador não encontrado.' });
         }
 
-        await utilizador.update({ empresaPredefinida });
+        utilizador.empresaPredefinida = empresaPredefinida;
+await utilizador.save();
+
 
         res.status(200).json({ message: 'Empresa predefinida atualizada com sucesso.' });
     } catch (error) {

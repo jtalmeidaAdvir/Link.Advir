@@ -345,17 +345,17 @@ console.log('→ body da resposta:', await response.text());
                         ) : null}
 
                         <TouchableOpacity
-  style={[
-    styles.entrarButton,
-    (!empresaSelecionada || !empresaPredefinida) && styles.entrarButtonDisabled
-  ]}
-  onPress={() => handleEntrarEmpresa()}
-  disabled={loadingButton || !empresaSelecionada || !empresaPredefinida}
->
-  <Text style={styles.entrarButtonText}>
-    {empresaPredefinida ? t("SelecaoEmpresa.BtEntrar") : t("SelecaoEmpresa.Aviso.Pref")}
-  </Text>
-</TouchableOpacity>
+                            style={[
+                                styles.entrarButton,
+                                (!empresaSelecionada || !empresaPredefinida) && styles.entrarButtonDisabled
+                            ]}
+                            onPress={() => handleEntrarEmpresa()}
+                            disabled={loadingButton || !empresaSelecionada || !empresaPredefinida}
+                            >
+                            <Text style={styles.entrarButtonText}>
+                                {empresaPredefinida ? t("SelecaoEmpresa.BtEntrar") : t("SelecaoEmpresa.Aviso.Pref")}
+                            </Text>
+                            </TouchableOpacity>
 
                     </View>
                 )}
