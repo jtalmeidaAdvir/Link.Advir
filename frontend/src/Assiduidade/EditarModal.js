@@ -6,14 +6,22 @@ const EditarModal = ({ registo, visible, onClose, onSave }) => {
   const [horaEntrada, setHoraEntrada] = useState('');
   const [horaSaida, setHoraSaida] = useState('');
   const [motivo, setMotivo] = useState('');
+  const [dataOriginal, setDataOriginal] = useState('');
 
   useEffect(() => {
     if (registo) {
       setHoraEntrada('');
       setHoraSaida('');
       setMotivo('');
+      setDataOriginal(registo.data); // Guarda a data do registo original
     }
   }, [registo]);
+
+  const toFullDateTime = (timeStr) => {
+    if (!timeStr || !dataOriginal) return null;
+    const dataISO = new Date(dataOriginal).toISOString().split('T')[0]; // yyyy-mm-dd
+    return new Date(`${dataISO}T${timeStr}:00`);
+  };
 
   const handleSave = async () => {
     if (!horaEntrada && !horaSaida) {
@@ -35,8 +43,8 @@ const EditarModal = ({ registo, visible, onClose, onSave }) => {
         motivo,
       };
 
-      if (horaEntrada) body.novaHoraEntrada = horaEntrada;
-      if (horaSaida) body.novaHoraSaida = horaSaida;
+      if (horaEntrada) body.novaHoraEntrada = toFullDateTime(horaEntrada);
+      if (horaSaida) body.novaHoraSaida = toFullDateTime(horaSaida);
 
       const response = await fetch('https://backend.advir.pt/api/pedidoAlteracao/pedidos-alteracao', {
         method: 'POST',
@@ -132,9 +140,5 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 });
-
-
-
-
 
 export default EditarModal;
