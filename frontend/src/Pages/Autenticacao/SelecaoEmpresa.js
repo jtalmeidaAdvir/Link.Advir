@@ -11,7 +11,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import i18n from "../i18n";
 import { useTranslation } from "react-i18next";
-import backgroundImage from "../../images/ImagemFundo.png";
+import backgroundImage from "../../../images/ImagemFundo.png";
 
 const SelecaoEmpresa = ({ setEmpresa }) => {
     const [empresas, setEmpresas] = useState([]);

@@ -4,7 +4,7 @@ import { View, TouchableOpacity, Text, Image } from 'react-native';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
 import logo from '../../../assets/img_logo.png';
-import backgroundImage from '../../images/ImagemFundo.png';
+import backgroundImage from '../../../images/ImagemFundo.png';
 import { checkTokenExpired } from '../utils/authUtils';
 const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {  // Adicione setIsLoggedIn como prop
     const [username, setLocalUsername] = useState('');
