@@ -27,7 +27,7 @@ import {
     Line,
 } from "recharts";
 import styles from './Styles/PandIByTecnicoStyles';
-import TecnicoFilterControls from './TecnicoFilterControls';
+import TecnicoFilterControls from './Components/PandIByTecnico/TecnicoFilterControls';
 
 
 
