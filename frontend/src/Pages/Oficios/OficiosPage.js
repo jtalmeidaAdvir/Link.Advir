@@ -7,10 +7,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 
 // Importação de imagens
-import logo from "../../images/jpa-construtora.png";
-import PMEPreto from "../../images/PMEPRETO.png";
-import QualidadePreto from "../../images/QUALIDADEPRETO.png";
-import Logo50 from "../../images/Logo50.jpg";
+import logo from "../../../images/jpa-construtora.png";
+import PMEPreto from "../../../images/PMEPRETO.png";
+import QualidadePreto from "../../../images/QUALIDADEPRETO.png";
+import Logo50 from "../../../images/Logo50.jpg";
 
 // Importação dos módulos criados
 import {
