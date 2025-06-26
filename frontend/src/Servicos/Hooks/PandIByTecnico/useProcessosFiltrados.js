@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { getWeek } from '../utils/dateUtils';
 
 export default function useProcessosFiltrados(processos, filtro, ano, mes, semana) {
   const isDateInSelectedWeek = (dateToCheck) => {

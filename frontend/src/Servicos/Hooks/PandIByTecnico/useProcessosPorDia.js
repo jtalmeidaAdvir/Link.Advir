@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { getDaysInWeek } from '../utils/dateUtils';
 
 export default function useProcessosPorDia(intervencoesDetalhadas, filtro, ano, mes, semana) {
   return useMemo(() => {
