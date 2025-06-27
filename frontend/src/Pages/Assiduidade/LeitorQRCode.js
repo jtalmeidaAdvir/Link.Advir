@@ -335,7 +335,7 @@ const registarPonto = async (empresaSelecionada) => {
         endereco: enderecoObtido,
         totalHorasTrabalhadas: "8.00",
         totalTempoIntervalo: "1.00",
-        empresa: empresaSelecionada,
+        empresa: localStorage.getItem('empresaSelecionada')
       }),
     });
 
