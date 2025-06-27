@@ -102,7 +102,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 localStorage.setItem('loginToken', data.token);
                 localStorage.setItem('isAdmin', data.isAdmin ? 'true' : 'false');
                 localStorage.setItem('superAdmin', data.superAdmin ? 'true' : 'false'); // Adiciona superAdmin ao localStorage
-                localStorage.setItem('username', data.username);
+                localStorage.setItem('username', username);
                 localStorage.setItem('email', email);
                 localStorage.setItem('userId', data.userId);
                 localStorage.setItem('userNome', data.userNome);
