@@ -141,6 +141,33 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
     carregarHoraEntrada();
   }, []);
 
+useEffect(() => {
+  const fetchRegistos = async () => {
+    const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+    const token = localStorage.getItem("loginToken");
+
+    if (!empresaSelecionada) {
+      console.error("❌ Empresa não definida");
+      return;
+    }
+
+    try {
+      const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      console.log("✅ Registos:", data);
+    } catch (err) {
+      console.error("❌ Erro ao buscar registos:", err);
+    }
+  };
+
+  fetchRegistos();
+}, []);
 
   useEffect(() => {
   Animated.loop(
