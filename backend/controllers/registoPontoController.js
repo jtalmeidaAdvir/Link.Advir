@@ -1,6 +1,8 @@
 const RegistoPonto = require('../models/registoPonto');
 const { Op } = require('sequelize');
 const Intervalo = require('../models/intervalo'); 
+const Empresa = require('../models/empresa'); // <-- ADICIONA ESTA LINHA
+
 
 const calcularHorasTrabalhadas = (horaEntrada, horaSaida) => {
     const entrada = new Date(horaEntrada);
