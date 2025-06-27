@@ -195,6 +195,7 @@ const loginUtilizador = async (req, res) => {
             }
         });
 console.log("→ Empresa predefinida do utilizador:", user.empresaPredefinida);
+console.log("→ Campos completos:", user.get({ plain: true }));
 
 
 
@@ -211,7 +212,8 @@ console.log("→ Empresa predefinida do utilizador:", user.empresaPredefinida);
             return res.status(401).json({ error: 'Password incorreta.' });
         }
 
-        console.log("→ Empresa predefinida do utilizador:", user.empresaPredefinida);
+const userPlain = user.get({ plain: true });
+console.log("→ Empresa predefinida do utilizador:", userPlain.empresaPredefinida);
 
         const token = jwt.sign(
             { id: user.id, userNome: user.nome, isAdmin: user.isAdmin, superAdmin: user.superAdmin },
