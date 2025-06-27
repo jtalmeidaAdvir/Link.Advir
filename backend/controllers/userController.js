@@ -239,7 +239,7 @@ const loginUtilizador = async (req, res) => {
             id_tecnico: user.id_tecnico,
             userNome: user.nome,
             userEmail: user.email,
-            empresaPredifinida: user.empresaPredifinida 
+            empresaPredefinida: user.empresaPredefinida 
         });
     } catch (error) {
         console.error('Erro ao fazer login:', error);
