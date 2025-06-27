@@ -21,58 +21,58 @@ const calcularHorasTrabalhadas = (horaEntrada, horaSaida) => {
 
 
 const registarPontoComBotao = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const dataAtual = new Date().toISOString().split('T')[0];
-        const horaAtual = new Date().toISOString(); // Data e hora ISO completas
-        const { latitude, longitude, endereco } = req.body;
+  try {
+    const userId = req.user.id;
+    const nomeEmpresa = req.user.empresaPredefinida;
+    const dataAtual = new Date().toISOString().split('T')[0];
+    const horaAtual = new Date().toISOString();
+    const { latitude, longitude, endereco } = req.body;
 
-        console.log("Recebido do frontend:", { latitude, longitude, endereco });
-
-        let registo = await RegistoPonto.findOne({
-            where: { user_id: userId, data: dataAtual },
-        });
-
-        if (registo) {
-            if (registo.horaSaida) {
-                return res.status(400).json({ message: "Já registou entrada e saída para hoje." });
-            } else {
-                registo.horaSaida = horaAtual;
-                registo.latitude = latitude;
-                registo.longitude = longitude;
-                registo.endereco = endereco;
-                const totalHorasTrabalhadas = calcularHorasTrabalhadas(registo.horaEntrada, horaAtual);
-                registo.totalHorasTrabalhadas = totalHorasTrabalhadas;
-                await registo.save();
-
-                return res.status(200).json({ 
-                    message: "Hora de saída registada com sucesso!",
-                    registo: registo.toJSON()
-                });
-            }
-        } else {
-            registo = await RegistoPonto.create({
-                user_id: userId,
-                data: dataAtual,
-                horaEntrada: horaAtual,
-                latitude,
-                longitude,
-                endereco,
-                totalHorasTrabalhadas: 0,
-                totalTempoIntervalo: 0
-            });
-
-            return res.status(201).json({
-                message: "Hora de entrada registada com sucesso!",
-                registo: registo.toJSON()
-            });
-        }
-    } catch (error) {
-        console.error("Erro ao registar ponto:", error);
-        res.status(500).json({ message: "Erro ao registar ponto." });
+    const empresa = await Empresa.findOne({ where: { empresa: nomeEmpresa } });
+    if (!empresa) {
+      return res.status(404).json({ message: "Empresa não encontrada." });
     }
-};
 
+    let registo = await RegistoPonto.findOne({
+      where: {
+        user_id: userId,
+        empresa_id: empresa.id,
+        data: dataAtual,
+      },
+    });
+
+    if (registo) {
+      if (registo.horaSaida) {
+        return res.status(400).json({ message: "Já registou entrada e saída para hoje." });
+      } else {
+        registo.horaSaida = horaAtual;
+        registo.latitude = latitude;
+        registo.longitude = longitude;
+        registo.endereco = endereco;
+        registo.totalHorasTrabalhadas = calcularHorasTrabalhadas(registo.horaEntrada, horaAtual);
+        await registo.save();
+        return res.status(200).json({ message: "Hora de saída registada com sucesso!", registo: registo.toJSON() });
+      }
+    } else {
+      registo = await RegistoPonto.create({
+        user_id: userId,
+        empresa_id: empresa.id,
+        data: dataAtual,
+        horaEntrada: horaAtual,
+        latitude,
+        longitude,
+        endereco,
+        totalHorasTrabalhadas: 0,
+        totalTempoIntervalo: 0
+      });
+
+      return res.status(201).json({ message: "Hora de entrada registada com sucesso!", registo: registo.toJSON() });
+    }
+  } catch (error) {
+    console.error("Erro ao registar ponto:", error);
+    res.status(500).json({ message: "Erro ao registar ponto." });
+  }
+};
 
 
 const obterEstadoPonto = async (req, res) => {
@@ -106,61 +106,58 @@ const obterEstadoPonto = async (req, res) => {
 
 
 const registarLeituraQRCode = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        if (!userId) {
-            console.error("Erro: userId é undefined no controlador");
-            return res.status(400).json({ message: "Erro: userId não fornecido." });
-        }
+  try {
+    const userId = req.user.id;
+    const nomeEmpresa = req.user.empresaPredefinida;
+    const dataAtual = new Date().toISOString().split('T')[0];
+    const horaAtual = new Date().toISOString();
+    const { latitude, longitude, endereco } = req.body;
 
-        const { latitude, longitude } = req.body;
-        const dataAtual = new Date().toISOString().split('T')[0];
-        const horaAtual = new Date().toLocaleTimeString('en-GB', { hour12: false });
-
-        let registo = await RegistoPonto.findOne({
-            where: { user_id: userId, data: dataAtual },
-        });
-
-        if (registo) {
-            if (registo.horaSaida) {
-                return res.status(400).json({ message: "Já registou entrada e saída para hoje." });
-            } else {
-                const totalTempoIntervalo = registo.totalTempoIntervalo || 0;
-                const totalHorasTrabalhadas = calcularTotalHorasTrabalhadas(
-                    registo.horaEntrada,
-                    horaAtual,
-                    totalTempoIntervalo
-                );
-
-                console.log("Total Horas Trabalhadas Calculado:", totalHorasTrabalhadas);
-
-                registo.horaSaida = horaAtual;
-                registo.latitude = latitude;
-                registo.longitude = longitude;
-                registo.totalHorasTrabalhadas = totalHorasTrabalhadas;
-
-                await registo.save();
-                console.log("Registo atualizado:", registo.toJSON());
-
-                return res.status(200).json({ message: "Hora de saída e localização registadas com sucesso!" });
-            }
-        } else {
-            await RegistoPonto.create({
-                user_id: userId,
-                data: dataAtual,
-                horaEntrada: horaAtual,
-                latitude: latitude,
-                longitude: longitude,
-                totalHorasTrabalhadas: 0
-            });
-            return res.status(201).json({ message: "Hora de entrada e localização registadas com sucesso!" });
-        }
-    } catch (error) {
-        console.error("Erro ao registar ponto:", error);
-        res.status(500).json({ message: "Erro ao registar ponto." });
+    const empresa = await Empresa.findOne({ where: { empresa: nomeEmpresa } });
+    if (!empresa) {
+      return res.status(404).json({ message: "Empresa não encontrada." });
     }
-};
 
+    let registo = await RegistoPonto.findOne({
+      where: {
+        user_id: userId,
+        empresa_id: empresa.id,
+        data: dataAtual,
+      },
+    });
+
+    if (registo) {
+      if (registo.horaSaida) {
+        return res.status(400).json({ message: "Já registou entrada e saída para hoje." });
+      } else {
+        registo.horaSaida = horaAtual;
+        registo.latitude = latitude;
+        registo.longitude = longitude;
+        registo.endereco = endereco;
+        registo.totalHorasTrabalhadas = calcularHorasTrabalhadas(registo.horaEntrada, horaAtual);
+        await registo.save();
+        return res.status(200).json({ message: "Hora de saída registada com sucesso!", registo: registo.toJSON() });
+      }
+    } else {
+      registo = await RegistoPonto.create({
+        user_id: userId,
+        empresa_id: empresa.id,
+        data: dataAtual,
+        horaEntrada: horaAtual,
+        latitude,
+        longitude,
+        endereco,
+        totalHorasTrabalhadas: 0,
+        totalTempoIntervalo: 0
+      });
+
+      return res.status(201).json({ message: "Hora de entrada registada com sucesso!", registo: registo.toJSON() });
+    }
+  } catch (error) {
+    console.error("Erro ao registar ponto:", error);
+    res.status(500).json({ message: "Erro ao registar ponto." });
+  }
+};
 
 const editarRegisto = async (req, res) => {
     try {

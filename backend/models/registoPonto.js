@@ -26,13 +26,25 @@ const RegistoPonto = sequelize.define('RegistoPonto', {
         defaultValue: 0,
     },
     latitude: { type: DataTypes.FLOAT, allowNull: true },  // Novo campo para latitude
-    longitude: { type: DataTypes.FLOAT, allowNull: true }  // Novo campo para longitude
+    longitude: { type: DataTypes.FLOAT, allowNull: true },  // Novo campo para longitude
+    empresa_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: Empresa,
+      key: 'id',
+    }
+}
 }, {
     timestamps: false,
     tableName: 'registo_ponto',
 });
 
+// Relacionamentos
 User.hasMany(RegistoPonto, { foreignKey: 'user_id' });
 RegistoPonto.belongsTo(User, { foreignKey: 'user_id' });
+
+Empresa.hasMany(RegistoPonto, { foreignKey: 'empresa_id' });
+RegistoPonto.belongsTo(Empresa, { foreignKey: 'empresa_id' });
 
 module.exports = RegistoPonto;
