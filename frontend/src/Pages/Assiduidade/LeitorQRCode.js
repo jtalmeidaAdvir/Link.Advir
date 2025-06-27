@@ -321,7 +321,14 @@ const registarPonto = async () => {
 
    
 
-    const empresaSelecionada = localStorage.getItem('empresaSelecionada');
+   const empresaSelecionada = localStorage.getItem('empresaSelecionada');
+
+if (!empresaSelecionada) {
+  console.error("⚠️ Empresa não está definida no localStorage!");
+  setMensagemEstado("Erro: Empresa não definida.");
+  return;
+}
+
 
 const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
     method: 'POST',
