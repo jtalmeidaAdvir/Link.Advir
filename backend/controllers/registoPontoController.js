@@ -25,7 +25,7 @@ const calcularHorasTrabalhadas = (horaEntrada, horaSaida) => {
 const registarPontoComBotao = async (req, res) => {
   try {
     const userId = req.user.id;
-    const nomeEmpresa = req.user.empresaPredefinida;
+    const nomeEmpresa = req.user.empresaSelecionada;
     const dataAtual = new Date().toISOString().split('T')[0];
     const horaAtual = new Date().toISOString();
     const { latitude, longitude, endereco } = req.body;
@@ -110,7 +110,7 @@ const obterEstadoPonto = async (req, res) => {
 const registarLeituraQRCode = async (req, res) => {
   try {
     const userId = req.user.id;
-    const nomeEmpresa = req.user.empresaPredefinida;
+    const nomeEmpresa = req.user.empresaSelecionada;
     const dataAtual = new Date().toISOString().split('T')[0];
     const horaAtual = new Date().toISOString();
     const { latitude, longitude, endereco } = req.body;
