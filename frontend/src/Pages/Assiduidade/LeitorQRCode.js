@@ -319,20 +319,13 @@ const registarPonto = async () => {
 
   if (!empresaSelecionada) {
     console.error("❌ Empresa não definida.");
-    //setMensagemEstado("Erro: Empresa não definida.");
+    alert("Erro: Empresa não definida.");
     return;
   }
 
   try {
-    const localizacao = await Location.getCurrentPositionAsync({});
-    const endereco = await Location.reverseGeocodeAsync({
-      latitude: localizacao.coords.latitude,
-      longitude: localizacao.coords.longitude,
-    });
-
-    const enderecoObtido = endereco.length > 0
-      ? `${endereco[0].name}, ${endereco[0].street}, ${endereco[0].city}`
-      : 'Endereço não encontrado';
+    const localizacao = await obterLocalizacao();
+    const enderecoObtido = await getEnderecoPorCoordenadas(localizacao.latitude, localizacao.longitude);
 
     const horaAtual = new Date().toISOString();
     localStorage.setItem('horaEntrada', horaAtual);
@@ -349,8 +342,8 @@ const registarPonto = async () => {
       },
       body: JSON.stringify({
         hora: horaAtual,
-        latitude: localizacao.coords.latitude,
-        longitude: localizacao.coords.longitude,
+        latitude: localizacao.latitude,
+        longitude: localizacao.longitude,
         endereco: enderecoObtido,
         totalHorasTrabalhadas: "8.00",
         totalTempoIntervalo: "1.00",
@@ -359,18 +352,19 @@ const registarPonto = async () => {
     });
 
     if (response.ok) {
-      //setEstadoBotao("pausar");
-      setMensagemEstado("Ponto registado com sucesso!");
+      alert("Ponto registado com sucesso!");
+      await fetchRegistosDiarios(); // se quiseres atualizar a UI logo
     } else {
       const errorData = await response.json();
       console.error('Erro ao registar ponto:', errorData.error);
-      setMensagemEstado("Erro ao registar ponto.");
+      alert("Erro ao registar ponto.");
     }
   } catch (error) {
     console.error('Erro ao registar ponto:', error.message);
-    setMensagemEstado("Erro ao registar ponto.");
+    alert("Erro ao registar ponto.");
   }
 };
+
 
 
 
