@@ -202,50 +202,58 @@ const editarRegisto = async (req, res) => {
 
 
 const getRegistoDiario = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const { mes, ano } = req.query;
+  try {
+    const userId = req.user.id;
+    const { mes, ano, empresa } = req.query; // <- adiciona empresa ao query
 
-        const dataAtual = new Date();
-        const anoFiltro = ano || dataAtual.getFullYear();
-        const mesFiltro = mes ? String(mes).padStart(2, '0') : String(dataAtual.getMonth() + 1).padStart(2, '0');
-        const dataInicio = `${anoFiltro}-${mesFiltro}-01`;
-        const dataFim = new Date(anoFiltro, mesFiltro, 0).toISOString().split('T')[0];
-
-        const registos = await RegistoPonto.findAll({
-            where: {
-                user_id: userId,
-                data: { [Op.between]: [dataInicio, dataFim] }
-            },
-            include: [Intervalo],
-            order: [['data', 'ASC']]
-        });
-
-        const registosComTotais = registos.map(registo => {
-            const intervalos = registo.intervalos || [];
-            let totalIntervaloHoras = 0;
-
-            // Somar cada duracaoIntervalo e adicionar log para verificar cada valor
-            intervalos.forEach(intervalo => {
-                console.log(`Intervalo ID: ${intervalo.id} - Duração: ${intervalo.duracaoIntervalo}`);
-                totalIntervaloHoras += intervalo.duracaoIntervalo || 0;
-            });
-
-            console.log(`Registo ID: ${registo.id} - Total de Tempo de Intervalo Calculado: ${totalIntervaloHoras}`);
-
-            return {
-                ...registo.toJSON(),
-                totalHorasTrabalhadas: registo.totalHorasTrabalhadas,
-                totalTempoIntervalo: registo.totalTempoIntervalo  // Formata para duas casas decimais
-            };
-        });
-
-        res.json(registosComTotais);
-    } catch (error) {
-        console.error("Erro ao obter registos diários:", error);
-        res.status(500).json({ message: 'Erro ao obter registos diários.' });
+    if (!empresa) {
+      return res.status(400).json({ message: "Empresa não especificada." });
     }
+
+    const empresaSelecionada = await Empresa.findOne({ where: { empresa } });
+
+    if (!empresaSelecionada) {
+      return res.status(404).json({ message: "Empresa não encontrada." });
+    }
+
+    const dataAtual = new Date();
+    const anoFiltro = ano || dataAtual.getFullYear();
+    const mesFiltro = mes ? String(mes).padStart(2, '0') : String(dataAtual.getMonth() + 1).padStart(2, '0');
+    const dataInicio = `${anoFiltro}-${mesFiltro}-01`;
+    const dataFim = new Date(anoFiltro, mesFiltro, 0).toISOString().split('T')[0];
+
+    const registos = await RegistoPonto.findAll({
+      where: {
+        user_id: userId,
+        empresa_id: empresaSelecionada.id, // <- FILTRO ADICIONADO
+        data: { [Op.between]: [dataInicio, dataFim] }
+      },
+      include: [Intervalo],
+      order: [['data', 'ASC']]
+    });
+
+    const registosComTotais = registos.map(registo => {
+      const intervalos = registo.intervalos || [];
+      let totalIntervaloHoras = 0;
+
+      intervalos.forEach(intervalo => {
+        totalIntervaloHoras += intervalo.duracaoIntervalo || 0;
+      });
+
+      return {
+        ...registo.toJSON(),
+        totalHorasTrabalhadas: registo.totalHorasTrabalhadas,
+        totalTempoIntervalo: registo.totalTempoIntervalo
+      };
+    });
+
+    res.json(registosComTotais);
+  } catch (error) {
+    console.error("Erro ao obter registos diários:", error);
+    res.status(500).json({ message: 'Erro ao obter registos diários.' });
+  }
 };
+
 
 
 

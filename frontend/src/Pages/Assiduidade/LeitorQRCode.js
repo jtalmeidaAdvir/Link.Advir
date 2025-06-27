@@ -89,8 +89,10 @@ const LeitorQRCode = () => {
       if (!horaEntradaSalva) {
         console.log("LocalStorage vazio. A tentar buscar do backend...");
         const token = localStorage.getItem('loginToken');
+        const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+
         try {
-          const response = await fetch('https://backend.advir.pt/api/registoPonto/diario', {
+const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
@@ -265,9 +267,13 @@ const pulseAnimation = animatedValue.interpolate({
       if (response.ok) {
         const data = await response.json();
 
-        // Filtrar apenas o dia de hoje
         const hoje = new Date().toISOString().split('T')[0];
-        const registoHoje = data.filter((registo) => registo.data === hoje);
+const registoHoje = data.filter((registo) =>
+  registo.data === hoje
+);
+
+
+
 
         setRegistosDiarios(data || []);
         setFilteredRegistos(registoHoje);
