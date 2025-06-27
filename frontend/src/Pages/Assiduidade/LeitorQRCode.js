@@ -92,12 +92,16 @@ const LeitorQRCode = () => {
         const empresaSelecionada = localStorage.getItem("empresaSelecionada");
 
         try {
+const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+const token = localStorage.getItem("loginToken");
+
 const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+});
+
 
           if (response.ok) {
             const data = await response.json();
