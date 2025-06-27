@@ -14,7 +14,6 @@ import QRCode from 'react-native-qrcode-svg';
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Animated } from 'react-native'; // já tens
 const [animatedValue] = useState(new Animated.Value(0));
 
 
