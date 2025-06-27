@@ -310,6 +310,9 @@ const LeitorQRCode = () => {
       const horaAtual = new Date().toISOString();
       localStorage.setItem('horaEntrada', horaAtual);
       // Em React Native puro: AsyncStorage.setItem('horaEntrada', horaAtual);
+      
+      localStorage.setItem('empresaSelecionada', empresaSelecionada);
+
 
       // Iniciar temporizador
       setInicioTemporizador(new Date(horaAtual));
