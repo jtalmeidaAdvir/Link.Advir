@@ -454,42 +454,48 @@ const registarPonto = async () => {
   };
 
 useEffect(() => {
-  let html5QrCode;
+  if (!scannerVisible) return;
 
- if (scannerVisible) {
-     scannerRef.current = new Html5Qrcode('reader');
-     Html5Qrcode.getCameras()
-       .then(cameras => {
-        const back = cameras.find(c => /back/i.test(c.label)) || cameras[0];
-         return scannerRef.current.start(
-           back.id,
-           { fps: 10, qrbox: 250, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
-           async decodedText => {
-             if (isProcessing) return;
-             setIsProcessing(true);
+  // 1) cria instância e arranca o scanner
+  scannerRef.current = new Html5Qrcode('reader');
+  Html5Qrcode.getCameras()
+    .then(cameras => {
+      const back = cameras.find(cam => /back/i.test(cam.label)) || cameras[0];
+      return scannerRef.current.start(
+        back.id,
+        { fps: 10, qrbox: 250, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
+        async decodedText => {
+          if (isProcessing) return;
+          setIsProcessing(true);
 
-             try {
-               // primeiro regista o ponto
-               await registarPonto();
-             } catch (e) {
-               console.error('Falha no registo:', e);
-             }
+          // Para imediatamente para evitar leituras duplicadas
+          try { await scannerRef.current.stop(); }
+          catch (e) { console.warn('Erro a parar scanner:', e); }
+          scannerRef.current = null;
+          setScannerVisible(false);
 
-             // só depois paramos e fechamos
-             try { await scannerRef.current.stop(); }
-             catch(e){ console.warn('Erro ao parar scanner:', e); }
-             setScannerVisible(false);
-             setIsProcessing(false);
-           }
-         );
-       })
-       .catch(err => console.error('Erro ao obter câmaras:', err));
-   }
+          // Só depois processa o QR
+          if (decodedText === qrData) {
+            await registarPonto();
+          } else {
+            alert('QR inválido');
+          }
 
+          setIsProcessing(false);
+        }
+      );
+    })
+    .catch(err => console.error('Erro ao obter câmaras:', err));
+
+  // Cleanup: garante que fecha o scanner se desligares o modal
   return () => {
-    if (html5QrCode) html5QrCode.stop().catch(() => {});
+    if (scannerRef.current) {
+      scannerRef.current.stop().catch(() => {});
+      scannerRef.current = null;
+    }
   };
 }, [scannerVisible]);
+
 
 
 
