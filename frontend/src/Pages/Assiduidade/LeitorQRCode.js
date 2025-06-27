@@ -319,39 +319,27 @@ const registarPonto = async () => {
     // Guardar hora localmente
     localStorage.setItem('horaEntrada', horaAtual);
 
-    // Obter empresa diretamente da localStorage
+   
+
     const empresaSelecionada = localStorage.getItem('empresaSelecionada');
-    const token = localStorage.getItem('loginToken');
 
-    // Debugs
-    console.log('→ Empresa selecionada:', empresaSelecionada);
-    console.log('→ Token:', token);
-    console.log("→ Body a enviar:", {
-      hora: horaAtual,
-      latitude: localizacao.coords.latitude,
-      longitude: localizacao.coords.longitude,
-      endereco: enderecoObtido,
-      totalHorasTrabalhadas: "8.00",
-      totalTempoIntervalo: "1.00",
-      empresa: empresaSelecionada,
-    });
-
-    const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
+const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
+    method: 'POST',
+    headers: {
+        'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    },
+    body: JSON.stringify({
         hora: horaAtual,
-        latitude: localizacao.coords.latitude,
-        longitude: localizacao.coords.longitude,
-        endereco: enderecoObtido,
+        latitude: localizacao.latitude,
+        longitude: localizacao.longitude,
+        endereco,
         totalHorasTrabalhadas: "8.00",
         totalTempoIntervalo: "1.00",
-        empresa: empresaSelecionada,
-      }),
-    });
+        empresa: empresaSelecionada
+    }),
+});
+
 
     if (response.ok) {
       console.log('Ponto registado com sucesso!');
