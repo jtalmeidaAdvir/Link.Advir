@@ -189,11 +189,16 @@ const loginUtilizador = async (req, res) => {
         const { email, password } = req.body;
 
       const user = await User.findOne({
-            where: { email },
-            attributes: {
-                include: ['empresaPredefinida'] // força o Sequelize a ir buscá-lo
-            }
-        });
+  attributes: [
+    'id', 'nome', 'username', 'email', 'password',
+    'profileImage', 'isAdmin', 'superAdmin', 'verificationToken',
+    'isActive', 'isFirstLogin', 'createdon', 'recoveryToken',
+    'recoveryTokenExpiry', 'empresa_areacliente', 'id_tecnico',
+    'empresaPredefinida' // <- garantir que este campo está aqui
+  ],
+  where: { email }
+});
+
 console.log("→ Empresa predefinida do utilizador:", user.empresaPredefinida);
 console.log("→ Campos completos:", user.get({ plain: true }));
 
