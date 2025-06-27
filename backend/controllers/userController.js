@@ -732,24 +732,19 @@ const definirEmpresaPredefinida = async (req, res) => {
     const { empresaPredefinida } = req.body;
 
     try {
-        console.log("→ UserID:", userId);
-        console.log("→ Empresa recebida no body:", empresaPredefinida);
-
         const utilizador = await User.findByPk(userId);
 
         if (!utilizador) {
             return res.status(404).json({ message: 'Utilizador não encontrado.' });
         }
 
-        if (utilizador.empresaPredefinida === empresaPredefinida) {
-            console.log("→ Valor já está definido. Nada a alterar.");
-            return res.status(200).json({ message: 'Empresa predefinida já estava definida.' });
-        }
+        console.log("→ Antes:", utilizador.empresaPredefinida);
+        
+        // Força a alteração e garante que o Sequelize grava
+        utilizador.setDataValue('empresaPredefinida', empresaPredefinida);
+        await utilizador.save({ fields: ['empresaPredefinida'] });
 
-        utilizador.empresaPredefinida = empresaPredefinida;
-        await utilizador.save();
-
-        console.log("→ Empresa predefinida atualizada na BD:", utilizador.empresaPredefinida);
+        console.log("→ Depois:", utilizador.empresaPredefinida);
 
         res.status(200).json({ message: 'Empresa predefinida atualizada com sucesso.' });
     } catch (error) {
@@ -757,6 +752,8 @@ const definirEmpresaPredefinida = async (req, res) => {
         res.status(500).json({ message: 'Erro ao definir empresa predefinida.' });
     }
 };
+
+
 
 
 
