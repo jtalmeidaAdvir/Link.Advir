@@ -14,6 +14,9 @@ import QRCode from 'react-native-qrcode-svg';
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Animated } from 'react-native'; // já tens
+const [animatedValue] = useState(new Animated.Value(0));
+
 
 // Exemplo de localStorage no web; no React Native puro usarias o AsyncStorage
 // import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -132,6 +135,24 @@ const LeitorQRCode = () => {
     carregarHoraEntrada();
   }, []);
 
+
+  useEffect(() => {
+  Animated.loop(
+    Animated.sequence([
+      Animated.timing(animatedValue, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(animatedValue, {
+        toValue: 0,
+        duration: 1500,
+        useNativeDriver: true,
+      }),
+    ])
+  ).start();
+}, []);
+
   // ----------------------------------------------------------------
   // Actualiza o cronómetro (tempoDecorrido) a cada segundo
   // ----------------------------------------------------------------
@@ -222,6 +243,10 @@ const LeitorQRCode = () => {
   await registarPonto();
 };
 
+const pulseAnimation = animatedValue.interpolate({
+  inputRange: [0, 1],
+  outputRange: [1, 1.05],
+});
 
 
   // ----------------------------------------------------------------
@@ -609,11 +634,15 @@ useEffect(() => {
           <Text style={styles.headerSubtitle}>Scaneie o código para registar o seu ponto</Text>
 
           {/* Hora actual (opcional) */}
-          <View style={styles.clockContainer}>
-            <Text style={styles.clockText}>
-              {horaAtual.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </Text>
-          </View>
+          <Animated.View
+  style={[
+    styles.clockContainer,
+    { transform: [{ scale: pulseAnimation }] },
+  ]}
+>
+  <Text style={styles.clockText}>{tempoDecorrido}</Text>
+</Animated.View>
+
         </View>
       </LinearGradient>
 
@@ -998,6 +1027,14 @@ const styles = StyleSheet.create({
     width: 40,
     alignItems: 'center',
   },
+  clockText: {
+  fontSize: 40,
+  fontWeight: '700',
+  color: '#ffffff',
+  fontFamily: 'monospace',
+  letterSpacing: 2,
+  },
+
   timeLine: {
     height: 1,
     width: '100%',
