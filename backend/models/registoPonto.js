@@ -1,6 +1,8 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 const User = require('./user');
+const Empresa = require('./empresa'); // <--- adiciona isto
+
 
 const RegistoPonto = sequelize.define('RegistoPonto', {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
