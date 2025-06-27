@@ -296,14 +296,15 @@ const LeitorQRCode = () => {
   // Registar ponto (equivalente ao “registarPonto” do PontoBotao),
   // mas aqui será chamado quando se lê o QR code correcto
   // ----------------------------------------------------------------
-const registarPonto = async () => {
-  try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      console.log('Permissão para aceder à localização negada');
-      return;
-    }
+const registarPonto = async (empresaSelecionada) => {
+  if (!empresaSelecionada) {
+    console.error("❌ Empresa não definida.");
+    setMensagemEstado("Erro: Empresa não definida.");
+    return;
+  }
 
+  try {
+    // localização...
     const localizacao = await Location.getCurrentPositionAsync({});
     const endereco = await Location.reverseGeocodeAsync({
       latitude: localizacao.coords.latitude,
@@ -315,41 +316,30 @@ const registarPonto = async () => {
       : 'Endereço não encontrado';
 
     const horaAtual = new Date().toISOString();
-
-    // Guardar hora localmente
     localStorage.setItem('horaEntrada', horaAtual);
 
-   
+    const token = localStorage.getItem("loginToken");
 
-   const empresaSelecionada = localStorage.getItem('empresaSelecionada');
+    console.log("→ Empresa usada no body:", empresaSelecionada);
 
-if (!empresaSelecionada) {
-  console.error("⚠️ Empresa não está definida no localStorage!");
-  setMensagemEstado("Erro: Empresa não definida.");
-  return;
-}
-
-
-const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
-    method: 'POST',
-    headers: {
-        'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+    const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+      },
+      body: JSON.stringify({
         hora: horaAtual,
-        latitude: localizacao.latitude,
-        longitude: localizacao.longitude,
-        endereco,
+        latitude: localizacao.coords.latitude,
+        longitude: localizacao.coords.longitude,
+        endereco: enderecoObtido,
         totalHorasTrabalhadas: "8.00",
         totalTempoIntervalo: "1.00",
-        empresa: empresaSelecionada
-    }),
-});
-
+        empresa: empresaSelecionada,
+      }),
+    });
 
     if (response.ok) {
-      console.log('Ponto registado com sucesso!');
       setEstadoBotao("pausar");
       setMensagemEstado("Ponto registado com sucesso!");
     } else {
@@ -362,6 +352,7 @@ const response = await fetch('https://backend.advir.pt/api/registoPonto/registar
     setMensagemEstado("Erro ao registar ponto.");
   }
 };
+
 
 
 
@@ -474,7 +465,8 @@ useEffect(() => {
                 try {
                   await html5QrCode.stop();
                   setScannerVisible(false);
-                  await registarPonto();
+                  await registarPonto(empresaSelecionada);
+
                 } catch (err) {
                   console.error("Erro ao parar o QRCode:", err);
                 } finally {
