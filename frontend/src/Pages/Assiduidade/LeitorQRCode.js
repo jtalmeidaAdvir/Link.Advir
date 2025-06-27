@@ -49,6 +49,39 @@ const LeitorQRCode = () => {
 
   const navigation = useNavigation();
 
+
+
+   // ← AQUI: adiciona a função
+  const onScanSuccess = async (decodedText, decodedResult) => {
+    setScannedData(decodedText);
+    setScanCompleted(true);
+
+    console.log("→ QR code lido:", decodedText);
+
+    await registarPonto(); // chama a função sem argumentos (usa localStorage internamente)
+  };
+
+  const onScanError = (error) => {
+    console.warn("Erro no scan:", error);
+  };
+
+
+   useEffect(() => {
+    if (!scanCompleted) {
+      const scanner = new Html5QrcodeScanner(
+        "reader",
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        false
+      );
+
+      scanner.render(onScanSuccess, onScanError);
+    }
+  }, [scanCompleted]);
+
+
   // ----------------------------------------------------------------
   // Animação de Fade-In para o container principal
   // ----------------------------------------------------------------
@@ -208,6 +241,10 @@ const LeitorQRCode = () => {
     carregarEstadoInicial();
   }, []);
 
+
+
+
+
   // ----------------------------------------------------------------
   // Função para obter lista de registos diários
   // ----------------------------------------------------------------
@@ -296,7 +333,9 @@ const LeitorQRCode = () => {
   // Registar ponto (equivalente ao “registarPonto” do PontoBotao),
   // mas aqui será chamado quando se lê o QR code correcto
   // ----------------------------------------------------------------
-const registarPonto = async (empresaSelecionada) => {
+const registarPonto = async () => {
+  const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+
   if (!empresaSelecionada) {
     console.error("❌ Empresa não definida.");
     setMensagemEstado("Erro: Empresa não definida.");
@@ -304,7 +343,6 @@ const registarPonto = async (empresaSelecionada) => {
   }
 
   try {
-    // localização...
     const localizacao = await Location.getCurrentPositionAsync({});
     const endereco = await Location.reverseGeocodeAsync({
       latitude: localizacao.coords.latitude,
@@ -320,7 +358,7 @@ const registarPonto = async (empresaSelecionada) => {
 
     const token = localStorage.getItem("loginToken");
 
-    console.log("→ Empresa usada no body:", empresaSelecionada);
+    console.log("→ Empresa usada no registo:", empresaSelecionada);
 
     const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
       method: 'POST',
@@ -335,7 +373,7 @@ const registarPonto = async (empresaSelecionada) => {
         endereco: enderecoObtido,
         totalHorasTrabalhadas: "8.00",
         totalTempoIntervalo: "1.00",
-        empresa: localStorage.getItem('empresaSelecionada')
+        empresa: empresaSelecionada,
       }),
     });
 
@@ -352,6 +390,7 @@ const registarPonto = async (empresaSelecionada) => {
     setMensagemEstado("Erro ao registar ponto.");
   }
 };
+
 
 
 
