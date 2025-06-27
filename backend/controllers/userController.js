@@ -188,11 +188,13 @@ const loginUtilizador = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const user = await User.findOne({
-            where: { email }
+      const user = await User.findOne({
+            where: { email },
+            attributes: {
+                include: ['empresaPredefinida'] // força o Sequelize a ir buscá-lo
+            }
         });
 
-        console.log("→ Dados do utilizador completos:", user.get({ plain: true }));
 
 
         if (!user) {
