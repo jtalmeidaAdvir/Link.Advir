@@ -14,13 +14,14 @@ import QRCode from 'react-native-qrcode-svg';
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-const [animatedValue] = useState(new Animated.Value(0));
 
 
 // Exemplo de localStorage no web; no React Native puro usarias o AsyncStorage
 // import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LeitorQRCode = () => {
+  const [animatedValue] = useState(new Animated.Value(0));
+
   // ---------------------------
   // Estados de lógica de ponto (copiados/adaptados do PontoBotao)
   // ---------------------------
