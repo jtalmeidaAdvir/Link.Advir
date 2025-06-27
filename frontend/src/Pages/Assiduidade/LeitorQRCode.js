@@ -296,7 +296,7 @@ const LeitorQRCode = () => {
   // Registar ponto (equivalente ao “registarPonto” do PontoBotao),
   // mas aqui será chamado quando se lê o QR code correcto
   // ----------------------------------------------------------------
- const registarPonto = async () => {
+const registarPonto = async () => {
   try {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
@@ -370,6 +370,7 @@ const LeitorQRCode = () => {
     setMensagemEstado("Erro ao registar ponto.");
   }
 };
+
 
 
   // ----------------------------------------------------------------
