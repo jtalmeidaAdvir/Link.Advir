@@ -33,7 +33,7 @@ const LeitorQRCode = () => {
   const [tempoPausado, setTempoPausado] = useState(0);
   const [saidaRegistrada, setSaidaRegistrada] = useState(false);
   const [endereco, setEndereco] = useState('');
-
+  const [empresaSelecionada, setEmpresaSelecionada] = useState('');
   // Animações / UI específicas
   const [fadeAnimation] = useState(new Animated.Value(0));
   const [scannerVisible, setScannerVisible] = useState(false);
@@ -296,59 +296,81 @@ const LeitorQRCode = () => {
   // Registar ponto (equivalente ao “registarPonto” do PontoBotao),
   // mas aqui será chamado quando se lê o QR code correcto
   // ----------------------------------------------------------------
-  const registarPonto = async () => {
-    try {
-      console.log("A obter localização...");
-      const localizacao = await obterLocalizacao();
-      const enderecoObtido = await getEnderecoPorCoordenadas(
-        localizacao.latitude, 
-        localizacao.longitude
-      );
-      setEndereco(enderecoObtido);
-
-      // Armazenar hora de entrada (caso seja a primeira batida)
-      const horaAtual = new Date().toISOString();
-      localStorage.setItem('horaEntrada', horaAtual);
-      // Em React Native puro: AsyncStorage.setItem('horaEntrada', horaAtual);
-      
-      localStorage.getItem('empresaSelecionada', empresaSelecionada);
-
-
-      // Iniciar temporizador
-      setInicioTemporizador(new Date(horaAtual));
-      setTemporizadorAtivo(true);
-      setTempoPausado(0);
-
-      const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          hora: horaAtual,
-          latitude: localizacao.latitude,
-          longitude: localizacao.longitude,
-          endereco: enderecoObtido,
-          totalHorasTrabalhadas: "8.00",        // Ajusta se quiseres calcular dinamicamente
-          totalTempoIntervalo: "1.00",         // idem
-          empresa: empresaSelecionada 
-        }),
-      });
-
-      if (response.ok) {
-        await response.json();
-        alert("Registo realizado com sucesso!");
-        await fetchRegistosDiarios();
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || 'Erro ao registar ponto.');
-      }
-    } catch (error) {
-      console.error("Erro ao registar ponto:", error);
-      alert('Erro de comunicação com o servidor.');
+ const registarPonto = async () => {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      console.log('Permissão para aceder à localização negada');
+      return;
     }
-  };
+
+    const localizacao = await Location.getCurrentPositionAsync({});
+    const endereco = await Location.reverseGeocodeAsync({
+      latitude: localizacao.coords.latitude,
+      longitude: localizacao.coords.longitude,
+    });
+
+    const enderecoObtido = endereco.length > 0
+      ? `${endereco[0].name}, ${endereco[0].street}, ${endereco[0].city}`
+      : 'Endereço não encontrado';
+
+    const horaAtual = new Date().toISOString();
+
+    // Guardar hora de entrada
+    localStorage.setItem('horaEntrada', horaAtual);
+
+    // Obter empresa do localStorage
+    const empresaSelecionada = localStorage.getItem('empresaSelecionada');
+    console.log('→ Empresa selecionada do localStorage:', empresaSelecionada);
+
+    // Debug do body
+    console.log("→ Body do fetch:", {
+      hora: horaAtual,
+      latitude: localizacao.coords.latitude,
+      longitude: localizacao.coords.longitude,
+      endereco: enderecoObtido,
+      totalHorasTrabalhadas: "8.00",
+      totalTempoIntervalo: "1.00",
+      empresa: empresaSelecionada
+    });
+
+    // Iniciar temporizador
+    setInicioTemporizador(new Date(horaAtual));
+    setTemporizadorAtivo(true);
+    setTempoPausado(0);
+
+    const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        hora: horaAtual,
+        latitude: localizacao.coords.latitude,
+        longitude: localizacao.coords.longitude,
+        endereco: enderecoObtido,
+        totalHorasTrabalhadas: "8.00",
+        totalTempoIntervalo: "1.00",
+        empresa: empresaSelecionada
+      }),
+    });
+
+    if (response.ok) {
+      console.log('Ponto registado com sucesso!');
+      setEstadoBotao("pausar");
+      setMensagemEstado("Ponto registado com sucesso!");
+    } else {
+      const errorData = await response.json();
+      console.error('Erro ao registar ponto:', errorData.error);
+      setMensagemEstado("Erro ao registar ponto.");
+    }
+  } catch (error) {
+    console.error('Erro ao registar ponto:', error.message);
+    setMensagemEstado("Erro ao registar ponto.");
+  }
+};
+
 
   // ----------------------------------------------------------------
   // Funções de controlo de intervalo (início e fim)
