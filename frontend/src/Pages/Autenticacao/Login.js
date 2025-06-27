@@ -14,6 +14,69 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
     const navigation = useNavigation();
     const { t } = useTranslation();
 
+
+    const entrarEmpresaPredefinida = async (empresa) => {
+    const loginToken = localStorage.getItem("loginToken");
+
+    try {
+        const credenciaisResponse = await fetch(
+            `https://backend.advir.pt/api/empresas/nome/${encodeURIComponent(empresa)}`,
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${loginToken}`,
+                },
+            }
+        );
+
+        if (credenciaisResponse.ok) {
+            const credenciais = await credenciaisResponse.json();
+            localStorage.setItem("urlempresa", credenciais.urlempresa);
+
+            const response = await fetch(
+                "https://webapiprimavera.advir.pt/connect-database/token",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${loginToken}`,
+                    },
+                    body: JSON.stringify({
+                        username: credenciais.username,
+                        password: credenciais.password,
+                        company: credenciais.empresa,
+                        line: credenciais.linha,
+                        instance: "DEFAULT",
+                        urlempresa: credenciais.urlempresa,
+                        forceRefresh: true,
+                    }),
+                }
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem("painelAdminToken", data.token);
+                localStorage.setItem("empresaSelecionada", empresa);
+                navigation.navigate("Home");
+            } else {
+                const errorData = await response.json();
+                console.error("Erro ao obter token:", errorData.message);
+                navigation.navigate("SelecaoEmpresa"); // fallback
+            }
+        } else {
+            const errorData = await credenciaisResponse.json();
+            console.error("Erro ao obter credenciais:", errorData.message);
+            navigation.navigate("SelecaoEmpresa"); // fallback
+        }
+    } catch (error) {
+        console.error("Erro de rede ao entrar na empresa:", error);
+        navigation.navigate("SelecaoEmpresa"); // fallback
+    }
+};
+
+
+
+
     const handleLogin = async (e) => {
         e.preventDefault();
 
@@ -60,11 +123,11 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                if (data.redirect) {
                     navigation.navigate('VerificaConta');
                 } else if (data.empresaPredefinida) {
-                    // Guardar a empresa predefinida e navegar diretamente
                     localStorage.setItem("empresaPredefinida", data.empresaPredefinida);
                     localStorage.setItem("empresaSelecionada", data.empresaPredefinida);
-                    navigation.navigate("Home");
-                } else {
+                    await entrarEmpresaPredefinida(data.empresaPredefinida);
+                }
+                else {
                     navigation.navigate("SelecaoEmpresa");
                 }
 

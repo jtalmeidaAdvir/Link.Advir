@@ -119,6 +119,12 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
         fetchEmpresas();
     }, []);
 
+
+
+
+
+
+    
     const handlePredefinirEmpresa = async (checked) => {
         setEmpresaPredefinida(checked);
         const userId = localStorage.getItem("userId");
