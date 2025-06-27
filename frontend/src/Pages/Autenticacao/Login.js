@@ -47,7 +47,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 //localStorage.setItem('nomeuser', data.nome);
                 localStorage.setItem('empresa_areacliente', data.empresa_areacliente);
                 localStorage.setItem('id_tecnico', data.id_tecnico);
-                localStorage.setItem('empresaPredifinida', data.empresaPredifinida);
+                localStorage.setItem('empresaPredefinida', data.empresaPredefinida);
 
                 // Atualiza o estado de login e permissões
                 setUsername(username);
@@ -59,10 +59,10 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 // Redirecionamento após login
                if (data.redirect) {
                     navigation.navigate('VerificaConta');
-                } else if (data.empresaPredifinida) {
+                } else if (data.empresaPredefinida) {
                     // Guardar a empresa predefinida e navegar diretamente
-                    localStorage.setItem("empresaPredefinida", data.empresaPredifinida);
-                    localStorage.setItem("empresaSelecionada", data.empresaPredifinida);
+                    localStorage.setItem("empresaPredefinida", data.empresaPredefinida);
+                    localStorage.setItem("empresaSelecionada", data.empresaPredefinida);
                     navigation.navigate("Home");
                 } else {
                     navigation.navigate("SelecaoEmpresa");
