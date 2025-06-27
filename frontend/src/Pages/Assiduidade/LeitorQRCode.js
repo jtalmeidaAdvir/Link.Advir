@@ -51,39 +51,7 @@ const LeitorQRCode = () => {
 
 
 
-   // ← AQUI: adiciona a função
-  const onScanSuccess = async (decodedText, decodedResult) => {
-    setScannedData(decodedText);
-    setScanCompleted(true);
-
-    console.log("→ QR code lido:", decodedText);
-    localStorage.setItem("empresaSelecionada", "Advir"); // só para testar
- 
-
-    await registarPonto(); // chama a função sem argumentos (usa localStorage internamente)
-  };
-
-  const onScanError = (error) => {
-    console.warn("Erro no scan:", error);
-  };
-
-
-   useEffect(() => {
-    if (!scanCompleted) {
-      const scanner = new Html5QrcodeScanner(
-        "reader",
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
-        false
-      );
-
-      scanner.render(onScanSuccess, onScanError);
-    }
-  }, [scanCompleted]);
-
-
+  
   // ----------------------------------------------------------------
   // Animação de Fade-In para o container principal
   // ----------------------------------------------------------------
@@ -245,6 +213,13 @@ const LeitorQRCode = () => {
 
 
 
+  const onScanSuccess = async (decodedText, decodedResult) => {
+  setScannedData(decodedText);
+  setScanCompleted(true);
+
+  await registarPonto();
+};
+
 
 
   // ----------------------------------------------------------------
@@ -288,48 +263,52 @@ const LeitorQRCode = () => {
   // ----------------------------------------------------------------
   // Funções de geolocalização + geocodificação
   // ----------------------------------------------------------------
-  const obterLocalizacao = () => {
-    return new Promise((resolve) => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const coords = {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            };
-            resolve(coords);
-          },
-          (error) => {
-            console.error("Erro ao obter localização:", error.message);
-            // Fallback para Lisboa
-            resolve({ latitude: 38.736946, longitude: -9.142685 });
-          },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-      } else {
-        console.warn("Geolocalização não suportada. A usar valores de fallback (Lisboa).");
-        resolve({ latitude: 38.736946, longitude: -9.142685 });
-      }
-    });
-  };
+    const obterLocalizacao = () => {
+        return new Promise((resolve, reject) => {
+            if (navigator.geolocation) {
+                console.log("Tentando obter localização...");
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const coords = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                        };
+                        console.log("Localização obtida com sucesso:", coords);
+                        resolve(coords);
+                    },
+                    (error) => {
+                        console.error("Erro ao obter localização:", error.message);
+                        console.log("Usando localização padrão.");
+                        // Fallback para Lisboa
+                        resolve({ latitude: 38.736946, longitude: -9.142685 });
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                console.warn("Geolocalização não suportada.");
+                // Fallback manual
+                resolve({ latitude: 38.736946, longitude: -9.142685 });
+            }
+        });
+    };
 
-  const getEnderecoPorCoordenadas = async (latitude, longitude) => {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
+    const getEnderecoPorCoordenadas = async (latitude, longitude) => {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
 
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data && data.display_name) {
-        return data.display_name;
-      } else {
-        console.error("Erro na geocodificação reversa:", data);
-        return "Endereço não encontrado";
-      }
-    } catch (error) {
-      console.error("Erro ao obter o endereço:", error);
-      return "Erro ao obter endereço";
-    }
-  };
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data && data.display_name) {
+                return data.display_name;
+            } else {
+                console.error("Erro na geocodificação reversa:", data);
+                return "Endereço não encontrado";
+            }
+        } catch (error) {
+            console.error("Erro ao obter o endereço:", error);
+            return "Erro ao obter endereço";
+        }
+    };
 
   // ----------------------------------------------------------------
   // Registar ponto (equivalente ao “registarPonto” do PontoBotao),
@@ -340,7 +319,7 @@ const registarPonto = async () => {
 
   if (!empresaSelecionada) {
     console.error("❌ Empresa não definida.");
-    setMensagemEstado("Erro: Empresa não definida.");
+    //setMensagemEstado("Erro: Empresa não definida.");
     return;
   }
 
@@ -380,7 +359,7 @@ const registarPonto = async () => {
     });
 
     if (response.ok) {
-      setEstadoBotao("pausar");
+      //setEstadoBotao("pausar");
       setMensagemEstado("Ponto registado com sucesso!");
     } else {
       const errorData = await response.json();
@@ -482,7 +461,7 @@ useEffect(() => {
   let html5QrCode;
 
   if (scannerVisible) {
-    const html5QrCode = new Html5Qrcode("reader");
+     html5QrCode = new Html5Qrcode("reader");
 
     Html5Qrcode.getCameras()
       .then((devices) => {
@@ -506,7 +485,7 @@ useEffect(() => {
                 try {
                   await html5QrCode.stop();
                   setScannerVisible(false);
-                  await registarPonto(empresaSelecionada);
+                  await registarPonto();
 
                 } catch (err) {
                   console.error("Erro ao parar o QRCode:", err);
