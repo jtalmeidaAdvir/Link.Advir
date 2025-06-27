@@ -188,64 +188,47 @@ const loginUtilizador = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const user = await User.findOne({ where: { email } });
+        const user = await User.unscoped().findOne({ where: { email } });
 
         if (!user) {
             return res.status(400).json({ error: 'Utilizador não encontrado.' });
         }
 
-        // Verificar se a conta está ativa
         if (!user.isActive) {
             return res.status(403).json({ error: 'Conta não verificada. Verifica o teu e-mail para ativar a conta.' });
         }
 
-        // Verificar se a password está correta
         const isPasswordValid = await bcryptjs.compare(password, user.password);
         if (!isPasswordValid) {
             return res.status(401).json({ error: 'Password incorreta.' });
         }
 
-        // Verificar se é o primeiro login
-        if (user.isFirstLogin) {
-            return res.status(200).json({
-                message: 'Primeiro login, redirecionar para alteração de password.',
-                redirect: '/verificaConta',
-                token: jwt.sign(
-                    { id: user.id, userNome: user.usernome, isAdmin: user.isAdmin, superAdmin: user.superAdmin },
-                    process.env.JWT_SECRET
-                )
-                ,
-                userId: user.id,
-                isAdmin: user.isAdmin,
-                superAdmin: user.superAdmin  // Inclua o campo superAdmin aqui
-            });
-        }
+        console.log("→ Empresa predefinida do utilizador:", user.empresaPredefinida);
 
-        // Gera o token JWT para logins normais
         const token = jwt.sign(
-            { id: user.id, userNome: user.usernome, isAdmin: user.isAdmin, superAdmin: user.superAdmin },
+            { id: user.id, userNome: user.nome, isAdmin: user.isAdmin, superAdmin: user.superAdmin },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
 
-        // Retorna o token ao cliente, estado de admin e superAdmin
         return res.status(200).json({
             message: 'Login bem-sucedido',
             token,
-            userId: user.id,  // Inclui o ID do usuário aqui
+            userId: user.id,
             isAdmin: user.isAdmin,
-            superAdmin: user.superAdmin,  // Inclua o campo superAdmin aqui
+            superAdmin: user.superAdmin,
             empresa_areacliente: user.empresa_areacliente,
             id_tecnico: user.id_tecnico,
             userNome: user.nome,
             userEmail: user.email,
-            empresaPredefinida: user.empresaPredefinida 
+            empresaPredefinida: user.empresaPredefinida
         });
     } catch (error) {
         console.error('Erro ao fazer login:', error);
         return res.status(500).json({ error: 'Erro ao fazer login.' });
     }
 };
+
 
 
 
