@@ -38,6 +38,7 @@ const LeitorQRCode = () => {
   const [endereco, setEndereco] = useState('');
   const [empresaSelecionada, setEmpresaSelecionada] = useState('');
   const scannerRef = useRef(null);
+  
 
   // Animações / UI específicas
   const [fadeAnimation] = useState(new Animated.Value(0));
@@ -291,7 +292,7 @@ const registoHoje = data.find(
 
 
         setRegistosDiarios(data || []);
-        setFilteredRegistos(registoHoje);
+        setFilteredRegistos(registoHoje ? [registoHoje] : []);
         setErrorMessage('');
       } else if (response.status === 403) {
         setErrorMessage('Acesso negado: Token inválido ou expirado.');
