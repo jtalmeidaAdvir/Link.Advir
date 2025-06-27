@@ -455,58 +455,35 @@ useEffect(() => {
   let html5QrCode;
 
   if (scannerVisible) {
-     html5QrCode = new Html5Qrcode("reader");
-
+    html5QrCode = new Html5Qrcode('reader');
     Html5Qrcode.getCameras()
-      .then((devices) => {
-        // Tenta encontrar a câmara traseira
-        const backCamera = devices.find((device) =>
-          device.label.toLowerCase().includes('back')
-        ) || devices[0]; // fallback: primeira câmara disponível
-
-        if (backCamera) {
-          html5QrCode.start(
-            backCamera.id,
-            {
-              fps: 10,
-              qrbox: { width: 250, height: 250 },
-              formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-            },
-            async (decodedText, decodedResult) => {
-              if (isProcessing) return;
-              if (decodedText === qrData) {
-                setIsProcessing(true);
-                try {
-                  await html5QrCode.stop();
-                  setScannerVisible(false);
-                  await registarPonto();
-
-                } catch (err) {
-                  console.error("Erro ao parar o QRCode:", err);
-                } finally {
-                  setIsProcessing(false);
-                }
-              } else {
-                alert("Código QR inválido.");
-              }
-            },
-            (errorMessage) => {
-              // erros de leitura
+      .then(cameras => {
+        const back = cameras.find(c => /back/i.test(c.label)) || cameras[0];
+        return html5QrCode.start(
+          back.id,
+          { fps: 10, qrbox: 250, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
+          async decodedText => {
+            if (isProcessing) return;
+            if (decodedText === 'registo-ponto') {
+              setIsProcessing(true);
+              await html5QrCode.stop();
+              setScannerVisible(false);
+              await registarPonto();
+              setIsProcessing(false);
+            } else {
+              alert('QR inválido');
             }
-          );
-        }
+          }
+        );
       })
-      .catch((err) => {
-        console.error("Erro ao obter câmaras:", err);
-      });
+      .catch(console.error);
   }
 
   return () => {
-    if (html5QrCode) {
-      html5QrCode.stop().catch(err => console.warn("Erro ao parar scanner:", err));
-    }
+    if (html5QrCode) html5QrCode.stop().catch(() => {});
   };
 }, [scannerVisible]);
+
 
 
   // ----------------------------------------------------------------
