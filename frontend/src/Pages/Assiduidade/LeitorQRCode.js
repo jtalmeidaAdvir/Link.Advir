@@ -54,6 +54,14 @@ const LeitorQRCode = () => {
 
   const navigation = useNavigation();
 
+useEffect(() => {
+  const empresa = localStorage.getItem('empresaSelecionada');
+  if (empresa) {
+    setEmpresaSelecionada(empresa);
+  } else {
+    console.warn("⚠️ Empresa não definida no localStorage!");
+  }
+}, []);
 
 
   
@@ -255,6 +263,11 @@ const pulseAnimation = animatedValue.interpolate({
   // Função para obter lista de registos diários
   // ----------------------------------------------------------------
   const fetchRegistosDiarios = async () => {
+    if (!empresaSelecionada || empresaSelecionada.trim() === '') {
+  console.warn("Empresa ainda não definida. Ignorar fetch.");
+  return;
+}
+
     try {
       const token = localStorage.getItem('loginToken');
 const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
@@ -292,8 +305,11 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
   };
 
   useEffect(() => {
+  if (empresaSelecionada) {
     fetchRegistosDiarios();
-  }, []);
+  }
+}, [empresaSelecionada]);
+
 
   // ----------------------------------------------------------------
   // Funções de geolocalização + geocodificação
