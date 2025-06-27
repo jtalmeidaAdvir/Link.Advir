@@ -194,6 +194,7 @@ const loginUtilizador = async (req, res) => {
                 include: ['empresaPredefinida'] // força o Sequelize a ir buscá-lo
             }
         });
+console.log("→ Empresa predefinida do utilizador:", user.empresaPredefinida);
 
 
 
