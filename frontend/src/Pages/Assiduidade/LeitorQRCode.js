@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats, Html5QrcodeScanner } from 'html5-qrcode';
 import { 
   View, 
   Text, 
@@ -427,52 +427,61 @@ const LeitorQRCode = () => {
   };
 
 useEffect(() => {
-  let scanner = null;
+  let html5QrCode;
 
   if (scannerVisible) {
-    setTimeout(() => {
-      scanner = new Html5QrcodeScanner("reader", {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        rememberLastUsedCamera: true,
-        showTorchButtonIfSupported: true,
-      });
+    const html5QrCode = new Html5Qrcode("reader");
 
-      scanner.render(
-        async (text) => {
-          if (isProcessing) return;
+    Html5Qrcode.getCameras()
+      .then((devices) => {
+        // Tenta encontrar a câmara traseira
+        const backCamera = devices.find((device) =>
+          device.label.toLowerCase().includes('back')
+        ) || devices[0]; // fallback: primeira câmara disponível
 
-          if (text === qrData) {
-            setIsProcessing(true);
-            try {
-              // 🔒 para o scanner logo no início
-              await scanner.clear();
-              setScannerVisible(false);
-
-              await registarPonto();
-            } catch (error) {
-              console.error('Erro ao registar ponto via QR:', error);
-              alert('Erro de comunicação com o servidor.');
-            } finally {
-              setIsProcessing(false);
+        if (backCamera) {
+          html5QrCode.start(
+            backCamera.id,
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 },
+              formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+            },
+            async (decodedText, decodedResult) => {
+              if (isProcessing) return;
+              if (decodedText === qrData) {
+                setIsProcessing(true);
+                try {
+                  await html5QrCode.stop();
+                  setScannerVisible(false);
+                  await registarPonto();
+                } catch (err) {
+                  console.error("Erro ao parar o QRCode:", err);
+                } finally {
+                  setIsProcessing(false);
+                }
+              } else {
+                alert("Código QR inválido.");
+              }
+            },
+            (errorMessage) => {
+              // erros de leitura
             }
-          } else {
-            alert('Código QR inválido para registo de ponto.');
-          }
-        },
-        (error) => {
-          // opcional: console.log("Erro de leitura QR:", error);
+          );
         }
-      );
-    }, 500);
+      })
+      .catch((err) => {
+        console.error("Erro ao obter câmaras:", err);
+      });
   }
 
   return () => {
-    if (scanner) {
-      scanner.clear().catch((error) => console.error("Erro ao limpar scanner:", error));
+    if (html5QrCode) {
+      html5QrCode.stop().catch(err => console.warn("Erro ao parar scanner:", err));
     }
   };
 }, [scannerVisible]);
+
 
   // ----------------------------------------------------------------
   // Helpers de formatação
