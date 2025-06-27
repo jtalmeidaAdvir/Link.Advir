@@ -348,7 +348,9 @@ const PontoBotao = () => {
                     endereco,
                     totalHorasTrabalhadas: "8.00",
                     totalTempoIntervalo: "1.00",
+                    empresa: localStorage.getItem('empresaSelecionada')
                 }),
+
             });
 
             if (response.ok) {
