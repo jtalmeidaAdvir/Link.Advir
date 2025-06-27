@@ -57,6 +57,8 @@ const LeitorQRCode = () => {
     setScanCompleted(true);
 
     console.log("→ QR code lido:", decodedText);
+    localStorage.setItem("empresaSelecionada", "Advir"); // só para testar
+ 
 
     await registarPonto(); // chama a função sem argumentos (usa localStorage internamente)
   };
