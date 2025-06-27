@@ -57,13 +57,17 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                 onLoginComplete(); // Chama para atualizar o Drawer
 
                 // Redirecionamento após login
-                if (data.redirect) {
+               if (data.redirect) {
                     navigation.navigate('VerificaConta');
+                } else if (data.empresaPredifinida) {
+                    // Guardar a empresa predefinida e navegar diretamente
+                    localStorage.setItem("empresaPredefinida", data.empresaPredifinida);
+                    localStorage.setItem("empresaSelecionada", data.empresaPredifinida);
+                    navigation.navigate("Home");
                 } else {
-                    setTimeout(() => {
-                        navigation.navigate('SelecaoEmpresa');
-                    }, 100);
+                    navigation.navigate("SelecaoEmpresa");
                 }
+
             } else {
                 const errorData = await response.json();
 

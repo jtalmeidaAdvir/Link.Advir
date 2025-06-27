@@ -347,11 +347,12 @@ console.log('→ body da resposta:', await response.text());
                         <TouchableOpacity
                             style={[
                                 styles.entrarButton,
-                                (!empresaSelecionada || !empresaPredefinida) && styles.entrarButtonDisabled
+                                !empresaSelecionada && styles.entrarButtonDisabled
                             ]}
                             onPress={() => handleEntrarEmpresa()}
-                            disabled={loadingButton || !empresaSelecionada || !empresaPredefinida}
-                            >
+                            disabled={loadingButton || !empresaSelecionada}
+                        >
+
                             <Text style={styles.entrarButtonText}>
                                 {empresaPredefinida ? t("SelecaoEmpresa.BtEntrar") : t("Entrar na Empresa")}
                             </Text>

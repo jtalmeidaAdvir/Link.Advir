@@ -211,10 +211,10 @@ const loginUtilizador = async (req, res) => {
                 message: 'Primeiro login, redirecionar para alteração de password.',
                 redirect: '/verificaConta',
                 token: jwt.sign(
-    { id: user.id, userNome: user.usernome, isAdmin: user.isAdmin, superAdmin: user.superAdmin },
-    process.env.JWT_SECRET
-)
-,
+                    { id: user.id, userNome: user.usernome, isAdmin: user.isAdmin, superAdmin: user.superAdmin },
+                    process.env.JWT_SECRET
+                )
+                ,
                 userId: user.id,
                 isAdmin: user.isAdmin,
                 superAdmin: user.superAdmin  // Inclua o campo superAdmin aqui
