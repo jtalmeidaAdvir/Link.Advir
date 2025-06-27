@@ -25,10 +25,14 @@ const calcularHorasTrabalhadas = (horaEntrada, horaSaida) => {
 const registarPontoComBotao = async (req, res) => {
   try {
     const userId = req.user.id;
-    const nomeEmpresa = req.user.empresaSelecionada;
+    const nomeEmpresa = req.body.empresa; // ← Empresa vem do body
     const dataAtual = new Date().toISOString().split('T')[0];
     const horaAtual = new Date().toISOString();
     const { latitude, longitude, endereco } = req.body;
+
+    if (!nomeEmpresa) {
+      return res.status(400).json({ message: "Nome da empresa não fornecido." });
+    }
 
     const empresa = await Empresa.findOne({ where: { empresa: nomeEmpresa } });
     if (!empresa) {
@@ -77,6 +81,7 @@ const registarPontoComBotao = async (req, res) => {
 };
 
 
+
 const obterEstadoPonto = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -108,12 +113,16 @@ const obterEstadoPonto = async (req, res) => {
 
 
 const registarLeituraQRCode = async (req, res) => {
-  try {
+ try {
     const userId = req.user.id;
-    const nomeEmpresa = req.user.empresaSelecionada;
+    const nomeEmpresa = req.body.empresa; // ← Empresa vem do body
     const dataAtual = new Date().toISOString().split('T')[0];
     const horaAtual = new Date().toISOString();
     const { latitude, longitude, endereco } = req.body;
+
+    if (!nomeEmpresa) {
+      return res.status(400).json({ message: "Nome da empresa não fornecido." });
+    }
 
     const empresa = await Empresa.findOne({ where: { empresa: nomeEmpresa } });
     if (!empresa) {
