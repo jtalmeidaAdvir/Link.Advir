@@ -281,13 +281,13 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
         const data = await response.json();
 
         // Filtrar apenas o dia de hoje
-        const hoje = new Date().toISOString().split('T')[0];
         const empresaSelecionada = localStorage.getItem("empresaSelecionada");
 
-        // Filtra por data e empresa
-        const registoHoje = data.filter((registo) =>
-          registo.data === hoje && registo.empresa === empresaSelecionada
-        );
+       const hoje = new Date().toISOString().split('T')[0];
+const registoHoje = data.find(
+  (registo) => new Date(registo.data).toISOString().split('T')[0] === hoje
+);
+
 
 
         setRegistosDiarios(data || []);
