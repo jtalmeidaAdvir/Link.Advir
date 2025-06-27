@@ -316,33 +316,30 @@ const registarPonto = async () => {
 
     const horaAtual = new Date().toISOString();
 
-    // Guardar hora de entrada
+    // Guardar hora localmente
     localStorage.setItem('horaEntrada', horaAtual);
 
-    // Obter empresa do localStorage
+    // Obter empresa diretamente da localStorage
     const empresaSelecionada = localStorage.getItem('empresaSelecionada');
-    console.log('→ Empresa selecionada do localStorage:', empresaSelecionada);
+    const token = localStorage.getItem('loginToken');
 
-    // Debug do body
-    console.log("→ Body do fetch:", {
+    // Debugs
+    console.log('→ Empresa selecionada:', empresaSelecionada);
+    console.log('→ Token:', token);
+    console.log("→ Body a enviar:", {
       hora: horaAtual,
       latitude: localizacao.coords.latitude,
       longitude: localizacao.coords.longitude,
       endereco: enderecoObtido,
       totalHorasTrabalhadas: "8.00",
       totalTempoIntervalo: "1.00",
-      empresa: empresaSelecionada
+      empresa: empresaSelecionada,
     });
-
-    // Iniciar temporizador
-    setInicioTemporizador(new Date(horaAtual));
-    setTemporizadorAtivo(true);
-    setTempoPausado(0);
 
     const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -352,7 +349,7 @@ const registarPonto = async () => {
         endereco: enderecoObtido,
         totalHorasTrabalhadas: "8.00",
         totalTempoIntervalo: "1.00",
-        empresa: empresaSelecionada
+        empresa: empresaSelecionada,
       }),
     });
 
@@ -370,6 +367,7 @@ const registarPonto = async () => {
     setMensagemEstado("Erro ao registar ponto.");
   }
 };
+
 
 
 
