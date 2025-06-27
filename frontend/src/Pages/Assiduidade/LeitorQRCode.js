@@ -95,7 +95,7 @@ const LeitorQRCode = () => {
 const empresaSelecionada = localStorage.getItem("empresaSelecionada");
 const token = localStorage.getItem("loginToken");
 
-const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=Advir`, {
+const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
   headers: {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
@@ -283,43 +283,6 @@ const pulseAnimation = animatedValue.interpolate({
 });
 
 
-  // ----------------------------------------------------------------
-  // Função para obter lista de registos diários
-  // ----------------------------------------------------------------
-  const fetchRegistosDiarios = async () => {
-    try {
-      const token = localStorage.getItem('loginToken');
-      const response = await fetch('https://backend.advir.pt/api/registoPonto/diario', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        const hoje = new Date().toISOString().split('T')[0];
-const registoHoje = data.filter((registo) =>
-  registo.data === hoje
-);
-
-
-
-
-        setRegistosDiarios(data || []);
-        setFilteredRegistos(registoHoje);
-        setErrorMessage('');
-      } else if (response.status === 403) {
-        setErrorMessage('Acesso negado: Token inválido ou expirado.');
-      } else {
-        setErrorMessage('Erro ao obter registos diários.');
-      }
-    } catch (error) {
-      console.error("Erro ao obter registos diários:", error);
-      setErrorMessage('Erro de rede ao obter registos diários.');
-    }
-  };
 
   useEffect(() => {
     fetchRegistosDiarios();
