@@ -329,6 +329,7 @@ const LeitorQRCode = () => {
           endereco: enderecoObtido,
           totalHorasTrabalhadas: "8.00",        // Ajusta se quiseres calcular dinamicamente
           totalTempoIntervalo: "1.00",         // idem
+          empresa: empresaSelecionada 
         }),
       });
 
