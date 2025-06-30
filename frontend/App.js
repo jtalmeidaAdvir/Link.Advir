@@ -15,7 +15,7 @@ import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem d
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // Importa as páginas
-import Login from './src/Pages/Autenticacao/Login';
+import Login from './src/Pages/Autenticacao/pages/Login';
 import Home from './src/Home';
 import ADHome from './src/Pages/BackOffice/ADHome';
 import Perfil from './src/Pages/Perfil';
@@ -24,7 +24,7 @@ import UsersEmpresa from './src/Pages/Autenticacao/UsersEmpresa';
 import RegistoUser from './src/Pages/Autenticacao/RegistoUser';
 import RegistoAdmin from './src/Pages/Autenticacao/RegistoAdmin';
 import VerificaConta from './src/Pages/Autenticacao/VerificaConta';
-import SelecaoEmpresa from './src/Pages/Autenticacao/SelecaoEmpresa';
+import SelecaoEmpresa from './src/Pages/Autenticacao/pages/SelecaoEmpresa';
 import RecuperarPassword from './src/Pages/Autenticacao/RecuperarPassword';
 import RedefinirPassword from './src/Pages/Autenticacao/RedefinirPassword';
 

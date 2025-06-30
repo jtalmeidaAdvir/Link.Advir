@@ -48,7 +48,7 @@ export const handleLogin = async ({
       if (data.redirect) {
         navigation.navigate('VerificaConta');
       } else {
-        setTimeout(() => navigation.navigate('SelecaoEmpresa'), 100);
+        setTimeout(() => navigation.navigate('SelecaoEmpresa', { autoLogin: true }), 100);
       }
     } else {
       const errorData = await response.json();
@@ -59,4 +59,33 @@ export const handleLogin = async ({
     console.error('Erro de rede:', error);
     setErrorMessage('Erro de rede, tente novamente mais tarde.');
   }
+};
+
+export const handleSubmitLogin = ({
+  email,
+  password,
+  username,
+  setEmail,
+  setUsername,
+  setIsAdmin,
+  setIsLoggedIn,
+  onLoginComplete,
+  setErrorMessage,
+  navigation,
+  t,
+}) => (e) => {
+  e.preventDefault();
+  handleLogin({
+    email,
+    password,
+    username,
+    setEmail,
+    setUsername,
+    setIsAdmin,
+    setIsLoggedIn,
+    onLoginComplete,
+    setErrorMessage,
+    navigation,
+    t,
+  });
 };

@@ -1,5 +1,6 @@
 import React from 'react';
 import RecuperarPasswordLink from './RecuperarPasswordLink';
+import { inputStyle, buttonStyle, errorStyle } from '../styles/LoginFormStyles';
 
 const LoginForm = ({ email, setEmail, password, setPassword, errorMessage, handleLogin, t }) => {
   return (
@@ -11,14 +12,7 @@ const LoginForm = ({ email, setEmail, password, setPassword, errorMessage, handl
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          style={{
-            borderRadius: '30px',
-            padding: '10px 20px',
-            width: '100%',
-            marginBottom: '10px',
-            fontSize: '1rem',
-            border: '1px solid #ccc',
-          }}
+          style={inputStyle}
         />
       </div>
       <div style={{ marginBottom: '20px' }}>
@@ -28,38 +22,19 @@ const LoginForm = ({ email, setEmail, password, setPassword, errorMessage, handl
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          style={{
-            borderRadius: '30px',
-            padding: '10px 20px',
-            width: '100%',
-            fontSize: '1rem',
-            border: '1px solid #ccc',
-          }}
+          style={inputStyle}
         />
       </div>
 
       {errorMessage && (
-        <div style={{ color: 'red', marginBottom: '20px', textAlign: 'center' }}>
+        <div style={errorStyle}>
           {errorMessage}
         </div>
       )}
 
-      <RecuperarPasswordLink/>
+      <RecuperarPasswordLink />
 
-      <button
-        type="submit"
-        style={{
-          marginTop: '15px',
-          borderRadius: '10px',
-          padding: '20px',
-          fontSize: '1.1rem',
-          backgroundColor: '#1792FE',
-          color: 'white',
-          width: '100%',
-          border: 'none',
-          alignContent: 'center',
-        }}
-      >
+      <button type="submit" style={buttonStyle}>
         {t("Login.BtLogin")}
       </button>
     </form>
