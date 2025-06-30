@@ -20,18 +20,17 @@ const User = require('../models/user');
       return res.status(404).json({ error: 'Registo de ponto não encontrado.' });
     }
 
-    // Função para converter "HH:MM" em Date com data de hoje
-    const toFullDateTime = (timeStr) => {
-      if (!timeStr) return null;
-      const today = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
-      return new Date(`${today}T${timeStr}:00`);
-    };
+const parseParaDateValida = (valor) => {
+  const data = valor ? new Date(valor) : null;
+  return data && !isNaN(data.getTime()) ? data : null;
+};
+
 
     const novoPedido = await PedidoAlteracao.create({
       user_id,
       registo_ponto_id,
-      novaHoraEntrada: toFullDateTime(novaHoraEntrada),
-      novaHoraSaida: toFullDateTime(novaHoraSaida),
+      novaHoraEntrada: parseParaDateValida(novaHoraEntrada),
+      novaHoraSaida: parseParaDateValida(novaHoraSaida),
       motivo,
       status: 'pendente',
     });

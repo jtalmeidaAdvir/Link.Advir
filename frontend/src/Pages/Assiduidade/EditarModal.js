@@ -52,13 +52,15 @@ const toFullDateTime = (timeStr) => {
       const token = await AsyncStorage.getItem('loginToken');
 
       const body = {
-        user_id: registo.userId,
+        user_id: registo.user_id,
         registo_ponto_id: registo.id,
         motivo,
       };
 
       if (horaEntrada) body.novaHoraEntrada = toFullDateTime(horaEntrada);
       if (horaSaida) body.novaHoraSaida = toFullDateTime(horaSaida);
+      console.log("Body a enviar para o pedido de alteração:", body);
+
 
       const response = await fetch('https://backend.advir.pt/api/pedidoAlteracao/pedidos-alteracao', {
         method: 'POST',
