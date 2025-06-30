@@ -198,24 +198,17 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
 
                     <RecuperarPasswordLink />
 
-                    <button
-    type="submit"
-     onClick={handleLogin}
-    style={{
-        marginTop: '15px',
-        borderRadius: '10px',
-        padding: '20px',
-        fontSize: '1.1rem',
-        backgroundColor: '#1792FE',
-        width: '100%',
-        color: 'white',
-        border: 'none',
-        cursor: 'pointer',
-    }}
->
-    {t("Login.BtLogin")}
-</button>
-
+                    <TouchableOpacity onPress={handleLogin} style={{
+                        marginTop: '15px',
+                        borderRadius: '10px',
+                        padding: '20px',
+                        fontSize: '1.1rem',
+                        backgroundColor: '#1792FE',
+                        width: '100%',
+                        alignItems: 'center',
+                    }}>
+                    <Text style={{ color: 'white' }}>{t("Login.BtLogin")}</Text>
+                    </TouchableOpacity>
 
                 </form>
             </div>
