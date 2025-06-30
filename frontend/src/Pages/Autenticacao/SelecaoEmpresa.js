@@ -262,6 +262,14 @@ console.log('→ body da resposta:', await response.text());
                 <Text style={styles.infoText}>Nenhuma empresa disponível</Text>
             );
         }
+if (loadingButton) {
+    return (
+        <View style={styles.fullscreenLoading}>
+            <ActivityIndicator size="large" color="#1792FE" />
+            <Text style={styles.loadingText}>A entrar na empresa...</Text>
+        </View>
+    );
+}
 
         return (
             <View style={styles.empresasGrid}>
@@ -534,6 +542,16 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "500",
     },
+    fullscreenLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f0f8ff',
+    padding: 20,
+},
+
 });
 
 export default SelecaoEmpresa;
