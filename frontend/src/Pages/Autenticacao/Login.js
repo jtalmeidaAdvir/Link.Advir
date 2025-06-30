@@ -15,139 +15,98 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
     const { t } = useTranslation();
 
 
-    const entrarEmpresaPredefinida = async (empresa) => {
+ const entrarEmpresaPredefinida = async (empresa) => {
     const loginToken = localStorage.getItem("loginToken");
-
     try {
-        const credenciaisResponse = await fetch(
-            `https://backend.advir.pt/api/empresas/nome/${encodeURIComponent(empresa)}`,
-            {
-                method: "GET",
-                headers: {
-                    Authorization: `Bearer ${loginToken}`,
-                },
-            }
-        );
+      const credenciaisResponse = await fetch(
+        `https://backend.advir.pt/api/empresas/nome/${encodeURIComponent(empresa)}`,
+        { method: "GET", headers: { Authorization: `Bearer ${loginToken}` } }
+      );
 
-        if (credenciaisResponse.ok) {
-            const credenciais = await credenciaisResponse.json();
-            localStorage.setItem("urlempresa", credenciais.urlempresa);
+      if (credenciaisResponse.ok) {
+        const credenciais = await credenciaisResponse.json();
+        localStorage.setItem("urlempresa", credenciais.urlempresa);
 
-            const response = await fetch(
-                "https://webapiprimavera.advir.pt/connect-database/token",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${loginToken}`,
-                    },
-                    body: JSON.stringify({
-                        username: credenciais.username,
-                        password: credenciais.password,
-                        company: credenciais.empresa,
-                        line: credenciais.linha,
-                        instance: "DEFAULT",
-                        urlempresa: credenciais.urlempresa,
-                        forceRefresh: true,
-                    }),
-                }
-            );
+        const response = await fetch("https://webapiprimavera.advir.pt/connect-database/token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${loginToken}`,
+          },
+          body: JSON.stringify({
+            username: credenciais.username,
+            password: credenciais.password,
+            company: credenciais.empresa,
+            line: credenciais.linha,
+            instance: "DEFAULT",
+            urlempresa: credenciais.urlempresa,
+            forceRefresh: true,
+          }),
+        });
 
-            if (response.ok) {
-                const data = await response.json();
-                localStorage.setItem("painelAdminToken", data.token);
-                localStorage.setItem("empresaSelecionada", empresa);
-                navigation.navigate("Home");
-            } else {
-                const errorData = await response.json();
-                console.error("Erro ao obter token:", errorData.message);
-                navigation.navigate("SelecaoEmpresa"); // fallback
-            }
+        if (response.ok) {
+          const data = await response.json();
+          localStorage.setItem("painelAdminToken", data.token);
+          localStorage.setItem("empresaSelecionada", empresa);
+          navigation.navigate("Home");
         } else {
-            const errorData = await credenciaisResponse.json();
-            console.error("Erro ao obter credenciais:", errorData.message);
-            navigation.navigate("SelecaoEmpresa"); // fallback
+          navigation.navigate("SelecaoEmpresa");
         }
+      } else {
+        navigation.navigate("SelecaoEmpresa");
+      }
     } catch (error) {
-        console.error("Erro de rede ao entrar na empresa:", error);
-        navigation.navigate("SelecaoEmpresa"); // fallback
+      console.error("Erro de rede:", error);
+      navigation.navigate("SelecaoEmpresa");
     }
-};
+  };
 
+ const handleLogin = async () => {
+    try {
+      const response = await fetch('https://backend.advir.pt/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
+      if (response.ok) {
+        const data = await response.json();
+        if (checkTokenExpired(data)) return;
 
+        localStorage.setItem('loginToken', data.token);
+        localStorage.setItem('isAdmin', data.isAdmin ? 'true' : 'false');
+        localStorage.setItem('superAdmin', data.superAdmin ? 'true' : 'false');
+        localStorage.setItem('username', data.username || '');
+        localStorage.setItem('email', email);
+        localStorage.setItem('userId', data.userId);
+        localStorage.setItem('userNome', data.userNome);
+        localStorage.setItem('userEmail', data.userEmail);
+        localStorage.setItem('nomeuser', data.nome);
+        localStorage.setItem('empresa_areacliente', data.empresa_areacliente);
+        localStorage.setItem('id_tecnico', data.id_tecnico);
+        localStorage.setItem('empresaPredefinida', data.empresaPredefinida);
 
-    const handleLogin = async (e) => {
-      
+        setUsername(email);
+        setIsAdmin(data.isAdmin);
+        setIsLoggedIn(true);
+        onLoginComplete();
 
-        try {
-            const response = await fetch('https://backend.advir.pt/api/users/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email, password }),
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Login bem-sucedido:', data);
-
-                // Verificar se houve erro de token expirado mesmo com resposta OK
-                if (checkTokenExpired(data)) {
-                    return;
-                }
-
-                // Guardar o token no localStorage
-                localStorage.setItem('loginToken', data.token);
-                localStorage.setItem('isAdmin', data.isAdmin ? 'true' : 'false');
-                localStorage.setItem('superAdmin', data.superAdmin ? 'true' : 'false'); // Adiciona superAdmin ao localStorage
-                localStorage.setItem('username', username);
-                localStorage.setItem('email', email);
-                localStorage.setItem('userId', data.userId);
-                localStorage.setItem('userNome', data.userNome);
-                localStorage.setItem('userEmail', data.userEmail);
-                localStorage.setItem('nomeuser', data.nome);
-                localStorage.setItem('empresa_areacliente', data.empresa_areacliente);
-                localStorage.setItem('id_tecnico', data.id_tecnico);
-                localStorage.setItem('empresaPredefinida', data.empresaPredefinida);
-                
-                console.log('empresaPredefinida recebida:', data.empresaPredefinida);
-
-                // Atualiza o estado de login e permissões
-                setUsername(username);
-                setEmail(email);
-                setIsAdmin(data.isAdmin);
-                setIsLoggedIn(true);
-                onLoginComplete(); // Chama para atualizar o Drawer
-
-                // Redirecionamento após login
-               if (data.redirect) {
-                    navigation.navigate('VerificaConta');
-                } else if (data.empresaPredefinida) {
-                    localStorage.setItem("empresaPredefinida", data.empresaPredefinida);
-                    localStorage.setItem("empresaSelecionada", data.empresaPredefinida);
-                    await entrarEmpresaPredefinida(data.empresaPredefinida);
-                }
-                else {
-                    navigation.navigate("SelecaoEmpresa");
-                }
-
-            } else {
-                const errorData = await response.json();
-
-                // Verificar se é erro de token expirado
-                if (checkTokenExpired(errorData)) {
-                    return;
-                }
-
-                setErrorMessage(errorData.error || t("Login.Error.1"));
-            }
-        } catch (error) {
-            console.error('Erro de rede:', error);
-            setErrorMessage('Erro de rede, tente novamente mais tarde.');
+        if (data.redirect) {
+          navigation.navigate('VerificaConta');
+        } else if (data.empresaPredefinida) {
+          await entrarEmpresaPredefinida(data.empresaPredefinida);
+        } else {
+          navigation.navigate("SelecaoEmpresa");
         }
-    };
+      } else {
+        const errorData = await response.json();
+        setErrorMessage(errorData.error || t("Login.Error.1"));
+      }
+    } catch (error) {
+      console.error("Erro de rede:", error);
+      setErrorMessage("Erro de rede, tente novamente mais tarde.");
+    }
+  };
 
     // Hiperligação para a página de recuperação de senha
     const RecuperarPasswordLink = () => {
@@ -161,6 +120,9 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
             </View>
         );
     };
+
+
+    
 
     return (
         <div
