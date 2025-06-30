@@ -78,7 +78,7 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
 
 
     const handleLogin = async (e) => {
-        e.preventDefault();
+      
 
         try {
             const response = await fetch('https://backend.advir.pt/api/users/login', {
@@ -236,22 +236,18 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
 
                     <RecuperarPasswordLink />
 
-                    <button
-                        type="submit"
-                        style={{
-                            marginTop: '15px',
-                            borderRadius: '10px',
-                            padding: '20px',
-                            fontSize: '1.1rem',
-                            backgroundColor: '#1792FE',
-                            color: 'white',
-                            width: '100%',
-                            border: 'none',
-                            alignContent: 'center',
-                        }}
-                    >
-                        {t("Login.BtLogin")}
-                    </button>
+                    <TouchableOpacity onPress={handleLogin} style={{
+                        marginTop: '15px',
+                        borderRadius: '10px',
+                        padding: '20px',
+                        fontSize: '1.1rem',
+                        backgroundColor: '#1792FE',
+                        width: '100%',
+                        alignItems: 'center',
+                    }}>
+                    <Text style={{ color: 'white' }}>{t("Login.BtLogin")}</Text>
+                    </TouchableOpacity>
+
                 </form>
             </div>
         </div>
