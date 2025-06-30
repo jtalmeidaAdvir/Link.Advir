@@ -188,9 +188,30 @@ const loginUtilizador = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-      const user = await User.findOne({
+const user = await User.findOne({
+  attributes: [
+    'id',
+    'nome',
+    'username',
+    'email',
+    'password',
+    'profileImage',
+    'isAdmin',
+    'superAdmin',
+    'verificationToken',
+    'isActive',
+    'isFirstLogin',
+    'createdon',
+    'recoveryToken',
+    'recoveryTokenExpiry',
+    'empresa_areacliente',
+    'id_tecnico',
+    'empresaPredefinida' // 👈 este aqui!
+  ],
   where: { email }
 });
+console.log("→ Dados do user:", user.get({ plain: true }));
+
 
 console.log("→ Empresa predefinida do utilizador:", user.empresaPredefinida);
 console.log("→ Campos completos:", user.get({ plain: true }));
