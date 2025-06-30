@@ -56,7 +56,29 @@ const PedidosAlteracaoAdmin = () => {
         console.error('Erro ao aprovar pedido:', error);
         alert("Erro de rede.");
     }
-};
+    };
+    const rejeitar = async (id) => {
+    try {
+        const response = await fetch(`https://backend.advir.pt/api/pedidoAlteracao/rejeitar/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+        },
+        });
+
+        if (response.ok) {
+        alert("Pedido rejeitado com sucesso!");
+        fetchPedidos();
+        } else {
+        alert("Erro ao rejeitar pedido.");
+        }
+    } catch (error) {
+        console.error('Erro ao rejeitar pedido:', error);
+        alert("Erro de rede.");
+    }
+    };
+
 
 
     const renderPedido = ({ item }) => (
@@ -70,9 +92,13 @@ const PedidosAlteracaoAdmin = () => {
             <Text><Text style={styles.textBold}>Nova Hora Saída:</Text> {item.novaHoraSaida || "N/A"}</Text>
             <Text><Text style={styles.textBold}>Motivo:</Text> {item.motivo}</Text>
             <Text><Text style={styles.textBold}>Status:</Text> {item.status}</Text>
-              <View style={{ marginTop: 10 }}>
-      <Text style={{ color: '#007bff' }} onPress={() => aprovar(item.id)}>✅ Aprovar</Text>
-    </View>
+              {item.status === 'pendente' && (
+  <View style={{ flexDirection: 'row', gap: 20, marginTop: 10 }}>
+    <Text style={{ color: '#28a745' }} onPress={() => aprovar(item.id)}>✅ Aprovar</Text>
+    <Text style={{ color: '#dc3545' }} onPress={() => rejeitar(item.id)}>❌ Rejeitar</Text>
+  </View>
+)}
+
         </View>
     );
 

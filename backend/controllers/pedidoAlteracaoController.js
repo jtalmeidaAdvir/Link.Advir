@@ -128,6 +128,24 @@ const aprovarPedido = async (req, res) => {
 
 
 
+const rejeitarPedido = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const pedido = await PedidoAlteracao.findByPk(id);
+    if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado.' });
+
+    // Atualiza apenas o status
+    await pedido.update({ status: 'rejeitado' });
+
+    return res.status(200).json({ message: 'Pedido rejeitado com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao rejeitar pedido:', error);
+    return res.status(500).json({ error: 'Erro ao rejeitar pedido.' });
+  }
+};
+
+
 
 
 
@@ -138,4 +156,5 @@ module.exports = {
     atualizarPedido,
     eliminarPedido,
     aprovarPedido, 
+    rejeitarPedido
   };

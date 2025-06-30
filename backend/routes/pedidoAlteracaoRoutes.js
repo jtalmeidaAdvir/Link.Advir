@@ -17,4 +17,6 @@ router.delete('/pedidos-alteracao/:id', PedidoAlteracaoController.eliminarPedido
 
 router.put('/aprovar/:id', PedidoAlteracaoController.aprovarPedido);
 
+router.put('/rejeitar/:id', PedidoAlteracaoController.rejeitarPedido);
+
 module.exports = router;
