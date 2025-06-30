@@ -145,7 +145,24 @@ const rejeitarPedido = async (req, res) => {
   }
 };
 
+const listarPedidosDoUtilizador = async (req, res) => {
+  try {
+    const { user_id } = req.params;
 
+    const pedidos = await PedidoAlteracao.findAll({
+      where: { user_id },
+      include: [
+        { model: RegistoPonto, attributes: ['data', 'horaEntrada', 'horaSaida'] }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    return res.status(200).json(pedidos);
+  } catch (error) {
+    console.error('Erro ao listar pedidos do utilizador:', error);
+    return res.status(500).json({ error: 'Erro ao obter pedidos.', details: error.message });
+  }
+};
 
 
 
@@ -156,5 +173,6 @@ module.exports = {
     atualizarPedido,
     eliminarPedido,
     aprovarPedido, 
-    rejeitarPedido
+    rejeitarPedido,
+    listarPedidosDoUtilizador
   };

@@ -19,4 +19,7 @@ router.put('/aprovar/:id', PedidoAlteracaoController.aprovarPedido);
 
 router.put('/rejeitar/:id', PedidoAlteracaoController.rejeitarPedido);
 
+router.get('/pedidos-alteracao/:user_id', PedidoAlteracaoController.listarPedidosDoUtilizador);
+
+
 module.exports = router;

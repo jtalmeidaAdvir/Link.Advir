@@ -4,12 +4,15 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, 
 import { FontAwesome, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import EditarModal from './EditarModal';
+import ModalPedidosAlteracao from './ModalPedidosAlteracao';
+
 
 const RegistoItem = ({ item, onEdit }) => {
     const [endereco, setEndereco] = useState("Carregando...");
     const [expandedCard, setExpandedCard] = useState(false);
     const slideAnimation = useState(new Animated.Value(0))[0];
-    
+    const [modalPedidosVisible, setModalPedidosVisible] = useState(false);
+
     const totalHorasTrabalhadas = item.totalHorasTrabalhadas || 0;
     const totalTempoIntervalo = item.totalTempoIntervalo || 0;
     const totalHorasDia = !isNaN(totalHorasTrabalhadas) && !isNaN(totalTempoIntervalo)
@@ -267,6 +270,15 @@ const ListarRegistos = () => {
                     <Text style={styles.headerTitle}>Histórico de Registos</Text>
                     <Text style={styles.headerSubtitle}>Consulte seus registos de ponto</Text>
                 </View>
+                <TouchableOpacity
+  style={{ marginTop: 10, backgroundColor: '#fff', padding: 10, borderRadius: 10 }}
+  onPress={() => setModalPedidosVisible(true)}
+>
+  <Text style={{ textAlign: 'center', color: '#4481EB', fontWeight: 'bold' }}>
+    Ver Pedidos de Alteração
+  </Text>
+</TouchableOpacity>
+
             </LinearGradient>
             
             <Animated.View 
@@ -348,7 +360,13 @@ const ListarRegistos = () => {
                 onClose={() => setModalVisible(false)}
                 onSave={() => fetchHistoricoPontos()}
             />
+            <ModalPedidosAlteracao 
+  visible={modalPedidosVisible} 
+  onClose={() => setModalPedidosVisible(false)} 
+/>
+
         </ScrollView>
+        
     );
 };
 
