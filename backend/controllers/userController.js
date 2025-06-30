@@ -240,18 +240,20 @@ console.log("→ Empresa predefinida do utilizador:", userPlain.empresaPredefini
             { expiresIn: '24h' }
         );
 
-        return res.status(200).json({
-            message: 'Login bem-sucedido',
-            token,
-            userId: user.id,
-            isAdmin: user.isAdmin,
-            superAdmin: user.superAdmin,
-            empresa_areacliente: user.empresa_areacliente,
-            id_tecnico: user.id_tecnico,
-            userNome: user.nome,
-            userEmail: user.email,
-            empresaPredefinida: user.empresaPredefinida
+       return res.status(200).json({
+        message: 'Login bem-sucedido',
+        token,
+        userId: user.id,
+        isAdmin: user.isAdmin,
+        superAdmin: user.superAdmin,
+        empresa_areacliente: user.empresa_areacliente,
+        id_tecnico: user.id_tecnico,
+        userNome: user.nome,
+        userEmail: user.email,
+        username: user.username, // 👈 este aqui
+        empresaPredefinida: user.empresaPredefinida // 👈 este já lá estava
         });
+
     } catch (error) {
         console.error('Erro ao fazer login:', error);
         return res.status(500).json({ error: 'Erro ao fazer login.' });

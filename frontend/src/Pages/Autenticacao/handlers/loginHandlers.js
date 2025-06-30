@@ -25,20 +25,21 @@ export const handleLogin = async ({
 
       if (checkTokenExpired(data)) return;
 
-      localStorage.setItem('loginToken', data.token);
-      localStorage.setItem('isAdmin', data.isAdmin ? 'true' : 'false');
-      localStorage.setItem('superAdmin', data.superAdmin ? 'true' : 'false');
-      localStorage.setItem('username', username);
-      localStorage.setItem('email', email);
-      localStorage.setItem('userId', data.userId);
-      localStorage.setItem('userNome', data.userNome);
-      localStorage.setItem('userEmail', data.userEmail);
-      localStorage.setItem('empresa_areacliente', data.empresa_areacliente);
-      localStorage.setItem('id_tecnico', data.id_tecnico);
-      localStorage.setItem('empresaPredefinida', data.empresaPredefinida || '');
+    localStorage.setItem('loginToken', data.token);
+    localStorage.setItem('isAdmin', data.isAdmin ? 'true' : 'false');
+    localStorage.setItem('superAdmin', data.superAdmin ? 'true' : 'false');
+    localStorage.setItem('username', data.username); // 👈 usa o que vem da API
+    localStorage.setItem('email', data.userEmail);
+    localStorage.setItem('userId', data.userId);
+    localStorage.setItem('userNome', data.userNome);
+    localStorage.setItem('userEmail', data.userEmail);
+    localStorage.setItem('empresa_areacliente', data.empresa_areacliente);
+    localStorage.setItem('id_tecnico', data.id_tecnico);
+    localStorage.setItem('empresaPredefinida', data.empresaPredefinida || '');
 
 
-      setUsername(username);
+
+      setUsername(data.username);
       setEmail(email);
       setIsAdmin(data.isAdmin);
       setIsLoggedIn(true);
