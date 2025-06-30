@@ -574,7 +574,7 @@ const RegistoPontoAdmin = () => {
                                     <option value="">Escolha um utilizador</option>
                                     {users.map((usuario) => (
                                         <option key={usuario.id} value={usuario.id}>
-                                            {usuario.username} ({usuario.empresas.join(", ")})
+                                            {usuario.username} - {usuario.nome}
                                         </option>
                                     ))}
                                 </select>

@@ -182,9 +182,14 @@ const ListarRegistos = () => {
     const fetchHistoricoPontos = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`https://backend.advir.pt/api/registoPonto/listar?mes=${mesSelecionado}&ano=${anoSelecionado}`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('loginToken')}` },
+            const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+
+            const response = await fetch(`https://backend.advir.pt/api/registoPonto/listar?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa=${empresaSelecionada}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+                'Content-Type': 'application/json',
+            },
             });
     
             if (response.ok) {
