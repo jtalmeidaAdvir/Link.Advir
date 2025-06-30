@@ -189,13 +189,6 @@ const loginUtilizador = async (req, res) => {
         const { email, password } = req.body;
 
       const user = await User.findOne({
-  attributes: [
-    'id', 'nome', 'username', 'email', 'password',
-    'profileImage', 'isAdmin', 'superAdmin', 'verificationToken',
-    'isActive', 'isFirstLogin', 'createdon', 'recoveryToken',
-    'recoveryTokenExpiry', 'empresa_areacliente', 'id_tecnico',
-    'empresaPredefinida' // <- garantir que este campo está aqui
-  ],
   where: { email }
 });
 
