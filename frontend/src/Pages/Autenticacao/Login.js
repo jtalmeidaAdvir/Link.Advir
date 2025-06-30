@@ -124,7 +124,6 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
 
 
 
-    const LoginUI = ({ email, password, setEmail, setPassword, handleLogin, errorMessage, RecuperarPasswordLink, t }) => {
     return (
         <View style={styles.container}>
             <Image source={backgroundImage} style={styles.background} resizeMode="cover" />
@@ -162,8 +161,6 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
             </KeyboardAvoidingView>
         </View>
     );
-};
-
 };
 
 export default Login;
