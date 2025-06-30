@@ -212,7 +212,7 @@ const user = await User.findOne({
 });
 console.log("→ Dados do user:", user.get({ plain: true }));
 
-
+const userPlain = user.get({ plain: true });
 console.log("→ Empresa predefinida do utilizador:", user.empresaPredefinida);
 console.log("→ Campos completos:", user.get({ plain: true }));
 
@@ -231,7 +231,6 @@ console.log("→ Campos completos:", user.get({ plain: true }));
             return res.status(401).json({ error: 'Password incorreta.' });
         }
 
-const userPlain = user.get({ plain: true });
 console.log("→ Empresa predefinida do utilizador:", userPlain.empresaPredefinida);
 
         const token = jwt.sign(
@@ -251,7 +250,7 @@ console.log("→ Empresa predefinida do utilizador:", userPlain.empresaPredefini
         userNome: user.nome,
         userEmail: user.email,
         username: user.username, // 👈 este aqui
-        empresaPredefinida: user.empresaPredefinida // 👈 este já lá estava
+        empresaPredefinida: userPlain.empresaPredefinida,
         });
 
     } catch (error) {
