@@ -125,41 +125,94 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
 
 
     return (
-        <View style={styles.container}>
-            <Image source={backgroundImage} style={styles.background} resizeMode="cover" />
+        <div
+            style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '100vh',
+                width: '100vw',
+                backgroundColor: '#d4e4ff',
+                margin: '0',
+                padding: '0',
+                backgroundImage: `url(${backgroundImage})`,
+                backgroundSize: 'cover', // Ajusta para cobrir todo o ecrã
+                backgroundPosition: 'center', // Centraliza a imagem
+                backgroundRepeat: 'no-repeat',
+                backgroundAttachment: 'fixed',
+            }}
+        >
+            <div
+                style={{
+                    maxWidth: '400px',
+                    width: '100%',
+                    padding: '20px',
+                    borderRadius: '15px',
+                }}
+            >
+                {/* Logo acima do título */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                    <img src={logo} alt="Logo" style={{ width: '550px', height: 'auto' }} />
+                </div>
 
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.innerContainer}>
-                <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-                    <View style={styles.box}>
-                        <Image source={logo} style={styles.logo} resizeMode="contain" />
 
-                        <TextInput
+                <form onSubmit={handleLogin}>
+                    <div style={{ marginBottom: '20px' }}>
+                        <input
+                            type="text"
                             placeholder={t("Email")}
                             value={email}
-                            onChangeText={setEmail}
-                            style={styles.input}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            style={{
+                                borderRadius: '30px',
+                                padding: '10px 20px',
+                                width: '100%',
+                                marginBottom: '10px',
+                                fontSize: '1rem',
+                                border: '1px solid #ccc',
+                            }}
                         />
-                        <TextInput
+                    </div>
+                    <div style={{ marginBottom: '20px' }}>
+                        <input
+                            type="password"
                             placeholder={t("Login.TxtPass")}
                             value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry
-                            style={styles.input}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            style={{
+                                borderRadius: '30px',
+                                padding: '10px 20px',
+                                width: '100%',
+                                fontSize: '1rem',
+                                border: '1px solid #ccc',
+                            }}
                         />
+                    </div>
+                    {errorMessage && (
+                        <div style={{ color: 'red', marginBottom: '20px', textAlign: 'center' }}>
+                            {errorMessage}
+                        </div>
+                    )}
 
-                        {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+                    <RecuperarPasswordLink />
 
-                        <RecuperarPasswordLink />
+                    <TouchableOpacity onPress={handleLogin} style={{
+                        marginTop: '15px',
+                        borderRadius: '10px',
+                        padding: '20px',
+                        fontSize: '1.1rem',
+                        backgroundColor: '#1792FE',
+                        width: '100%',
+                        alignItems: 'center',
+                    }}>
+                    <Text style={{ color: 'white' }}>{t("Login.BtLogin")}</Text>
+                    </TouchableOpacity>
 
-                        <TouchableOpacity onPress={handleLogin} style={styles.loginButton}>
-                            <Text style={styles.loginText}>{t("Login.BtLogin")}</Text>
-                        </TouchableOpacity>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </View>
+                </form>
+            </div>
+        </div>
     );
 };
 
