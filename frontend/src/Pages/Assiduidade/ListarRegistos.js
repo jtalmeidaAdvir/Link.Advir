@@ -11,7 +11,6 @@ const RegistoItem = ({ item, onEdit }) => {
     const [endereco, setEndereco] = useState("Carregando...");
     const [expandedCard, setExpandedCard] = useState(false);
     const slideAnimation = useState(new Animated.Value(0))[0];
-    const [modalPedidosVisible, setModalPedidosVisible] = useState(false);
 
     const totalHorasTrabalhadas = item.totalHorasTrabalhadas || 0;
     const totalTempoIntervalo = item.totalTempoIntervalo || 0;
@@ -160,6 +159,8 @@ const ListarRegistos = () => {
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     const [registoSelecionado, setRegistoSelecionado] = useState(null);
+    const [modalPedidosVisible, setModalPedidosVisible] = useState(false);
+
     const [fadeAnimation] = useState(new Animated.Value(0));
 
     const windowWidth = Dimensions.get('window').width;
