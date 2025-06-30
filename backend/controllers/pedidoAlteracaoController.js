@@ -137,5 +137,5 @@ module.exports = {
     listarPedidos,
     atualizarPedido,
     eliminarPedido,
-    aprovarPedido 
+    aprovarPedido, 
   };
