@@ -66,7 +66,9 @@ const PontoBotao = () => {
                 const token = localStorage.getItem('loginToken');
     
                 try {
-                    const response = await fetch('https://backend.advir.pt/api/registoPonto/diario', {
+                    const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
+
                         headers: {
                             'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json',
@@ -168,7 +170,9 @@ const PontoBotao = () => {
     const fetchRegistosDiarios = async () => {
         try {
             const token = localStorage.getItem('loginToken');
-            const response = await fetch('https://backend.advir.pt/api/registoPonto/diario', {
+            const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
+
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
@@ -299,7 +303,9 @@ const PontoBotao = () => {
 
     const obterCoordenadasDoBackend = async () => {
         const token = localStorage.getItem('loginToken');
-        const response = await fetch('https://backend.advir.pt/api/registoPonto/diario', {
+        const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
+
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
