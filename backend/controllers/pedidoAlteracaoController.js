@@ -94,6 +94,42 @@ const parseParaDateValida = (valor) => {
     };
 
 
+const aprovarPedido = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const pedido = await PedidoAlteracao.findByPk(id);
+    if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado.' });
+
+    const registo = await RegistoPonto.findByPk(pedido.registo_ponto_id);
+    if (!registo) return res.status(404).json({ error: 'Registo de ponto não encontrado.' });
+
+    // Aplica alterações
+    if (pedido.novaHoraEntrada) registo.horaEntrada = pedido.novaHoraEntrada;
+    if (pedido.novaHoraSaida) registo.horaSaida = pedido.novaHoraSaida;
+
+    // Recalcular totalHorasTrabalhadas
+    if (registo.horaEntrada && registo.horaSaida) {
+      const entrada = new Date(registo.horaEntrada);
+      const saida = new Date(registo.horaSaida);
+      const horas = (saida - entrada) / (1000 * 60 * 60);
+      registo.totalHorasTrabalhadas = horas.toFixed(2);
+    }
+
+    await registo.save();
+    await pedido.update({ status: 'aprovado' });
+
+    return res.status(200).json({ message: 'Pedido aprovado e registo atualizado.' });
+  } catch (error) {
+    console.error('Erro ao aprovar pedido:', error);
+    return res.status(500).json({ error: 'Erro ao aprovar pedido.' });
+  }
+};
+
+
+
+
+
 
 // Exportar os controladores
 module.exports = {
@@ -101,4 +137,5 @@ module.exports = {
     listarPedidos,
     atualizarPedido,
     eliminarPedido,
+    aprovarPedido 
   };

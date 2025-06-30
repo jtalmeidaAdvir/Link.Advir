@@ -35,6 +35,30 @@ const PedidosAlteracaoAdmin = () => {
         }
     };
 
+
+    const aprovar = async (id) => {
+    try {
+        const response = await fetch(`https://backend.advir.pt/api/pedidoAlteracao/aprovar/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+            },
+        });
+
+        if (response.ok) {
+            alert("Pedido aprovado com sucesso!");
+            fetchPedidos(); // Refresh
+        } else {
+            alert("Erro ao aprovar pedido.");
+        }
+    } catch (error) {
+        console.error('Erro ao aprovar pedido:', error);
+        alert("Erro de rede.");
+    }
+};
+
+
     const renderPedido = ({ item }) => (
         <View style={styles.card}>
             <Text style={styles.textBold}>Pedido #{item.id}</Text>
@@ -46,6 +70,9 @@ const PedidosAlteracaoAdmin = () => {
             <Text><Text style={styles.textBold}>Nova Hora Saída:</Text> {item.novaHoraSaida || "N/A"}</Text>
             <Text><Text style={styles.textBold}>Motivo:</Text> {item.motivo}</Text>
             <Text><Text style={styles.textBold}>Status:</Text> {item.status}</Text>
+              <View style={{ marginTop: 10 }}>
+      <Text style={{ color: '#007bff' }} onPress={() => aprovar(item.id)}>✅ Aprovar</Text>
+    </View>
         </View>
     );
 
