@@ -752,7 +752,7 @@ const definirEmpresaPredefinida = async (req, res) => {
         }
 
         console.log("→ Antes:", utilizador.empresaPredefinida);
-        
+
         // Força a alteração e garante que o Sequelize grava
         utilizador.setDataValue('empresaPredefinida', empresaPredefinida);
         await utilizador.save({ fields: ['empresaPredefinida'] });
@@ -766,16 +766,53 @@ const definirEmpresaPredefinida = async (req, res) => {
     }
 };
 
+// Controlador para atualizar dados específicos do utilizador
+const atualizarDadosUtilizador = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { empresa_areacliente, id_tecnico, tipoUser } = req.body;
 
+        // Verificar se o utilizador existe
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+        }
 
+        // Validar tipoUser se fornecido
+        if (tipoUser && !['Trabalhador', 'Diretor', 'Encarregado'].includes(tipoUser)) {
+            return res.status(400).json({ message: 'Tipo de utilizador inválido.' });
+        }
 
+        // Preparar dados para atualização (apenas campos fornecidos)
+        const dadosParaAtualizar = {};
+        if (empresa_areacliente !== undefined) dadosParaAtualizar.empresa_areacliente = empresa_areacliente;
+        if (id_tecnico !== undefined) dadosParaAtualizar.id_tecnico = id_tecnico;
+        if (tipoUser !== undefined) dadosParaAtualizar.tipoUser = tipoUser;
 
+        // Atualizar o utilizador
+        await user.update(dadosParaAtualizar);
 
-
+        res.status(200).json({ 
+            message: 'Dados do utilizador atualizados com sucesso.',
+            user: {
+                id: user.id,
+                nome: user.nome,
+                email: user.email,
+                empresa_areacliente: user.empresa_areacliente,
+                id_tecnico: user.id_tecnico,
+                tipoUser: user.tipoUser
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao atualizar dados do utilizador:', error);
+        res.status(500).json({ message: 'Erro interno do servidor.' });
+    }
+};
 
 module.exports = {
     criarUtilizador,
     verificarConta,
+    listarModulosDoUtilizador,
     loginUtilizador,
     getUsersByEmpresa,
     getEmpresasByUser,
@@ -784,15 +821,12 @@ module.exports = {
     adicionarEmpresaAoUser,
     removerEmpresaDoUser,
     recuperarPassword,
-    redefinirPassword,
-    listarModulosDoUtilizador,
     listarModulosESubmodulosDoUtilizador,
     updateProfileImage,
     getProfileImage,
-    parseImageToBinary,
-    uploadProfileImage,
+    redefinirPassword,
     listarModulosDaEmpresaDoUser,
-    removerEmpresa,
     obterEmpresaPredefinida,
-    definirEmpresaPredefinida
+    definirEmpresaPredefinida,
+    atualizarDadosUtilizador
 };

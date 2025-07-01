@@ -72,6 +72,11 @@ const User = sequelize.define('User', {
     id_tecnico: {
         type: DataTypes.STRING,
         allowNull: true
+    },
+    tipoUser: {
+        type: DataTypes.ENUM('Trabalhador', 'Diretor', 'Encarregado'),
+        allowNull: false,
+        defaultValue: 'Trabalhador'
     }
 
 }, {

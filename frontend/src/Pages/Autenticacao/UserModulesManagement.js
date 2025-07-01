@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Switch, ActivityIndicator, Animated, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Switch, ActivityIndicator, Animated, ScrollView, TextInput, Modal } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Picker } from '@react-native-picker/picker';
 
 const UserModulesManagement = ({ route }) => {
     const { userId } = route.params;
@@ -14,6 +15,12 @@ const UserModulesManagement = ({ route }) => {
     const [loading, setLoading] = useState(true);
     const [expandedModules, setExpandedModules] = useState({});
     const [fadeAnimation] = useState(new Animated.Value(0));
+    const [showUserDataModal, setShowUserDataModal] = useState(false);
+    const [userData, setUserData] = useState({
+        empresa_areacliente: '',
+        id_tecnico: '',
+        tipoUser: 'Trabalhador'
+    });
     const { t } = useTranslation();
 
     useEffect(() => {
@@ -27,12 +34,13 @@ const UserModulesManagement = ({ route }) => {
     useEffect(() => {
         fetchEmpresaModulos();
         fetchUserModulos(userId);
+        fetchUserData();
     }, [userId]);
 
     const fetchEmpresaModulos = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/empresa-modulos`);
+            const response = await fetch(`http://localhost:3000/api/users/${userId}/empresa-modulos`);
             const data = await response.json();
     
             if (!response.ok) {
@@ -59,7 +67,7 @@ const UserModulesManagement = ({ route }) => {
     
     const fetchUserModulos = async (userId) => {
         try {
-            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`);
+            const response = await fetch(`http://localhost:3000/api/users/${userId}/modulos-e-submodulos`);
             const data = await response.json();
             setUserModulos(data.modulos || []);
         } catch (error) {
@@ -78,8 +86,8 @@ const UserModulesManagement = ({ route }) => {
 
     const handleToggleModulo = async (moduloId, isChecked) => {
         const url = isChecked 
-            ? 'https://backend.advir.pt/api/modulos/associar' 
-            : 'https://backend.advir.pt/api/modulos/remover';
+            ? 'http://localhost:3000/api/modulos/associar' 
+            : 'http://localhost:3000/api/modulos/remover';
 
         try {
             setSuccessMessage('');
@@ -113,8 +121,8 @@ const UserModulesManagement = ({ route }) => {
 
     const handleToggleSubmodulo = async (moduloId, submoduloId, isCurrentlyChecked) => {
         const url = isCurrentlyChecked 
-            ? 'https://backend.advir.pt/api/submodulos/remover' 
-            : 'https://backend.advir.pt/api/submodulos/associar';
+            ? 'http://localhost:3000/api/submodulos/remover' 
+            : 'http://localhost:3000/api/submodulos/associar';
 
         try {
             setSuccessMessage('');
@@ -143,6 +151,57 @@ const UserModulesManagement = ({ route }) => {
         } catch (error) {
             console.error('Error toggling submodule:', error);
             setErrorMessage('Erro ao atualizar submódulo.');
+        }
+    };
+
+    const fetchUserData = async () => {
+        try {
+            const response = await fetch(`http://localhost:3000/api/users/${userId}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                }
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                setUserData({
+                    empresa_areacliente: data.empresa_areacliente || '',
+                    id_tecnico: data.id_tecnico || '',
+                    tipoUser: data.tipoUser || 'Trabalhador'
+                });
+            }
+        } catch (error) {
+            console.error('Erro ao carregar dados do utilizador:', error);
+        }
+    };
+
+    const handleSaveUserData = async () => {
+        try {
+            setSuccessMessage('');
+            setErrorMessage('');
+            
+            const response = await fetch(`http://localhost:3000/api/users/${userId}/dados-utilizador`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                },
+                body: JSON.stringify(userData),
+            });
+            
+            if (response.ok) {
+                setSuccessMessage('Dados do utilizador atualizados com sucesso!');
+                setShowUserDataModal(false);
+                
+                setTimeout(() => {
+                    setSuccessMessage('');
+                }, 3000);
+            } else {
+                setErrorMessage('Erro ao atualizar dados do utilizador.');
+            }
+        } catch (error) {
+            console.error('Erro ao atualizar dados do utilizador:', error);
+            setErrorMessage('Erro ao atualizar dados do utilizador.');
         }
     };
 
@@ -241,6 +300,13 @@ const UserModulesManagement = ({ route }) => {
                 <View style={styles.headerContent}>
                     <Text style={styles.headerTitle}>{t("UserModulesManagement.Title")}</Text>
                     <Text style={styles.headerSubtitle}>Gira os módulos do utilizador</Text>
+                    <TouchableOpacity 
+                        style={styles.editUserButton} 
+                        onPress={() => setShowUserDataModal(true)}
+                    >
+                        <MaterialCommunityIcons name="account-edit" size={18} color="#ffffff" />
+                        <Text style={styles.editUserButtonText}>Editar Dados</Text>
+                    </TouchableOpacity>
                 </View>
             </LinearGradient>
             
@@ -293,6 +359,76 @@ const UserModulesManagement = ({ route }) => {
                     </View>
                 )}
             </Animated.View>
+            
+            <Modal
+                visible={showUserDataModal}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowUserDataModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Editar Dados do Utilizador</Text>
+                            <TouchableOpacity onPress={() => setShowUserDataModal(false)}>
+                                <Ionicons name="close" size={24} color="#333" />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <ScrollView style={styles.modalBody}>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Empresa/Área Cliente:</Text>
+                                <TextInput
+                                    style={styles.textInput}
+                                    value={userData.empresa_areacliente}
+                                    onChangeText={(text) => setUserData({...userData, empresa_areacliente: text})}
+                                    placeholder="Digite a empresa ou área cliente"
+                                />
+                            </View>
+                            
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>ID Técnico:</Text>
+                                <TextInput
+                                    style={styles.textInput}
+                                    value={userData.id_tecnico}
+                                    onChangeText={(text) => setUserData({...userData, id_tecnico: text})}
+                                    placeholder="Digite o ID do técnico"
+                                />
+                            </View>
+                            
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Tipo de Utilizador:</Text>
+                                <View style={styles.pickerContainer}>
+                                    <Picker
+                                        selectedValue={userData.tipoUser}
+                                        onValueChange={(value) => setUserData({...userData, tipoUser: value})}
+                                        style={styles.picker}
+                                    >
+                                        <Picker.Item label="Trabalhador" value="Trabalhador" />
+                                        <Picker.Item label="Encarregado" value="Encarregado" />
+                                        <Picker.Item label="Diretor" value="Diretor" />
+                                    </Picker>
+                                </View>
+                            </View>
+                        </ScrollView>
+                        
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity 
+                                style={styles.cancelButton} 
+                                onPress={() => setShowUserDataModal(false)}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={styles.saveButton} 
+                                onPress={handleSaveUserData}
+                            >
+                                <Text style={styles.saveButtonText}>Guardar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </ScrollView>
     );
 };
@@ -470,6 +606,110 @@ const styles = StyleSheet.create({
         color: '#777',
         textAlign: 'center',
         maxWidth: '80%',
+    },
+    editUserButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        paddingHorizontal: 15,
+        paddingVertical: 8,
+        borderRadius: 20,
+        marginTop: 10,
+    },
+    editUserButtonText: {
+        color: '#ffffff',
+        fontSize: 14,
+        fontWeight: '600',
+        marginLeft: 5,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalContent: {
+        backgroundColor: '#ffffff',
+        borderRadius: 20,
+        width: '100%',
+        maxWidth: 400,
+        maxHeight: '80%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#333',
+    },
+    modalBody: {
+        padding: 20,
+    },
+    inputGroup: {
+        marginBottom: 20,
+    },
+    inputLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 8,
+    },
+    textInput: {
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        borderRadius: 12,
+        padding: 12,
+        fontSize: 16,
+        backgroundColor: '#f9fafc',
+    },
+    pickerContainer: {
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        borderRadius: 12,
+        backgroundColor: '#f9fafc',
+    },
+    picker: {
+        height: 50,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        padding: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+    },
+    cancelButton: {
+        flex: 1,
+        padding: 12,
+        borderRadius: 12,
+        backgroundColor: '#f5f5f5',
+        alignItems: 'center',
+        marginRight: 10,
+    },
+    cancelButtonText: {
+        fontSize: 16,
+        color: '#666',
+        fontWeight: '600',
+    },
+    saveButton: {
+        flex: 1,
+        padding: 12,
+        borderRadius: 12,
+        backgroundColor: '#4481EB',
+        alignItems: 'center',
+        marginLeft: 10,
+    },
+    saveButtonText: {
+        fontSize: 16,
+        color: '#ffffff',
+        fontWeight: '600',
     },
 });
 

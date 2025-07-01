@@ -24,7 +24,7 @@ app.use(fileUpload());
 
 async function startApp() {
     await initializeSequelize();
-    await sequelize.sync({ force: false }) // Sincroniza sem perder dados
+    await sequelize.sync({ alter : true }) // Sincroniza sem perder dados
         .then(() => {
             console.log('Tabelas sincronizadas com sucesso.');
         })

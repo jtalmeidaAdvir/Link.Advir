@@ -17,7 +17,8 @@ const {
     redefinirPassword,
     listarModulosDaEmpresaDoUser,
     obterEmpresaPredefinida,
-    definirEmpresaPredefinida
+    definirEmpresaPredefinida,
+    atualizarDadosUtilizador
 } = require('../controllers/userController');
 const router = express.Router();
 
@@ -59,5 +60,7 @@ router.put('/:userId/empresa-predefinida', authMiddleware, definirEmpresaPredefi
 
 router.get('/:userId/empresa-modulos', listarModulosDaEmpresaDoUser);
 
+// Rota para atualizar dados do utilizador (empresa_areacliente, id_tecnico, tipoUser)
+router.put('/:userId/dados-utilizador', authMiddleware, atualizarDadosUtilizador);
 
 module.exports = router;
