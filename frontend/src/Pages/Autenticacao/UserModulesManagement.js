@@ -154,26 +154,41 @@ const UserModulesManagement = ({ route }) => {
         }
     };
 
-    const fetchUserData = async () => {
-        try {
-            const response = await fetch(`https://backend.advir.pt/api/users/${userId}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
-                }
-            });
-            const data = await response.json();
-            
-            if (response.ok) {
-                setUserData({
-                    empresa_areacliente: data.empresa_areacliente || '',
-                    id_tecnico: data.id_tecnico || '',
-                    tipoUser: data.tipoUser || 'Trabalhador'
-                });
+const fetchUserData = async () => {
+    try {
+        const response = await fetch(`https://backend.advir.pt/api/users/${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
             }
-        } catch (error) {
-            console.error('Erro ao carregar dados do utilizador:', error);
+        });
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            const text = await response.text();
+            console.error("❌ Resposta inesperada:", text); // Mostra o HTML de erro
+            setErrorMessage("Erro inesperado ao obter dados do utilizador.");
+            return;
         }
-    };
+
+        const data = await response.json();
+
+        if (response.ok) {
+            setUserData({
+                empresa_areacliente: data.empresa_areacliente || '',
+                id_tecnico: data.id_tecnico || '',
+                tipoUser: data.tipoUser || 'Trabalhador'
+            });
+        } else {
+            setErrorMessage("Erro ao obter dados do utilizador.");
+            console.error("❌ Resposta da API:", data);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar dados do utilizador:', error);
+        setErrorMessage("Erro ao carregar dados do utilizador.");
+    }
+};
+
+
 
     const handleSaveUserData = async () => {
         try {

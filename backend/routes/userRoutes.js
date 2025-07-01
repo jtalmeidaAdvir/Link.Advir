@@ -63,4 +63,7 @@ router.get('/:userId/empresa-modulos', listarModulosDaEmpresaDoUser);
 // Rota para atualizar dados do utilizador (empresa_areacliente, id_tecnico, tipoUser)
 router.put('/:userId/dados-utilizador', authMiddleware, atualizarDadosUtilizador);
 
+router.get('/:userId', authMiddleware, getDadosUtilizador);
+
+
 module.exports = router;

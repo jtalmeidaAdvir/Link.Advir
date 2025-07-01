@@ -809,6 +809,26 @@ const atualizarDadosUtilizador = async (req, res) => {
     }
 };
 
+
+const getDadosUtilizador = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const user = await User.findByPk(userId, {
+            attributes: ['empresa_areacliente', 'id_tecnico', 'tipoUser']
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+        }
+
+        return res.status(200).json(user);
+    } catch (error) {
+        console.error('Erro ao obter dados do utilizador:', error);
+        return res.status(500).json({ message: 'Erro ao obter dados do utilizador.' });
+    }
+};
+
+
 module.exports = {
     criarUtilizador,
     verificarConta,
@@ -828,5 +848,6 @@ module.exports = {
     listarModulosDaEmpresaDoUser,
     obterEmpresaPredefinida,
     definirEmpresaPredefinida,
-    atualizarDadosUtilizador
+    atualizarDadosUtilizador,
+    getDadosUtilizador
 };
