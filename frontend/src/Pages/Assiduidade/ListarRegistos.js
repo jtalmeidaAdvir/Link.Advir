@@ -200,6 +200,8 @@ const ListarRegistos = () => {
                 const data = await response.json();
                 // Ordenar os registos em ordem decrescente pela data
                 const registosOrdenados = (data || []).sort((a, b) => new Date(b.data) - new Date(a.data));
+                console.log("→ Registos ordenados:", registosOrdenados);
+
                 setHistoricoPontos(registosOrdenados);
             } else {
                 setErrorMessage('Erro ao obter histórico de pontos.');

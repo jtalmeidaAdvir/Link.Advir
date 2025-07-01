@@ -8,7 +8,7 @@ const ModalPedidosAlteracao = ({ visible, onClose }) => {
   useEffect(() => {
     const fetchPedidos = async () => {
       try {
-        const userId = localStorage.getItem("user_id");
+        const userId = localStorage.getItem("userId");
         const response = await fetch(`https://backend.advir.pt/api/pedidoAlteracao/pedidos-alteracao/${userId}`);
         const data = await response.json();
         setPedidos(data);

@@ -1,24 +1,17 @@
+
 //handlers/handleEntrarEmpresa.js
-// This file handles the logic for entering a selected company in the application.
 export const handleEntrarEmpresa = async ({
   empresa,
   setEmpresa,
-  empresaPredefinida,
-  handlePredefinirEmpresa,
   setLoadingButton,
   setErrorMessage,
   navigation,
 }) => {
-  // 🔒 Garantir que empresa é uma string válida
   const empresaStr = typeof empresa === "string" ? empresa : empresa?.empresa;
 
   if (!empresaStr) {
     setErrorMessage("Nome da empresa inválido.");
     return;
-  }
-
-  if (empresaPredefinida && typeof handlePredefinirEmpresa === 'function') {
-    await handlePredefinirEmpresa(true);
   }
 
   if (typeof setLoadingButton === 'function') setLoadingButton(true);
