@@ -18,7 +18,8 @@ const {
     listarModulosDaEmpresaDoUser,
     obterEmpresaPredefinida,
     definirEmpresaPredefinida,
-    atualizarDadosUtilizador
+    atualizarDadosUtilizador,
+    getDadosUtilizador
 } = require('../controllers/userController');
 const router = express.Router();
 
