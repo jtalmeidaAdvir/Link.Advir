@@ -40,7 +40,7 @@ const UserModulesManagement = ({ route }) => {
     const fetchEmpresaModulos = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`http://localhost:3000/api/users/${userId}/empresa-modulos`);
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/empresa-modulos`);
             const data = await response.json();
     
             if (!response.ok) {
@@ -67,7 +67,7 @@ const UserModulesManagement = ({ route }) => {
     
     const fetchUserModulos = async (userId) => {
         try {
-            const response = await fetch(`http://localhost:3000/api/users/${userId}/modulos-e-submodulos`);
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`);
             const data = await response.json();
             setUserModulos(data.modulos || []);
         } catch (error) {
@@ -86,8 +86,8 @@ const UserModulesManagement = ({ route }) => {
 
     const handleToggleModulo = async (moduloId, isChecked) => {
         const url = isChecked 
-            ? 'http://localhost:3000/api/modulos/associar' 
-            : 'http://localhost:3000/api/modulos/remover';
+            ? 'https://backend.advir.pt/api/modulos/associar' 
+            : 'https://backend.advir.pt/api/modulos/remover';
 
         try {
             setSuccessMessage('');
@@ -121,8 +121,8 @@ const UserModulesManagement = ({ route }) => {
 
     const handleToggleSubmodulo = async (moduloId, submoduloId, isCurrentlyChecked) => {
         const url = isCurrentlyChecked 
-            ? 'http://localhost:3000/api/submodulos/remover' 
-            : 'http://localhost:3000/api/submodulos/associar';
+            ? 'https://backend.advir.pt/api/submodulos/remover' 
+            : 'https://backend.advir.pt/api/submodulos/associar';
 
         try {
             setSuccessMessage('');
@@ -156,7 +156,7 @@ const UserModulesManagement = ({ route }) => {
 
     const fetchUserData = async () => {
         try {
-            const response = await fetch(`http://localhost:3000/api/users/${userId}`, {
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
                 }
@@ -180,7 +180,7 @@ const UserModulesManagement = ({ route }) => {
             setSuccessMessage('');
             setErrorMessage('');
             
-            const response = await fetch(`http://localhost:3000/api/users/${userId}/dados-utilizador`, {
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/dados-utilizador`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
