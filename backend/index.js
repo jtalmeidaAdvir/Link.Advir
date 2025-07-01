@@ -19,6 +19,10 @@ const { getDatabases } = require('./config/db');
 
 // Importar associações
 require('./associations');  // Importa o ficheiro onde as associações estão definidas
+require('./models/obra');
+require('./models/equipaObra');
+require('./models/partesDiarias');
+
 
 const app = express();
 app.use(cors());
