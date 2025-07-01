@@ -4,6 +4,10 @@ const User_Empresa = require('./models/user_empresa');
 const Modulo = require('./models/modulo');
 const User_Modulo = require('./models/user_modulo');
 const Submodulo = require('./models/submodulo');
+const Obra = require('./models/obra');
+const PartesDiarias = require('./models/partesDiarias');
+const EquipaObra = require('./models/equipaObra');
+const RegistoPonto = require('./models/registoPonto');
 const User_Submodulo = require('./models/user_submodulo');
 
 // Relação N:N entre User e Empresa
@@ -31,4 +35,36 @@ Modulo.belongsToMany(Empresa, { through: 'EmpresaModulo', foreignKey: 'modulo_id
 
 
 
-module.exports = { User, Empresa, User_Empresa, Modulo, User_Modulo, Submodulo, User_Submodulo };
+// Relacionamentos para Obra
+User.hasMany(PartesDiarias, { foreignKey: 'user_id' });
+PartesDiarias.belongsTo(User, { foreignKey: 'user_id' });
+
+Obra.hasMany(PartesDiarias, { foreignKey: 'obra_id' });
+PartesDiarias.belongsTo(Obra, { foreignKey: 'obra_id' });
+
+// Relacionamentos para EquipaObra
+User.hasMany(EquipaObra, { foreignKey: 'user_id', as: 'equipasMembro' });
+User.hasMany(EquipaObra, { foreignKey: 'encarregado_id', as: 'equipasEncarregado' });
+EquipaObra.belongsTo(User, { foreignKey: 'user_id', as: 'membro' });
+EquipaObra.belongsTo(User, { foreignKey: 'encarregado_id', as: 'encarregado' });
+
+Obra.hasMany(EquipaObra, { foreignKey: 'obra_id' });
+EquipaObra.belongsTo(Obra, { foreignKey: 'obra_id' });
+
+// Relacionamento RegistoPonto com Obra
+Obra.hasMany(RegistoPonto, { foreignKey: 'obra_id' });
+RegistoPonto.belongsTo(Obra, { foreignKey: 'obra_id' });
+
+module.exports = { 
+    User, 
+    Empresa, 
+    User_Empresa, 
+    Modulo, 
+    User_Modulo, 
+    Submodulo, 
+    User_Submodulo,
+    Obra,
+    PartesDiarias,
+    EquipaObra,
+    RegistoPonto
+ };
