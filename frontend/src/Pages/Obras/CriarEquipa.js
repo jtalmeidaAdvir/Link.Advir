@@ -11,11 +11,15 @@ const CriarEquipa = () => {
   const [obraSelecionada, setObraSelecionada] = useState('');
   const [membrosSelecionados, setMembrosSelecionados] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [equipasCriadas, setEquipasCriadas] = useState([]);
 
-  useEffect(() => {
-    fetchObras();
-    fetchUtilizadores();
-  }, []);
+
+useEffect(() => {
+  fetchObras();
+  fetchUtilizadores();
+  fetchEquipasCriadas(); // 👈 aqui
+}, []);
+
 
   const fetchObras = async () => {
     try {
@@ -29,6 +33,20 @@ const CriarEquipa = () => {
       console.error('Erro ao carregar obras:', err);
     }
   };
+
+  const fetchEquipasCriadas = async () => {
+  try {
+    const token = await AsyncStorage.getItem('loginToken');
+    const res = await fetch('https://backend.advir.pt/api/equipa-obra/listar-todas', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (res.ok) setEquipasCriadas(data);
+  } catch (err) {
+    console.error('Erro ao carregar equipas criadas:', err);
+  }
+};
+
 
   const obterIdDaEmpresa = async () => {
   const empresaNome = localStorage.getItem("empresaSelecionada"); // ex: "DEMOCN"
@@ -99,8 +117,8 @@ const fetchUtilizadores = async () => {
 
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('painelAdminToken');
-      const res = await fetch('https://backend.advir.pt/api/equipas', {
+      const token = await AsyncStorage.getItem('loginToken');
+      const res = await fetch('https://backend.advir.pt/api/equipa-obra', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -161,7 +179,7 @@ const fetchUtilizadores = async () => {
     onPress={() => toggleMembro(user.id)}
   >
     <View style={[styles.checkbox, membrosSelecionados.includes(user.id) && styles.checkedBox]} />
-    <Text>{user.nome}</Text>
+    <Text>{user.email}</Text>
   </TouchableOpacity>
 ))}
 
@@ -169,6 +187,25 @@ const fetchUtilizadores = async () => {
       <TouchableOpacity style={styles.button} onPress={criarEquipa} disabled={loading}>
         <Text style={styles.buttonText}>{loading ? 'A criar...' : 'Criar Equipa'}</Text>
       </TouchableOpacity>
+
+
+      <Text style={[styles.label, { marginTop: 30 }]}>Equipas Criadas</Text>
+{equipasCriadas.length === 0 ? (
+  <Text style={{ color: '#666' }}>Nenhuma equipa criada ainda.</Text>
+) : (
+  equipasCriadas.map((equipa) => (
+    <View key={`equipa-${equipa.nome}`} style={styles.equipaBox}>
+      <Text style={styles.equipaTitulo}>👷 {equipa.nome}</Text>
+      <Text style={styles.equipaObra}>🏗️ {equipa.obra?.codigo} - {equipa.obra?.nome}</Text>
+      <Text style={{ fontWeight: 'bold' }}>Encarregado: {equipa.encarregado?.nome || '-'}</Text>
+      <Text style={{ fontWeight: 'bold', marginTop: 5 }}>Membros:</Text>
+      {equipa.membros.map((membro) => (
+        <Text key={membro.id}>• {membro.nome || membro.username}</Text>
+      ))}
+    </View>
+  ))
+)}
+
     </ScrollView>
   );
 };
@@ -213,6 +250,23 @@ const styles = StyleSheet.create({
 checkedBox: {
   backgroundColor: '#1792FE',
 },
+equipaBox: {
+  backgroundColor: '#f2f2f2',
+  padding: 15,
+  borderRadius: 10,
+  marginTop: 15,
+},
+equipaTitulo: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  marginBottom: 5,
+},
+equipaObra: {
+  fontSize: 14,
+  marginBottom: 5,
+  color: '#555',
+},
+
 
 });
 

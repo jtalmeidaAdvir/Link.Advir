@@ -105,9 +105,43 @@ const removerMembroEquipa = async (req, res) => {
     }
 };
 
+// Listar todas as equipas com os seus membros
+const listarTodasEquipasAgrupadas = async (req, res) => {
+  try {
+    const registos = await EquipaObra.findAll({
+      include: [
+        { model: User, as: 'membro', attributes: ['id', 'email', 'nome', 'username'] },
+        { model: User, as: 'encarregado', attributes: ['id', 'nome', 'username'] },
+        { model: Obra, attributes: ['id', 'codigo', 'nome'] }
+      ]
+    });
+
+    // Agrupar por nome da equipa
+    const equipasAgrupadas = {};
+    for (const reg of registos) {
+      if (!equipasAgrupadas[reg.nome]) {
+        equipasAgrupadas[reg.nome] = {
+          nome: reg.nome,
+          obra: reg.Obra,
+          encarregado: reg.encarregado,
+          membros: []
+        };
+      }
+      equipasAgrupadas[reg.nome].membros.push(reg.membro);
+    }
+
+    res.status(200).json(Object.values(equipasAgrupadas));
+  } catch (error) {
+    console.error('Erro ao listar equipas agrupadas:', error);
+    res.status(500).json({ message: 'Erro ao listar equipas.' });
+  }
+};
+
+
 module.exports = {
     criarEquipa,
     listarEquipasPorObra,
     listarMinhasEquipas,
-    removerMembroEquipa
+    removerMembroEquipa,
+    listarTodasEquipasAgrupadas
 };
