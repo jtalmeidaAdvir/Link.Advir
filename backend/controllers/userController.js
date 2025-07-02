@@ -302,37 +302,35 @@ const alterarPassword = async (req, res) => {
 
 
 
+// Controller atualizado
 const getUsersByEmpresa = async (req, res) => {
-    const userId = req.user.id;  // Obtém o ID do utilizador autenticado a partir do token
+  const userId = req.user.id;
+  const empresaId = req.query.empresaId;
 
-    try {
-        // Obtém o utilizador autenticado e as suas empresas associadas
-        const user = await User.findByPk(userId, {
-            include: {
-                model: Empresa,
-                attributes: ['id', 'empresa'],  // Inclui os campos necessários da empresa
-                include: [{ model: User, attributes: ['id', 'username', 'email'] }]  // Inclui os utilizadores
-            },
-        });
+  try {
+    const empresa = await Empresa.findByPk(empresaId, {
+      include: {
+        model: User,
+        attributes: ['id', 'username', 'email']
+      }
+    });
 
-        if (!user) {
-            return res.status(404).json({ message: 'Utilizador não encontrado.' });
-        }
-
-        // Mapeia os utilizadores e associa a empresa a que pertencem
-        const usersInSameEmpresas = user.Empresas.flatMap(empresa =>
-            empresa.Users.map(user => ({
-                ...user.dataValues,  // Inclui os dados do utilizador
-                empresa: empresa.empresa // Adiciona o nome da empresa
-            }))
-        );
-
-        res.json(usersInSameEmpresas);
-    } catch (error) {
-        console.error('Erro ao obter utilizadores por empresa:', error);
-        res.status(500).json({ message: 'Erro ao obter utilizadores.' });
+    if (!empresa) {
+      return res.status(404).json({ message: 'Empresa não encontrada.' });
     }
+
+    const users = empresa.Users.map(user => ({
+      ...user.dataValues,
+      empresa: empresa.empresa
+    }));
+
+    res.json(users);
+  } catch (error) {
+    console.error('Erro ao obter utilizadores por empresa:', error);
+    res.status(500).json({ message: 'Erro interno.' });
+  }
 };
+
 
 
 

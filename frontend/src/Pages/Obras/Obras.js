@@ -3,6 +3,7 @@ import { View, Text, FlatList, ActivityIndicator, StyleSheet, TextInput, Touchab
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faCode, faClipboard, faCalendar, faInfoCircle,faMoneyBillAlt } from '@fortawesome/free-solid-svg-icons';
+import { Image } from 'react-native';
 
 const ListarObras = ({ navigation }) => {
     const [obras, setObras] = useState([]);
@@ -10,9 +11,16 @@ const ListarObras = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [obrasImportadas, setObrasImportadas] = useState([]);
+
 
     useEffect(() => {
-        const fetchObras = async () => {
+        
+
+        fetchObras();
+    }, []);
+
+const fetchObras = async () => {
             try {
                 const token = await AsyncStorage.getItem('painelAdminToken');
                 const urlempresa = await AsyncStorage.getItem('urlempresa');
@@ -51,9 +59,66 @@ const ListarObras = ({ navigation }) => {
                 setLoading(false);
             }
         };
+    const importarObra = async (obra) => {
+    try {
+        const token = localStorage.getItem('loginToken');
 
-        fetchObras();
-    }, []);
+        const response = await fetch('https://backend.advir.pt/api/obra', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    codigo: obra.Codigo,
+    nome: obra.Titulo,
+    estado: 'Ativo',
+    localizacao: obra.Localizacao || 'Desconhecida',
+  }),
+});
+
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('Obra importada com sucesso!');
+        } else {
+            alert(`Erro ao importar obra: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Erro ao importar obra:', error);
+        alert('Erro ao importar obra');
+    }
+};
+
+const fetchObrasImportadas = async () => {
+  try {
+    const token = localStorage.getItem('loginToken');
+    const response = await fetch('https://backend.advir.pt/api/obra', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      setObrasImportadas(data); // data é o array de obras com .codigo
+    } else {
+      console.warn('Erro ao carregar obras importadas');
+    }
+  } catch (error) {
+    console.error('Erro ao buscar obras importadas:', error);
+  }
+};
+
+useEffect(() => {
+    fetchObras();
+    fetchObrasImportadas();
+}, []);
+
+
+
+
 
     const handleSearch = (text) => {
         setSearchTerm(text);
@@ -71,7 +136,10 @@ const ListarObras = ({ navigation }) => {
         setFilteredObras(filtered);
     };
 
-    const renderObra = ({ item }) => (
+    const renderObra = ({ item }) => {
+    const obraExistente = obrasImportadas.find(o => o.codigo === item.Codigo);
+
+    return (
         <TouchableOpacity
             style={styles.obraContainer}
             onPress={() => navigation.navigate('DetalhesObra', { obraId: item.ID, obraCodigo: item.Codigo })}
@@ -96,8 +164,28 @@ const ListarObras = ({ navigation }) => {
                 <FontAwesomeIcon icon={faCalendar} style={styles.icon} />
                 <Text style={styles.obraDetail}>Data: {new Date(item.DataAdjudicacao).toLocaleDateString()}</Text>
             </View>
+
+            {obraExistente ? (
+                <View style={{ marginTop: 10, alignItems: 'center' }}>
+                    <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>QR Code:</Text>
+                    <Image
+                        source={{ uri: obraExistente.qrCode }}
+                        style={{ width: 120, height: 120 }}
+                        resizeMode="contain"
+                    />
+                </View>
+            ) : (
+                <TouchableOpacity
+                    style={styles.importButton}
+                    onPress={() => importarObra(item)}
+                >
+                    <Text style={styles.importButtonText}>Importar Obra</Text>
+                </TouchableOpacity>
+            )}
         </TouchableOpacity>
     );
+};
+
 
     return (
         
@@ -191,6 +279,18 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#666',
     },
+    importButton: {
+    marginTop: 10,
+    backgroundColor: '#1792FE',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+},
+importButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+},
+
 });
 
 export default ListarObras;

@@ -30,6 +30,7 @@ const Obra = sequelize.define('Obra', {
         type: DataTypes.TEXT,
         allowNull: true,
     },
+  
 }, {
     timestamps: true,
     tableName: 'obra',
