@@ -55,6 +55,10 @@ EquipaObra.belongsTo(Obra, { foreignKey: 'obra_id' });
 Obra.hasMany(RegistoPonto, { foreignKey: 'obra_id' });
 RegistoPonto.belongsTo(Obra, { foreignKey: 'obra_id' });
 
+Empresa.hasMany(Obra, { foreignKey: 'empresa_id' });
+Obra.belongsTo(Empresa, { foreignKey: 'empresa_id' });
+
+
 module.exports = { 
     User, 
     Empresa, 

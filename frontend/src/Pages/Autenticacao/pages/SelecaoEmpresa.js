@@ -76,6 +76,7 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
               setEmpresaPredefinida={setEmpresaPredefinida}
             />
 
+
             {empresaSelecionada && (
               <EmpresaCheckbox
                 empresaPredefinida={empresaPredefinida}

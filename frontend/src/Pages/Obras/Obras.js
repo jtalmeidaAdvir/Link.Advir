@@ -59,37 +59,42 @@ const fetchObras = async () => {
                 setLoading(false);
             }
         };
-    const importarObra = async (obra) => {
-    try {
-        const token = localStorage.getItem('loginToken');
-
-        const response = await fetch('https://backend.advir.pt/api/obra', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    codigo: obra.Codigo,
-    nome: obra.Titulo,
-    estado: 'Ativo',
-    localizacao: obra.Localizacao || 'Desconhecida',
-  }),
-});
 
 
-        const data = await response.json();
+        const importarObra = async (obra) => {
+  try {
+    const token = localStorage.getItem('loginToken');
+    const empresaId = await AsyncStorage.getItem('empresa_id'); // 👈 adicionar esta linha
 
-        if (response.ok) {
-            alert('Obra importada com sucesso!');
-        } else {
-            alert(`Erro ao importar obra: ${data.message}`);
-        }
-    } catch (error) {
-        console.error('Erro ao importar obra:', error);
-        alert('Erro ao importar obra');
+    const response = await fetch('https://backend.advir.pt/api/obra', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        codigo: obra.Codigo,
+        nome: obra.Titulo,
+        estado: 'Ativo',
+        localizacao: obra.Localizacao || 'Desconhecida',
+        empresa_id: empresaId, // 👈 incluir aqui
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('Obra importada com sucesso!');
+      fetchObrasImportadas(); // Atualizar lista de obras importadas com o novo QR
+    } else {
+      alert(`Erro ao importar obra: ${data.message}`);
     }
+  } catch (error) {
+    console.error('Erro ao importar obra:', error);
+    alert('Erro ao importar obra');
+  }
 };
+
 
 const fetchObrasImportadas = async () => {
   try {

@@ -28,7 +28,7 @@ const listarObras = async (req, res) => {
 // Criar nova obra
 const criarObra = async (req, res) => {
     try {
-        const { codigo, nome, estado, localizacao } = req.body;
+        const { codigo, nome, estado, localizacao,empresa_id } = req.body;
         
         // Gerar QR Code para a obra
         const qrCodeData = JSON.stringify({ 
@@ -43,7 +43,8 @@ const criarObra = async (req, res) => {
             nome,
             estado,
             localizacao,
-            qrCode: qrCodeImage
+            qrCode: qrCodeImage,
+             empresa_id,
         });
         
         res.status(201).json(obra);

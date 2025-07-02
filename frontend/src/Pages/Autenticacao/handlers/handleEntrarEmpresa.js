@@ -59,6 +59,8 @@ export const handleEntrarEmpresa = async ({
 
     localStorage.setItem("painelAdminToken", data.token);
     localStorage.setItem("empresaSelecionada", empresaStr);
+    localStorage.setItem("empresa_id", credenciais.id); // 👈 esta faltava aqui
+
     setEmpresa(empresaStr);
     navigation.navigate("Home");
   } catch (err) {

@@ -157,6 +157,7 @@ const fetchUtilizadores = async () => {
 };
 
 const removerEquipaInteira = async (nomeEquipa, obraId) => {
+  console.log('Dados enviados para remoção:', nomeEquipa, obraId); // 👈
   try {
     const token = await AsyncStorage.getItem('loginToken');
     const res = await fetch('https://backend.advir.pt/api/equipa-obra/remover-equipa', {
@@ -167,6 +168,9 @@ const removerEquipaInteira = async (nomeEquipa, obraId) => {
       },
       body: JSON.stringify({ nomeEquipa, obraId }),
     });
+
+    const respostaTexto = await res.text(); // 👈 isto ajuda a ver o que o servidor devolveu
+    console.log('Resposta do backend:', respostaTexto);
 
     if (res.ok) {
       Alert.alert('Sucesso', 'Equipa removida com sucesso!');
@@ -227,6 +231,7 @@ const removerEquipaInteira = async (nomeEquipa, obraId) => {
       setLoading(false);
     }
   };
+  
 
   return (
     <ScrollView style={styles.container}>
@@ -279,21 +284,16 @@ const removerEquipaInteira = async (nomeEquipa, obraId) => {
   <Text style={styles.equipaTitulo}>👷 {equipa.nome}</Text>
   <TouchableOpacity
   onPress={() => {
-    Alert.alert(
-      "Confirmar",
-      `Queres mesmo remover a equipa "${equipa.nome}"?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Sim",
-          onPress: () => removerEquipaInteira(equipa.nome, equipa.obra?.id)
-        }
-      ]
-    );
+    const confirmar = window.confirm(`Queres mesmo remover a equipa "${equipa.nome}"?`);
+    if (confirmar) {
+      removerEquipaInteira(equipa.nome, equipa.obra?.id);
+    }
   }}
 >
   <Text style={{ color: 'red', marginLeft: 10 }}>🗑️</Text>
 </TouchableOpacity>
+
+
 
 </View>
 
@@ -302,10 +302,8 @@ const removerEquipaInteira = async (nomeEquipa, obraId) => {
       <Text style={{ fontWeight: 'bold', marginTop: 5 }}>Membros:</Text>
       {equipa.membros.map((membro) => (
   <View key={membro.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-    <Text>• {membro.nome || membro.username}</Text>
-    <TouchableOpacity onPress={() => removerMembro(membro.EquipaObra.id)}>
-      <Text style={{ color: 'red' }}>❌</Text>
-    </TouchableOpacity>
+    <Text>• {membro.nome || membro.email}</Text>
+
   </View>
 ))}
 

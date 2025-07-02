@@ -30,7 +30,14 @@ const Obra = sequelize.define('Obra', {
         type: DataTypes.TEXT,
         allowNull: true,
     },
-  
+    empresa_id: {
+  type: DataTypes.INTEGER,
+  allowNull: false,
+  references: {
+    model: 'empresas',
+    key: 'id',
+  },
+},
 }, {
     timestamps: true,
     tableName: 'obra',
