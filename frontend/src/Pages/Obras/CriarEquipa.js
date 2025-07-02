@@ -30,13 +30,40 @@ const CriarEquipa = () => {
     }
   };
 
- const fetchUtilizadores = async () => {
+  const obterIdDaEmpresa = async () => {
+  const empresaNome = localStorage.getItem("empresaSelecionada"); // ex: "DEMOCN"
+  const loginToken = localStorage.getItem("loginToken");
+
+  try {
+    const response = await fetch(`https://backend.advir.pt/api/empresas/nome/${empresaNome}`, {
+      headers: {
+        Authorization: `Bearer ${loginToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Erro ao obter ID da empresa");
+    }
+
+    const data = await response.json();
+    return data.id; // <- ID da empresa
+  } catch (error) {
+    console.error("Erro ao obter o ID da empresa:", error);
+    return null;
+  }
+};
+
+const fetchUtilizadores = async () => {
   try {
     const loginToken = localStorage.getItem("loginToken");
-    const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+    const empresaId = await obterIdDaEmpresa(); // ← aqui usas a função correta
+
+    if (!empresaId) {
+      throw new Error("ID da empresa não encontrado");
+    }
 
     const response = await fetch(
-      `https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaSelecionada}`,
+      `https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaId}`,
       {
         method: 'GET',
         headers: { Authorization: `Bearer ${loginToken}` }
@@ -53,6 +80,7 @@ const CriarEquipa = () => {
     console.error("Erro ao carregar utilizadores:", error.message);
   }
 };
+
 
 
   const toggleMembro = (id) => {

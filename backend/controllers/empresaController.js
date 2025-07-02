@@ -43,25 +43,22 @@ const criarEmpresa = async (req, res) => {
 
 // Função para obter as credenciais de uma empresa específica
 const getEmpresaByNome = async (req, res) => {
-    const { empresaNome } = req.params; // Recebe o nome da empresa dos parâmetros da URL
-    console.log("Nome da empresa recebido:", empresaNome);
+    const { empresaNome } = req.params;
 
     try {
         const empresa = await Empresa.findOne({
-            where: { empresa: empresaNome }, // Alteração para procurar pelo nome da empresa
-            attributes: ['username', 'password', 'urlempresa', 'empresa', 'linha'],
+            where: { empresa: empresaNome },
+            attributes: ['id', 'username', 'password', 'urlempresa', 'empresa', 'linha'], // 👈 adicionar o id
         });
 
         if (!empresa) {
-            console.log("Empresa não encontrada no banco de dados.");
             return res.status(404).json({ message: 'Empresa não encontrada.' });
         }
 
-        // Desencriptar a password antes de enviá-la (se necessário)
         const decryptedPassword = decrypt(empresa.password);
 
-        console.log("Dados da empresa encontrados:", empresa);
         res.json({
+            id: empresa.id, // 👈 devolver o ID aqui
             username: empresa.username,
             password: decryptedPassword,
             empresa: empresa.empresa,
@@ -73,6 +70,7 @@ const getEmpresaByNome = async (req, res) => {
         res.status(500).json({ error: 'Erro ao obter informações da empresa' });
     }
 };
+
 
 
 
