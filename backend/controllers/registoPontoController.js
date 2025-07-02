@@ -28,7 +28,7 @@ const registarPontoComBotao = async (req, res) => {
     const nomeEmpresa = req.body.empresa; // ← Empresa vem do body
     const dataAtual = new Date().toISOString().split('T')[0];
     const horaAtual = new Date().toISOString();
-    const { latitude, longitude, endereco } = req.body;
+const { latitude, longitude, endereco, obra_id } = req.body;
 
     if (!nomeEmpresa) {
       return res.status(400).json({ message: "Nome da empresa não fornecido." });
@@ -119,7 +119,7 @@ const registarLeituraQRCode = async (req, res) => {
     const nomeEmpresa = req.body.empresa; // ← Empresa vem do body
     const dataAtual = new Date().toISOString().split('T')[0];
     const horaAtual = new Date().toISOString();
-    const { latitude, longitude, endereco } = req.body;
+const { latitude, longitude, endereco, obra_id } = req.body;
 
     if (!nomeEmpresa) {
       return res.status(400).json({ message: "Nome da empresa não fornecido." });
