@@ -13,11 +13,17 @@ const CriarEquipa = () => {
   const [loading, setLoading] = useState(false);
   const [equipasCriadas, setEquipasCriadas] = useState([]);
 
+  const [modalEditar, setModalEditar] = useState(false);
+const [novoNomeEquipa, setNovoNomeEquipa] = useState('');
+const [equipaSelecionadaEditar, setEquipaSelecionadaEditar] = useState(null);
+
+
 
 useEffect(() => {
   fetchObras();
   fetchUtilizadores();
   fetchEquipasCriadas(); // 👈 aqui
+
 }, []);
 
 
@@ -44,6 +50,57 @@ useEffect(() => {
     if (res.ok) setEquipasCriadas(data);
   } catch (err) {
     console.error('Erro ao carregar equipas criadas:', err);
+  }
+};
+
+
+const editarNomeEquipa = async () => {
+  if (!equipaSelecionadaEditar || !novoNomeEquipa) return;
+
+  try {
+        const token = await AsyncStorage.getItem('loginToken');
+    const idEquipaObra = equipaSelecionadaEditar.membros[0]?.EquipaObra?.id;
+    const res = await fetch(`https://backend.advir.pt/api/equipa-obra/${idEquipaObra}/nome`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ novoNome: novoNomeEquipa }),
+    });
+
+    if (res.ok) {
+      Alert.alert('Sucesso', 'Nome atualizado com sucesso!');
+      fetchEquipasCriadas(); // refresh
+      setModalEditar(false);
+    } else {
+      Alert.alert('Erro', 'Erro ao atualizar nome.');
+    }
+  } catch (err) {
+    console.error('Erro ao atualizar nome:', err);
+    Alert.alert('Erro', 'Erro ao atualizar nome da equipa.');
+  }
+};
+
+const removerMembro = async (idRegistoEquipa) => {
+  try {
+    const token = await AsyncStorage.getItem('loginToken');
+    const res = await fetch(`https://backend.advir.pt/api/equipa-obra/${idRegistoEquipa}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (res.ok) {
+      Alert.alert('Sucesso', 'Membro removido.');
+      fetchEquipasCriadas(); // refresh
+    } else {
+      Alert.alert('Erro', 'Erro ao remover membro.');
+    }
+  } catch (err) {
+    console.error('Erro ao remover membro:', err);
+    Alert.alert('Erro', 'Erro ao remover membro da equipa.');
   }
 };
 
@@ -99,6 +156,29 @@ const fetchUtilizadores = async () => {
   }
 };
 
+const removerEquipaInteira = async (nomeEquipa, obraId) => {
+  try {
+    const token = await AsyncStorage.getItem('loginToken');
+    const res = await fetch('https://backend.advir.pt/api/equipa-obra/remover-equipa', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ nomeEquipa, obraId }),
+    });
+
+    if (res.ok) {
+      Alert.alert('Sucesso', 'Equipa removida com sucesso!');
+      fetchEquipasCriadas();
+    } else {
+      Alert.alert('Erro', 'Erro ao remover a equipa.');
+    }
+  } catch (err) {
+    console.error('Erro ao remover equipa:', err);
+    Alert.alert('Erro', 'Erro ao remover equipa.');
+  }
+};
 
 
   const toggleMembro = (id) => {
@@ -129,8 +209,8 @@ const fetchUtilizadores = async () => {
           obra_id: obraSelecionada,
           membros: membrosSelecionados,
         }),
+        
       });
-
       const data = await res.json();
       if (res.ok) {
         Alert.alert('Sucesso', 'Equipa criada com sucesso!');
@@ -195,15 +275,69 @@ const fetchUtilizadores = async () => {
 ) : (
   equipasCriadas.map((equipa) => (
     <View key={`equipa-${equipa.nome}`} style={styles.equipaBox}>
-      <Text style={styles.equipaTitulo}>👷 {equipa.nome}</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+  <Text style={styles.equipaTitulo}>👷 {equipa.nome}</Text>
+  <TouchableOpacity
+  onPress={() => {
+    Alert.alert(
+      "Confirmar",
+      `Queres mesmo remover a equipa "${equipa.nome}"?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Sim",
+          onPress: () => removerEquipaInteira(equipa.nome, equipa.obra?.id)
+        }
+      ]
+    );
+  }}
+>
+  <Text style={{ color: 'red', marginLeft: 10 }}>🗑️</Text>
+</TouchableOpacity>
+
+</View>
+
       <Text style={styles.equipaObra}>🏗️ {equipa.obra?.codigo} - {equipa.obra?.nome}</Text>
       <Text style={{ fontWeight: 'bold' }}>Encarregado: {equipa.encarregado?.nome || '-'}</Text>
       <Text style={{ fontWeight: 'bold', marginTop: 5 }}>Membros:</Text>
       {equipa.membros.map((membro) => (
-        <Text key={membro.id}>• {membro.nome || membro.username}</Text>
-      ))}
+  <View key={membro.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+    <Text>• {membro.nome || membro.username}</Text>
+    <TouchableOpacity onPress={() => removerMembro(membro.EquipaObra.id)}>
+      <Text style={{ color: 'red' }}>❌</Text>
+    </TouchableOpacity>
+  </View>
+))}
+
     </View>
   ))
+)}
+{modalEditar && (
+  <View style={{
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  }}>
+    <View style={{ backgroundColor: 'white', padding: 20, borderRadius: 10, width: '100%' }}>
+      <Text style={{ fontWeight: 'bold', marginBottom: 10 }}>Editar Nome da Equipa</Text>
+      <TextInput
+        value={novoNomeEquipa}
+        onChangeText={setNovoNomeEquipa}
+        style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10 }}
+      />
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 }}>
+        <TouchableOpacity onPress={() => setModalEditar(false)} style={{ marginRight: 10 }}>
+          <Text>Cancelar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={editarNomeEquipa}>
+          <Text style={{ color: 'blue' }}>Guardar</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
 )}
 
     </ScrollView>

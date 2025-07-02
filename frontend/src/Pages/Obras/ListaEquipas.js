@@ -4,8 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ListaEquipas = () => {
   const [equipas, setEquipas] = useState([]);
-  const [editandoId, setEditandoId] = useState(null);
-  const [novoNome, setNovoNome] = useState('');
+  const [editandoNome, setEditandoNome] = useState({});
 
   useEffect(() => {
     fetchEquipas();
@@ -30,19 +29,25 @@ const ListaEquipas = () => {
     try {
       const token = await AsyncStorage.getItem('loginToken');
       const empresaId = await obterIdDaEmpresa();
-      const res = await fetch(`https://backend.advir.pt/api/equipa-obra/por-empresa?empresa_id=${empresaId}`, {
+      const res = await fetch(`https://backend.advir.pt/api/equipa-obra/listar-todas`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (res.ok) setEquipas(data);
+      if (res.ok) {
+        const filtradas = data.filter(e => e.obra?.empresa_id == empresaId);
+        setEquipas(filtradas);
+      }
     } catch (err) {
       console.error('Erro ao carregar equipas:', err);
     }
   };
 
-  const atualizarNome = async (equipaId) => {
+  const atualizarNome = async (nomeAtual, novoNome) => {
     try {
       const token = await AsyncStorage.getItem('loginToken');
+      const equipaId = equipas.find(eq => eq.nome === nomeAtual)?.id;
+      if (!equipaId) return;
+
       const res = await fetch(`https://backend.advir.pt/api/equipa-obra/${equipaId}`, {
         method: 'PUT',
         headers: {
@@ -53,7 +58,7 @@ const ListaEquipas = () => {
       });
       if (res.ok) {
         Alert.alert('Sucesso', 'Nome da equipa atualizado!');
-        setEditandoId(null);
+        setEditandoNome({});
         fetchEquipas();
       } else {
         Alert.alert('Erro', 'Erro ao atualizar nome.');
@@ -63,10 +68,10 @@ const ListaEquipas = () => {
     }
   };
 
-  const removerMembro = async (equipaId) => {
+  const removerMembro = async (equipaObraId) => {
     try {
       const token = await AsyncStorage.getItem('loginToken');
-      const res = await fetch(`https://backend.advir.pt/api/equipa-obra/${equipaId}`, {
+      const res = await fetch(`https://backend.advir.pt/api/equipa-obra/${equipaObraId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -81,31 +86,36 @@ const ListaEquipas = () => {
 
   const renderItem = ({ item }) => (
     <View style={styles.card}>
-      {editandoId === item.id ? (
+      {editandoNome[item.nome] ? (
         <TextInput
-          value={novoNome}
-          onChangeText={setNovoNome}
+          value={editandoNome[item.nome]}
+          onChangeText={(text) => setEditandoNome({ ...editandoNome, [item.nome]: text })}
           style={styles.input}
         />
       ) : (
         <Text style={styles.nomeEquipa}>{item.nome}</Text>
       )}
-      <Text>Membro: {item.membro?.nome}</Text>
-      <Text>Tipo: {item.membro?.tipoUser}</Text>
-      <Text>Obra: {item.Obra?.codigo} - {item.Obra?.nome}</Text>
+      <Text>Encarregado: {item.encarregado?.nome}</Text>
+      <Text>Obra: {item.obra?.codigo} - {item.obra?.nome}</Text>
+      <Text style={{ fontWeight: 'bold', marginTop: 5 }}>Membros:</Text>
+      {item.membros.map((membro, index) => (
+        <View key={index} style={styles.membroContainer}>
+          <Text>- {membro.nome} ({membro.tipoUser})</Text>
+          <TouchableOpacity onPress={() => removerMembro(membro.equipaObraId)} style={styles.btnRemover}>
+            <Text style={styles.btnText}>Remover</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
       <View style={styles.botoesContainer}>
-        {editandoId === item.id ? (
-          <TouchableOpacity onPress={() => atualizarNome(item.id)} style={styles.btnSalvar}>
+        {editandoNome[item.nome] ? (
+          <TouchableOpacity onPress={() => atualizarNome(item.nome, editandoNome[item.nome])} style={styles.btnSalvar}>
             <Text style={styles.btnText}>Salvar</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity onPress={() => { setEditandoId(item.id); setNovoNome(item.nome); }} style={styles.btnEditar}>
+          <TouchableOpacity onPress={() => setEditandoNome({ [item.nome]: item.nome })} style={styles.btnEditar}>
             <Text style={styles.btnText}>Editar</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity onPress={() => removerMembro(item.id)} style={styles.btnRemover}>
-          <Text style={styles.btnText}>Remover</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -113,7 +123,7 @@ const ListaEquipas = () => {
   return (
     <FlatList
       data={equipas}
-      keyExtractor={(item) => item.id.toString()}
+      keyExtractor={(item) => item.nome}
       renderItem={renderItem}
       contentContainerStyle={{ padding: 16 }}
     />
@@ -141,9 +151,16 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 5
   },
-  botoesContainer: {
+  membroContainer: {
+    marginLeft: 10,
+    marginTop: 5,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  botoesContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     marginTop: 10
   },
   btnEditar: {
@@ -157,9 +174,10 @@ const styles = StyleSheet.create({
     borderRadius: 6
   },
   btnRemover: {
-    backgroundColor: '#E53935',
-    padding: 10,
-    borderRadius: 6
+    backgroundColor: '#DC3545',
+    padding: 6,
+    borderRadius: 6,
+    marginLeft: 10
   },
   btnText: {
     color: 'white'

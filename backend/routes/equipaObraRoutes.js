@@ -9,7 +9,8 @@ const {
     removerMembroEquipa,
     listarTodasEquipasAgrupadas,
     atualizarNomeEquipa,
-    listarEquipasPorEmpresa
+    listarEquipasPorEmpresa,
+    removerEquipaInteira
 } = require('../controllers/equipaObraController');
 
 router.post('/', authMiddleware, criarEquipa);
@@ -19,6 +20,8 @@ router.delete('/:equipa_id', authMiddleware, removerMembroEquipa);
 router.get('/listar-todas', authMiddleware, listarTodasEquipasAgrupadas);
 router.put('/:equipa_id', authMiddleware, atualizarNomeEquipa);
 router.get('/por-empresa', authMiddleware, listarEquipasPorEmpresa);
+router.post('/remover-equipa', authMiddleware, removerEquipaInteira);
+
 
 
 module.exports = router;

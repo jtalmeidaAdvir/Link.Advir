@@ -187,6 +187,26 @@ const listarEquipasPorEmpresa = async (req, res) => {
     }
 };
 
+const removerEquipaInteira = async (req, res) => {
+  try {
+    const { nomeEquipa, obraId } = req.body;
+    const encarregado_id = req.user.id;
+
+    const equipa = await EquipaObra.findOne({ where: { nome: nomeEquipa, obra_id: obraId } });
+    if (!equipa) return res.status(404).json({ message: 'Equipa não encontrada.' });
+
+    if (equipa.encarregado_id !== encarregado_id) {
+      return res.status(403).json({ message: 'Apenas o encarregado pode apagar a equipa.' });
+    }
+
+    await EquipaObra.destroy({ where: { nome: nomeEquipa, obra_id: obraId } });
+
+    res.status(200).json({ message: 'Equipa removida com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao remover equipa:', error);
+    res.status(500).json({ message: 'Erro interno do servidor.' });
+  }
+};
 
 
 
@@ -197,5 +217,6 @@ module.exports = {
     removerMembroEquipa,
     listarTodasEquipasAgrupadas,
     atualizarNomeEquipa,
-    listarEquipasPorEmpresa
+    listarEquipasPorEmpresa,
+    removerEquipaInteira
 };
