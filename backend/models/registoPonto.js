@@ -2,6 +2,8 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 const User = require('./user');
 const Empresa = require('./empresa'); // <--- adiciona isto
+const Obra = require('./obra'); // adiciona isto no topo
+
 
 
 const RegistoPonto = sequelize.define('RegistoPonto', {
@@ -36,7 +38,15 @@ const RegistoPonto = sequelize.define('RegistoPonto', {
       model: Empresa,
       key: 'id',
     }
-}
+},
+obra_id: {
+  type: DataTypes.INTEGER,
+  allowNull: true, // <- permite registo sem obra
+  references: {
+    model: Obra,
+    key: 'id',
+  }
+},
 }, {
     timestamps: false,
     tableName: 'registo_ponto',

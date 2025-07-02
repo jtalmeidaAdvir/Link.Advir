@@ -68,6 +68,7 @@ const registarPontoComBotao = async (req, res) => {
         latitude,
         longitude,
         endereco,
+        obra_id: obra_id || null,  // ← Aqui, se não vier, assume null
         totalHorasTrabalhadas: 0,
         totalTempoIntervalo: 0
       });
@@ -158,6 +159,7 @@ const registarLeituraQRCode = async (req, res) => {
         latitude,
         longitude,
         endereco,
+        obra_id: obra_id || null,  // ← Aqui, se não vier, assume null
         totalHorasTrabalhadas: 0,
         totalTempoIntervalo: 0
       });
