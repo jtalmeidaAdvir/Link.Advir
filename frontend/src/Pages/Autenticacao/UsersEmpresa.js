@@ -63,7 +63,9 @@ const UsersEmpresa = () => {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const response = await fetch('https://backend.advir.pt/api/users/usersByEmpresa', {
+            
+            const idDaEmpresa = localStorage.getItem('empresa_id');
+const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${idDaEmpresa}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',

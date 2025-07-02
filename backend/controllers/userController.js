@@ -206,7 +206,8 @@ const user = await User.findOne({
     'recoveryTokenExpiry',
     'empresa_areacliente',
     'id_tecnico',
-    'empresaPredefinida' // 👈 este aqui!
+    'empresaPredefinida',
+    'tipoUser' // 👈 este aqui!
   ],
   where: { email }
 });
@@ -251,6 +252,7 @@ console.log("→ Empresa predefinida do utilizador:", userPlain.empresaPredefini
         userEmail: user.email,
         username: user.username, // 👈 este aqui
         empresaPredefinida: userPlain.empresaPredefinida,
+        tipoUser: user.tipoUser
         });
 
     } catch (error) {

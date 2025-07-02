@@ -55,7 +55,6 @@ import PartesDiarias from './src/Pages/Obras/PartesDiarias';
 import AddPartesDiarias from './src/Pages/Obras/AddPartesDiarias';
 
 import CriarEquipa from './src/Pages/Obras/CriarEquipa';
-import ListaEquipas from './src/Pages/Obras/ListaEquipas';
 
 import UserModulesManagement from './src/Pages/Autenticacao/UserModulesManagement';
 import logo from './assets/favicon1.ico';
@@ -160,18 +159,12 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                     )}
                     {hasObrasModule && (
                         <DrawerItem
-                            label={t("Drawer.CriarEquipa")}
+                            label={t("Equipas")}
                             onPress={() => props.navigation.navigate('CriarEquipa')}
-                            icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
+                            icon={() => <FontAwesome name="users" size={20} color="#1792FE" />}
                         />
                     )}
-                    {hasObrasModule && (
-                        <DrawerItem
-                            label={t("Drawer.ListaEquipas")}
-                            onPress={() => props.navigation.navigate('ListaEquipas')}
-                            icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
-                        />
-                    )}
+
                     {hasServicesModule && (
                         <DrawerItem
                             label={t("Drawer.Servicos")}
@@ -472,7 +465,6 @@ const AppNavigator = () => {
             <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
             <Drawer.Screen name="Obras" component={Obras} />
             <Drawer.Screen name="CriarEquipa" component={CriarEquipa} />
-            <Drawer.Screen name="ListaEquipas" component={ListaEquipas} />
             <Drawer.Screen name="PontoBotao" component={PontoBotao} />
             <Drawer.Screen name="Perfil" options={{ title: "AdvirLink - Perfil" }}>
                 {props => (
