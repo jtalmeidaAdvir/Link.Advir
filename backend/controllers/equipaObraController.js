@@ -138,10 +138,64 @@ const listarTodasEquipasAgrupadas = async (req, res) => {
 };
 
 
+// Atualizar nome da equipa
+const atualizarNomeEquipa = async (req, res) => {
+    try {
+        const { equipa_id } = req.params;
+        const { novoNome } = req.body;
+
+        const equipa = await EquipaObra.findByPk(equipa_id);
+        if (!equipa) {
+            return res.status(404).json({ message: 'Equipa não encontrada.' });
+        }
+
+        // Atualizar nome para todos os membros da mesma equipa
+        await EquipaObra.update(
+            { nome: novoNome },
+            {
+                where: {
+                    nome: equipa.nome,
+                    obra_id: equipa.obra_id
+                }
+            }
+        );
+
+        res.status(200).json({ message: 'Nome da equipa atualizado com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao atualizar nome da equipa:', error);
+        res.status(500).json({ message: 'Erro interno do servidor.' });
+    }
+};
+
+
+const listarEquipasPorEmpresa = async (req, res) => {
+    try {
+        const { empresa_id } = req.query;
+
+        const equipas = await EquipaObra.findAll({
+            include: [
+                { model: User, as: 'membro', where: { empresa_id }, attributes: ['id', 'nome', 'tipoUser'] },
+                { model: User, as: 'encarregado', attributes: ['id', 'nome'] },
+                { model: Obra, attributes: ['id', 'nome', 'codigo'] }
+            ]
+        });
+
+        res.status(200).json(equipas);
+    } catch (error) {
+        console.error('Erro ao listar equipas por empresa:', error);
+        res.status(500).json({ message: 'Erro interno do servidor.' });
+    }
+};
+
+
+
+
 module.exports = {
     criarEquipa,
     listarEquipasPorObra,
     listarMinhasEquipas,
     removerMembroEquipa,
-    listarTodasEquipasAgrupadas
+    listarTodasEquipasAgrupadas,
+    atualizarNomeEquipa,
+    listarEquipasPorEmpresa
 };
