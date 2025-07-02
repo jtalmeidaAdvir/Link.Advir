@@ -1,7 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const { Empresa, Obra, Modulo, Submodulo, RegistoPonto, Intervalo, PedidoAlteracao, EquipaObra, PartesDiarias } = require('./models'); // Sem User
-
 const { sequelize, initializeSequelize } = require('./config/db');
 const userRoutes = require('./routes/userRoutes');
 const empresaRoutes = require('./routes/empresaRoutes');
@@ -31,15 +29,13 @@ app.use(fileUpload());
 
 async function startApp() {
     await initializeSequelize();
-
-    try {
-        await Obra.sync({ alter: true });
-
-        // ❌ User não é sincronizado, evitando o erro com DEFAULT e UNIQUE
-        console.log('Modelos sincronizados com sucesso (User excluído).');
-    } catch (err) {
-        console.error('Erro ao sincronizar os modelos:', err);
-    }
+    await sequelize.sync({ alter : true }) // Sincroniza sem perder dados
+        .then(() => {
+            console.log('Tabelas sincronizadas com sucesso.');
+        })
+        .catch((err) => {
+            console.error('Erro ao sincronizar as tabelas:', err);
+        });
 }
 
 // Rotas
