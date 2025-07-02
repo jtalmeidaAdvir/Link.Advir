@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const { Empresa, Obra, Modulo, Submodulo, RegistoPonto, Intervalo, PedidoAlteracao, EquipaObra, PartesDiarias } = require('./models'); // Sem User
+
 const { sequelize, initializeSequelize } = require('./config/db');
 const userRoutes = require('./routes/userRoutes');
 const empresaRoutes = require('./routes/empresaRoutes');
