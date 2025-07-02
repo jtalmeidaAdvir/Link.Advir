@@ -78,7 +78,7 @@ const linking = {
     },
 };
 
-const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...props }) => {
+const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoUser, ...props }) => {
     const [expanded, setExpanded] = useState(false);
     const { t } = useTranslation();
     const handlePress = () => setExpanded(!expanded);
@@ -150,14 +150,14 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, ...pr
                         onPress={() => props.navigation.navigate('SelecaoEmpresa')}
                         icon={() => <FontAwesome name="briefcase" size={20} color="#1792FE" />}
                     />
-                    {hasObrasModule && (
+                    {hasObrasModule && (tipoUser === "Encarregado" || tipoUser === "Diretor") && (
                         <DrawerItem
                             label={t("Drawer.Obra")}
                             onPress={() => props.navigation.navigate('Obras')}
                             icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
                         />
                     )}
-                    {hasObrasModule && (
+                    {hasObrasModule && (tipoUser === "Encarregado" || tipoUser === "Diretor") && (
                         <DrawerItem
                             label={t("Equipas")}
                             onPress={() => props.navigation.navigate('CriarEquipa')}
@@ -288,6 +288,8 @@ const AppNavigator = () => {
     const [languageSelectorVisible, setLanguageSelectorVisible] = useState(false);
     const [hoveredLanguage, setHoveredLanguage] = useState(null);
     const [initialRoute, setInitialRoute] = useState('Login'); // Define a rota inicial com Login por padrão
+    const [tipoUser, setTipoUser] = useState('');
+
 
 
     const fetchUserModules = async () => {
@@ -323,6 +325,8 @@ const AppNavigator = () => {
             setUsername(localStorage.getItem('username') || '');
             setUserNome(localStorage.getItem('userNome') || '');
             setEmpresa(localStorage.getItem('empresaSelecionada') || '');
+            setTipoUser(localStorage.getItem('tipoUser') || '');
+
 
             await fetchUserModules();
             setLoading(false);
@@ -362,6 +366,8 @@ const AppNavigator = () => {
                     isSuperAdmin={isSuperAdmin}
                     isLoggedIn={isLoggedIn}
                     modules={modules}
+                    tipoUser={tipoUser}
+
                 />
             )}
             screenOptions={({ navigation }) => ({
@@ -463,8 +469,13 @@ const AppNavigator = () => {
 
             <Drawer.Screen name="ListarRegistos" component={ListarRegistos} options={{ title: "AdvirLink - Registos", drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
-            <Drawer.Screen name="Obras" component={Obras} />
-            <Drawer.Screen name="CriarEquipa" component={CriarEquipa} />
+            {(tipoUser === "Encarregado" || tipoUser === "Diretor") && (
+    <>
+        <Drawer.Screen name="Obras" component={Obras} />
+        <Drawer.Screen name="CriarEquipa" component={CriarEquipa} />
+    </>
+)}
+
             <Drawer.Screen name="PontoBotao" component={PontoBotao} />
             <Drawer.Screen name="Perfil" options={{ title: "AdvirLink - Perfil" }}>
                 {props => (
