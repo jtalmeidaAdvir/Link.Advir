@@ -29,13 +29,15 @@ app.use(fileUpload());
 
 async function startApp() {
     await initializeSequelize();
-    await sequelize.sync({ alter : true }) // Sincroniza sem perder dados
-        .then(() => {
-            console.log('Tabelas sincronizadas com sucesso.');
-        })
-        .catch((err) => {
-            console.error('Erro ao sincronizar as tabelas:', err);
-        });
+
+    try {
+        await Obra.sync({ alter: true });
+
+        // ❌ User não é sincronizado, evitando o erro com DEFAULT e UNIQUE
+        console.log('Modelos sincronizados com sucesso (User excluído).');
+    } catch (err) {
+        console.error('Erro ao sincronizar os modelos:', err);
+    }
 }
 
 // Rotas
