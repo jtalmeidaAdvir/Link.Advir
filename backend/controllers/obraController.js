@@ -25,6 +25,36 @@ const listarObras = async (req, res) => {
     }
 };
 
+
+const listarObrasPorEmpresa = async (req, res) => {
+    try {
+        const { empresa_id } = req.query;
+
+        if (!empresa_id) {
+            return res.status(400).json({ message: 'empresa_id é obrigatório.' });
+        }
+
+        const obras = await Obra.findAll({
+            where: { empresa_id },
+            include: [
+                {
+                    model: EquipaObra,
+                    include: [
+                        { model: User, as: 'membro', attributes: ['id', 'nome'] },
+                        { model: User, as: 'encarregado', attributes: ['id', 'nome'] }
+                    ]
+                }
+            ]
+        });
+
+        res.status(200).json(obras);
+    } catch (error) {
+        console.error('Erro ao listar obras por empresa:', error);
+        res.status(500).json({ message: 'Erro interno do servidor.' });
+    }
+};
+
+
 // Criar nova obra
 const criarObra = async (req, res) => {
     try {
@@ -123,5 +153,6 @@ module.exports = {
     criarObra,
     obterObra,
     atualizarObra,
-    eliminarObra
+    eliminarObra,
+    listarObrasPorEmpresa
 };

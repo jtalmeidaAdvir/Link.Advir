@@ -7,10 +7,12 @@ const {
     criarObra,
     obterObra,
     atualizarObra,
-    eliminarObra
+    eliminarObra,
+    listarObrasPorEmpresa
 } = require('../controllers/obraController');
 
 router.get('/', authMiddleware, listarObras);
+router.get('/por-empresa', authMiddleware, listarObrasPorEmpresa);
 router.post('/', authMiddleware, criarObra);
 router.get('/:id', authMiddleware, obterObra);
 router.put('/:id', authMiddleware, atualizarObra);

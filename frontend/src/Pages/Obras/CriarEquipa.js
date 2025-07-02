@@ -27,18 +27,36 @@ useEffect(() => {
 }, []);
 
 
-  const fetchObras = async () => {
-    try {
-      const token = await AsyncStorage.getItem('loginToken');
-      const res = await fetch('https://backend.advir.pt/api/obra', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok) setObras(data);
-    } catch (err) {
-      console.error('Erro ao carregar obras:', err);
-    }
-  };
+const fetchObras = async () => {
+  try {
+    const token = await AsyncStorage.getItem('loginToken');
+    const empresaNome = localStorage.getItem("empresaSelecionada");
+
+    // Obter ID da empresa
+    const empresaRes = await fetch(`https://backend.advir.pt/api/empresas/nome/${empresaNome}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!empresaRes.ok) throw new Error('Erro ao obter ID da empresa');
+
+    const empresaData = await empresaRes.json();
+    const empresaId = empresaData.id;
+
+    // Buscar obras da empresa
+    const res = await fetch(`https://backend.advir.pt/api/obra/por-empresa?empresa_id=${empresaId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const data = await res.json();
+    if (res.ok) setObras(data);
+    else throw new Error(data.message || 'Erro ao buscar obras');
+  } catch (err) {
+    console.error('Erro ao carregar obras:', err);
+  }
+};
+
 
   const fetchEquipasCriadas = async () => {
   try {
