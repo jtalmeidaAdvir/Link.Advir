@@ -56,7 +56,7 @@ router.get('/:empresaId', async (req, res) => {
 
         // Obter a empresa
         const empresa = await Empresa.findByPk(empresaId, {
-            attributes: ['id', 'empresa', 'maxUsers'],
+            attributes: ['id', 'empresa', 'maxUsers', 'tempoIntervaloPadrao'], // Inclui o novo campo tempoIntervaloPadrao
         });
 
         if (!empresa) {

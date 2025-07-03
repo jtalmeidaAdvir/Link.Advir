@@ -213,7 +213,7 @@ const ADHome = () => {
 
                     <Text style={styles.subTitle}>Definir Intervalo Padrão (em horas)</Text>
                     <TextInput
-                        placeholder="Ex: 1"
+                        placeholder="Definir intervalo padrão"
                         keyboardType="decimal-pad"
                         value={tempoIntervaloPadrao}
                         onChangeText={setTempoIntervaloPadrao}
