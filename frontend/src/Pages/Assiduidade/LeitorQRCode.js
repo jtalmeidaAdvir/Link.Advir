@@ -292,17 +292,25 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
 
 
 const onScanSuccess = async (decodedText) => {
-  if (!decodedText.startsWith("obra:")) {
-    alert("QR Code inválido. Esperava-se formato 'obra:<id>'.");
+  if (decodedText === "registo-ponto") {
+    await registarPonto();
     return;
   }
-  const obraId = decodedText.split(":")[1];
-  if (membrosSelecionados.length === 0) {
-    alert("Seleciona pelo menos um membro da equipa.");
+
+  if (decodedText.startsWith("obra:")) {
+    const obraId = decodedText.split(":")[1];
+    if (membrosSelecionados.length === 0) {
+      alert("Seleciona pelo menos um membro da equipa.");
+      return;
+    }
+    await registarPontoParaMembros(obraId);
     return;
   }
-  await registarPontoParaMembros(obraId);
+
+  alert("QR Code inválido.");
 };
+
+
 
 
 
@@ -533,12 +541,6 @@ const registarPonto = async () => {
   }
 };
 
-
-
-
-
-
-
   // ----------------------------------------------------------------
   // Funções de controlo de intervalo (início e fim)
   // ----------------------------------------------------------------
@@ -630,6 +632,7 @@ useEffect(() => {
       return scannerRef.current.start(
         back.id,
         { fps: 10, qrbox: 250, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
+        
         async decodedText => {
           if (isProcessing) return;
           setIsProcessing(true);
@@ -641,11 +644,8 @@ useEffect(() => {
           setScannerVisible(false);
 
           // Só depois processa o QR
-          if (decodedText === qrData) {
-            await registarPonto();
-          } else {
-            alert('QR inválido');
-          }
+          await onScanSuccess(decodedText);
+
 
           setIsProcessing(false);
         }
