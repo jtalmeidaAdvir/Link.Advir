@@ -104,23 +104,24 @@ const aprovarPedido = async (req, res) => {
     const registo = await RegistoPonto.findByPk(pedido.registo_ponto_id);
     if (!registo) return res.status(404).json({ error: 'Registo de ponto não encontrado.' });
 
-    const aplicarNovaHora = (dataOriginal, novaHora) => {
-      if (!novaHora) return dataOriginal;
+    const aplicarNovaHora = (dataOriginal, novaHoraStr) => {
+  if (!novaHoraStr) return dataOriginal;
 
-      const nova = new Date(novaHora);
-      const dataFinal = new Date(dataOriginal);
+  const dataFinal = new Date(dataOriginal);
 
-      dataFinal.setHours(nova.getHours());
-      dataFinal.setMinutes(nova.getMinutes());
-      dataFinal.setSeconds(0);
-      dataFinal.setMilliseconds(0);
+  const [hora, minuto] = novaHoraStr.split(':');
+  dataFinal.setHours(parseInt(hora));
+  dataFinal.setMinutes(parseInt(minuto));
+  dataFinal.setSeconds(0);
+  dataFinal.setMilliseconds(0);
 
-      return dataFinal;
-    };
+  return dataFinal;
+};
+
 
     // Aplica alterações corretamente
     if (pedido.novaHoraEntrada) {
-      registo.horaEntrada = aplicarNovaHora(registo.data, pedido.novaHoraEntrada);
+    registo.horaEntrada = aplicarNovaHora(registo.data, pedido.novaHoraEntrada.toString().substring(11, 16));
     }
 
     if (pedido.novaHoraSaida) {
