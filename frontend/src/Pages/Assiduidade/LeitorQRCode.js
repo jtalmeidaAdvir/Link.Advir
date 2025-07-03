@@ -328,35 +328,27 @@ const registarPontoParaMembros = async (obraId) => {
   const enderecoObtido = await getEnderecoPorCoordenadas(localizacao.latitude, localizacao.longitude);
   const horaAtual = new Date().toISOString();
 
- for (const membro of membrosSelecionados) {
-  try {
-    const response = await fetch(`${API_URL}/api/registoPonto/registar-para-outro`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user_id: membro.id,
-        empresa: empresaSelecionada,
-        latitude,
-        longitude,
-        endereco,
-        obra_id: obraId
-      })
-    });
+ membrosSelecionados.forEach(async membro => {
+  const response = await fetch("https://backend.advir.pt/api/registoPonto/registar-para-outro", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${loginToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      user_id: membro.membro.id, // 👈 CORREÇÃO AQUI
+      empresa: empresaSelecionada,
+      latitude,
+      longitude,
+      endereco,
+      obra_id: obraSelecionada
+    })
+  });
 
-    const resultado = await response.json();
+  const resultado = await response.json();
+  console.log(`Resultado para ${membro.membro.nome}:`, resultado.message);
+});
 
-    if (response.ok) {
-      console.log(`✅ ${membro.nome}: ${resultado.message}`);
-    } else {
-      console.log(`⚠️ ${membro.nome}: ${resultado.message}`);
-    }
-  } catch (err) {
-    console.error(`❌ Erro ao registar ponto para ${membro.nome}`, err);
-  }
-}
 
 
   alert("Ponto registado para todos os membros selecionados.");
