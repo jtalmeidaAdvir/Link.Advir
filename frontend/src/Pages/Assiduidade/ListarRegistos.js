@@ -35,6 +35,21 @@ const RegistoItem = ({ item, onEdit }) => {
         }).start();
         setExpandedCard(!expandedCard);
     };
+
+
+
+
+    const dataAtual = new Date(); // agora
+    const dataDoRegisto = new Date(item.data);
+
+    // verifica se o dia não tem entrada nem saída
+    const registoIncompleto = !item.horaEntrada && !item.horaSaida;
+
+    // verifica se é anterior a hoje
+    const diaAnteriorAHoje = dataDoRegisto < new Date(dataAtual.toDateString()); // remove a hora
+
+    const mostrarAlerta = registoIncompleto && diaAnteriorAHoje;
+
     
     const getEnderecoPorCoordenadas = async (latitude, longitude) => {
         const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
@@ -82,7 +97,17 @@ const RegistoItem = ({ item, onEdit }) => {
                     <View style={styles.dateContainer}>
                         <MaterialCommunityIcons name="calendar" size={18} color="#4481EB" style={styles.icon} />
                         <Text style={styles.cardDate}>{formatDate(item.data)}</Text>
-                    </View>
+                        {mostrarAlerta && (
+                            <MaterialCommunityIcons
+                            name="alert-circle"
+                            size={20}
+                            color="#FFA500"
+                            style={{ marginLeft: 6 }}
+                            />
+                        )}
+                        </View>
+
+
                     <TouchableOpacity onPress={toggleExpand} style={styles.expandButton}>
                         <Ionicons 
                             name={expandedCard ? "chevron-up-circle" : "chevron-down-circle"} 
@@ -183,37 +208,77 @@ const ListarRegistos = () => {
         fetchHistoricoPontos();
     }, [mesSelecionado, anoSelecionado]);
 
-    const fetchHistoricoPontos = async () => {
-        setLoading(true);
-        try {
-            const empresaSelecionada = localStorage.getItem("empresaSelecionada");
 
-            const response = await fetch(`https://backend.advir.pt/api/registoPonto/listar?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa=${empresaSelecionada}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
-                'Content-Type': 'application/json',
-            },
-            });
-    
-            if (response.ok) {
-                const data = await response.json();
-                // Ordenar os registos em ordem decrescente pela data
-                const registosOrdenados = (data || []).sort((a, b) => new Date(b.data) - new Date(a.data));
-                console.log("→ Registos ordenados:", registosOrdenados);
+const gerarDiasDoMes = (mes, ano) => {
+  const dias = [];
+  const totalDias = new Date(ano, mes, 0).getDate(); // último dia do mês atual
 
-                setHistoricoPontos(registosOrdenados);
-            } else {
-                setErrorMessage('Erro ao obter histórico de pontos.');
-                setHistoricoPontos([]);
-            }
-        } catch (error) {
-            console.error('Erro ao obter histórico de pontos:', error);
-            setHistoricoPontos([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+  for (let dia = 1; dia <= totalDias; dia++) {
+    dias.push({ data: new Date(ano, mes - 1, dia) }); // atenção: mês é zero-based
+  }
+
+  return dias;
+};
+
+
+
+   const fetchHistoricoPontos = async () => {
+  setLoading(true);
+  try {
+    const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+    const response = await fetch(`https://backend.advir.pt/api/registoPonto/listar?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa=${empresaSelecionada}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const registos = data || [];
+
+      // Gerar todos os dias do mês atual
+      const diasDoMes = gerarDiasDoMes(mesSelecionado, anoSelecionado);
+
+      // Mapear cada dia com o registo se existir
+      const diasComRegistos = diasDoMes.map(({ data }) => {
+        const dataISO = new Date(data).toLocaleDateString('pt-PT', {
+  timeZone: 'Europe/Lisbon',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+}).split('/').reverse().join('-');
+
+
+        const registoDoDia = registos.find(reg => {
+        const dataReg = new Date(reg.data).toLocaleDateString('pt-PT', {
+        timeZone: 'Europe/Lisbon',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+        }).split('/').reverse().join('-'); // formato YYYY-MM-DD
+
+        return dataReg === dataISO;
+        });
+
+
+        return registoDoDia || { data: dataISO }; // se não houver registo, mantém só a data
+      });
+
+      setHistoricoPontos(diasComRegistos);
+    } else {
+      setErrorMessage('Erro ao obter histórico de pontos.');
+      setHistoricoPontos([]);
+    }
+  } catch (error) {
+    console.error('Erro ao obter histórico de pontos:', error);
+    setHistoricoPontos([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
     
     const nextMonth = () => {
         if (mesSelecionado === 12) {
@@ -294,6 +359,8 @@ const ListarRegistos = () => {
                 ]}
             >
                 <View style={styles.filterCard}>
+                
+
                     <View style={styles.monthSelector}>
                         <TouchableOpacity onPress={prevMonth} style={styles.monthArrow}>
                             <Ionicons name="chevron-back" size={22} color="#4481EB" />

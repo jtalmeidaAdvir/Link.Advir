@@ -104,15 +104,32 @@ const aprovarPedido = async (req, res) => {
     const registo = await RegistoPonto.findByPk(pedido.registo_ponto_id);
     if (!registo) return res.status(404).json({ error: 'Registo de ponto não encontrado.' });
 
-    // Aplica alterações
-    if (pedido.novaHoraEntrada) registo.horaEntrada = pedido.novaHoraEntrada;
-    if (pedido.novaHoraSaida) registo.horaSaida = pedido.novaHoraSaida;
+    const aplicarNovaHora = (dataOriginal, novaHora) => {
+      if (!novaHora) return dataOriginal;
+
+      const nova = new Date(novaHora);
+      const dataFinal = new Date(dataOriginal);
+
+      dataFinal.setHours(nova.getHours());
+      dataFinal.setMinutes(nova.getMinutes());
+      dataFinal.setSeconds(0);
+      dataFinal.setMilliseconds(0);
+
+      return dataFinal;
+    };
+
+    // Aplica alterações corretamente
+    if (pedido.novaHoraEntrada) {
+      registo.horaEntrada = aplicarNovaHora(registo.data, pedido.novaHoraEntrada);
+    }
+
+    if (pedido.novaHoraSaida) {
+      registo.horaSaida = aplicarNovaHora(registo.data, pedido.novaHoraSaida);
+    }
 
     // Recalcular totalHorasTrabalhadas
     if (registo.horaEntrada && registo.horaSaida) {
-      const entrada = new Date(registo.horaEntrada);
-      const saida = new Date(registo.horaSaida);
-      const horas = (saida - entrada) / (1000 * 60 * 60);
+      const horas = (new Date(registo.horaSaida) - new Date(registo.horaEntrada)) / (1000 * 60 * 60);
       registo.totalHorasTrabalhadas = horas.toFixed(2);
     }
 
@@ -125,6 +142,7 @@ const aprovarPedido = async (req, res) => {
     return res.status(500).json({ error: 'Erro ao aprovar pedido.' });
   }
 };
+
 
 
 
