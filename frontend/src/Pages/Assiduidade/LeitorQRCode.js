@@ -38,6 +38,14 @@ const LeitorQRCode = () => {
   const [endereco, setEndereco] = useState('');
   const [empresaSelecionada, setEmpresaSelecionada] = useState('');
   const scannerRef = useRef(null);
+
+
+
+  const [mostrarEquipas, setMostrarEquipas] = useState(false);
+const [equipas, setEquipas] = useState([]);
+const [equipaSelecionada, setEquipaSelecionada] = useState(null);
+const [membrosSelecionados, setMembrosSelecionados] = useState([]);
+
   
 
   // Animações / UI específicas
@@ -63,6 +71,40 @@ useEffect(() => {
     console.warn("⚠️ Empresa não definida no localStorage!");
   }
 }, []);
+
+useEffect(() => {
+  const tipoUser = localStorage.getItem('tipoUser');
+  const userId = localStorage.getItem('userId'); // caso precises
+
+  if (tipoUser === 'Encarregado' || tipoUser === 'Diretor') {
+    setMostrarEquipas(true);
+    carregarEquipas(userId);
+  }
+}, []);
+
+
+const carregarEquipas = async () => {
+  const token = localStorage.getItem('loginToken');
+  try {
+    const res = await fetch('https://backend.advir.pt/api/equipa-obra/minhas-agrupadas', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const equipas = await res.json();
+
+    const equipasComMembros = equipas.map(e => ({
+  ...e,
+  membros: Array.isArray(e.membros) ? e.membros : [],
+}));
+setEquipas(equipasComMembros);
+
+
+    setEquipas(equipasComMembros);
+  } catch (err) {
+    console.error("Erro ao carregar equipas:", err);
+  }
+};
+
 
 
   
@@ -247,12 +289,77 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
 
 
 
-  const onScanSuccess = async (decodedText, decodedResult) => {
+const onScanSuccess = async (decodedText, decodedResult) => {
   setScannedData(decodedText);
   setScanCompleted(true);
 
-  await registarPonto();
+  // Impedir múltiplos processamentos ao mesmo tempo
+  if (isProcessing) return;
+  setIsProcessing(true);
+
+  try {
+    if (decodedText.startsWith("obra:")) {
+      const obraId = decodedText.split(":")[1];
+
+      if (membrosSelecionados.length === 0) {
+        alert("Seleciona pelo menos um membro da equipa.");
+        return;
+      }
+
+      await registarPontoParaMembros(obraId);
+    } else {
+      alert("QR Code inválido. Esperava-se formato 'obra:<id>'.");
+    }
+  } catch (error) {
+    console.error("Erro ao processar QRCode:", error);
+    alert("Erro ao processar QRCode.");
+  }
+
+  setIsProcessing(false);
 };
+
+
+const registarPontoParaMembros = async (obraId) => {
+  const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+  const token = localStorage.getItem("loginToken");
+  const localizacao = await obterLocalizacao();
+  const enderecoObtido = await getEnderecoPorCoordenadas(localizacao.latitude, localizacao.longitude);
+  const horaAtual = new Date().toISOString();
+
+  for (const userId of membrosSelecionados) {
+    try {
+      const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          hora: horaAtual,
+          latitude: localizacao.latitude,
+          longitude: localizacao.longitude,
+          endereco: enderecoObtido,
+          totalHorasTrabalhadas: "8.00",
+          totalTempoIntervalo: "1.00",
+          empresa: empresaSelecionada,
+          obra_id: obraId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.warn(`Erro ao registar ponto para user ${userId}:`, errorData);
+      }
+    } catch (err) {
+      console.error(`Erro ao registar ponto para user ${userId}:`, err);
+    }
+  }
+
+  alert("Ponto registado para todos os membros selecionados.");
+  await fetchRegistosDiarios();
+};
+
 
 const pulseAnimation = animatedValue.interpolate({
   inputRange: [0, 1],
@@ -686,6 +793,63 @@ useEffect(() => {
         ]}
       >
         <View style={styles.qrSection}>
+          {mostrarEquipas && (
+  <View style={{ width: '100%', marginTop: 10, marginBottom: 20 }}>
+    <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 5 }}>Seleciona a Equipa:</Text>
+    {equipas.length === 0 ? (
+      <Text style={{ color: '#999' }}>Nenhuma equipa disponível.</Text>
+    ) : (
+      <>
+        <View style={{
+          backgroundColor: '#f0f4f8',
+          borderRadius: 8,
+          padding: 10,
+          marginBottom: 10,
+        }}>
+          {equipas.map((equipa, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => {
+  setEquipaSelecionada(equipa.nome);
+  setMembrosSelecionados(Array.isArray(equipa.membros) ? equipa.membros.map(m => m.id) : []);
+}}
+
+
+              style={{
+                padding: 10,
+                backgroundColor: equipaSelecionada === equipa.nome ? '#4481EB' : '#fff',
+                borderRadius: 8,
+                marginBottom: 5,
+              }}
+            >
+              <Text style={{
+                color: equipaSelecionada === equipa.nome ? '#fff' : '#333',
+                fontWeight: '600'
+              }}>
+                {equipa.nome}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Membros selecionados */}
+        <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 5 }}>Membros da equipa:</Text>
+        <View style={{
+          backgroundColor: '#f8f9ff',
+          padding: 10,
+          borderRadius: 8
+        }}>
+          {equipas.find(e => e.nome === equipaSelecionada)?.membros.map((m, i) => (
+            <Text key={i} style={{ fontSize: 14, color: '#333' }}>
+              • {m.nome}
+            </Text>
+          )) || <Text style={{ color: '#999' }}>Nenhum membro.</Text>}
+        </View>
+      </>
+    )}
+  </View>
+)}
+
           <View style={styles.qrContainer}>
             <LinearGradient
               colors={['#fff', '#f5f7fa']}

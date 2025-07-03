@@ -209,6 +209,50 @@ const removerEquipaInteira = async (req, res) => {
 };
 
 
+const listarMinhasEquipasAgrupadas = async (req, res) => {
+  try {
+    const encarregadoId = req.user.id;
+
+    const registos = await EquipaObra.findAll({
+      where: { encarregado_id: encarregadoId },
+      include: [
+        { model: User, as: 'membro', attributes: ['id', 'nome', 'username'] },
+        { model: Obra, attributes: ['id', 'codigo', 'nome'] }
+      ],
+      order: [['nome', 'ASC']]
+    });
+
+    const equipasAgrupadas = {};
+
+    for (const reg of registos) {
+      const nomeChave = `${reg.nome}-${reg.obra_id}`;
+      if (!equipasAgrupadas[nomeChave]) {
+        equipasAgrupadas[nomeChave] = {
+          nome: reg.nome,
+          obra_id: reg.obra_id,
+          obra: reg.Obra,
+          membros: []
+        };
+      }
+
+      if (reg.membro) {
+        equipasAgrupadas[nomeChave].membros.push({
+          id: reg.membro.id,
+          nome: reg.membro.nome
+        });
+      }
+    }
+
+    res.status(200).json(Object.values(equipasAgrupadas));
+  } catch (error) {
+    console.error('Erro ao listar equipas agrupadas do encarregado:', error);
+    res.status(500).json({ message: 'Erro interno ao listar as tuas equipas.' });
+  }
+};
+
+
+
+
 
 module.exports = {
     criarEquipa,
@@ -218,5 +262,6 @@ module.exports = {
     listarTodasEquipasAgrupadas,
     atualizarNomeEquipa,
     listarEquipasPorEmpresa,
-    removerEquipaInteira
+    removerEquipaInteira,
+    listarMinhasEquipasAgrupadas
 };
