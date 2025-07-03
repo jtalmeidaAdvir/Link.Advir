@@ -34,7 +34,13 @@ const Empresa = sequelize.define('Empresa', {
     maxUsers: {
         type: DataTypes.INTEGER,
         defaultValue: 10,  // Define o valor padrão do número máximo de utilizadores
-    }
+    },
+    tempoIntervaloPadrao: {
+        type: DataTypes.FLOAT, // em horas
+        allowNull: true,
+        defaultValue: 0,
+    },
+
 }, {
     timestamps: false,
     tableName: 'empresa',
