@@ -199,6 +199,33 @@ async function getEmpresaUrlByEmpresa(empresa) {
     return empresaRecord ? empresaRecord.urlempresa : null;
 }
 
+
+const atualizarEmpresaInfo = async (req, res) => {
+    const { empresaId } = req.params;
+    const { maxUsers, tempoIntervaloPadrao } = req.body;
+
+    try {
+        const empresa = await Empresa.findByPk(empresaId);
+        if (!empresa) {
+            return res.status(404).json({ error: 'Empresa não encontrada' });
+        }
+
+        // Atualiza os dois campos, se existirem no body
+        if (maxUsers !== undefined) empresa.maxUsers = maxUsers;
+        if (tempoIntervaloPadrao !== undefined) empresa.tempoIntervaloPadrao = tempoIntervaloPadrao;
+
+        await empresa.save();
+
+        res.json({ message: 'Dados da empresa atualizados com sucesso' });
+    } catch (error) {
+        console.error('Erro ao atualizar dados da empresa:', error);
+        res.status(500).json({ error: 'Erro ao atualizar dados da empresa' });
+    }
+};
+
+
+
+
 module.exports = {
     criarEmpresa,
     getEmpresaByNome,
@@ -209,4 +236,6 @@ module.exports = {
     removerModuloDaEmpresa,
     atualizarMaxUsers,
     getEmpresaUrlByEmpresa,
+    atualizarEmpresaInfo,
+
 };

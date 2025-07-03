@@ -13,6 +13,8 @@ const ADHome = () => {
     const [selectedModulo, setSelectedModulo] = useState(null);
     const [isAdding, setIsAdding] = useState(true);
     const [maxUsers, setMaxUsers] = useState('');
+    const [tempoIntervaloPadrao, setTempoIntervaloPadrao] = useState('');
+
 
     useEffect(() => {
         fetchEmpresas();
@@ -28,6 +30,19 @@ const ADHome = () => {
             console.error('Erro ao carregar empresas:', error);
         }
     };
+
+
+    const fetchEmpresaInfo = async (empresaId) => {
+    try {
+        const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}`);
+        const data = await response.json();
+        setMaxUsers(data.maxUsers || '');
+        setTempoIntervaloPadrao(data.tempoIntervaloPadrao?.toString() || '');
+    } catch (error) {
+        console.error('Erro ao carregar dados da empresa:', error);
+    }
+};
+
 
     const fetchAllModulos = async () => {
         try {
@@ -60,10 +75,38 @@ const ADHome = () => {
     };
 
     const handleEmpresaSelect = (empresa) => {
-        setSelectedEmpresa(empresa);
-        fetchEmpresaModulos(empresa.id);
-        fetchMaxUsers(empresa.id); // Carregar o número máximo de utilizadores ao selecionar a empresa
+    setSelectedEmpresa(empresa);
+    fetchEmpresaModulos(empresa.id);
+    fetchEmpresaInfo(empresa.id); // <- aqui
     };
+
+    const updateEmpresaInfo = async () => {
+    try {
+        const response = await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/updateEmpresaInfo`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                maxUsers,
+                tempoIntervaloPadrao: parseFloat(tempoIntervaloPadrao),
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erro ao atualizar dados da empresa.');
+        }
+
+        const data = await response.json();
+        console.log(data.message);
+        setConfirmationVisible(true);
+    } catch (error) {
+        console.error('Erro ao atualizar dados da empresa:', error);
+    }
+};
+
+
 
     const updateMaxUsers = async () => {
         console.log("ID da Empresa:", selectedEmpresa.id);
@@ -167,6 +210,20 @@ const ADHome = () => {
                     <TouchableOpacity style={styles.updateButton} onPress={updateMaxUsers}>
                         <Text style={styles.updateButtonText}>ATUALIZAR LIMITE</Text>
                     </TouchableOpacity>
+
+                    <Text style={styles.subTitle}>Definir Intervalo Padrão (em horas)</Text>
+                    <TextInput
+                        placeholder="Ex: 1"
+                        keyboardType="decimal-pad"
+                        value={tempoIntervaloPadrao}
+                        onChangeText={setTempoIntervaloPadrao}
+                        style={styles.input}
+                    />
+
+                    <TouchableOpacity style={styles.updateButton} onPress={updateEmpresaInfo}>
+                        <Text style={styles.updateButtonText}>ATUALIZAR DADOS</Text>
+                    </TouchableOpacity>
+
 
                     <Text style={styles.subTitle}>Módulos Associados a {selectedEmpresa.empresa}</Text>
                     {empresaModulos.map((modulo) => (

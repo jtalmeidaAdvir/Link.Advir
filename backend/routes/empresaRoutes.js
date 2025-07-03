@@ -81,6 +81,7 @@ router.get('/:empresaId', async (req, res) => {
     }
 });
 
+router.put('/:empresaId/updateEmpresaInfo', empresaController.atualizarEmpresaInfo);
 
 
 
