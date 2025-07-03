@@ -292,15 +292,30 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
 
 
 const onScanSuccess = async (decodedText) => {
-  if (decodedText.startsWith("obra:")) {
-    const obraId = decodedText.split(":")[1];
-    if (membrosSelecionados.length === 0) {
-      alert("Seleciona pelo menos um membro da equipa.");
-      return;
-    }
-    await registarPontoParaMembros(obraId);
+  if (decodedText === "registo-ponto" || decodedText.includes("obra")) {
+  if (!equipaSelecionada) {
+    alert("Seleciona uma equipa antes de registar o ponto.");
     return;
   }
+
+  const equipa = equipas.find(e => e.nome === equipaSelecionada);
+  if (!equipa || !equipa.obra?.id) {
+    alert("Equipa ou obra associada não encontrada.");
+    return;
+  }
+
+  const obraId = equipa.obra.id;
+
+  if (membrosSelecionados.length === 0) {
+    alert("Seleciona pelo menos um membro da equipa.");
+    return;
+  }
+
+  await registarPontoParaMembros(obraId);
+  return;
+}
+
+
 
   if (decodedText === "registo-ponto") {
     await registarPonto();
