@@ -73,6 +73,8 @@ router.get('/:empresaId', async (req, res) => {
             id: empresa.id,
             empresa: empresa.empresa,
             maxUsers: empresa.maxUsers,
+            tempoIntervaloPadrao: empresa.tempoIntervaloPadrao, 
+
             currentUsers: currentUsers, // Inclui o currentUsers na resposta
         });
     } catch (error) {
