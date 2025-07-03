@@ -378,8 +378,12 @@ const registarPontoParaMembros = async (obraId) => {
     const data = await res.json();
 
     if (!res.ok) {
-      console.error(`Erro HTTP para utilizador ${userId}:`, data);
-    } else if (data.message?.includes("já registou")) {
+  console.error(`❌ Erro HTTP ${res.status} para utilizador ${userId}:`, data);
+  if (res.status === 403) {
+    console.warn(`⚠️ Acesso negado. Verifica se o utilizador tem permissões para registar para outros.`);
+  }
+}
+ else if (data.message?.includes("já registou")) {
       console.warn(`⚠️ ${data.message} (user ${userId})`);
     } else {
       console.log(`✅ Registado com sucesso para ${userId}`, data);
@@ -1008,6 +1012,46 @@ useEffect(() => {
               </Text>
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+  style={styles.scanButton}
+  onPress={registarPonto}
+>
+  <LinearGradient
+    colors={['#4CAF50', '#2E7D32']}
+    style={styles.scanButtonGradient}
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 0 }}
+  >
+    <MaterialCommunityIcons name="fingerprint" size={20} color="#fff" />
+    <Text style={styles.scanButtonText}>Registar Ponto</Text>
+  </LinearGradient>
+</TouchableOpacity>
+{mostrarEquipas && membrosSelecionados.length > 0 && (
+  <TouchableOpacity
+    style={styles.scanButton}
+    onPress={async () => {
+      const equipa = equipas.find(e => e.nome === equipaSelecionada);
+      if (!equipa || !equipa.obra?.id) {
+        alert("Equipa ou obra associada não encontrada.");
+        return;
+      }
+
+      await registarPontoParaMembros(equipa.obra.id);
+    }}
+  >
+    <LinearGradient
+      colors={['#4CAF50', '#66BB6A']}
+      style={styles.scanButtonGradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 0 }}
+    >
+      <MaterialCommunityIcons name="account-multiple-check" size={20} color="#fff" />
+      <Text style={styles.scanButtonText}>Registar para membros</Text>
+    </LinearGradient>
+  </TouchableOpacity>
+)}
+
 
           {/* Se o intervalo estiver activo, mostrar cronómetro de pausa */}
           {intervaloAberto && (

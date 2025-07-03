@@ -316,10 +316,7 @@ const listarHistoricoPontoAdmin = async (req, res) => {
 
 const registarPontoParaOutro = async (req, res) => {
   try {
-    const tipoUser = req.user.tipoUser;
-    if (!['Encarregado', 'Diretor'].includes(tipoUser)) {
-      return res.status(403).json({ message: 'Sem permissão para registar ponto para outros.' });
-    }
+ 
 
     const { user_id, empresa, latitude, longitude, endereco, obra_id } = req.body;
 
