@@ -46,6 +46,8 @@ const [equipas, setEquipas] = useState([]);
 const [equipaSelecionada, setEquipaSelecionada] = useState(null);
 const [membrosSelecionados, setMembrosSelecionados] = useState([]);
 
+const [mostrarQRCode, setMostrarQRCode] = useState(false);
+
   
 
   // Animações / UI específicas
@@ -85,6 +87,7 @@ useEffect(() => {
 
 const carregarEquipas = async () => {
   const token = localStorage.getItem('loginToken');
+
   try {
     const res = await fetch('https://backend.advir.pt/api/equipa-obra/minhas-agrupadas', {
       headers: { Authorization: `Bearer ${token}` },
@@ -93,17 +96,16 @@ const carregarEquipas = async () => {
     const equipas = await res.json();
 
     const equipasComMembros = equipas.map(e => ({
-  ...e,
-  membros: Array.isArray(e.membros) ? e.membros : [],
-}));
-setEquipas(equipasComMembros);
-
+      ...e,
+      membros: Array.isArray(e.membros) ? e.membros : [],
+    }));
 
     setEquipas(equipasComMembros);
   } catch (err) {
     console.error("Erro ao carregar equipas:", err);
   }
 };
+
 
 
 
@@ -840,32 +842,73 @@ useEffect(() => {
           borderRadius: 8
         }}>
           {equipas.find(e => e.nome === equipaSelecionada)?.membros.map((m, i) => (
-            <Text key={i} style={{ fontSize: 14, color: '#333' }}>
-              • {m.nome}
-            </Text>
-          )) || <Text style={{ color: '#999' }}>Nenhum membro.</Text>}
+  <TouchableOpacity
+    key={i}
+    style={{
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    }}
+    onPress={() => {
+      if (membrosSelecionados.includes(m.id)) {
+        setMembrosSelecionados(membrosSelecionados.filter(id => id !== m.id));
+      } else {
+        setMembrosSelecionados([...membrosSelecionados, m.id]);
+      }
+    }}
+  >
+    <MaterialCommunityIcons
+      name={membrosSelecionados.includes(m.id) ? 'checkbox-marked' : 'checkbox-blank-outline'}
+      size={22}
+      color={membrosSelecionados.includes(m.id) ? '#4481EB' : '#aaa'}
+      style={{ marginRight: 10 }}
+    />
+    <Text style={{ fontSize: 14, color: '#333' }}>{m.nome}</Text>
+  </TouchableOpacity>
+)) || <Text style={{ color: '#999' }}>Nenhum membro.</Text>}
+
         </View>
       </>
     )}
   </View>
 )}
 
-          <View style={styles.qrContainer}>
-            <LinearGradient
-              colors={['#fff', '#f5f7fa']}
-              style={styles.qrCard}
-            >
-              <QRCode
-                value={qrData}
-                size={Dimensions.get('window').width * 0.4}
-                color="#333"
-                backgroundColor="transparent"
-              />
-              <Text style={styles.qrInstructions}>
-                Use este QR code para registar sua entrada/saída
-              </Text>
-            </LinearGradient>
-          </View>
+          <TouchableOpacity
+  style={styles.scanButton}
+  onPress={() => setMostrarQRCode(!mostrarQRCode)}
+>
+  <LinearGradient
+    colors={['#04BEFE', '#4481EB']}
+    style={styles.scanButtonGradient}
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 0 }}
+  >
+    <MaterialCommunityIcons name="qrcode" size={20} color="#fff" />
+    <Text style={styles.scanButtonText}>
+      {mostrarQRCode ? 'Esconder QR Code' : 'Mostrar QR Code'}
+    </Text>
+  </LinearGradient>
+</TouchableOpacity>
+
+{mostrarQRCode && (
+  <View style={styles.qrContainer}>
+    <LinearGradient
+      colors={['#fff', '#f5f7fa']}
+      style={styles.qrCard}
+    >
+      <QRCode
+        value={qrData}
+        size={Dimensions.get('window').width * 0.4}
+        color="#333"
+        backgroundColor="transparent"
+      />
+      <Text style={styles.qrInstructions}>
+        Use este QR code para registar sua entrada/saída
+      </Text>
+    </LinearGradient>
+  </View>
+)}
+
 
           <TouchableOpacity
             style={styles.scanButton}
