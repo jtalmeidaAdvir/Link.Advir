@@ -17,11 +17,17 @@ const UserModulesManagement = ({ route }) => {
     const [fadeAnimation] = useState(new Animated.Value(0));
     const [showUserDataModal, setShowUserDataModal] = useState(false);
     const [userData, setUserData] = useState({
-        empresa_areacliente: '',
-        id_tecnico: '',
-        tipoUser: 'Trabalhador'
+    empresa_areacliente: '',
+    id_tecnico: '',
+    tipoUser: 'Trabalhador',
+    codFuncionario: '',
+    codRecursosHumanos: ''
     });
+
     const { t } = useTranslation();
+
+
+
 
     useEffect(() => {
         Animated.timing(fadeAnimation, {
@@ -176,7 +182,9 @@ const fetchUserData = async () => {
             setUserData({
                 empresa_areacliente: data.empresa_areacliente || '',
                 id_tecnico: data.id_tecnico || '',
-                tipoUser: data.tipoUser || 'Trabalhador'
+                tipoUser: data.tipoUser || 'Trabalhador',
+                codFuncionario: data.codFuncionario || '',
+                codRecursosHumanos: data.codRecursosHumanos || ''
             });
         } else {
             setErrorMessage("Erro ao obter dados do utilizador.");
@@ -410,6 +418,26 @@ const fetchUserData = async () => {
                                     placeholder="Digite o ID do técnico"
                                 />
                             </View>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Código de Funcionário:</Text>
+                                <TextInput
+                                    style={styles.textInput}
+                                    value={userData.codFuncionario}
+                                    onChangeText={(text) => setUserData({...userData, codFuncionario: text})}
+                                    placeholder="Digite o código do funcionário"
+                                />
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Código Recursos Humanos:</Text>
+                                <TextInput
+                                    style={styles.textInput}
+                                    value={userData.codRecursosHumanos}
+                                    onChangeText={(text) => setUserData({...userData, codRecursosHumanos: text})}
+                                    placeholder="Digite o código de RH"
+                                />
+                            </View>
+
                             
                             <View style={styles.inputGroup}>
                                 <Text style={styles.inputLabel}>Tipo de Utilizador:</Text>
