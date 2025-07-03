@@ -314,12 +314,86 @@ const listarHistoricoPontoAdmin = async (req, res) => {
 
 
 
+const registarPontoParaOutro = async (req, res) => {
+  try {
+    const tipoUser = req.user.tipoUser;
+    if (!['Encarregado', 'Diretor'].includes(tipoUser)) {
+      return res.status(403).json({ message: 'Sem permissão para registar ponto para outros.' });
+    }
+
+    const { user_id, empresa, latitude, longitude, endereco, obra_id } = req.body;
+
+    if (!user_id || !empresa) {
+      return res.status(400).json({ message: 'user_id e empresa são obrigatórios.' });
+    }
+
+    const empresaRegisto = await Empresa.findOne({ where: { empresa } });
+    if (!empresaRegisto) {
+      return res.status(404).json({ message: "Empresa não encontrada." });
+    }
+
+    const dataAtual = new Date().toISOString().split('T')[0];
+    const horaAtual = new Date().toISOString();
+    const tempoIntervaloPadrao = empresaRegisto.tempoIntervaloPadrao || 0;
+
+    let registo = await RegistoPonto.findOne({
+      where: {
+        user_id,
+        empresa_id: empresaRegisto.id,
+        data: dataAtual,
+      },
+    });
+
+    if (registo) {
+      if (registo.horaSaida) {
+        return res.status(400).json({ message: "Utilizador já registou entrada e saída hoje." });
+      }
+
+      registo.horaSaida = horaAtual;
+      registo.latitude = latitude;
+      registo.longitude = longitude;
+      registo.endereco = endereco;
+      registo.totalHorasTrabalhadas = calcularHorasTrabalhadas(registo.horaEntrada, horaAtual);
+
+      if (!registo.totalTempoIntervalo || registo.totalTempoIntervalo === 0) {
+        registo.totalTempoIntervalo = tempoIntervaloPadrao;
+      }
+
+      await registo.save();
+      return res.status(200).json({ message: `Saída registada para utilizador ${user_id}.`, registo: registo.toJSON() });
+    } else {
+      registo = await RegistoPonto.create({
+        user_id,
+        empresa_id: empresaRegisto.id,
+        data: dataAtual,
+        horaEntrada: horaAtual,
+        latitude,
+        longitude,
+        endereco,
+        obra_id: obra_id || null,
+        totalHorasTrabalhadas: 0,
+        totalTempoIntervalo: tempoIntervaloPadrao,
+      });
+
+      return res.status(201).json({ message: `Entrada registada para utilizador ${user_id}.`, registo: registo.toJSON() });
+    }
+
+  } catch (error) {
+    console.error("Erro ao registar ponto para outro utilizador:", error);
+    res.status(500).json({ message: "Erro interno ao registar ponto para outro utilizador." });
+  }
+};
+
+
+
+
 module.exports = {
     registarLeituraQRCode,
     getRegistoDiario,
     listarHistoricoPontoAdmin,
     registarPontoComBotao,
     editarRegisto,
-    obterEstadoPonto
+    obterEstadoPonto,
+    registarPontoParaOutro
 
 };
