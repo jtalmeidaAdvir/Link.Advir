@@ -292,11 +292,6 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
 
 
 const onScanSuccess = async (decodedText) => {
-  if (decodedText === "registo-ponto") {
-    await registarPonto();
-    return;
-  }
-
   if (decodedText.startsWith("obra:")) {
     const obraId = decodedText.split(":")[1];
     if (membrosSelecionados.length === 0) {
@@ -307,8 +302,14 @@ const onScanSuccess = async (decodedText) => {
     return;
   }
 
+  if (decodedText === "registo-ponto") {
+    await registarPonto();
+    return;
+  }
+
   alert("QR Code inválido.");
 };
+
 
 
 
@@ -632,7 +633,7 @@ useEffect(() => {
       return scannerRef.current.start(
         back.id,
         { fps: 10, qrbox: 250, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
-        
+
         async decodedText => {
           if (isProcessing) return;
           setIsProcessing(true);
