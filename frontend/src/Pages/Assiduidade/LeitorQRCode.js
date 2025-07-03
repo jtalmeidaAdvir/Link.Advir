@@ -328,35 +328,36 @@ const registarPontoParaMembros = async (obraId) => {
   const enderecoObtido = await getEnderecoPorCoordenadas(localizacao.latitude, localizacao.longitude);
   const horaAtual = new Date().toISOString();
 
-  for (const userId of membrosSelecionados) {
-    try {
-      const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          hora: horaAtual,
-          latitude: localizacao.latitude,
-          longitude: localizacao.longitude,
-          endereco: enderecoObtido,
-          totalHorasTrabalhadas: "8.00",
-          totalTempoIntervalo: "1.00",
-          empresa: empresaSelecionada,
-          obra_id: obraId,
-        }),
-      });
+ for (const membro of membrosSelecionados) {
+  try {
+    const response = await fetch(`${API_URL}/api/registoPonto/registar-para-outro`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: membro.id,
+        empresa: empresaSelecionada,
+        latitude,
+        longitude,
+        endereco,
+        obra_id: obraId
+      })
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.warn(`Erro ao registar ponto para user ${userId}:`, errorData);
-      }
-    } catch (err) {
-      console.error(`Erro ao registar ponto para user ${userId}:`, err);
+    const resultado = await response.json();
+
+    if (response.ok) {
+      console.log(`✅ ${membro.nome}: ${resultado.message}`);
+    } else {
+      console.log(`⚠️ ${membro.nome}: ${resultado.message}`);
     }
+  } catch (err) {
+    console.error(`❌ Erro ao registar ponto para ${membro.nome}`, err);
   }
+}
+
 
   alert("Ponto registado para todos os membros selecionados.");
   await fetchRegistosDiarios();
