@@ -77,7 +77,16 @@ const User = sequelize.define('User', {
         type: DataTypes.ENUM('Trabalhador', 'Diretor', 'Encarregado'),
         allowNull: false,
         defaultValue: 'Trabalhador'
-    }
+    },
+    codFuncionario: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    },
+    codRecursosHumanos: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+
 
 }, {
     timestamps: false,

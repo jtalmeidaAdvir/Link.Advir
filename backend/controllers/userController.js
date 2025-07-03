@@ -770,7 +770,7 @@ const definirEmpresaPredefinida = async (req, res) => {
 const atualizarDadosUtilizador = async (req, res) => {
     try {
         const { userId } = req.params;
-        const { empresa_areacliente, id_tecnico, tipoUser } = req.body;
+        const { empresa_areacliente, id_tecnico, tipoUser, codFuncionario, codRecursosHumanos } = req.body;
 
         // Verificar se o utilizador existe
         const user = await User.findByPk(userId);
@@ -788,21 +788,27 @@ const atualizarDadosUtilizador = async (req, res) => {
         if (empresa_areacliente !== undefined) dadosParaAtualizar.empresa_areacliente = empresa_areacliente;
         if (id_tecnico !== undefined) dadosParaAtualizar.id_tecnico = id_tecnico;
         if (tipoUser !== undefined) dadosParaAtualizar.tipoUser = tipoUser;
+        if (codFuncionario !== undefined) dadosParaAtualizar.codFuncionario = codFuncionario;
+        if (codRecursosHumanos !== undefined) dadosParaAtualizar.codRecursosHumanos = codRecursosHumanos;
+
 
         // Atualizar o utilizador
         await user.update(dadosParaAtualizar);
 
         res.status(200).json({ 
-            message: 'Dados do utilizador atualizados com sucesso.',
-            user: {
-                id: user.id,
-                nome: user.nome,
-                email: user.email,
-                empresa_areacliente: user.empresa_areacliente,
-                id_tecnico: user.id_tecnico,
-                tipoUser: user.tipoUser
-            }
-        });
+        message: 'Dados do utilizador atualizados com sucesso.',
+        user: {
+            id: user.id,
+            nome: user.nome,
+            email: user.email,
+            empresa_areacliente: user.empresa_areacliente,
+            id_tecnico: user.id_tecnico,
+            tipoUser: user.tipoUser,
+            codFuncionario: user.codFuncionario,
+            codRecursosHumanos: user.codRecursosHumanos
+        }
+    });
+
     } catch (error) {
         console.error('Erro ao atualizar dados do utilizador:', error);
         res.status(500).json({ message: 'Erro interno do servidor.' });
@@ -814,7 +820,7 @@ const getDadosUtilizador = async (req, res) => {
     try {
         const { userId } = req.params;
         const user = await User.findByPk(userId, {
-            attributes: ['empresa_areacliente', 'id_tecnico', 'tipoUser']
+            attributes: ['empresa_areacliente', 'id_tecnico', 'tipoUser','codFuncionario','codRecursosHumanos'],
         });
 
         if (!user) {
