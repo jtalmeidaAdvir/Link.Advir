@@ -355,34 +355,38 @@ const registarPontoParaMembros = async (obraId) => {
   try {
     // Enviar um POST para cada membro
     await Promise.all(
-      membrosSelecionados.map(async (userId) => {
-        const res = await fetch(
-          "https://backend.advir.pt/api/registoPonto/registar-para-outro",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              user_id: userId,
-              empresa,
-              latitude,
-              longitude,
-              endereco,
-              obra_id: obraId,
-            }),
-          }
-        );
-        if (!res.ok) {
-          const errorData = await res.json();
-          console.error(
-            `Falha ao registar ponto para utilizador ${userId}:`,
-            errorData
-          );
-        }
-      })
+  membrosSelecionados.map(async (userId) => {
+    const res = await fetch(
+      "https://backend.advir.pt/api/registoPonto/registar-para-outro",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          empresa,
+          latitude,
+          longitude,
+          endereco,
+          obra_id: obraId,
+        }),
+      }
     );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error(`Erro HTTP para utilizador ${userId}:`, data);
+    } else if (data.message?.includes("já registou")) {
+      console.warn(`⚠️ ${data.message} (user ${userId})`);
+    } else {
+      console.log(`✅ Registado com sucesso para ${userId}`, data);
+    }
+  })
+);
+
 
     alert("Ponto registado com sucesso para todos os membros!");
     await fetchRegistosDiarios();
