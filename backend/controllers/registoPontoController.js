@@ -25,10 +25,10 @@ const calcularHorasTrabalhadas = (horaEntrada, horaSaida) => {
 const registarPontoComBotao = async (req, res) => {
   try {
     const userId = req.user.id;
-    const nomeEmpresa = req.body.empresa; // ← Empresa vem do body
+    const nomeEmpresa = req.body.empresa;
     const dataAtual = new Date().toISOString().split('T')[0];
     const horaAtual = new Date().toISOString();
-const { latitude, longitude, endereco, obra_id } = req.body;
+    const { latitude, longitude, endereco, obra_id } = req.body;
 
     if (!nomeEmpresa) {
       return res.status(400).json({ message: "Nome da empresa não fornecido." });
@@ -38,6 +38,8 @@ const { latitude, longitude, endereco, obra_id } = req.body;
     if (!empresa) {
       return res.status(404).json({ message: "Empresa não encontrada." });
     }
+
+    const tempoIntervaloPadrao = empresa.tempoIntervaloPadrao || 0;
 
     let registo = await RegistoPonto.findOne({
       where: {
@@ -56,6 +58,12 @@ const { latitude, longitude, endereco, obra_id } = req.body;
         registo.longitude = longitude;
         registo.endereco = endereco;
         registo.totalHorasTrabalhadas = calcularHorasTrabalhadas(registo.horaEntrada, horaAtual);
+
+        // Se ainda não tiver tempo de intervalo, aplica o padrão
+        if (registo.totalTempoIntervalo === 0 && tempoIntervaloPadrao > 0) {
+          registo.totalTempoIntervalo = tempoIntervaloPadrao;
+        }
+
         await registo.save();
         return res.status(200).json({ message: "Hora de saída registada com sucesso!", registo: registo.toJSON() });
       }
@@ -68,9 +76,9 @@ const { latitude, longitude, endereco, obra_id } = req.body;
         latitude,
         longitude,
         endereco,
-        obra_id: obra_id || null,  // ← Aqui, se não vier, assume null
+        obra_id: obra_id || null,
         totalHorasTrabalhadas: 0,
-        totalTempoIntervalo: 0
+        totalTempoIntervalo: tempoIntervaloPadrao, // 👈 aplica o valor aqui
       });
 
       return res.status(201).json({ message: "Hora de entrada registada com sucesso!", registo: registo.toJSON() });
@@ -80,6 +88,7 @@ const { latitude, longitude, endereco, obra_id } = req.body;
     res.status(500).json({ message: "Erro ao registar ponto." });
   }
 };
+
 
 
 
@@ -114,12 +123,12 @@ const obterEstadoPonto = async (req, res) => {
 
 
 const registarLeituraQRCode = async (req, res) => {
- try {
+  try {
     const userId = req.user.id;
-    const nomeEmpresa = req.body.empresa; // ← Empresa vem do body
+    const nomeEmpresa = req.body.empresa;
     const dataAtual = new Date().toISOString().split('T')[0];
     const horaAtual = new Date().toISOString();
-const { latitude, longitude, endereco, obra_id } = req.body;
+    const { latitude, longitude, endereco, obra_id } = req.body;
 
     if (!nomeEmpresa) {
       return res.status(400).json({ message: "Nome da empresa não fornecido." });
@@ -129,6 +138,8 @@ const { latitude, longitude, endereco, obra_id } = req.body;
     if (!empresa) {
       return res.status(404).json({ message: "Empresa não encontrada." });
     }
+
+    const tempoIntervaloPadrao = empresa.tempoIntervaloPadrao || 0;
 
     let registo = await RegistoPonto.findOne({
       where: {
@@ -147,6 +158,12 @@ const { latitude, longitude, endereco, obra_id } = req.body;
         registo.longitude = longitude;
         registo.endereco = endereco;
         registo.totalHorasTrabalhadas = calcularHorasTrabalhadas(registo.horaEntrada, horaAtual);
+
+        // Se ainda não tiver intervalo definido, aplica o padrão
+        if (!registo.totalTempoIntervalo || registo.totalTempoIntervalo === 0) {
+          registo.totalTempoIntervalo = tempoIntervaloPadrao;
+        }
+
         await registo.save();
         return res.status(200).json({ message: "Hora de saída registada com sucesso!", registo: registo.toJSON() });
       }
@@ -159,9 +176,9 @@ const { latitude, longitude, endereco, obra_id } = req.body;
         latitude,
         longitude,
         endereco,
-        obra_id: obra_id || null,  // ← Aqui, se não vier, assume null
+        obra_id: obra_id || null,
         totalHorasTrabalhadas: 0,
-        totalTempoIntervalo: 0
+        totalTempoIntervalo: tempoIntervaloPadrao // 👈 aqui aplicas o valor
       });
 
       return res.status(201).json({ message: "Hora de entrada registada com sucesso!", registo: registo.toJSON() });
@@ -171,6 +188,7 @@ const { latitude, longitude, endereco, obra_id } = req.body;
     res.status(500).json({ message: "Erro ao registar ponto." });
   }
 };
+
 
 const editarRegisto = async (req, res) => {
     try {
