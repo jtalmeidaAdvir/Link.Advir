@@ -291,69 +291,83 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
 
 
 
-const onScanSuccess = async (decodedText, decodedResult) => {
-  setScannedData(decodedText);
-  setScanCompleted(true);
-
-  // Impedir múltiplos processamentos ao mesmo tempo
-  if (isProcessing) return;
-  setIsProcessing(true);
-
-  try {
-    if (decodedText.startsWith("obra:")) {
-      const obraId = decodedText.split(":")[1];
-
-      if (membrosSelecionados.length === 0) {
-        alert("Seleciona pelo menos um membro da equipa.");
-        return;
-      }
-
-      await registarPontoParaMembros(obraId);
-    } else {
-      alert("QR Code inválido. Esperava-se formato 'obra:<id>'.");
-    }
-  } catch (error) {
-    console.error("Erro ao processar QRCode:", error);
-    alert("Erro ao processar QRCode.");
+const onScanSuccess = async (decodedText) => {
+  if (!decodedText.startsWith("obra:")) {
+    alert("QR Code inválido. Esperava-se formato 'obra:<id>'.");
+    return;
   }
-
-  setIsProcessing(false);
+  const obraId = decodedText.split(":")[1];
+  if (membrosSelecionados.length === 0) {
+    alert("Seleciona pelo menos um membro da equipa.");
+    return;
+  }
+  await registarPontoParaMembros(obraId);
 };
+
 
 
 const registarPontoParaMembros = async (obraId) => {
-  const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+  const empresa = localStorage.getItem("empresaSelecionada");
   const token = localStorage.getItem("loginToken");
-  const localizacao = await obterLocalizacao();
-  const enderecoObtido = await getEnderecoPorCoordenadas(localizacao.latitude, localizacao.longitude);
+  if (!empresa || !token) {
+    alert("Erro: empresa ou token não definidos.");
+    return;
+  }
+
+  // Obter localização UMA vez
+  let latitude, longitude, endereco;
+  try {
+    const loc = await obterLocalizacao();
+    latitude = loc.latitude;
+    longitude = loc.longitude;
+    endereco = await getEnderecoPorCoordenadas(latitude, longitude);
+  } catch (err) {
+    console.error("Erro a obter localização:", err);
+    endereco = "Localização não disponível";
+  }
+
   const horaAtual = new Date().toISOString();
 
- membrosSelecionados.forEach(async membro => {
-  const response = await fetch("https://backend.advir.pt/api/registoPonto/registar-para-outro", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${loginToken}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      user_id: membro.membro.id, // 👈 CORREÇÃO AQUI
-      empresa: empresaSelecionada,
-      latitude,
-      longitude,
-      endereco,
-      obra_id: obraSelecionada
-    })
-  });
+  try {
+    // Enviar um POST para cada membro
+    await Promise.all(
+      membrosSelecionados.map(async (userId) => {
+        const res = await fetch(
+          "https://backend.advir.pt/api/registoPonto/registar-para-outro",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              empresa,
+              latitude,
+              longitude,
+              endereco,
+              obra_id: obraId,
+            }),
+          }
+        );
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.error(
+            `Falha ao registar ponto para utilizador ${userId}:`,
+            errorData
+          );
+        }
+      })
+    );
 
-  const resultado = await response.json();
-  console.log(`Resultado para ${membro.membro.nome}:`, resultado.message);
-});
-
-
-
-  alert("Ponto registado para todos os membros selecionados.");
-  await fetchRegistosDiarios();
+    alert("Ponto registado com sucesso para todos os membros!");
+    await fetchRegistosDiarios();
+  } catch (error) {
+    console.error("Erro ao registar ponto para alguns membros:", error);
+    alert("Ocorreu um erro ao registar ponto para alguns membros.");
+  }
 };
+
 
 
 const pulseAnimation = animatedValue.interpolate({
