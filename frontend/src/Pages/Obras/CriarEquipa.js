@@ -21,9 +21,7 @@ const { width, height } = Dimensions.get('window');
 
 const CriarEquipa = () => {
     const [nomeEquipa, setNomeEquipa] = useState('');
-    const [obras, setObras] = useState([]);
     const [utilizadores, setUtilizadores] = useState([]);
-    const [obraSelecionada, setObraSelecionada] = useState('');
     const [membrosSelecionados, setMembrosSelecionados] = useState([]);
     const [loading, setLoading] = useState(false);
     const [equipasCriadas, setEquipasCriadas] = useState([]);
@@ -78,38 +76,11 @@ const CriarEquipa = () => {
     });
 
     useEffect(() => {
-        fetchObras();
         fetchUtilizadores();
         fetchEquipasCriadas();
     }, []);
 
-    const fetchObras = async () => {
-        try {
-            const token = await AsyncStorage.getItem('loginToken');
-            const empresaNome = localStorage.getItem("empresaSelecionada");
 
-            const empresaRes = await fetch(`https://backend.advir.pt/api/empresas/nome/${empresaNome}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            if (!empresaRes.ok) throw new Error('Erro ao obter ID da empresa');
-
-            const empresaData = await empresaRes.json();
-            const empresaId = empresaData.id;
-
-            const res = await fetch(`https://backend.advir.pt/api/obra/por-empresa?empresa_id=${empresaId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            const data = await res.json();
-            if (res.ok) setObras(data);
-            else throw new Error(data.message || 'Erro ao buscar obras');
-        } catch (err) {
-            console.error('Erro ao carregar obras:', err);
-        }
-    };
 
     const fetchEquipasCriadas = async () => {
         try {
@@ -207,7 +178,6 @@ const CriarEquipa = () => {
                 },
                 body: JSON.stringify({
                     nome: nomeEquipa,
-                    obra_id: obraSelecionada,
                     membros: membrosSelecionados,
                 }),
             });
@@ -243,7 +213,6 @@ const CriarEquipa = () => {
                 },
                 body: JSON.stringify({ 
                     nomeEquipa: equipaParaRemover.nome, 
-                    obraId: equipaParaRemover.obraId 
                 }),
             });
 
@@ -259,8 +228,8 @@ const CriarEquipa = () => {
         }
     };
 
-    const confirmarRemocaoEquipa = (nomeEquipa, obraId) => {
-        setEquipaParaRemover({ nome: nomeEquipa, obraId });
+    const confirmarRemocaoEquipa = (nomeEquipa) => {
+        setEquipaParaRemover({ nome: nomeEquipa });
         setModalConfirmDelete(true);
     };
 
@@ -315,27 +284,7 @@ const CriarEquipa = () => {
                     />
                 </View>
 
-                <View style={styles.inputContainer}>
-                    <Text style={styles.label}>
-                        <FontAwesome name="building" size={16} color="#1792FE" /> Obra
-                    </Text>
-                    <View style={styles.pickerContainer}>
-                        <Picker
-                            selectedValue={obraSelecionada}
-                            onValueChange={(itemValue) => setObraSelecionada(itemValue)}
-                            style={styles.picker}
-                        >
-                            <Picker.Item label="Seleciona uma obra" value="" />
-                            {obras.map((obra) => (
-                                <Picker.Item 
-                                    key={obra.id} 
-                                    label={`${obra.codigo} - ${obra.nome}`} 
-                                    value={obra.id} 
-                                />
-                            ))}
-                        </Picker>
-                    </View>
-                </View>
+
 
                 <View style={styles.inputContainer}>
                     <TouchableOpacity 
