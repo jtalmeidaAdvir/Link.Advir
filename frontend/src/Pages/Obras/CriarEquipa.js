@@ -162,10 +162,11 @@ const CriarEquipa = () => {
     };
 
     const criarEquipa = async () => {
-        if (!nomeEquipa || !obraSelecionada || membrosSelecionados.length === 0) {
-            Alert.alert('Erro', 'Preenche todos os campos.');
-            return;
-        }
+        if (!nomeEquipa || membrosSelecionados.length === 0) {
+    Alert.alert('Erro', 'Preenche todos os campos.');
+    return;
+}
+
 
         try {
             setLoading(true);
@@ -426,13 +427,14 @@ const CriarEquipa = () => {
                                         <View style={styles.teamHeaderText}>
                                             <Text style={styles.teamTitle}>{equipa.nome}</Text>
                                             <Text style={styles.teamSubtitle}>
-                                                {equipa.obra?.codigo} - {equipa.obra?.nome}
+                                                {equipa.membros?.length || 0} membro(s)
                                             </Text>
+
                                         </View>
                                     </View>
                                     <View style={styles.teamHeaderRight}>
                                         <TouchableOpacity
-                                            onPress={() => confirmarRemocaoEquipa(equipa.nome, equipa.obra?.id)}
+                                            onPress={() => confirmarRemocaoEquipa(equipa.nome)}
                                             style={styles.deleteButton}
                                         >
                                             <FontAwesome name="trash" size={16} color="#dc3545" />
