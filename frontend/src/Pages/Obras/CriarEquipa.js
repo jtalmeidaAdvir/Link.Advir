@@ -186,7 +186,6 @@ const CriarEquipa = () => {
             if (res.ok) {
                 Alert.alert('Sucesso', 'Equipa criada com sucesso!');
                 setNomeEquipa('');
-                setObraSelecionada('');
                 setMembrosSelecionados([]);
                 fetchEquipasCriadas();
             } else {
