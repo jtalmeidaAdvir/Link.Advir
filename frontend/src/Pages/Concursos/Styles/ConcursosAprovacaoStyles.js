@@ -2,6 +2,7 @@ const styles = {
     container: {
         minHeight: "100vh",
         width: "100%",
+        maxWidth: "100vw",
         padding: "1rem",
         boxSizing: "border-box",
         fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
@@ -141,21 +142,17 @@ const styles = {
         width: "100%",
         maxWidth: "1200px",
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
         gap: "1.5rem",
         padding: "0 0.5rem",
         boxSizing: "border-box",
     },
 
-    // Mobile responsiveness
+    // General mobile responsiveness
     "@media (max-width: 768px)": {
-        listaConcursos: {
-            gridTemplateColumns: "1fr",
-            gap: "1rem",
-            padding: "0",
-        },
         container: {
-            padding: "0.5rem",
+            padding: "0.75rem 0.5rem",
+            gap: "1rem",
         },
         statsContainer: {
             gap: "0.5rem",
@@ -164,17 +161,9 @@ const styles = {
             padding: "0.75rem 1rem",
             minWidth: "100px",
         },
-    },
-
-    "@media (max-width: 480px)": {
         searchContainer: {
             maxWidth: "100%",
-        },
-        listaConcursos: {
-            gridTemplateColumns: "1fr",
-        },
-        statsContainer: {
-            justifyContent: "space-around",
+            marginBottom: "0.75rem",
         },
     },
 
@@ -195,7 +184,7 @@ const styles = {
     concursoCard: {
         backgroundColor: "#ffffff",
         borderRadius: "16px",
-        padding: "1.5rem",
+        padding: "1.5rem 1.5rem 2rem 1.5rem",
         boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
         border: "1px solid #e2e8f0",
         cursor: "pointer",
@@ -204,9 +193,10 @@ const styles = {
         flexDirection: "column",
         gap: "1rem",
         position: "relative",
-        overflow: "hidden",
-        minHeight: "220px",
+        overflow: "visible",
+        minHeight: "240px",
         justifyContent: "space-between",
+        marginBottom: "1rem",
     },
 
     concursoCardHover: {
@@ -220,7 +210,8 @@ const styles = {
         justifyContent: "space-between",
         alignItems: "flex-start",
         gap: "1rem",
-        marginBottom: "0.5rem",
+        marginBottom: "1rem",
+        flexWrap: "nowrap",
     },
 
     concursoTitulo: {
@@ -230,18 +221,22 @@ const styles = {
         margin: "0",
         lineHeight: "1.3",
         flex: 1,
+        minWidth: 0,
     },
 
     concursoStatus: {
         backgroundColor: "#ecfdf5",
         color: "#059669",
-        padding: "0.25rem 0.75rem",
+        padding: "0.4rem 0.8rem",
         borderRadius: "20px",
         fontSize: "0.75rem",
         fontWeight: "600",
         textTransform: "uppercase",
         letterSpacing: "0.5px",
         whiteSpace: "nowrap",
+        alignSelf: "flex-start",
+        flexShrink: 0,
+        marginTop: "0.1rem",
     },
 
     concursoContent: {
@@ -281,15 +276,17 @@ const styles = {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingTop: "1rem",
+        paddingTop: "1.25rem",
         borderTop: "1px solid #f1f5f9",
         marginTop: "auto",
+        minHeight: "50px",
     },
 
     concursoPreco: {
         fontSize: "1.1rem",
         fontWeight: "700",
         color: "#059669",
+        flex: "0 0 auto",
     },
 
     concursoDataEntrega: {
@@ -297,11 +294,13 @@ const styles = {
         color: "#dc2626",
         fontWeight: "600",
         backgroundColor: "#fef2f2",
-        padding: "0.25rem 0.75rem",
+        padding: "0.4rem 0.8rem",
         borderRadius: "20px",
         borderWidth: "1px",
         borderStyle: "solid",
         borderColor: "#fecaca",
+        whiteSpace: "nowrap",
+        flex: "0 0 auto",
     },
 
     // Pull-to-refresh styles
@@ -340,25 +339,126 @@ const styles = {
 
     // Responsive card adjustments
     "@media (max-width: 768px)": {
+        container: {
+            padding: "0.5rem",
+            gap: "1rem",
+        },
+        listaConcursos: {
+            gridTemplateColumns: "1fr",
+            gap: "1rem",
+            padding: "0",
+            marginBottom: "2rem",
+            width: "100%",
+        },
         concursoCard: {
-            padding: "1.25rem",
-            minHeight: "200px",
+            padding: "1rem",
+            minHeight: "auto",
+            marginBottom: "0",
+            overflow: "visible",
+            width: "100%",
+            boxSizing: "border-box",
+            margin: "0",
+            borderRadius: "12px",
         },
         concursoHeader: {
             flexDirection: "column",
             alignItems: "flex-start",
-            gap: "0.5rem",
+            gap: "0.75rem",
+            marginBottom: "1rem",
+            flexWrap: "wrap",
         },
         concursoTitulo: {
             fontSize: "1.1rem",
+            width: "100%",
+            marginBottom: "0",
+            lineHeight: "1.4",
+            wordBreak: "break-word",
+            whiteSpace: "normal",
+            overflow: "visible",
+        },
+        concursoStatus: {
+            alignSelf: "flex-start",
+            marginTop: "0",
+            fontSize: "0.7rem",
+            padding: "0.3rem 0.6rem",
+            maxWidth: "100%",
+            textAlign: "center",
+        },
+        concursoContent: {
+            gap: "0.75rem",
+            width: "100%",
+        },
+        concursoInfo: {
+            fontSize: "0.85rem",
+            gap: "0.5rem",
+            flexWrap: "wrap",
+            width: "100%",
+        },
+        concursoInfoLabel: {
+            minWidth: "70px",
+            fontSize: "0.85rem",
+            flexShrink: 0,
+        },
+        concursoInfoValue: {
+            wordBreak: "break-word",
+            overflow: "visible",
+            whiteSpace: "normal",
         },
         concursoFooter: {
             flexDirection: "column",
-            gap: "0.5rem",
+            gap: "0.75rem",
             alignItems: "stretch",
+            paddingTop: "1rem",
+            minHeight: "auto",
+            width: "100%",
+        },
+        concursoPreco: {
+            fontSize: "1rem",
+            textAlign: "center",
+            width: "100%",
         },
         concursoDataEntrega: {
             textAlign: "center",
+            fontSize: "0.8rem",
+            padding: "0.3rem 0.6rem",
+            width: "auto",
+            alignSelf: "center",
+        },
+    },
+
+    "@media (max-width: 480px)": {
+        container: {
+            padding: "0.25rem",
+        },
+        listaConcursos: {
+            padding: "0",
+            gap: "0.75rem",
+            width: "100%",
+        },
+        concursoCard: {
+            padding: "0.75rem",
+            marginBottom: "0",
+            width: "100%",
+            maxWidth: "100%",
+        },
+        concursoTitulo: {
+            fontSize: "1rem",
+            lineHeight: "1.3",
+        },
+        concursoInfo: {
+            fontSize: "0.8rem",
+            gap: "0.4rem",
+        },
+        concursoInfoLabel: {
+            minWidth: "60px",
+            fontSize: "0.8rem",
+        },
+        concursoPreco: {
+            fontSize: "0.9rem",
+        },
+        concursoDataEntrega: {
+            fontSize: "0.75rem",
+            padding: "0.25rem 0.5rem",
         },
     },
 };
@@ -380,12 +480,24 @@ if (typeof document !== "undefined") {
         @media (max-width: 768px) {
             .concursos-grid {
                 grid-template-columns: 1fr !important;
+                width: 100% !important;
+                padding: 0 !important;
+                margin-bottom: 65px !important;
+            }
+            
+            .concursos-card {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                overflow: visible !important;
             }
         }
 
         @media (max-width: 480px) {
             .concursos-card {
                 margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
             }
         }
     `;

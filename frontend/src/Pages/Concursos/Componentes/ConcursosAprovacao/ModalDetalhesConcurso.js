@@ -15,9 +15,14 @@ const ModalDetalhesConcurso = ({
 }) => {
     if (!visible || !concurso) return null;
 
+    const isMobile = window.innerWidth <= 768;
+
     return (
         <div style={styles.overlay}>
-            <div style={styles.modal}>
+            <div style={{
+                ...styles.modal,
+                ...(isMobile ? styles.mobileModal : {})
+            }}>
                 {/* Close button */}
                 <button
                     style={styles.closeButton}
@@ -28,7 +33,10 @@ const ModalDetalhesConcurso = ({
                 </button>
 
                 {/* Header */}
-                <div style={styles.header}>
+                <div style={{
+                    ...styles.header,
+                    ...(isMobile ? styles.mobileHeader : {})
+                }}>
                     <div style={styles.iconContainer}>
                         <span style={styles.headerIcon}>📋</span>
                     </div>
@@ -39,29 +47,39 @@ const ModalDetalhesConcurso = ({
                 </div>
 
                 {/* Content */}
-                <div style={styles.content}>
+                <div style={{
+                    ...styles.content,
+                    ...(isMobile ? styles.mobileContent : {})
+                }}>
                     <div style={styles.section}>
                         <h3 style={styles.sectionTitle}>Informações Gerais</h3>
-                        <div style={styles.grid}>
+                        <div style={{
+                            ...styles.grid,
+                            ...(isMobile ? styles.mobileGrid : {})
+                        }}>
                             <InfoItem
                                 icon="📝"
                                 label="Título"
                                 value={concurso.titulo}
+                                isMobile={isMobile}
                             />
                             <InfoItem
                                 icon="🏛️"
                                 label="Entidade"
                                 value={concurso.entidade}
+                                isMobile={isMobile}
                             />
                             <InfoItem
                                 icon="📍"
                                 label="Zona"
                                 value={concurso.zona}
+                                isMobile={isMobile}
                             />
                             <InfoItem
                                 icon="🏗️"
                                 label="Tipo de Obra"
                                 value={concurso.tipo}
+                                isMobile={isMobile}
                             />
                         </div>
                     </div>
@@ -70,33 +88,43 @@ const ModalDetalhesConcurso = ({
                         <h3 style={styles.sectionTitle}>
                             Detalhes Financeiros
                         </h3>
-                        <div style={styles.grid}>
+                        <div style={{
+                            ...styles.grid,
+                            ...(isMobile ? styles.mobileGrid : {})
+                        }}>
                             <InfoItem
                                 icon="💰"
                                 label="Preço Base"
                                 value={`€ ${concurso.precoBase?.toLocaleString("pt-PT")}`}
                                 highlight={true}
+                                isMobile={isMobile}
                             />
                             <InfoItem
                                 icon="📄"
                                 label="Forma Contrato"
                                 value={concurso.formaContrato}
+                                isMobile={isMobile}
                             />
                             <InfoItem
                                 icon="📊"
                                 label="Tipo Proposta"
                                 value={concurso.tipoProposta}
+                                isMobile={isMobile}
                             />
                             <InfoItem
                                 icon="🎯"
                                 label="Critérios"
                                 value={concurso.criterios}
+                                isMobile={isMobile}
                             />
                         </div>
                     </div>
 
                     {/* Data Entrega destacada */}
-                    <div style={styles.deliverySection}>
+                    <div style={{
+                        ...styles.deliverySection,
+                        ...(isMobile ? styles.mobileDeliverySection : {})
+                    }}>
                         <div style={styles.deliveryIcon}>⏰</div>
                         <div style={styles.deliveryContent}>
                             <span style={styles.deliveryLabel}>
@@ -110,7 +138,10 @@ const ModalDetalhesConcurso = ({
                 </div>
 
                 {/* Action buttons */}
-                <div style={styles.actions}>
+                <div style={{
+                    ...styles.actions,
+                    ...(isMobile ? styles.mobileActions : {})
+                }}>
                     <button
                         style={styles.approveButton}
                         onClick={() => onApprove(concurso)}
@@ -131,13 +162,14 @@ const ModalDetalhesConcurso = ({
     );
 };
 
-const InfoItem = ({ icon, label, value, highlight = false }) => (
+const InfoItem = ({ icon, label, value, highlight = false, isMobile = false }) => (
     <div
-        style={
-            highlight
+        style={{
+            ...(highlight
                 ? { ...styles.infoItem, ...styles.infoItemHighlight }
-                : styles.infoItem
-        }
+                : styles.infoItem),
+            ...(isMobile ? styles.mobileInfoItem : {})
+        }}
     >
         <div style={styles.infoIcon}>{icon}</div>
         <div style={styles.infoContent}>
@@ -156,18 +188,20 @@ const styles = {
         bottom: 0,
         backgroundColor: "rgba(0, 0, 0, 0.6)",
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
         zIndex: 10000,
-        padding: "1rem",
+        padding: "1rem 0.5rem",
         backdropFilter: "blur(4px)",
+        overflow: "auto",
+        paddingTop: "4rem",
     },
     modal: {
         backgroundColor: "#ffffff",
         borderRadius: "20px",
         width: "100%",
         maxWidth: "500px",
-        maxHeight: "80vh",
+        maxHeight: "calc(100vh - 4rem)",
         overflowY: "auto",
         boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
         borderWidth: "1px",
@@ -175,6 +209,8 @@ const styles = {
         borderColor: "#e2e8f0",
         position: "relative",
         animation: "slideUp 0.3s ease-out",
+        margin: "0 auto",
+        marginBottom: "2rem",
     },
     closeButton: {
         position: "absolute",
@@ -364,21 +400,36 @@ const styles = {
     buttonIcon: {
         fontSize: "1.1rem",
     },
-    // Responsive styles
-    "@media (max-width: 768px)": {
-        modal: {
-            margin: "1rem",
-            maxWidth: "calc(100% - 2rem)",
-        },
-        header: {
-            padding: "1.5rem",
-        },
-        content: {
-            padding: "1.5rem",
-        },
-        actions: {
-            padding: "1rem 1.5rem 1.5rem",
-        },
+    // Mobile styles
+    mobileModal: {
+        margin: "0 0.5rem 2rem 0.5rem",
+        maxWidth: "calc(100% - 1rem)",
+        maxHeight: "calc(100vh - 8rem)",
+        borderRadius: "16px",
+        marginTop: "0",
+    },
+    mobileHeader: {
+        padding: "1.5rem 1rem",
+        borderRadius: "16px 16px 0 0",
+    },
+    mobileContent: {
+        padding: "1rem",
+    },
+    mobileActions: {
+        padding: "1rem",
+        gap: "0.75rem",
+    },
+    mobileGrid: {
+        gap: "0.75rem",
+    },
+    mobileInfoItem: {
+        padding: "0.75rem",
+        borderRadius: "8px",
+    },
+    mobileDeliverySection: {
+        padding: "1rem",
+        borderRadius: "12px",
+        marginTop: "1rem",
     },
 };
 
@@ -403,6 +454,19 @@ if (typeof document !== "undefined") {
 
         .modal .closeButton:hover {
             background: rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .modal {
+                margin: 0 0.5rem 2rem 0.5rem !important;
+                max-height: calc(100vh - 8rem) !important;
+                margin-top: 0 !important;
+            }
+            
+            .overlay {
+                align-items: flex-start !important;
+                padding-top: 4rem !important;
+            }
         }
     `;
     document.head.appendChild(style);

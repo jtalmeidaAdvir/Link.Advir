@@ -91,7 +91,7 @@ const ConcursoCard = ({ concurso, onClick }) => {
                     <span style={styles.concursoInfoIcon}>🏢</span>
                     <span style={styles.concursoInfoLabel}>Código:</span>
                     <span style={styles.concursoInfoValue}>
-                        {concurso.codigo.replace("", "í")}
+                        {concurso.codigo.replace("", "")}
                     </span>
                 </div>
 

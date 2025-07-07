@@ -83,17 +83,21 @@ const ConcursosAprovacao = () => {
         if (searchTerm.trim() === "") {
             setConcursosFiltrados(concursos);
         } else {
-            const filtered = concursos.filter(
-                (concurso) => {
-                    const searchLower = searchTerm.toLowerCase();
-                    return (
-                        (concurso.titulo && concurso.titulo.toLowerCase().includes(searchLower)) ||
-                        (concurso.codigo && concurso.codigo.toLowerCase().includes(searchLower)) ||
-                        (concurso.entidade && concurso.entidade.toLowerCase().includes(searchLower)) ||
-                        (concurso.zona && concurso.zona.toLowerCase().includes(searchLower))
-                    );
-                }
-            );
+            const filtered = concursos.filter((concurso) => {
+                const searchLower = searchTerm.toLowerCase();
+                return (
+                    (concurso.titulo &&
+                        concurso.titulo.toLowerCase().includes(searchLower)) ||
+                    (concurso.codigo &&
+                        concurso.codigo.toLowerCase().includes(searchLower)) ||
+                    (concurso.entidade &&
+                        concurso.entidade
+                            .toLowerCase()
+                            .includes(searchLower)) ||
+                    (concurso.zona &&
+                        concurso.zona.toLowerCase().includes(searchLower))
+                );
+            });
             setConcursosFiltrados(filtered);
         }
     }, [searchTerm, concursos]);
@@ -220,9 +224,9 @@ const ConcursosAprovacao = () => {
                 setPullDistance(distance);
                 setShowPullIndicator(true);
 
-                // Only prevent default when actively pulling down and event is cancelable
-                if (distance > 80 && e.cancelable) {
-                    e.preventDefault();
+                // Only show indicator, don't prevent scroll
+                if (distance > 80) {
+                    // Don't prevent default to allow normal scrolling
                 }
             }
         }
@@ -242,16 +246,20 @@ const ConcursosAprovacao = () => {
         const container = containerRef.current;
         if (!container) return;
 
-        const options = { passive: false };
-
-        container.addEventListener('touchstart', handleTouchStart, { passive: true });
-        container.addEventListener('touchmove', handleTouchMove, options);
-        container.addEventListener('touchend', handleTouchEnd, { passive: true });
+        container.addEventListener("touchstart", handleTouchStart, {
+            passive: true,
+        });
+        container.addEventListener("touchmove", handleTouchMove, {
+            passive: true,
+        });
+        container.addEventListener("touchend", handleTouchEnd, {
+            passive: true,
+        });
 
         return () => {
-            container.removeEventListener('touchstart', handleTouchStart);
-            container.removeEventListener('touchmove', handleTouchMove);
-            container.removeEventListener('touchend', handleTouchEnd);
+            container.removeEventListener("touchstart", handleTouchStart);
+            container.removeEventListener("touchmove", handleTouchMove);
+            container.removeEventListener("touchend", handleTouchEnd);
         };
     }, [pullStartY, pullDistance, isRefreshing]);
 
