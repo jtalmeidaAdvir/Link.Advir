@@ -41,10 +41,6 @@ const LeitorQRCode = () => {
 
 
 
-  const [mostrarEquipas, setMostrarEquipas] = useState(false);
-const [equipas, setEquipas] = useState([]);
-const [equipaSelecionada, setEquipaSelecionada] = useState(null);
-const [membrosSelecionados, setMembrosSelecionados] = useState([]);
 
 const [mostrarQRCode, setMostrarQRCode] = useState(false);
 
@@ -74,15 +70,7 @@ useEffect(() => {
   }
 }, []);
 
-useEffect(() => {
-  const tipoUser = localStorage.getItem('tipoUser');
-  const userId = localStorage.getItem('userId'); // caso precises
 
-  if (tipoUser === 'Encarregado' || tipoUser === 'Diretor') {
-    setMostrarEquipas(true);
-    carregarEquipas(userId);
-  }
-}, []);
 
 
 const carregarEquipas = async () => {
@@ -291,114 +279,11 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
 
 
 
-const onScanSuccess = async (decodedText) => {
-  if (decodedText === "registo-ponto" || decodedText.includes("obra")) {
-  if (!equipaSelecionada) {
-    alert("Seleciona uma equipa antes de registar o ponto.");
-    return;
-  }
-
-  const equipa = equipas.find(e => e.nome === equipaSelecionada);
-  if (!equipa || !equipa.obra?.id) {
-    alert("Equipa ou obra associada não encontrada.");
-    return;
-  }
-
-  const obraId = equipa.obra.id;
-
-  if (membrosSelecionados.length === 0) {
-    alert("Seleciona pelo menos um membro da equipa.");
-    return;
-  }
-
-  await registarPontoParaMembros(obraId);
-  return;
-}
-
-
-
-  if (decodedText === "registo-ponto") {
-    await registarPonto();
-    return;
-  }
-
-  alert("QR Code inválido.");
-};
 
 
 
 
 
-
-const registarPontoParaMembros = async (obraId) => {
-  const empresa = localStorage.getItem("empresaSelecionada");
-  const token = localStorage.getItem("loginToken");
-  if (!empresa || !token) {
-    alert("Erro: empresa ou token não definidos.");
-    return;
-  }
-
-  // Obter localização UMA vez
-  let latitude, longitude, endereco;
-  try {
-    const loc = await obterLocalizacao();
-    latitude = loc.latitude;
-    longitude = loc.longitude;
-    endereco = await getEnderecoPorCoordenadas(latitude, longitude);
-  } catch (err) {
-    console.error("Erro a obter localização:", err);
-    endereco = "Localização não disponível";
-  }
-
-  const horaAtual = new Date().toISOString();
-
-  try {
-    // Enviar um POST para cada membro
-    await Promise.all(
-  membrosSelecionados.map(async (userId) => {
-    const res = await fetch(
-      "https://backend.advir.pt/api/registoPonto/registar-para-outro",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          empresa,
-          latitude,
-          longitude,
-          endereco,
-          obra_id: obraId,
-        }),
-      }
-    );
-
-    const data = await res.json();
-
-    if (!res.ok) {
-  console.error(`❌ Erro HTTP ${res.status} para utilizador ${userId}:`, data);
-  if (res.status === 403) {
-    console.warn(`⚠️ Acesso negado. Verifica se o utilizador tem permissões para registar para outros.`);
-  }
-}
- else if (data.message?.includes("já registou")) {
-      console.warn(`⚠️ ${data.message} (user ${userId})`);
-    } else {
-      console.log(`✅ Registado com sucesso para ${userId}`, data);
-    }
-  })
-);
-
-
-    alert("Ponto registado com sucesso para todos os membros!");
-    await fetchRegistosDiarios();
-  } catch (error) {
-    console.error("Erro ao registar ponto para alguns membros:", error);
-    alert("Ocorreu um erro ao registar ponto para alguns membros.");
-  }
-};
 
 
 
@@ -826,83 +711,7 @@ useEffect(() => {
         ]}
       >
         <View style={styles.qrSection}>
-          {mostrarEquipas && (
-  <View style={{ width: '100%', marginTop: 10, marginBottom: 20 }}>
-    <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 5 }}>Seleciona a Equipa:</Text>
-    {equipas.length === 0 ? (
-      <Text style={{ color: '#999' }}>Nenhuma equipa disponível.</Text>
-    ) : (
-      <>
-        <View style={{
-          backgroundColor: '#f0f4f8',
-          borderRadius: 8,
-          padding: 10,
-          marginBottom: 10,
-        }}>
-          {equipas.map((equipa, index) => (
-            <TouchableOpacity
-              key={index}
-              onPress={() => {
-  setEquipaSelecionada(equipa.nome);
-  setMembrosSelecionados(Array.isArray(equipa.membros) ? equipa.membros.map(m => m.id) : []);
-}}
 
-
-              style={{
-                padding: 10,
-                backgroundColor: equipaSelecionada === equipa.nome ? '#4481EB' : '#fff',
-                borderRadius: 8,
-                marginBottom: 5,
-              }}
-            >
-              <Text style={{
-                color: equipaSelecionada === equipa.nome ? '#fff' : '#333',
-                fontWeight: '600'
-              }}>
-                {equipa.nome}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Membros selecionados */}
-        <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 5 }}>Membros da equipa:</Text>
-        <View style={{
-          backgroundColor: '#f8f9ff',
-          padding: 10,
-          borderRadius: 8
-        }}>
-          {equipas.find(e => e.nome === equipaSelecionada)?.membros.map((m, i) => (
-  <TouchableOpacity
-    key={i}
-    style={{
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 8,
-    }}
-    onPress={() => {
-      if (membrosSelecionados.includes(m.id)) {
-        setMembrosSelecionados(membrosSelecionados.filter(id => id !== m.id));
-      } else {
-        setMembrosSelecionados([...membrosSelecionados, m.id]);
-      }
-    }}
-  >
-    <MaterialCommunityIcons
-      name={membrosSelecionados.includes(m.id) ? 'checkbox-marked' : 'checkbox-blank-outline'}
-      size={22}
-      color={membrosSelecionados.includes(m.id) ? '#4481EB' : '#aaa'}
-      style={{ marginRight: 10 }}
-    />
-    <Text style={{ fontSize: 14, color: '#333' }}>{m.nome}</Text>
-  </TouchableOpacity>
-)) || <Text style={{ color: '#999' }}>Nenhum membro.</Text>}
-
-        </View>
-      </>
-    )}
-  </View>
-)}
 
           <TouchableOpacity
   style={styles.scanButton}
@@ -1027,30 +836,6 @@ useEffect(() => {
     <Text style={styles.scanButtonText}>Registar Ponto</Text>
   </LinearGradient>
 </TouchableOpacity>
-{mostrarEquipas && membrosSelecionados.length > 0 && (
-  <TouchableOpacity
-    style={styles.scanButton}
-    onPress={async () => {
-      const equipa = equipas.find(e => e.nome === equipaSelecionada);
-      if (!equipa || !equipa.obra?.id) {
-        alert("Equipa ou obra associada não encontrada.");
-        return;
-      }
-
-      await registarPontoParaMembros(equipa.obra.id);
-    }}
-  >
-    <LinearGradient
-      colors={['#4CAF50', '#66BB6A']}
-      style={styles.scanButtonGradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 0 }}
-    >
-      <MaterialCommunityIcons name="account-multiple-check" size={20} color="#fff" />
-      <Text style={styles.scanButtonText}>Registar para membros</Text>
-    </LinearGradient>
-  </TouchableOpacity>
-)}
 
 
           {/* Se o intervalo estiver activo, mostrar cronómetro de pausa */}
