@@ -47,6 +47,8 @@ import RegistoPontoAdmin from './src/Pages/Assiduidade/RegistoPontoAdmin';
 import PedidosAlteracaoAdmin from './src/Pages/Assiduidade/PedidosAlteracaoAdmin';
 import ListarRegistos from './src/Pages/Assiduidade/ListarRegistos';
 
+//Aprovaçoes Pendentes
+import ConcursosAprovacao from './src/Pages/Concursos/ConcursosAprovacao';
 
 import Obras from './src/Pages/Obras/Obras';
 import DetalhesObra from './src/Pages/Obras/DetalhesObra';
@@ -126,6 +128,10 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
 
     const hasServicesModule = modules.some(module => module.nome === "Servicos");
 
+    const hasConcursosModule = modules.some(
+        module => module.nome === "Obras" && module.submodulos.some(sub => sub.nome === "Aprovacoes")
+    );
+
     const hasQrCodeAssiduidadeModule = modules.some(
         module => module.nome === "Assiduidade" && module.submodulos.some(sub => sub.nome === "QrCode")
     );
@@ -173,7 +179,13 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         />
 
                     )}
-
+                    {hasConcursosModule && (
+                        <DrawerItem
+                            label={t("Aprovações")}
+                            onPress={() => props.navigation.navigate('ConcursosAprovacao')}
+                            icon={() => <FontAwesome name="wrench" size={20} color="#1792FE" />}
+                        />
+                         )}
                     {hasOficiosModule && (
                         <DrawerItem
                             label={t("Oficios")}
@@ -483,6 +495,7 @@ const AppNavigator = () => {
                 )}
             </Drawer.Screen>
 
+            <Drawer.Screen name="ConcursosAprovacao" component={ConcursosAprovacao} options={{ title: "AdvirLink - Pedidos de Assistência" }} />
             <Drawer.Screen name="PedidosAssistencia" component={PedidosAssistencia} options={{ title: "AdvirLink - Pedidos de Assistência" }} />
             <Drawer.Screen name="PandIByTecnico" component={PandIByTecnico} options={{ title: "AdvirLink - Dashboard Técnico" }} />
             <Drawer.Screen name="RegistoIntervencao" component={RegistoIntervencao} options={{ title: "AdvirLink - Intervenção", drawerItemStyle: { display: 'none' } }} />

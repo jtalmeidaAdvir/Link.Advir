@@ -1,15 +1,16 @@
 {
   "ExpandedNodes": [
     "",
-    "\\backend",
-    "\\backend\\controllers",
-    "\\backend\\middleware",
     "\\backend\\models",
     "\\backend\\routes",
-    "\\frontend",
     "\\frontend\\src",
-    "\\frontend\\src\\Servicos"
+    "\\frontend\\src\\Pages",
+    "\\frontend\\src\\Pages\\Concursos",
+    "\\frontend\\src\\Pages\\Concursos\\Styles",
+    "\\webPrimaveraApi",
+    "\\webPrimaveraApi\\routes",
+    "\\webPrimaveraApi\\routes\\Concursos"
   ],
-  "SelectedNode": "\\frontend\\src\\Servicos\\DashboardAnalytics.js",
+  "SelectedNode": "\\webPrimaveraApi\\routes\\Concursos\\routesConcursos.js",
   "PreviewInSolutionExplorer": false
 }

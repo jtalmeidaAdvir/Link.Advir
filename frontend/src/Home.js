@@ -1,5 +1,5 @@
 ﻿
-import React, { useState, useEffect,useRef  } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaFileContract, FaPhone, FaBoxOpen, FaQuestionCircle, FaBars } from 'react-icons/fa';
@@ -39,18 +39,18 @@ const Home = () => {
     const [selectedEstado, setSelectedEstado] = useState(''); // Estado para o filtro
 
     const estadosDisponiveis = pedidosInfo
-    ? [...new Set(pedidosInfo.DataSet.Table.map((pedido) => pedido.DescricaoEstado))]
-    : [];
+        ? [...new Set(pedidosInfo.DataSet.Table.map((pedido) => pedido.DescricaoEstado))]
+        : [];
 
-// Referências para as seções
-const contractRef = useRef(null);
-const ordersRef = useRef(null);
-const productsRef = useRef(null);
-const faqRef = useRef(null);
+    // Referências para as seções
+    const contractRef = useRef(null);
+    const ordersRef = useRef(null);
+    const productsRef = useRef(null);
+    const faqRef = useRef(null);
 
 
-const [showForm, setShowForm] = useState(false);
-    
+    const [showForm, setShowForm] = useState(false);
+
     const toggleForm = () => {
         setShowForm(!showForm);
         // Reset error message when toggling form
@@ -58,109 +58,109 @@ const [showForm, setShowForm] = useState(false);
     };
 
 
-const handleFormSubmit = async (event) => {
-    event.preventDefault();
+    const handleFormSubmit = async (event) => {
+        event.preventDefault();
 
-    // Validação de campos obrigatórios
-    if (!formData.contacto || !formData.prioridade || !formData.descricaoProblema) {
-        setErrorMessage(t('Por favor, preencha todos os campos obrigatórios.'));
-        return;
-    }
-
-    try {
-        const token = await AsyncStorage.getItem('painelAdminToken');
-        const urlempresa = await AsyncStorage.getItem('urlempresa');
-        const clienteID = await AsyncStorage.getItem('empresa_areacliente');
-
-        if (!token || !urlempresa || !clienteID) {
-            throw new Error(t('Erro: Token ou informações da empresa estão ausentes.'));
+        // Validação de campos obrigatórios
+        if (!formData.contacto || !formData.prioridade || !formData.descricaoProblema) {
+            setErrorMessage(t('Por favor, preencha todos os campos obrigatórios.'));
+            return;
         }
 
-        const payload = {
-            ...formData,
-            cliente: clienteID, // Define o cliente a partir do AsyncStorage
-            datahoraabertura: new Date().toISOString(),
-        };
+        try {
+            const token = await AsyncStorage.getItem('painelAdminToken');
+            const urlempresa = await AsyncStorage.getItem('urlempresa');
+            const clienteID = await AsyncStorage.getItem('empresa_areacliente');
 
-        console.log('Enviando o pedido com payload:', payload);
+            if (!token || !urlempresa || !clienteID) {
+                throw new Error(t('Erro: Token ou informações da empresa estão ausentes.'));
+            }
 
-        const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/CriarPedido`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-                urlempresa,
-            },
-            body: JSON.stringify(payload),
-        });
+            const payload = {
+                ...formData,
+                cliente: clienteID, // Define o cliente a partir do AsyncStorage
+                datahoraabertura: new Date().toISOString(),
+            };
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Erro ao criar pedido:', errorData);
-            throw new Error(t('Erro ao criar o pedido: ') + errorData.message);
+            console.log('Enviando o pedido com payload:', payload);
+
+            const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/CriarPedido`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                    urlempresa,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Erro ao criar pedido:', errorData);
+                throw new Error(t('Erro ao criar o pedido: ') + errorData.message);
+            }
+
+            const responseData = await response.json();
+            console.log('Resposta da criação do pedido:', responseData);
+
+            // Mensagem de sucesso e fechar o formulário
+            setSuccessMessage(t('Pedido criado com sucesso!'));
+            setShowForm(false); // Fecha o formulário
+            setFormData({
+                cliente: '',
+                contacto: '',
+                prioridade: '',
+                descricaoProblema: '',
+                origem: 'SITE',
+                tecnico: '',
+                tipoProcesso: 'PASI',
+                estado: 1,
+                serie: '2025',
+                seccao: 'SD',
+                objectoID: '9dc979ae-96b4-11ef-943d-e08281583916',
+                contratoID: '',
+            });
+
+            // Limpar mensagem de sucesso após 3 segundos
+            setTimeout(() => {
+                setSuccessMessage('');
+            }, 3000);
+        } catch (error) {
+            console.error('Erro ao enviar o pedido:', error);
+            setErrorMessage(error.message);
         }
-
-        const responseData = await response.json();
-        console.log('Resposta da criação do pedido:', responseData);
-
-        // Mensagem de sucesso e fechar o formulário
-        setSuccessMessage(t('Pedido criado com sucesso!'));
-        setShowForm(false); // Fecha o formulário
-        setFormData({
-            cliente: '',
-            contacto: '',
-            prioridade: '',
-            descricaoProblema: '',
-            origem: 'SITE',
-            tecnico: '',
-            tipoProcesso: 'PASI',
-            estado: 1,
-            serie: '2025',
-            seccao: 'SD',
-            objectoID: '9dc979ae-96b4-11ef-943d-e08281583916',
-            contratoID: '',
-        });
-
-        // Limpar mensagem de sucesso após 3 segundos
-        setTimeout(() => {
-            setSuccessMessage('');
-        }, 3000);
-    } catch (error) {
-        console.error('Erro ao enviar o pedido:', error);
-        setErrorMessage(error.message);
-    }
-};
+    };
 
 
 
 
- // Função para atualizar o termo da pesquisa
- const handleSearch = (e) => {
-    setSearchTerm(e.target.value.toLowerCase());
-};
+    // Função para atualizar o termo da pesquisa
+    const handleSearch = (e) => {
+        setSearchTerm(e.target.value.toLowerCase());
+    };
 
-const [formData, setFormData] = useState({
-    cliente: '', // ID do cliente logado
-    contacto: '', // ID do contacto selecionado
-    prioridade: '', // ID da prioridade selecionada
-    descricaoProblema: '', // Descrição do problema
-    origem: 'SITE', // Origem padrão ou ajustável
-    tecnico: '000', // vazio
-    tipoProcesso: 'PASI', // Tipo de processo
-    estado: 1, // Estado inicial
-    serie: '2025',
-    seccao: 'SD' , // Secção associada 
-    objectoID: '9dc979ae-96b4-11ef-943d-e08281583916',
-    contratoID: '', // contrato associado
-    datahoraabertura: '', // Preenchido automaticamente
-    datahorafimprevista: '', // Calculado automaticamente
-});
+    const [formData, setFormData] = useState({
+        cliente: '', // ID do cliente logado
+        contacto: '', // ID do contacto selecionado
+        prioridade: '', // ID da prioridade selecionada
+        descricaoProblema: '', // Descrição do problema
+        origem: 'SITE', // Origem padrão ou ajustável
+        tecnico: '000', // vazio
+        tipoProcesso: 'PASI', // Tipo de processo
+        estado: 1, // Estado inicial
+        serie: '2025',
+        seccao: 'SD', // Secção associada 
+        objectoID: '9dc979ae-96b4-11ef-943d-e08281583916',
+        contratoID: '', // contrato associado
+        datahoraabertura: '', // Preenchido automaticamente
+        datahorafimprevista: '', // Calculado automaticamente
+    });
 
 
-const [dataLists, setDataLists] = useState({
-    contactos: [],
-    prioridades: [],
-});
+    const [dataLists, setDataLists] = useState({
+        contactos: [],
+        prioridades: [],
+    });
 
 
     const [errorMessage, setErrorMessage] = useState('');
@@ -170,15 +170,15 @@ const [dataLists, setDataLists] = useState({
         setDrawerOpen(!isDrawerOpen);
     };
 
- // Função para alternar o menu e rolar para a seção correspondente
- const handleMenuClick = (menu, ref) => {
-    setActiveMenu(menu);
+    // Função para alternar o menu e rolar para a seção correspondente
+    const handleMenuClick = (menu, ref) => {
+        setActiveMenu(menu);
 
-    // Rolar suavemente até a seção associada
-    if (ref && ref.current) {
-        ref.current.scrollIntoView({ behavior: 'smooth' });
-    }
-};
+        // Rolar suavemente até a seção associada
+        if (ref && ref.current) {
+            ref.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
 
 
 
@@ -226,30 +226,30 @@ const [dataLists, setDataLists] = useState({
         return `${twoDigits(date.getDate())}/${twoDigits(date.getMonth() + 1)}/${date.getFullYear()} - ${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}:${twoDigits(date.getSeconds())}`;
     };
 
-  // Filtrar pedidos com base no termo de pesquisa
-  const filteredPedidos = groupedPedidos
-  ? Object.fromEntries(
-      Object.entries(groupedPedidos)
-        .map(([processo, pedidos]) => [
-          processo,
-          pedidos
-            .filter((pedido) => {
-              console.log("Pedido DataHoraInicio:", pedido.DataHoraInicio); // Verificar formato da data
-              return (
-                (selectedEstado === '' || pedido.DescricaoEstado === selectedEstado) &&
-                (selectedYear === '' || new Date(pedido.DataHoraInicio).getFullYear() === selectedYear) &&
-                (pedido.Processo.toLowerCase().includes(searchTerm) ||
-                  pedido.DescricaoEstado.toLowerCase().includes(searchTerm) ||
-                  pedido.DescricaoProb.toLowerCase().includes(searchTerm) ||
-                  pedido.DescricaoResp.toLowerCase().includes(searchTerm) ||
-                  pedido.NomeTecnico.toLowerCase().includes(searchTerm))
-              );
-            })
-            .sort((a, b) => new Date(b.DataHoraInicio) - new Date(a.DataHoraInicio)), // Ordenação correta
-        ])
-        .filter(([_, pedidos]) => pedidos.length > 0) // Remove grupos vazios
-    )
-  : {};
+    // Filtrar pedidos com base no termo de pesquisa
+    const filteredPedidos = groupedPedidos
+        ? Object.fromEntries(
+            Object.entries(groupedPedidos)
+                .map(([processo, pedidos]) => [
+                    processo,
+                    pedidos
+                        .filter((pedido) => {
+                            console.log("Pedido DataHoraInicio:", pedido.DataHoraInicio); // Verificar formato da data
+                            return (
+                                (selectedEstado === '' || pedido.DescricaoEstado === selectedEstado) &&
+                                (selectedYear === '' || new Date(pedido.DataHoraInicio).getFullYear() === selectedYear) &&
+                                (pedido.Processo.toLowerCase().includes(searchTerm) ||
+                                    pedido.DescricaoEstado.toLowerCase().includes(searchTerm) ||
+                                    pedido.DescricaoProb.toLowerCase().includes(searchTerm) ||
+                                    pedido.DescricaoResp.toLowerCase().includes(searchTerm) ||
+                                    pedido.NomeTecnico.toLowerCase().includes(searchTerm))
+                            );
+                        })
+                        .sort((a, b) => new Date(b.DataHoraInicio) - new Date(a.DataHoraInicio)), // Ordenação correta
+                ])
+                .filter(([_, pedidos]) => pedidos.length > 0) // Remove grupos vazios
+        )
+        : {};
 
 
 
@@ -258,8 +258,8 @@ const [dataLists, setDataLists] = useState({
 
 
 
-      // Função para calcular os processos a serem exibidos na página atual
-      const paginatedPedidos = Object.keys(filteredPedidos).slice(
+    // Função para calcular os processos a serem exibidos na página atual
+    const paginatedPedidos = Object.keys(filteredPedidos).slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
@@ -342,8 +342,8 @@ const [dataLists, setDataLists] = useState({
                 setPedidosError(error.message);
             } finally {
                 setPedidosLoading(false);
-            setLoading(false);
-            console.log("Finalizado fetch de dados iniciais e contrato.");
+                setLoading(false);
+                console.log("Finalizado fetch de dados iniciais e contrato.");
             }
         };
 
@@ -458,12 +458,12 @@ const [dataLists, setDataLists] = useState({
                 // Filtrar contrato com estado === 3
                 const contratosFiltrados = contratoData?.DataSet?.Table?.filter(c => c.Estado === 3) || [];
                 if (contratosFiltrados.length > 0) {
-                  setContratoInfo(contratosFiltrados);
-                  // opcional: guardar o primeiro ID no formulário ou permitir escolher
-                  setFormData(prev => ({ ...prev, contratoID: contratosFiltrados[0].ID }));
+                    setContratoInfo(contratosFiltrados);
+                    // opcional: guardar o primeiro ID no formulário ou permitir escolher
+                    setFormData(prev => ({ ...prev, contratoID: contratosFiltrados[0].ID }));
                 } else {
-                  setContratoInfo([]);
-                  setFormData(prev => ({ ...prev, contratoID: null }));
+                    setContratoInfo([]);
+                    setFormData(prev => ({ ...prev, contratoID: null }));
                 }
 
 
@@ -503,9 +503,9 @@ const [dataLists, setDataLists] = useState({
 
 
     return (
-        <div style={{ 
-            height: '100vh', 
-            overflowY: 'auto', 
+        <div style={{
+            height: '100vh',
+            overflowY: 'auto',
             fontFamily: 'Poppins, sans-serif',
             backgroundImage: `url(${backgroundImage})`,
             backgroundSize: 'cover',
@@ -530,135 +530,135 @@ const [dataLists, setDataLists] = useState({
                 height: '100%'
             }}>
 
-            {/* Sticky Navbar */}
-            <nav className="navbar navbar-light fixed-top" style={{ 
-                backgroundColor: 'rgba(25, 118, 210, 0.95)', 
-                backdropFilter: 'blur(10px)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                padding: '15px 0',
-            }}>
-                <div className="container">
-                    <button className="btn" onClick={toggleDrawer} style={{
-                        border: 'none',
-                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                        padding: '8px',
-                        borderRadius: '8px',
-                        transition: 'all 0.2s ease'
-                    }}>
-                        <FaBars size={24} style={{ color: '#FFFFFF' }} />
-                    </button>
-                    <span className="navbar-brand mb-0 h1" style={{ 
-                        color: '#FFFFFF', 
-                        fontWeight: '700',
-                        fontSize: '24px',
-                        letterSpacing: '0.5px',
-                        textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
-                    }}>Advir Plan</span>
-                    <div style={{ width: '42px' }}></div> {/* Spacer for balance */}
-                </div>
-            </nav>
-
-            {/* Drawer Navigation */}
-            <div className={`drawer ${isDrawerOpen ? 'open' : ''}`} style={{
-                width: isDrawerOpen ? '280px' : '0',
-                height: '100%',
-                backgroundColor: '#FFFFFF',
-                position: 'fixed',
-                top: '0',
-                left: '0',
-                overflowX: 'hidden',
-                transition: '0.3s ease-in-out',
-                zIndex: '9999',
-                boxShadow: isDrawerOpen ? '0 5px 25px rgba(0, 0, 0, 0.25)' : 'none',
-                padding: isDrawerOpen ? '20px 0' : '0',
-                borderTopRightRadius: '10px',
-                borderBottomRightRadius: '10px'
-            }}>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '0 20px 20px',
-                    borderBottom: '1px solid #eaeaea'
+                {/* Sticky Navbar */}
+                <nav className="navbar navbar-light fixed-top" style={{
+                    backgroundColor: 'rgba(25, 118, 210, 0.95)',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    padding: '15px 0',
                 }}>
-                    <span style={{ 
-                        color: '#1792FE', 
-                        fontWeight: '700',
-                        fontSize: '22px'
-                    }}>Advir Plan</span>
-                    <button 
-                        onClick={toggleDrawer} 
-                        style={{ 
-                            color: '#1792FE', 
-                            fontSize: '24px', 
-                            background: 'none',
+                    <div className="container">
+                        <button className="btn" onClick={toggleDrawer} style={{
                             border: 'none',
-                            cursor: 'pointer',
-                            padding: '5px'
-                        }}
-                    >
-                        &times;
-                    </button>
-                </div>
-                <div className="drawer-content" style={{ padding: '20px 10px', marginTop: '10px' }}>
-                    {menus.map((menu, index) => (
-                        <a 
-                            key={index}
-                            href="#" 
-                            onClick={(e) => {
-                                e.preventDefault();
-                                handleMenuClick(menu.title, menu.ref);
-                                toggleDrawer();
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            padding: '8px',
+                            borderRadius: '8px',
+                            transition: 'all 0.2s ease'
+                        }}>
+                            <FaBars size={24} style={{ color: '#FFFFFF' }} />
+                        </button>
+                        <span className="navbar-brand mb-0 h1" style={{
+                            color: '#FFFFFF',
+                            fontWeight: '700',
+                            fontSize: '24px',
+                            letterSpacing: '0.5px',
+                            textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
+                        }}>Advir Plan</span>
+                        <div style={{ width: '42px' }}></div> {/* Spacer for balance */}
+                    </div>
+                </nav>
+
+                {/* Drawer Navigation */}
+                <div className={`drawer ${isDrawerOpen ? 'open' : ''}`} style={{
+                    width: isDrawerOpen ? '280px' : '0',
+                    height: '100%',
+                    backgroundColor: '#FFFFFF',
+                    position: 'fixed',
+                    top: '0',
+                    left: '0',
+                    overflowX: 'hidden',
+                    transition: '0.3s ease-in-out',
+                    zIndex: '9999',
+                    boxShadow: isDrawerOpen ? '0 5px 25px rgba(0, 0, 0, 0.25)' : 'none',
+                    padding: isDrawerOpen ? '20px 0' : '0',
+                    borderTopRightRadius: '10px',
+                    borderBottomRightRadius: '10px'
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '0 20px 20px',
+                        borderBottom: '1px solid #eaeaea'
+                    }}>
+                        <span style={{
+                            color: '#1792FE',
+                            fontWeight: '700',
+                            fontSize: '22px'
+                        }}>Advir Plan</span>
+                        <button
+                            onClick={toggleDrawer}
+                            style={{
+                                color: '#1792FE',
+                                fontSize: '24px',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '5px'
                             }}
-                            style={{ 
-                                color: activeMenu === menu.title ? '#1792FE' : '#505050', 
-                                textDecoration: 'none', 
+                        >
+                            &times;
+                        </button>
+                    </div>
+                    <div className="drawer-content" style={{ padding: '20px 10px', marginTop: '10px' }}>
+                        {menus.map((menu, index) => (
+                            <a
+                                key={index}
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    handleMenuClick(menu.title, menu.ref);
+                                    toggleDrawer();
+                                }}
+                                style={{
+                                    color: activeMenu === menu.title ? '#1792FE' : '#505050',
+                                    textDecoration: 'none',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '15px 20px',
+                                    borderRadius: '8px',
+                                    margin: '5px 10px',
+                                    backgroundColor: activeMenu === menu.title ? '#f0f7ff' : 'transparent',
+                                    transition: 'all 0.2s ease',
+                                    fontWeight: activeMenu === menu.title ? '600' : '400'
+                                }}
+                            >
+                                <span style={{ marginRight: '15px' }}>{menu.icon}</span>
+                                {menu.title}
+                            </a>
+                        ))}
+                        <div style={{ borderTop: '1px solid #eaeaea', margin: '15px 10px', paddingTop: '15px' }}>
+                            <a href="#about" style={{
+                                color: '#505050',
+                                textDecoration: 'none',
                                 display: 'flex',
-                                alignItems: 'center', 
+                                alignItems: 'center',
                                 padding: '15px 20px',
                                 borderRadius: '8px',
                                 margin: '5px 10px',
-                                backgroundColor: activeMenu === menu.title ? '#f0f7ff' : 'transparent',
-                                transition: 'all 0.2s ease',
-                                fontWeight: activeMenu === menu.title ? '600' : '400'
-                            }}
-                        >
-                            <span style={{ marginRight: '15px' }}>{menu.icon}</span>
-                            {menu.title}
-                        </a>
-                    ))}
-                    <div style={{ borderTop: '1px solid #eaeaea', margin: '15px 10px', paddingTop: '15px' }}>
-                        <a href="#about" style={{ 
-                            color: '#505050', 
-                            textDecoration: 'none', 
-                            display: 'flex',
-                            alignItems: 'center', 
-                            padding: '15px 20px',
-                            borderRadius: '8px',
-                            margin: '5px 10px',
-                            transition: 'all 0.2s ease'
-                        }}>
-                            <span style={{ marginRight: '15px' }}>📋</span>
-                            Sobre Nós
-                        </a>
-                        <a href="#services" style={{ 
-                            color: '#505050', 
-                            textDecoration: 'none', 
-                            display: 'flex',
-                            alignItems: 'center', 
-                            padding: '15px 20px',
-                            borderRadius: '8px',
-                            margin: '5px 10px',
-                            transition: 'all 0.2s ease'
-                        }}>
-                            <span style={{ marginRight: '15px' }}>🛠️</span>
-                            Serviços
-                        </a>
+                                transition: 'all 0.2s ease'
+                            }}>
+                                <span style={{ marginRight: '15px' }}>📋</span>
+                                Sobre Nós
+                            </a>
+                            <a href="#services" style={{
+                                color: '#505050',
+                                textDecoration: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '15px 20px',
+                                borderRadius: '8px',
+                                margin: '5px 10px',
+                                transition: 'all 0.2s ease'
+                            }}>
+                                <span style={{ marginRight: '15px' }}>🛠️</span>
+                                Serviços
+                            </a>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Main Content */}
+                {/* Main Content */}
 
                 <section className="text-center" style={{
                     padding: '80px 20px 50px',
@@ -749,206 +749,206 @@ const [dataLists, setDataLists] = useState({
                     </div>
                     {/* Content Based on Active Menu */}
                     <div ref={contractRef}>
-  {activeMenu === t('Home.menu.contract') && (
-    <>
-      {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">{t('loading')}</span>
-          </div>
-        </div>
-      ) : errorMessage ? (
-        <div style={{
-          maxWidth: '800px',
-          margin: '0 auto',
-          padding: '20px',
-          backgroundColor: '#fff0f0',
-          borderRadius: '8px',
-          border: '1px solid #ffcccb',
-          color: '#d8000c',
-          textAlign: 'center'
-        }}>
-          <p style={{ fontSize: '18px' }}>{errorMessage}</p>
-        </div>
-      ) : contratoInfo.length > 0 ? (
-        contratoInfo.map((c, idx) => (
-          <motion.div
-            key={c.ID}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: idx * 0.1 }}
-            style={{
-              maxWidth: '800px',
-              margin: '0 auto 40px',
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              borderRadius: '16px',
-              overflow: 'hidden',
-              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
-            }}
-          >
-            {/* Cabeçalho */}
-            <div style={{
-              backgroundColor: '#1976D2',
-              padding: '25px 30px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-            }}>
-              <h2 style={{
-                fontWeight: 700,
-                color: '#FFFFFF',
-                margin: 0,
-                fontSize: '28px',
-                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
-              }}>
-                {t('Home.contratoinfo.title')} {c.Codigo}
-              </h2>
-            </div>
+                        {activeMenu === t('Home.menu.contract') && (
+                            <>
+                                {loading ? (
+                                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+                                        <div className="spinner-border text-primary" role="status">
+                                            <span className="visually-hidden">{t('loading')}</span>
+                                        </div>
+                                    </div>
+                                ) : errorMessage ? (
+                                    <div style={{
+                                        maxWidth: '800px',
+                                        margin: '0 auto',
+                                        padding: '20px',
+                                        backgroundColor: '#fff0f0',
+                                        borderRadius: '8px',
+                                        border: '1px solid #ffcccb',
+                                        color: '#d8000c',
+                                        textAlign: 'center'
+                                    }}>
+                                        <p style={{ fontSize: '18px' }}>{errorMessage}</p>
+                                    </div>
+                                ) : contratoInfo.length > 0 ? (
+                                    contratoInfo.map((c, idx) => (
+                                        <motion.div
+                                            key={c.ID}
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.5, delay: idx * 0.1 }}
+                                            style={{
+                                                maxWidth: '800px',
+                                                margin: '0 auto 40px',
+                                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                                borderRadius: '16px',
+                                                overflow: 'hidden',
+                                                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
+                                            }}
+                                        >
+                                            {/* Cabeçalho */}
+                                            <div style={{
+                                                backgroundColor: '#1976D2',
+                                                padding: '25px 30px',
+                                                borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+                                            }}>
+                                                <h2 style={{
+                                                    fontWeight: 700,
+                                                    color: '#FFFFFF',
+                                                    margin: 0,
+                                                    fontSize: '28px',
+                                                    textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
+                                                }}>
+                                                    {t('Home.contratoinfo.title')} {c.Codigo}
+                                                </h2>
+                                            </div>
 
-            <div style={{ padding: '30px' }}>
-              {/* Detalhes */}
-              <div style={{
-                backgroundColor: '#f8f9fa',
-                borderRadius: '12px',
-                padding: '20px',
-                borderLeft: '4px solid #1976D2',
-                marginBottom: '20px'
-              }}>
-                <p><strong>{t('Home.contratoinfo.codigo')}:</strong> {c.Codigo}</p>
-                <p><strong>{t('Home.contratoinfo.descricao')}:</strong> {c.Descricao}</p>
-              </div>
+                                            <div style={{ padding: '30px' }}>
+                                                {/* Detalhes */}
+                                                <div style={{
+                                                    backgroundColor: '#f8f9fa',
+                                                    borderRadius: '12px',
+                                                    padding: '20px',
+                                                    borderLeft: '4px solid #1976D2',
+                                                    marginBottom: '20px'
+                                                }}>
+                                                    <p><strong>{t('Home.contratoinfo.codigo')}:</strong> {c.Codigo}</p>
+                                                    <p><strong>{t('Home.contratoinfo.descricao')}:</strong> {c.Descricao}</p>
+                                                </div>
 
-              {/* Horas e progresso (se não for PRJ) */}
-              {c.TipoDoc !== 'PRJ' && (
-  <>
-    <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-      {/* Horas Contrato */}
-      <div style={{
-        flex: 1,
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        padding: '25px 20px',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-        textAlign: 'center'
-      }}>
-        <div style={{
-          width: '50px',
-          height: '50px',
-          margin: '0 auto 15px',
-          borderRadius: '50%',
-          backgroundColor: '#e3f2fd',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '24px'
-        }}>⏱️</div>
-        <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horascontrato')}</p>
-        <p style={{ fontSize: '24px', fontWeight: '700', color: '#1976D2', margin: 0 }}>{c.HorasTotais} h</p>
-      </div>
+                                                {/* Horas e progresso (se não for PRJ) */}
+                                                {c.TipoDoc !== 'PRJ' && (
+                                                    <>
+                                                        <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+                                                            {/* Horas Contrato */}
+                                                            <div style={{
+                                                                flex: 1,
+                                                                backgroundColor: 'white',
+                                                                borderRadius: '12px',
+                                                                padding: '25px 20px',
+                                                                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                                                                textAlign: 'center'
+                                                            }}>
+                                                                <div style={{
+                                                                    width: '50px',
+                                                                    height: '50px',
+                                                                    margin: '0 auto 15px',
+                                                                    borderRadius: '50%',
+                                                                    backgroundColor: '#e3f2fd',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontSize: '24px'
+                                                                }}>⏱️</div>
+                                                                <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horascontrato')}</p>
+                                                                <p style={{ fontSize: '24px', fontWeight: '700', color: '#1976D2', margin: 0 }}>{c.HorasTotais} h</p>
+                                                            </div>
 
-      {/* Horas Gastas */}
-      <div style={{
-        flex: 1,
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        padding: '25px 20px',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-        textAlign: 'center'
-      }}>
-        <div style={{
-          width: '50px',
-          height: '50px',
-          margin: '0 auto 15px',
-          borderRadius: '50%',
-          backgroundColor: '#ffe0e0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '24px'
-        }}>⌛</div>
-        <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horasgastas')}</p>
-        <p style={{ fontSize: '24px', fontWeight: '700', color: '#f44336', margin: 0 }}>{c.HorasGastas} h</p>
-      </div>
+                                                            {/* Horas Gastas */}
+                                                            <div style={{
+                                                                flex: 1,
+                                                                backgroundColor: 'white',
+                                                                borderRadius: '12px',
+                                                                padding: '25px 20px',
+                                                                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                                                                textAlign: 'center'
+                                                            }}>
+                                                                <div style={{
+                                                                    width: '50px',
+                                                                    height: '50px',
+                                                                    margin: '0 auto 15px',
+                                                                    borderRadius: '50%',
+                                                                    backgroundColor: '#ffe0e0',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontSize: '24px'
+                                                                }}>⌛</div>
+                                                                <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horasgastas')}</p>
+                                                                <p style={{ fontSize: '24px', fontWeight: '700', color: '#f44336', margin: 0 }}>{c.HorasGastas} h</p>
+                                                            </div>
 
-      {/* Horas Disponíveis */}
-      <div style={{
-        flex: 1,
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        padding: '25px 20px',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-        textAlign: 'center'
-      }}>
-        <div style={{
-          width: '50px',
-          height: '50px',
-          margin: '0 auto 15px',
-          borderRadius: '50%',
-          backgroundColor: '#e8f5e9',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '24px'
-        }}>✅</div>
-        <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horasdisponiveis')}</p>
-        <p style={{ fontSize: '24px', fontWeight: '700', color: '#4caf50', margin: 0 }}>
-          {(c.HorasTotais - c.HorasGastas).toFixed(2)} h
-        </p>
-      </div>
-    </div>
+                                                            {/* Horas Disponíveis */}
+                                                            <div style={{
+                                                                flex: 1,
+                                                                backgroundColor: 'white',
+                                                                borderRadius: '12px',
+                                                                padding: '25px 20px',
+                                                                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                                                                textAlign: 'center'
+                                                            }}>
+                                                                <div style={{
+                                                                    width: '50px',
+                                                                    height: '50px',
+                                                                    margin: '0 auto 15px',
+                                                                    borderRadius: '50%',
+                                                                    backgroundColor: '#e8f5e9',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontSize: '24px'
+                                                                }}>✅</div>
+                                                                <p style={{ margin: '0 0 5px', color: '#757575' }}>{t('Home.contratoinfo.horasdisponiveis')}</p>
+                                                                <p style={{ fontSize: '24px', fontWeight: '700', color: '#4caf50', margin: 0 }}>
+                                                                    {(c.HorasTotais - c.HorasGastas).toFixed(2)} h
+                                                                </p>
+                                                            </div>
+                                                        </div>
 
-    {/* Barra de Progresso */}
-    <div style={{
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      padding: '20px',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-        <p style={{ margin: 0, fontWeight: '500' }}>{t('Progresso do Contrato')}</p>
-        <p style={{ margin: 0, fontWeight: '600' }}>
-          {Math.round((c.HorasGastas / c.HorasTotais) * 100)}%
-        </p>
-      </div>
-      <div style={{
-        height: '10px',
-        backgroundColor: '#e0e0e0',
-        borderRadius: '5px',
-        overflow: 'hidden'
-      }}>
-        <div style={{
-          height: '100%',
-          width: `${(c.HorasGastas / c.HorasTotais) * 100}%`,
-          backgroundColor: '#1976D2'
-        }} />
-      </div>
-    </div>
-  </>
-)}
+                                                        {/* Barra de Progresso */}
+                                                        <div style={{
+                                                            backgroundColor: 'white',
+                                                            borderRadius: '12px',
+                                                            padding: '20px',
+                                                            boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
+                                                        }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                                                <p style={{ margin: 0, fontWeight: '500' }}>{t('Progresso do Contrato')}</p>
+                                                                <p style={{ margin: 0, fontWeight: '600' }}>
+                                                                    {Math.round((c.HorasGastas / c.HorasTotais) * 100)}%
+                                                                </p>
+                                                            </div>
+                                                            <div style={{
+                                                                height: '10px',
+                                                                backgroundColor: '#e0e0e0',
+                                                                borderRadius: '5px',
+                                                                overflow: 'hidden'
+                                                            }}>
+                                                                <div style={{
+                                                                    height: '100%',
+                                                                    width: `${(c.HorasGastas / c.HorasTotais) * 100}%`,
+                                                                    backgroundColor: '#1976D2'
+                                                                }} />
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
 
-            </div>
-          </motion.div>
-        ))
-      ) : (
-        <div style={{
-          textAlign: 'center',
-          padding: '40px 20px',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '12px',
-          color: '#6c757d',
-          maxWidth: '800px',
-          margin: '0 auto'
-        }}>
-          <div style={{ fontSize: '48px', marginBottom: '15px' }}>📋</div>
-          <p style={{ fontSize: '18px', fontWeight: '500', margin: 0 }}>
-            {t('Home.contratoinfo.error')}
-          </p>
-          <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
-            {t('Não foi possível encontrar informações de contrato ativo')}
-          </p>
-        </div>
-      )}
-    </>
-  )}
-</div>
+                                            </div>
+                                        </motion.div>
+                                    ))
+                                ) : (
+                                    <div style={{
+                                        textAlign: 'center',
+                                        padding: '40px 20px',
+                                        backgroundColor: '#f8f9fa',
+                                        borderRadius: '12px',
+                                        color: '#6c757d',
+                                        maxWidth: '800px',
+                                        margin: '0 auto'
+                                    }}>
+                                        <div style={{ fontSize: '48px', marginBottom: '15px' }}>📋</div>
+                                        <p style={{ fontSize: '18px', fontWeight: '500', margin: 0 }}>
+                                            {t('Home.contratoinfo.error')}
+                                        </p>
+                                        <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
+                                            {t('Não foi possível encontrar informações de contrato ativo')}
+                                        </p>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
 
 
                     <div ref={ordersRef}>
@@ -961,11 +961,11 @@ const [dataLists, setDataLists] = useState({
                                         </div>
                                     </div>
                                 ) : pedidosError ? (
-                                    <div style={{ 
-                                        maxWidth: '800px', 
-                                        margin: '0 auto', 
-                                        padding: '20px', 
-                                        backgroundColor: '#fff0f0', 
+                                    <div style={{
+                                        maxWidth: '800px',
+                                        margin: '0 auto',
+                                        padding: '20px',
+                                        backgroundColor: '#fff0f0',
                                         borderRadius: '8px',
                                         border: '1px solid #ffcccb',
                                         color: '#d8000c',
@@ -983,15 +983,15 @@ const [dataLists, setDataLists] = useState({
                                             padding: '25px',
                                             boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
                                         }}>
-                                            <div style={{ 
-                                                display: 'flex', 
-                                                justifyContent: 'space-between', 
+                                            <div style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
                                                 alignItems: 'center',
                                                 marginBottom: '20px'
                                             }}>
-                                                <h2 style={{ 
-                                                    fontWeight: '700', 
-                                                    color: '#1976D2', 
+                                                <h2 style={{
+                                                    fontWeight: '700',
+                                                    color: '#1976D2',
                                                     margin: 0,
                                                     fontSize: '28px'
                                                 }}>
@@ -1045,7 +1045,7 @@ const [dataLists, setDataLists] = useState({
                                                             padding: '25px',
                                                             boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
                                                         }}>
-                                                            <div style={{ 
+                                                            <div style={{
                                                                 display: 'flex',
                                                                 justifyContent: 'space-between',
                                                                 alignItems: 'center',
@@ -1229,14 +1229,14 @@ const [dataLists, setDataLists] = useState({
                                             </div>
 
                                             {/* Barra de Pesquisa */}
-                                            <div style={{ 
-                                                display: 'flex', 
-                                                gap: '15px', 
-                                                alignItems: 'center', 
-                                                marginBottom: '25px', 
-                                                flexWrap: 'wrap' 
+                                            <div style={{
+                                                display: 'flex',
+                                                gap: '15px',
+                                                alignItems: 'center',
+                                                marginBottom: '25px',
+                                                flexWrap: 'wrap'
                                             }}>
-                                                <div style={{ 
+                                                <div style={{
                                                     flex: 1,
                                                     position: 'relative',
                                                     minWidth: '250px'
@@ -1271,9 +1271,9 @@ const [dataLists, setDataLists] = useState({
                                                 </div>
 
                                                 {/* Filtro de Ano */}
-                                                <div style={{ 
-                                                    display: 'flex', 
-                                                    alignItems: 'center', 
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
                                                     gap: '8px',
                                                     backgroundColor: '#f0f7ff',
                                                     padding: '6px 14px',
@@ -1308,10 +1308,10 @@ const [dataLists, setDataLists] = useState({
                                             </div>
 
                                             {/* Estado Filters */}
-                                            <div style={{ 
-                                                display: 'flex', 
-                                                flexWrap: 'wrap', 
-                                                gap: '10px', 
+                                            <div style={{
+                                                display: 'flex',
+                                                flexWrap: 'wrap',
+                                                gap: '10px',
                                                 marginBottom: '25px'
                                             }}>
                                                 <button
@@ -1358,28 +1358,28 @@ const [dataLists, setDataLists] = useState({
                                                 <div>
                                                     <div style={{ marginBottom: '20px' }}>
                                                         {paginatedPedidos.map((processo, index) => (
-                                                            <motion.div 
-                                                                key={index} 
+                                                            <motion.div
+                                                                key={index}
                                                                 initial={{ opacity: 0, y: 10 }}
                                                                 animate={{ opacity: 1, y: 0 }}
                                                                 transition={{ duration: 0.3, delay: index * 0.05 }}
-                                                                style={{ 
-                                                                    marginBottom: '15px', 
+                                                                style={{
+                                                                    marginBottom: '15px',
                                                                     backgroundColor: '#f8f9fa',
                                                                     borderRadius: '12px',
                                                                     overflow: 'hidden',
                                                                     border: '1px solid #e9ecef'
                                                                 }}
                                                             >
-                                                                <div style={{ 
+                                                                <div style={{
                                                                     padding: '16px 20px',
                                                                     borderBottom: '1px solid #e9ecef',
                                                                     backgroundColor: '#f0f7ff',
                                                                     display: 'flex',
                                                                     alignItems: 'center'
                                                                 }}>
-                                                                    <div style={{ 
-                                                                        backgroundColor: '#1976D2', 
+                                                                    <div style={{
+                                                                        backgroundColor: '#1976D2',
                                                                         color: 'white',
                                                                         width: '36px',
                                                                         height: '36px',
@@ -1393,11 +1393,11 @@ const [dataLists, setDataLists] = useState({
                                                                     }}>
                                                                         {index + 1}
                                                                     </div>
-                                                                    <h5 style={{ 
-                                                                        fontWeight: '600', 
-                                                                        color: '#1976D2', 
+                                                                    <h5 style={{
+                                                                        fontWeight: '600',
+                                                                        color: '#1976D2',
                                                                         margin: 0,
-                                                                        fontSize: '18px' 
+                                                                        fontSize: '18px'
                                                                     }}>
                                                                         {t('Processo')}: {processo}
                                                                     </h5>
@@ -1428,13 +1428,13 @@ const [dataLists, setDataLists] = useState({
                                                                                         alignItems: 'flex-start'
                                                                                     }}>
                                                                                         <div style={{ flex: 1 }}>
-                                                                                            <div style={{ 
-                                                                                                display: 'flex', 
-                                                                                                alignItems: 'center', 
-                                                                                                marginBottom: '8px' 
+                                                                                            <div style={{
+                                                                                                display: 'flex',
+                                                                                                alignItems: 'center',
+                                                                                                marginBottom: '8px'
                                                                                             }}>
-                                                                                                <span style={{ 
-                                                                                                    backgroundColor: '#e3f2fd', 
+                                                                                                <span style={{
+                                                                                                    backgroundColor: '#e3f2fd',
                                                                                                     color: '#1976D2',
                                                                                                     padding: '4px 10px',
                                                                                                     borderRadius: '20px',
@@ -1444,15 +1444,15 @@ const [dataLists, setDataLists] = useState({
                                                                                                 }}>
                                                                                                     {t('Intervenção')} #{pedido.Interv}
                                                                                                 </span>
-                                                                                                <span style={{ 
-                                                                                                    fontSize: '13px', 
+                                                                                                <span style={{
+                                                                                                    fontSize: '13px',
                                                                                                     color: '#757575',
                                                                                                     fontWeight: '500'
                                                                                                 }}>
                                                                                                     {formatDateTime(pedido.DataHoraInicio)}
                                                                                                 </span>
                                                                                             </div>
-                                                                                            <p style={{ 
+                                                                                            <p style={{
                                                                                                 margin: '0 0 8px 0',
                                                                                                 fontWeight: '500'
                                                                                             }}>
@@ -1460,13 +1460,13 @@ const [dataLists, setDataLists] = useState({
                                                                                             </p>
 
                                                                                             {isExpanded && (
-                                                                                                <div style={{ 
-                                                                                                    marginTop: '15px', 
-                                                                                                    paddingTop: '15px', 
+                                                                                                <div style={{
+                                                                                                    marginTop: '15px',
+                                                                                                    paddingTop: '15px',
                                                                                                     borderTop: '1px solid #f0f0f0',
                                                                                                     fontSize: '14px'
                                                                                                 }}>
-                                                                                                    <div style={{ 
+                                                                                                    <div style={{
                                                                                                         display: 'grid',
                                                                                                         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                                                                                                         gap: '10px',
@@ -1502,8 +1502,8 @@ const [dataLists, setDataLists] = useState({
                                                                                                         <p style={{ margin: '0 0 5px 0', color: '#757575' }}>
                                                                                                             {t('Intervenção')}
                                                                                                         </p>
-                                                                                                        <p style={{ 
-                                                                                                            margin: 0, 
+                                                                                                        <p style={{
+                                                                                                            margin: 0,
                                                                                                             padding: '12px',
                                                                                                             backgroundColor: '#f9f9f9',
                                                                                                             borderRadius: '8px',
@@ -1513,7 +1513,7 @@ const [dataLists, setDataLists] = useState({
                                                                                                         </p>
                                                                                                     </div>
 
-                                                                                                    <div style={{ 
+                                                                                                    <div style={{
                                                                                                         display: 'flex',
                                                                                                         justifyContent: 'space-between',
                                                                                                         marginTop: '15px',
@@ -1638,9 +1638,9 @@ const [dataLists, setDataLists] = useState({
                                                     )}
                                                 </div>
                                             ) : (
-                                                <div style={{ 
-                                                    textAlign: 'center', 
-                                                    padding: '40px 20px', 
+                                                <div style={{
+                                                    textAlign: 'center',
+                                                    padding: '40px 20px',
                                                     backgroundColor: '#f8f9fa',
                                                     borderRadius: '12px',
                                                     color: '#6c757d'
@@ -1676,14 +1676,14 @@ const [dataLists, setDataLists] = useState({
                                     boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
                                 }}
                             >
-                                <div style={{ 
-                                    backgroundColor: '#1976D2', 
+                                <div style={{
+                                    backgroundColor: '#1976D2',
                                     padding: '25px 30px',
                                     borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
                                 }}>
-                                    <h2 style={{ 
-                                        fontWeight: '700', 
-                                        color: '#FFFFFF', 
+                                    <h2 style={{
+                                        fontWeight: '700',
+                                        color: '#FFFFFF',
                                         margin: 0,
                                         fontSize: '28px',
                                         textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
@@ -1701,8 +1701,8 @@ const [dataLists, setDataLists] = useState({
                                     }}>
                                         {/* Produto Primavera */}
                                         <motion.div
-                                            whileHover={{ 
-                                                y: -10, 
+                                            whileHover={{
+                                                y: -10,
                                                 boxShadow: '0 15px 30px rgba(0, 0, 0, 0.1)'
                                             }}
                                             transition={{ duration: 0.3 }}
@@ -1727,14 +1727,14 @@ const [dataLists, setDataLists] = useState({
                                                 <img
                                                     src="https://pt.primaverabss.com/temas/primavera/img/cegid-logo-footer.svg"
                                                     alt="Primavera"
-                                                    style={{ 
+                                                    style={{
                                                         maxWidth: '160px',
                                                         maxHeight: '120px',
                                                         objectFit: 'contain'
                                                     }}
                                                 />
                                             </div>
-                                            <div style={{ 
+                                            <div style={{
                                                 padding: '25px 20px',
                                                 textAlign: 'center',
                                                 flex: 1,
@@ -1742,15 +1742,15 @@ const [dataLists, setDataLists] = useState({
                                                 flexDirection: 'column',
                                                 justifyContent: 'space-between'
                                             }}>
-                                                <h3 style={{ 
-                                                    fontSize: '22px', 
+                                                <h3 style={{
+                                                    fontSize: '22px',
                                                     fontWeight: '600',
                                                     margin: '0 0 15px 0',
                                                     color: '#1976D2'
                                                 }}>
                                                     Primavera
                                                 </h3>
-                                                <p style={{ 
+                                                <p style={{
                                                     fontSize: '15px',
                                                     color: '#666',
                                                     margin: '0 0 20px 0',
@@ -1787,8 +1787,8 @@ const [dataLists, setDataLists] = useState({
 
                                         {/* Produto AdvirLink */}
                                         <motion.div
-                                            whileHover={{ 
-                                                y: -10, 
+                                            whileHover={{
+                                                y: -10,
                                                 boxShadow: '0 15px 30px rgba(0, 0, 0, 0.1)'
                                             }}
                                             transition={{ duration: 0.3 }}
@@ -1813,14 +1813,14 @@ const [dataLists, setDataLists] = useState({
                                                 <img
                                                     src="https://link.advir.pt/static/media/img_logo.a2a85989c690f4bfd096.png"
                                                     alt="AdvirLink"
-                                                    style={{ 
+                                                    style={{
                                                         maxWidth: '160px',
                                                         maxHeight: '120px',
                                                         objectFit: 'contain'
                                                     }}
                                                 />
                                             </div>
-                                            <div style={{ 
+                                            <div style={{
                                                 padding: '25px 20px',
                                                 textAlign: 'center',
                                                 flex: 1,
@@ -1828,15 +1828,15 @@ const [dataLists, setDataLists] = useState({
                                                 flexDirection: 'column',
                                                 justifyContent: 'space-between'
                                             }}>
-                                                <h3 style={{ 
-                                                    fontSize: '22px', 
+                                                <h3 style={{
+                                                    fontSize: '22px',
                                                     fontWeight: '600',
                                                     margin: '0 0 15px 0',
                                                     color: '#1976D2'
                                                 }}>
                                                     AdvirLink
                                                 </h3>
-                                                <p style={{ 
+                                                <p style={{
                                                     fontSize: '15px',
                                                     color: '#666',
                                                     margin: '0 0 20px 0',
@@ -1873,8 +1873,8 @@ const [dataLists, setDataLists] = useState({
 
                                         {/* Produto Syslog */}
                                         <motion.div
-                                            whileHover={{ 
-                                                y: -10, 
+                                            whileHover={{
+                                                y: -10,
                                                 boxShadow: '0 15px 30px rgba(0, 0, 0, 0.1)'
                                             }}
                                             transition={{ duration: 0.3 }}
@@ -1899,14 +1899,14 @@ const [dataLists, setDataLists] = useState({
                                                 <img
                                                     src="https://www.syslogmobile.com/wp-content/themes/syslog/images/logo-syslog.png"
                                                     alt="Syslog"
-                                                    style={{ 
+                                                    style={{
                                                         maxWidth: '160px',
                                                         maxHeight: '120px',
                                                         objectFit: 'contain'
                                                     }}
                                                 />
                                             </div>
-                                            <div style={{ 
+                                            <div style={{
                                                 padding: '25px 20px',
                                                 textAlign: 'center',
                                                 flex: 1,
@@ -1914,15 +1914,15 @@ const [dataLists, setDataLists] = useState({
                                                 flexDirection: 'column',
                                                 justifyContent: 'space-between'
                                             }}>
-                                                <h3 style={{ 
-                                                    fontSize: '22px', 
+                                                <h3 style={{
+                                                    fontSize: '22px',
                                                     fontWeight: '600',
                                                     margin: '0 0 15px 0',
                                                     color: '#1976D2'
                                                 }}>
                                                     Syslog
                                                 </h3>
-                                                <p style={{ 
+                                                <p style={{
                                                     fontSize: '15px',
                                                     color: '#666',
                                                     margin: '0 0 20px 0',
@@ -1977,14 +1977,14 @@ const [dataLists, setDataLists] = useState({
                                     boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
                                 }}
                             >
-                                <div style={{ 
-                                    backgroundColor: '#1976D2', 
+                                <div style={{
+                                    backgroundColor: '#1976D2',
                                     padding: '25px 30px',
                                     borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
                                 }}>
-                                    <h2 style={{ 
-                                        fontWeight: '700', 
-                                        color: '#FFFFFF', 
+                                    <h2 style={{
+                                        fontWeight: '700',
+                                        color: '#FFFFFF',
                                         margin: 0,
                                         fontSize: '28px',
                                         textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
@@ -1994,25 +1994,25 @@ const [dataLists, setDataLists] = useState({
                                 </div>
 
                                 <div style={{ padding: '30px' }}>
-                                    <div style={{ 
-                                        display: 'flex', 
-                                        flexDirection: 'column', 
+                                    <div style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
                                         gap: '15px'
                                     }}>
                                         {faqItems.map((item, index) => (
-                                            <motion.div 
-                                                key={index} 
+                                            <motion.div
+                                                key={index}
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ duration: 0.3, delay: index * 0.05 }}
-                                                style={{ 
+                                                style={{
                                                     borderRadius: '12px',
                                                     border: '1px solid',
                                                     borderColor: expandedIndex === index ? '#1976D2' : '#e0e0e0',
                                                     overflow: 'hidden',
                                                     backgroundColor: '#ffffff',
-                                                    boxShadow: expandedIndex === index 
-                                                        ? '0 4px 15px rgba(25, 118, 210, 0.15)' 
+                                                    boxShadow: expandedIndex === index
+                                                        ? '0 4px 15px rgba(25, 118, 210, 0.15)'
                                                         : '0 2px 8px rgba(0, 0, 0, 0.05)',
                                                     transition: 'all 0.3s ease'
                                                 }}
@@ -2039,9 +2039,9 @@ const [dataLists, setDataLists] = useState({
                                                         }
                                                     }}
                                                 >
-                                                    <div style={{ 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
                                                         gap: '15px'
                                                     }}>
                                                         <div style={{
@@ -2059,9 +2059,9 @@ const [dataLists, setDataLists] = useState({
                                                         }}>
                                                             {expandedIndex === index ? '-' : '?'}
                                                         </div>
-                                                        <h3 style={{ 
-                                                            margin: 0, 
-                                                            fontWeight: '600', 
+                                                        <h3 style={{
+                                                            margin: 0,
+                                                            fontWeight: '600',
                                                             fontSize: '16px',
                                                             color: expandedIndex === index ? '#1976D2' : '#333333'
                                                         }}>
@@ -2076,7 +2076,7 @@ const [dataLists, setDataLists] = useState({
                                                         justifyContent: 'center',
                                                         transition: 'transform 0.3s ease'
                                                     }}>
-                                                        <span style={{ 
+                                                        <span style={{
                                                             color: expandedIndex === index ? '#1976D2' : '#757575',
                                                             fontSize: '20px',
                                                             transform: expandedIndex === index ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -2107,7 +2107,7 @@ const [dataLists, setDataLists] = useState({
                                                             width: '2px',
                                                             backgroundColor: '#e3f2fd'
                                                         }}></div>
-                                                        <p style={{ 
+                                                        <p style={{
                                                             margin: 0,
                                                             lineHeight: '1.6',
                                                             color: '#555555',
@@ -2121,15 +2121,15 @@ const [dataLists, setDataLists] = useState({
                                         ))}
                                     </div>
 
-                                    <div style={{ 
-                                        marginTop: '30px', 
-                                        textAlign: 'center', 
-                                        padding: '20px', 
+                                    <div style={{
+                                        marginTop: '30px',
+                                        textAlign: 'center',
+                                        padding: '20px',
                                         backgroundColor: '#f0f7ff',
                                         borderRadius: '12px',
                                         border: '1px solid #e3f2fd'
                                     }}>
-                                        <p style={{ 
+                                        <p style={{
                                             margin: '0 0 15px 0',
                                             fontSize: '16px',
                                             fontWeight: '500',
@@ -2148,9 +2148,9 @@ const [dataLists, setDataLists] = useState({
                                             transition: 'all 0.2s ease',
                                             boxShadow: '0 4px 6px rgba(25, 118, 210, 0.2)'
                                         }}
-                                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1565C0'}
-                                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1976D2'}
-                                        onClick={() => handleMenuClick(t('Home.menu.orders'), ordersRef)}
+                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1565C0'}
+                                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1976D2'}
+                                            onClick={() => handleMenuClick(t('Home.menu.orders'), ordersRef)}
                                         >
                                             {t('Criar um novo pedido')}
                                         </button>
@@ -2160,7 +2160,7 @@ const [dataLists, setDataLists] = useState({
                         )}
                     </div>
                 </section>
-                
+
 
             </div>
         </div>

@@ -3,6 +3,7 @@ const cors = require('cors');
 const session = require('express-session');
 const { getAuthToken } = require('./servives/tokenService');
 const listarPedidos = require('./routes/Servicos/listarPedidos');
+const routesConcursos = require('./routes/Concursos/routesConcursos');
 const listarObras = require('./routes/Obras/listarObras');
 const detalhesObra = require('./routes/Obras/detalhesObra');
 const routePedidos_STP = require('./routes/Servicos/routePedidos_STP');
@@ -42,6 +43,7 @@ app.use(session({
 // Rotas
 app.post('/sendmailoficios', sendmailoficios);
 app.use('/listarPedidos', listarPedidos);
+app.use('/routesConcursos', routesConcursos);
 app.use('/clientArea', clientArea);
 app.use('/listarObras', listarObras);
 app.use('/detalhesObra', detalhesObra);
