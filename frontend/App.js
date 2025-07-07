@@ -7,7 +7,7 @@ import { FaHome, FaUser, FaTool, FaClock, FaBriefcase, FaSignOutAlt, FaCog } fro
 import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native'; // Importa o hook
 import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
-
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 
 
@@ -183,9 +183,11 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         <DrawerItem
                             label={t("Aprovações")}
                             onPress={() => props.navigation.navigate('ConcursosAprovacao')}
-                            icon={() => <FontAwesome name="wrench" size={20} color="#1792FE" />}
+                            icon={() => (
+                                <MaterialCommunityIcons name="file-check" size={20} color="#1792FE" />
+                            )}
                         />
-                         )}
+                    )}
                     {hasOficiosModule && (
                         <DrawerItem
                             label={t("Oficios")}

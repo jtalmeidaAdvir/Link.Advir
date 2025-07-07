@@ -3,28 +3,28 @@
   "WorkspaceRootPath": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\webPrimaveraApi\\routes\\Concursos\\routesConcursos.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:webPrimaveraApi\\routes\\Concursos\\routesConcursos.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\webPrimaveraApi\\app.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:webPrimaveraApi\\app.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ModalDetalhesConcurso.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ModalDetalhesConcurso.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\webPrimaveraApi\\routes\\Concursos\\routesConcursos.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:webPrimaveraApi\\routes\\Concursos\\routesConcursos.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\webPrimaveraApi\\app.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:webPrimaveraApi\\app.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\App.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
@@ -136,6 +136,32 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "ConcursoCard.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js",
+              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js",
+              "RelativeToolTip": "frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js",
+              "ViewState": "AgIAAE4AAAAAAAAAAAAYwFoAAAA9AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-07-07T11:11:50.435Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ConcursosAprovacaoStyles.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js",
+              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js",
+              "RelativeToolTip": "frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js",
+              "ViewState": "AgIAANkBAAAAAAAAAAAwwOQBAAAvAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-07-07T11:12:39.996Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
               "Title": "routesConcursos.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\webPrimaveraApi\\routes\\Concursos\\routesConcursos.js",
               "RelativeDocumentMoniker": "webPrimaveraApi\\routes\\Concursos\\routesConcursos.js",
@@ -148,59 +174,33 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "ConcursosAprovacaoStyles.js",
-              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js",
-              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js",
-              "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js",
-              "RelativeToolTip": "frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js",
-              "ViewState": "AgIAAHQBAAAAAAAAAAAYwIoBAAAWAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-07-07T11:12:39.996Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 3,
               "Title": "ModalDetalhesConcurso.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ModalDetalhesConcurso.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ModalDetalhesConcurso.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ModalDetalhesConcurso.js",
               "RelativeToolTip": "frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ModalDetalhesConcurso.js",
-              "ViewState": "AgIAAIUBAAAAAAAAAAAYwJsBAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAM8BAAAAAAAAAAAiwNsBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-07-07T11:11:59.372Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "ConcursoCard.js",
-              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js",
-              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js",
-              "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js",
-              "RelativeToolTip": "frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js",
-              "ViewState": "AgIAAIEAAAAAAAAAAAAYwJcAAAAcAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-07-07T11:11:50.435Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 2,
               "Title": "ConcursosAprovacao.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
               "RelativeToolTip": "frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAJUBAAAAAAAAAAAMwJsBAABMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-07-07T11:11:26.077Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 5,
               "Title": "app.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\webPrimaveraApi\\app.js",
               "RelativeDocumentMoniker": "webPrimaveraApi\\app.js",
@@ -232,7 +232,7 @@
               "RelativeDocumentMoniker": "frontend\\config.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\config.js",
               "RelativeToolTip": "frontend\\config.js",
-              "ViewState": "AgIAAAEAAAAAAAAAAAAAAAIAAAAjAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAxwAIAAAAjAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-06-20T14:22:05Z",
               "EditorCaption": ""
@@ -245,7 +245,7 @@
               "RelativeDocumentMoniker": "backend\\routes\\userRoutes.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\backend\\routes\\userRoutes.js",
               "RelativeToolTip": "backend\\routes\\userRoutes.js",
-              "ViewState": "AgIAAC8AAAAAAAAAAAAnwD4AAAAYAAAAAAAAAA==",
+              "ViewState": "AgIAAC8AAAAAAAAAAAAnwD4AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-06-20T13:32:24.583Z",
               "EditorCaption": ""
@@ -258,7 +258,7 @@
               "RelativeDocumentMoniker": "backend\\controllers\\userController.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\backend\\controllers\\userController.js",
               "RelativeToolTip": "backend\\controllers\\userController.js",
-              "ViewState": "AgIAAMACAAAAAAAAAAAAAN0CAAA1AAAAAAAAAA==",
+              "ViewState": "AgIAAL0CAAAAAAAAAIBJwN0CAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-06-20T13:32:05.123Z",
               "EditorCaption": ""
@@ -354,7 +354,7 @@
               "RelativeDocumentMoniker": "backend\\routes\\analyticsRoutes.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\backend\\routes\\analyticsRoutes.js",
               "RelativeToolTip": "backend\\routes\\analyticsRoutes.js",
-              "ViewState": "AgIAACcAAAAAAAAAAAAAAGQAAAAtAAAAAAAAAA==",
+              "ViewState": "AgIAACQAAAAAAAAAAIBJwGQAAAAtAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-06-20T08:41:00.708Z",
               "EditorCaption": ""
@@ -367,7 +367,7 @@
               "RelativeDocumentMoniker": "backend\\index.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\backend\\index.js",
               "RelativeToolTip": "backend\\index.js",
-              "ViewState": "AgIAADUAAAAAAAAAAAAAAD8AAAADAAAAAAAAAA==",
+              "ViewState": "AgIAADIAAAAAAAAAAIBJwD8AAAADAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-06-20T13:04:39.155Z",
               "EditorCaption": ""
@@ -404,7 +404,7 @@
               "RelativeDocumentMoniker": "webPrimaveraApi\\routes\\Servicos\\routePedidos_STP.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\webPrimaveraApi\\routes\\Servicos\\routePedidos_STP.js",
               "RelativeToolTip": "webPrimaveraApi\\routes\\Servicos\\routePedidos_STP.js",
-              "ViewState": "AgIAAPcAAAAAAAAAAEBVwBsBAAAyAAAAAAAAAA==",
+              "ViewState": "AgIAAPQAAAAAAAAAAABhwBsBAAAyAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-06-20T10:48:13.822Z",
               "EditorCaption": ""
@@ -461,7 +461,7 @@
               "RelativeDocumentMoniker": "frontend\\src\\utils\\testTokenExpiration.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\gitPARAPUSH\\Link.Advir\\frontend\\src\\utils\\testTokenExpiration.js",
               "RelativeToolTip": "frontend\\src\\utils\\testTokenExpiration.js",
-              "ViewState": "AgIAAAwAAAAAAAAAAIBZwCgAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAkAAAAAAAAAACBjwCgAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-06-18T13:42:15.32Z",
               "EditorCaption": ""
