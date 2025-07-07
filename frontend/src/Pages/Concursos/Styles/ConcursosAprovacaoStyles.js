@@ -93,6 +93,7 @@ const styles = {
         flexDirection: "column",
         gap: "0.75rem",
         marginBottom: "40px",
+        backgroundColor: "#d4e4ff",
     },
 
     semConcursos: {

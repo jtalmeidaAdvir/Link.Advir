@@ -4,9 +4,13 @@
     "\\frontend",
     "\\frontend\\src",
     "\\frontend\\src\\Pages",
+    "\\frontend\\src\\Pages\\Concursos",
     "\\frontend\\src\\Pages\\Concursos\\Componentes",
     "\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao",
-    "\\frontend\\src\\Pages\\Concursos\\Styles"
+    "\\frontend\\src\\Pages\\Concursos\\Styles",
+    "\\webPrimaveraApi",
+    "\\webPrimaveraApi\\routes",
+    "\\webPrimaveraApi\\routes\\Concursos"
   ],
   "PreviewInSolutionExplorer": false
 }
