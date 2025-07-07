@@ -15,146 +15,91 @@ const ModalDetalhesConcurso = ({
 }) => {
     if (!visible || !concurso) return null;
 
-    const isMobile = window.innerWidth <= 768;
-
     return (
         <div style={styles.overlay}>
-            <div style={{
-                ...styles.modal,
-                ...(isMobile ? styles.mobileModal : {})
-            }}>
-                {/* Close button */}
-                <button
-                    style={styles.closeButton}
-                    onClick={onClose}
-                    aria-label="Fechar modal"
-                >
-                    ✕
-                </button>
-
-                {/* Header */}
-                <div style={{
-                    ...styles.header,
-                    ...(isMobile ? styles.mobileHeader : {})
-                }}>
-                    <div style={styles.iconContainer}>
-                        <span style={styles.headerIcon}>📋</span>
-                    </div>
+            <div style={styles.modal}>
+                <div style={styles.header}>
                     <h2 style={styles.title}>Detalhes do Concurso</h2>
-                    <p style={styles.subtitle}>
-                        {concurso.codigo?.replace(/�/g, "í")}
-                    </p>
+                    <button
+                        style={styles.closeButton}
+                        onClick={onClose}
+                        aria-label="Fechar"
+                    >
+                        ×
+                    </button>
                 </div>
 
-                {/* Content */}
-                <div style={{
-                    ...styles.content,
-                    ...(isMobile ? styles.mobileContent : {})
-                }}>
+                <div style={styles.content}>
                     <div style={styles.section}>
                         <h3 style={styles.sectionTitle}>Informações Gerais</h3>
-                        <div style={{
-                            ...styles.grid,
-                            ...(isMobile ? styles.mobileGrid : {})
-                        }}>
+                        <div style={styles.grid}>
                             <InfoItem
-                                icon="📝"
                                 label="Título"
                                 value={concurso.titulo}
-                                isMobile={isMobile}
                             />
                             <InfoItem
-                                icon="🏛️"
+                                label="Código"
+                                value={concurso.codigo}
+                            />
+                            <InfoItem
                                 label="Entidade"
                                 value={concurso.entidade}
-                                isMobile={isMobile}
                             />
                             <InfoItem
-                                icon="📍"
                                 label="Zona"
                                 value={concurso.zona}
-                                isMobile={isMobile}
                             />
                             <InfoItem
-                                icon="🏗️"
-                                label="Tipo de Obra"
+                                label="Tipo"
                                 value={concurso.tipo}
-                                isMobile={isMobile}
                             />
                         </div>
                     </div>
 
                     <div style={styles.section}>
-                        <h3 style={styles.sectionTitle}>
-                            Detalhes Financeiros
-                        </h3>
-                        <div style={{
-                            ...styles.grid,
-                            ...(isMobile ? styles.mobileGrid : {})
-                        }}>
+                        <h3 style={styles.sectionTitle}>Detalhes Financeiros</h3>
+                        <div style={styles.grid}>
                             <InfoItem
-                                icon="💰"
                                 label="Preço Base"
-                                value={`€ ${concurso.precoBase?.toLocaleString("pt-PT")}`}
+                                value={`€ ${concurso.precoBase?.toLocaleString("pt-PT") || "0"}`}
                                 highlight={true}
-                                isMobile={isMobile}
                             />
                             <InfoItem
-                                icon="📄"
                                 label="Forma Contrato"
                                 value={concurso.formaContrato}
-                                isMobile={isMobile}
                             />
                             <InfoItem
-                                icon="📊"
                                 label="Tipo Proposta"
                                 value={concurso.tipoProposta}
-                                isMobile={isMobile}
                             />
                             <InfoItem
-                                icon="🎯"
-                                label="Critérios"
-                                value={concurso.criterios}
-                                isMobile={isMobile}
+                                label="Data Entrega"
+                                value={formatDate(concurso.dataEntrega)}
+                                highlight={true}
                             />
                         </div>
                     </div>
 
-                    {/* Data Entrega destacada */}
-                    <div style={{
-                        ...styles.deliverySection,
-                        ...(isMobile ? styles.mobileDeliverySection : {})
-                    }}>
-                        <div style={styles.deliveryIcon}>⏰</div>
-                        <div style={styles.deliveryContent}>
-                            <span style={styles.deliveryLabel}>
-                                Entrega de Propostas
-                            </span>
-                            <span style={styles.deliveryDate}>
-                                {formatDate(concurso.dataEntrega)}
-                            </span>
+                    <div style={styles.section}>
+                        <h3 style={styles.sectionTitle}>Critérios</h3>
+                        <div style={styles.criteriaBox}>
+                            {concurso.criterios || "Não especificado"}
                         </div>
                     </div>
                 </div>
 
-                {/* Action buttons */}
-                <div style={{
-                    ...styles.actions,
-                    ...(isMobile ? styles.mobileActions : {})
-                }}>
-                    <button
-                        style={styles.approveButton}
-                        onClick={() => onApprove(concurso)}
-                    >
-                        <span style={styles.buttonIcon}>✅</span>
-                        Aprovar Concurso
-                    </button>
+                <div style={styles.actions}>
                     <button
                         style={styles.rejectButton}
                         onClick={() => onReject(concurso)}
                     >
-                        <span style={styles.buttonIcon}>❌</span>
-                        Recusar Concurso
+                        Recusar
+                    </button>
+                    <button
+                        style={styles.approveButton}
+                        onClick={() => onApprove(concurso)}
+                    >
+                        Aprovar
                     </button>
                 </div>
             </div>
@@ -162,20 +107,15 @@ const ModalDetalhesConcurso = ({
     );
 };
 
-const InfoItem = ({ icon, label, value, highlight = false, isMobile = false }) => (
+const InfoItem = ({ label, value, highlight = false }) => (
     <div
         style={{
-            ...(highlight
-                ? { ...styles.infoItem, ...styles.infoItemHighlight }
-                : styles.infoItem),
-            ...(isMobile ? styles.mobileInfoItem : {})
+            ...styles.infoItem,
+            ...(highlight ? styles.infoItemHighlight : {}),
         }}
     >
-        <div style={styles.infoIcon}>{icon}</div>
-        <div style={styles.infoContent}>
-            <span style={styles.infoLabel}>{label}</span>
-            <span style={styles.infoValue}>{value || "Não especificado"}</span>
-        </div>
+        <span style={styles.infoLabel}>{label}</span>
+        <span style={styles.infoValue}>{value || "Não especificado"}</span>
     </div>
 );
 
@@ -186,287 +126,158 @@ const styles = {
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
         display: "flex",
-        alignItems: "flex-start",
+        alignItems: "center",
         justifyContent: "center",
         zIndex: 10000,
-        padding: "1rem 0.5rem",
-        backdropFilter: "blur(4px)",
-        overflow: "auto",
-        paddingTop: "4rem",
+        padding: "1rem",
     },
     modal: {
-        backgroundColor: "#ffffff",
-        borderRadius: "20px",
+        backgroundColor: "#fff",
+        borderRadius: "8px",
         width: "100%",
         maxWidth: "500px",
-        maxHeight: "calc(100vh - 4rem)",
+        maxHeight: "77vh",
         overflowY: "auto",
-        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
-        borderWidth: "1px",
-        borderStyle: "solid",
-        borderColor: "#e2e8f0",
-        position: "relative",
-        animation: "slideUp 0.3s ease-out",
-        margin: "0 auto",
-        marginBottom: "2rem",
-    },
-    closeButton: {
-        position: "absolute",
-        top: "1rem",
-        right: "1rem",
-        background: "rgba(0, 0, 0, 0.1)",
-        border: "none",
-        borderRadius: "50%",
-        width: "36px",
-        height: "36px",
+        boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
-        fontSize: "1.2rem",
-        color: "white",
-        zIndex: 1,
-        transition: "all 0.2s ease",
+        flexDirection: "column",
     },
     header: {
-        background: "linear-gradient(135deg, #667eea 0%, #1688ed 100%)",
-        color: "white",
-        padding: "2rem",
-        borderRadius: "20px 20px 0 0",
-        textAlign: "center",
-        position: "relative",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "1rem",
+        borderBottom: "1px solid #e0e0e0",
+        position: "sticky",
+        top: 0,
+        backgroundColor: "#fff",
+        zIndex: 1,
     },
-    iconContainer: {
-        display: "inline-block",
-        backgroundColor: "rgba(255, 255, 255, 0.2)",
-        borderRadius: "50%",
-        width: "60px",
-        height: "60px",
+    title: {
+        fontSize: "1.25rem",
+        fontWeight: "600",
+        color: "#1a1a1a",
+        margin: "0",
+    },
+    closeButton: {
+        background: "none",
+        border: "none",
+        fontSize: "1.5rem",
+        cursor: "pointer",
+        color: "#666",
+        padding: "0.25rem",
+        borderRadius: "4px",
+        width: "32px",
+        height: "32px",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: "1rem",
-        margin: "0 auto 1rem auto",
-    },
-    headerIcon: {
-        fontSize: "1.8rem",
-    },
-    title: {
-        margin: "0",
-        fontSize: "1.5rem",
-        fontWeight: "700",
-        marginBottom: "0.5rem",
-    },
-    subtitle: {
-        margin: "0",
-        fontSize: "1rem",
-        opacity: 0.9,
-        fontWeight: "400",
+        transition: "all 0.2s",
     },
     content: {
-        padding: "2rem",
+        padding: "1rem",
+        flex: 1,
     },
     section: {
-        marginBottom: "2rem",
+        marginBottom: "1.5rem",
     },
     sectionTitle: {
-        fontSize: "1.1rem",
+        fontSize: "1rem",
         fontWeight: "600",
-        color: "#1e293b",
-        marginBottom: "1rem",
-        display: "flex",
-        alignItems: "center",
-        gap: "0.5rem",
+        color: "#1a1a1a",
+        margin: "0 0 0.75rem 0",
     },
     grid: {
         display: "grid",
-        gap: "1rem",
+        gap: "0.75rem",
     },
     infoItem: {
         display: "flex",
-        alignItems: "flex-start",
-        gap: "0.75rem",
-        padding: "1rem",
-        backgroundColor: "#f8fafc",
-        borderRadius: "12px",
-        borderWidth: "1px",
-        borderStyle: "solid",
-        borderColor: "#e2e8f0",
-        transition: "all 0.2s ease",
+        flexDirection: "column",
+        gap: "0.25rem",
+        padding: "0.75rem",
+        backgroundColor: "#f8f9fa",
+        borderRadius: "6px",
+        border: "1px solid #e9ecef",
     },
     infoItemHighlight: {
         backgroundColor: "#f0f9ff",
-        borderWidth: "1px",
-        borderStyle: "solid",
-        borderColor: "#0ea5e9",
-    },
-    infoIcon: {
-        fontSize: "1.2rem",
-        minWidth: "20px",
-    },
-    infoContent: {
-        flex: 1,
+        borderColor: "#bfdbfe",
     },
     infoLabel: {
-        display: "block",
-        fontSize: "0.8rem",
-        color: "#64748b",
+        fontSize: "0.75rem",
         fontWeight: "500",
+        color: "#666",
         textTransform: "uppercase",
-        letterSpacing: "0.5px",
-        marginBottom: "0.25rem",
+        letterSpacing: "0.05em",
     },
     infoValue: {
-        display: "block",
-        fontSize: "1rem",
-        color: "#1e293b",
-        fontWeight: "600",
+        fontSize: "0.875rem",
+        fontWeight: "500",
+        color: "#1a1a1a",
         wordBreak: "break-word",
     },
-    deliverySection: {
-        background: "linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)",
-        borderRadius: "16px",
-        padding: "1.5rem",
-        color: "white",
-        display: "flex",
-        alignItems: "center",
-        gap: "1rem",
-        marginTop: "2rem",
-    },
-    deliveryIcon: {
-        fontSize: "2rem",
-        backgroundColor: "rgba(255, 255, 255, 0.2)",
-        borderRadius: "50%",
-        width: "50px",
-        height: "50px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    deliveryContent: {
-        flex: 1,
-    },
-    deliveryLabel: {
-        display: "block",
-        fontSize: "0.9rem",
-        opacity: 0.9,
-        marginBottom: "0.25rem",
-    },
-    deliveryDate: {
-        display: "block",
-        fontSize: "1.3rem",
-        fontWeight: "700",
+    criteriaBox: {
+        padding: "0.75rem",
+        backgroundColor: "#f8f9fa",
+        borderRadius: "6px",
+        border: "1px solid #e9ecef",
+        fontSize: "0.875rem",
+        color: "#1a1a1a",
+        lineHeight: "1.5",
     },
     actions: {
-        padding: "1.5rem 2rem 2rem",
         display: "flex",
-        flexDirection: "column",
-        gap: "1rem",
-    },
-    approveButton: {
-        backgroundColor: "#10b981",
-        color: "white",
-        border: "none",
-        borderRadius: "12px",
-        padding: "1rem 1.5rem",
-        fontSize: "1rem",
-        fontWeight: "600",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "0.5rem",
-        transition: "all 0.2s ease",
-        boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+        gap: "0.75rem",
+        padding: "1rem",
+        borderTop: "1px solid #e0e0e0",
+        position: "sticky",
+        bottom: 0,
+        backgroundColor: "#fff",
     },
     rejectButton: {
-        backgroundColor: "#ef4444",
-        color: "white",
-        border: "none",
-        borderRadius: "12px",
-        padding: "1rem 1.5rem",
-        fontSize: "1rem",
-        fontWeight: "600",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "0.5rem",
-        transition: "all 0.2s ease",
-        boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
-    },
-    buttonIcon: {
-        fontSize: "1.1rem",
-    },
-    // Mobile styles
-    mobileModal: {
-        margin: "0 0.5rem 2rem 0.5rem",
-        maxWidth: "calc(100% - 1rem)",
-        maxHeight: "calc(100vh - 8rem)",
-        borderRadius: "16px",
-        marginTop: "0",
-    },
-    mobileHeader: {
-        padding: "1.5rem 1rem",
-        borderRadius: "16px 16px 0 0",
-    },
-    mobileContent: {
-        padding: "1rem",
-    },
-    mobileActions: {
-        padding: "1rem",
-        gap: "0.75rem",
-    },
-    mobileGrid: {
-        gap: "0.75rem",
-    },
-    mobileInfoItem: {
+        flex: 1,
         padding: "0.75rem",
-        borderRadius: "8px",
+        backgroundColor: "#fff",
+        color: "#dc2626",
+        border: "1px solid #dc2626",
+        borderRadius: "6px",
+        fontSize: "0.875rem",
+        fontWeight: "500",
+        cursor: "pointer",
+        transition: "all 0.2s",
     },
-    mobileDeliverySection: {
-        padding: "1rem",
-        borderRadius: "12px",
-        marginTop: "1rem",
+    approveButton: {
+        flex: 1,
+        padding: "0.75rem",
+        backgroundColor: "#2563eb",
+        color: "#fff",
+        border: "1px solid #2563eb",
+        borderRadius: "6px",
+        fontSize: "0.875rem",
+        fontWeight: "500",
+        cursor: "pointer",
+        transition: "all 0.2s",
     },
 };
 
-// Add CSS animation
+// CSS for hover effects
 if (typeof document !== "undefined") {
     const style = document.createElement("style");
     style.textContent = `
-        @keyframes slideUp {
-            from {
-                transform: translateY(100px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
         }
 
         .modal button:hover {
-            transform: translateY(-2px);
+            opacity: 0.9;
         }
 
-        .modal .closeButton:hover {
-            background: rgba(0, 0, 0, 0.2);
-        }
-
-        @media (max-width: 768px) {
-            .modal {
-                margin: 0 0.5rem 2rem 0.5rem !important;
-                max-height: calc(100vh - 8rem) !important;
-                margin-top: 0 !important;
-            }
-            
-            .overlay {
-                align-items: flex-start !important;
-                padding-top: 4rem !important;
-            }
+        .close-button:hover {
+            background-color: #f5f5f5 !important;
         }
     `;
     document.head.appendChild(style);

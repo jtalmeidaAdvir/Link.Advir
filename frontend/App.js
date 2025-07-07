@@ -84,6 +84,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
     const [expanded, setExpanded] = useState(false);
     const { t } = useTranslation();
     const handlePress = () => setExpanded(!expanded);
+    const [aprovacoesExpanded, setAprovacoesExpanded] = useState(false);
 
     const handleLogout = () => {
         localStorage.clear();
@@ -179,14 +180,30 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         />
 
                     )}
+
                     {hasConcursosModule && (
-                        <DrawerItem
-                            label={t("Aprovações")}
-                            onPress={() => props.navigation.navigate('ConcursosAprovacao')}
-                            icon={() => (
-                                <MaterialCommunityIcons name="file-check" size={20} color="#1792FE" />
+                        <List.Accordion
+                            title={t("Aprovações")}
+                            left={() => (
+                                <MaterialCommunityIcons name="file-check" size={20} color="#1792FE" style={{ marginLeft: 15 }} />
                             )}
-                        />
+                            right={() => (
+                                <FontAwesome
+                                    name={aprovacoesExpanded ? "angle-down" : "angle-up"}
+                                    size={18}
+                                    color="#1792FE"
+                                  
+                                />
+                            )}
+                            expanded={aprovacoesExpanded}
+                            onPress={() => setAprovacoesExpanded(!aprovacoesExpanded)}
+                            titleStyle={{ fontSize: 14, marginLeft: 0, flexDirection: 'row', alignItems: 'center' }}
+                        >
+                            <List.Item
+                                title="Concursos Pendentes"
+                                onPress={() => props.navigation.navigate('ConcursosAprovacao')}
+                            />
+                        </List.Accordion>
                     )}
                     {hasOficiosModule && (
                         <DrawerItem
@@ -484,11 +501,11 @@ const AppNavigator = () => {
             <Drawer.Screen name="ListarRegistos" component={ListarRegistos} options={{ title: "AdvirLink - Registos", drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
             {(tipoUser === "Encarregado" || tipoUser === "Diretor") && (
-    <>
-        <Drawer.Screen name="Obras" component={Obras} />
-        <Drawer.Screen name="CriarEquipa" component={CriarEquipa} />
-    </>
-)}
+                <>
+                    <Drawer.Screen name="Obras" component={Obras} />
+                    <Drawer.Screen name="CriarEquipa" component={CriarEquipa} />
+                </>
+            )}
 
             <Drawer.Screen name="PontoBotao" component={PontoBotao} />
             <Drawer.Screen name="Perfil" options={{ title: "AdvirLink - Perfil" }}>

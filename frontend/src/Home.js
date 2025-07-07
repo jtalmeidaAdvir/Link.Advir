@@ -28,6 +28,9 @@ const Home = () => {
     const [contratoLoading, setContratoLoading] = useState(false);
     const [initialDataLoading, setInitialDataLoading] = useState(true);
     const [successMessage, setSuccessMessage] = useState('');
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [showEmpresaModal, setShowEmpresaModal] = useState(false);
+    const [showApprovals, setShowApprovals] = useState(false);
 
     const currentYear = new Date().getFullYear(); // Obtém o ano atual
 
@@ -500,6 +503,150 @@ const Home = () => {
         }
     }, [activeMenu, t]);
 
+    const navigate = (route) => {
+        console.log(`Navigating to: ${route}`);
+        // Implementar a navegação aqui (e.g., usando window.location.href)
+    };
+
+
+    const styles = {
+        container: {
+            fontFamily: "Arial, sans-serif",
+            maxWidth: "800px",
+            margin: "20px auto",
+            padding: "20px",
+            backgroundColor: "#fff",
+            borderRadius: "8px",
+            boxShadow: "0 0 10px rgba(0, 0, 0, 0.1)",
+        },
+        title: {
+            fontSize: "24px",
+            fontWeight: "bold",
+            marginBottom: "20px",
+            color: "#333",
+        },
+        menuContainer: {
+            display: "flex",
+            flexDirection: "column",
+            padding: "1rem",
+            backgroundColor: "#f8f9fa",
+            borderRadius: "10px",
+        },
+        menuItem: {
+            display: "flex",
+            alignItems: "center",
+            padding: "0.75rem 1rem",
+            cursor: "pointer",
+            transition: "background-color 0.2s ease",
+            borderRadius: "8px",
+            margin: "0.25rem 0",
+            position: "relative",
+        },
+
+        menuArrow: {
+            marginLeft: "auto",
+            fontSize: "0.8rem",
+            color: "#666",
+            transition: "transform 0.2s ease",
+        },
+
+        submenuContainer: {
+            backgroundColor: "#f8f9fa",
+            borderRadius: "6px",
+            margin: "0.25rem 0 0.5rem 1rem",
+            padding: "0.5rem 0",
+            borderLeft: "2px solid #e0e0e0",
+        },
+
+        submenuItem: {
+            display: "flex",
+            alignItems: "center",
+            padding: "0.5rem 1rem",
+            cursor: "pointer",
+            transition: "background-color 0.2s ease",
+            borderRadius: "4px",
+            margin: "0.125rem 0.5rem",
+        },
+
+        submenuIcon: {
+            marginRight: "0.75rem",
+            fontSize: "1rem",
+        },
+
+        submenuText: {
+            fontSize: "0.9rem",
+            color: "#555",
+            fontWeight: "500",
+        },
+
+        menuIcon: {
+            marginRight: "0.75rem",
+            fontSize: "1.2rem",
+            color: "#444",
+        },
+        menuText: {
+            fontSize: "1rem",
+            color: "#333",
+            fontWeight: "500",
+        },
+        logoutButton: {
+            backgroundColor: "#dc3545",
+            color: "white",
+            padding: "0.75rem 1rem",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            marginTop: "1rem",
+        },
+        modalOverlay: {
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+        },
+        modalContent: {
+            backgroundColor: "white",
+            padding: "20px",
+            borderRadius: "8px",
+            boxShadow: "0 0 10px rgba(0, 0, 0, 0.2)",
+            maxWidth: "400px",
+            width: "90%",
+            textAlign: "center",
+        },
+        modalTitle: {
+            fontSize: "1.5rem",
+            fontWeight: "bold",
+            marginBottom: "15px",
+            color: "#333",
+        },
+        modalButtons: {
+            display: "flex",
+            justifyContent: "space-around",
+            marginTop: "20px",
+        },
+        confirmButton: {
+            backgroundColor: "#28a745",
+            color: "white",
+            padding: "10px 15px",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+        },
+        cancelButton: {
+            backgroundColor: "#6c757d",
+            color: "white",
+            padding: "10px 15px",
+            border: "none",
+            borderRadius: "5px",
+            cursor: "pointer",
+        },
+    };
 
 
     return (

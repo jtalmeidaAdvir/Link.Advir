@@ -12,12 +12,14 @@ const ConcursosAprovacao = () => {
     const [concursoSelecionado, setConcursoSelecionado] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [pullStartY, setPullStartY] = useState(0);
     const [pullDistance, setPullDistance] = useState(0);
     const [showPullIndicator, setShowPullIndicator] = useState(false);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [confirmAction, setConfirmAction] = useState(null);
+    const [actionType, setActionType] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
     const containerRef = useRef(null);
 
-    // Função para buscar concursos
     const fetchConcursos = async (isRefresh = false) => {
         if (isRefresh) {
             setIsRefreshing(true);
@@ -25,6 +27,7 @@ const ConcursosAprovacao = () => {
             setLoading(true);
         }
         setError(null);
+
         const token = localStorage.getItem("painelAdminToken");
         const urlempresa = localStorage.getItem("urlempresa");
 
@@ -38,7 +41,7 @@ const ConcursosAprovacao = () => {
                         urlempresa,
                         "Content-Type": "application/json",
                     },
-                },
+                }
             );
 
             if (!response.ok) {
@@ -47,25 +50,48 @@ const ConcursosAprovacao = () => {
 
             const data = await response.json();
 
-            const formatado = data.DataSet.Table.map((item) => ({
-                codigo: item.Codigo,
-                titulo: item.Titulo,
-                dataProposta: item.DataProposta,
-                precoBase: item.PrecoBase,
-                entidade: item.Nome,
-                dataEntrega: item.DataEntregaPropostas,
-                formaContrato: item.FormaContrato,
-                tipoProposta: item.TipoProposta,
-                zona: item.Zona,
-                tipo: item.TipoObra,
-                criterios: `${item.Factor || ""} (${item.Peso || 0}%) - ${item.DescricaoCriterio || ""}`,
+            // Agrupar dados por código do concurso
+            const concursosAgrupados = {};
+
+            data.DataSet.Table.forEach((item) => {
+                const codigo = item.Codigo;
+
+                if (!concursosAgrupados[codigo]) {
+                    concursosAgrupados[codigo] = {
+                        codigo: item.Codigo,
+                        titulo: item.Titulo,
+                        dataProposta: item.DataProposta,
+                        precoBase: item.PrecoBase,
+                        entidade: item.Nome,
+                        dataEntrega: item.DataEntregaPropostas,
+                        formaContrato: item.FormaContrato,
+                        tipoProposta: item.TipoProposta,
+                        zona: item.Zona,
+                        tipo: item.TipoObra,
+                        criterios: []
+                    };
+                }
+
+                // Adicionar critério se existir
+                if (item.Factor || item.DescricaoCriterio || item.Peso) {
+                    const criterio = `${item.Factor || ""} (${item.Peso || 0}%) - ${item.DescricaoCriterio || ""}`;
+                    concursosAgrupados[codigo].criterios.push(criterio);
+                }
+            });
+
+            // Converter para array e formatar critérios
+            const formatado = Object.values(concursosAgrupados).map((concurso) => ({
+                ...concurso,
+                criterios: concurso.criterios.length > 0
+                    ? concurso.criterios.join('; ')
+                    : "Não especificado"
             }));
 
             setConcursos(formatado);
             setConcursosFiltrados(formatado);
         } catch (error) {
             setError(
-                "Falha ao carregar os concursos. Verifique sua conexão e tente novamente.",
+                "Falha ao carregar os concursos. Verifique sua conexão e tente novamente."
             );
             console.error("Erro ao buscar concursos:", error);
         } finally {
@@ -78,7 +104,6 @@ const ConcursosAprovacao = () => {
         fetchConcursos();
     }, []);
 
-    // Filter concursos based on search term
     useEffect(() => {
         if (searchTerm.trim() === "") {
             setConcursosFiltrados(concursos);
@@ -91,9 +116,7 @@ const ConcursosAprovacao = () => {
                     (concurso.codigo &&
                         concurso.codigo.toLowerCase().includes(searchLower)) ||
                     (concurso.entidade &&
-                        concurso.entidade
-                            .toLowerCase()
-                            .includes(searchLower)) ||
+                        concurso.entidade.toLowerCase().includes(searchLower)) ||
                     (concurso.zona &&
                         concurso.zona.toLowerCase().includes(searchLower))
                 );
@@ -117,9 +140,13 @@ const ConcursosAprovacao = () => {
         setModalVisible(true);
     };
 
-    const handleApprove = async (concurso) => {
-        console.log("Aprovado:", concurso);
+    const handleApprove = (concurso) => {
+        setConfirmAction(() => () => executeApprove(concurso));
+        setActionType('approve');
+        setShowConfirmModal(true);
+    };
 
+    const executeApprove = async (concurso) => {
         const token = localStorage.getItem("painelAdminToken");
         const urlempresa = localStorage.getItem("urlempresa");
 
@@ -128,11 +155,10 @@ const ConcursosAprovacao = () => {
             Responsavel: localStorage.getItem("username") || "Admin",
             Titulo: concurso.titulo,
         };
-        console.log(payload);
 
         try {
             const response = await fetch(
-                `https://webapiprimavera.advir.pt/routesConcursos/Aprovar`,
+                "https://webapiprimavera.advir.pt/routesConcursos/Aprovar",
                 {
                     method: "POST",
                     headers: {
@@ -141,27 +167,32 @@ const ConcursosAprovacao = () => {
                         urlempresa: urlempresa,
                     },
                     body: JSON.stringify(payload),
-                },
+                }
             );
 
             if (response.ok) {
-                alert(`Concurso ${concurso.titulo} aprovado!`);
-                // Atualizar a lista após aprovação
+                setSuccessMessage(`Concurso "${concurso.titulo}" aprovado com sucesso!`);
+                setTimeout(() => setSuccessMessage(''), 4000);
                 await fetchConcursos();
             } else {
-                alert("Erro ao aprovar concurso. Tente novamente mais tarde.");
+                setError("Erro ao aprovar concurso. Tente novamente.");
             }
         } catch (error) {
             console.error("Erro ao aprovar concurso:", error);
-            alert("Erro ao aprovar concurso. Tente novamente mais tarde.");
+            setError("Erro ao aprovar concurso. Tente novamente.");
         }
 
         setModalVisible(false);
+        setShowConfirmModal(false);
     };
 
-    const handleReject = async (concurso) => {
-        console.log("Recusado:", concurso);
+    const handleReject = (concurso) => {
+        setConfirmAction(() => () => executeReject(concurso));
+        setActionType('reject');
+        setShowConfirmModal(true);
+    };
 
+    const executeReject = async (concurso) => {
         const token = localStorage.getItem("painelAdminToken");
         const urlempresa = localStorage.getItem("urlempresa");
 
@@ -169,11 +200,10 @@ const ConcursosAprovacao = () => {
             Id: concurso.codigo,
             Responsavel: localStorage.getItem("username") || "Admin",
         };
-        console.log(payload);
 
         try {
             const response = await fetch(
-                `https://webapiprimavera.advir.pt/routesConcursos/Recusar`,
+                "https://webapiprimavera.advir.pt/routesConcursos/Recusar",
                 {
                     method: "POST",
                     headers: {
@@ -182,22 +212,23 @@ const ConcursosAprovacao = () => {
                         urlempresa: urlempresa,
                     },
                     body: JSON.stringify(payload),
-                },
+                }
             );
 
             if (response.ok) {
-                alert(`Concurso ${concurso.titulo} recusado.`);
-                // Atualizar a lista após recusa
+                setSuccessMessage(`Concurso "${concurso.titulo}" recusado com sucesso!`);
+                setTimeout(() => setSuccessMessage(''), 4000);
                 await fetchConcursos();
             } else {
-                alert("Erro ao recusar concurso. Tente novamente mais tarde.");
+                setError("Erro ao recusar concurso. Tente novamente.");
             }
         } catch (error) {
-            console.error("Erro ao Recusar concurso:", error);
-            alert("Erro ao Recusar concurso. Tente novamente mais tarde.");
+            console.error("Erro ao recusar concurso:", error);
+            setError("Erro ao recusar concurso. Tente novamente.");
         }
 
         setModalVisible(false);
+        setShowConfirmModal(false);
     };
 
     const handleSearchChange = (e) => {
@@ -208,26 +239,22 @@ const ConcursosAprovacao = () => {
         setSearchTerm("");
     };
 
-    // Pull-to-refresh handlers
+    // Pull to refresh functionality
     const handleTouchStart = (e) => {
         if (window.scrollY === 0) {
-            setPullStartY(e.touches[0].clientY);
+            const startY = e.touches[0].clientY;
+            containerRef.current.startY = startY;
         }
     };
 
     const handleTouchMove = (e) => {
-        if (pullStartY > 0 && window.scrollY === 0) {
+        if (window.scrollY === 0 && containerRef.current.startY) {
             const currentY = e.touches[0].clientY;
-            const distance = Math.max(0, currentY - pullStartY);
+            const distance = Math.max(0, currentY - containerRef.current.startY);
 
             if (distance > 10) {
                 setPullDistance(distance);
                 setShowPullIndicator(true);
-
-                // Only show indicator, don't prevent scroll
-                if (distance > 80) {
-                    // Don't prevent default to allow normal scrolling
-                }
             }
         }
     };
@@ -236,7 +263,7 @@ const ConcursosAprovacao = () => {
         if (pullDistance > 80 && !isRefreshing) {
             fetchConcursos(true);
         }
-        setPullStartY(0);
+        containerRef.current.startY = null;
         setPullDistance(0);
         setShowPullIndicator(false);
     };
@@ -261,18 +288,18 @@ const ConcursosAprovacao = () => {
             container.removeEventListener("touchmove", handleTouchMove);
             container.removeEventListener("touchend", handleTouchEnd);
         };
-    }, [pullStartY, pullDistance, isRefreshing]);
+    }, [pullDistance, isRefreshing]);
 
     // Mouse events for desktop
     const handleMouseDown = (e) => {
         if (window.scrollY === 0 && e.button === 0) {
-            setPullStartY(e.clientY);
+            containerRef.current.startY = e.clientY
         }
     };
 
     const handleMouseMove = (e) => {
-        if (pullStartY > 0 && window.scrollY === 0 && e.buttons === 1) {
-            const distance = Math.max(0, e.clientY - pullStartY);
+        if (window.scrollY === 0 && containerRef.current.startY && e.buttons === 1) {
+            const distance = Math.max(0, e.clientY - containerRef.current.startY);
 
             if (distance > 10) {
                 setPullDistance(distance);
@@ -285,7 +312,7 @@ const ConcursosAprovacao = () => {
         if (pullDistance > 80 && !isRefreshing) {
             fetchConcursos(true);
         }
-        setPullStartY(0);
+        containerRef.current.startY = null;
         setPullDistance(0);
         setShowPullIndicator(false);
     };
@@ -294,25 +321,26 @@ const ConcursosAprovacao = () => {
         <div
             ref={containerRef}
             style={styles.container}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={() => {
                 // Reset pull state when mouse leaves container
-                setPullStartY(0);
+                containerRef.current.startY = null;
                 setPullDistance(0);
                 setShowPullIndicator(false);
             }}
         >
-            {/* Pull to Refresh Indicator */}
+            {/* Pull to refresh indicator */}
             {(showPullIndicator || isRefreshing) && (
                 <div
                     style={{
                         ...styles.pullIndicator,
                         transform: `translateY(${Math.min(pullDistance, 100)}px)`,
-                        opacity: isRefreshing
-                            ? 1
-                            : Math.min(pullDistance / 80, 1),
+                        opacity: isRefreshing ? 1 : Math.min(pullDistance / 80, 1),
                     }}
                 >
                     <div
@@ -335,7 +363,7 @@ const ConcursosAprovacao = () => {
                 </div>
             )}
 
-            {/* Header Section */}
+            {/* Header */}
             <div style={styles.header}>
                 <h1 style={styles.title}>Concursos a Concorrer</h1>
                 <p style={styles.subtitle}>
@@ -343,7 +371,15 @@ const ConcursosAprovacao = () => {
                 </p>
             </div>
 
-            {/* Search Bar */}
+            {/* Success Message */}
+            {successMessage && (
+                <div style={styles.successMessage}>
+                    <span style={styles.successIcon}>✅</span>
+                    <span>{successMessage}</span>
+                </div>
+            )}
+
+            {/* Search */}
             <div style={styles.searchContainer}>
                 <span style={styles.searchIcon}>🔍</span>
                 <input
@@ -366,19 +402,17 @@ const ConcursosAprovacao = () => {
                             transform: "translateY(-50%)",
                             background: "none",
                             border: "none",
-                            fontSize: "1.2rem",
+                            fontSize: "1.25rem",
                             cursor: "pointer",
-                            color: "#64748b",
-                            padding: "0.25rem",
-                            borderRadius: "50%",
+                            color: "#666",
                         }}
                     >
-                        ✕
+                        ×
                     </button>
                 )}
             </div>
 
-            {/* Loading State */}
+            {/* Loading */}
             {loading && (
                 <div style={styles.loadingContainer}>
                     <div style={styles.loadingSpinner}></div>
@@ -386,19 +420,19 @@ const ConcursosAprovacao = () => {
                 </div>
             )}
 
-            {/* Error State */}
+            {/* Error */}
             {error && !loading && (
                 <div style={styles.errorContainer}>
                     <p>⚠️ {error}</p>
                     <button
-                        onClick={() => window.location.reload()}
+                        onClick={() => fetchConcursos()}
                         style={{
                             marginTop: "0.5rem",
                             padding: "0.5rem 1rem",
                             backgroundColor: "#dc2626",
                             color: "white",
                             border: "none",
-                            borderRadius: "8px",
+                            borderRadius: "6px",
                             cursor: "pointer",
                         }}
                     >
@@ -407,24 +441,23 @@ const ConcursosAprovacao = () => {
                 </div>
             )}
 
-            {/* Concursos Grid */}
+            {/* Content */}
             {!loading && !error && (
-                <div style={styles.listaConcursos} className="concursos-grid">
+                <div style={styles.listaConcursos}>
                     {concursosFiltrados.length === 0 && searchTerm && (
                         <div style={styles.semConcursos}>
                             <p>
-                                📭 Nenhum concurso encontrado para "{searchTerm}
-                                "
+                                📭 Nenhum concurso encontrado para "{searchTerm}"
                             </p>
                             <button
                                 onClick={clearSearch}
                                 style={{
                                     marginTop: "1rem",
                                     padding: "0.5rem 1rem",
-                                    backgroundColor: "#3b82f6",
+                                    backgroundColor: "#2563eb",
                                     color: "white",
                                     border: "none",
-                                    borderRadius: "8px",
+                                    borderRadius: "6px",
                                     cursor: "pointer",
                                 }}
                             >
@@ -466,6 +499,52 @@ const ConcursosAprovacao = () => {
                 onApprove={handleApprove}
                 onReject={handleReject}
             />
+
+            {/* Confirmation Modal */}
+            {showConfirmModal && (
+                <div style={styles.confirmOverlay}>
+                    <div style={styles.confirmModal}>
+                        <div style={styles.confirmHeader}>
+                            <span style={styles.confirmIcon}>
+                                {actionType === 'approve' ? '✅' : '❌'}
+                            </span>
+                            <h3 style={styles.confirmTitle}>
+                                {actionType === 'approve' ? 'Confirmar Aprovação' : 'Confirmar Recusa'}
+                            </h3>
+                        </div>
+
+                        <div style={styles.confirmContent}>
+                            <p style={styles.confirmMessage}>
+                                Tem certeza que deseja {actionType === 'approve' ? 'aprovar' : 'recusar'} este concurso?
+                            </p>
+                            <p style={styles.confirmDetail}>
+                                <strong>{concursoSelecionado?.titulo}</strong>
+                            </p>
+                            <p style={styles.confirmWarning}>
+                                Esta ação não pode ser desfeita.
+                            </p>
+                        </div>
+
+                        <div style={styles.confirmActions}>
+                            <button
+                                style={styles.confirmCancelButton}
+                                onClick={() => setShowConfirmModal(false)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                style={{
+                                    ...styles.confirmActionButton,
+                                    backgroundColor: actionType === 'approve' ? '#16a34a' : '#dc2626'
+                                }}
+                                onClick={confirmAction}
+                            >
+                                {actionType === 'approve' ? 'Aprovar' : 'Recusar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
