@@ -28,8 +28,13 @@ const listarRegistosPorDia = async (req, res) => {
     const user_id = req.user.id;
     const { data } = req.query;
 
-    const dataInicio = new Date(data);
-    const dataFim = new Date(data);
+if (!data || isNaN(Date.parse(data))) {
+  return res.status(400).json({ message: 'Data inválida.' });
+}
+
+const dataInicio = new Date(`${data}T00:00:00.000Z`);
+const dataFim = new Date(`${data}T23:59:59.999Z`);
+
     dataFim.setHours(23, 59, 59, 999);
 
     const registos = await RegistoPontoObra.findAll({

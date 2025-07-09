@@ -37,6 +37,31 @@ const RegistoPontoObra = () => {
     }
   };
 
+  useEffect(() => {
+  const carregarRegistosHoje = async () => {
+    try {
+      const token = localStorage.getItem('loginToken');
+      const hoje = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
+
+      const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        const dados = await res.json();
+        setRegistos(dados);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar registos de hoje:', err);
+    }
+  };
+
+  carregarRegistosHoje();
+}, []);
+
+
   const getCurrentLocation = () => {
     return new Promise((resolve, reject) => {
       if (Platform.OS === 'web') {
@@ -146,11 +171,21 @@ const RegistoPontoObra = () => {
       )}
 
       <View style={styles.registosContainer}>
-        <Text style={styles.subtitle}>Registos de Hoje</Text>
-        {registos.map((r, i) => (
-          <Text key={i}>{r.tipo} - {new Date(r.dataHora || r.createdAt).toLocaleString()}</Text>
-        ))}
+  <Text style={styles.subtitle}>Registos de Hoje</Text>
+  {registos.length === 0 ? (
+    <Text style={{ fontStyle: 'italic' }}>Nenhum registo encontrado para hoje.</Text>
+  ) : (
+    registos.map((r, i) => (
+      <View key={i} style={{ marginBottom: 10 }}>
+        <Text>{r.tipo} - {new Date(r.timestamp || r.createdAt).toLocaleString()}</Text>
+        <Text style={{ fontSize: 13, color: '#555' }}>
+          {r.Obra?.nome} ({r.Obra?.localizacao})
+        </Text>
       </View>
+    ))
+  )}
+</View>
+
     </ScrollView>
   );
 };
