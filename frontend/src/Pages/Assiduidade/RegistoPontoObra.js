@@ -31,29 +31,41 @@ const onScanSuccess = async (data) => {
       return;
     }
 
-    const obraId = qrData.obraId;
-    const nomeObra = qrData.nome;
+    const novaObraId = qrData.obraId;
+    const nomeObraNova = qrData.nome;
 
-    // Filtra registos dessa obra (de hoje)
-    const registosObraHoje = registos
-      .filter(r => r.obra_id === obraId)
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // garantir ordem
+    // 🔍 Encontra o último registo de entrada que ainda não teve saída
+    const entradasSemSaida = registos
+      .filter(r => r.tipo === 'entrada')
+      .filter(entrada => {
+        const saida = registos.find(saida =>
+          saida.tipo === 'saida' &&
+          saida.obra_id === entrada.obra_id &&
+          new Date(saida.timestamp) > new Date(entrada.timestamp)
+        );
+        return !saida;
+      });
 
-    let proximoTipo = 'entrada'; // default
+    const ultimaEntradaSemSaida = entradasSemSaida
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
 
-    if (registosObraHoje.length > 0) {
-      const ultimoTipo = registosObraHoje[registosObraHoje.length - 1].tipo;
-      proximoTipo = ultimoTipo === 'entrada' ? 'saida' : 'entrada';
+    // 🧠 Se última entrada for noutra obra → fechar essa antes
+    if (ultimaEntradaSemSaida && ultimaEntradaSemSaida.obra_id !== novaObraId) {
+      const nomeObraAnterior = ultimaEntradaSemSaida.Obra?.nome || 'Obra anterior';
+      Alert.alert('Auto-fecho de obra anterior', `A sair de ${nomeObraAnterior}`);
+
+      await registarPonto('saida', ultimaEntradaSemSaida.obra_id, nomeObraAnterior);
     }
 
-    Alert.alert(`Registando ${proximoTipo}`, `Obra: ${nomeObra}`);
-
-    await registarPonto(proximoTipo, obraId, nomeObra);
+    // Registar nova entrada
+    Alert.alert('Registo de entrada', `A entrar na obra ${nomeObraNova}`);
+    await registarPonto('entrada', novaObraId, nomeObraNova);
   } catch (err) {
     console.error('Erro ao processar o QR Code:', err);
     Alert.alert('Erro ao processar o QR Code');
   }
 };
+
 
 
 useEffect(() => {
