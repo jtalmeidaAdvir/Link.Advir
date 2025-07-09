@@ -48,8 +48,7 @@ User.hasMany(EquipaObra, { foreignKey: 'encarregado_id', as: 'equipasEncarregado
 EquipaObra.belongsTo(User, { foreignKey: 'user_id', as: 'membro' });
 EquipaObra.belongsTo(User, { foreignKey: 'encarregado_id', as: 'encarregado' });
 
-Obra.hasMany(EquipaObra, { foreignKey: 'obra_id' });
-EquipaObra.belongsTo(Obra, { foreignKey: 'obra_id' });
+
 
 // Relacionamento RegistoPonto com Obra
 Obra.hasMany(RegistoPonto, { foreignKey: 'obra_id' });

@@ -35,9 +35,5 @@ const EquipaObra = sequelize.define('EquipaObra', {
     tableName: 'equipa_obra',
 });
 
-// 👇 Aqui defines os relacionamentos explicitamente
-EquipaObra.belongsTo(User, { foreignKey: 'user_id', as: 'membro' });
-EquipaObra.belongsTo(User, { foreignKey: 'encarregado_id', as: 'encarregado' });
-
 
 module.exports = EquipaObra;
