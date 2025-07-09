@@ -450,6 +450,9 @@ const fetchUserData = async () => {
                                         <Picker.Item label="Trabalhador" value="Trabalhador" />
                                         <Picker.Item label="Encarregado" value="Encarregado" />
                                         <Picker.Item label="Diretor" value="Diretor" />
+                                        <Picker.Item label="Orçamentista" value="Orçamentista" />
+                                        <Picker.Item label="Externo" value="Externo" />
+                                        <Picker.Item label="Administrador" value="Administrador" />
                                     </Picker>
                                 </View>
                             </View>
