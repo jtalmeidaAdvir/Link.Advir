@@ -120,38 +120,40 @@ const obterMoradaPorCoordenadas = async (lat, lon) => {
     });
   };
 
-  const registarPonto = async (tipo) => {
-    if (!scannedObra) return Alert.alert('Nenhuma obra lida');
-    try {
-      const loc = await getCurrentLocation();
-      const token = localStorage.getItem('loginToken');
+  const registarPonto = async (tipo, obraId, nomeObra) => {
+  try {
+    const loc = await getCurrentLocation();
+    const token = localStorage.getItem('loginToken');
 
-      const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          tipo,
-          obra_id: scannedObra.obraId,
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude
-        })
-      });
+    const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        tipo,
+        obra_id: obraId,
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude
+      })
+    });
 
-      if (res.ok) {
-        const data = await res.json();
-        setRegistos(prev => [...prev, data]);
-        Alert.alert('Registo efetuado');
-      } else {
-        Alert.alert('Erro ao registar');
-      }
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Erro ao registar ponto');
+    if (res.ok) {
+      const data = await res.json();
+      const morada = await obterMoradaPorCoordenadas(data.latitude, data.longitude);
+
+      setRegistos(prev => [...prev, { ...data, Obra: { nome: nomeObra }, morada }]);
+      Alert.alert('Registo efetuado', `${tipo} na obra ${nomeObra}`);
+    } else {
+      Alert.alert('Erro ao registar');
     }
-  };
+  } catch (err) {
+    console.error(err);
+    Alert.alert('Erro ao registar ponto');
+  }
+};
+
 
   useEffect(() => {
     if (!scannerVisible) return;
@@ -197,16 +199,7 @@ const obterMoradaPorCoordenadas = async (lat, lon) => {
 
       {scannerVisible && <View id="reader" style={styles.scanner} />}
 
-      {scannedObra && (
-        <View style={styles.actions}>
-          <Text style={styles.obraLabel}>Obra: {scannedObra.nome}</Text>
-          {['entrada', 'saida'].map(tipo => (
-            <TouchableOpacity key={tipo} style={styles.actionButton} onPress={() => registarPonto(tipo)}>
-              <Text style={styles.actionButtonText}>{tipo}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+      
 
       <View style={styles.registosContainer}>
   <Text style={styles.subtitle}>Registos de Hoje</Text>
