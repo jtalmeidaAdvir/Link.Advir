@@ -21,11 +21,11 @@ const RegistoPontoObra = sequelize.define('RegistoPontoObra', {
     references: { model: Obra, key: 'id' },
   },
   tipo: {
-  type: DataTypes.ENUM('entrada', 'saida', 'pausa_inicio', 'pausa_fim', 'fechar_dia'),
+  type: DataTypes.ENUM('entrada', 'saida', 'pausa_inicio', 'pausa_fim'),
   allowNull: false,
 },
 
-  dataHora: {
+  timestamp: { // <-- corrigido aqui
     type: DataTypes.DATE,
     allowNull: false,
   },

@@ -11,7 +11,7 @@ const registarPonto = async (req, res) => {
       user_id,
       obra_id,
       tipo,
-      dataHora: new Date(),
+      timestamp: new Date(), 
       latitude,
       longitude
     });
