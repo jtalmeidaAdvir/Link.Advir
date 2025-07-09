@@ -39,31 +39,35 @@ const listarObrasPorEmpresa = async (req, res) => {
 // Criar nova obra
 const criarObra = async (req, res) => {
     try {
-        const { codigo, nome, estado, localizacao,empresa_id } = req.body;
-        
-        // Gerar QR Code para a obra
-        const qrCodeData = JSON.stringify({ 
-            tipo: 'obra', 
-            obraId: codigo,
-            nome: nome 
-        });
-        const qrCodeImage = await QRCode.toDataURL(qrCodeData);
-        
+        const { codigo, nome, estado, localizacao, empresa_id } = req.body;
+
+        // 1. Cria a obra primeiro (sem o QR code)
         const obra = await Obra.create({
             codigo,
             nome,
             estado,
             localizacao,
-            qrCode: qrCodeImage,
-             empresa_id,
+            empresa_id,
         });
-        
+
+        // 2. Gera o QR code com o ID correto
+        const qrCodeData = JSON.stringify({ 
+            tipo: 'obra', 
+            obraId: obra.id, // ✅ ID correto
+            nome: obra.nome 
+        });
+        const qrCodeImage = await QRCode.toDataURL(qrCodeData);
+
+        // 3. Atualiza a obra com o QR code
+        await obra.update({ qrCode: qrCodeImage });
+
         res.status(201).json(obra);
     } catch (error) {
         console.error('Erro ao criar obra:', error);
         res.status(500).json({ message: 'Erro interno do servidor.' });
     }
 };
+
 
 // Obter obra por ID
 const obterObra = async (req, res) => {
