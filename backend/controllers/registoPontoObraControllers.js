@@ -40,9 +40,10 @@ const dataFim = new Date(`${data}T23:59:59.999Z`);
     const registos = await RegistoPontoObra.findAll({
       where: {
         user_id,
-        dataHora: {
-          [require('sequelize').Op.between]: [dataInicio, dataFim]
+        timestamp: {
+        [Op.between]: [dataInicio, dataFim]
         }
+
       },
       include: [
         { model: Obra, attributes: ['id', 'nome', 'localizacao'] }
