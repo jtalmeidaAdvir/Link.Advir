@@ -4,7 +4,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const {
   registarPonto,
   listarRegistosPorDia
-} = require('../controllers/registoPontoObraController');
+} = require('../controllers/registoPontoObraControllers');
 
 router.post('/', authMiddleware, registarPonto);
 router.get('/listar-dia', authMiddleware, listarRegistosPorDia);
