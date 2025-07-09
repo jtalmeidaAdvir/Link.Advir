@@ -23,19 +23,38 @@ const RegistoPontoObra = () => {
 
   const toggleScanner = () => setScannerVisible(!scannerVisible);
 
-  const onScanSuccess = async (data) => {
-    try {
-      const qrData = JSON.parse(data);
-      if (qrData.tipo !== 'obra' || !qrData.obraId) {
-        Alert.alert('QR Code inválido');
-        return;
-      }
-      setScannedObra(qrData);
-      Alert.alert('QR Code lido com sucesso', `Obra: ${qrData.nome}`);
-    } catch (err) {
-      Alert.alert('Erro ao processar o QR Code');
+const onScanSuccess = async (data) => {
+  try {
+    const qrData = JSON.parse(data);
+    if (qrData.tipo !== 'obra' || !qrData.obraId) {
+      Alert.alert('QR Code inválido');
+      return;
     }
-  };
+
+    const obraId = qrData.obraId;
+    const nomeObra = qrData.nome;
+
+    // Filtra registos dessa obra (de hoje)
+    const registosObraHoje = registos
+      .filter(r => r.obra_id === obraId)
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // garantir ordem
+
+    let proximoTipo = 'entrada'; // default
+
+    if (registosObraHoje.length > 0) {
+      const ultimoTipo = registosObraHoje[registosObraHoje.length - 1].tipo;
+      proximoTipo = ultimoTipo === 'entrada' ? 'saida' : 'entrada';
+    }
+
+    Alert.alert(`Registando ${proximoTipo}`, `Obra: ${nomeObra}`);
+
+    await registarPonto(proximoTipo, obraId, nomeObra);
+  } catch (err) {
+    console.error('Erro ao processar o QR Code:', err);
+    Alert.alert('Erro ao processar o QR Code');
+  }
+};
+
 
 useEffect(() => {
   const carregarRegistosHoje = async () => {
@@ -167,7 +186,7 @@ const obterMoradaPorCoordenadas = async (lat, lon) => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Registo por QR Code de Obra</Text>
+      <Text style={styles.title}>Ponto QR Code</Text>
 
       <TouchableOpacity style={styles.button} onPress={toggleScanner}>
         <LinearGradient colors={['#04BEFE', '#4481EB']} style={styles.buttonGradient}>
@@ -181,7 +200,7 @@ const obterMoradaPorCoordenadas = async (lat, lon) => {
       {scannedObra && (
         <View style={styles.actions}>
           <Text style={styles.obraLabel}>Obra: {scannedObra.nome}</Text>
-          {['entrada', 'saida', 'pausa_inicio', 'pausa_fim'].map(tipo => (
+          {['entrada', 'saida'].map(tipo => (
             <TouchableOpacity key={tipo} style={styles.actionButton} onPress={() => registarPonto(tipo)}>
               <Text style={styles.actionButtonText}>{tipo}</Text>
             </TouchableOpacity>
