@@ -50,7 +50,7 @@ const dataFim = new Date(`${data}T23:59:59.999Z`);
       include: [
         { model: Obra, attributes: ['id', 'nome', 'localizacao'] }
       ],
-      order: [['dataHora', 'ASC']]
+      order: [['timestamp', 'ASC']]
     });
 
     res.status(200).json(registos);
