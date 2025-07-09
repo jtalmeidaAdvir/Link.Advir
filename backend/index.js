@@ -12,6 +12,8 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 const obraRoutes = require('./routes/obraRoutes');
 const equipaObraRoutes = require('./routes/equipaObraRoutes');
 const partesDiariasRoutes = require('./routes/partesDiariasRoutes');
+const registoPontoObraRoutes = require('./routes/registoPontoObraRoutes');
+
 
 const fileUpload = require('express-fileupload');
 const { getDatabases } = require('./config/db');
@@ -50,6 +52,8 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/obra', obraRoutes);
 app.use('/api/equipa-obra', equipaObraRoutes);
 app.use('/api/partes-diarias', partesDiariasRoutes);
+app.use('/api/registo-ponto-obra', registoPontoObraRoutes);
+
 
 app.use(fileUpload());
 
