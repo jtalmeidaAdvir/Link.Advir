@@ -137,7 +137,7 @@ const RegistoPontoObra = () => {
       {scannedObra && (
         <View style={styles.actions}>
           <Text style={styles.obraLabel}>Obra: {scannedObra.nome}</Text>
-          {['entrada', 'saida', 'pausa_inicio', 'pausa_fim', 'fechar_dia'].map(tipo => (
+          {['entrada', 'saida', 'pausa_inicio', 'pausa_fim'].map(tipo => (
             <TouchableOpacity key={tipo} style={styles.actionButton} onPress={() => registarPonto(tipo)}>
               <Text style={styles.actionButtonText}>{tipo}</Text>
             </TouchableOpacity>
