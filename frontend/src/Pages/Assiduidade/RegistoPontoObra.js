@@ -1,136 +1,221 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, Alert, ScrollView } from 'react-native';
-import { BarCodeScanner } from 'expo-barcode-scanner';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// LeitorQRCodeObra.js
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  Alert,
+  Platform
+} from 'react-native';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const RegistoPontoObra = () => {
-  const [hasPermission, setHasPermission] = useState(null);
-  const [scanned, setScanned] = useState(false);
+  const scannerRef = useRef(null);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [scannedObra, setScannedObra] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [registos, setRegistos] = useState([]);
-  const [userId, setUserId] = useState(null);
 
+  const toggleScanner = () => setScannerVisible(!scannerVisible);
 
-  const getCurrentPosition = () =>
-  new Promise((resolve, reject) =>
-    navigator.geolocation.getCurrentPosition(resolve, reject)
-  );
-
-  useEffect(() => {
-    (async () => {
-      let location;
-try {
-  location = await getCurrentPosition();
-} catch (err) {
-  Alert.alert('Erro ao obter localização');
-  return;
-}
-
-      const id = await AsyncStorage.getItem('userId');
-      setUserId(id);
-    })();
-  }, []);
-
-  const handleBarCodeScanned = async ({ data }) => {
-    setScanned(true);
+  const onScanSuccess = async (data) => {
     try {
-      const parsed = JSON.parse(data);
-
-      if (parsed.tipo !== 'obra') {
-        Alert.alert('QR inválido', 'O QR Code não é de uma obra.');
-        setScanned(false);
+      const qrData = JSON.parse(data);
+      if (qrData.tipo !== 'obra' || !qrData.obraId) {
+        Alert.alert('QR Code inválido');
         return;
       }
-
-      const location = await Location.getCurrentPositionAsync({});
-
-      const token = await AsyncStorage.getItem('loginToken');
-
-      const res = await axios.post(
-        'https://backend.advir.pt/api/registo-ponto-obra',
-        {
-          obra_id: parsed.obraId,
-          tipo: 'entrada', // pode vir de um picker mais tarde
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setRegistos((prev) => [res.data, ...prev]);
-      Alert.alert('Sucesso', `Entrada registada para obra: ${parsed.nome}`);
+      setScannedObra(qrData);
+      Alert.alert('QR Code lido com sucesso', `Obra: ${qrData.nome}`);
     } catch (err) {
-      console.error('Erro ao registar ponto:', err);
-      Alert.alert('Erro', 'Não foi possível registar o ponto.');
+      Alert.alert('Erro ao processar o QR Code');
     }
-    setTimeout(() => setScanned(false), 2000);
   };
 
-  if (hasPermission === null) return <Text>A solicitar permissões de câmara...</Text>;
-  if (hasPermission === false) return <Text>Sem acesso à câmara.</Text>;
+  const getCurrentLocation = () => {
+    return new Promise((resolve, reject) => {
+      if (Platform.OS === 'web') {
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve({ coords: { latitude: pos.coords.latitude, longitude: pos.coords.longitude } }),
+          err => reject(err)
+        );
+      } else {
+        import('expo-location').then(async (Location) => {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') reject('Permissão negada');
+          else {
+            const loc = await Location.getCurrentPositionAsync({});
+            resolve(loc);
+          }
+        }).catch(reject);
+      }
+    });
+  };
+
+  const registarPonto = async (tipo) => {
+    if (!scannedObra) return Alert.alert('Nenhuma obra lida');
+    try {
+      const loc = await getCurrentLocation();
+      const token = localStorage.getItem('loginToken');
+
+      const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          tipo,
+          obra_id: scannedObra.obraId,
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setRegistos(prev => [...prev, data]);
+        Alert.alert('Registo efetuado');
+      } else {
+        Alert.alert('Erro ao registar');
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Erro ao registar ponto');
+    }
+  };
+
+  useEffect(() => {
+    if (!scannerVisible) return;
+    scannerRef.current = new Html5Qrcode("reader");
+
+    Html5Qrcode.getCameras()
+      .then(cams => {
+        const back = cams.find(c => /back/i.test(c.label)) || cams[0];
+        return scannerRef.current.start(
+          back.id,
+          { fps: 10, qrbox: 250, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] },
+          async decodedText => {
+            if (isProcessing) return;
+            setIsProcessing(true);
+            try { await scannerRef.current.stop(); } catch (_) {}
+            scannerRef.current = null;
+            setScannerVisible(false);
+            await onScanSuccess(decodedText);
+            setIsProcessing(false);
+          }
+        );
+      })
+      .catch(err => console.error("Erro ao iniciar scanner:", err));
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+        scannerRef.current = null;
+      }
+    };
+  }, [scannerVisible]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Leitor QR Code - Registo de Ponto em Obra</Text>
-      <View style={styles.scannerContainer}>
-        {!scanned && (
-          <BarCodeScanner
-            onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
-            style={styles.scanner}
-          />
-        )}
-      </View>
+      <Text style={styles.title}>Registo por QR Code de Obra</Text>
 
-      <Text style={styles.subtitulo}>Últimos registos:</Text>
-      {registos.map((r, idx) => (
-        <View key={idx} style={styles.registoItem}>
-          <Text>Obra: {r.obra_id}</Text>
-          <Text>Tipo: {r.tipo}</Text>
-          <Text>Latitude: {r.latitude}</Text>
-          <Text>Longitude: {r.longitude}</Text>
-          <Text>Data: {new Date(r.createdAt).toLocaleString()}</Text>
+      <TouchableOpacity style={styles.button} onPress={toggleScanner}>
+        <LinearGradient colors={['#04BEFE', '#4481EB']} style={styles.buttonGradient}>
+          <MaterialCommunityIcons name="qrcode-scan" size={20} color="#fff" />
+          <Text style={styles.buttonText}>{scannerVisible ? 'Fechar Scanner' : 'Abrir Scanner'}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {scannerVisible && <View id="reader" style={styles.scanner} />}
+
+      {scannedObra && (
+        <View style={styles.actions}>
+          <Text style={styles.obraLabel}>Obra: {scannedObra.nome}</Text>
+          {['entrada', 'saida', 'pausa_inicio', 'pausa_fim', 'fechar_dia'].map(tipo => (
+            <TouchableOpacity key={tipo} style={styles.actionButton} onPress={() => registarPonto(tipo)}>
+              <Text style={styles.actionButtonText}>{tipo}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-      ))}
+      )}
+
+      <View style={styles.registosContainer}>
+        <Text style={styles.subtitle}>Registos de Hoje</Text>
+        {registos.map((r, i) => (
+          <Text key={i}>{r.tipo} - {new Date(r.dataHora || r.createdAt).toLocaleString()}</Text>
+        ))}
+      </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    alignItems: 'center'
+    alignItems: 'center',
+    padding: 20
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 10
+    marginBottom: 20
   },
-  scannerContainer: {
+  button: {
     width: '100%',
-    height: 300,
-    overflow: 'hidden',
-    borderRadius: 10,
-    marginBottom: 20,
+    marginBottom: 15,
+    borderRadius: 12,
+    overflow: 'hidden'
+  },
+  buttonGradient: {
+    padding: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center'
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+    marginLeft: 10
   },
   scanner: {
     width: '100%',
-    height: '100%'
+    height: 300,
+    backgroundColor: '#eee'
   },
-  subtitulo: {
-    fontSize: 16,
-    marginTop: 10,
-    marginBottom: 5,
+  actions: {
+    marginTop: 20,
+    alignItems: 'center'
   },
-  registoItem: {
-    backgroundColor: '#eee',
+  actionButton: {
+    backgroundColor: '#4481EB',
     padding: 10,
-    borderRadius: 8,
     marginVertical: 5,
+    borderRadius: 8,
+    width: 200,
+    alignItems: 'center'
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontWeight: '600'
+  },
+  obraLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 10
+  },
+  registosContainer: {
+    marginTop: 30,
     width: '100%'
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10
   }
 });
 

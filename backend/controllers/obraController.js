@@ -7,17 +7,7 @@ const QRCode = require('qrcode');
 // Listar todas as obras
 const listarObras = async (req, res) => {
     try {
-        const obras = await Obra.findAll({
-            include: [
-                {
-                    model: EquipaObra,
-                    include: [
-                        { model: User, as: 'membro', attributes: ['id', 'nome'] },
-                        { model: User, as: 'encarregado', attributes: ['id', 'nome'] }
-                    ]
-                }
-            ]
-        });
+        const obras = await Obra.findAll();
         res.status(200).json(obras);
     } catch (error) {
         console.error('Erro ao listar obras:', error);
@@ -36,15 +26,6 @@ const listarObrasPorEmpresa = async (req, res) => {
 
         const obras = await Obra.findAll({
             where: { empresa_id },
-            include: [
-                {
-                    model: EquipaObra,
-                    include: [
-                        { model: User, as: 'membro', attributes: ['id', 'nome'] },
-                        { model: User, as: 'encarregado', attributes: ['id', 'nome'] }
-                    ]
-                }
-            ]
         });
 
         res.status(200).json(obras);
