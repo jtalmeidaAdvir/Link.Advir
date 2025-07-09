@@ -572,6 +572,15 @@ useEffect(() => {
 }, [scannerVisible]);
 
 
+const onScanSuccess = async (decodedText) => {
+  console.log("QR Code lido:", decodedText);
+
+  if (decodedText === "registo-ponto") {
+    await registarPonto();
+  } else {
+    alert("QR Code inválido. Tente novamente.");
+  }
+};
 
 
   // ----------------------------------------------------------------

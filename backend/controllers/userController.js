@@ -779,7 +779,7 @@ const atualizarDadosUtilizador = async (req, res) => {
         }
 
         // Validar tipoUser se fornecido
-        if (tipoUser && !['Trabalhador', 'Diretor', 'Encarregado'].includes(tipoUser)) {
+        if (tipoUser && !['Trabalhador', 'Diretor', 'Encarregado','Orçamentista','Externo','Administrador'].includes(tipoUser)) {
             return res.status(400).json({ message: 'Tipo de utilizador inválido.' });
         }
 

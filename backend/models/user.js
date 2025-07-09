@@ -74,7 +74,7 @@ const User = sequelize.define('User', {
         allowNull: true
     },
     tipoUser: {
-        type: DataTypes.ENUM('Trabalhador', 'Diretor', 'Encarregado'),
+        type: DataTypes.ENUM('Trabalhador', 'Diretor', 'Encarregado','Orçamentista','Externo','Administrador'),
         allowNull: false,
         defaultValue: 'Trabalhador'
     },
