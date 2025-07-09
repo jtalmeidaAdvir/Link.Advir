@@ -37,11 +37,11 @@ const RegistoPontoObra = () => {
     }
   };
 
-  useEffect(() => {
+useEffect(() => {
   const carregarRegistosHoje = async () => {
     try {
       const token = localStorage.getItem('loginToken');
-      const hoje = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
+      const hoje = new Date().toISOString().split('T')[0];
 
       const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}`, {
         headers: {
@@ -51,7 +51,16 @@ const RegistoPontoObra = () => {
 
       if (res.ok) {
         const dados = await res.json();
-        setRegistos(dados);
+
+        // Para cada registo, adiciona "morada" com base em lat/lon
+        const registosComMorada = await Promise.all(
+          dados.map(async r => {
+            const morada = await obterMoradaPorCoordenadas(r.latitude, r.longitude);
+            return { ...r, morada };
+          })
+        );
+
+        setRegistos(registosComMorada);
       }
     } catch (err) {
       console.error('Erro ao carregar registos de hoje:', err);
@@ -61,6 +70,16 @@ const RegistoPontoObra = () => {
   carregarRegistosHoje();
 }, []);
 
+const obterMoradaPorCoordenadas = async (lat, lon) => {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+    const data = await res.json();
+    return data.display_name || `${lat}, ${lon}`;
+  } catch (err) {
+    console.error('Erro ao obter morada:', err);
+    return `${lat}, ${lon}`;
+  }
+};
 
   const getCurrentLocation = () => {
     return new Promise((resolve, reject) => {
@@ -179,7 +198,7 @@ const RegistoPontoObra = () => {
       <View key={i} style={{ marginBottom: 10 }}>
         <Text>{r.tipo} - {new Date(r.timestamp || r.createdAt).toLocaleString()}</Text>
         <Text style={{ fontSize: 13, color: '#555' }}>
-          {r.Obra?.nome} ({r.Obra?.localizacao})
+          {r.Obra?.nome} ({r.morada})
         </Text>
       </View>
     ))
