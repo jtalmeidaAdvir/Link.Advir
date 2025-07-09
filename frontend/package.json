@@ -33,6 +33,7 @@
     "expo-barcode-scanner": "~13.0.1",
     "expo-image-picker": "~15.0.7",
     "expo-linear-gradient": "^14.0.2",
+    "expo-location": "^18.1.6",
     "expo-status-bar": "~1.12.1",
     "expo-updates": "~0.25.27",
     "file-saver": "^2.0.5",
