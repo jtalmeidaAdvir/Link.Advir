@@ -40,7 +40,7 @@ async function enviarEmailAprovacao({ id, titulo, responsavel }) {
 
     const info = await transporter.sendMail({
         from: "noreply.advir@gmail.com",
-        to: "jtalmeida@advir.pt",
+        to: "pl@jpaconstrutora.com",
         subject: `✅ Concurso Aprovado - ${id}`,
         html: `
             <!DOCTYPE html>
