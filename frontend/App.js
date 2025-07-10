@@ -48,6 +48,7 @@ import PedidosAlteracaoAdmin from './src/Pages/Assiduidade/PedidosAlteracaoAdmin
 import ListarRegistos from './src/Pages/Assiduidade/ListarRegistos';
 
 import RegistoPontoObra from './src/Pages/Assiduidade/RegistoPontoObra';
+import CalendarioHorasTrabalho from './src/Pages/Assiduidade/CalendarioHorasTrabalho';
 
 //Aprovaçoes Pendentes
 import ConcursosAprovacao from './src/Pages/Concursos/ConcursosAprovacao';
@@ -227,6 +228,13 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         <DrawerItem
                             label={t("PontoObra")}
                             onPress={() => props.navigation.navigate('RegistoPontoObra')}
+                            icon={() => <FontAwesome name="qrcode" size={20} color="#1792FE" />}
+                        />
+                    )}
+                    {hasQrCodeAssiduidadeModule && (
+                        <DrawerItem
+                            label={t("CalendarioHorasTrabalho")}
+                            onPress={() => props.navigation.navigate('CalendarioHorasTrabalho')}
                             icon={() => <FontAwesome name="qrcode" size={20} color="#1792FE" />}
                         />
                     )}
@@ -513,6 +521,7 @@ const AppNavigator = () => {
             <Drawer.Screen name="ListarRegistos" component={ListarRegistos} options={{ title: "AdvirLink - Registos", drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
                         <Drawer.Screen name="RegistoPontoObra" component={RegistoPontoObra} />
+                        <Drawer.Screen name="CalendarioHorasTrabalho" component={CalendarioHorasTrabalho} />
 
             {(tipoUser === "Encarregado" || tipoUser === "Diretor") && (
                 <>
