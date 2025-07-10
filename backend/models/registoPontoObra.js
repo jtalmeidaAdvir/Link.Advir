@@ -21,11 +21,10 @@ const RegistoPontoObra = sequelize.define('RegistoPontoObra', {
     references: { model: Obra, key: 'id' },
   },
   tipo: {
-  type: DataTypes.ENUM('entrada', 'saida', 'pausa_inicio', 'pausa_fim'),
-  allowNull: false,
-},
-
-  timestamp: { // <-- corrigido aqui
+    type: DataTypes.ENUM('entrada', 'saida', 'pausa_inicio', 'pausa_fim'),
+    allowNull: false,
+  },
+  timestamp: {
     type: DataTypes.DATE,
     allowNull: false,
   },
@@ -37,10 +36,28 @@ const RegistoPontoObra = sequelize.define('RegistoPontoObra', {
     type: DataTypes.STRING,
     allowNull: true,
   },
+
+  // NOVOS CAMPOS
+  is_confirmed: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true
+  },
+  ref_ponto_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'registo_ponto_obra', key: 'id' }
+  },
+  justificacao: {
+    type: DataTypes.STRING,
+    allowNull: true
+  }
+
 }, {
   tableName: 'registo_ponto_obra',
   timestamps: true
 });
+
 RegistoPontoObra.belongsTo(User, { foreignKey: 'user_id' });
 RegistoPontoObra.belongsTo(Obra, { foreignKey: 'obra_id' });
 

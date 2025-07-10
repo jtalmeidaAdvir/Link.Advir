@@ -122,6 +122,26 @@ const resumoMensalPorUser = async (req, res) => {
 };
 
 
+const registarPontoEsquecido = async (req, res) => {
+  try {
+    const { tipo, obra_id, timestamp, justificacao } = req.body;
+    const user_id = req.user.id;
+
+    const novoRegisto = await RegistoPontoObra.create({
+      user_id,
+      obra_id,
+      tipo,
+      timestamp: new Date(timestamp),
+      is_confirmed: false,
+      justificacao
+    });
+
+    res.status(201).json(novoRegisto);
+  } catch (err) {
+    console.error('Erro ao registar ponto esquecido:', err);
+    res.status(500).json({ message: 'Erro interno ao registar ponto esquecido.' });
+  }
+};
 
 
 
@@ -129,5 +149,6 @@ const resumoMensalPorUser = async (req, res) => {
 module.exports = {
   registarPonto,
   listarRegistosPorDia,
-  resumoMensalPorUser
+  resumoMensalPorUser,
+  registarPontoEsquecido
 };
