@@ -224,18 +224,18 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         />
                     )}
 
-                      {hasQrCodeAssiduidadeModule && (
+                      {hasObrasModule && (
                         <DrawerItem
-                            label={t("PontoObra")}
+                            label={t("Ponto")}
                             onPress={() => props.navigation.navigate('RegistoPontoObra')}
                             icon={() => <FontAwesome name="qrcode" size={20} color="#1792FE" />}
                         />
                     )}
-                    {hasQrCodeAssiduidadeModule && (
+                    {hasObrasModule && (
                         <DrawerItem
-                            label={t("CalendarioHorasTrabalho")}
+                            label={t("Agenda")}
                             onPress={() => props.navigation.navigate('CalendarioHorasTrabalho')}
-                            icon={() => <FontAwesome name="qrcode" size={20} color="#1792FE" />}
+                            icon={() => <FontAwesome name="calendar" size={20} color="#1792FE" />}
                         />
                     )}
 

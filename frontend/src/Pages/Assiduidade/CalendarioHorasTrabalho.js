@@ -206,7 +206,7 @@ const CalendarioHorasTrabalho = () => {
   const diasDoMes = gerarCalendario();
 
   return (
-    <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{overflowX: 'hidden'}}>
+    <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{overflowX: 'hidden', background: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)'}}>
       <style jsx>{`
         body {
           overflow-x: hidden;
@@ -378,7 +378,7 @@ const CalendarioHorasTrabalho = () => {
             </div>
           </div>
 
-          <div className="row g-3">
+          <div className="row g-3" style={{marginBottom: '50px'}} >
             {/* Calendário */}
             <div className="col-12 col-lg-8">
               <div className="card card-moderno position-relative">

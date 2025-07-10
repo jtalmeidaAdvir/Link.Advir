@@ -426,21 +426,94 @@ const ListarObras = ({ navigation }) => {
                                             resizeMode="contain"
                                         />
                                     </View>
-                                    <TouchableOpacity 
-                                        style={styles.detailsButton}
-                                        onPress={() => navigation.navigate('DetalhesObra', { 
-                                            obraId: item.ID, 
-                                            obraCodigo: item.Codigo 
-                                        })}
-                                    >
-                                        <LinearGradient
-                                            colors={['#28a745', '#20c997']}
-                                            style={styles.buttonGradient}
-                                        >
-                                            <FontAwesome name="eye" size={16} color="#FFFFFF" />
-                                            <Text style={styles.buttonText}>Ver Detalhes</Text>
-                                        </LinearGradient>
-                                    </TouchableOpacity>
+                                    <TouchableOpacity
+    style={styles.detailsButton}
+    onPress={() => {
+        const qrCodeSrc = obraExistente?.qrCode?.startsWith('data:image')
+            ? obraExistente.qrCode
+            : `data:image/png;base64,${obraExistente.qrCode}`;
+
+        if (!qrCodeSrc) {
+            alert('QR Code não disponível.');
+            return;
+        }
+
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(`
+    <html>
+        <head>
+            <title>Imprimir QR Code - ${item.Titulo}</title>
+           <style>
+    @media print {
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+        body {
+            margin: 0;
+        }
+    }
+
+    html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        font-family: Arial, sans-serif;
+    }
+
+    .print-wrapper {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        page-break-inside: avoid;
+    }
+
+    h1 {
+        font-size: 20px;
+        margin-bottom: 20px;
+        text-align: center;
+        color: #333;
+    }
+
+    img {
+        width: 250px;
+        height: 250px;
+        object-fit: contain;
+    }
+</style>
+
+        </head>
+        <body onload="window.print(); window.onafterprint = () => window.close();">
+    <div class="print-wrapper">
+        <h1>${item.Titulo}</h1>
+        <img src="${qrCodeSrc}" alt="QR Code da Obra" />
+    </div>
+</body>
+
+    </html>
+`);
+
+            printWindow.document.close();
+        } else {
+            alert('Pop-up bloqueado. Permita pop-ups neste site.');
+        }
+    }}
+>
+    <LinearGradient
+        colors={['#28a745', '#20c997']}
+        style={styles.buttonGradient}
+    >
+        <FontAwesome name="print" size={16} color="#FFFFFF" />
+        <Text style={styles.buttonText}>Imprimir QR Code</Text>
+    </LinearGradient>
+</TouchableOpacity>
+
+
+
                                 </View>
                             ) : (
                                 <TouchableOpacity 
