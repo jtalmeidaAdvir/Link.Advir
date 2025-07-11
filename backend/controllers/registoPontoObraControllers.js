@@ -191,7 +191,8 @@ const registarPontoEquipa = async (req, res) => {
         obra_id,
         latitude,
         longitude,
-        user_id
+        user_id,
+        timestamp: new Date()
       })
     ));
 
