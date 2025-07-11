@@ -186,7 +186,7 @@ const registarPontoEquipa = async (req, res) => {
     }
 
     const registosCriados = await Promise.all(membros.map(user_id =>
-      RegistoPonto.create({
+      RegistoPontoObra.create({
         tipo,
         obra_id,
         latitude,

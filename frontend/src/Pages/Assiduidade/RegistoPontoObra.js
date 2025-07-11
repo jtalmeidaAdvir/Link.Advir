@@ -281,7 +281,7 @@ const RegistoPontoObra = () => {
     const token = localStorage.getItem('loginToken');
     const loc = await getCurrentLocation();
 
-    const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra/equipa', {
+    const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra/registar-ponto-equipa', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
