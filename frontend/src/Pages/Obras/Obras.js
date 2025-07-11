@@ -28,7 +28,9 @@ const ListarObras = ({ navigation }) => {
     const [animatedValue] = useState(new Animated.Value(0));
     const [searchAnimated] = useState(new Animated.Value(0));
     const [expandedCards, setExpandedCards] = useState({});
-    const [filterType, setFilterType] = useState('all'); // 'all', 'with_qr', 'without_qr'
+    const [filterType, setFilterType] = useState('with_qr'); // 'all', 'with_qr', 'without_qr'
+
+
 
     // Animação principal para efeitos visuais
     useEffect(() => {
@@ -364,7 +366,7 @@ const ListarObras = ({ navigation }) => {
     };
 
     const renderObra = ({ item, index }) => {
-        const obraExistente = obrasImportadas.find(o => o.codigo === item.Codigo);
+    const obraExistente = obrasImportadas.find(o => o.codigo === item.Codigo);
         const isExpanded = expandedCards[item.ID];
 
         return (
@@ -513,7 +515,17 @@ const ListarObras = ({ navigation }) => {
 </TouchableOpacity>
 <TouchableOpacity
   style={styles.importButton}
-  onPress={() => navigation.navigate('PessoalObra', { obraId: item.ID, nomeObra: item.Titulo })}
+  onPress={() => {
+  if (!obraExistente) {
+    alert('Esta obra ainda não foi importada.');
+    return;
+  }
+
+  navigation.navigate('PessoalObra', {
+    obraId: obraExistente.id, // ✅ ID real da tabela `obra`
+    nomeObra: obraExistente.nome
+  });
+}}
 >
   <LinearGradient
     colors={['#0B5ED7', '#1792FE']}

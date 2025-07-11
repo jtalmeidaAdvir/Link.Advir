@@ -21,6 +21,26 @@ const RegistoPontoObra = () => {
   const [obraSelecionada, setObraSelecionada] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Estado para equipas e membros
+  const [minhasEquipas, setMinhasEquipas] = useState([]);
+  const [membrosSelecionados, setMembrosSelecionados] = useState([]);
+  //
+    useEffect(() => {
+    const fetchEquipas = async () => {
+        const token = localStorage.getItem('loginToken');
+        const res = await fetch('https://backend.advir.pt/api/equipa-obra/minhas-agrupadas', {
+        headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+        const data = await res.json();
+        setMinhasEquipas(data);
+        }
+    };
+    fetchEquipas();
+    }, []);
+
+
   // Carregar obras disponíveis
   useEffect(() => {
     const fetchObras = async () => {
@@ -255,6 +275,41 @@ const RegistoPontoObra = () => {
     }
   };
 
+  const handleRegistoEquipa = async (tipo) => {
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('loginToken');
+    const loc = await getCurrentLocation();
+
+    const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra/equipa', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        tipo,
+        obra_id: obraSelecionada,
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        membros: membrosSelecionados
+      })
+    });
+
+    if (res.ok) {
+      alert(`Ponto "${tipo}" registado para ${membrosSelecionados.length} membro(s).`);
+    } else {
+      alert('Erro ao registar ponto para equipa.');
+    }
+  } catch (err) {
+    console.error('Erro registo equipa:', err);
+    alert('Erro interno ao registar ponto da equipa.');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
   return (
     <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{overflowX: 'hidden', background: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)'}}>
       <style jsx>{`
@@ -443,6 +498,77 @@ const RegistoPontoObra = () => {
                       </div>
                     </div>
                   </div>
+                  <div className="mt-4 p-3 p-md-4 border border-info rounded bg-white">
+  <h5 className="text-info fw-bold mb-3">Registo por Equipa</h5>
+
+  {/* Obra */}
+  <div className="mb-3">
+    <label className="form-label fw-semibold small">Obra</label>
+    <select
+      className="form-select form-control-custom"
+      value={obraSelecionada}
+      onChange={(e) => setObraSelecionada(e.target.value)}
+    >
+      <option value="">Escolha a obra...</option>
+      {obras.map(obra => (
+        <option key={obra.id} value={obra.id}>{obra.nome}</option>
+      ))}
+    </select>
+  </div>
+
+  {/* Membros da equipa */}
+  <div className="mb-3">
+    <label className="form-label fw-semibold small">Membros da Equipa</label>
+    {minhasEquipas.map(eq => (
+      <div key={eq.nome} className="mb-2">
+        <strong>{eq.nome}</strong>
+        {eq.membros.map(m => (
+          <div key={m.id} className="form-check">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id={`membro-${m.id}`}
+              value={m.id}
+              checked={membrosSelecionados.includes(m.id)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setMembrosSelecionados(prev => checked
+                  ? [...prev, m.id]
+                  : prev.filter(id => id !== m.id));
+              }}
+            />
+            <label className="form-check-label" htmlFor={`membro-${m.id}`}>
+              {m.nome}
+            </label>
+          </div>
+        ))}
+      </div>
+    ))}
+  </div>
+
+  {/* Botões Entrada/Saída */}
+  <div className="row g-2">
+    <div className="col-6">
+      <button
+        className="btn btn-success btn-action w-100"
+        onClick={() => handleRegistoEquipa('entrada')}
+        disabled={!obraSelecionada || membrosSelecionados.length === 0 || loading}
+      >
+        <FaPlay className="me-1" /> ENTRADA
+      </button>
+    </div>
+    <div className="col-6">
+      <button
+        className="btn btn-danger btn-action w-100"
+        onClick={() => handleRegistoEquipa('saida')}
+        disabled={!obraSelecionada || membrosSelecionados.length === 0 || loading}
+      >
+        <FaStop className="me-1" /> SAÍDA
+      </button>
+    </div>
+  </div>
+</div>
+
                 </div>
               </div>
             </div>

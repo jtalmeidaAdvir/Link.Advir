@@ -176,12 +176,40 @@ const listarPorObraEDia = async (req, res) => {
   }
 };
 
+
+const registarPontoEquipa = async (req, res) => {
+  try {
+    const { tipo, obra_id, latitude, longitude, membros } = req.body;
+
+    if (!['entrada', 'saida'].includes(tipo) || !obra_id || !latitude || !longitude || !Array.isArray(membros)) {
+      return res.status(400).json({ message: 'Dados inválidos.' });
+    }
+
+    const registosCriados = await Promise.all(membros.map(user_id =>
+      RegistoPonto.create({
+        tipo,
+        obra_id,
+        latitude,
+        longitude,
+        user_id
+      })
+    ));
+
+    res.status(201).json(registosCriados);
+  } catch (error) {
+    console.error('Erro no registo por equipa:', error);
+    res.status(500).json({ message: 'Erro interno do servidor.' });
+  }
+};
+
+
 module.exports = {
   registarPonto,
   listarRegistosPorDia,
   resumoMensalPorUser,
   registarPontoEsquecido,
   listarPorObraEDia, 
+  registarPontoEquipa,
 };
 
 
