@@ -59,6 +59,9 @@ import AutosMedicaoExecucao from './src/Pages/Obras/AutosMedicaoExecucao';
 import PartesDiarias from './src/Pages/Obras/PartesDiarias';
 import AddPartesDiarias from './src/Pages/Obras/AddPartesDiarias';
 
+
+import PessoalObra from './src/Pages/Obras/PessoalObra';
+
 import CriarEquipa from './src/Pages/Obras/CriarEquipa';
 
 import UserModulesManagement from './src/Pages/Autenticacao/UserModulesManagement';

@@ -144,11 +144,45 @@ const registarPontoEsquecido = async (req, res) => {
 };
 
 
+const listarPorObraEDia = async (req, res) => {
+  try {
+    const { data, obra_id } = req.query;
 
+    if (!data || !obra_id) {
+      return res.status(400).json({ message: 'Data e obra_id são obrigatórios.' });
+    }
+
+    const dataInicio = new Date(`${data}T00:00:00.000Z`);
+    const dataFim = new Date(`${data}T23:59:59.999Z`);
+
+    const registos = await RegistoPontoObra.findAll({
+      where: {
+        obra_id,
+        timestamp: {
+          [Op.between]: [dataInicio, dataFim]
+        }
+      },
+      include: [
+        { model: User, attributes: ['id', 'nome', 'email'] },
+        { model: Obra, attributes: ['id', 'nome'] }
+      ],
+      order: [['timestamp', 'ASC']]
+    });
+
+    res.status(200).json(registos);
+  } catch (err) {
+    console.error('Erro ao listar registos por obra e dia:', err);
+    res.status(500).json({ message: 'Erro interno ao listar registos.' });
+  }
+};
 
 module.exports = {
   registarPonto,
   listarRegistosPorDia,
   resumoMensalPorUser,
-  registarPontoEsquecido
+  registarPontoEsquecido,
+  listarPorObraEDia, 
 };
+
+
+

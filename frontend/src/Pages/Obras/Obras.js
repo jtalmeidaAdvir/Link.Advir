@@ -511,6 +511,19 @@ const ListarObras = ({ navigation }) => {
         <Text style={styles.buttonText}>Imprimir QR Code</Text>
     </LinearGradient>
 </TouchableOpacity>
+<TouchableOpacity
+  style={styles.importButton}
+  onPress={() => navigation.navigate('PessoalObra', { obraId: item.ID, nomeObra: item.Titulo })}
+>
+  <LinearGradient
+    colors={['#0B5ED7', '#1792FE']}
+    style={styles.buttonGradient}
+  >
+    <FontAwesome name="users" size={16} color="#FFFFFF" />
+    <Text style={styles.buttonText}>Ver Pessoal em Obra</Text>
+  </LinearGradient>
+</TouchableOpacity>
+
 
 
 

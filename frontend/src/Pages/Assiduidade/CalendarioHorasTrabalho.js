@@ -17,6 +17,12 @@ const CalendarioHorasTrabalho = () => {
   const [registosBrutos, setRegistosBrutos] = useState([]);
   const [loading, setLoading] = useState(false);
 
+
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+
+
+
+
   const formatarData = (date) => {
     const ano = date.getFullYear();
     const mes = String(date.getMonth() + 1).padStart(2, '0');
@@ -202,6 +208,13 @@ const CalendarioHorasTrabalho = () => {
     carregarResumo();
     carregarObras();
   }, [mesAtual]);
+  useEffect(() => {
+  const hoje = new Date();
+  const dataFormatada = formatarData(hoje);
+  setDiaSelecionado(dataFormatada);
+  carregarDetalhes(dataFormatada);
+}, []);
+
 
   const diasDoMes = gerarCalendario();
 
@@ -534,83 +547,96 @@ const CalendarioHorasTrabalho = () => {
                     )}
 
                     {/* Formulário */}
-                    <div className="border border-primary rounded p-3 mb-3 mb-md-4" style={{backgroundColor: '#f8f9ff'}}>
-                      <h6 className="text-primary fw-bold mb-3" style={{fontSize: 'clamp(0.9rem, 2.5vw, 1rem)'}}>
-                        <FaPlus className="me-2" />
-                        <span className="d-none d-sm-inline">Registar Ponto Esquecido</span>
-                        <span className="d-sm-none">Novo Registo</span>
-                      </h6>
+                    <div className="mb-3">
+  <button
+    className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
+    onClick={() => setMostrarFormulario(prev => !prev)}
+    type="button"
+  >
+    {mostrarFormulario ? '- Recolher Registo' : '+ Registar Ponto Esquecido'}
+  </button>
 
-                      <form onSubmit={submeterPontoEsquecido}>
-                        <div className="mb-3">
-                          <label className="form-label fw-semibold small">Obra</label>
-                          <select
-                            className="form-select form-moderno"
-                            value={novaEntrada.obra_id}
-                            onChange={(e) => setNovaEntrada({...novaEntrada, obra_id: e.target.value})}
-                            required
-                          >
-                            <option value="">Selecione uma obra...</option>
-                            {obras.map(obra => (
-                              <option key={obra.id} value={obra.id}>{obra.nome}</option>
-                            ))}
-                          </select>
-                        </div>
+  {mostrarFormulario && (
+    <div className="border border-primary rounded p-3 mt-2" style={{ backgroundColor: '#f8f9ff' }}>
+      <h6 className="text-primary fw-bold mb-3" style={{ fontSize: 'clamp(0.9rem, 2.5vw, 1rem)' }}>
+        <FaPlus className="me-2" />
+        <span className="d-none d-sm-inline">Novo Registo Manual</span>
+        <span className="d-sm-none">Novo Registo</span>
+      </h6>
 
-                        <div className="row g-2 mb-3">
-                          <div className="col-6">
-                            <label className="form-label fw-semibold small">Tipo</label>
-                            <select
-                              className="form-select form-moderno"
-                              value={novaEntrada.tipo}
-                              onChange={(e) => setNovaEntrada({...novaEntrada, tipo: e.target.value})}
-                            >
-                              <option value="entrada">Entrada</option>
-                              <option value="saida">Saída</option>
-                            </select>
-                          </div>
-                          <div className="col-6">
-                            <label className="form-label fw-semibold small">Hora</label>
-                            <input
-                              type="time"
-                              className="form-control form-moderno"
-                              value={novaEntrada.hora}
-                              onChange={(e) => setNovaEntrada({...novaEntrada, hora: e.target.value})}
-                            />
-                          </div>
-                        </div>
+      <form onSubmit={submeterPontoEsquecido}>
+        <div className="mb-3">
+          <label className="form-label fw-semibold small">Obra</label>
+          <select
+            className="form-select form-moderno"
+            value={novaEntrada.obra_id}
+            onChange={(e) => setNovaEntrada({ ...novaEntrada, obra_id: e.target.value })}
+            required
+          >
+            <option value="">Selecione uma obra...</option>
+            {obras.map(obra => (
+              <option key={obra.id} value={obra.id}>{obra.nome}</option>
+            ))}
+          </select>
+        </div>
 
-                        <div className="mb-3">
-                          <label className="form-label fw-semibold small">Justificação</label>
-                          <textarea
-                            className="form-control form-moderno"
-                            rows="2"
-                            placeholder="Motivo do registo manual..."
-                            value={novaEntrada.justificacao}
-                            onChange={(e) => setNovaEntrada({...novaEntrada, justificacao: e.target.value})}
-                          />
-                        </div>
+        <div className="row g-2 mb-3">
+          <div className="col-6">
+            <label className="form-label fw-semibold small">Tipo</label>
+            <select
+              className="form-select form-moderno"
+              value={novaEntrada.tipo}
+              onChange={(e) => setNovaEntrada({ ...novaEntrada, tipo: e.target.value })}
+            >
+              <option value="entrada">Entrada</option>
+              <option value="saida">Saída</option>
+            </select>
+          </div>
+          <div className="col-6">
+            <label className="form-label fw-semibold small">Hora</label>
+            <input
+              type="time"
+              className="form-control form-moderno"
+              value={novaEntrada.hora}
+              onChange={(e) => setNovaEntrada({ ...novaEntrada, hora: e.target.value })}
+            />
+          </div>
+        </div>
 
-                        <button 
-                          type="submit" 
-                          className="btn btn-primary w-100 rounded-pill btn-responsive"
-                          disabled={loading}
-                        >
-                          {loading ? (
-                            <>
-                              <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                              Registando...
-                            </>
-                          ) : (
-                            <>
-                              <FaCheckCircle className="me-2" />
-                              <span className="d-none d-sm-inline">Submeter Registo</span>
-                              <span className="d-sm-none">Submeter</span>
-                            </>
-                          )}
-                        </button>
-                      </form>
-                    </div>
+        <div className="mb-3">
+          <label className="form-label fw-semibold small">Justificação</label>
+          <textarea
+            className="form-control form-moderno"
+            rows="2"
+            placeholder="Motivo do registo manual..."
+            value={novaEntrada.justificacao}
+            onChange={(e) => setNovaEntrada({ ...novaEntrada, justificacao: e.target.value })}
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="btn btn-primary w-100 rounded-pill btn-responsive"
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+              Registando...
+            </>
+          ) : (
+            <>
+              <FaCheckCircle className="me-2" />
+              <span className="d-none d-sm-inline">Submeter Registo</span>
+              <span className="d-sm-none">Submeter</span>
+            </>
+          )}
+        </button>
+      </form>
+    </div>
+  )}
+</div>
+
 
                     {/* Histórico */}
                     {registosBrutos.length > 0 && (
