@@ -203,6 +203,37 @@ const registarPontoEquipa = async (req, res) => {
   }
 };
 
+const listarRegistosHojeEquipa = async (req, res) => {
+  try {
+    const { membros } = req.query;
+
+    if (!membros) return res.status(400).json({ message: 'IDs de membros em falta.' });
+
+    const ids = membros.split(',').map(id => parseInt(id));
+    const hoje = new Date();
+    const dataInicio = new Date(hoje.setHours(0, 0, 0, 0));
+    const dataFim = new Date(hoje.setHours(23, 59, 59, 999));
+
+    const registos = await RegistoPontoObra.findAll({
+      where: {
+        user_id: { [Op.in]: ids },
+        timestamp: { [Op.between]: [dataInicio, dataFim] }
+      },
+      include: [
+        { model: User, attributes: ['id', 'nome', 'email'] },
+        { model: Obra, attributes: ['id', 'nome'] }
+      ],
+      order: [['timestamp', 'ASC']]
+    });
+
+    res.status(200).json(registos);
+  } catch (err) {
+    console.error('Erro ao listar registos da equipa:', err);
+    res.status(500).json({ message: 'Erro ao listar registos da equipa.' });
+  }
+};
+
+
 
 module.exports = {
   registarPonto,
@@ -211,6 +242,7 @@ module.exports = {
   registarPontoEsquecido,
   listarPorObraEDia, 
   registarPontoEquipa,
+    listarRegistosHojeEquipa
 };
 
 

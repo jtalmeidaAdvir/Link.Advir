@@ -20,6 +20,8 @@ const RegistoPontoObra = () => {
   const [obras, setObras] = useState([]);
   const [obraSelecionada, setObraSelecionada] = useState('');
   const [loading, setLoading] = useState(false);
+  const [registosEquipa, setRegistosEquipa] = useState([]);
+
 
   // Estado para equipas e membros
   const [minhasEquipas, setMinhasEquipas] = useState([]);
@@ -96,6 +98,27 @@ const RegistoPontoObra = () => {
 
     carregarRegistosHoje();
   }, []);
+
+  useEffect(() => {
+  const fetchRegistosEquipa = async () => {
+    if (!membrosSelecionados.length) return;
+
+    const token = localStorage.getItem('loginToken');
+    const ids = membrosSelecionados.join(',');
+
+    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia-equipa?membros=${ids}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setRegistosEquipa(data);
+    }
+  };
+
+  fetchRegistosEquipa();
+}, [membrosSelecionados]);
+
 
   const obterMoradaPorCoordenadas = async (lat, lon) => {
     try {
@@ -640,6 +663,29 @@ const RegistoPontoObra = () => {
                 </div>
               </div>
             </div>
+            <div className="mt-4 card card-moderno">
+  <div className="card-body">
+    <h5 className="text-info fw-bold mb-3">Registos de Hoje da Equipa</h5>
+    {registosEquipa.length === 0 ? (
+      <p className="text-muted">Sem registos hoje para os membros selecionados.</p>
+    ) : (
+      registosEquipa.map((r, i) => (
+        <div key={i} className={`registro-item ${r.tipo === 'saida' ? 'registro-saida' : ''}`}>
+          <div className="fw-bold">{r.User?.nome}</div>
+          <div className="small text-uppercase">{r.tipo}</div>
+          <div className="text-muted small">
+            {new Date(r.timestamp).toLocaleTimeString('pt-PT', {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </div>
+          <div className="text-primary small">{r.Obra?.nome}</div>
+        </div>
+      ))
+    )}
+  </div>
+</div>
+
           </div>
         </div>
       </div>
