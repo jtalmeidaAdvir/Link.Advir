@@ -6,7 +6,8 @@ const {
   listarRegistosPorDia,
   resumoMensalPorUser,
   registarPontoEsquecido,
-    listarPorObraEDia
+    listarPorObraEDia,
+    registarPontoEquipa
 } = require('../controllers/registoPontoObraControllers');
 
 router.post('/', authMiddleware, registarPonto);
@@ -16,6 +17,9 @@ router.get('/resumo-mensal', authMiddleware, resumoMensalPorUser);
 router.post('/registar-esquecido', authMiddleware, registarPontoEsquecido);
 
 router.get('/listar-por-obra-e-dia', authMiddleware, listarPorObraEDia);
+
+router.post('/registar-ponto-equipa', authMiddleware, registarPontoEquipa);
+
 
 
 module.exports = router;
