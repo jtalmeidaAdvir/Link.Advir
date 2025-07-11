@@ -5,7 +5,8 @@ const {
   registarPonto,
   listarRegistosPorDia,
   resumoMensalPorUser,
-  registarPontoEsquecido
+  registarPontoEsquecido,
+    listarPorObraEDia
 } = require('../controllers/registoPontoObraControllers');
 
 router.post('/', authMiddleware, registarPonto);

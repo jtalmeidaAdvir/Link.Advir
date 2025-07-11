@@ -530,6 +530,8 @@ const AppNavigator = () => {
                 <>
                     <Drawer.Screen name="Obras" component={Obras} />
                     <Drawer.Screen name="CriarEquipa" component={CriarEquipa} />
+                    <Drawer.Screen name="PessoalObra" component={PessoalObra} options={{ drawerItemStyle: { display: 'none' } }} />
+
                 </>
             )}
 
