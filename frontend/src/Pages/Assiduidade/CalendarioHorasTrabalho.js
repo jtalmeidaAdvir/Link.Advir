@@ -23,28 +23,33 @@ const CalendarioHorasTrabalho = () => {
 const [faltas, setFaltas] = useState([]);
 
 const carregarFaltasFuncionario = async () => {
-  const token = localStorage.getItem('loginToken');
-  const funcionarioId = '001';//localStorage.getItem('funcionarioId'); // substitui se necessário
+  const token = localStorage.getItem("painelAdminToken");
+  const funcionarioId = '001'; // Substitui por localStorage.getItem('funcionarioId') se aplicável
+  const urlempresa = localStorage.getItem('urlempresa');
+  
+        
 
-  try {
-    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/001`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ codFuncionario: funcionarioId })
-    });
+ try {
+  const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${funcionarioId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      urlempresa: urlempresa,
+    },
+  });
 
-    if (res.ok) {
-      const data = await res.json();
-      setFaltas(data);
-    } else {
-      console.error('Erro ao carregar faltas');
-    }
-  } catch (err) {
-    console.error('Erro ao buscar faltas:', err);
+  if (res.ok) {
+    const data = await res.json();
+    setFaltas(data);
+  } else {
+    const msg = await res.text(); // lê a resposta mesmo se for erro
+    console.error('Erro ao carregar faltas:', res.status, msg);
   }
+} catch (err) {
+  console.error('Erro ao buscar faltas:', err);
+}
+
 };
 
 
@@ -219,7 +224,11 @@ const carregarFaltasFuncionario = async () => {
   const isDiaUtil = diaSemana !== 0 && diaSemana !== 6;
   const isSelecionado = diaSelecionado === dataFormatada;
 
-  const existeFalta = faltas.some(f => f.Data?.startsWith(dataFormatada));
+const existeFalta = faltas.some(f => {
+  const dataFalta = new Date(f.Data).toISOString().split('T')[0];
+  return dataFalta === dataFormatada;
+});
+
 
   let classes = 'calendario-dia btn';
 

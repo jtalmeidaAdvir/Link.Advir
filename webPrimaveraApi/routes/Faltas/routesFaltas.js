@@ -38,7 +38,7 @@ router.get("/GetListaFaltasFuncionario/:codFuncionario", async (req, res) => {
                 .json({ error: "URL da empresa não fornecida." });
         }
         const { codFuncionario } = req.params;
-        const apiUrl = `http://${urlempresa}/WebApi/Faltas/GetListaFaltasFuncionario/${codFuncionario}`; // A URL completa da API
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/GetListaFaltasFuncionario/${codFuncionario}`; // A URL completa da API
         console.log("Enviando solicitação para a URL:", apiUrl);
 
         const response = await axios.get(apiUrl, {
@@ -76,6 +76,11 @@ router.get("/GetListaFaltasFuncionario/:codFuncionario", async (req, res) => {
             });
     }
 });
+
+
+
+
+
 
 
 module.exports = router;
