@@ -20,7 +20,7 @@ async function getEmpresaUrl(req) {
 }
 
 
-router.get("/GetListaFaltasFuncionario", async (req, res) => {
+router.get("/GetListaFaltasFuncionario/:codFuncionario", async (req, res) => {
     try {
         const painelAdminToken = req.headers["authorization"]?.split(" ")[1]; // Obtendo o token do cabeçalho
         if (!painelAdminToken) {
@@ -37,8 +37,8 @@ router.get("/GetListaFaltasFuncionario", async (req, res) => {
                 .status(400)
                 .json({ error: "URL da empresa não fornecida." });
         }
-
-        const apiUrl = `http://${urlempresa}/WebApi/Faltas/GetListaFaltasFuncionario`; // A URL completa da API
+        const { codFuncionario } = req.params;
+        const apiUrl = `http://${urlempresa}/WebApi/Faltas/GetListaFaltasFuncionario/${codFuncionario}`; // A URL completa da API
         console.log("Enviando solicitação para a URL:", apiUrl);
 
         const response = await axios.get(apiUrl, {

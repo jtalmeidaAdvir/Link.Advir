@@ -20,6 +20,32 @@ const CalendarioHorasTrabalho = () => {
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
+const [faltas, setFaltas] = useState([]);
+
+const carregarFaltasFuncionario = async () => {
+  const token = localStorage.getItem('loginToken');
+  const funcionarioId = '001';//localStorage.getItem('funcionarioId'); // substitui se necessário
+
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/001`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ codFuncionario: funcionarioId })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setFaltas(data);
+    } else {
+      console.error('Erro ao carregar faltas');
+    }
+  } catch (err) {
+    console.error('Erro ao buscar faltas:', err);
+  }
+};
 
 
 
@@ -181,33 +207,42 @@ const CalendarioHorasTrabalho = () => {
     return diasDoMes;
   };
 
-  const obterClasseDia = (date) => {
-    if (!date) return '';
-    
-    const hoje = new Date();
-    const dataFormatada = formatarData(date);
-    const isHoje = formatarData(hoje) === dataFormatada;
-    const isPassado = date < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-    const temRegisto = resumo[dataFormatada];
-    const diaSemana = date.getDay();
-    const isDiaUtil = diaSemana !== 0 && diaSemana !== 6;
-    const isSelecionado = diaSelecionado === dataFormatada;
+ const obterClasseDia = (date) => {
+  if (!date) return '';
+  
+  const hoje = new Date();
+  const dataFormatada = formatarData(date);
+  const isHoje = formatarData(hoje) === dataFormatada;
+  const isPassado = date < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const temRegisto = resumo[dataFormatada];
+  const diaSemana = date.getDay();
+  const isDiaUtil = diaSemana !== 0 && diaSemana !== 6;
+  const isSelecionado = diaSelecionado === dataFormatada;
 
-    let classes = 'calendario-dia btn';
-    
-    if (isSelecionado) classes += ' btn-primary';
-    else if (isHoje) classes += ' btn-outline-primary';
-    else if (temRegisto) classes += ' btn-success';
-    else if (isPassado && isDiaUtil) classes += ' btn-warning';
-    else classes += ' btn-outline-secondary';
+  const existeFalta = faltas.some(f => f.Data?.startsWith(dataFormatada));
 
-    return classes;
-  };
+  let classes = 'calendario-dia btn';
 
-  useEffect(() => {
-    carregarResumo();
-    carregarObras();
-  }, [mesAtual]);
+  if (isSelecionado) classes += ' btn-primary';
+  else if (existeFalta) classes += ' btn-danger'; // ❗ se há falta → vermelho
+  else if (isHoje) classes += ' btn-outline-primary';
+  else if (temRegisto) classes += ' btn-success';
+  else if (isPassado && isDiaUtil) classes += ' btn-warning';
+  else classes += ' btn-outline-secondary';
+
+  return classes;
+};
+
+
+
+  
+
+ useEffect(() => {
+  carregarResumo();
+  carregarObras();
+  carregarFaltasFuncionario(); // 👈 novo
+}, [mesAtual]);
+
   useEffect(() => {
   const hoje = new Date();
   const dataFormatada = formatarData(hoje);
