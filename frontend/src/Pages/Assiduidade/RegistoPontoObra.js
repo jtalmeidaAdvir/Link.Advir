@@ -8,7 +8,8 @@ import {
   FaStop, 
   FaCheckCircle,
   FaExclamationCircle,
-  FaCamera
+  FaCamera,
+  FaUsers
 } from 'react-icons/fa';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -26,6 +27,10 @@ const RegistoPontoObra = () => {
   // Estado para equipas e membros
   const [minhasEquipas, setMinhasEquipas] = useState([]);
   const [membrosSelecionados, setMembrosSelecionados] = useState([]);
+
+  const [mostrarManual, setMostrarManual] = useState(false);
+  const [mostrarEquipa, setMostrarEquipa] = useState(false);
+
   //
     useEffect(() => {
     const fetchEquipas = async () => {
@@ -81,13 +86,24 @@ const RegistoPontoObra = () => {
 
         if (res.ok) {
           const dados = await res.json();
-          const registosComMorada = await Promise.all(
-            dados.map(async r => {
-              const morada = await obterMoradaPorCoordenadas(r.latitude, r.longitude);
-              return { ...r, morada };
-            })
-          );
-          setRegistos(registosComMorada);
+          // Inicializa com morada por carregar
+            const registosIniciais = dados.map(r => ({
+            ...r,
+            morada: 'A carregar localização...'
+            }));
+            setRegistos(registosIniciais);
+
+            // Vai buscar as moradas individualmente depois
+            dados.forEach(async (r) => {
+            const morada = await obterMoradaPorCoordenadas(r.latitude, r.longitude);
+            setRegistos(prev =>
+                prev.map(item =>
+                item.id === r.id ? { ...item, morada } : item
+                )
+            );
+            });
+
+
         }
       } catch (err) {
         console.error('Erro ao carregar registos de hoje:', err);
@@ -99,13 +115,13 @@ const RegistoPontoObra = () => {
     carregarRegistosHoje();
   }, []);
 
-  useEffect(() => {
+useEffect(() => {
   const fetchRegistosEquipa = async () => {
-    if (!membrosSelecionados.length) return;
-
     const token = localStorage.getItem('loginToken');
-    const ids = membrosSelecionados.join(',');
+    const todosMembros = minhasEquipas.flatMap(eq => eq.membros.map(m => m.id));
+    if (!todosMembros.length) return;
 
+    const ids = todosMembros.join(',');
     const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia-equipa?membros=${ids}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -117,7 +133,8 @@ const RegistoPontoObra = () => {
   };
 
   fetchRegistosEquipa();
-}, [membrosSelecionados]);
+}, [minhasEquipas]);
+
 
 
   const obterMoradaPorCoordenadas = async (lat, lon) => {
@@ -461,6 +478,7 @@ const RegistoPontoObra = () => {
                       <span className="d-none d-sm-inline">
                         {scannerVisible ? 'Fechar Scanner' : 'Abrir Scanner QR Code'}
                       </span>
+                      
                       <span className="d-sm-none">
                         {scannerVisible ? 'Fechar' : 'Scanner'}
                       </span>
@@ -475,122 +493,184 @@ const RegistoPontoObra = () => {
                   )}
 
                   {/* Manual Registration */}
-                  <div className="border border-primary rounded p-3 p-md-4" style={{backgroundColor: '#f8f9ff'}}>
-                    <h5 className="text-primary fw-bold mb-3" style={{fontSize: 'clamp(1rem, 3vw, 1.25rem)'}}>
-                      <FaClock className="me-2" />
-                      <span className="d-none d-sm-inline">Registo Manual</span>
-                      <span className="d-sm-none">Manual</span>
-                    </h5>
-
-                    <div className="mb-3">
-                      <label className="form-label fw-semibold small">Selecionar Obra</label>
-                      <select
-                        className="form-select form-control-custom"
-                        value={obraSelecionada}
-                        onChange={(e) => setObraSelecionada(e.target.value)}
-                      >
-                        <option value="">Escolha a obra...</option>
-                        {obras.map(obra => (
-                          <option key={obra.id} value={obra.id}>{obra.nome}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="row g-2">
-                      <div className="col-6">
-                        <button
-                          className="btn btn-success btn-action w-100"
-                          onClick={() => handleManualAction('entrada')}
-                          disabled={!obraSelecionada || loading}
-                        >
-                          <FaPlay className="me-1 me-md-2" />
-                          <span className="d-none d-sm-inline">ENTRADA</span>
-                          <span className="d-sm-none">ENTRA</span>
-                        </button>
-                      </div>
-                      <div className="col-6">
-                        <button
-                          className="btn btn-danger btn-action w-100"
-                          onClick={() => handleManualAction('saida')}
-                          disabled={!obraSelecionada || loading}
-                        >
-                          <FaStop className="me-1 me-md-2" />
-                          <span className="d-none d-sm-inline">SAÍDA</span>
-                          <span className="d-sm-none">SAI</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 p-3 p-md-4 border border-info rounded bg-white">
-  <h5 className="text-info fw-bold mb-3">Registo por Equipa</h5>
-
-  {/* Obra */}
-  <div className="mb-3">
-    <label className="form-label fw-semibold small">Obra</label>
-    <select
-      className="form-select form-control-custom"
-      value={obraSelecionada}
-      onChange={(e) => setObraSelecionada(e.target.value)}
-    >
-      <option value="">Escolha a obra...</option>
-      {obras.map(obra => (
-        <option key={obra.id} value={obra.id}>{obra.nome}</option>
-      ))}
-    </select>
+                  <div className="border border-primary rounded mb-3">
+  <div 
+    className="bg-primary text-white px-3 py-2 d-flex justify-content-between align-items-center rounded-top"
+    style={{ cursor: 'pointer' }}
+    onClick={() => setMostrarManual(prev => !prev)}
+  >
+    <h5 className="mb-0">
+      <FaClock className="me-2" />
+      Registo Manual
+    </h5>
+    <span>{mostrarManual ? '−' : '+'}</span>
   </div>
 
-  {/* Membros da equipa */}
-  <div className="mb-3">
-    <label className="form-label fw-semibold small">Membros da Equipa</label>
-    {minhasEquipas.map(eq => (
-      <div key={eq.nome} className="mb-2">
-        <strong>{eq.nome}</strong>
-        {eq.membros.map(m => (
-          <div key={m.id} className="form-check">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id={`membro-${m.id}`}
-              value={m.id}
-              checked={membrosSelecionados.includes(m.id)}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setMembrosSelecionados(prev => checked
-                  ? [...prev, m.id]
-                  : prev.filter(id => id !== m.id));
-              }}
-            />
-            <label className="form-check-label" htmlFor={`membro-${m.id}`}>
-              {m.nome}
-            </label>
-          </div>
-        ))}
+  {mostrarManual && (
+    <div className="p-3 p-md-4" style={{backgroundColor: '#f8f9ff'}}>
+      <div className="mb-3">
+        <label className="form-label fw-semibold small">Selecionar Obra</label>
+        <select
+          className="form-select form-control-custom"
+          value={obraSelecionada}
+          onChange={(e) => setObraSelecionada(e.target.value)}
+        >
+          <option value="">Escolha a obra...</option>
+          {obras.map(obra => (
+            <option key={obra.id} value={obra.id}>{obra.nome}</option>
+          ))}
+        </select>
       </div>
-    ))}
+
+      <div className="row g-2">
+        <div className="col-6">
+          <button
+            className="btn btn-success btn-action w-100"
+            onClick={() => handleManualAction('entrada')}
+            disabled={!obraSelecionada || loading}
+          >
+            <FaPlay className="me-1 me-md-2" />
+            <span className="d-none d-sm-inline">ENTRADA</span>
+            <span className="d-sm-none">ENTRA</span>
+          </button>
+        </div>
+        <div className="col-6">
+          <button
+            className="btn btn-danger btn-action w-100"
+            onClick={() => handleManualAction('saida')}
+            disabled={!obraSelecionada || loading}
+          >
+            <FaStop className="me-1 me-md-2" />
+            <span className="d-none d-sm-inline">SAÍDA</span>
+            <span className="d-sm-none">SAI</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+</div>
+
+                    {/* Team Registration */}
+<div className="mt-4 border border-info rounded bg-white mb-3">
+  <div 
+    className="bg-info text-white px-3 py-2 d-flex justify-content-between align-items-center rounded-top"
+    style={{ cursor: 'pointer' }}
+    onClick={() => setMostrarEquipa(prev => !prev)}
+  >
+    <h5 className="mb-0">
+      <FaUsers className="me-2" />
+      Registo por Equipa
+    </h5>
+    <span>{mostrarEquipa ? '−' : '+'}</span>
   </div>
 
-  {/* Botões Entrada/Saída */}
-  <div className="row g-2">
-    <div className="col-6">
-      <button
-        className="btn btn-success btn-action w-100"
-        onClick={() => handleRegistoEquipa('entrada')}
-        disabled={!obraSelecionada || membrosSelecionados.length === 0 || loading}
-      >
-        <FaPlay className="me-1" /> ENTRADA
-      </button>
+  {mostrarEquipa && (
+    <div className="p-3 p-md-4">
+      {/* Obra */}
+      <div className="mb-3">
+        <label className="form-label fw-semibold small">Obra</label>
+        <select
+          className="form-select form-control-custom"
+          value={obraSelecionada}
+          onChange={(e) => setObraSelecionada(e.target.value)}
+        >
+          <option value="">Escolha a obra...</option>
+          {obras.map(obra => (
+            <option key={obra.id} value={obra.id}>{obra.nome}</option>
+          ))}
+        </select>
+      </div>
+
+     {/* Membros da equipa com estado atual */}
+<div className="mb-3">
+  <label className="form-label fw-semibold small">Membros da Equipa</label>
+  {minhasEquipas.length === 0 ? (
+    <p className="text-muted">Sem equipas associadas.</p>
+  ) : (
+    minhasEquipas.map(eq => (
+      <div key={eq.nome} className="mb-3">
+        <h6 className="fw-bold text-primary">{eq.nome}</h6>
+       {eq.membros.map(m => {
+  const entradas = registosEquipa.filter(r => r.user_id === m.id && r.tipo === 'entrada');
+  const saidas = registosEquipa.filter(r => r.user_id === m.id && r.tipo === 'saida');
+
+  const ultimaEntrada = entradas.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+  const temSaidaPosterior = ultimaEntrada && saidas.some(s => new Date(s.timestamp) > new Date(ultimaEntrada.timestamp));
+
+  let estado = 'Ausente';
+  let corEstado = 'text-muted';
+
+  if (ultimaEntrada && !temSaidaPosterior) {
+    if (obraSelecionada && ultimaEntrada.obra_id == obraSelecionada) {
+      estado = 'A Trabalhar';
+      corEstado = 'text-success';
+    } else {
+      estado = 'Ocupado';
+      corEstado = 'text-warning';
+    }
+  }
+
+  return (
+    <div key={m.id} className="form-check d-flex justify-content-between align-items-center border-bottom py-2 ps-3">
+      <div>
+        <input
+          className="form-check-input me-2"
+          type="checkbox"
+          id={`membro-${m.id}`}
+          value={m.id}
+          checked={membrosSelecionados.includes(m.id)}
+          onChange={(e) => {
+            const checked = e.target.checked;
+            setMembrosSelecionados(prev => checked
+              ? [...prev, m.id]
+              : prev.filter(id => id !== m.id));
+          }}
+        />
+        <label className="form-check-label" htmlFor={`membro-${m.id}`}>
+          {m.nome}
+        </label>
+      </div>
+      <span className={`fw-semibold ${corEstado} me-2`}>{estado}</span>
     </div>
-    <div className="col-6">
-      <button
-        className="btn btn-danger btn-action w-100"
-        onClick={() => handleRegistoEquipa('saida')}
-        disabled={!obraSelecionada || membrosSelecionados.length === 0 || loading}
-      >
-        <FaStop className="me-1" /> SAÍDA
-      </button>
-    </div>
-  </div>
+  );
+})}
+
+
+      </div>
+    ))
+  )}
 </div>
+
+
+      {/* Botões Entrada/Saída */}
+      <div className="row g-2">
+        <div className="col-6">
+          <button
+            className="btn btn-success btn-action w-100"
+            onClick={() => handleRegistoEquipa('entrada')}
+            disabled={!obraSelecionada || membrosSelecionados.length === 0 || loading}
+          >
+            <FaPlay className="me-1" /> ENTRADA
+          </button>
+        </div>
+        <div className="col-6">
+          <button
+            className="btn btn-danger btn-action w-100"
+            onClick={() => handleRegistoEquipa('saida')}
+            disabled={!obraSelecionada || membrosSelecionados.length === 0 || loading}
+          >
+            <FaStop className="me-1" /> SAÍDA
+          </button>
+        </div>
+      </div>
+
+
+
+
+    </div>
+  )}
+</div>
+
 
                 </div>
               </div>
@@ -663,28 +743,7 @@ const RegistoPontoObra = () => {
                 </div>
               </div>
             </div>
-            <div className="mt-4 card card-moderno">
-  <div className="card-body">
-    <h5 className="text-info fw-bold mb-3">Registos de Hoje da Equipa</h5>
-    {registosEquipa.length === 0 ? (
-      <p className="text-muted">Sem registos hoje para os membros selecionados.</p>
-    ) : (
-      registosEquipa.map((r, i) => (
-        <div key={i} className={`registro-item ${r.tipo === 'saida' ? 'registro-saida' : ''}`}>
-          <div className="fw-bold">{r.User?.nome}</div>
-          <div className="small text-uppercase">{r.tipo}</div>
-          <div className="text-muted small">
-            {new Date(r.timestamp).toLocaleTimeString('pt-PT', {
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </div>
-          <div className="text-primary small">{r.Obra?.nome}</div>
-        </div>
-      ))
-    )}
-  </div>
-</div>
+            
 
           </div>
         </div>
