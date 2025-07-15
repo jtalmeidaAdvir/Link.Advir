@@ -21,6 +21,9 @@ const CalendarioHorasTrabalho = () => {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
 const [faltas, setFaltas] = useState([]);
+const [faltasDoDia, setFaltasDoDia] = useState([]);
+const [tiposFalta, setTiposFalta] = useState([]);
+
 
 const carregarFaltasFuncionario = async () => {
   const token = localStorage.getItem("painelAdminToken");
@@ -41,7 +44,9 @@ const carregarFaltasFuncionario = async () => {
 
   if (res.ok) {
     const data = await res.json();
-    setFaltas(data);
+    const listaFaltas = data?.DataSet?.Table ?? [];
+    setFaltas(listaFaltas);
+    console.log('Faltas carregadas:', listaFaltas);
   } else {
     const msg = await res.text(); // lê a resposta mesmo se for erro
     console.error('Erro ao carregar faltas:', res.status, msg);
@@ -51,6 +56,35 @@ const carregarFaltasFuncionario = async () => {
 }
 
 };
+
+const carregarTiposFalta = async () => {
+  const token = localStorage.getItem("painelAdminToken");
+  const urlempresa = localStorage.getItem("urlempresa");
+
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa: urlempresa,
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const lista = data?.DataSet?.Table ?? [];
+      setTiposFalta(lista);
+      console.log('Tipos de falta carregados:', lista);
+    } else {
+      const msg = await res.text();
+      console.error('Erro ao carregar tipos de falta:', res.status, msg);
+    }
+  } catch (err) {
+    console.error('Erro ao buscar tipos de falta:', err);
+  }
+};
+
 
 
 
@@ -102,6 +136,16 @@ const carregarFaltasFuncionario = async () => {
 
   const carregarDetalhes = async (data) => {
     setDiaSelecionado(data);
+    const faltasNoDia = faltas.filter(f => {
+  const dataFalta = new Date(f.Data);
+  return (
+    dataFalta.getFullYear() === new Date(data).getFullYear() &&
+    dataFalta.getMonth() === new Date(data).getMonth() &&
+    dataFalta.getDate() === new Date(data).getDate()
+  );
+});
+setFaltasDoDia(faltasNoDia);
+
     const token = localStorage.getItem('loginToken');
     try {
       setLoading(true);
@@ -224,19 +268,37 @@ const carregarFaltasFuncionario = async () => {
   const isDiaUtil = diaSemana !== 0 && diaSemana !== 6;
   const isSelecionado = diaSelecionado === dataFormatada;
 
-const existeFalta = faltas.some(f => {
-  const dataFalta = new Date(f.Data).toISOString().split('T')[0];
-  return dataFalta === dataFormatada;
+const existeFalta = Array.isArray(faltas) && faltas.some(f => {
+  const dataFalta = new Date(f.Data);
+  return (
+    dataFalta.getFullYear() === date.getFullYear() &&
+    dataFalta.getMonth() === date.getMonth() &&
+    dataFalta.getDate() === date.getDate()
+  );
 });
+
+
 
 
   let classes = 'calendario-dia btn';
 
   if (isSelecionado) classes += ' btn-primary';
-  else if (existeFalta) classes += ' btn-danger'; // ❗ se há falta → vermelho
+else if (existeFalta) classes += ' dia-falta';
+
+
   else if (isHoje) classes += ' btn-outline-primary';
-  else if (temRegisto) classes += ' btn-success';
-  else if (isPassado && isDiaUtil) classes += ' btn-warning';
+else if (temRegisto) {
+  const horasStr = resumo[dataFormatada]?.split('h')[0];
+  const horasTrabalhadas = parseInt(horasStr, 10);
+
+  if (horasTrabalhadas >= 8) {
+    classes += ' btn-success';
+  } else {
+    classes += ' btn-menor-8h';
+  }
+}
+
+  //else if (isPassado && isDiaUtil) classes += ' btn-warning';
   else classes += ' btn-outline-secondary';
 
   return classes;
@@ -249,7 +311,8 @@ const existeFalta = faltas.some(f => {
  useEffect(() => {
   carregarResumo();
   carregarObras();
-  carregarFaltasFuncionario(); // 👈 novo
+  carregarFaltasFuncionario(); 
+  carregarTiposFalta();
 }, [mesAtual]);
 
   useEffect(() => {
@@ -281,6 +344,26 @@ const existeFalta = faltas.some(f => {
           transition: all 0.3s ease;
           cursor: pointer;
         }
+          .dia-falta {
+  position: relative;
+  background-image: repeating-linear-gradient(
+    45deg,
+    #dee2e6 0,
+    #dee2e6 4px,
+    #f8f9fa 4px,
+    #f8f9fa 8px
+  );
+  color: #6c757d !important;
+  border: 1px solid #ced4da;
+}
+  .btn-menor-8h {
+  background-color: #fff3cd !important; /* amarelo claro */
+  border: 1px solid #ffeeba;
+  color: #856404;
+}
+
+
+
         @media (min-width: 768px) {
           .calendario-dia {
             height: 80px;
@@ -568,6 +651,7 @@ const existeFalta = faltas.some(f => {
                     {/* Resumo do dia */}
                     {detalhes.length > 0 && (
                       <div className="mb-4">
+                        
                         <h6 className="fw-bold text-muted mb-3">Resumo do Dia</h6>
                         {detalhes.map((entry, index) => (
                           <div key={index} className="border-start border-success border-3 ps-3 mb-3">
@@ -589,6 +673,31 @@ const existeFalta = faltas.some(f => {
                         </div>
                       </div>
                     )}
+                    {faltasDoDia.length > 0 && (
+  <div className="mb-4">
+    <h6 className="fw-bold text-danger mb-3">Faltas neste dia</h6>
+    {faltasDoDia.map((f, idx) => (
+      <div key={idx} className="border-start border-danger border-3 ps-3 mb-2">
+        <div className="d-flex justify-content-between small">
+          <span className="fw-semibold">🟥 Código:</span>
+          <span>
+  {f.Falta} – {tiposFalta.find(tipo => tipo.Codigo === f.Falta)?.Descricao || 'Descrição indisponível'}
+</span>
+
+        </div>
+        <div className="d-flex justify-content-between small">
+          <span>Tipo:</span>
+          <span>{f.Horas ? 'Por horas' : 'Dia inteiro'}</span>
+        </div>
+        <div className="d-flex justify-content-between small">
+          <span>Duração:</span> 
+          <span>{f.Tempo} {f.Horas ? 'h' : 'dia(s)'}</span>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+
 
                     {/* Formulário */}
                     <div className="mb-3">
@@ -725,6 +834,7 @@ const existeFalta = faltas.some(f => {
                           ))}
                         </div>
                       </div>
+                      
                     )}
                   </div>
                 </div>
