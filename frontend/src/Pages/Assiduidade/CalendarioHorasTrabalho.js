@@ -28,7 +28,7 @@ const [mapaFaltas, setMapaFaltas] = useState({});
 
 const carregarFaltasFuncionario = async () => {
   const token = localStorage.getItem("painelAdminToken");
-  const funcionarioId = '001'; // Substitui por localStorage.getItem('funcionarioId') se aplicável
+  const funcionarioId = localStorage.getItem('codFuncionario');
   const urlempresa = localStorage.getItem('urlempresa');
   
         

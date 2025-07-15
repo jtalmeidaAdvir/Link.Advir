@@ -36,7 +36,8 @@ export const handleLogin = async ({
     localStorage.setItem('empresa_areacliente', data.empresa_areacliente);
     localStorage.setItem('id_tecnico', data.id_tecnico);    
     localStorage.setItem('tipoUser', data.tipoUser || '');
-
+    localStorage.setItem('codFuncionario', data.codFuncionario || '');
+    localStorage.setItem('codRecursosHumanos', data.codRecursosHumanos || '');
 
 
       setUsername(data.username);

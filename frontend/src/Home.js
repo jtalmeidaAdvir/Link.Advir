@@ -1,6 +1,7 @@
 ﻿
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { startTokenValidation, stopTokenValidation } from './utils/authUtils';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaFileContract, FaPhone, FaBoxOpen, FaQuestionCircle, FaBars } from 'react-icons/fa';
 import { motion } from 'framer-motion';
@@ -35,6 +36,17 @@ const Home = () => {
     const currentYear = new Date().getFullYear(); // Obtém o ano atual
 
     const [selectedYear, setSelectedYear] = useState(currentYear);
+
+    // Efeito para iniciar/parar verificação de token
+    useEffect(() => {
+        // Iniciar verificação quando componente monta
+        startTokenValidation();
+
+        // Cleanup: parar verificação quando componente desmonta
+        return () => {
+            stopTokenValidation();
+        };
+    }, []);
 
 
 

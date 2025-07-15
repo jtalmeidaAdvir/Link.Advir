@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { sequelize, initializeSequelize } = require('./config/db');
 const userRoutes = require('./routes/userRoutes');
+const authRoutes = require('./routes/authRoutes');
 const empresaRoutes = require('./routes/empresaRoutes');
 const moduloRoutes = require('./routes/moduloRoutes');
 const submoduloRoutes = require('./routes/submoduloRoutes');
@@ -42,6 +43,7 @@ async function startApp() {
 
 // Rotas
 app.use('/api/users', userRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/empresas', empresaRoutes);
 app.use('/api/modulos', moduloRoutes);
 app.use('/api/submodulos', submoduloRoutes);
