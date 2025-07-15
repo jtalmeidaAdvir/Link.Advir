@@ -125,7 +125,7 @@ const checkTokenOnServer = async () => {
         }
  
         // Verificar no servidor
-        const response = await fetch('http://localhost:3001/api/auth/verify-token', {
+        const response = await fetch('https://backend.advir.pt/api/auth/verify-token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
