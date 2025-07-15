@@ -327,5 +327,82 @@ FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional, SubAlimProporc
     }
 });
 
+router.put("/EditarFalta", async (req, res) => {
+  try {
+    const dados = req.body;
+
+    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+    if (!painelAdminToken) {
+      return res
+        .status(401)
+        .json({ error: "Token não encontrado. Faça login novamente." });
+    }
+
+    const urlempresa = await getEmpresaUrl(req);
+    if (!urlempresa) {
+      return res
+        .status(400)
+        .json({ error: "URL da empresa não fornecida." });
+    }
+
+    const {
+      Funcionario, Data, Falta, Horas, Tempo,
+      DescontaVenc, DescontaRem, ExcluiProc, ExcluiEstat,
+      Observacoes, CalculoFalta, DescontaSubsAlim, DataProc,
+      NumPeriodoProcessado, JaProcessado, InseridoBloco,
+      ValorDescontado, AnoProcessado, NumProc, Origem,
+      PlanoCurso, IdGDOC, CambioMBase, CambioMAlt, CotizaPeloMinimo,
+      Acerto, MotivoAcerto, NumLinhaDespesa, NumRelatorioDespesa,
+      FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional,
+      SubAlimProporcional
+    } = req.body;
+
+    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/EditarFalta`;
+
+    const requestData = {
+      Funcionario, Data, Falta, Horas, Tempo, DescontaVenc, DescontaRem,
+      ExcluiProc, ExcluiEstat, Observacoes, CalculoFalta, DescontaSubsAlim,
+      DataProc, NumPeriodoProcessado, JaProcessado, InseridoBloco,
+      ValorDescontado, AnoProcessado, NumProc, Origem, PlanoCurso,
+      IdGDOC, CambioMBase, CambioMAlt, CotizaPeloMinimo, Acerto,
+      MotivoAcerto, NumLinhaDespesa, NumRelatorioDespesa,
+      FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional, SubAlimProporcional
+    };
+
+    console.log("Editando falta via:", apiUrl);
+    console.log("Dados enviados:", requestData);
+
+    const response = await axios.put(apiUrl, requestData, {
+      headers: {
+        Authorization: `Bearer ${painelAdminToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+
+    if (response.status === 200) {
+      return res.status(200).json({
+        mensagem: "Falta editada com sucesso.",
+        detalhes: response.data,
+      });
+    } else {
+      return res.status(response.status).json({
+        error: "Falha ao editar falta.",
+        details: response.data,
+      });
+    }
+  } catch (error) {
+    console.error(
+      "Erro ao Editar Falta:",
+      error.response ? error.response.data : error.message
+    );
+    return res.status(500).json({
+      error: "Erro inesperado ao Editar Falta.",
+      details: error.message,
+    });
+  }
+});
+
+
 
 module.exports = router;
