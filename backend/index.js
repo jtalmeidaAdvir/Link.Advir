@@ -44,6 +44,7 @@ async function startApp() {
 // Rotas
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
+//
 app.use('/api/empresas', empresaRoutes);
 app.use('/api/modulos', moduloRoutes);
 app.use('/api/submodulos', submoduloRoutes);
