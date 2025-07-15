@@ -207,7 +207,9 @@ const user = await User.findOne({
     'empresa_areacliente',
     'id_tecnico',
     'empresaPredefinida',
-    'tipoUser' // 👈 este aqui!
+    'tipoUser',
+    'codFuncionario',
+    'codRecursosHumanos'
   ],
   where: { email }
 });
@@ -252,7 +254,9 @@ console.log("→ Empresa predefinida do utilizador:", userPlain.empresaPredefini
         userEmail: user.email,
         username: user.username, // 👈 este aqui
         empresaPredefinida: userPlain.empresaPredefinida,
-        tipoUser: user.tipoUser
+        tipoUser: user.tipoUser,
+        codFuncionario: user.codFuncionario,
+        codRecursosHumanos: user.codRecursosHumanos
         });
 
     } catch (error) {

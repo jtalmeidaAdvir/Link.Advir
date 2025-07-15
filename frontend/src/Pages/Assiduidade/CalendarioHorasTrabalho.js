@@ -23,6 +23,7 @@ const CalendarioHorasTrabalho = () => {
 const [faltas, setFaltas] = useState([]);
 const [faltasDoDia, setFaltasDoDia] = useState([]);
 const [tiposFalta, setTiposFalta] = useState([]);
+const [mapaFaltas, setMapaFaltas] = useState({});
 
 
 const carregarFaltasFuncionario = async () => {
@@ -75,6 +76,9 @@ const carregarTiposFalta = async () => {
       const data = await res.json();
       const lista = data?.DataSet?.Table ?? [];
       setTiposFalta(lista);
+        const mapa = Object.fromEntries(lista.map(f => [f.Falta, f.Descricao]));
+        setMapaFaltas(mapa);
+
       console.log('Tipos de falta carregados:', lista);
     } else {
       const msg = await res.text();
@@ -308,19 +312,30 @@ else if (temRegisto) {
 
   
 
- useEffect(() => {
-  carregarResumo();
-  carregarObras();
-  carregarFaltasFuncionario(); 
-  carregarTiposFalta();
+useEffect(() => {
+  const inicializarTudo = async () => {
+    setLoading(true);
+    try {
+      await carregarResumo();
+      await carregarObras();
+      await carregarFaltasFuncionario();
+      await carregarTiposFalta();
+
+      const hoje = new Date();
+      const dataFormatada = formatarData(hoje);
+      setDiaSelecionado(dataFormatada);
+      await carregarDetalhes(dataFormatada);
+    } catch (err) {
+      console.error('Erro ao carregar dados iniciais:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  inicializarTudo();
 }, [mesAtual]);
 
-  useEffect(() => {
-  const hoje = new Date();
-  const dataFormatada = formatarData(hoje);
-  setDiaSelecionado(dataFormatada);
-  carregarDetalhes(dataFormatada);
-}, []);
+
 
 
   const diasDoMes = gerarCalendario();
@@ -681,7 +696,10 @@ else if (temRegisto) {
         <div className="d-flex justify-content-between small">
           <span className="fw-semibold">🟥 Código:</span>
           <span>
-  {f.Falta} – {tiposFalta.find(tipo => tipo.Codigo === f.Falta)?.Descricao || 'Descrição indisponível'}
+{f.Falta} – {mapaFaltas[f.Falta] || 'Desconhecido'}
+
+
+
 </span>
 
         </div>
