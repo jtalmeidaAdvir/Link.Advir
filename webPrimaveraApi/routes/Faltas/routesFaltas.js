@@ -248,6 +248,65 @@ router.get("/GetHorarioFuncionario/:codFuncionario", async (req, res) => {
     }
 });
 
+
+router.get("/GetTotalizadorFeriasFuncionario/:codFuncionario", async (req, res) => {
+    try {
+        const painelAdminToken = req.headers["authorization"]?.split(" ")[1]; // Obtendo o token do cabeçalho
+        if (!painelAdminToken) {
+            return res
+                .status(401)
+                .json({
+                    error: "Token de administrador não encontrado. Faça login novamente.",
+                });
+        }
+
+        const urlempresa = await getEmpresaUrl(req); // Usando a função para obter o urlempresa
+        if (!urlempresa) {
+            return res
+                .status(400)
+                .json({ error: "URL da empresa não fornecida." });
+        }
+        const { codFuncionario } = req.params;
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/GetTotalizadorFeriasFuncionario/${codFuncionario}`; // A URL completa da API
+        console.log("Enviando solicitação para a URL:", apiUrl);
+
+        const response = await axios.get(apiUrl, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`, // Envia o token para a autenticação
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+        });
+
+        if (response.status === 200) {
+            const pedidos = response.data; // Obter os pedidos da resposta
+            if (!pedidos || pedidos.length === 0) {
+                return res
+                    .status(404)
+                    .json({ error: "Não foram encontrados os totalizadores das ferias do funcionario." });
+            }
+
+            return res.status(200).json(pedidos); // Retorna os pedidos encontrados
+        } else {
+            return res
+                .status(400)
+                .json({
+                    error: "Falha ao listar os totalizadores das ferias do funcionario.",
+                    details: response.data.ErrorMessage,
+                });
+        }
+    } catch (error) {
+        console.error("Erro ao listar os totalizadores das ferias do funcionario.:", error.message);
+        return res
+            .status(500)
+            .json({
+                error: "Erro inesperado ao listar os totalizadores das ferias do funcionario.",
+                details: error.message,
+            });
+    }
+});
+
+
 router.post("/InserirFalta", async (req, res) => {
     try {
         const dados = req.body;

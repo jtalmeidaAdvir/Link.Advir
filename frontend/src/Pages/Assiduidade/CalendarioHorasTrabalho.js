@@ -19,6 +19,7 @@ const CalendarioHorasTrabalho = () => {
 
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [mostrarFormularioFalta, setMostrarFormularioFalta] = useState(false);
 
 const [faltas, setFaltas] = useState([]);
 const [faltasDoDia, setFaltasDoDia] = useState([]);
@@ -38,6 +39,11 @@ const [novaFalta, setNovaFalta] = useState({
 });
 
 
+const [modoEdicaoFalta, setModoEdicaoFalta] = useState(false);
+const [faltaOriginal, setFaltaOriginal] = useState(null); // guarda Falta + Data + Funcionario
+
+
+
 const submeterFalta = async (e) => {
   e.preventDefault();
 
@@ -45,6 +51,7 @@ const submeterFalta = async (e) => {
   const urlempresa = localStorage.getItem('urlempresa');
   const funcionarioId = localStorage.getItem('codFuncionario');
   const dataFalta = diaSelecionado;
+
 
   const dadosFalta = {
   Funcionario: funcionarioId,
@@ -81,11 +88,17 @@ const submeterFalta = async (e) => {
   SubTurnoProporcional: 0,
   SubAlimProporcional: 0
 };
+const url = modoEdicaoFalta
+  ? `https://webapiprimavera.advir.pt/routesFaltas/EditarFalta`
+  : `https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`;
+
+const metodo = modoEdicaoFalta ? "PUT" : "POST";
+
 
 
   try {
-    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
-      method: "POST",
+    const res = await fetch(url, {
+  method: metodo,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -98,6 +111,9 @@ const submeterFalta = async (e) => {
       alert("Falta inserida com sucesso.");
       await carregarFaltasFuncionario();
       await carregarDetalhes(diaSelecionado);
+      setModoEdicaoFalta(false);
+      setFaltaOriginal(null);
+
       setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
     } else {
       const erro = await res.text();
@@ -789,7 +805,14 @@ useEffect(() => {
 
             {/* Detalhes do dia */}
             <div className="col-12 col-lg-4">
-               {detalhesHorario && (
+               
+
+
+              {diaSelecionado ? (
+                <div className="card card-moderno sidebar-sticky">
+                    
+                  <div className="card-body p-3 p-md-4">
+                    {detalhesHorario && (
                 <div className="mb-3">
                     <h6 className="fw-bold text-muted mb-2">Horário Contratual</h6>
                     <div className="border-start border-info border-3 ps-3 small">
@@ -799,11 +822,6 @@ useEffect(() => {
                     </div>
                 </div>
                 )}
-
-
-              {diaSelecionado ? (
-                <div className="card card-moderno sidebar-sticky">
-                  <div className="card-body p-3 p-md-4">
                     <h5 className="card-title d-flex align-items-center mb-3 mb-md-4" style={{fontSize: 'clamp(1rem, 3vw, 1.25rem)'}}>
                       <FaClock className="text-primary me-2 flex-shrink-0" />
                       <span className="text-truncate">
@@ -871,8 +889,35 @@ useEffect(() => {
           <span>Duração:</span> 
           <span>{f.Tempo} {f.Horas ? 'h' : 'dia(s)'}</span>
         </div>
+
+
+        
+        <div className="mt-1 text-end">
+      <button
+        className="btn btn-sm btn-outline-secondary"
+        onClick={() => {
+          setNovaFalta({
+            Falta: f.Falta,
+            Horas: f.Horas,
+            Tempo: f.Tempo,
+            Observacoes: f.Observacoes || '',
+          });
+          setModoEdicaoFalta(true);
+          setFaltaOriginal({
+            Funcionario: f.Funcionario,
+            Data: f.Data,
+            Falta: f.Falta,
+          });
+          setMostrarFormularioFalta(true);
+        }}
+      >
+        📝 Editar
+      </button>
+    </div>
       </div>
+      
     ))}
+
   </div>
 )}
 
@@ -967,6 +1012,18 @@ useEffect(() => {
     </div>
   )}
 </div>
+
+
+
+ <button
+    className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
+    onClick={() => setMostrarFormularioFalta(prev => !prev)}
+    type="button"
+  >
+    {mostrarFormularioFalta ? '- Recolher Falta' : '+ Registar Falta'}
+  </button>
+
+{mostrarFormularioFalta && (
 <div className="border border-danger rounded p-3 mt-4" style={{ backgroundColor: '#fff5f5' }}>
   <h6 className="text-danger fw-bold mb-3">
     <FaPlus className="me-2" />
@@ -1028,14 +1085,32 @@ useEffect(() => {
     </div>
 
     <button
-      type="submit"
-      className="btn btn-danger w-100 rounded-pill btn-responsive"
-      disabled={loading}
-    >
-      {loading ? 'A registar...' : 'Registar Falta'}
-    </button>
+  type="submit"
+  className={`btn ${modoEdicaoFalta ? "btn-warning" : "btn-danger"} w-100 rounded-pill btn-responsive`}
+  disabled={loading}
+>
+  {loading
+    ? modoEdicaoFalta ? "A editar..." : "A registar..."
+    : modoEdicaoFalta ? "Guardar Alterações" : "Registar Falta"}
+</button>
+{modoEdicaoFalta && (
+  <button
+    type="button"
+    className="btn btn-outline-secondary w-100 rounded-pill btn-responsive mt-2"
+    onClick={() => {
+      setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
+      setModoEdicaoFalta(false);
+      setFaltaOriginal(null);
+    }}
+  >
+    Cancelar Edição
+  </button>
+)}
+
+
   </form>
 </div>
+)}
 
 
 
