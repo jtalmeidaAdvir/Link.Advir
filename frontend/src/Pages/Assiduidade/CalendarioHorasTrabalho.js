@@ -26,6 +26,90 @@ const [tiposFalta, setTiposFalta] = useState([]);
 const [mapaFaltas, setMapaFaltas] = useState({});
 
 
+const [horarioFuncionario, setHorarioFuncionario] = useState(null); // contém o .Horario (ex: "001")
+const [horariosTrabalho, setHorariosTrabalho] = useState([]); // lista completa vinda do segundo endpoint
+const [detalhesHorario, setDetalhesHorario] = useState(null); // dados finais: descrição, horas, etc.
+
+const [novaFalta, setNovaFalta] = useState({
+  Falta: '',
+  Horas: false,
+  Tempo: 1,
+  Observacoes: '',
+});
+
+
+const submeterFalta = async (e) => {
+  e.preventDefault();
+
+  const token = localStorage.getItem('painelAdminToken');
+  const urlempresa = localStorage.getItem('urlempresa');
+  const funcionarioId = localStorage.getItem('codFuncionario');
+  const dataFalta = diaSelecionado;
+
+  const dadosFalta = {
+    Funcionario: funcionarioId,
+    Data: dataFalta,
+    Falta: novaFalta.Falta,
+    Horas: novaFalta.Horas,
+    Tempo: novaFalta.Tempo,
+    DescontaVenc: false,
+    DescontaRem: false,
+    ExcluiProc: false,
+    ExcluiEstat: false,
+    Observacoes: novaFalta.Observacoes,
+    CalculoFalta: false,
+    DescontaSubsAlim: false,
+    DataProc: null,
+    NumPeriodoProcessado: null,
+    JaProcessado: false,
+    InseridoBloco: false,
+    ValorDescontado: 0,
+    AnoProcessado: null,
+    NumProc: null,
+    Origem: "Frontend",
+    PlanoCurso: null,
+    IdGDOC: null,
+    CambioMBase: 1,
+    CambioMAlt: 1,
+    CotizaPeloMinimo: false,
+    Acerto: false,
+    MotivoAcerto: null,
+    NumLinhaDespesa: null,
+    NumRelatorioDespesa: null,
+    FuncComplementosBaixaId: null,
+    DescontaSubsTurno: false,
+    SubTurnoProporcional: false,
+    SubAlimProporcional: false
+  };
+
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        urlempresa: urlempresa,
+      },
+      body: JSON.stringify(dadosFalta),
+    });
+
+    if (res.ok) {
+      alert("Falta inserida com sucesso.");
+      await carregarFaltasFuncionario();
+      await carregarDetalhes(diaSelecionado);
+      setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
+    } else {
+      const erro = await res.text();
+      alert("Erro ao inserir falta: " + erro);
+    }
+  } catch (err) {
+    console.error("Erro ao inserir falta:", err);
+    alert("Erro inesperado ao inserir falta.");
+  }
+};
+
+
+
 const carregarFaltasFuncionario = async () => {
   const token = localStorage.getItem("painelAdminToken");
   const funcionarioId = localStorage.getItem('codFuncionario');
@@ -89,6 +173,66 @@ const carregarTiposFalta = async () => {
   }
 };
 
+const carregarHorarioFuncionario = async () => {
+  const token = localStorage.getItem("painelAdminToken");
+  const funcionarioId = "001";
+  const urlempresa = localStorage.getItem("urlempresa");
+
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetHorarioFuncionario/${funcionarioId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        urlempresa: urlempresa,
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const horario = data?.DataSet?.Table?.[0] ?? null;
+      setHorarioFuncionario(horario); // ex: { Funcionario: "001", Horario: "001", ... }
+    } else {
+      console.error("Erro ao carregar horário do funcionário:", res.status, await res.text());
+    }
+  } catch (err) {
+    console.error("Erro ao buscar horário do funcionário:", err);
+  }
+};
+
+const carregarHorariosTrabalho = async () => {
+  const token = localStorage.getItem("painelAdminToken");
+  const urlempresa = localStorage.getItem("urlempresa");
+
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetHorariosTrabalho`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        urlempresa: urlempresa,
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const lista = data?.DataSet?.Table ?? [];
+      setHorariosTrabalho(lista);
+    } else {
+      console.error("Erro ao carregar horários de trabalho:", res.status, await res.text());
+    }
+  } catch (err) {
+    console.error("Erro ao buscar horários de trabalho:", err);
+  }
+};
+
+
+useEffect(() => {
+  if (horarioFuncionario && horariosTrabalho.length > 0) {
+    const detalhes = horariosTrabalho.find(h => h.Horario === horarioFuncionario.Horario);
+    setDetalhesHorario(detalhes);
+  }
+}, [horarioFuncionario, horariosTrabalho]);
 
 
 
@@ -314,23 +458,26 @@ else if (temRegisto) {
 
 useEffect(() => {
   const inicializarTudo = async () => {
-    setLoading(true);
-    try {
-      await carregarResumo();
-      await carregarObras();
-      await carregarFaltasFuncionario();
-      await carregarTiposFalta();
+  setLoading(true);
+  try {
+    await carregarResumo();
+    await carregarObras();
+    await carregarFaltasFuncionario();
+    await carregarTiposFalta();
+    await carregarHorarioFuncionario();
+    await carregarHorariosTrabalho();
 
-      const hoje = new Date();
-      const dataFormatada = formatarData(hoje);
-      setDiaSelecionado(dataFormatada);
-      await carregarDetalhes(dataFormatada);
-    } catch (err) {
-      console.error('Erro ao carregar dados iniciais:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const hoje = new Date();
+    const dataFormatada = formatarData(hoje);
+    setDiaSelecionado(dataFormatada);
+    await carregarDetalhes(dataFormatada);
+  } catch (err) {
+    console.error('Erro ao carregar dados iniciais:', err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   inicializarTudo();
 }, [mesAtual]);
@@ -641,6 +788,18 @@ useEffect(() => {
 
             {/* Detalhes do dia */}
             <div className="col-12 col-lg-4">
+               {detalhesHorario && (
+                <div className="mb-3">
+                    <h6 className="fw-bold text-muted mb-2">Horário Contratual</h6>
+                    <div className="border-start border-info border-3 ps-3 small">
+                    <div><strong>Descrição:</strong> {detalhesHorario.Descricao}</div>
+                    <div><strong>Horas por dia:</strong> {detalhesHorario.Horas1}</div>
+                    <div><strong>Total Horas Semanais:</strong> {detalhesHorario.TotalHoras}</div>
+                    </div>
+                </div>
+                )}
+
+
               {diaSelecionado ? (
                 <div className="card card-moderno sidebar-sticky">
                   <div className="card-body p-3 p-md-4">
@@ -807,6 +966,76 @@ useEffect(() => {
     </div>
   )}
 </div>
+<div className="border border-danger rounded p-3 mt-4" style={{ backgroundColor: '#fff5f5' }}>
+  <h6 className="text-danger fw-bold mb-3">
+    <FaPlus className="me-2" />
+    <span className="d-none d-sm-inline">Registar Falta</span>
+    <span className="d-sm-none">Falta</span>
+  </h6>
+
+  <form onSubmit={submeterFalta}>
+    <div className="mb-3">
+      <label className="form-label small fw-semibold">Tipo de Falta</label>
+      <select
+        className="form-select form-moderno"
+        value={novaFalta.Falta}
+        onChange={(e) => setNovaFalta({ ...novaFalta, Falta: e.target.value })}
+        required
+      >
+        <option value="">Selecione o tipo...</option>
+        {tiposFalta.map((t, i) => (
+          <option key={i} value={t.Falta}>
+            {t.Falta} – {t.Descricao}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    <div className="row g-2 mb-3">
+      <div className="col-6">
+        <label className="form-label small fw-semibold">Duração</label>
+        <input
+          type="number"
+          className="form-control form-moderno"
+          min="1"
+          value={novaFalta.Tempo}
+          onChange={(e) => setNovaFalta({ ...novaFalta, Tempo: parseInt(e.target.value) })}
+          required
+        />
+      </div>
+      <div className="col-6">
+        <label className="form-label small fw-semibold">Por horas?</label>
+        <select
+          className="form-select form-moderno"
+          value={novaFalta.Horas ? "1" : "0"}
+          onChange={(e) => setNovaFalta({ ...novaFalta, Horas: e.target.value === "1" })}
+        >
+          <option value="0">Dia completo</option>
+          <option value="1">Por horas</option>
+        </select>
+      </div>
+    </div>
+
+    <div className="mb-3">
+      <label className="form-label small fw-semibold">Observações</label>
+      <textarea
+        className="form-control form-moderno"
+        rows="2"
+        value={novaFalta.Observacoes}
+        onChange={(e) => setNovaFalta({ ...novaFalta, Observacoes: e.target.value })}
+      />
+    </div>
+
+    <button
+      type="submit"
+      className="btn btn-danger w-100 rounded-pill btn-responsive"
+      disabled={loading}
+    >
+      {loading ? 'A registar...' : 'Registar Falta'}
+    </button>
+  </form>
+</div>
+
 
 
                     {/* Histórico */}

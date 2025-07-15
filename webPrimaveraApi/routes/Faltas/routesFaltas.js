@@ -268,7 +268,18 @@ router.post("/InserirFalta", async (req, res) => {
         }
 
         // Extraindo os parâmetros do corpo da requisição
-        const { Id, Responsavel, Titulo } = req.body;
+        const {
+  Funcionario, Data, Falta, Horas, Tempo,
+  DescontaVenc, DescontaRem, ExcluiProc, ExcluiEstat,
+  Observacoes, CalculoFalta, DescontaSubsAlim, DataProc,
+  NumPeriodoProcessado, JaProcessado, InseridoBloco,
+  ValorDescontado, AnoProcessado, NumProc, Origem,
+  PlanoCurso, IdGDOC, CambioMBase, CambioMAlt, CotizaPeloMinimo,
+  Acerto, MotivoAcerto, NumLinhaDespesa, NumRelatorioDespesa,
+  FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional,
+  SubAlimProporcional
+} = req.body;
+
 
         const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InserirFalta`;
 
