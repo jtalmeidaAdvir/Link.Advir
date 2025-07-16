@@ -284,8 +284,8 @@ const submeterFerias = async (e) => {
     observacoes: Observacoes,
     usuarioCriador: funcionarioId,
     origem: 'frontend',
-    dataInicio,
-    dataFim
+    dataInicio : dataInicio,
+    dataFim : dataFim
   };
 
   // ⚠️ Debug temporário (remove se tudo estiver ok)

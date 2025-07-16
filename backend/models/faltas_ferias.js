@@ -15,6 +15,15 @@ const { sequelize } = require('../config/db');
       type: DataTypes.DATE,
       allowNull: false
     },
+    dataInicio: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
+    },
+    dataFim: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
+    },
+
     estadoGozo: DataTypes.INTEGER,
     falta: DataTypes.STRING,
     horas: DataTypes.INTEGER,

@@ -60,7 +60,6 @@ app.use('/api/registo-ponto-obra', registoPontoObraRoutes);
 app.use('/api/faltas-ferias', faltasFeriasRoutes);
 
 
-app.use(fileUpload());
 
 
 app.get('/databases', async (req, res) => {
