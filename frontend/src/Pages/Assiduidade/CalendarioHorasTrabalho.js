@@ -20,6 +20,8 @@ const CalendarioHorasTrabalho = () => {
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [mostrarFormularioFalta, setMostrarFormularioFalta] = useState(false);
+  
+  const [MostrarFormularioFerias, setMostrarFormularioFerias] = useState(false);
 
 const [faltas, setFaltas] = useState([]);
 const [faltasDoDia, setFaltasDoDia] = useState([]);
@@ -38,9 +40,28 @@ const [novaFalta, setNovaFalta] = useState({
   Observacoes: '',
 });
 
+const [novaFaltaFerias, setNovaFaltaFerias] = useState({
+  dataInicio: '',
+  dataFim: '',
+  Horas: false,
+  Tempo: 1,
+  Observacoes: ''
+});
 
 const [modoEdicaoFalta, setModoEdicaoFalta] = useState(false);
+
+const [modoEdicaoFerias, setModoEdicaoFerias] = useState(false);
 const [faltaOriginal, setFaltaOriginal] = useState(null); // guarda Falta + Data + Funcionario
+
+const [feriasTotalizador, setFeriasTotalizador] = useState(null);
+
+
+
+
+
+
+
+
 
 
 
@@ -240,6 +261,127 @@ const carregarHorariosTrabalho = async () => {
     }
   } catch (err) {
     console.error("Erro ao buscar horários de trabalho:", err);
+  }
+};
+
+
+const carregarTotalizadorFerias = async () => {
+  const token = localStorage.getItem("painelAdminToken");
+  const urlempresa = localStorage.getItem("urlempresa");
+  const funcionarioId = localStorage.getItem("codFuncionario");
+
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetTotalizadorFeriasFuncionario/${funcionarioId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setFeriasTotalizador(data?.DataSet?.Table?.[0] || null); // Assumindo estrutura com DataSet
+    } else {
+      console.warn("Erro ao carregar totalizador de férias", await res.text());
+    }
+  } catch (err) {
+    console.error("Erro ao buscar totalizador de férias:", err);
+  }
+};
+
+const submeterFerias = async (e) => {
+  e.preventDefault();
+
+  const token = localStorage.getItem("painelAdminToken");
+  const urlempresa = localStorage.getItem("urlempresa");
+  const funcionarioId = localStorage.getItem("codFuncionario");
+
+  const { dataInicio, dataFim, Horas, Tempo, Observacoes } = novaFaltaFerias;
+
+  const inicio = new Date(dataInicio);
+  const fim = new Date(dataFim);
+  const resultados = [];
+
+  for (
+    let dataAtual = new Date(inicio);
+    dataAtual <= fim;
+    dataAtual.setDate(dataAtual.getDate() + 1)
+  ) {
+    // Ignorar fins de semana
+    const diaSemana = dataAtual.getDay();
+    if (diaSemana === 0 || diaSemana === 6) continue;
+
+    const dataFormatada = dataAtual.toISOString().split('T')[0];
+    const faltasParaCriar = Horas ? ["F40"] : ["F50", "F40"];
+
+    for (const faltaCod of faltasParaCriar) {
+      const dados = {
+        Funcionario: funcionarioId,
+        Data: dataFormatada,
+        Falta: faltaCod,
+        Horas: Horas ? 1 : 0,
+        Tempo,
+        DescontaVenc: 0,
+        DescontaRem: 0,
+        ExcluiProc: 0,
+        ExcluiEstat: 0,
+        Observacoes,
+        CalculoFalta: 1,
+        DescontaSubsAlim: 0,
+        DataProc: null,
+        NumPeriodoProcessado: 0,
+        JaProcessado: 0,
+        InseridoBloco: 0,
+        ValorDescontado: 0,
+        AnoProcessado: 0,
+        NumProc: 0,
+        Origem: "2",
+        PlanoCurso: null,
+        IdGDOC: null,
+        CambioMBase: 0,
+        CambioMAlt: 0,
+        CotizaPeloMinimo: 0,
+        Acerto: 0,
+        MotivoAcerto: null,
+        NumLinhaDespesa: null,
+        NumRelatorioDespesa: null,
+        FuncComplementosBaixaId: null,
+        DescontaSubsTurno: 0,
+        SubTurnoProporcional: 0,
+        SubAlimProporcional: 0
+      };
+
+      const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          urlempresa: urlempresa,
+        },
+        body: JSON.stringify(dados),
+      });
+
+      resultados.push(res.ok);
+    }
+  }
+
+  const sucesso = resultados.every(r => r);
+
+  if (sucesso) {
+    alert("Férias registadas com sucesso.");
+    setMostrarFormularioFerias(false);
+    await carregarFaltasFuncionario();
+    await carregarDetalhes(novaFaltaFerias.dataInicio);
+    setNovaFaltaFerias({
+      dataInicio: '',
+      dataFim: '',
+      Horas: false,
+      Tempo: 1,
+      Observacoes: ''
+    });
+  } else {
+    alert("Erro ao registar uma ou mais faltas.");
   }
 };
 
@@ -483,6 +625,8 @@ useEffect(() => {
     await carregarTiposFalta();
     await carregarHorarioFuncionario();
     await carregarHorariosTrabalho();
+    await carregarTotalizadorFerias();
+
 
     const hoje = new Date();
     const dataFormatada = formatarData(hoje);
@@ -814,13 +958,27 @@ useEffect(() => {
                   <div className="card-body p-3 p-md-4">
                     {detalhesHorario && (
                 <div className="mb-3">
-                    <h6 className="fw-bold text-muted mb-2">Horário Contratual</h6>
-                    <div className="border-start border-info border-3 ps-3 small">
-                    <div><strong>Descrição:</strong> {detalhesHorario.Descricao}</div>
-                    <div><strong>Horas por dia:</strong> {detalhesHorario.Horas1}</div>
-                    <div><strong>Total Horas Semanais:</strong> {detalhesHorario.TotalHoras}</div>
-                    </div>
-                </div>
+  <h6 className="fw-bold text-muted mb-2">Horário Contratual & Férias</h6>
+  <div className="row g-2">
+    <div className="col-12 col-md-6">
+      <div className="border-start border-info border-3 ps-3 small">
+        <div><strong>Descrição:</strong> {detalhesHorario.Descricao}</div>
+        <div><strong>Horas por dia:</strong> {detalhesHorario.Horas1}</div>
+        <div><strong>Total Horas Semanais:</strong> {detalhesHorario.TotalHoras}</div>
+      </div>
+    </div>
+    <div className="col-12 col-md-6">
+      <div className="border-start border-success border-3 ps-3 small">
+        <div><strong>Dias Direito:</strong> {feriasTotalizador.DiasDireito} dias</div>
+        <div><strong>Dias Ano Anterior:</strong> {feriasTotalizador.DiasAnoAnterior} dias</div>
+        <div><strong>Total Dias:</strong> {feriasTotalizador.TotalDias} dias</div>
+        <div><strong>Dias Já Gozados:</strong> {feriasTotalizador.DiasJaGozados} dias</div>
+        <div><strong>Total Por Gozar:</strong> {feriasTotalizador.DiasPorGozar} dias</div>
+      </div>
+    </div>
+  </div>
+</div>
+
                 )}
                     <h5 className="card-title d-flex align-items-center mb-3 mb-md-4" style={{fontSize: 'clamp(1rem, 3vw, 1.25rem)'}}>
                       <FaClock className="text-primary me-2 flex-shrink-0" />
@@ -1111,6 +1269,131 @@ useEffect(() => {
   </form>
 </div>
 )}
+
+
+
+
+
+<button
+    className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
+    onClick={() => setMostrarFormularioFerias(prev => !prev)}
+    type="button"
+  >
+    {MostrarFormularioFerias ? '- Recolher Férias' : '+ Registar Férias'}
+  </button>
+
+{MostrarFormularioFerias && (
+<div className="border border-danger rounded p-3 mt-4" style={{ backgroundColor: '#fff5f5' }}>
+  <h6 className="text-danger fw-bold mb-3">
+    <FaPlus className="me-2" />
+    <span className="d-none d-sm-inline">Registar Férias</span>
+    <span className="d-sm-none">Férias</span>
+  </h6>
+
+  <form onSubmit={submeterFerias}>
+
+   
+
+    <div className="row g-2 mb-3">
+  <div className="col-6">
+    <label className="form-label small fw-semibold">Data Início</label>
+    <input
+      type="date"
+      className="form-control form-moderno"
+      value={novaFaltaFerias.dataInicio}
+      onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, dataInicio: e.target.value })}
+      required
+    />
+  </div>
+  <div className="col-6">
+    <label className="form-label small fw-semibold">Data Fim</label>
+    <input
+      type="date"
+      className="form-control form-moderno"
+      value={novaFaltaFerias.dataFim}
+      onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, dataFim: e.target.value })}
+      required
+    />
+  </div>
+</div>
+
+
+    <div className="mb-3">
+      <label className="form-label small fw-semibold">Observações</label>
+      <textarea
+        className="form-control form-moderno"
+        rows="2"
+        value={novaFalta.Observacoes}
+        onChange={(e) => setNovaFalta({ ...novaFalta, Observacoes: e.target.value })}
+      />
+    </div>
+
+    <button
+  type="submit"
+  className={`btn ${modoEdicaoFerias ? "btn-warning" : "btn-danger"} w-100 rounded-pill btn-responsive`}
+  disabled={loading}
+>
+  {loading
+    ? modoEdicaoFerias ? "A editar..." : "A registar..."
+    : modoEdicaoFerias ? "Guardar Alterações" : "Registar Férias"}
+</button>
+{modoEdicaoFerias && (
+  <button
+    type="button"
+    className="btn btn-outline-secondary w-100 rounded-pill btn-responsive mt-2"
+    onClick={() => {
+      setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
+      setModoEdicaoFerias(false);
+      setFaltaOriginal(null);
+    }}
+  >
+    Cancelar Edição
+  </button>
+)}
+
+
+  </form>
+</div>
+)}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

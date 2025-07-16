@@ -386,6 +386,91 @@ FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional, SubAlimProporc
     }
 });
 
+router.post("/InserirFeriasFuncionario", async (req, res) => {
+  try {
+    const dados = req.body;
+
+    // Token
+    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+    if (!painelAdminToken) {
+      return res
+        .status(401)
+        .json({ error: "Token não encontrado. Faça login novamente." });
+    }
+
+    // URL empresa
+    const urlempresa = await getEmpresaUrl(req);
+    if (!urlempresa) {
+      return res
+        .status(400)
+        .json({ error: "URL da empresa não fornecida." });
+    }
+
+    // Construir o endpoint da WebAPI
+    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InserirFeriasFuncionario`;
+    console.log("Enviando solicitação para a URL:", apiUrl);
+
+    const {
+      Funcionario,
+      DataFeria,
+      EstadoGozo,
+      OriginouFalta,
+      TipoMarcacao,
+      OriginouFaltaSubAlim,
+      Duracao,
+      Acerto,
+      NumProc,
+      Origem
+    } = dados;
+
+    const requestData = {
+      Funcionario,
+      DataFeria,
+      EstadoGozo,
+      OriginouFalta,
+      TipoMarcacao,
+      OriginouFaltaSubAlim,
+      Duracao,
+      Acerto,
+      NumProc,
+      Origem
+    };
+
+    console.log("Dados a serem enviados:", requestData);
+
+    // Enviar para a WebAPI Primavera
+    const response = await axios.post(apiUrl, requestData, {
+      headers: {
+        Authorization: `Bearer ${painelAdminToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+
+    if (response.status === 200) {
+      return res.status(200).json({
+        mensagem: "Férias inseridas com sucesso.",
+        detalhes: response.data,
+      });
+    } else {
+      return res.status(response.status).json({
+        error: "Falha ao inserir férias.",
+        details: response.data,
+      });
+    }
+  } catch (error) {
+    console.error(
+      "Erro ao Inserir Férias:",
+      error.response ? error.response.data : error.message
+    );
+    return res.status(500).json({
+      error: "Erro inesperado ao Inserir Férias.",
+      details: error.message,
+    });
+  }
+});
+
+
 router.put("/EditarFalta", async (req, res) => {
   try {
     const dados = req.body;
