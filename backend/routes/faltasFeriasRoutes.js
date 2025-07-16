@@ -8,7 +8,7 @@ const {
     aprovarPedido,
     rejeitarPedido
     
-} = require('../controllers/faltaFeriasController');
+} = require('../controllers/faltasFeriasController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 
