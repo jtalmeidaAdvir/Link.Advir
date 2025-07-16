@@ -308,15 +308,16 @@ const submeterFerias = async (e) => {
     dataAtual <= fim;
     dataAtual.setDate(dataAtual.getDate() + 1)
   ) {
-    // Ignorar fins de semana
     const diaSemana = dataAtual.getDay();
-    if (diaSemana === 0 || diaSemana === 6) continue;
+    if (diaSemana === 0 || diaSemana === 6) continue; // ignora fins de semana
 
-    const dataFormatada = dataAtual.toISOString().split('T')[0];
+    const dataFormatada = dataAtual.toISOString().split("T")[0];
+
     const faltasParaCriar = Horas ? ["F40"] : ["F50", "F40"];
 
+    // Inserir Faltas (F50 + F40 ou só F40)
     for (const faltaCod of faltasParaCriar) {
-      const dados = {
+      const dadosFalta = {
         Funcionario: funcionarioId,
         Data: dataFormatada,
         Falta: faltaCod,
@@ -349,21 +350,47 @@ const submeterFerias = async (e) => {
         FuncComplementosBaixaId: null,
         DescontaSubsTurno: 0,
         SubTurnoProporcional: 0,
-        SubAlimProporcional: 0
+        SubAlimProporcional: 0,
       };
 
-      const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+      const resFalta = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          urlempresa: urlempresa,
+          urlempresa,
         },
-        body: JSON.stringify(dados),
+        body: JSON.stringify(dadosFalta),
       });
 
-      resultados.push(res.ok);
+      resultados.push(resFalta.ok);
     }
+
+    // Inserir registo de férias (marcação oficial)
+    const dadosFerias = {
+      Funcionario: funcionarioId,
+      DataFeria: dataFormatada,
+      EstadoGozo: 0,
+      OriginouFalta: 1,
+      TipoMarcacao: 1,
+      OriginouFaltaSubAlim: 1,
+      Duracao: Tempo,
+      Acerto: 0,
+      NumProc: null,
+      Origem: 0
+    };
+
+    const resFerias = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFeriasFuncionario`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+      },
+      body: JSON.stringify(dadosFerias),
+    });
+
+    resultados.push(resFerias.ok);
   }
 
   const sucesso = resultados.every(r => r);
@@ -372,7 +399,7 @@ const submeterFerias = async (e) => {
     alert("Férias registadas com sucesso.");
     setMostrarFormularioFerias(false);
     await carregarFaltasFuncionario();
-    await carregarDetalhes(novaFaltaFerias.dataInicio);
+    await carregarDetalhes(dataInicio);
     setNovaFaltaFerias({
       dataInicio: '',
       dataFim: '',
@@ -381,9 +408,10 @@ const submeterFerias = async (e) => {
       Observacoes: ''
     });
   } else {
-    alert("Erro ao registar uma ou mais faltas.");
+    alert("Erro ao registar uma ou mais faltas/férias.");
   }
 };
+
 
 
 useEffect(() => {
