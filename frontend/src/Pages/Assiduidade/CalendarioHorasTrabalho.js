@@ -67,84 +67,50 @@ const [feriasTotalizador, setFeriasTotalizador] = useState(null);
 
 const submeterFalta = async (e) => {
   e.preventDefault();
-
   const token = localStorage.getItem('painelAdminToken');
-  const urlempresa = localStorage.getItem('urlempresa');
   const funcionarioId = localStorage.getItem('codFuncionario');
+  const urlempresa = localStorage.getItem('urlempresa');
   const dataFalta = diaSelecionado;
 
-
-  const dadosFalta = {
-  Funcionario: funcionarioId,
-  Data: dataFalta,
-  Falta: novaFalta.Falta,
-  Horas: novaFalta.Horas ? 1 : 0,
-  Tempo: novaFalta.Tempo,
-  DescontaVenc: 0,
-  DescontaRem: 0,
-  ExcluiProc: 0,
-  ExcluiEstat: 0,
-  Observacoes: novaFalta.Observacoes,
-  CalculoFalta: 1,
-  DescontaSubsAlim: 0,
-  DataProc: null,
-  NumPeriodoProcessado: 0,
-  JaProcessado: 0,
-  InseridoBloco: 0,
-  ValorDescontado: 0,
-  AnoProcessado: 0,
-  NumProc: 0,
-  Origem: "2",
-  PlanoCurso: null,
-  IdGDOC: null,
-  CambioMBase: 0,
-  CambioMAlt: 0,
-  CotizaPeloMinimo: 0,
-  Acerto: 0,
-  MotivoAcerto: null,
-  NumLinhaDespesa: null,
-  NumRelatorioDespesa: null,
-  FuncComplementosBaixaId: null,
-  DescontaSubsTurno: 0,
-  SubTurnoProporcional: 0,
-  SubAlimProporcional: 0
-};
-const url = modoEdicaoFalta
-  ? `https://webapiprimavera.advir.pt/routesFaltas/EditarFalta`
-  : `https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`;
-
-const metodo = modoEdicaoFalta ? "PUT" : "POST";
-
-
+  const dados = {
+    tipoPedido: 'FALTA',
+    funcionario: funcionarioId,
+    dataPedido: dataFalta,
+    falta: novaFalta.Falta,
+    horas: novaFalta.Horas ? 1 : 0,
+    tempo: novaFalta.Tempo,
+    justificacao: novaFalta.Observacoes,
+    observacoes: '',
+    usuarioCriador: funcionarioId,
+    origem: 'frontend'
+  };
 
   try {
-    const res = await fetch(url, {
-  method: metodo,
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        urlempresa: urlempresa,
+        urlempresa
       },
-      body: JSON.stringify(dadosFalta),
+      body: JSON.stringify(dados)
     });
 
     if (res.ok) {
-      alert("Falta inserida com sucesso.");
-      await carregarFaltasFuncionario();
-      await carregarDetalhes(diaSelecionado);
-      setModoEdicaoFalta(false);
-      setFaltaOriginal(null);
-
+      alert('Pedido de falta submetido com sucesso para aprovação.');
+      setMostrarFormularioFalta(false);
       setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
+      await carregarFaltasFuncionario(); // opcional se ainda fores buscar da outra origem
     } else {
       const erro = await res.text();
-      alert("Erro ao inserir falta: " + erro);
+      alert('Erro ao submeter falta: ' + erro);
     }
   } catch (err) {
-    console.error("Erro ao inserir falta:", err);
-    alert("Erro inesperado ao inserir falta.");
+    console.error('Erro ao submeter falta:', err);
+    alert('Erro inesperado.');
   }
 };
+
 
 
 
@@ -292,125 +258,58 @@ const carregarTotalizadorFerias = async () => {
 
 const submeterFerias = async (e) => {
   e.preventDefault();
-
   const token = localStorage.getItem("painelAdminToken");
   const urlempresa = localStorage.getItem("urlempresa");
   const funcionarioId = localStorage.getItem("codFuncionario");
 
   const { dataInicio, dataFim, Horas, Tempo, Observacoes } = novaFaltaFerias;
 
-  const inicio = new Date(dataInicio);
-  const fim = new Date(dataFim);
-  const resultados = [];
+  const dados = {
+    tipoPedido: 'FERIAS',
+    funcionario: funcionarioId,
+    dataPedido: new Date().toISOString().split("T")[0],
+    duracao: Tempo,
+    horas: Horas ? 1 : 0,
+    justificacao: Observacoes,
+    observacoes: '',
+    usuarioCriador: funcionarioId,
+    origem: 'frontend',
+    dataInicio,
+    dataFim
+  };
 
-  for (
-    let dataAtual = new Date(inicio);
-    dataAtual <= fim;
-    dataAtual.setDate(dataAtual.getDate() + 1)
-  ) {
-    const diaSemana = dataAtual.getDay();
-    if (diaSemana === 0 || diaSemana === 6) continue; // ignora fins de semana
-
-    const dataFormatada = dataAtual.toISOString().split("T")[0];
-
-    const faltasParaCriar = Horas ? ["F40"] : ["F50", "F40"];
-
-    // Inserir Faltas (F50 + F40 ou só F40)
-    for (const faltaCod of faltasParaCriar) {
-      const dadosFalta = {
-        Funcionario: funcionarioId,
-        Data: dataFormatada,
-        Falta: faltaCod,
-        Horas: Horas ? 1 : 0,
-        Tempo,
-        DescontaVenc: 0,
-        DescontaRem: 0,
-        ExcluiProc: 0,
-        ExcluiEstat: 0,
-        Observacoes,
-        CalculoFalta: 1,
-        DescontaSubsAlim: 0,
-        DataProc: null,
-        NumPeriodoProcessado: 0,
-        JaProcessado: 0,
-        InseridoBloco: 0,
-        ValorDescontado: 0,
-        AnoProcessado: 0,
-        NumProc: 0,
-        Origem: "2",
-        PlanoCurso: null,
-        IdGDOC: null,
-        CambioMBase: 0,
-        CambioMAlt: 0,
-        CotizaPeloMinimo: 0,
-        Acerto: 0,
-        MotivoAcerto: null,
-        NumLinhaDespesa: null,
-        NumRelatorioDespesa: null,
-        FuncComplementosBaixaId: null,
-        DescontaSubsTurno: 0,
-        SubTurnoProporcional: 0,
-        SubAlimProporcional: 0,
-      };
-
-      const resFalta = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          urlempresa,
-        },
-        body: JSON.stringify(dadosFalta),
-      });
-
-      resultados.push(resFalta.ok);
-    }
-
-    // Inserir registo de férias (marcação oficial)
-    const dadosFerias = {
-      Funcionario: funcionarioId,
-      DataFeria: dataFormatada,
-      EstadoGozo: 0,
-      OriginouFalta: 1,
-      TipoMarcacao: 1,
-      OriginouFaltaSubAlim: 1,
-      Duracao: Tempo,
-      Acerto: 0,
-      NumProc: null,
-      Origem: 0
-    };
-
-    const resFerias = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFeriasFuncionario`, {
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
         urlempresa,
       },
-      body: JSON.stringify(dadosFerias),
+      body: JSON.stringify(dados),
     });
 
-    resultados.push(resFerias.ok);
-  }
-
-  const sucesso = resultados.every(r => r);
-
-  if (sucesso) {
-    alert("Férias registadas com sucesso.");
-    setMostrarFormularioFerias(false);
-    await carregarFaltasFuncionario();
-    await carregarDetalhes(dataInicio);
-    setNovaFaltaFerias({
-      dataInicio: '',
-      dataFim: '',
-      Horas: false,
-      Tempo: 1,
-      Observacoes: ''
-    });
-  } else {
-    alert("Erro ao registar uma ou mais faltas/férias.");
+    if (res.ok) {
+      alert("Pedido de férias submetido com sucesso para aprovação.");
+      setMostrarFormularioFerias(false);
+      setNovaFaltaFerias({
+        dataInicio: '',
+        dataFim: '',
+        Horas: false,
+        Tempo: 1,
+        Observacoes: ''
+      });
+      await carregarFaltasFuncionario(); // se aplicável
+    } else {
+      const erro = await res.text();
+      alert("Erro ao submeter férias: " + erro);
+    }
+  } catch (err) {
+    console.error("Erro ao submeter férias:", err);
+    alert("Erro inesperado ao submeter férias.");
   }
 };
+
 
 
 

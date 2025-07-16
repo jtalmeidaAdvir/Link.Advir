@@ -5,8 +5,10 @@ const criarPedido = async (req, res) => {
     const novoPedido = await AprovacaoFaltaFerias.create(req.body);
     res.status(201).json(novoPedido);
   } catch (err) {
-    res.status(500).json({ erro: 'Erro ao criar pedido' });
-  }
+  console.error('Erro ao criar pedido:', err);
+  res.status(500).json({ erro: 'Erro ao criar pedido', detalhe: err.message });
+}
+
 };
 
 const listarPendentes = async (req, res) => {
