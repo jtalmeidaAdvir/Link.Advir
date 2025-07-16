@@ -67,7 +67,7 @@ const [feriasTotalizador, setFeriasTotalizador] = useState(null);
 
 const submeterFalta = async (e) => {
   e.preventDefault();
-  const token = localStorage.getItem('painelAdminToken');
+  const token = localStorage.getItem('loginToken');
   const funcionarioId = localStorage.getItem('codFuncionario');
   const urlempresa = localStorage.getItem('urlempresa');
   const dataFalta = diaSelecionado;
@@ -88,11 +88,8 @@ const submeterFalta = async (e) => {
   try {
     const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        urlempresa
-      },
+      headers: { Authorization: `Bearer ${token}` },
+     
       body: JSON.stringify(dados)
     });
 
@@ -258,7 +255,7 @@ const carregarTotalizadorFerias = async () => {
 
 const submeterFerias = async (e) => {
   e.preventDefault();
-  const token = localStorage.getItem("painelAdminToken");
+  const token = localStorage.getItem("loginToken");
   const urlempresa = localStorage.getItem("urlempresa");
   const funcionarioId = localStorage.getItem("codFuncionario");
 
@@ -281,11 +278,7 @@ const submeterFerias = async (e) => {
   try {
     const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        urlempresa,
-      },
+      headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(dados),
     });
 

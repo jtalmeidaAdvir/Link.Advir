@@ -1,4 +1,5 @@
-const { AprovacaoFaltaFerias } = require('../models/faltas_ferias');
+const { AprovacaoFaltaFerias } = require('../models');
+
 
 const criarPedido = async (req, res) => {
   try {
