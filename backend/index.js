@@ -14,6 +14,7 @@ const obraRoutes = require('./routes/obraRoutes');
 const equipaObraRoutes = require('./routes/equipaObraRoutes');
 const partesDiariasRoutes = require('./routes/partesDiariasRoutes');
 const registoPontoObraRoutes = require('./routes/registoPontoObraRoutes');
+const faltasFeriasRoutes = require('./routes/faltasFeriasRoutes');
 
 
 const fileUpload = require('express-fileupload');
@@ -56,6 +57,7 @@ app.use('/api/obra', obraRoutes);
 app.use('/api/equipa-obra', equipaObraRoutes);
 app.use('/api/partes-diarias', partesDiariasRoutes);
 app.use('/api/registo-ponto-obra', registoPontoObraRoutes);
+app.use('/api/faltas-ferias', faltasFeriasRoutes);
 
 
 app.use(fileUpload());
