@@ -281,7 +281,7 @@ const submeterFerias = async (e) => {
     duracao: Tempo,
     horas: Horas ? 1 : 0,
     justificacao: Observacoes,
-    observacoes: '',
+    observacoes: Observacoes,
     usuarioCriador: funcionarioId,
     origem: 'frontend',
     dataInicio,
@@ -1178,9 +1178,10 @@ useEffect(() => {
       <textarea
         className="form-control form-moderno"
         rows="2"
-        value={novaFalta.Observacoes}
-        onChange={(e) => setNovaFalta({ ...novaFalta, Observacoes: e.target.value })}
-      />
+        value={novaFaltaFerias.Observacoes}
+        onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, Observacoes: e.target.value })}
+        />
+
     </div>
 
     <button

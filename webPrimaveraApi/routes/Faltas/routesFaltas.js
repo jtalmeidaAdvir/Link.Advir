@@ -388,23 +388,22 @@ FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional, SubAlimProporc
 
 router.post("/InserirFeriasFuncionario", async (req, res) => {
   try {
-    const dados = req.body;
+        const dados = req.body;
+        // Obter o token de autenticação do cabeçalho
+        const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+        if (!painelAdminToken) {
+            return res
+                .status(401)
+                .json({ error: "Token não encontrado. Faça login novamente." });
+        }
 
-    // Token
-    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
-    if (!painelAdminToken) {
-      return res
-        .status(401)
-        .json({ error: "Token não encontrado. Faça login novamente." });
-    }
-
-    // URL empresa
-    const urlempresa = await getEmpresaUrl(req);
-    if (!urlempresa) {
-      return res
-        .status(400)
-        .json({ error: "URL da empresa não fornecida." });
-    }
+        // Obter a URL da empresa do cabeçalho usando a função getEmpresaUrl
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res
+                .status(400)
+                .json({ error: "URL da empresa não fornecida." });
+        }
 
     // Construir o endpoint da WebAPI
     const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InserirFeriasFuncionario`;
