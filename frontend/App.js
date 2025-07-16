@@ -50,6 +50,8 @@ import ListarRegistos from './src/Pages/Assiduidade/ListarRegistos';
 import RegistoPontoObra from './src/Pages/Assiduidade/RegistoPontoObra';
 import CalendarioHorasTrabalho from './src/Pages/Assiduidade/CalendarioHorasTrabalho';
 
+import AprovacaoFaltaFerias from './src/Pages/Assiduidade/AprovacaoFaltaFerias';
+
 //Aprovaçoes Pendentes
 import ConcursosAprovacao from './src/Pages/Concursos/ConcursosAprovacao';
 
@@ -238,6 +240,13 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         <DrawerItem
                             label={t("Agenda")}
                             onPress={() => props.navigation.navigate('CalendarioHorasTrabalho')}
+                            icon={() => <FontAwesome name="calendar" size={20} color="#1792FE" />}
+                        />
+                    )}
+                    {hasObrasModule && (
+                        <DrawerItem
+                            label={t("AprovacaoFaltaFerias")}
+                            onPress={() => props.navigation.navigate('AprovacaoFaltaFerias')}
                             icon={() => <FontAwesome name="calendar" size={20} color="#1792FE" />}
                         />
                     )}
@@ -525,6 +534,8 @@ const AppNavigator = () => {
             <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
                         <Drawer.Screen name="RegistoPontoObra" component={RegistoPontoObra} />
                         <Drawer.Screen name="CalendarioHorasTrabalho" component={CalendarioHorasTrabalho} />
+                        
+                        <Drawer.Screen name="AprovacaoFaltaFerias" component={AprovacaoFaltaFerias} />
 
             {(tipoUser === "Encarregado" || tipoUser === "Diretor") && (
                 <>

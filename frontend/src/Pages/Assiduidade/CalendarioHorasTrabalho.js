@@ -67,6 +67,7 @@ const [feriasTotalizador, setFeriasTotalizador] = useState(null);
 
 const submeterFalta = async (e) => {
   e.preventDefault();
+
   const token = localStorage.getItem('loginToken');
   const funcionarioId = localStorage.getItem('codFuncionario');
   const urlempresa = localStorage.getItem('urlempresa');
@@ -82,14 +83,25 @@ const submeterFalta = async (e) => {
     justificacao: novaFalta.Observacoes,
     observacoes: '',
     usuarioCriador: funcionarioId,
-    origem: 'frontend'
+    origem: 'LINK'
   };
+
+  // ⚠️ Debug útil
+  console.log('DADOS ENVIADOS:', dados);
+
+  if (!funcionarioId || !dataFalta || !novaFalta.Falta) {
+    alert('Preenche todos os campos obrigatórios.');
+    return;
+  }
 
   try {
     const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-     
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa: urlempresa
+      },
       body: JSON.stringify(dados)
     });
 
@@ -97,7 +109,7 @@ const submeterFalta = async (e) => {
       alert('Pedido de falta submetido com sucesso para aprovação.');
       setMostrarFormularioFalta(false);
       setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
-      await carregarFaltasFuncionario(); // opcional se ainda fores buscar da outra origem
+      await carregarFaltasFuncionario();
     } else {
       const erro = await res.text();
       alert('Erro ao submeter falta: ' + erro);
@@ -107,6 +119,7 @@ const submeterFalta = async (e) => {
     alert('Erro inesperado.');
   }
 };
+
 
 
 
@@ -275,10 +288,17 @@ const submeterFerias = async (e) => {
     dataFim
   };
 
+  // ⚠️ Debug temporário (remove se tudo estiver ok)
+  console.log("DADOS FÉRIAS:", dados);
+
   try {
     const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        urlempresa: urlempresa
+      },
       body: JSON.stringify(dados),
     });
 
@@ -302,6 +322,7 @@ const submeterFerias = async (e) => {
     alert("Erro inesperado ao submeter férias.");
   }
 };
+
 
 
 

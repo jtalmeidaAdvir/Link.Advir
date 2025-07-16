@@ -22,6 +22,29 @@ const listarPendentes = async (req, res) => {
   }
 };
 
+const listarAprovados = async (req, res) => {
+  try {
+    const pedidos = await AprovacaoFaltaFerias.findAll({
+      where: { estadoAprovacao: 'Aprovado' }
+    });
+    res.json(pedidos);
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao listar pedidos aprovados' });
+  }
+};
+
+const listarRejeitados = async (req, res) => {
+  try {
+    const pedidos = await AprovacaoFaltaFerias.findAll({
+      where: { estadoAprovacao: 'Rejeitado' }
+    });
+    res.json(pedidos);
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao listar pedidos rejeitados' });
+  }
+};
+
+
 const confirmarNivel1 = async (req, res) => {
   try {
     const { id } = req.params;
@@ -107,5 +130,7 @@ module.exports = {
   confirmarNivel1,
   confirmarNivel2,
   aprovarPedido,
-  rejeitarPedido
+  rejeitarPedido,
+    listarAprovados,
+    listarRejeitados
 };
