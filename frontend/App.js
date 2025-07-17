@@ -245,9 +245,9 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                     )}
                     {hasObrasModule && (
                         <DrawerItem
-                            label={t("AprovacaoFaltaFerias")}
+                            label={t("Gestão Faltas")}
                             onPress={() => props.navigation.navigate('AprovacaoFaltaFerias')}
-                            icon={() => <FontAwesome name="calendar" size={20} color="#1792FE" />}
+                            icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
                         />
                     )}
 

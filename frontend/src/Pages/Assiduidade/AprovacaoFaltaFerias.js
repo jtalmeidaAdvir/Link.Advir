@@ -13,6 +13,88 @@ const AprovacaoFaltaFerias = () => {
   const urlempresa = localStorage.getItem('urlempresa');
   const userNome = localStorage.getItem('userNome');
 
+  const [todosPedidos, setTodosPedidos] = useState([]);
+
+  const [colaboradorFiltro, setColaboradorFiltro] = useState('');
+
+
+const carregarTodosPedidos = async () => {
+  try {
+    const [resPendentes, resAprovados, resRejeitados] = await Promise.all([
+      fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          urlempresa
+        }
+      }),
+      fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/aprovados`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          urlempresa
+        }
+      }),
+      fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/rejeitados`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          urlempresa
+        }
+      }),
+    ]);
+
+    const [pendentes, aprovados, rejeitados] = await Promise.all([
+      resPendentes.ok ? resPendentes.json() : [],
+      resAprovados.ok ? resAprovados.json() : [],
+      resRejeitados.ok ? resRejeitados.json() : []
+    ]);
+
+    const pedidosComNome = await Promise.all(
+      [...pendentes, ...aprovados, ...rejeitados].map(async (p) => {
+        if (!p.nomeFuncionario && p.funcionario) {
+          const nome = await obterNomeFuncionario(p.funcionario);
+          return { ...p, nomeFuncionario: nome };
+        }
+        return p;
+      })
+    );
+
+    setTodosPedidos(pedidosComNome);
+    setPedidos(pedidosComNome); // 👈 garante que a listagem também usa os nomes atualizados
+  } catch (err) {
+    console.error('Erro ao carregar todos os pedidos:', err);
+  }
+};
+
+
+
+const obterNomeFuncionario = async (codFuncionario) => {
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/GetNomeFuncionario/${codFuncionario}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${painelToken}`,
+        urlempresa,
+      }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return data.nome; // ou outro campo dependendo da resposta real
+    } else {
+      console.warn(`Erro ao obter nome do funcionário ${codFuncionario}`);
+      return codFuncionario; // fallback
+    }
+  } catch (err) {
+    console.error("Erro ao obter nome do funcionário:", err);
+    return codFuncionario;
+  }
+};
+
+
+
+
   const carregarPedidos = async (estado = 'pendentes') => {
     setLoading(true);
     let endpoint = 'pendentes';
@@ -46,9 +128,17 @@ const AprovacaoFaltaFerias = () => {
     return new Date(data).toLocaleDateString('pt-PT');
   };
 
-  useEffect(() => {
-    carregarPedidos(estadoFiltro);
-  }, [estadoFiltro]);
+  
+
+useEffect(() => {
+  carregarTodosPedidos();
+}, []);
+
+
+useEffect(() => {
+  carregarPedidos(estadoFiltro);
+}, [estadoFiltro]);
+
 
 const confirmarPedido = async (pedido) => {
   const tipoUser = localStorage.getItem('tipoUser'); // 'Encarregado' ou 'Administrador'
@@ -260,8 +350,8 @@ const confirmarPedido = async (pedido) => {
       }
 
       alert('Pedido aprovado e registado com sucesso.');
-      carregarPedidos(estadoFiltro);
-
+      await carregarPedidos(estadoFiltro);
+     await carregarTodosPedidos();
     } catch (err) {
       console.error('Erro ao aprovar:', err);
       alert('Erro inesperado.');
@@ -283,7 +373,8 @@ const confirmarPedido = async (pedido) => {
 
       if (res.ok) {
         alert('Pedido rejeitado com sucesso.');
-        carregarPedidos(estadoFiltro);
+        await carregarPedidos(estadoFiltro);
+        await carregarTodosPedidos();
       } else {
         alert('Erro ao rejeitar.');
       }
@@ -295,18 +386,19 @@ const confirmarPedido = async (pedido) => {
     }
   };
 
-  const contarPorEstado = (estado) => {
-    switch (estado) {
-      case 'Pendente':
-        return pedidos.filter(p => p.estadoAprovacao === 'Pendente').length;
-      case 'Aprovado':
-        return pedidos.filter(p => p.estadoAprovacao === 'Aprovado').length;
-      case 'Rejeitado':
-        return pedidos.filter(p => p.estadoAprovacao === 'Rejeitado').length;
-      default:
-        return pedidos.length;
-    }
-  };
+ const contarPorEstado = (estado) => {
+  switch (estado) {
+    case 'Pendente':
+      return todosPedidos.filter(p => p.estadoAprovacao === 'Pendente').length;
+    case 'Aprovado':
+      return todosPedidos.filter(p => p.estadoAprovacao === 'Aprovado').length;
+    case 'Rejeitado':
+      return todosPedidos.filter(p => p.estadoAprovacao === 'Rejeitado').length;
+    default:
+      return todosPedidos.length;
+  }
+};
+
 
   return (
     <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{overflowX: 'hidden', background: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)'}}>
@@ -435,42 +527,6 @@ const confirmarPedido = async (pedido) => {
             </div>
           </div>
 
-          {/* Filtros e Controles */}
-          <div className="card card-moderno mb-4">
-            <div className="card-body">
-              <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
-                <div className="mb-3 mb-md-0">
-                  <h5 className="fw-bold mb-1">
-                    <FaFilter className="me-2 text-primary" />
-                    Filtros
-                  </h5>
-                  <p className="text-muted mb-0 small">Selecione o estado dos pedidos</p>
-                </div>
-
-                <div className="d-flex gap-2 w-100 w-md-auto">
-                  <select
-                    className="form-select form-moderno flex-grow-1"
-                    value={estadoFiltro}
-                    onChange={(e) => setEstadoFiltro(e.target.value)}
-                    disabled={loading}
-                  >
-                    <option value="pendentes">🕒 Pendentes</option>
-                    <option value="aprovados">✅ Aprovados</option>
-                    <option value="rejeitados">❌ Rejeitados</option>
-                  </select>
-                  <button 
-                    onClick={() => carregarPedidos(estadoFiltro)} 
-                    className="btn btn-outline-primary btn-responsive rounded-pill"
-                    disabled={loading}
-                  >
-                    <FaSync className={loading ? 'fa-spin' : ''} />
-                    <span className="d-none d-md-inline ms-2">Atualizar</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* KPI Cards */}
           <div className="row g-3 mb-4">
             <div className="col-6 col-md-3">
@@ -505,12 +561,63 @@ const confirmarPedido = async (pedido) => {
                 <div className="kpi-icon text-primary">
                   <FaCalendarAlt />
                 </div>
-                <h3 className="kpi-number text-primary">{pedidos.length}</h3>
-                <p className="kpi-label">Total</p>
+                <h3 className="kpi-number text-primary">{todosPedidos.length}</h3>
+<p className="kpi-label">Total</p>
+
               </div>
             </div>
           </div>
 
+
+          {/* Filtros e Controles */}
+          <div className="card card-moderno mb-4">
+            <div className="card-body">
+              <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+                <div className="mb-3 mb-md-0">
+                  <h5 className="fw-bold mb-1">
+                    <FaFilter className="me-2 text-primary" />
+                    Filtros
+                  </h5>
+                  <p className="text-muted mb-0 small">Selecione o estado dos pedidos</p>
+                </div>
+
+                <div className="d-flex gap-2 w-100 w-md-auto">
+                  <select
+                    className="form-select form-moderno flex-grow-1"
+                    value={estadoFiltro}
+                    onChange={(e) => setEstadoFiltro(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="pendentes">🕒 Pendentes</option>
+                    <option value="aprovados">✅ Aprovados</option>
+                    <option value="rejeitados">❌ Rejeitados</option>
+                  </select>
+                  <select
+                    className="form-select form-moderno"
+                    value={colaboradorFiltro}
+                    onChange={(e) => setColaboradorFiltro(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="">Todos os colaboradores</option>
+                    {[...new Set(todosPedidos.map(p => p.nomeFuncionario || p.funcionario))].map((nome, i) => (
+                      <option key={i} value={nome}>{nome}</option>
+                    ))}
+                  </select>
+
+                  <button 
+                    onClick={() => carregarPedidos(estadoFiltro)} 
+                    className="btn btn-outline-primary btn-responsive rounded-pill"
+                    disabled={loading}
+                  >
+                    <FaSync className={loading ? 'fa-spin' : ''} />
+                    <span className="d-none d-md-inline ms-2">Atualizar</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          
           {/* Lista de Pedidos */}
           <div className="row g-3" style={{marginBottom: '50px'}}>
             {pedidos.length === 0 ? (
@@ -528,7 +635,12 @@ const confirmarPedido = async (pedido) => {
                 </div>
               </div>
             ) : (
-              pedidos.map((pedido) => {
+              pedidos
+  .filter(p =>
+    (p.nomeFuncionario || p.funcionario || '').toLowerCase().includes(colaboradorFiltro.toLowerCase())
+  )
+  .map((pedido) => {
+
                 const aprovado = pedido.estadoAprovacao === 'Aprovado';
                 const rejeitado = pedido.estadoAprovacao === 'Rejeitado';
                 const pendente = pedido.estadoAprovacao === 'Pendente';
@@ -578,11 +690,11 @@ const confirmarPedido = async (pedido) => {
                                   <small className="fw-semibold">{pedido.tempo || 0}{pedido.horas ? 'h' : ' dia(s)'}</small>
                                 </div>
                                 <div className="d-flex justify-content-between">
-                                  <small className="text-muted">Confirmado por 1:</small>
+                                  <small className="text-muted">Confirmação Encarregado:</small>
                                   <small className="fw-semibold">{pedido.confirmadoPor1}</small>
                                 </div>
                                 <div className="d-flex justify-content-between">
-                                  <small className="text-muted">Confirmado por 2:</small>
+                                  <small className="text-muted">Confirmação RH:</small>
                                   <small className="fw-semibold">{pedido.confirmadoPor2}</small>
                                 </div>
                               </>
@@ -601,11 +713,11 @@ const confirmarPedido = async (pedido) => {
                                   <small className="fw-semibold">{pedido.duracao || '-'} dias</small>
                                 </div>
                                 <div className="d-flex justify-content-between">
-                                  <small className="text-muted">Confirmado Encarregado:</small>
+                                  <small className="text-muted">Confirmação Encarregado:</small>
                                   <small className="fw-semibold">{pedido.confirmadoPor1}</small>
                                 </div>
                                 <div className="d-flex justify-content-between">
-                                  <small className="text-muted">Confirmado RH:</small>
+                                  <small className="text-muted">Confirmação RH:</small>
                                   <small className="fw-semibold">{pedido.confirmadoPor2}</small>
                                 </div>
                               </>
