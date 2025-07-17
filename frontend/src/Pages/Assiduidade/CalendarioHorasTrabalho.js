@@ -965,6 +965,8 @@ useEffect(() => {
   if (!date) return <button key={index} className="invisible" disabled></button>;
 
   const dataFormatada = formatarData(date);
+const isPendente = diasPendentes.includes(dataFormatada);
+
 
   const existeFaltaF50 = Array.isArray(faltas) && faltas.some(f => {
     const dataFalta = new Date(f.Data);
@@ -997,6 +999,21 @@ useEffect(() => {
           🌴
         </span>
       )}
+      {isPendente && (
+  <span
+    style={{
+      position: 'absolute',
+      bottom: '4px',
+      right: '6px',
+      fontSize: '0.85rem',
+      color: '#f0ad4e'
+    }}
+    title="Pendente de aprovação"
+  >
+    ⏳
+  </span>
+)}
+
 
       {resumo[dataFormatada] && (
         <span className="horas-dia">{resumo[dataFormatada]}</span>

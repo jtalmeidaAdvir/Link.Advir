@@ -210,7 +210,7 @@ const checkPainelAdminToken = async () => {
         }
 
         // Apenas faça logout para 401 ou 403
-        if (response.status === 401 || response.status === 403) {
+        if (response.status === 401 || response.status === 403|| response.status === 500) {
             console.log(`painelAdminToken inválido - Status: ${response.status}`);
             handleTokenExpired('Token de administração expirado', 'painelAdminToken');
             return false;

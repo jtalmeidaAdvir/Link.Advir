@@ -53,7 +53,7 @@ const confirmarNivel1 = async (req, res) => {
     const pedido = await AprovacaoFaltaFerias.findByPk(id);
     if (!pedido) return res.status(404).json({ erro: 'Pedido não encontrado' });
 
-    pedido.estadoAprovacao = 'Confirmado1';
+    pedido.estadoAprovacao = 'Pendente';
     pedido.confirmadoPor1 = confirmadoPor1;
     await pedido.save();
 
@@ -69,11 +69,9 @@ const confirmarNivel2 = async (req, res) => {
     const { confirmadoPor2 } = req.body;
 
     const pedido = await AprovacaoFaltaFerias.findByPk(id);
-    if (!pedido || pedido.estadoAprovacao !== 'Confirmado1') {
-      return res.status(400).json({ erro: 'Pedido ainda não confirmado por nível 1' });
-    }
 
-    pedido.estadoAprovacao = 'Confirmado2';
+
+    pedido.estadoAprovacao = 'Aprovado';
     pedido.confirmadoPor2 = confirmadoPor2;
     await pedido.save();
 
