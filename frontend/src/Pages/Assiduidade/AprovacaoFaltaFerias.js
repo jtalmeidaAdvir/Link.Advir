@@ -317,87 +317,158 @@ useEffect(() => {
 
   if (loading) return <p>A carregar pedidos...</p>;
 
-  return (
-    <div>
+
+return (
+  <div className="container py-4">
+    {/* HEADER */}
+    <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
       <div>
-  <label htmlFor="filtro">Filtrar por estado: </label>
-  <select
-    id="filtro"
-    value={estadoFiltro}
-    onChange={(e) => setEstadoFiltro(e.target.value)}
-    style={{ marginBottom: '10px', marginLeft: '10px' }}
-  >
-    <option value="pendentes">Pendentes</option>
-    <option value="aprovados">Aprovados</option>
-    <option value="rejeitados">Rejeitados</option>
-  </select>
-</div>
+        <h3 className="fw-bold mb-1">📋 Pedidos de Aprovação</h3>
+        <p className="text-muted mb-0 small">Gerir faltas e férias dos colaboradores</p>
+      </div>
 
-      <h2>Pedidos Pendentes</h2>
+      <div className="d-flex gap-2 mt-3 mt-md-0">
+        <select
+          className="form-select form-select-sm"
+          value={estadoFiltro}
+          onChange={(e) => setEstadoFiltro(e.target.value)}
+        >
+          <option value="pendentes">Pendentes</option>
+          <option value="aprovados">Aprovados</option>
+          <option value="rejeitados">Rejeitados</option>
+        </select>
+        <button onClick={() => carregarPedidos(estadoFiltro)} className="btn btn-outline-secondary btn-sm">
+          🔄 Atualizar
+        </button>
+      </div>
+    </div>
+
+    {/* RESUMO */}
+    <div className="row g-3 mb-4">
+      <div className="col-6 col-md-3">
+        <div className="card text-center border-0 shadow-sm">
+          <div className="card-body">
+            <div className="text-warning fs-4">🕒</div>
+            <h5 className="fw-bold mb-0">{pedidos.filter(p => p.estadoAprovacao === 'Pendente').length}</h5>
+            <small className="text-muted">Pendentes</small>
+          </div>
+        </div>
+      </div>
+      <div className="col-6 col-md-3">
+        <div className="card text-center border-0 shadow-sm">
+          <div className="card-body">
+            <div className="text-success fs-4">✅</div>
+            <h5 className="fw-bold mb-0">{pedidos.filter(p => p.estadoAprovacao === 'Aprovado').length}</h5>
+            <small className="text-muted">Aprovados</small>
+          </div>
+        </div>
+      </div>
+      <div className="col-6 col-md-3">
+        <div className="card text-center border-0 shadow-sm">
+          <div className="card-body">
+            <div className="text-danger fs-4">❌</div>
+            <h5 className="fw-bold mb-0">{pedidos.filter(p => p.estadoAprovacao === 'Rejeitado').length}</h5>
+            <small className="text-muted">Rejeitados</small>
+          </div>
+        </div>
+      </div>
+      <div className="col-6 col-md-3">
+        <div className="card text-center border-0 shadow-sm">
+          <div className="card-body">
+            <div className="text-primary fs-4">📅</div>
+            <h5 className="fw-bold mb-0">{pedidos.length}</h5>
+            <small className="text-muted">Este Mês</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* PEDIDOS */}
+    <div className="row g-3">
       {pedidos.length === 0 ? (
-        <p>Sem pedidos pendentes.</p>
+        <p className="text-muted">Sem pedidos encontrados.</p>
       ) : (
-        
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Funcionário</th>
-              <th>Tipo</th>
-              <th>Data</th>
-              <th>Falta</th>
-              <th>Horas</th>
-              <th>Tempo</th>
-              <th>Justificação</th>
-              <th>Estado</th>
-              <th>Atualizado Por</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-  {pedidos.map((pedido) => (
-    <tr key={pedido.id}>
-      <td>{pedido.id}</td>
-      <td>{pedido.funcionario}</td>
-      <td>{pedido.tipoPedido}</td>
-      <td>{formatarData(pedido.dataPedido)}</td>
+        pedidos.map((pedido) => {
+          const aprovado = pedido.estadoAprovacao === 'Aprovado';
+          const rejeitado = pedido.estadoAprovacao === 'Rejeitado';
+          const pendente = pedido.estadoAprovacao === 'Pendente';
+          const bgCard = aprovado ? 'border-success' : rejeitado ? 'border-danger' : 'border-warning';
 
-      {pedido.tipoPedido === 'FALTA' ? (
-        <>
-          <td>{pedido.falta}</td>
-          <td>{pedido.horas ? 'Sim' : 'Não'}</td>
-          <td>{pedido.tempo || '-'}</td>
-        </>
-      ) : (
-        <>
-          <td>{formatarData(pedido.dataInicio)}</td>
-          <td>{formatarData(pedido.dataFim)}</td>
-          <td>{pedido.duracao || '-'}</td>
-        </>
-      )}
+          return (
+            <div key={pedido.id} className="col-12 col-md-6 col-xl-4">
+              <div className={`card h-100 border-start ${bgCard} border-4 shadow-sm`}>
+                <div className="card-body d-flex flex-column">
+                  <div className="d-flex justify-content-between align-items-start mb-2">
+                    <span className="badge bg-secondary fw-bold">#{pedido.id}</span>
+                    <span className={`badge ${pedido.tipoPedido === 'FALTA' ? 'bg-danger' : 'bg-primary'}`}>
+                      {pedido.tipoPedido}
+                    </span>
+                  </div>
 
-      <td>{pedido.justificacao || '-'}</td>
-      <td>{pedido.estadoAprovacao}</td>
-      <td>{pedido.aprovadoPor}</td>
-      <td>
-  {estadoFiltro === 'pendentes' && (
-    <>
-      <button onClick={() => confirmarPedido(pedido)}>Aprovar</button>
-      <button onClick={() => rejeitarPedido(pedido.id)} style={{ marginLeft: '10px' }}>
-        Rejeitar
-      </button>
-    </>
-  )}
-</td>
+                  <h6 className="mb-0">{pedido.nomeFuncionario || pedido.funcionario}</h6>
+                  <small className="text-muted mb-2">{pedido.cargo || 'Colaborador'}</small>
 
-    </tr>
-  ))}
-</tbody>
+                  <div className="mb-2 small">
+                    {pedido.tipoPedido === 'FALTA' ? (
+                      <>
+                        <div><strong>Data:</strong> {formatarData(pedido.dataPedido)}</div>
+                        <div><strong>Tipo:</strong> {pedido.falta}</div>
+                        <div><strong>Horas:</strong> {pedido.horas ? 'Sim' : 'Não'}</div>
+                        <div><strong>Tempo:</strong> {pedido.tempo || 0}h</div>
+                      </>
+                    ) : (
+                      <>
+                        <div><strong>Início:</strong> {formatarData(pedido.dataInicio)}</div>
+                        <div><strong>Fim:</strong> {formatarData(pedido.dataFim)}</div>
+                        <div><strong>Duração:</strong> {pedido.duracao || '-'} dias</div>
+                      </>
+                    )}
+                  </div>
 
-        </table>
+                  {pedido.justificacao && (
+                    <div className="mb-2 small">
+                      <strong>Justificação:</strong>
+                      <div className="bg-light rounded p-2 mt-1">{pedido.justificacao}</div>
+                    </div>
+                  )}
+
+                  {aprovado ? (
+                    <div className="alert alert-success p-2 small mt-auto">
+                      <strong>Aprovado</strong><br />
+                      Por: {pedido.aprovadoPor || 'Admin'}
+                    </div>
+                  ) : rejeitado ? (
+                    <div className="alert alert-danger p-2 small mt-auto">
+                      <strong>Rejeitado</strong><br />
+                      Por: {pedido.aprovadoPor || 'Admin'}
+                    </div>
+                  ) : (
+                    <div className="d-flex justify-content-between mt-auto">
+                      <button
+                        className="btn btn-success btn-sm w-50 me-2 rounded-pill"
+                        onClick={() => confirmarPedido(pedido)}
+                      >
+                        ✔ Aprovar
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm w-50 rounded-pill"
+                        onClick={() => rejeitarPedido(pedido.id)}
+                      >
+                        ✖ Rejeitar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })
       )}
     </div>
-  );
+  </div>
+);
+
+
 };
 
 export default AprovacaoFaltaFerias;

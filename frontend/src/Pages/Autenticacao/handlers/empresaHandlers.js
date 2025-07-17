@@ -1,14 +1,17 @@
 // handlers/empresaHandlers.js
+import { handleEntrarEmpresa } from './handleEntrarEmpresa';
 
 export const fetchEmpresas = async ({
   setEmpresas,
   setEmpresaSelecionada,
+  setEmpresaPredefinida,
   setErrorMessage,
   setLoading,
   handleEntrarEmpresa,
   setEmpresa,
   navigation,
   t,
+  autoLogin,
 }) => {
   try {
     const loginToken = localStorage.getItem("loginToken");
@@ -27,7 +30,19 @@ export const fetchEmpresas = async ({
     setEmpresas(data);
 
     // Apenas seleciona automaticamente se existir só uma empresa
-    if (data.length === 1) {
+    if (data.length === 1 && autoLogin) {
+      const empresaUnica = data[0].empresa;
+      setEmpresaSelecionada(empresaUnica);
+      
+      // Entrar automaticamente na empresa
+      await handleEntrarEmpresa({
+        empresa: empresaUnica,
+        setEmpresa,
+        setLoadingButton: () => {},
+        setErrorMessage,
+        navigation,
+      });
+    } else if (data.length === 1) {
       const empresaUnica = data[0].empresa;
       setEmpresaSelecionada(empresaUnica);
     }
@@ -39,5 +54,3 @@ export const fetchEmpresas = async ({
     setLoading(false);
   }
 };
-
-

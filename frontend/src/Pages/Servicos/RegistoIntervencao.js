@@ -382,7 +382,7 @@ const RegistoIntervencao = (props) => {
                     duracaoEmMinutos = duracaoEmMinutos - tempoAlmoco;
                 }
                 if (tempoDeslocacao > 0) {
-                    duracaoEmMinutos = duracaoEmMinutos - tempoDeslocacao;
+                    duracaoEmMinutos = duracaoEmMinutos + tempoDeslocacao;
                 }
             }
 
