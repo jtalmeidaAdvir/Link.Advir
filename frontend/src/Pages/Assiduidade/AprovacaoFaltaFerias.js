@@ -69,28 +69,7 @@ const carregarTodosPedidos = async () => {
 
 
 
-const obterNomeFuncionario = async (codFuncionario) => {
-  try {
-    const res = await fetch(`https://backend.advir.pt/api/GetNomeFuncionario/${codFuncionario}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${painelToken}`,
-        urlempresa,
-      }
-    });
 
-    if (res.ok) {
-      const data = await res.json();
-      return data.nome; // ou outro campo dependendo da resposta real
-    } else {
-      console.warn(`Erro ao obter nome do funcionário ${codFuncionario}`);
-      return codFuncionario; // fallback
-    }
-  } catch (err) {
-    console.error("Erro ao obter nome do funcionário:", err);
-    return codFuncionario;
-  }
-};
 
 
 
@@ -132,6 +111,7 @@ const obterNomeFuncionario = async (codFuncionario) => {
 
 useEffect(() => {
   carregarTodosPedidos();
+  
 }, []);
 
 
@@ -400,6 +380,32 @@ const confirmarPedido = async (pedido) => {
 };
 
 
+
+const obterNomeFuncionario = async (codFuncionario) => {
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetNomeFuncionario/${codFuncionario}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${painelToken}`,
+        urlempresa,
+      }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return data?.DataSet?.Table?.[0]?.Nome || codFuncionario; // 👈 fix aqui
+    } else {
+      console.warn(`Erro ao obter nome do funcionário ${codFuncionario}`);
+      return codFuncionario;
+    }
+  } catch (err) {
+    console.error("Erro ao obter nome do funcionário:", err);
+    return codFuncionario;
+  }
+};
+
+
+
   return (
     <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{overflowX: 'hidden', background: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)'}}>
       <style jsx>{`
@@ -599,9 +605,11 @@ const confirmarPedido = async (pedido) => {
                     disabled={loading}
                   >
                     <option value="">Todos os colaboradores</option>
-                    {[...new Set(todosPedidos.map(p => p.nomeFuncionario || p.funcionario))].map((nome, i) => (
-                      <option key={i} value={nome}>{nome}</option>
-                    ))}
+                    {[...new Map(todosPedidos.map(p => [p.funcionario, `${p.nomeFuncionario || p.funcionario} (${p.funcionario})`])).entries()]
+  .map(([codigo, label]) => (
+    <option key={codigo} value={codigo}>{label}</option>
+))}
+
                   </select>
 
                   <button 
@@ -636,9 +644,10 @@ const confirmarPedido = async (pedido) => {
               </div>
             ) : (
               pedidos
-  .filter(p =>
-    (p.nomeFuncionario || p.funcionario || '').toLowerCase().includes(colaboradorFiltro.toLowerCase())
-  )
+ .filter(p =>
+  colaboradorFiltro === '' || p.funcionario === colaboradorFiltro
+)
+
   .map((pedido) => {
 
                 const aprovado = pedido.estadoAprovacao === 'Aprovado';
@@ -653,8 +662,9 @@ const confirmarPedido = async (pedido) => {
                         <div className="d-flex justify-content-between align-items-start mb-3">
                           <div>
                             <span className="badge bg-secondary fw-bold">#{pedido.id}</span>
-                            <h6 className="mb-1 mt-2">{pedido.nomeFuncionario || pedido.funcionario}</h6>
-                            <small className="text-muted">{pedido.cargo || 'Colaborador'}</small>
+                            <h6 className="mb-1 mt-2">{`${pedido.nomeFuncionario || pedido.funcionario} (${pedido.funcionario})`}</h6>
+
+
                           </div>
                           <div className="text-end">
                             <span className={`badge ${pedido.tipoPedido === 'FALTA' ? 'bg-danger' : 'bg-primary'} status-badge`}>
