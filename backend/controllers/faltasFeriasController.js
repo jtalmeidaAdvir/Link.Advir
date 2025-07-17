@@ -87,9 +87,7 @@ const aprovarPedido = async (req, res) => {
     const { aprovadoPor, observacoesResposta } = req.body;
 
     const pedido = await AprovacaoFaltaFerias.findByPk(id);
-    if (!pedido || pedido.estadoAprovacao !== 'Confirmado2') {
-      return res.status(400).json({ erro: 'Pedido ainda não passou pelos dois níveis de confirmação.' });
-    }
+
 
     pedido.estadoAprovacao = 'Aprovado';
     pedido.aprovadoPor = aprovadoPor;
