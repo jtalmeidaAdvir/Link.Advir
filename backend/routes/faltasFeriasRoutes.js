@@ -8,7 +8,8 @@ const {
     aprovarPedido,
     rejeitarPedido,
     listarAprovados,
-    listarRejeitados
+    listarRejeitados,
+    eliminarPedido
     
 } = require('../controllers/faltasFeriasController');
 const authMiddleware = require('../middleware/authMiddleware');
@@ -23,5 +24,7 @@ router.put('/aprovacao/:id/confirmar-nivel1', authMiddleware,confirmarNivel1);
 router.put('/aprovacao/:id/confirmar-nivel2', authMiddleware,confirmarNivel2);
 router.put('/aprovacao/:id/aprovar', authMiddleware,aprovarPedido);
 router.put('/aprovacao/:id/rejeitar', authMiddleware,rejeitarPedido);
+router.delete('/aprovacao/:id', authMiddleware,eliminarPedido);
+
 
 module.exports = router;

@@ -120,6 +120,23 @@ const rejeitarPedido = async (req, res) => {
   }
 };
 
+const eliminarPedido = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const pedido = await AprovacaoFaltaFerias.findByPk(id);
+    if (!pedido) return res.status(404).json({ erro: 'Pedido não encontrado' });
+
+    await pedido.destroy();
+    res.json({ mensagem: 'Pedido eliminado com sucesso.' });
+  } catch (err) {
+    console.error('Erro ao eliminar pedido:', err);
+    res.status(500).json({ erro: 'Erro ao eliminar pedido' });
+  }
+};
+
+
+
 module.exports = {
   criarPedido,
   listarPendentes,
@@ -128,5 +145,6 @@ module.exports = {
   aprovarPedido,
   rejeitarPedido,
     listarAprovados,
-    listarRejeitados
+    listarRejeitados,
+    eliminarPedido
 };

@@ -109,9 +109,30 @@ const carregarDiasPendentes = async () => {
 
     if (res.ok) {
       const data = await res.json();
+
+      // Filtro pelo funcionário atual
       const apenasDoFuncionario = data.filter(p => p.funcionario === funcionarioId);
-      const datas = apenasDoFuncionario.map(p => new Date(p.dataPedido).toISOString().split('T')[0]);
-      setDiasPendentes(datas);
+
+      const diasPendentesSet = new Set();
+
+      apenasDoFuncionario.forEach(p => {
+        if (p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim) {
+          const inicio = new Date(p.dataInicio);
+          const fim = new Date(p.dataFim);
+          let dataAtual = new Date(inicio);
+
+          while (dataAtual <= fim) {
+            const iso = dataAtual.toISOString().split('T')[0];
+            diasPendentesSet.add(iso);
+            dataAtual.setDate(dataAtual.getDate() + 1);
+          }
+        } else if (p.dataPedido) {
+          const data = new Date(p.dataPedido).toISOString().split('T')[0];
+          diasPendentesSet.add(data);
+        }
+      });
+
+      setDiasPendentes(Array.from(diasPendentesSet));
     } else {
       console.warn("Erro ao carregar pendentes:", await res.text());
     }
@@ -119,6 +140,7 @@ const carregarDiasPendentes = async () => {
     console.error("Erro ao carregar pendentes:", err);
   }
 };
+
 
 
 
@@ -481,18 +503,36 @@ useEffect(() => {
 setFaltasDoDia(faltasNoDia);
 
 
+const funcionarioId = localStorage.getItem('codFuncionario');
+
 const pedidosPendentesDoDia = faltasPendentes.filter(p => {
   const dataSelecionada = new Date(data);
   dataSelecionada.setHours(0, 0, 0, 0);
 
-  const dataPedido = new Date(p.dataPedido);
-  dataPedido.setHours(0, 0, 0, 0);
+  const isDoFuncionario = p.funcionario === funcionarioId;
 
-  return (
-    p.estadoAprovacao === 'Pendente' &&
-    dataPedido.getTime() === dataSelecionada.getTime()
-  );
+  const isFalta = p.tipoPedido === 'FALTA' && p.dataPedido;
+  const isFerias = p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim;
+
+  let coincide = false;
+
+  if (isFalta) {
+    const dataPedido = new Date(p.dataPedido);
+    dataPedido.setHours(0, 0, 0, 0);
+    coincide = dataPedido.getTime() === dataSelecionada.getTime();
+  }
+
+  if (isFerias) {
+    const inicio = new Date(p.dataInicio);
+    const fim = new Date(p.dataFim);
+    inicio.setHours(0, 0, 0, 0);
+    fim.setHours(0, 0, 0, 0);
+    coincide = dataSelecionada >= inicio && dataSelecionada <= fim;
+  }
+
+  return isDoFuncionario && p.estadoAprovacao === 'Pendente' && coincide;
 });
+
 setPedidosPendentesDoDia(pedidosPendentesDoDia);
 console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
 
@@ -1214,7 +1254,12 @@ const isPendente = diasPendentes.includes(dataFormatada);
       <div key={idx} className="border-start border-warning border-3 ps-3 mb-2">
         <div className="d-flex justify-content-between small">
           <span className="fw-semibold">📌 Código:</span>
-          <span>{p.falta} – {mapaFaltas[p.falta?.toUpperCase()] || 'Desconhecido'}</span>
+          <span>
+  {p.tipoPedido === 'FERIAS' ? 'FERIAS' : p.falta} – {p.tipoPedido === 'FERIAS'
+    ? 'Férias'
+    : mapaFaltas[p.falta?.toUpperCase()] || 'Desconhecido'}
+</span>
+
         </div>
 
         <div className="d-flex justify-content-between small">
