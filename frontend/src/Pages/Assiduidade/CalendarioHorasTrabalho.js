@@ -92,7 +92,6 @@ const carregarFaltasPendentes = async () => {
   }
 };
 
-
 const carregarDiasPendentes = async () => {
   const token = localStorage.getItem('loginToken');
   const urlempresa = localStorage.getItem('urlempresa');
@@ -140,11 +139,6 @@ const carregarDiasPendentes = async () => {
     console.error("Erro ao carregar pendentes:", err);
   }
 };
-
-
-
-
-
 
 const submeterFalta = async (e) => {
   e.preventDefault();
@@ -226,11 +220,6 @@ const submeterFalta = async (e) => {
     alert('Erro inesperado.');
   }
 };
-
-
-
-
-
 
 const carregarFaltasFuncionario = async () => {
   const token = localStorage.getItem("painelAdminToken");
@@ -428,6 +417,45 @@ const submeterFerias = async (e) => {
   } catch (err) {
     console.error("Erro ao submeter férias:", err);
     alert("Erro inesperado ao submeter férias.");
+  }
+};
+
+const cancelarPedido = async (pedido) => {
+  let mensagemConfirmacao = 'Tens a certeza que queres cancelar este pedido?';
+
+  if (pedido.tipoPedido === 'FERIAS' && pedido.dataInicio && pedido.dataFim) {
+    mensagemConfirmacao = `Vais eliminar um pedido de férias de ${pedido.dataInicio} até ${pedido.dataFim}. Confirmas?`;
+  }
+
+  const confirmar = window.confirm(mensagemConfirmacao);
+  if (!confirmar) return;
+
+  const token = localStorage.getItem('loginToken');
+  const urlempresa = localStorage.getItem('urlempresa');
+
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${pedido.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa
+      }
+    });
+
+    if (res.ok) {
+      alert('Pedido cancelado com sucesso.');
+      await carregarFaltasFuncionario();
+      await carregarFaltasPendentes();
+      await carregarDiasPendentes();
+      await carregarDetalhes(diaSelecionado);
+    } else {
+      const erro = await res.text();
+      alert('Erro ao cancelar pedido: ' + erro);
+    }
+  } catch (err) {
+    console.error('Erro ao cancelar pedido:', err);
+    alert('Erro inesperado ao cancelar pedido.');
   }
 };
 
@@ -1108,7 +1136,8 @@ const isPendente = diasPendentes.includes(dataFormatada);
 
 
               {diaSelecionado ? (
-                <div className="card card-moderno sidebar-sticky">
+                <div className="card card-moderno sidebar-sticky" style={{ marginBottom: '30px' }}>
+
                     
                   <div className="card-body p-3 p-md-4">
                     {detalhesHorario && (
@@ -1252,6 +1281,18 @@ const isPendente = diasPendentes.includes(dataFormatada);
     <h6 className="fw-bold text-warning mb-3">Pedidos Pendentes</h6>
     {pedidosPendentesDoDia.map((p, idx) => (
       <div key={idx} className="border-start border-warning border-3 ps-3 mb-2">
+        {p.estadoAprovacao === 'Pendente' && (
+  <div className="mt-1 text-end">
+    <button
+      className="btn btn-sm btn-outline-danger"
+      onClick={() => cancelarPedido(p)}
+
+    >
+      ❌ Cancelar
+    </button>
+  </div>
+)}
+
         <div className="d-flex justify-content-between small">
           <span className="fw-semibold">📌 Código:</span>
           <span>
@@ -1285,7 +1326,7 @@ const isPendente = diasPendentes.includes(dataFormatada);
 
 
                     {/* Formulário */}
-                    <div className="mb-3">
+                    <div >
   <button
     className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
     onClick={() => setMostrarFormulario(prev => !prev)}
