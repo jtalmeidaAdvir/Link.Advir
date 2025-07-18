@@ -254,7 +254,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         <DrawerItem
                             label={t("Gestão Pontos")}
                             onPress={() => props.navigation.navigate('AprovacaoPontoPendentes')}
-                            icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
+                            icon={() => <FontAwesome name="calendar-check-o" size={20} color="#1792FE" />}
                         />
                     )}
            
