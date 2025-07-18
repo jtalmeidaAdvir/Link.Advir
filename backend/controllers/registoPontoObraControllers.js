@@ -233,6 +233,53 @@ const listarRegistosHojeEquipa = async (req, res) => {
   }
 };
 
+const confirmarPonto = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const registo = await RegistoPontoObra.findByPk(id);
+
+    if (!registo) {
+      return res.status(404).json({ message: 'Registo não encontrado.' });
+    }
+
+    if (registo.is_confirmed) {
+      return res.status(400).json({ message: 'Este registo já está confirmado.' });
+    }
+
+    registo.is_confirmed = true;
+    await registo.save();
+
+    res.status(200).json({ message: 'Registo confirmado com sucesso.', registo });
+  } catch (err) {
+    console.error('Erro ao confirmar registo:', err);
+    res.status(500).json({ message: 'Erro interno ao confirmar registo.' });
+  }
+};
+
+const cancelarPonto = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const registo = await RegistoPontoObra.findByPk(id);
+
+    if (!registo) {
+      return res.status(404).json({ message: 'Registo não encontrado.' });
+    }
+
+    if (registo.is_confirmed) {
+      return res.status(400).json({ message: 'Não é possível cancelar um registo já confirmado.' });
+    }
+
+    await registo.destroy();
+
+    res.status(200).json({ message: 'Registo cancelado (eliminado) com sucesso.' });
+  } catch (err) {
+    console.error('Erro ao cancelar registo:', err);
+    res.status(500).json({ message: 'Erro interno ao cancelar registo.' });
+  }
+};
+
 
 
 module.exports = {
@@ -242,7 +289,9 @@ module.exports = {
   registarPontoEsquecido,
   listarPorObraEDia, 
   registarPontoEquipa,
-    listarRegistosHojeEquipa
+  listarRegistosHojeEquipa,
+  confirmarPonto,
+  cancelarPonto
 };
 
 

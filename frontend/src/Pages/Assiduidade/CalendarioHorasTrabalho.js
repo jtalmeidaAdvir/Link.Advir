@@ -460,6 +460,18 @@ const cancelarPedido = async (pedido) => {
 };
 
 
+useEffect(() => {
+  const atualizar = async () => {
+    const hoje = formatarData(new Date());
+    if (diaSelecionado === hoje) {
+      await carregarResumo();
+      await carregarDetalhes(hoje);
+    }
+  };
+
+  const intervalo = setInterval(atualizar, 60 * 1000);
+  return () => clearInterval(intervalo);
+}, [diaSelecionado]);
 
 
 
@@ -492,11 +504,53 @@ useEffect(() => {
 
       const dados = await res.json();
       const mapeado = {};
-      dados.forEach(dia => {
-        mapeado[dia.dia] = `${dia.horas}h${dia.minutos > 0 ? ` ${dia.minutos}min` : ''}`;
+const hoje = formatarData(new Date());
+
+dados.forEach(dia => {
+  let minutosTotais = dia.horas * 60 + dia.minutos;
+
+  // Se for hoje e ainda não tiver saída, calcula tempo até agora
+  if (dia.dia === hoje) {
+    const entradaSemSaida = registosBrutos
+      .filter(r => r.tipo === 'entrada' && formatarData(new Date(r.timestamp)) === hoje)
+      .some(e => {
+        const entradaTS = new Date(e.timestamp);
+        const temSaida = registosBrutos.some(s =>
+          s.tipo === 'saida' &&
+          s.obra_id === e.obra_id &&
+          new Date(s.timestamp) > entradaTS
+        );
+        return !temSaida;
       });
 
-      setResumo(mapeado);
+    if (entradaSemSaida) {
+      const entradasAtivas = registosBrutos
+        .filter(r => r.tipo === 'entrada' && formatarData(new Date(r.timestamp)) === hoje)
+        .filter(e => {
+          const entradaTS = new Date(e.timestamp);
+          const temSaida = registosBrutos.some(s =>
+            s.tipo === 'saida' &&
+            s.obra_id === e.obra_id &&
+            new Date(s.timestamp) > entradaTS
+          );
+          return !temSaida;
+        });
+
+      entradasAtivas.forEach(entrada => {
+        const entradaTS = new Date(entrada.timestamp);
+        const minutosDesdeEntrada = Math.floor((Date.now() - entradaTS.getTime()) / 60000);
+        minutosTotais += minutosDesdeEntrada;
+      });
+    }
+  }
+
+  const horas = Math.floor(minutosTotais / 60);
+  const minutos = minutosTotais % 60;
+  mapeado[dia.dia] = `${horas}h${minutos > 0 ? ` ${minutos}min` : ''}`;
+});
+
+setResumo(mapeado);
+
     } catch (err) {
       console.error('Erro ao carregar resumo mensal:', err);
       alert('Erro ao carregar resumo mensal');
@@ -600,6 +654,13 @@ console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
             temposPorObra[obraId].totalMinutos += minutos;
             estadoAtualPorObra[obraId] = null;
           }
+          // Se houver uma entrada sem saída e for o dia atual, soma tempo até agora
+          if (estadoAtualPorObra[obraId] && formatarData(ts) === formatarData(new Date())) {
+            const agora = new Date();
+            const minutos = Math.max(0, (agora - estadoAtualPorObra[obraId]) / 60000);
+            temposPorObra[obraId].totalMinutos += minutos;
+          }
+
         }
 
         const detalhesPorObra = Object.values(temposPorObra).map(o => ({
