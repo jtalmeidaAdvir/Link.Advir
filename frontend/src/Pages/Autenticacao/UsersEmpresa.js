@@ -218,6 +218,43 @@ const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?
         }
     };
 
+    const handleRemoveUser = async (userId, username) => {
+        if (!window.confirm(`Tem a certeza que deseja remover o utilizador ${username}? Esta ação não pode ser revertida.`)) {
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                }
+            });
+
+            if (response.ok) {
+                setSuccessMessage('Utilizador removido com sucesso!');
+                setErrorMessage('');
+                await fetchUsers();
+                
+                // Reset após um tempo
+                setTimeout(() => {
+                    setSuccessMessage('');
+                }, 3000);
+            } else {
+                const errorData = await response.json();
+                setErrorMessage(errorData.message || 'Erro ao remover utilizador.');
+                setSuccessMessage('');
+            }
+        } catch (error) {
+            console.error('Erro de rede:', error);
+            setErrorMessage('Erro de comunicação com o servidor.');
+            setSuccessMessage('');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const loadMoreUsers = () => {
         setShowCount(prevCount => prevCount + 10);
     };
@@ -320,6 +357,21 @@ const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?
                         >
                             <MaterialCommunityIcons name="view-module-outline" size={18} color="#fff" />
                             <Text style={styles.buttonText}>{"Gerir Módulos"}</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                        onPress={() => handleRemoveUser(item.id, item.username)}
+                        style={styles.deleteButton}
+                    >
+                        <LinearGradient
+                            colors={['#e17055', '#d63031']}
+                            style={styles.buttonGradient}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                        >
+                            <MaterialCommunityIcons name="delete-outline" size={18} color="#fff" />
+                            <Text style={styles.buttonText}>{"Remover Utilizador"}</Text>
                         </LinearGradient>
                     </TouchableOpacity>
                 </View>
@@ -627,6 +679,11 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     modulesButton: {
+        borderRadius: 12,
+        overflow: 'hidden',
+        marginBottom: 12,
+    },
+    deleteButton: {
         borderRadius: 12,
         overflow: 'hidden',
     },

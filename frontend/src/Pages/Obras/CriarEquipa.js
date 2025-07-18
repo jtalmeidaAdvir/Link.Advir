@@ -82,18 +82,26 @@ const CriarEquipa = () => {
 
 
 
-    const fetchEquipasCriadas = async () => {
-        try {
-            const token = await AsyncStorage.getItem('loginToken');
-            const res = await fetch('https://backend.advir.pt/api/equipa-obra/listar-todas', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const data = await res.json();
-            if (res.ok) setEquipasCriadas(data);
-        } catch (err) {
-            console.error('Erro ao carregar equipas criadas:', err);
-        }
-    };
+const fetchEquipasCriadas = async () => {
+  try {
+    const token = await AsyncStorage.getItem('loginToken');
+    const userId = localStorage.getItem('userId');
+
+    const res = await fetch('https://backend.advir.pt/api/equipa-obra/listar-todas', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      const equipasDoEncarregado = data.filter(e => e.encarregado?.id == userId);
+      setEquipasCriadas(equipasDoEncarregado);
+    }
+  } catch (err) {
+    console.error('Erro ao carregar equipas criadas:', err);
+  }
+};
+
 
     const obterIdDaEmpresa = async () => {
         const empresaNome = localStorage.getItem("empresaSelecionada");

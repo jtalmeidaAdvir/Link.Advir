@@ -1341,26 +1341,7 @@ const isPendente = diasPendentes.includes(dataFormatada);
 
     {f.Fonte !== 'backend' && (
       <div className="mt-1 text-end">
-        <button
-          className="btn btn-sm btn-outline-secondary"
-          onClick={() => {
-            setNovaFalta({
-              Falta: f.Falta,
-              Horas: f.Horas,
-              Tempo: f.Tempo,
-              Observacoes: f.Observacoes || '',
-            });
-            setModoEdicaoFalta(true);
-            setFaltaOriginal({
-              Funcionario: f.Funcionario,
-              Data: f.Data,
-              Falta: f.Falta,
-            });
-            setMostrarFormularioFalta(true);
-          }}
-        >
-          📝 Editar
-        </button>
+      
       </div>
     )}
   </div>
