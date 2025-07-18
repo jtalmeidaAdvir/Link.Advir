@@ -165,20 +165,21 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         onPress={() => props.navigation.navigate('SelecaoEmpresa')}
                         icon={() => <FontAwesome name="briefcase" size={20} color="#1792FE" />}
                     />
-                    {hasObrasModule && (tipoUser === "Encarregado" || tipoUser === "Diretor") && (
-                        <DrawerItem
-                            label={t("Drawer.Obra")}
-                            onPress={() => props.navigation.navigate('Obras')}
-                            icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
-                        />
-                    )}
-                    {hasObrasModule && (tipoUser === "Encarregado" || tipoUser === "Diretor") && (
-                        <DrawerItem
-                            label={t("Equipas")}
-                            onPress={() => props.navigation.navigate('CriarEquipa')}
-                            icon={() => <FontAwesome name="users" size={20} color="#1792FE" />}
-                        />
-                    )}
+                   {hasObrasModule && (isAdmin || tipoUser === "Encarregado" || tipoUser==="Administrador") && (
+    <>
+        <DrawerItem
+            label={t("Drawer.Obra")}
+            onPress={() => props.navigation.navigate('Obras')}
+            icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
+        />
+        <DrawerItem
+            label={t("Equipas")}
+            onPress={() => props.navigation.navigate('CriarEquipa')}
+            icon={() => <FontAwesome name="users" size={20} color="#1792FE" />}
+        />
+    </>
+)}
+
 
                     {hasServicesModule && (
                         <DrawerItem
@@ -243,20 +244,23 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                             icon={() => <FontAwesome name="calendar" size={20} color="#1792FE" />}
                         />
                     )}
-                    {hasObrasModule && (
-                        <DrawerItem
-                            label={t("Gestão Faltas")}
-                            onPress={() => props.navigation.navigate('AprovacaoFaltaFerias')}
-                            icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
-                        />
-                    )}
-                    {hasObrasModule && (
+                   {hasObrasModule && (isAdmin || tipoUser === "Encarregado" || tipoUser === "Administrador") && (
+                    <DrawerItem
+                        label={t("Gestão Faltas")}
+                        onPress={() => props.navigation.navigate('AprovacaoFaltaFerias')}
+                        icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
+                    />
+                )}
+
+
+                    {hasObrasModule && (isAdmin || tipoUser === "Encarregado" || tipoUser === "Administrador") && (
                         <DrawerItem
                             label={t("Gestão Pontos")}
                             onPress={() => props.navigation.navigate('AprovacaoPontoPendentes')}
                             icon={() => <FontAwesome name="calendar-check-o" size={20} color="#1792FE" />}
                         />
                     )}
+
            
 
                     {hasBotaoAssiduidadeModule && (
@@ -378,32 +382,26 @@ const AppNavigator = () => {
         }
     };
 
-    useEffect(() => {
-        const token = localStorage.getItem('loginToken');
-        if (token) {
-            setInitialRoute('Home'); // Se houver um token válido, define a rota inicial para Home
-        }
-        setLoading(false); // Termina o estado de carregamento
-    }, []);
+useEffect(() => {
+  const fetchUserData = async () => {
+    const token = localStorage.getItem('loginToken');
+    setIsLoggedIn(!!token);
+    setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
+    setIsAdmin(localStorage.getItem('isAdmin') === 'true');
+    setUsername(localStorage.getItem('username') || '');
+    setUserNome(localStorage.getItem('userNome') || '');
+    setEmpresa(localStorage.getItem('empresaSelecionada') || '');
+    setTipoUser(localStorage.getItem('tipoUser') || '');
 
-    useEffect(() => {
-        const fetchUserData = async () => {
-            const token = localStorage.getItem('loginToken');
-            setIsLoggedIn(!!token);
-            setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
-            setIsAdmin(localStorage.getItem('isAdmin') === 'true');
-            setUsername(localStorage.getItem('username') || '');
-            setUserNome(localStorage.getItem('userNome') || '');
-            setEmpresa(localStorage.getItem('empresaSelecionada') || '');
-            setTipoUser(localStorage.getItem('tipoUser') || '');
+    await fetchUserModules();
+    setLoading(false);
+  };
+
+  fetchUserData();
+}, []);
 
 
-            await fetchUserModules();
-            setLoading(false);
-        };
 
-        fetchUserData();
-    }, []);
 
 
     const toggleLanguageSelector = () => {
@@ -417,18 +415,19 @@ const AppNavigator = () => {
         setHoveredLanguage(null); // Restaura quando o hover sai
     };
 
-    if (loading) {
-        return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#1792FE" />
-                <Text>A carregar...</Text>
-            </View>
-        );
-    }
+if (loading) {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color="#1792FE" />
+      <Text>A carregar...</Text>
+    </View>
+  );
+}
+
+
 
     return (
         <Drawer.Navigator
-            initialRouteName={initialRoute} // Usa a rota inicial definida com base na autenticação
             drawerContent={(props) => (
                 <CustomDrawerContent
                     {...props}

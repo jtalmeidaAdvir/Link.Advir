@@ -1341,7 +1341,7 @@ const isPendente = diasPendentes.includes(dataFormatada);
 
     {f.Fonte !== 'backend' && (
       <div className="mt-1 text-end">
-      
+    
       </div>
     )}
   </div>
