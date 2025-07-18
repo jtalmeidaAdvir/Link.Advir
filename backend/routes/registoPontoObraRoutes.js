@@ -10,7 +10,8 @@ const {
   registarPontoEquipa,
   listarRegistosHojeEquipa,
   confirmarPonto,
-  cancelarPonto
+  cancelarPonto,
+  listarPendentes
 } = require('../controllers/registoPontoObraControllers');
 
 router.post('/', authMiddleware, registarPonto);
@@ -29,6 +30,6 @@ router.get('/listar-dia-equipa', authMiddleware, listarRegistosHojeEquipa);
 router.patch('/confirmar/:id', authMiddleware, confirmarPonto);
 router.delete('/cancelar/:id', authMiddleware, cancelarPonto);
 
-
+router.get('/pendentes', authMiddleware, listarPendentes);
 
 module.exports = router;

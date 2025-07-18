@@ -51,7 +51,7 @@ import RegistoPontoObra from './src/Pages/Assiduidade/RegistoPontoObra';
 import CalendarioHorasTrabalho from './src/Pages/Assiduidade/CalendarioHorasTrabalho';
 
 import AprovacaoFaltaFerias from './src/Pages/Assiduidade/AprovacaoFaltaFerias';
-
+import AprovacaoPontoPendentes from './src/Pages/Assiduidade/AprovacaoPontoPendentes';
 //Aprovaçoes Pendentes
 import ConcursosAprovacao from './src/Pages/Concursos/ConcursosAprovacao';
 
@@ -250,7 +250,14 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                             icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
                         />
                     )}
-
+                    {hasObrasModule && (
+                        <DrawerItem
+                            label={t("Gestão Pontos")}
+                            onPress={() => props.navigation.navigate('AprovacaoPontoPendentes')}
+                            icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
+                        />
+                    )}
+           
 
                     {hasBotaoAssiduidadeModule && (
                         <DrawerItem
@@ -536,6 +543,7 @@ const AppNavigator = () => {
                         <Drawer.Screen name="CalendarioHorasTrabalho" component={CalendarioHorasTrabalho} />
                         
                         <Drawer.Screen name="AprovacaoFaltaFerias" component={AprovacaoFaltaFerias} />
+                        <Drawer.Screen name="AprovacaoPontoPendentes" component={AprovacaoPontoPendentes} />
 
             {(tipoUser === "Encarregado" || tipoUser === "Diretor") && (
                 <>

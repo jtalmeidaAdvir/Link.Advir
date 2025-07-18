@@ -11,6 +11,7 @@ const {
     listarEquipasPorEmpresa,
     removerEquipaInteira,
     listarMinhasEquipasAgrupadas,
+   
     
 } = require('../controllers/equipaObraController');
 
@@ -22,6 +23,7 @@ router.put('/:equipa_id', authMiddleware, atualizarNomeEquipa);
 router.get('/por-empresa', authMiddleware, listarEquipasPorEmpresa);
 router.post('/remover-equipa', authMiddleware, removerEquipaInteira);
 router.get('/minhas-agrupadas', authMiddleware, listarMinhasEquipasAgrupadas);
+
 
 
 

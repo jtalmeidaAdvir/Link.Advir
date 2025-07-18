@@ -280,6 +280,23 @@ const cancelarPonto = async (req, res) => {
   }
 };
 
+const listarPendentes = async (req, res) => {
+  try {
+    const pendentes = await RegistoPontoObra.findAll({
+      where: { is_confirmed: false },
+      include: [
+        { model: User, attributes: ['id', 'nome', 'email'] },
+        { model: Obra, attributes: ['id', 'nome', 'localizacao'] }
+      ],
+      order: [['timestamp', 'ASC']]
+    });
+
+    res.status(200).json(pendentes);
+  } catch (err) {
+    console.error('Erro ao listar registos pendentes:', err);
+    res.status(500).json({ message: 'Erro interno ao listar pendentes.' });
+  }
+};
 
 
 module.exports = {
@@ -291,7 +308,8 @@ module.exports = {
   registarPontoEquipa,
   listarRegistosHojeEquipa,
   confirmarPonto,
-  cancelarPonto
+  cancelarPonto,
+  listarPendentes
 };
 
 
