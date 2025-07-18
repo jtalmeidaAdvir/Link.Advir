@@ -96,6 +96,7 @@ const carregarFaltasPendentes = async () => {
 const carregarDiasPendentes = async () => {
   const token = localStorage.getItem('loginToken');
   const urlempresa = localStorage.getItem('urlempresa');
+  const funcionarioId = localStorage.getItem('codFuncionario');
 
   try {
     const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
@@ -108,7 +109,8 @@ const carregarDiasPendentes = async () => {
 
     if (res.ok) {
       const data = await res.json();
-      const datas = data.map(p => new Date(p.dataPedido).toISOString().split('T')[0]);
+      const apenasDoFuncionario = data.filter(p => p.funcionario === funcionarioId);
+      const datas = apenasDoFuncionario.map(p => new Date(p.dataPedido).toISOString().split('T')[0]);
       setDiasPendentes(datas);
     } else {
       console.warn("Erro ao carregar pendentes:", await res.text());
@@ -117,6 +119,7 @@ const carregarDiasPendentes = async () => {
     console.error("Erro ao carregar pendentes:", err);
   }
 };
+
 
 
 
