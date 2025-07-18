@@ -19,7 +19,8 @@ const {
     obterEmpresaPredefinida,
     definirEmpresaPredefinida,
     atualizarDadosUtilizador,
-    getDadosUtilizador
+    getDadosUtilizador,
+    removerUtilizador
 } = require('../controllers/userController');
 const router = express.Router();
 
@@ -66,5 +67,7 @@ router.put('/:userId/dados-utilizador', authMiddleware, atualizarDadosUtilizador
 
 router.get('/:userId', authMiddleware, getDadosUtilizador);
 
+// Rota para remover utilizador
+router.delete('/:userId', authMiddleware, removerUtilizador);
 
 module.exports = router;

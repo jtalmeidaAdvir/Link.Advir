@@ -838,6 +838,31 @@ const getDadosUtilizador = async (req, res) => {
     }
 };
 
+const removerUtilizador = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        // Verificar se o utilizador existe
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+        }
+
+        // Remover todas as associações do utilizador
+        await User_Empresa.destroy({ where: { user_id: userId } });
+        await User_Modulo.destroy({ where: { user_id: userId } });
+        await User_Submodulo.destroy({ where: { user_id: userId } });
+        
+        // Remover o utilizador
+        await user.destroy();
+
+        res.status(200).json({ message: 'Utilizador removido com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao remover utilizador:', error);
+        res.status(500).json({ message: 'Erro ao remover utilizador.' });
+    }
+};
+
 
 module.exports = {
     criarUtilizador,
@@ -859,5 +884,6 @@ module.exports = {
     obterEmpresaPredefinida,
     definirEmpresaPredefinida,
     atualizarDadosUtilizador,
-    getDadosUtilizador
+    getDadosUtilizador,
+    removerUtilizador
 };

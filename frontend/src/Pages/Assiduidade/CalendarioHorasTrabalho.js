@@ -459,6 +459,39 @@ const cancelarPedido = async (pedido) => {
   }
 };
 
+const cancelarPonto = async (registoId) => {
+  const confirmar = window.confirm('Tens a certeza que queres cancelar este ponto pendente?');
+
+  if (!confirmar) return;
+
+  const token = localStorage.getItem('loginToken');
+  const urlempresa = localStorage.getItem('urlempresa');
+
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/cancelar/${registoId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa
+      }
+    });
+
+    if (res.ok) {
+      alert('Registo de ponto cancelado com sucesso.');
+      await carregarResumo();
+      await carregarDetalhes(diaSelecionado);
+    } else {
+      const erro = await res.text();
+      alert('Erro ao cancelar registo: ' + erro);
+    }
+  } catch (err) {
+    console.error('Erro ao cancelar registo:', err);
+    alert('Erro inesperado ao cancelar registo.');
+  }
+};
+
+
 
 useEffect(() => {
   const atualizar = async () => {
@@ -1349,7 +1382,7 @@ const isPendente = diasPendentes.includes(dataFormatada);
       onClick={() => cancelarPedido(p)}
 
     >
-      ❌ Cancelar
+      ❌
     </button>
   </div>
 )}
@@ -1747,6 +1780,7 @@ const isPendente = diasPendentes.includes(dataFormatada);
                           {registosBrutos.map((submission) => (
                             <div key={submission.id} className="border rounded p-2 mb-2 bg-light">
                               <div className="d-flex justify-content-between align-items-start mb-1">
+                                
                                 <div className="flex-grow-1 me-2">
                                   <span className="fw-semibold small">{submission.tipo}</span>
                                   <small className="text-muted ms-1 d-block d-sm-inline">
@@ -1761,6 +1795,16 @@ const isPendente = diasPendentes.includes(dataFormatada);
                                 } flex-shrink-0`} style={{fontSize: '0.7rem'}}>
                                   <span className="d-none d-sm-inline">
                                     {submission.is_confirmed ? 'Confirmado' : 'Pendente'}
+                                    {!submission.is_confirmed && (
+  <button
+    className="btn btn-sm btn-outline-danger ms-2"
+    title="Cancelar ponto pendente"
+    onClick={() => cancelarPonto(submission.id)}
+  >
+    ❌
+  </button>
+)}
+
                                   </span>
                                   <span className="d-sm-none">
                                     {submission.is_confirmed ? '✓' : '⏳'}
@@ -1775,6 +1819,8 @@ const isPendente = diasPendentes.includes(dataFormatada);
                                   {submission.justificacao}
                                 </small>
                               )}
+                              
+                              
                             </div>
                           ))}
                         </div>
