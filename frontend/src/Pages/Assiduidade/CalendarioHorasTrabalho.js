@@ -1136,7 +1136,7 @@ const isPendente = diasPendentes.includes(dataFormatada);
 
 
               {diaSelecionado ? (
-                <div className="card card-moderno sidebar-sticky" style={{ marginBottom: '30px' }}>
+                <div className="card card-moderno sidebar-sticky" style={{ marginBottom: '100px' }}>
 
                     
                   <div className="card-body p-3 p-md-4">
