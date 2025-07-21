@@ -298,6 +298,38 @@ const listarPendentes = async (req, res) => {
   }
 };
 
+const listarPorUserEDia = async (req, res) => {
+  try {
+    const { user_id, data } = req.query;
+
+    if (!user_id || !data || isNaN(Date.parse(data))) {
+      return res.status(400).json({ message: 'Parâmetros user_id e data são obrigatórios e válidos.' });
+    }
+
+    const dataInicio = new Date(`${data}T00:00:00.000Z`);
+    const dataFim = new Date(`${data}T23:59:59.999Z`);
+
+    const registos = await RegistoPontoObra.findAll({
+      where: {
+        user_id,
+        timestamp: {
+          [Op.between]: [dataInicio, dataFim]
+        }
+      },
+      include: [
+        { model: User, attributes: ['id', 'nome', 'email'] },
+        { model: Obra, attributes: ['id', 'nome', 'localizacao'] }
+      ],
+      order: [['timestamp', 'ASC']]
+    });
+
+    res.status(200).json(registos);
+  } catch (err) {
+    console.error('Erro ao listar registos por user e dia:', err);
+    res.status(500).json({ message: 'Erro interno ao listar registos por user e dia.' });
+  }
+};
+
 
 module.exports = {
   registarPonto,
@@ -309,7 +341,8 @@ module.exports = {
   listarRegistosHojeEquipa,
   confirmarPonto,
   cancelarPonto,
-  listarPendentes
+  listarPendentes,
+  listarPorUserEDia
 };
 
 

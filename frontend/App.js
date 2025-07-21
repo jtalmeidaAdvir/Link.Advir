@@ -56,7 +56,7 @@ import AprovacaoPontoPendentes from './src/Pages/Assiduidade/AprovacaoPontoPende
 import ConcursosAprovacao from './src/Pages/Concursos/ConcursosAprovacao';
 
 import Obras from './src/Pages/Obras/Obras';
-
+import PartesDiarias from './src/Pages/Obras/PartesDiarias';
 
 
 import PessoalObra from './src/Pages/Obras/PessoalObra';
@@ -174,6 +174,15 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
             label={t("Drawer.Obra")}
             onPress={() => props.navigation.navigate('Obras')}
             icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
+                                      options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
+
+            
+        />
+
+        <DrawerItem
+            label={t("Partes Diarias")}
+            onPress={() => props.navigation.navigate('PartesDiarias')}
+            icon={() => <FontAwesome name="book" size={20} color="#1792FE" />}
                                       options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
             
@@ -648,6 +657,7 @@ if (loading) {
 
                 <>
                     <Drawer.Screen name="Obras" component={Obras} />
+                    <Drawer.Screen name="PartesDiarias" component={PartesDiarias} />
                     <Drawer.Screen name="CriarEquipa" component={CriarEquipa} />
                     <Drawer.Screen name="PessoalObra" component={PessoalObra} options={{ drawerItemStyle: { display: 'none' } }} />
 
