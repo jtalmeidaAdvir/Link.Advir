@@ -11,7 +11,9 @@ const {
   listarRegistosHojeEquipa,
   confirmarPonto,
   cancelarPonto,
-  listarPendentes
+  listarPendentes,
+  listarPorUserEDia
+
 } = require('../controllers/registoPontoObraControllers');
 
 router.post('/', authMiddleware, registarPonto);
@@ -32,7 +34,7 @@ router.delete('/cancelar/:id', authMiddleware, cancelarPonto);
 
 router.get('/pendentes', authMiddleware, listarPendentes);
 
-router.get('/listar-por-user-e-dia', authMiddleware, listarPendentes);
+router.get('/listar-por-user-e-dia', authMiddleware, listarPorUserEDia);
 
 
 module.exports = router;
