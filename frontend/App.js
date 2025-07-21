@@ -131,6 +131,9 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
         );
     }
 
+
+
+    
     // Conteúdo do drawer para outros utilizadores
 
     const hasOficiosModule = modules.some(module => module.nome === "Oficios");
@@ -165,20 +168,28 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         onPress={() => props.navigation.navigate('SelecaoEmpresa')}
                         icon={() => <FontAwesome name="briefcase" size={20} color="#1792FE" />}
                     />
-                   {hasObrasModule && (isAdmin || tipoUser === "Encarregado" || tipoUser==="Administrador") && (
-    <>
+    
+
+
+    {(tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
+<>
         <DrawerItem
             label={t("Drawer.Obra")}
             onPress={() => props.navigation.navigate('Obras')}
             icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
+                                      options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
+
+            
         />
         <DrawerItem
             label={t("Equipas")}
             onPress={() => props.navigation.navigate('CriarEquipa')}
             icon={() => <FontAwesome name="users" size={20} color="#1792FE" />}
+                                      options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
+
         />
     </>
-)}
+    )}
 
 
                     {hasServicesModule && (
@@ -244,23 +255,29 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                             icon={() => <FontAwesome name="calendar" size={20} color="#1792FE" />}
                         />
                     )}
-                   {hasObrasModule && (isAdmin || tipoUser === "Encarregado" || tipoUser === "Administrador") && (
+
+{(tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
+<>
                     <DrawerItem
                         label={t("Gestão Faltas")}
                         onPress={() => props.navigation.navigate('AprovacaoFaltaFerias')}
                         icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
+                          options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
+
                     />
-                )}
+                
 
 
-                    {hasObrasModule && (isAdmin || tipoUser === "Encarregado" || tipoUser === "Administrador") && (
                         <DrawerItem
                             label={t("Gestão Pontos")}
                             onPress={() => props.navigation.navigate('AprovacaoPontoPendentes')}
                             icon={() => <FontAwesome name="calendar-check-o" size={20} color="#1792FE" />}
-                        />
-                    )}
+                              options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
+                        />
+                        </>
+                    
+)}
            
 
                     {hasBotaoAssiduidadeModule && (
@@ -366,6 +383,50 @@ const AppNavigator = () => {
 
 
 
+    // Dentro de AppNavigator:
+const fetchUserData = async () => {
+  setLoading(true);
+  const token = localStorage.getItem('loginToken');
+  const empresaLs = localStorage.getItem('empresaSelecionada');
+  const tipoUserLs = localStorage.getItem('tipoUser');
+
+  if (token && isTokenValid(token)) {
+    setIsLoggedIn(true);
+    setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
+    setIsAdmin(localStorage.getItem('isAdmin') === 'true');
+    setUsername(localStorage.getItem('username') || '');
+    setUserNome(localStorage.getItem('userNome') || '');
+    setEmpresa(empresaLs || '');
+    setTipoUser(tipoUserLs || '');
+
+    // buscar módulos
+    await fetchUserModules();
+
+    // definir rota inicial
+    if (localStorage.getItem('superAdmin') === 'true') {
+      setInitialRoute('ADHome');
+    } else if (tipoUserLs && empresaLs) {
+      setInitialRoute('RegistoPontoObra');
+    } else if (empresaLs) {
+      setInitialRoute('Home');
+    } else {
+      setInitialRoute('SelecaoEmpresa');
+    }
+  } else {
+    localStorage.clear();
+    setIsLoggedIn(false);
+    setInitialRoute('Login');
+  }
+
+  setLoading(false);
+};
+
+useEffect(() => {
+  fetchUserData();
+}, []);
+
+
+
     const fetchUserModules = async () => {
         const token = localStorage.getItem('loginToken');
         const userId = localStorage.getItem('userId');
@@ -467,6 +528,8 @@ if (loading) {
 
     return (
         <Drawer.Navigator
+          key={tipoUser + JSON.stringify(tipoUser)  + isLoggedIn + isAdmin + isSuperAdmin + modules} // Adiciona uma chave única para forçar a atualização do Drawer
+
         initialRouteName={initialRoute}
             drawerContent={(props) => (
                 <CustomDrawerContent
@@ -564,7 +627,7 @@ if (loading) {
                         setIsAdmin={setIsAdmin}
                         setUsername={setUsername}
                         setUserNome={setUserNome}
-                        onLoginComplete={fetchUserModules}
+                        onLoginComplete={fetchUserData}  
                     />
                 )}
             </Drawer.Screen>
@@ -584,7 +647,8 @@ if (loading) {
                         <Drawer.Screen name="AprovacaoFaltaFerias" component={AprovacaoFaltaFerias} />
                         <Drawer.Screen name="AprovacaoPontoPendentes" component={AprovacaoPontoPendentes} />
 
-            {(tipoUser === "Encarregado" || tipoUser === "Diretor") && (
+            {!loading && (tipoUser === "Encarregado" || tipoUser === "Diretor") && (
+
                 <>
                     <Drawer.Screen name="Obras" component={Obras} />
                     <Drawer.Screen name="CriarEquipa" component={CriarEquipa} />
@@ -642,11 +706,21 @@ if (loading) {
 };
 
 export default function App() {
+
+
+  const [appReady, setAppReady] = useState(false);
+
+    useEffect(() => {
+        // Só para garantir que o AppNavigator não carrega antes de saber o tipoUser
+        setTimeout(() => setAppReady(true), 100); // pequeno delay para garantir fetchUserData concluir
+    }, []);
+
+
     return (
         <NavigationContainer>
             <ImageBackground source={backgroundPattern} style={styles.background}>
                 <View style={styles.overlay}>
-                    <AppNavigator />
+                    {appReady && <AppNavigator />}
                 </View>
             </ImageBackground>
         </NavigationContainer>

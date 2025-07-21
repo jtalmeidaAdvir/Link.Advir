@@ -62,7 +62,10 @@ const RegistoPontoObra = () => {
         });
         if (res.ok) {
           const data = await res.json();
-          setObras(data);
+          const empresaId = localStorage.getItem('empresa_id');
+          const obrasDaEmpresa = data.filter(o => o.empresa_id == empresaId);
+          setObras(obrasDaEmpresa);
+
         }
       } catch (err) {
         console.error('Erro ao carregar obras:', err);
@@ -682,7 +685,7 @@ useEffect(() => {
             </div>
 
             {/* Today's Records */}
-            <div className="col-12 col-lg-4">
+            <div className="col-12 col-lg-4"style={{marginBottom: '50px'}}>
               <div className="card card-moderno">
                 <div className="card-body p-3 p-md-4">
                   <h5 className="card-title d-flex align-items-center mb-3 mb-md-4" style={{fontSize: 'clamp(1rem, 3vw, 1.25rem)'}}>
