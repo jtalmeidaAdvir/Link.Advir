@@ -56,10 +56,7 @@ import AprovacaoPontoPendentes from './src/Pages/Assiduidade/AprovacaoPontoPende
 import ConcursosAprovacao from './src/Pages/Concursos/ConcursosAprovacao';
 
 import Obras from './src/Pages/Obras/Obras';
-import DetalhesObra from './src/Pages/Obras/DetalhesObra';
-import AutosMedicaoExecucao from './src/Pages/Obras/AutosMedicaoExecucao';
-import PartesDiarias from './src/Pages/Obras/PartesDiarias';
-import AddPartesDiarias from './src/Pages/Obras/AddPartesDiarias';
+
 
 
 import PessoalObra from './src/Pages/Obras/PessoalObra';
@@ -668,10 +665,6 @@ if (loading) {
             <Drawer.Screen name="PedidosAssistencia" component={PedidosAssistencia} options={{ title: "AdvirLink - Pedidos de Assistência" }} />
             <Drawer.Screen name="PandIByTecnico" component={PandIByTecnico} options={{ title: "AdvirLink - Dashboard Técnico" }} />
             <Drawer.Screen name="RegistoIntervencao" component={RegistoIntervencao} options={{ title: "AdvirLink - Intervenção", drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="DetalhesObra" component={DetalhesObra} options={{ drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="AutosMedicaoExecucao" component={AutosMedicaoExecucao} options={{ drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="PartesDiarias" component={PartesDiarias} options={{ drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="AddPartesDiarias" component={AddPartesDiarias} options={{ drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="RegistarPedido" component={RegistoPedido} options={{ title: "AdvirLink - Pedido", drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="Intervencoes" component={intervencoes} options={{ title: "AdvirLink - Intervenção", drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="DashboardAnalytics" component={DashboardAnalytics} options={{ title: "AdvirLink - Dashboard Analytics" }} />

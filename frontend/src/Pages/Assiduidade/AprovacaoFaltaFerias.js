@@ -20,6 +20,8 @@ const AprovacaoFaltaFerias = () => {
 
 const carregarTodosPedidos = async () => {
   try {
+    setLoading(true);
+    
     const [resPendentes, resAprovados, resRejeitados] = await Promise.all([
       fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
         headers: {
@@ -50,20 +52,41 @@ const carregarTodosPedidos = async () => {
       resRejeitados.ok ? resRejeitados.json() : []
     ]);
 
-    const pedidosComNome = await Promise.all(
-      [...pendentes, ...aprovados, ...rejeitados].map(async (p) => {
-        if (!p.nomeFuncionario && p.funcionario) {
-          const nome = await obterNomeFuncionario(p.funcionario);
-          return { ...p, nomeFuncionario: nome };
-        }
-        return p;
-      })
-    );
+    const todosPedidos = [...pendentes, ...aprovados, ...rejeitados];
+    
+    // Obter lista única de funcionários
+    const funcionariosUnicos = [...new Set(todosPedidos.map(p => p.funcionario))];
+    
+    // Carregar nomes de todos os funcionários em paralelo
+    const nomesPromises = funcionariosUnicos.map(async (codFuncionario) => {
+      const nome = await obterNomeFuncionario(codFuncionario);
+      return { codigo: codFuncionario, nome };
+    });
+    
+    const nomesCarregados = await Promise.all(nomesPromises);
+    const mapaNomes = Object.fromEntries(nomesCarregados.map(n => [n.codigo, n.nome]));
+    
+    // Aplicar nomes aos pedidos
+    const pedidosComNome = todosPedidos.map(p => ({
+      ...p,
+      nomeFuncionario: mapaNomes[p.funcionario] || p.funcionario
+    }));
 
     setTodosPedidos(pedidosComNome);
-    setPedidos(pedidosComNome); // 👈 garante que a listagem também usa os nomes atualizados
+    
+    // Aplicar filtro atual aos pedidos com nomes
+    const pedidosFiltrados = pedidosComNome.filter(p => {
+      if (estadoFiltro === 'pendentes') return p.estadoAprovacao === 'Pendente';
+      if (estadoFiltro === 'aprovados') return p.estadoAprovacao === 'Aprovado';
+      if (estadoFiltro === 'rejeitados') return p.estadoAprovacao === 'Rejeitado';
+      return true;
+    });
+    
+    setPedidos(pedidosFiltrados);
   } catch (err) {
     console.error('Erro ao carregar todos os pedidos:', err);
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -75,6 +98,19 @@ const carregarTodosPedidos = async () => {
 
 
   const carregarPedidos = async (estado = 'pendentes') => {
+    // Se já temos todos os pedidos carregados, apenas filtramos
+    if (todosPedidos.length > 0) {
+      const pedidosFiltrados = todosPedidos.filter(p => {
+        if (estado === 'pendentes') return p.estadoAprovacao === 'Pendente';
+        if (estado === 'aprovados') return p.estadoAprovacao === 'Aprovado';
+        if (estado === 'rejeitados') return p.estadoAprovacao === 'Rejeitado';
+        return true;
+      });
+      setPedidos(pedidosFiltrados);
+      return;
+    }
+
+    // Caso contrário, carrega normalmente
     setLoading(true);
     let endpoint = 'pendentes';
     if (estado === 'aprovados') endpoint = 'aprovados';
@@ -91,7 +127,23 @@ const carregarTodosPedidos = async () => {
 
       if (res.ok) {
         const data = await res.json();
-        setPedidos(data);
+        
+        // Carregar nomes dos funcionários para os pedidos carregados
+        const funcionariosUnicos = [...new Set(data.map(p => p.funcionario))];
+        const nomesPromises = funcionariosUnicos.map(async (codFuncionario) => {
+          const nome = await obterNomeFuncionario(codFuncionario);
+          return { codigo: codFuncionario, nome };
+        });
+        
+        const nomesCarregados = await Promise.all(nomesPromises);
+        const mapaNomes = Object.fromEntries(nomesCarregados.map(n => [n.codigo, n.nome]));
+        
+        const pedidosComNome = data.map(p => ({
+          ...p,
+          nomeFuncionario: mapaNomes[p.funcionario] || p.funcionario
+        }));
+        
+        setPedidos(pedidosComNome);
       } else {
         console.error('Erro ao carregar pedidos');
       }
@@ -111,13 +163,13 @@ const carregarTodosPedidos = async () => {
 
 useEffect(() => {
   carregarTodosPedidos();
-  
 }, []);
 
-
 useEffect(() => {
-  carregarPedidos(estadoFiltro);
-}, [estadoFiltro]);
+  if (todosPedidos.length > 0) {
+    carregarPedidos(estadoFiltro);
+  }
+}, [estadoFiltro, todosPedidos]);
 
 
 const confirmarPedido = async (pedido) => {
@@ -381,7 +433,15 @@ const confirmarPedido = async (pedido) => {
 
 
 
+// Cache para nomes de funcionários
+const cacheNomes = {};
+
 const obterNomeFuncionario = async (codFuncionario) => {
+  // Verificar se já está em cache
+  if (cacheNomes[codFuncionario]) {
+    return cacheNomes[codFuncionario];
+  }
+
   try {
     const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetNomeFuncionario/${codFuncionario}`, {
       headers: {
@@ -393,13 +453,19 @@ const obterNomeFuncionario = async (codFuncionario) => {
 
     if (res.ok) {
       const data = await res.json();
-      return data?.DataSet?.Table?.[0]?.Nome || codFuncionario; // 👈 fix aqui
+      const nome = data?.DataSet?.Table?.[0]?.Nome || codFuncionario;
+      
+      // Guardar em cache
+      cacheNomes[codFuncionario] = nome;
+      return nome;
     } else {
       console.warn(`Erro ao obter nome do funcionário ${codFuncionario}`);
+      cacheNomes[codFuncionario] = codFuncionario;
       return codFuncionario;
     }
   } catch (err) {
     console.error("Erro ao obter nome do funcionário:", err);
+    cacheNomes[codFuncionario] = codFuncionario;
     return codFuncionario;
   }
 };
