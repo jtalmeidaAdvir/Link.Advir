@@ -81,11 +81,42 @@ const PartesDiarias = ({ navigation }) => {
         }
     }, []);
 
+    // State para armazenar horas originais (do ponto)
+    const [horasOriginais, setHorasOriginais] = useState(new Map());
+
     // Memoizar dias do mês para evitar recálculos
     const diasDoMes = useMemo(() => {
         const diasNoMes = new Date(mesAno.ano, mesAno.mes, 0).getDate();
         return Array.from({ length: diasNoMes }, (_, i) => i + 1);
     }, [mesAno.mes, mesAno.ano]);
+
+    // Função para calcular e formatar variação de horas
+    const calcularVariacao = useCallback((item) => {
+        const chaveOriginal = `${item.userId}-${item.obraId}`;
+        const horasOriginaisItem = horasOriginais.get(chaveOriginal);
+        
+        if (!horasOriginaisItem) return { texto: '', cor: '#666' };
+
+        const totalAtual = diasDoMes.reduce((total, dia) => total + (item.horasPorDia[dia] || 0), 0);
+        const totalOriginal = diasDoMes.reduce((total, dia) => total + (horasOriginaisItem[dia] || 0), 0);
+        const diferenca = totalAtual - totalOriginal;
+
+        if (diferenca === 0) {
+            return { texto: '', cor: '#666' };
+        } else if (diferenca > 0) {
+            return { 
+                texto: `+${formatarHorasMinutos(diferenca)}`, 
+                cor: '#28a745',
+                icon: '↗️'
+            };
+        } else {
+            return { 
+                texto: `${formatarHorasMinutos(diferenca)}`, 
+                cor: '#dc3545',
+                icon: '↘️'
+            };
+        }
+    }, [horasOriginais, diasDoMes, formatarHorasMinutos]);
 
     // Cache key baseado no mês/ano
     const cacheKey = useMemo(() => `partes-diarias-${mesAno.mes}-${mesAno.ano}`, [mesAno]);
@@ -298,6 +329,7 @@ const PartesDiarias = ({ navigation }) => {
     // Memoizar processamento de dados para evitar recálculos desnecessários
     const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
         const dadosProcessados = [];
+        const novasHorasOriginais = new Map();
 
         // Filtrar apenas registos dos membros das minhas equipas
         const membrosEquipas = equipasData.flatMap(equipa => 
@@ -336,6 +368,10 @@ const PartesDiarias = ({ navigation }) => {
         registosPorUsuarioObra.forEach(grupo => {
             const horasPorDia = calcularHorasPorDia(grupo.registos, diasDoMes);
             
+            // Armazenar horas originais para comparação
+            const chaveOriginal = `${grupo.user.id}-${grupo.obra.id}`;
+            novasHorasOriginais.set(chaveOriginal, {...horasPorDia});
+            
             // Criar entrada base para cada usuário-obra
             dadosProcessados.push({
                 id: `${grupo.user.id}-${grupo.obra.id}`,
@@ -352,6 +388,7 @@ const PartesDiarias = ({ navigation }) => {
             });
         });
 
+        setHorasOriginais(novasHorasOriginais);
         setDadosProcessados(dadosProcessados);
     }, [diasDoMes, equipas]);
 
@@ -804,22 +841,6 @@ const PartesDiarias = ({ navigation }) => {
                         nestedScrollEnabled={true}
                     >
                         <View style={styles.tableContent}>
-                            {/* Cabeçalho da tabela */}
-                            <View style={styles.tableHeader}>
-                                <View style={[styles.tableCell, styles.fixedColumn, { width: 120 }]}>
-                                    <Text style={styles.headerText}>Trabalhador</Text>
-                                </View>
-                                
-                                {diasDoMes.map(dia => (
-                                    <View key={dia} style={[styles.tableCell, { width: 50 }]}>
-                                        <Text style={styles.headerText}>{dia}</Text>
-                                    </View>
-                                ))}
-                                <View style={[styles.tableCell, { width: 70 }]}>
-                                    <Text style={styles.headerText}>Total</Text>
-                                </View>
-                            </View>
-
                             {/* Renderizar dados agrupados por obra */}
                             {Object.values(dadosAgrupadosPorObra).map((obraGroup, obraIndex) => (
                                 <View key={obraGroup.obraInfo.id}>
@@ -850,6 +871,51 @@ const PartesDiarias = ({ navigation }) => {
                                                     );
                                                 }, 0))}
                                             </Text>
+                                            {(() => {
+                                                const variacaoTotalObra = obraGroup.trabalhadores.reduce((totalVariacao, trab) => {
+                                                    const variacao = calcularVariacao(trab);
+                                                    if (variacao.texto) {
+                                                        // Extrair o valor numérico da variação (remover + ou -)
+                                                        const valor = variacao.texto.replace('+', '').replace('-', '');
+                                                        const minutos = valor.includes('h') 
+                                                            ? (parseInt(valor.split('h')[0]) * 60) + (parseInt(valor.split('h')[1]?.replace('m', '') || '0'))
+                                                            : parseInt(valor.replace('m', '') || '0');
+                                                        return totalVariacao + (variacao.texto.startsWith('-') ? -minutos : minutos);
+                                                    }
+                                                    return totalVariacao;
+                                                }, 0);
+                                                
+                                                if (variacaoTotalObra !== 0) {
+                                                    return (
+                                                        <Text style={[
+                                                            styles.obraStatsText, 
+                                                            { color: variacaoTotalObra > 0 ? '#28a745' : '#dc3545' }
+                                                        ]}>
+                                                            Variação: {variacaoTotalObra > 0 ? '+' : ''}{formatarHorasMinutos(Math.abs(variacaoTotalObra))}
+                                                        </Text>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+                                        </View>
+                                    </View>
+
+                                    {/* Cabeçalho dos dias para esta obra */}
+                                    <View style={styles.obraDaysHeader}>
+                                        <View style={[styles.tableCell, { width: 120 }]}>
+                                            <Text style={styles.obraDaysHeaderText}>Trabalhador</Text>
+                                        </View>
+                                        
+                                        {diasDoMes.map(dia => (
+                                            <View key={dia} style={[styles.tableCell, { width: 50 }]}>
+                                                <Text style={styles.obraDaysHeaderText}>{dia}</Text>
+                                            </View>
+                                        ))}
+                                        <View style={[styles.tableCell, { width: 70 }]}>
+                                            <Text style={styles.obraDaysHeaderText}>Total</Text>
+                                        </View>
+                                        <View style={[styles.tableCell, { width: 80 }]}>
+                                            <Text style={styles.obraDaysHeaderText}>Variação</Text>
                                         </View>
                                     </View>
 
@@ -911,6 +977,15 @@ const PartesDiarias = ({ navigation }) => {
                                                     {formatarHorasMinutos(diasDoMes.reduce((total, dia) => 
                                                         total + (item.horasPorDia[dia] || 0), 0
                                                     ))}
+                                                </Text>
+                                            </View>
+                                            <View style={[styles.tableCell, { width: 80 }]}>
+                                                <Text style={[
+                                                    styles.cellText, 
+                                                    styles.variacaoText,
+                                                    { textAlign: 'center', color: calcularVariacao(item).cor, fontWeight: '600' }
+                                                ]}>
+                                                    {calcularVariacao(item).texto}
                                                 </Text>
                                             </View>
                                         </View>
@@ -1327,6 +1402,10 @@ const styles = StyleSheet.create({
         color: '#333',
         fontSize: 13,
     },
+    variacaoText: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
     tableWrapper: {
         flex: 1,
         margin: 10,
@@ -1682,6 +1761,19 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: '#e0e0e0',
         marginVertical: 5,
+    },
+    obraDaysHeader: {
+        flexDirection: 'row',
+        backgroundColor: '#e3f2fd',
+        minHeight: 40,
+        borderBottomWidth: 1,
+        borderBottomColor: '#1792FE',
+    },
+    obraDaysHeaderText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#1792FE',
+        textAlign: 'center',
     },
 });
 
