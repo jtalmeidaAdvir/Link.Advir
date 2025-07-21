@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     View,
     Text,
@@ -21,8 +21,13 @@ import { saveAs } from 'file-saver';
 
 const { width } = Dimensions.get('window');
 
+// Cache para armazenar dados e evitar requisições desnecessárias
+const dataCache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
 const PartesDiarias = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
+    const [loadingProgress, setLoadingProgress] = useState(0);
     const [registosPonto, setRegistosPonto] = useState([]);
     const [equipas, setEquipas] = useState([]);
     const [obras, setObras] = useState([]);
@@ -60,17 +65,76 @@ const PartesDiarias = ({ navigation }) => {
         { label: 'Equipamentos', value: 'Equipamentos' }
     ];
 
+    // Função para converter minutos para formato H:MM
+    const formatarHorasMinutos = useCallback((minutos) => {
+        if (minutos === 0) return '-';
+        
+        const horas = Math.floor(minutos / 60);
+        const mins = minutos % 60;
+        
+        if (horas === 0) {
+            return `${mins}m`;
+        } else if (mins === 0) {
+            return `${horas}h`;
+        } else {
+            return `${horas}h${mins.toString().padStart(2, '0')}`;
+        }
+    }, []);
+
+    // Memoizar dias do mês para evitar recálculos
+    const diasDoMes = useMemo(() => {
+        const diasNoMes = new Date(mesAno.ano, mesAno.mes, 0).getDate();
+        return Array.from({ length: diasNoMes }, (_, i) => i + 1);
+    }, [mesAno.mes, mesAno.ano]);
+
+    // Cache key baseado no mês/ano
+    const cacheKey = useMemo(() => `partes-diarias-${mesAno.mes}-${mesAno.ano}`, [mesAno]);
+
     useEffect(() => {
         carregarDados();
     }, [mesAno]);
 
+    // Função para verificar se o cache é válido
+    const isCacheValid = useCallback((key) => {
+        const cached = dataCache.get(key);
+        if (!cached) return false;
+        return (Date.now() - cached.timestamp) < CACHE_DURATION;
+    }, []);
+
+    // Função para obter dados do cache
+    const getCachedData = useCallback((key) => {
+        if (isCacheValid(key)) {
+            return dataCache.get(key).data;
+        }
+        return null;
+    }, [isCacheValid]);
+
+    // Função para armazenar dados no cache
+    const setCachedData = useCallback((key, data) => {
+        dataCache.set(key, {
+            data,
+            timestamp: Date.now()
+        });
+    }, []);
+
     const carregarDados = async () => {
         setLoading(true);
+        setLoadingProgress(0);
+        
         try {
-            // Simular delay de carregamento
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            carregarDadosExemplo();
+            // Verificar cache primeiro
+            const cachedData = getCachedData(cacheKey);
+            if (cachedData) {
+                console.log('Carregando dados do cache...');
+                setEquipas(cachedData.equipas);
+                setObras(cachedData.obras);
+                setRegistosPonto(cachedData.registos);
+                processarDadosPartes(cachedData.registos, cachedData.equipas);
+                setLoading(false);
+                return;
+            }
+
+            await carregarDadosReais();
         } catch (error) {
             console.error('Erro ao carregar dados:', error);
             Alert.alert('Erro', 'Erro ao carregar os dados necessários');
@@ -79,105 +143,160 @@ const PartesDiarias = ({ navigation }) => {
         }
     };
 
-    const carregarDadosExemplo = () => {
-        // Dados de exemplo das equipas
-        const equipasExemplo = [
-            {
-                id: 1,
-                nome: 'Equipa Construção Civil',
-                encarregado_id: 1,
-                membros: [
-                    { id: 2, nome: 'João Silva' },
-                    { id: 3, nome: 'Maria Santos' },
-                    { id: 4, nome: 'Pedro Costa' },
-                    { id: 5, nome: 'Ana Oliveira' }
-                ]
-            },
-            {
-                id: 2,
-                nome: 'Equipa Acabamentos',
-                encarregado_id: 1,
-                membros: [
-                    { id: 6, nome: 'Carlos Ferreira' },
-                    { id: 7, nome: 'Sofia Rodrigues' }
-                ]
+    const carregarDadosReais = async () => {
+        const token = await AsyncStorage.getItem('loginToken');
+        if (!token) {
+            Alert.alert('Erro', 'Token de autenticação não encontrado');
+            return;
+        }
+
+        try {
+            setLoadingProgress(10);
+            
+            // 1. Buscar minhas equipas primeiro
+            console.log('Carregando equipas...');
+            const equipasResponse = await fetch('https://backend.advir.pt/api/equipa-obra/minhas-agrupadas', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!equipasResponse.ok) {
+                throw new Error('Erro ao carregar equipas');
             }
-        ];
 
-        // Dados de exemplo das obras
-        const obrasExemplo = [
-            {
-                id: 1,
-                nome: 'Edifício Residencial Centro',
-                codigo: 'ERC001'
-            },
-            {
-                id: 2,
-                nome: 'Centro Comercial Norte',
-                codigo: 'CCN002'
-            }
-        ];
+            const equipasData = await equipasResponse.json();
+            setLoadingProgress(20);
+            
+            // Transformar dados para o formato esperado
+            const equipasFormatadas = equipasData.map((equipa, index) => ({
+                id: index + 1,
+                nome: equipa.nome,
+                encarregado_id: 1,
+                membros: equipa.membros || []
+            }));
 
-        // Gerar registos de ponto exemplo para o mês atual
-        const registosExemplo = gerarRegistosExemplo(equipasExemplo, obrasExemplo);
+            setEquipas(equipasFormatadas);
+            setLoadingProgress(30);
 
-        setEquipas(equipasExemplo);
-        setObras(obrasExemplo);
-        setRegistosPonto(registosExemplo);
-        processarDadosPartes(registosExemplo, equipasExemplo);
-    };
-
-    const gerarRegistosExemplo = (equipas, obras) => {
-        const registos = [];
-        const diasDoMes = getDiasDoMes(mesAno.mes, mesAno.ano);
-        
-        // Para cada membro de cada equipa
-        equipas.forEach(equipa => {
-            equipa.membros.forEach(membro => {
-                // Para cada obra (simular que trabalham em diferentes obras)
-                obras.forEach(obra => {
-                    // Gerar alguns dias de trabalho (não todos os dias)
-                    diasDoMes.forEach(dia => {
-                        // 70% chance de trabalhar neste dia
-                        if (Math.random() > 0.3) {
-                            const dataTrabalho = new Date(mesAno.ano, mesAno.mes - 1, dia);
-                            
-                            // Horário de entrada (8h-9h)
-                            const horaEntrada = 8 + Math.random();
-                            const timestampEntrada = new Date(dataTrabalho);
-                            timestampEntrada.setHours(Math.floor(horaEntrada), (horaEntrada % 1) * 60);
-                            
-                            // Horário de saída (16h-18h)
-                            const horaSaida = 16 + Math.random() * 2;
-                            const timestampSaida = new Date(dataTrabalho);
-                            timestampSaida.setHours(Math.floor(horaSaida), (horaSaida % 1) * 60);
-                            
-                            registos.push({
-                                id: registos.length + 1,
-                                User: membro,
-                                Obra: obra,
-                                tipo: 'entrada',
-                                timestamp: timestampEntrada.toISOString()
-                            });
-                            
-                            registos.push({
-                                id: registos.length + 1,
-                                User: membro,
-                                Obra: obra,
-                                tipo: 'saida',
-                                timestamp: timestampSaida.toISOString()
-                            });
+            // 2. Coletar todos os IDs dos membros
+            const membrosIds = [];
+            equipasFormatadas.forEach(equipa => {
+                if (equipa.membros) {
+                    equipa.membros.forEach(membro => {
+                        if (membro && membro.id) {
+                            membrosIds.push(membro.id);
                         }
                     });
-                });
+                }
             });
-        });
-        
-        return registos;
+
+            console.log('IDs dos membros encontrados:', membrosIds);
+            setLoadingProgress(40);
+
+            if (membrosIds.length === 0) {
+                console.log('Nenhum membro encontrado nas equipas');
+                setObras([]);
+                setRegistosPonto([]);
+                processarDadosPartes([], equipasFormatadas);
+                return;
+            }
+
+            // 3. Carregar registos de forma otimizada com requisições paralelas
+            const todosRegistos = [];
+            const obrasUnicas = new Map();
+            
+            console.log('Carregando registos de ponto...');
+            
+            // Criar chunks de requisições para não sobrecarregar o servidor
+            const CHUNK_SIZE = 5; // Processar 5 membros por vez
+            const CONCURRENT_DAYS = 7; // Processar 7 dias por vez
+
+            for (let i = 0; i < membrosIds.length; i += CHUNK_SIZE) {
+                const membrosChunk = membrosIds.slice(i, i + CHUNK_SIZE);
+                
+                // Para cada chunk de membros, processar dias em paralelo
+                for (let j = 0; j < diasDoMes.length; j += CONCURRENT_DAYS) {
+                    const diasChunk = diasDoMes.slice(j, j + CONCURRENT_DAYS);
+                    
+                    const promises = [];
+                    
+                    membrosChunk.forEach(membroId => {
+                        diasChunk.forEach(dia => {
+                            const dataFormatada = `${mesAno.ano}-${String(mesAno.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                            
+                            const promise = fetch(
+                                `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-e-dia?user_id=${membroId}&data=${dataFormatada}`,
+                                {
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                }
+                            ).then(async response => {
+                                if (response.ok) {
+                                    const registosDia = await response.json();
+                                    return { membroId, dia, registos: registosDia };
+                                }
+                                return { membroId, dia, registos: [] };
+                            }).catch(error => {
+                                console.log(`Erro ao buscar registos para membro ${membroId} no dia ${dataFormatada}:`, error);
+                                return { membroId, dia, registos: [] };
+                            });
+                            
+                            promises.push(promise);
+                        });
+                    });
+                    
+                    // Aguardar todas as requisições do chunk
+                    const results = await Promise.all(promises);
+                    
+                    // Processar resultados
+                    results.forEach(({ registos }) => {
+                        registos.forEach(registo => {
+                            if (registo && registo.User && registo.Obra) {
+                                todosRegistos.push(registo);
+                                
+                                // Coletar obras únicas
+                                if (!obrasUnicas.has(registo.Obra.id)) {
+                                    obrasUnicas.set(registo.Obra.id, {
+                                        id: registo.Obra.id,
+                                        nome: registo.Obra.nome || 'Obra sem nome',
+                                        codigo: `OBR${String(registo.Obra.id).padStart(3, '0')}`
+                                    });
+                                }
+                            }
+                        });
+                    });
+                    
+                    // Atualizar progresso
+                    const progressIncrement = 50 / (membrosIds.length * diasDoMes.length / (CHUNK_SIZE * CONCURRENT_DAYS));
+                    setLoadingProgress(prev => Math.min(90, prev + progressIncrement));
+                }
+            }
+
+            const obrasArray = Array.from(obrasUnicas.values());
+            console.log('Registos encontrados:', todosRegistos.length);
+            console.log('Obras encontradas:', obrasArray.length);
+
+            setLoadingProgress(95);
+
+            setObras(obrasArray);
+            setRegistosPonto(todosRegistos);
+            
+            // Armazenar no cache
+            setCachedData(cacheKey, {
+                equipas: equipasFormatadas,
+                obras: obrasArray,
+                registos: todosRegistos
+            });
+
+            setLoadingProgress(100);
+            processarDadosPartes(todosRegistos, equipasFormatadas);
+
+        } catch (error) {
+            console.error('Erro ao carregar dados reais:', error);
+            Alert.alert('Erro', 'Erro ao carregar dados do servidor: ' + error.message);
+        }
     };
 
-    const processarDadosPartes = (registos, equipasData = equipas) => {
-        const diasDoMes = getDiasDoMes(mesAno.mes, mesAno.ano);
+    // Memoizar processamento de dados para evitar recálculos desnecessários
+    const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
         const dadosProcessados = [];
 
         // Filtrar apenas registos dos membros das minhas equipas
@@ -186,25 +305,35 @@ const PartesDiarias = ({ navigation }) => {
         );
 
         const registosFiltrados = registos.filter(registo => 
-            membrosEquipas.includes(registo.User.id)
+            registo && registo.User && registo.Obra && membrosEquipas.includes(registo.User.id)
         );
 
-        // Agrupar registos por usuário e obra
-        const registosPorUsuarioObra = registosFiltrados.reduce((acc, registo) => {
-            const key = `${registo.User.id}-${registo.Obra.id}`;
-            if (!acc[key]) {
-                acc[key] = {
-                    user: registo.User,
-                    obra: registo.Obra,
-                    registos: []
-                };
+        // Agrupar registos por usuário e obra usando Map para melhor performance
+        const registosPorUsuarioObra = new Map();
+        
+        registosFiltrados.forEach(registo => {
+            if (!registo || !registo.User || !registo.Obra) {
+                console.warn('Registo inválido encontrado:', registo);
+                return;
             }
-            acc[key].registos.push(registo);
-            return acc;
-        }, {});
+
+            const key = `${registo.User.id}-${registo.Obra.id}`;
+            if (!registosPorUsuarioObra.has(key)) {
+                registosPorUsuarioObra.set(key, {
+                    user: registo.User,
+                    obra: {
+                        id: registo.Obra.id,
+                        nome: registo.Obra.nome || 'Obra sem nome',
+                        codigo: `OBR${String(registo.Obra.id).padStart(3, '0')}`
+                    },
+                    registos: []
+                });
+            }
+            registosPorUsuarioObra.get(key).registos.push(registo);
+        });
 
         // Para cada usuário-obra, calcular horas por dia
-        Object.values(registosPorUsuarioObra).forEach(grupo => {
+        registosPorUsuarioObra.forEach(grupo => {
             const horasPorDia = calcularHorasPorDia(grupo.registos, diasDoMes);
             
             // Criar entrada base para cada usuário-obra
@@ -218,73 +347,85 @@ const PartesDiarias = ({ navigation }) => {
                 horasPorDia,
                 especialidade: 'Servente',
                 categoria: 'MaoObra',
-                especialidades: [], // Array para múltiplas especialidades por dia
-                isOriginal: true // Marca entrada original
+                especialidades: [],
+                isOriginal: true
             });
         });
 
         setDadosProcessados(dadosProcessados);
-    };
+    }, [diasDoMes, equipas]);
 
-    const calcularHorasPorDia = (registos, diasDoMes) => {
+    // Memoizar cálculo de horas para melhor performance
+    const calcularHorasPorDia = useCallback((registos, diasDoMes) => {
         const horasPorDia = {};
         
+        // Inicializar todos os dias com 0
         diasDoMes.forEach(dia => {
             horasPorDia[dia] = 0;
         });
 
-        // Agrupar registos por data
-        const registosPorData = registos.reduce((acc, registo) => {
+        // Agrupar registos por data apenas (não por obra, pois queremos somar por dia)
+        const registosPorData = new Map();
+        
+        registos.forEach(registo => {
             const data = new Date(registo.timestamp).toISOString().split('T')[0];
-            if (!acc[data]) acc[data] = [];
-            acc[data].push(registo);
-            return acc;
-        }, {});
+            
+            if (!registosPorData.has(data)) {
+                registosPorData.set(data, []);
+            }
+            registosPorData.get(data).push(registo);
+        });
 
-        // Calcular horas trabalhadas por dia
-        Object.keys(registosPorData).forEach(data => {
-            const registosDia = registosPorData[data].sort((a, b) => 
-                new Date(a.timestamp) - new Date(b.timestamp)
-            );
+        // Calcular horas trabalhadas por data
+        registosPorData.forEach((registosDia, data) => {
+            // Ordenar registos por timestamp
+            registosDia.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-            let totalHoras = 0;
-            let entradas = [];
-            let saidas = [];
+            let totalMinutosDia = 0;
+            let ultimaEntrada = null;
 
-            registosDia.forEach(registo => {
+            // Processar registos sequencialmente
+            for (let i = 0; i < registosDia.length; i++) {
+                const registo = registosDia[i];
+                
                 if (registo.tipo === 'entrada') {
-                    entradas.push(new Date(registo.timestamp));
-                } else if (registo.tipo === 'saida') {
-                    saidas.push(new Date(registo.timestamp));
+                    // Nova entrada - guarda o timestamp
+                    ultimaEntrada = new Date(registo.timestamp);
+                } else if (registo.tipo === 'saida' && ultimaEntrada) {
+                    // Saída - calcula tempo desde a última entrada em minutos
+                    const saida = new Date(registo.timestamp);
+                    const minutos = (saida - ultimaEntrada) / (1000 * 60);
+                    totalMinutosDia += Math.max(0, minutos);
+                    ultimaEntrada = null; // Reset para próxima sessão
                 }
-            });
-
-            // Calcular tempo entre entradas e saídas
-            const minLength = Math.min(entradas.length, saidas.length);
-            for (let i = 0; i < minLength; i++) {
-                const horas = (saidas[i] - entradas[i]) / (1000 * 60 * 60);
-                totalHoras += horas;
             }
 
+            // Se há uma entrada sem saída correspondente no final do dia
+            if (ultimaEntrada) {
+                const fimDia = new Date(ultimaEntrada);
+                fimDia.setHours(18, 0, 0, 0);
+                
+                if (ultimaEntrada < fimDia) {
+                    const minutos = (fimDia - ultimaEntrada) / (1000 * 60);
+                    totalMinutosDia += Math.max(0, minutos);
+                }
+            }
+
+            // Atribuir as horas ao dia correto (manter em minutos para preservar precisão)
             const dia = new Date(data).getDate();
             if (horasPorDia.hasOwnProperty(dia)) {
-                horasPorDia[dia] = Math.round(totalHoras * 100) / 100;
+                // Arredondar para o minuto mais próximo
+                horasPorDia[dia] = Math.round(totalMinutosDia);
             }
         });
 
         return horasPorDia;
-    };
+    }, []);
 
-    const getDiasDoMes = (mes, ano) => {
-        const diasNoMes = new Date(ano, mes, 0).getDate();
-        return Array.from({ length: diasNoMes }, (_, i) => i + 1);
-    };
-
-    const abrirEdicao = (trabalhador, dia) => {
+    const abrirEdicao = useCallback((trabalhador, dia) => {
         setSelectedTrabalhador(trabalhador);
         setSelectedDia(dia);
         
-        // Verificar se já existem especialidades para este dia
         const especialidadesDia = trabalhador.especialidades?.filter(esp => esp.dia === dia) || [];
         
         setEditData({
@@ -294,14 +435,14 @@ const PartesDiarias = ({ navigation }) => {
                 {
                     especialidade: trabalhador.especialidade || 'Servente',
                     categoria: trabalhador.categoria || 'MaoObra',
-                    horas: trabalhador.horasPorDia[dia] || 0
+                    horas: (trabalhador.horasPorDia[dia] || 0) / 60 // Converter minutos para horas decimais
                 }
             ]
         });
         setEditModalVisible(true);
-    };
+    }, []);
 
-    const adicionarEspecialidade = () => {
+    const adicionarEspecialidade = useCallback(() => {
         const novasEspecialidades = [...(editData.especialidadesDia || [])];
         novasEspecialidades.push({
             especialidade: 'Servente',
@@ -313,9 +454,9 @@ const PartesDiarias = ({ navigation }) => {
             ...editData,
             especialidadesDia: novasEspecialidades
         });
-    };
+    }, [editData]);
 
-    const removerEspecialidade = (index) => {
+    const removerEspecialidade = useCallback((index) => {
         if (editData.especialidadesDia.length > 1) {
             const novasEspecialidades = editData.especialidadesDia.filter((_, i) => i !== index);
             setEditData({
@@ -323,9 +464,9 @@ const PartesDiarias = ({ navigation }) => {
                 especialidadesDia: novasEspecialidades
             });
         }
-    };
+    }, [editData]);
 
-    const atualizarEspecialidade = (index, campo, valor) => {
+    const atualizarEspecialidade = useCallback((index, campo, valor) => {
         const novasEspecialidades = [...editData.especialidadesDia];
         novasEspecialidades[index] = {
             ...novasEspecialidades[index],
@@ -336,22 +477,35 @@ const PartesDiarias = ({ navigation }) => {
             ...editData,
             especialidadesDia: novasEspecialidades
         });
-    };
+    }, [editData]);
 
-    const iniciarEdicaoHoras = (userId, obraId, dia, horasAtuais) => {
+    const iniciarEdicaoHoras = useCallback((userId, obraId, dia, minutosAtuais) => {
         setEditingCell(`${userId}-${obraId}-${dia}`);
-        setTempHoras(horasAtuais.toString());
-    };
+        // Converter minutos para formato H:MM para edição
+        const horas = Math.floor(minutosAtuais / 60);
+        const mins = minutosAtuais % 60;
+        setTempHoras(horas > 0 || mins > 0 ? `${horas}:${mins.toString().padStart(2, '0')}` : '0:00');
+    }, []);
 
-    const cancelarEdicaoHoras = () => {
+    const cancelarEdicaoHoras = useCallback(() => {
         setEditingCell(null);
         setTempHoras('');
-    };
+    }, []);
 
-    const salvarHorasInline = (userId, obraId, dia) => {
-        const novasHoras = parseFloat(tempHoras) || 0;
+    const salvarHorasInline = useCallback((userId, obraId, dia) => {
+        // Converter formato H:MM para minutos
+        let novosMinutos = 0;
         
-        if (novasHoras < 0 || novasHoras > 24) {
+        if (tempHoras.includes(':')) {
+            const [horas, mins] = tempHoras.split(':').map(num => parseInt(num) || 0);
+            novosMinutos = (horas * 60) + mins;
+        } else {
+            // Se foi inserido apenas um número, assumir que são horas
+            const horas = parseFloat(tempHoras) || 0;
+            novosMinutos = Math.round(horas * 60);
+        }
+        
+        if (novosMinutos < 0 || novosMinutos > (24 * 60)) {
             Alert.alert('Erro', 'As horas devem estar entre 0 e 24');
             return;
         }
@@ -362,7 +516,7 @@ const PartesDiarias = ({ navigation }) => {
                     ...item,
                     horasPorDia: {
                         ...item.horasPorDia,
-                        [dia]: novasHoras
+                        [dia]: novosMinutos
                     }
                 };
             }
@@ -372,16 +526,18 @@ const PartesDiarias = ({ navigation }) => {
         setDadosProcessados(novoDados);
         setEditingCell(null);
         setTempHoras('');
-    };
+    }, [tempHoras, dadosProcessados]);
 
-    const salvarEdicao = () => {
+    const salvarEdicao = useCallback(() => {
         if (selectedTrabalhador && selectedDia) {
-            // Validar se a soma das horas não excede o total do dia
-            const totalHorasDia = selectedTrabalhador.horasPorDia[selectedDia] || 0;
-            const somaHorasEspecialidades = editData.especialidadesDia.reduce((sum, esp) => sum + (parseFloat(esp.horas) || 0), 0);
+            const totalMinutosDia = selectedTrabalhador.horasPorDia[selectedDia] || 0;
+            const somaMinutosEspecialidades = editData.especialidadesDia.reduce((sum, esp) => {
+                const horas = parseFloat(esp.horas) || 0;
+                return sum + Math.round(horas * 60);
+            }, 0);
             
-            if (Math.abs(somaHorasEspecialidades - totalHorasDia) > 0.1 && totalHorasDia > 0) {
-                Alert.alert('Erro', `A soma das horas das especialidades (${somaHorasEspecialidades}h) deve ser igual ao total trabalhado no dia (${totalHorasDia}h)`);
+            if (Math.abs(somaMinutosEspecialidades - totalMinutosDia) > 5 && totalMinutosDia > 0) {
+                Alert.alert('Erro', `A soma das horas das especialidades (${formatarHorasMinutos(somaMinutosEspecialidades)}) deve ser igual ao total trabalhado no dia (${formatarHorasMinutos(totalMinutosDia)})`);
                 return;
             }
             
@@ -389,14 +545,11 @@ const PartesDiarias = ({ navigation }) => {
                 if (item.userId === selectedTrabalhador.userId && 
                     item.obraId === selectedTrabalhador.obraId) {
                     
-                    // Atualizar horas do dia se foram alteradas através das especialidades
                     const novasHorasDia = editData.especialidadesDia.reduce((sum, esp) => sum + (parseFloat(esp.horas) || 0), 0);
                     
-                    // Atualizar especialidades para o dia específico
                     const especialidadesAtualizadas = item.especialidades || [];
                     const especialidadesFiltradas = especialidadesAtualizadas.filter(esp => esp.dia !== selectedDia);
                     
-                    // Adicionar novas especialidades para o dia
                     editData.especialidadesDia.forEach(esp => {
                         if (esp.horas > 0) {
                             especialidadesFiltradas.push({
@@ -415,7 +568,6 @@ const PartesDiarias = ({ navigation }) => {
                             [selectedDia]: novasHorasDia
                         },
                         especialidades: especialidadesFiltradas,
-                        // Manter especialidade principal como a primeira do dia ou padrão
                         especialidade: editData.especialidadesDia.length > 0 ? editData.especialidadesDia[0].especialidade : item.especialidade,
                         categoria: editData.especialidadesDia.length > 0 ? editData.especialidadesDia[0].categoria : item.categoria
                     };
@@ -427,22 +579,18 @@ const PartesDiarias = ({ navigation }) => {
             setEditModalVisible(false);
             Alert.alert('Sucesso', 'Especialidades atualizadas com sucesso!');
         }
-    };
+    }, [selectedTrabalhador, selectedDia, editData, dadosProcessados]);
 
     const criarParteDiaria = async () => {
         try {
             const partesDiarias = [];
             
             dadosProcessados.forEach(item => {
-                const diasDoMes = getDiasDoMes(mesAno.mes, mesAno.ano);
-                
                 diasDoMes.forEach(dia => {
                     if (item.horasPorDia[dia] > 0) {
-                        // Verificar se há especialidades específicas para este dia
                         const especialidadesDia = item.especialidades?.filter(esp => esp.dia === dia) || [];
                         
                         if (especialidadesDia.length > 0) {
-                            // Criar uma parte diária para cada especialidade
                             especialidadesDia.forEach(esp => {
                                 if (esp.horas > 0) {
                                     partesDiarias.push({
@@ -459,7 +607,6 @@ const PartesDiarias = ({ navigation }) => {
                                 }
                             });
                         } else {
-                            // Criar parte diária padrão
                             partesDiarias.push({
                                 categoria: item.categoria,
                                 quantidade: item.horasPorDia[dia],
@@ -476,10 +623,8 @@ const PartesDiarias = ({ navigation }) => {
                 });
             });
 
-            // Simular criação das partes diárias
             console.log('Partes diárias que seriam criadas:', partesDiarias);
             
-            // Simular delay de processamento
             await new Promise(resolve => setTimeout(resolve, 1500));
 
             Alert.alert('Sucesso (Simulação)', `${partesDiarias.length} partes diárias seriam criadas!\n\nCada especialidade será registada separadamente.\n\nQuando implementar os endpoints, esta funcionalidade enviará os dados para o backend.`);
@@ -491,18 +636,14 @@ const PartesDiarias = ({ navigation }) => {
         }
     };
 
-    const exportarExcel = () => {
+    const exportarExcel = useCallback(() => {
         const workbook = XLSX.utils.book_new();
         
-        // Preparar dados para exportação
         const dadosExcel = [];
-        const diasDoMes = getDiasDoMes(mesAno.mes, mesAno.ano);
         
-        // Cabeçalho
         const cabecalho = ['Trabalhador', 'Obra', 'Código', 'Especialidade', 'Categoria', ...diasDoMes.map(d => d.toString()), 'Total'];
         dadosExcel.push(cabecalho);
         
-        // Dados dos trabalhadores
         dadosProcessados.forEach(item => {
             const linha = [
                 item.userName,
@@ -518,15 +659,14 @@ const PartesDiarias = ({ navigation }) => {
         
         const worksheet = XLSX.utils.aoa_to_sheet(dadosExcel);
         
-        // Definir larguras das colunas
         const wscols = [
-            { wch: 20 }, // Trabalhador
-            { wch: 25 }, // Obra
-            { wch: 10 }, // Código
-            { wch: 15 }, // Especialidade
-            { wch: 12 }, // Categoria
-            ...diasDoMes.map(() => ({ wch: 6 })), // Dias
-            { wch: 10 } // Total
+            { wch: 20 },
+            { wch: 25 },
+            { wch: 10 },
+            { wch: 15 },
+            { wch: 12 },
+            ...diasDoMes.map(() => ({ wch: 6 })),
+            { wch: 10 }
         ];
         worksheet['!cols'] = wscols;
         
@@ -536,7 +676,7 @@ const PartesDiarias = ({ navigation }) => {
         const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
         const fileName = `PartesDiarias_${mesAno.mes}_${mesAno.ano}.xlsx`;
         saveAs(blob, fileName);
-    };
+    }, [dadosProcessados, diasDoMes, mesAno]);
 
     const renderHeader = () => (
         <LinearGradient
@@ -616,21 +756,9 @@ const PartesDiarias = ({ navigation }) => {
         </View>
     );
 
-    const renderDataSheet = () => {
-        if (dadosProcessados.length === 0) {
-            return (
-                <View style={styles.emptyContainer}>
-                    <MaterialCommunityIcons name="calendar-blank" size={64} color="#ccc" />
-                    <Text style={styles.emptyText}>Nenhum registo encontrado para este período</Text>
-                    <Text style={styles.emptySubText}>Verifique se tem equipas associadas</Text>
-                </View>
-            );
-        }
-
-        const diasDoMes = getDiasDoMes(mesAno.mes, mesAno.ano);
-
-        // Agrupar dados por obra
-        const dadosAgrupadosPorObra = dadosProcessados.reduce((acc, item) => {
+    // Memoizar dados agrupados por obra para evitar recálculos
+    const dadosAgrupadosPorObra = useMemo(() => {
+        return dadosProcessados.reduce((acc, item) => {
             const obraKey = item.obraId;
             if (!acc[obraKey]) {
                 acc[obraKey] = {
@@ -645,6 +773,18 @@ const PartesDiarias = ({ navigation }) => {
             acc[obraKey].trabalhadores.push(item);
             return acc;
         }, {});
+    }, [dadosProcessados]);
+
+    const renderDataSheet = () => {
+        if (dadosProcessados.length === 0) {
+            return (
+                <View style={styles.emptyContainer}>
+                    <MaterialCommunityIcons name="calendar-blank" size={64} color="#ccc" />
+                    <Text style={styles.emptyText}>Nenhum registo encontrado para este período</Text>
+                    <Text style={styles.emptySubText}>Verifique se tem equipas associadas</Text>
+                </View>
+            );
+        }
 
         return (
             <View style={styles.tableWrapper}>
@@ -669,12 +809,7 @@ const PartesDiarias = ({ navigation }) => {
                                 <View style={[styles.tableCell, styles.fixedColumn, { width: 120 }]}>
                                     <Text style={styles.headerText}>Trabalhador</Text>
                                 </View>
-                                <View style={[styles.tableCell, styles.fixedColumn, { width: 100 }]}>
-                                    <Text style={styles.headerText}>Especialidade</Text>
-                                </View>
-                                <View style={[styles.tableCell, styles.fixedColumn, { width: 80 }]}>
-                                    <Text style={styles.headerText}>Categoria</Text>
-                                </View>
+                                
                                 {diasDoMes.map(dia => (
                                     <View key={dia} style={[styles.tableCell, { width: 50 }]}>
                                         <Text style={styles.headerText}>{dia}</Text>
@@ -709,11 +844,11 @@ const PartesDiarias = ({ navigation }) => {
                                                 {obraGroup.trabalhadores.length} trabalhador{obraGroup.trabalhadores.length !== 1 ? 'es' : ''}
                                             </Text>
                                             <Text style={styles.obraStatsText}>
-                                                Total: {obraGroup.trabalhadores.reduce((total, trab) => {
+                                                Total: {formatarHorasMinutos(obraGroup.trabalhadores.reduce((total, trab) => {
                                                     return total + diasDoMes.reduce((trabTotal, dia) => 
                                                         trabTotal + (trab.horasPorDia[dia] || 0), 0
                                                     );
-                                                }, 0).toFixed(1)}h
+                                                }, 0))}
                                             </Text>
                                         </View>
                                     </View>
@@ -730,16 +865,7 @@ const PartesDiarias = ({ navigation }) => {
                                                     {item.userName}
                                                 </Text>
                                             </View>
-                                            <View style={[styles.tableCell, { width: 100 }]}>
-                                                <Text style={styles.cellText} numberOfLines={1}>
-                                                    {item.especialidade || 'Servente'}
-                                                </Text>
-                                            </View>
-                                            <View style={[styles.tableCell, { width: 80 }]}>
-                                                <Text style={styles.cellText} numberOfLines={1}>
-                                                    {item.categoria || 'MaoObra'}
-                                                </Text>
-                                            </View>
+                                       
                                             {diasDoMes.map(dia => {
                                                 const cellKey = `${item.userId}-${item.obraId}-${dia}`;
                                                 const isEditing = editingCell === cellKey;
@@ -773,7 +899,7 @@ const PartesDiarias = ({ navigation }) => {
                                                                     item.horasPorDia[dia] > 0 && styles.hoursText,
                                                                     styles.clickableHours
                                                                 ]}>
-                                                                    {item.horasPorDia[dia] > 0 ? item.horasPorDia[dia].toFixed(1) : '-'}
+                                                                    {formatarHorasMinutos(item.horasPorDia[dia] || 0)}
                                                                 </Text>
                                                             </TouchableOpacity>
                                                         )}
@@ -782,9 +908,9 @@ const PartesDiarias = ({ navigation }) => {
                                             })}
                                             <View style={[styles.tableCell, { width: 70 }]}>
                                                 <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
-                                                    {diasDoMes.reduce((total, dia) => 
+                                                    {formatarHorasMinutos(diasDoMes.reduce((total, dia) => 
                                                         total + (item.horasPorDia[dia] || 0), 0
-                                                    ).toFixed(1)}
+                                                    ))}
                                                 </Text>
                                             </View>
                                         </View>
@@ -830,7 +956,6 @@ const PartesDiarias = ({ navigation }) => {
                         
                         <Text style={styles.confirmSubText}>
                             Serão criadas {dadosProcessados.reduce((total, item) => {
-                                const diasDoMes = getDiasDoMes(mesAno.mes, mesAno.ano);
                                 return total + diasDoMes.filter(dia => item.horasPorDia[dia] > 0).length;
                             }, 0)} partes diárias.
                         </Text>
@@ -891,7 +1016,7 @@ const PartesDiarias = ({ navigation }) => {
                                     Obra: {selectedTrabalhador.obraNome}
                                 </Text>
                                 <Text style={styles.editInfoText}>
-                                    Dia: {selectedDia} - Horas: {selectedTrabalhador.horasPorDia[selectedDia] || 0}h
+                                    Dia: {selectedDia} - Horas: {formatarHorasMinutos(selectedTrabalhador.horasPorDia[selectedDia] || 0)}
                                 </Text>
                                 <Text style={styles.editInfoSubText}>
                                     {selectedTrabalhador.horasPorDia[selectedDia] > 0 
@@ -933,10 +1058,38 @@ const PartesDiarias = ({ navigation }) => {
                                             <Text style={styles.inputLabelSmall}>Horas</Text>
                                             <TextInput
                                                 style={styles.horasInput}
-                                                value={espItem.horas?.toString() || ''}
-                                                onChangeText={(value) => atualizarEspecialidade(index, 'horas', parseFloat(value) || 0)}
-                                                keyboardType="numeric"
-                                                placeholder="0.0"
+                                                value={(() => {
+                                                    const totalMinutos = Math.round((espItem.horas || 0) * 60);
+                                                    const horas = Math.floor(totalMinutos / 60);
+                                                    const mins = totalMinutos % 60;
+                                                    return totalMinutos > 0 ? `${horas}:${mins.toString().padStart(2, '0')}` : '';
+                                                })()}
+                                                onChangeText={(value) => {
+                                                    if (value === '') {
+                                                        atualizarEspecialidade(index, 'horas', 0);
+                                                        return;
+                                                    }
+                                                    
+                                                    let minutos = 0;
+                                                    
+                                                    if (value.includes(':')) {
+                                                        // Formato H:MM
+                                                        const [h, m] = value.split(':');
+                                                        const horas = parseInt(h) || 0;
+                                                        const mins = parseInt(m) || 0;
+                                                        minutos = (horas * 60) + mins;
+                                                    } else {
+                                                        // Assumir que é apenas horas
+                                                        const horas = parseFloat(value) || 0;
+                                                        minutos = Math.round(horas * 60);
+                                                    }
+                                                    
+                                                    // Converter minutos de volta para horas decimais para compatibilidade
+                                                    const horasDecimais = minutos / 60;
+                                                    atualizarEspecialidade(index, 'horas', horasDecimais);
+                                                }}
+                                                placeholder="0:00"
+                                                keyboardType="default"
                                             />
                                         </View>
                                     </View>
@@ -991,8 +1144,11 @@ const PartesDiarias = ({ navigation }) => {
 
                             <View style={styles.totalHoras}>
                                 <Text style={styles.totalHorasText}>
-                                    Total: {editData.especialidadesDia?.reduce((sum, esp) => sum + (parseFloat(esp.horas) || 0), 0).toFixed(1)}h 
-                                    / {selectedTrabalhador?.horasPorDia[selectedDia]}h trabalhadas
+                                    Total: {formatarHorasMinutos(editData.especialidadesDia?.reduce((sum, esp) => {
+                                        const horas = parseFloat(esp.horas) || 0;
+                                        return sum + Math.round(horas * 60);
+                                    }, 0))} 
+                                    / {formatarHorasMinutos(selectedTrabalhador?.horasPorDia[selectedDia] || 0)} trabalhadas
                                 </Text>
                             </View>
                         </View>
@@ -1020,6 +1176,12 @@ const PartesDiarias = ({ navigation }) => {
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#1792FE" />
                 <Text style={styles.loadingText}>A carregar partes diárias...</Text>
+                <View style={styles.progressContainer}>
+                    <View style={styles.progressBar}>
+                        <View style={[styles.progressFill, { width: `${loadingProgress}%` }]} />
+                    </View>
+                    <Text style={styles.progressText}>{Math.round(loadingProgress)}%</Text>
+                </View>
             </View>
         );
     }
@@ -1236,11 +1398,34 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        padding: 20,
     },
     loadingText: {
         fontSize: 16,
         color: '#1792FE',
         marginTop: 10,
+        marginBottom: 20,
+    },
+    progressContainer: {
+        width: '80%',
+        alignItems: 'center',
+    },
+    progressBar: {
+        width: '100%',
+        height: 8,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        backgroundColor: '#1792FE',
+        borderRadius: 4,
+    },
+    progressText: {
+        fontSize: 14,
+        color: '#666',
+        marginTop: 8,
     },
     modalContainer: {
         flex: 1,
