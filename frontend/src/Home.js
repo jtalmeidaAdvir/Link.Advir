@@ -1,5 +1,4 @@
-﻿
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { startTokenValidation, stopTokenValidation } from './utils/authUtils';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -873,7 +872,7 @@ const Home = () => {
                                 onMouseLeave={(e) => {
                                     e.currentTarget.style.transform = 'translateY(0)';
                                     e.currentTarget.style.boxShadow = activeMenu === menu.title
-                                        ? '0 10px 20px rgba(25, 118, 210, 0.4)'
+                                                                       ? '0 10px 20px rgba(25, 118, 210, 0.4)'
                                         : '0 6px 15px rgba(0, 0, 0, 0.08)';
                                 }}
                             >
@@ -2307,9 +2306,9 @@ const Home = () => {
                                             transition: 'all 0.2s ease',
                                             boxShadow: '0 4px 6px rgba(25, 118, 210, 0.2)'
                                         }}
-                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1565C0'}
-                                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1976D2'}
-                                            onClick={() => handleMenuClick(t('Home.menu.orders'), ordersRef)}
+                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1565C0'}
+                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1976D2'}
+                                                onClick={() => handleMenuClick(t('Home.menu.orders'), ordersRef)}
                                         >
                                             {t('Criar um novo pedido')}
                                         </button>

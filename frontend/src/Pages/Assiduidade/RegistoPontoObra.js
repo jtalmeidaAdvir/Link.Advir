@@ -31,6 +31,9 @@ const RegistoPontoObra = () => {
   const [mostrarManual, setMostrarManual] = useState(false);
   const [mostrarEquipa, setMostrarEquipa] = useState(false);
 
+
+  const tipoUser = localStorage.getItem('tipoUser');
+
   //
     useEffect(() => {
     const fetchEquipas = async () => {
@@ -551,6 +554,7 @@ useEffect(() => {
 </div>
 
                     {/* Team Registration */}
+                    {tipoUser !== 'Trabalhador' && (
 <div className="mt-4 border border-info rounded bg-white mb-3">
   <div 
     className="bg-info text-white px-3 py-2 d-flex justify-content-between align-items-center rounded-top"
@@ -670,6 +674,7 @@ useEffect(() => {
     </div>
   )}
 </div>
+                    )}
 
 
                 </div>

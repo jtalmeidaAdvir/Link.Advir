@@ -382,18 +382,56 @@ const AppNavigator = () => {
         }
     };
 
+    // Função para verificar se o token é válido
+    const isTokenValid = (token) => {
+        if (!token) return false;
+        
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const currentTime = Date.now() / 1000;
+            return payload.exp > currentTime;
+        } catch (error) {
+            console.error('Erro ao verificar token:', error);
+            return false;
+        }
+    };
+
 useEffect(() => {
   const fetchUserData = async () => {
     const token = localStorage.getItem('loginToken');
-    setIsLoggedIn(!!token);
-    setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
-    setIsAdmin(localStorage.getItem('isAdmin') === 'true');
-    setUsername(localStorage.getItem('username') || '');
-    setUserNome(localStorage.getItem('userNome') || '');
-    setEmpresa(localStorage.getItem('empresaSelecionada') || '');
-    setTipoUser(localStorage.getItem('tipoUser') || '');
+    const empresa = localStorage.getItem('empresaSelecionada');
+    const tipoUser = localStorage.getItem('tipoUser');
+    
+    // Verificar se o token existe e é válido
+    if (token && isTokenValid(token)) {
+        setIsLoggedIn(true);
+        setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
+        setIsAdmin(localStorage.getItem('isAdmin') === 'true');
+        setUsername(localStorage.getItem('username') || '');
+        setUserNome(localStorage.getItem('userNome') || '');
+        setEmpresa(empresa || '');
+        setTipoUser(tipoUser || '');
 
-    await fetchUserModules();
+        await fetchUserModules();
+        
+        // Definir a rota inicial baseada no estado
+        if (localStorage.getItem('superAdmin') === 'true') {
+            setInitialRoute('ADHome');
+        } else if (tipoUser && empresa) {
+            // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra
+            setInitialRoute('RegistoPontoObra');
+        } else if (empresa) {
+            setInitialRoute('Home');
+        } else {
+            setInitialRoute('SelecaoEmpresa');
+        }
+    } else {
+        // Token inválido ou inexistente - limpar localStorage e ir para login
+        localStorage.clear();
+        setIsLoggedIn(false);
+        setInitialRoute('Login');
+    }
+    
     setLoading(false);
   };
 
@@ -407,6 +445,7 @@ useEffect(() => {
     const toggleLanguageSelector = () => {
         setLanguageSelectorVisible(!languageSelectorVisible); // Alterna a visibilidade do combobox de idiomas
     };
+    
     const handleLanguageHover = (language) => {
         setHoveredLanguage(language); // Atualiza o idioma que está em hover
     };
@@ -428,6 +467,7 @@ if (loading) {
 
     return (
         <Drawer.Navigator
+        initialRouteName={initialRoute}
             drawerContent={(props) => (
                 <CustomDrawerContent
                     {...props}

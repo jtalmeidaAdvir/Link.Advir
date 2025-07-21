@@ -1181,8 +1181,11 @@ const isPendente = diasPendentes.includes(dataFormatada);
 
 
       {resumo[dataFormatada] && (
-        <span className="horas-dia">{resumo[dataFormatada]}</span>
-      )}
+  <span className="horas-dia">
+    {resumo[dataFormatada].split('h')[0]}h
+  </span>
+)}
+
       {!resumo[dataFormatada] &&
         date < new Date() &&
         date.getDay() !== 0 &&
