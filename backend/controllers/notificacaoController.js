@@ -4,6 +4,8 @@ const Notificacao = require('../models/notificacao');
 
 const criarNotificacao = async (req, res) => {
     try {
+        console.log('Request body recebido:', req.body);
+        
         const {
             usuario_destinatario,
             titulo,
@@ -21,6 +23,9 @@ const criarNotificacao = async (req, res) => {
             pedido_id
         };
 
+        console.log('Data inicial do objeto:', notificacaoData);
+        console.log('data_criacao recebida:', data_criacao, 'tipo:', typeof data_criacao);
+
         // Só adiciona data_criacao se foi fornecida e é válida
         if (data_criacao) {
             const dataObj = new Date(data_criacao);
@@ -36,6 +41,7 @@ const criarNotificacao = async (req, res) => {
             notificacaoData.data_criacao = dataObj;
         }
 
+        console.log('Objeto final antes de criar:', notificacaoData);
         const notificacao = await Notificacao.create(notificacaoData);
 
         return res.status(201).json({

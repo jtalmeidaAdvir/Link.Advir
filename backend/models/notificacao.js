@@ -40,6 +40,11 @@ const Notificacao = sequelize.define('Notificacao', {
 }, {
     tableName: 'notificacoes',
     timestamps: true,
+    hooks: {
+        beforeCreate: (notificacao, options) => {
+            console.log('Before create hook - dados recebidos:', notificacao.dataValues);
+        }
+    }
 });
 
 module.exports = Notificacao;
