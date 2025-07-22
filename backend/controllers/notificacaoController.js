@@ -32,14 +32,20 @@ dataValida = dataObj;
 
         }
 
-        const notificacao = await Notificacao.create({
+        const notificacaoData = {
             usuario_destinatario,
             titulo,
             mensagem,
             tipo,
-            pedido_id,
-            data_criacao: dataValida // só é enviado se estiver correto
-        });
+            pedido_id
+        };
+
+        // Só adiciona data_criacao se foi fornecida e validada
+        if (dataValida !== undefined) {
+            notificacaoData.data_criacao = dataValida;
+        }
+
+        const notificacao = await Notificacao.create(notificacaoData);
 
         return res.status(201).json({
             success: true,
