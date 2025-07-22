@@ -1,9 +1,35 @@
 
 const Notificacao = require('../models/notificacao');
 
+
 const criarNotificacao = async (req, res) => {
     try {
-        const { usuario_destinatario, titulo, mensagem, tipo, pedido_id } = req.body;
+        const {
+            usuario_destinatario,
+            titulo,
+            mensagem,
+            tipo,
+            pedido_id,
+            data_criacao // este campo pode vir ou não
+        } = req.body;
+
+        let dataValida = undefined;
+
+        if (data_criacao) {
+            // Substitui o T por espaço e verifica se é uma data válida
+            const formatada = data_criacao.replace('T', ' ');
+            const dataMoment = moment(formatada, 'YYYY-MM-DD HH:mm:ss', true);
+
+            if (!dataMoment.isValid()) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Formato de data inválido',
+                    details: 'O campo data_criacao deve estar no formato YYYY-MM-DD HH:mm:ss'
+                });
+            }
+
+            dataValida = dataMoment.toDate();
+        }
 
         const notificacao = await Notificacao.create({
             usuario_destinatario,
@@ -11,6 +37,7 @@ const criarNotificacao = async (req, res) => {
             mensagem,
             tipo,
             pedido_id,
+            data_criacao: dataValida // só é enviado se estiver correto
         });
 
         return res.status(201).json({

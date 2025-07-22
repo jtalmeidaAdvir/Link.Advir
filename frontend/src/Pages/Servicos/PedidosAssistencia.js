@@ -941,8 +941,10 @@ const PedidosAssistencia = ({ navigation }) => {
             // Define styles
             const styles = StyleSheet.create({
                 container: {
-                flex: 1,
-                    backgroundColor: "#d4e4ff" ,
+        flex: 1,
+        backgroundColor: "#d4e4ff",
+        overflow: "auto",
+        maxHeight: "100vh",
     },
             header: {
                 backgroundColor: "#1792FE",
@@ -1113,8 +1115,10 @@ const PedidosAssistencia = ({ navigation }) => {
             fontSize: 14,
     },
             tableContainer: {
-                flex: 1,
-            paddingHorizontal: 20,
+        flex: 1,
+        paddingHorizontal: 20,
+        maxHeight: "calc(100vh - 300px)",
+        overflow: "auto",
     },
             loadingContainer: {
                 flex: 1,
