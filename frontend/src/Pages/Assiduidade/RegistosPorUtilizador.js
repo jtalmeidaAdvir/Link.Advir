@@ -532,20 +532,6 @@ const RegistosPorUtilizador = () => {
                   </div>
                 </div>
 
-                <div style={styles.estatisticasGrid}>
-                  <div style={styles.estatItem}>
-                    <span style={styles.estatNumero}>{resumo.totalDias}</span>
-                    <span style={styles.estatLabel}>Dias</span>
-                  </div>
-                  <div style={styles.estatItem}>
-                    <span style={styles.estatNumero}>{resumo.totalRegistos}</span>
-                    <span style={styles.estatLabel}>Registos</span>
-                  </div>
-                  <div style={styles.estatItem}>
-                    <span style={styles.estatNumero}>{resumo.percentagemConfirmados}%</span>
-                    <span style={styles.estatLabel}>Confirmados</span>
-                  </div>
-                </div>
 
                 <div style={styles.obrasInfo}>
                   <span style={styles.obrasLabel}>Obras:</span>
@@ -715,7 +701,7 @@ const styles = {
     padding: '20px',
     maxWidth: '1400px',
     margin: '0 auto',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f5f7fa',
     minHeight: '100vh',
     overflowY: 'auto',
     overflowX: 'hidden'
@@ -1124,7 +1110,7 @@ if (typeof document !== 'undefined') {
   }
 
   .event-card:hover {
-    background-color: #f8f9ff !important;
+    background-color: #edf2f7 !important;
     transform: translateX(5px);
   }
 
