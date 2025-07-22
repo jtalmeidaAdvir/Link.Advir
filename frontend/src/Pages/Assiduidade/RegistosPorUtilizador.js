@@ -4,19 +4,20 @@ import * as XLSX from 'xlsx';
 
 const RegistosPorUtilizador = () => {
   const [utilizadores, setUtilizadores] = useState([]);
-  const [userSelecionado, setUserSelecionado] = useState('');
-  const [nomeSelecionado, setNomeSelecionado] = useState('');
   const [obras, setObras] = useState([]);
   const [obraSelecionada, setObraSelecionada] = useState('');
+  const [utilizadorSelecionado, setUtilizadorSelecionado] = useState('');
   const [mesSelecionado, setMesSelecionado] = useState('');
   const [anoSelecionado, setAnoSelecionado] = useState('');
   const [dataSelecionada, setDataSelecionada] = useState('');
-  const [registos, setRegistos] = useState([]);
+  const [resumoUtilizadores, setResumoUtilizadores] = useState([]);
+  const [utilizadorDetalhado, setUtilizadorDetalhado] = useState(null);
+  const [registosDetalhados, setRegistosDetalhados] = useState([]);
   const [agrupadoPorDia, setAgrupadoPorDia] = useState({});
   const [loading, setLoading] = useState(false);
+  const [loadingDetalhes, setLoadingDetalhes] = useState(false);
   const [enderecos, setEnderecos] = useState({});
   const [filtroTipo, setFiltroTipo] = useState('');
-  const [exibirEstatisticas, setExibirEstatisticas] = useState(true);
 
   const token = localStorage.getItem('loginToken');
 
@@ -66,74 +67,155 @@ const RegistosPorUtilizador = () => {
     }
   };
 
-  const carregarRegistos = async () => {
-    // Se não tiver utilizador selecionado mas tiver obra, permite buscar todos os users da obra
-    if (!userSelecionado && !obraSelecionada) return;
-
+  const carregarResumoUtilizadores = async () => {
     setLoading(true);
+    setResumoUtilizadores([]);
+    setUtilizadorDetalhado(null);
+    
     try {
-      let query = '';
-      
-      // Se tiver utilizador selecionado, usa o endpoint original
-      if (userSelecionado) {
-        query = `user_id=${userSelecionado}`;
-        if (dataSelecionada) {
-          query += `&data=${dataSelecionada}`;
-        } else {
-          if (anoSelecionado) query += `&ano=${anoSelecionado}`;
-          if (mesSelecionado) query += `&mes=${String(mesSelecionado).padStart(2, '0')}`;
-        }
-        if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
+      let utilizadoresParaPesquisar = utilizadores;
 
-        const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
+      // Se tiver utilizador específico selecionado, usar apenas esse
+      if (utilizadorSelecionado) {
+        const userSelecionado = utilizadores.find(u => u.id.toString() === utilizadorSelecionado.toString());
+        utilizadoresParaPesquisar = userSelecionado ? [userSelecionado] : [];
+      }
+      // Se tiver obra selecionada, buscar apenas utilizadores dessa obra
+      else if (obraSelecionada && dataSelecionada) {
+        const resObraUsers = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-obra-e-dia?obra_id=${obraSelecionada}&data=${dataSelecionada}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        const data = await res.json();
+        const dataObraUsers = await resObraUsers.json();
+        
+        // Extrair utilizadores únicos desta obra
+        const userIdsObra = [...new Set(dataObraUsers.map(reg => reg.User?.id).filter(Boolean))];
+        utilizadoresParaPesquisar = utilizadores.filter(u => userIdsObra.includes(u.id));
+      }
 
-        const agrupados = {};
-        data.forEach(reg => {
-          const dia = new Date(reg.timestamp).toISOString().split('T')[0];
-          if (!agrupados[dia]) agrupados[dia] = [];
-          agrupados[dia].push(reg);
-        });
+      const resumos = [];
 
-        setRegistos(data);
-        setAgrupadoPorDia(agrupados);
-      } 
-      // Se só tiver obra selecionada, busca todos os registos da obra
-      else if (obraSelecionada && !userSelecionado) {
-        if (dataSelecionada) {
-          query = `obra_id=${obraSelecionada}&data=${dataSelecionada}`;
+      for (const user of utilizadoresParaPesquisar) {
+        try {
+          let query = `user_id=${user.id}`;
           
-          const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-obra-e-dia?${query}`, {
+          if (dataSelecionada) {
+            query += `&data=${dataSelecionada}`;
+          } else {
+            if (anoSelecionado) query += `&ano=${anoSelecionado}`;
+            if (mesSelecionado) query += `&mes=${String(mesSelecionado).padStart(2, '0')}`;
+          }
+          if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
+
+          const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          const data = await res.json();
+          
+          if (res.ok) {
+            const registos = await res.json();
+            
+            if (registos.length > 0) {
+              // Calcular estatísticas do utilizador
+              const diasUnicos = [...new Set(registos.map(r => new Date(r.timestamp).toISOString().split('T')[0]))];
+              const totalRegistos = registos.length;
+              const registosConfirmados = registos.filter(r => r.is_confirmed).length;
+              
+              // Calcular horas trabalhadas (estimativa baseada em entradas/saídas)
+              const horasPorDia = {};
+              registos.forEach(reg => {
+                const dia = new Date(reg.timestamp).toISOString().split('T')[0];
+                if (!horasPorDia[dia]) horasPorDia[dia] = [];
+                horasPorDia[dia].push(reg);
+              });
 
-          const agrupados = {};
-          data.forEach(reg => {
-            const dia = new Date(reg.timestamp).toISOString().split('T')[0];
-            if (!agrupados[dia]) agrupados[dia] = [];
-            agrupados[dia].push(reg);
-          });
+              let totalHorasEstimadas = 0;
+              Object.values(horasPorDia).forEach(registosDia => {
+                const entradas = registosDia.filter(r => r.tipo === 'entrada').sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                const saidas = registosDia.filter(r => r.tipo === 'saida').sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                
+                if (entradas.length > 0 && saidas.length > 0) {
+                  const primeiraEntrada = new Date(entradas[0].timestamp);
+                  const ultimaSaida = new Date(saidas[saidas.length - 1].timestamp);
+                  const horasDia = (ultimaSaida - primeiraEntrada) / (1000 * 60 * 60);
+                  if (horasDia > 0 && horasDia < 24) {
+                    totalHorasEstimadas += horasDia;
+                  }
+                }
+              });
 
-          setRegistos(data);
-          setAgrupadoPorDia(agrupados);
-        } else {
-          alert('Para filtrar apenas por obra, é necessário selecionar uma data específica.');
-          setLoading(false);
-          return;
+              const obrasUtilizador = [...new Set(registos.map(r => r.Obra?.nome).filter(Boolean))];
+
+              resumos.push({
+                utilizador: user,
+                totalDias: diasUnicos.length,
+                totalRegistos,
+                registosConfirmados,
+                registosNaoConfirmados: totalRegistos - registosConfirmados,
+                percentagemConfirmados: totalRegistos > 0 ? ((registosConfirmados / totalRegistos) * 100).toFixed(1) : 0,
+                totalHorasEstimadas: totalHorasEstimadas.toFixed(1),
+                obras: obrasUtilizador,
+                periodoInicio: new Date(Math.min(...registos.map(r => new Date(r.timestamp)))).toLocaleDateString('pt-PT'),
+                periodoFim: new Date(Math.max(...registos.map(r => new Date(r.timestamp)))).toLocaleDateString('pt-PT')
+              });
+            }
+          }
+        } catch (err) {
+          console.error(`Erro ao carregar dados do utilizador ${user.nome}:`, err);
         }
       }
+
+      // Ordenar por total de horas (decrescente)
+      resumos.sort((a, b) => parseFloat(b.totalHorasEstimadas) - parseFloat(a.totalHorasEstimadas));
+      setResumoUtilizadores(resumos);
+
     } catch (err) {
-      console.error('Erro ao carregar registos:', err);
+      console.error('Erro ao carregar resumo:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  const carregarDetalhesUtilizador = async (user) => {
+    setLoadingDetalhes(true);
+    setUtilizadorDetalhado(user);
+    
+    try {
+      let query = `user_id=${user.id}`;
+      
+      if (dataSelecionada) {
+        query += `&data=${dataSelecionada}`;
+      } else {
+        if (anoSelecionado) query += `&ano=${anoSelecionado}`;
+        if (mesSelecionado) query += `&mes=${String(mesSelecionado).padStart(2, '0')}`;
+      }
+      if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
+
+      const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+
+      const agrupados = {};
+      data.forEach(reg => {
+        const dia = new Date(reg.timestamp).toISOString().split('T')[0];
+        if (!agrupados[dia]) agrupados[dia] = [];
+        agrupados[dia].push(reg);
+      });
+
+      setRegistosDetalhados(data);
+      setAgrupadoPorDia(agrupados);
+
+    } catch (err) {
+      console.error('Erro ao carregar detalhes:', err);
+    } finally {
+      setLoadingDetalhes(false);
+    }
+  };
+
   useEffect(() => {
     const fetchEnderecos = async () => {
+      if (!utilizadorDetalhado) return;
+      
       const promessas = [];
       Object.values(agrupadoPorDia).flat().forEach((reg) => {
         if (reg.latitude && reg.longitude) {
@@ -149,37 +231,21 @@ const RegistosPorUtilizador = () => {
     if (Object.keys(agrupadoPorDia).length > 0) {
       fetchEnderecos();
     }
-  }, [agrupadoPorDia]);
+  }, [agrupadoPorDia, utilizadorDetalhado]);
 
-  const calcularEstatisticas = () => {
-    const totalDias = Object.keys(agrupadoPorDia).length;
-    const totalRegistos = registos.length;
-    const registosConfirmados = registos.filter(r => r.is_confirmed).length;
-    const registosNaoConfirmados = totalRegistos - registosConfirmados;
-    
-    return {
-      totalDias,
-      totalRegistos,
-      registosConfirmados,
-      registosNaoConfirmados,
-      percentagemConfirmados: totalRegistos > 0 ? ((registosConfirmados / totalRegistos) * 100).toFixed(1) : 0
-    };
-  };
-
-  const exportarParaExcel = () => {
-    if (!registos.length) {
+  const exportarResumo = () => {
+    if (!resumoUtilizadores.length) {
       alert('Não há dados para exportar');
       return;
     }
 
     const workbook = XLSX.utils.book_new();
     
-    // Dados para exportação
     const dadosExport = [];
     
     // Cabeçalho
     dadosExport.push([
-      `Relatório de Registos - ${nomeSelecionado}`,
+      'Resumo de Registos por Utilizador',
       '',
       '',
       '',
@@ -187,16 +253,78 @@ const RegistosPorUtilizador = () => {
     ]);
     dadosExport.push([]);
     
-    // Estatísticas
-    const stats = calcularEstatisticas();
-    dadosExport.push(['RESUMO EXECUTIVO']);
-    dadosExport.push(['Total de Dias:', stats.totalDias]);
-    dadosExport.push(['Total de Registos:', stats.totalRegistos]);
-    dadosExport.push(['Registos Confirmados:', stats.registosConfirmados]);
-    dadosExport.push(['Registos Não Confirmados:', stats.registosNaoConfirmados]);
-    dadosExport.push(['Taxa de Confirmação:', `${stats.percentagemConfirmados}%`]);
-    dadosExport.push([]);
+    // Cabeçalhos da tabela
+    dadosExport.push([
+      'Utilizador',
+      'Email',
+      'Total Dias',
+      'Total Registos',
+      'Confirmados',
+      'Não Confirmados',
+      '% Confirmação',
+      'Horas Estimadas',
+      'Obras',
+      'Período'
+    ]);
 
+    // Dados dos utilizadores
+    resumoUtilizadores.forEach(resumo => {
+      dadosExport.push([
+        resumo.utilizador.nome,
+        resumo.utilizador.email,
+        resumo.totalDias,
+        resumo.totalRegistos,
+        resumo.registosConfirmados,
+        resumo.registosNaoConfirmados,
+        `${resumo.percentagemConfirmados}%`,
+        resumo.totalHorasEstimadas,
+        resumo.obras.join(', '),
+        `${resumo.periodoInicio} - ${resumo.periodoFim}`
+      ]);
+    });
+
+    const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
+    
+    const wscols = [
+      { wch: 20 }, // Utilizador
+      { wch: 25 }, // Email
+      { wch: 12 }, // Total Dias
+      { wch: 15 }, // Total Registos
+      { wch: 12 }, // Confirmados
+      { wch: 15 }, // Não Confirmados
+      { wch: 15 }, // % Confirmação
+      { wch: 15 }, // Horas Estimadas
+      { wch: 30 }, // Obras
+      { wch: 20 }  // Período
+    ];
+    worksheet['!cols'] = wscols;
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumo');
+    
+    const fileName = `Resumo_Utilizadores_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+
+  const exportarDetalhesUtilizador = () => {
+    if (!utilizadorDetalhado || !registosDetalhados.length) {
+      alert('Não há detalhes para exportar');
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+    
+    const dadosExport = [];
+    
+    // Cabeçalho
+    dadosExport.push([
+      `Detalhes de Registos - ${utilizadorDetalhado.nome}`,
+      '',
+      '',
+      '',
+      `Período: ${dataSelecionada || `${mesSelecionado}/${anoSelecionado}`}`
+    ]);
+    dadosExport.push([]);
+    
     // Cabeçalhos da tabela
     dadosExport.push([
       'Data',
@@ -229,7 +357,6 @@ const RegistosPorUtilizador = () => {
 
     const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
     
-    // Definir larguras das colunas
     const wscols = [
       { wch: 12 }, // Data
       { wch: 10 }, // Hora
@@ -241,9 +368,9 @@ const RegistosPorUtilizador = () => {
     ];
     worksheet['!cols'] = wscols;
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Registos');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Detalhes');
     
-    const fileName = `Registos_${nomeSelecionado.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const fileName = `Detalhes_${utilizadorDetalhado.nome.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
 
@@ -258,16 +385,14 @@ const RegistosPorUtilizador = () => {
     return acc;
   }, {});
 
-  const stats = calcularEstatisticas();
-
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={styles.title}>
           <span style={styles.icon}>👥</span>
-          Registos de Ponto por Utilizador
+          Registos de Ponto - Resumo por Utilizador
         </h1>
-        <p style={styles.subtitle}>Consulta e análise de registos de assiduidade</p>
+        <p style={styles.subtitle}>Vista compacta com detalhes expandíveis</p>
       </div>
 
       {/* Filtros */}
@@ -279,25 +404,6 @@ const RegistosPorUtilizador = () => {
         
         <div style={styles.filtersGrid}>
           <div style={styles.filterGroup}>
-            <label style={styles.label}>Utilizador {!obraSelecionada ? '*' : '(opcional se obra selecionada)'}</label>
-            <select 
-              style={styles.select}
-              value={userSelecionado} 
-              onChange={(e) => {
-                const userId = e.target.value;
-                const nome = utilizadores.find(u => u.id == userId)?.nome || '';
-                setUserSelecionado(userId);
-                setNomeSelecionado(nome);
-              }}
-            >
-              <option value="">-- Selecione um utilizador --</option>
-              {utilizadores.map(u => (
-                <option key={u.id} value={u.id}>{u.nome} ({u.email})</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={styles.filterGroup}>
             <label style={styles.label}>Obra</label>
             <select 
               style={styles.select}
@@ -307,6 +413,20 @@ const RegistosPorUtilizador = () => {
               <option value="">-- Todas as obras --</option>
               {obras.map(o => (
                 <option key={o.id} value={o.id}>{o.nome}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={styles.filterGroup}>
+            <label style={styles.label}>Utilizador (Opcional)</label>
+            <select 
+              style={styles.select}
+              value={utilizadorSelecionado} 
+              onChange={e => setUtilizadorSelecionado(e.target.value)}
+            >
+              <option value="">-- Todos os utilizadores --</option>
+              {utilizadores.map(u => (
+                <option key={u.id} value={u.id}>{u.nome} - {u.email}</option>
               ))}
             </select>
           </div>
@@ -345,209 +465,152 @@ const RegistosPorUtilizador = () => {
               placeholder="2024"
             />
           </div>
-
-          <div style={styles.filterGroup}>
-            <label style={styles.label}>Tipo de Registo</label>
-            <select 
-              style={styles.select}
-              value={filtroTipo} 
-              onChange={e => setFiltroTipo(e.target.value)}
-            >
-              <option value="">-- Todos --</option>
-              <option value="entrada">Entrada</option>
-              <option value="saida">Saída</option>
-              <option value="pausa">Pausa</option>
-              <option value="retorno">Retorno</option>
-            </select>
-          </div>
         </div>
 
         <div style={styles.actionButtons}>
           <button 
             style={styles.primaryButton}
-            onClick={carregarRegistos}
-            disabled={(!userSelecionado && !obraSelecionada) || loading}
+            onClick={carregarResumoUtilizadores}
+            disabled={loading}
           >
-            {loading ? '🔄 A carregar...' : '🔍 Pesquisar Registos'}
+            {loading ? '🔄 A carregar...' : '🔍 Carregar Resumo'}
           </button>
           
-          {registos.length > 0 && (
+          {resumoUtilizadores.length > 0 && (
             <button 
               style={styles.exportButton}
-              onClick={exportarParaExcel}
+              onClick={exportarResumo}
             >
-              📊 Exportar Excel
+              📊 Exportar Resumo
+            </button>
+          )}
+
+          {utilizadorDetalhado && (
+            <button 
+              style={styles.detailsButton}
+              onClick={() => setUtilizadorDetalhado(null)}
+            >
+              ← Voltar ao Resumo
             </button>
           )}
         </div>
       </div>
 
-      {/* Estatísticas */}
-      {registos.length > 0 && exibirEstatisticas && (
-        <div style={styles.statsCard}>
-          <div style={styles.statsHeader}>
-            <h3 style={styles.sectionTitle}>
-              <span style={styles.sectionIcon}>📈</span>
-              Estatísticas - {nomeSelecionado}
-            </h3>
-            <button 
-              style={styles.toggleButton}
-              onClick={() => setExibirEstatisticas(!exibirEstatisticas)}
-            >
-              ➖
-            </button>
-          </div>
-          
-          <div style={styles.statsGrid}>
-            <div style={styles.statItem}>
-              <span style={styles.statNumber}>{stats.totalDias}</span>
-              <span style={styles.statLabel}>Dias</span>
-            </div>
-            <div style={styles.statItem}>
-              <span style={styles.statNumber}>{stats.totalRegistos}</span>
-              <span style={styles.statLabel}>Total Registos</span>
-            </div>
-            <div style={styles.statItem}>
-              <span style={styles.statNumber}>{stats.registosConfirmados}</span>
-              <span style={styles.statLabel}>Confirmados</span>
-            </div>
-            <div style={styles.statItem}>
-              <span style={styles.statNumber}>{stats.registosNaoConfirmados}</span>
-              <span style={styles.statLabel}>Não Confirmados</span>
-            </div>
-            <div style={styles.statItem}>
-              <span style={styles.statNumber}>{stats.percentagemConfirmados}%</span>
-              <span style={styles.statLabel}>Taxa Confirmação</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Registos */}
+      {/* Loading */}
       {loading && (
         <div style={styles.loadingCard}>
           <div style={styles.spinner}></div>
-          <p>A carregar registos...</p>
+          <p>A carregar resumo...</p>
         </div>
       )}
 
-      {!loading && Object.entries(registosFiltrados).length > 0 && (
-        <div style={styles.registosSection}>
+      {/* Resumo dos Utilizadores */}
+      {!loading && !utilizadorDetalhado && resumoUtilizadores.length > 0 && (
+        <div style={styles.resumoSection}>
           <h3 style={styles.sectionTitle}>
-            <span style={styles.sectionIcon}>📋</span>
-            Registos Detalhados
+            <span style={styles.sectionIcon}>📊</span>
+            Resumo por Utilizador ({resumoUtilizadores.length} utilizadores)
           </h3>
           
-          {/* Se não há utilizador selecionado (filtro só por obra), agrupa por utilizador */}
-          {!userSelecionado && obraSelecionada ? (
-            // Agrupar por utilizador quando filtrado só por obra
-            Object.entries(
-              Object.entries(registosFiltrados).reduce((acc, [dia, eventos]) => {
-                eventos.forEach(evento => {
-                  const userId = evento.User?.id;
-                  const userName = evento.User?.nome || 'Utilizador Desconhecido';
-                  if (!acc[userId]) {
-                    acc[userId] = {
-                      nome: userName,
-                      email: evento.User?.email || '',
-                      registosPorDia: {}
-                    };
-                  }
-                  if (!acc[userId].registosPorDia[dia]) {
-                    acc[userId].registosPorDia[dia] = [];
-                  }
-                  acc[userId].registosPorDia[dia].push(evento);
-                });
-                return acc;
-              }, {})
-            ).map(([userId, userData]) => (
-              <div key={userId} style={styles.userGroupCard}>
-                <div style={styles.userGroupHeader}>
-                  <h3 style={styles.userGroupTitle}>
-                    👤 {userData.nome}
-                  </h3>
-                  <span style={styles.userGroupEmail}>{userData.email}</span>
+          <div style={styles.utilizadoresGrid}>
+            {resumoUtilizadores.map((resumo, index) => (
+              <div 
+                key={resumo.utilizador.id} 
+                style={styles.utilizadorCard}
+                onClick={() => carregarDetalhesUtilizador(resumo.utilizador)}
+              >
+                <div style={styles.utilizadorHeader}>
+                  <div style={styles.utilizadorInfo}>
+                    <h4 style={styles.utilizadorNome}>
+                      👤 {resumo.utilizador.nome}
+                    </h4>
+                    <p style={styles.utilizadorEmail}>{resumo.utilizador.email}</p>
+                  </div>
+                  <div style={styles.horasDestaque}>
+                    <span style={styles.horasNumero}>{resumo.totalHorasEstimadas}</span>
+                    <span style={styles.horasLabel}>horas</span>
+                  </div>
                 </div>
-                
-                {Object.entries(userData.registosPorDia)
-                  .sort(([a], [b]) => new Date(b) - new Date(a))
-                  .map(([dia, eventos]) => (
-                    <div key={`${userId}-${dia}`} style={styles.dayCard}>
-                      <div style={styles.dayHeader}>
-                        <h4 style={styles.dayTitle}>
-                          📅 {new Date(dia).toLocaleDateString('pt-PT', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}
-                        </h4>
-                        <span style={styles.dayBadge}>
-                          {eventos.length} registo{eventos.length !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                      
-                      <div style={styles.eventsList}>
-                        {eventos
-                          .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-                          .map((evento, i) => (
-                            <div key={i} style={styles.eventCard}>
-                              <div style={styles.eventHeader}>
-                                <div style={styles.eventType}>
-                                  <span style={styles.typeIcon}>
-                                    {evento.tipo === 'entrada' ? '🟢' : 
-                                     evento.tipo === 'saida' ? '🔴' : 
-                                     evento.tipo === 'pausa' ? '⏸️' : '▶️'}
-                                  </span>
-                                  <span style={styles.typeText}>{evento.tipo.toUpperCase()}</span>
-                                </div>
-                                <div style={styles.eventTime}>
-                                  🕐 {new Date(evento.timestamp).toLocaleTimeString('pt-PT')}
-                                </div>
-                              </div>
-                              
-                              <div style={styles.eventDetails}>
-                                <div style={styles.eventInfo}>
-                                  <span style={styles.infoLabel}>Obra:</span>
-                                  <span style={styles.infoValue}>{evento.Obra?.nome || 'N/A'}</span>
-                                </div>
-                                
-                                <div style={styles.eventInfo}>
-                                  <span style={styles.infoLabel}>Status:</span>
-                                  <span style={{
-                                    ...styles.infoValue,
-                                    ...styles.statusBadge,
-                                    ...(evento.is_confirmed ? styles.confirmed : styles.unconfirmed)
-                                  }}>
-                                    {evento.is_confirmed ? '✅ Confirmado' : '⏳ Pendente'}
-                                  </span>
-                                </div>
-                                
-                                {evento.justificacao && (
-                                  <div style={styles.eventInfo}>
-                                    <span style={styles.infoLabel}>Justificação:</span>
-                                    <span style={styles.infoValue}>{evento.justificacao}</span>
-                                  </div>
-                                )}
-                                
-                                {evento.latitude && evento.longitude && (
-                                  <div style={styles.eventInfo}>
-                                    <span style={styles.infoLabel}>Localização:</span>
-                                    <span style={styles.infoValue}>
-                                      📍 {enderecos[`${evento.latitude},${evento.longitude}`] || 'A obter localização...'}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  ))}
+
+                <div style={styles.estatisticasGrid}>
+                  <div style={styles.estatItem}>
+                    <span style={styles.estatNumero}>{resumo.totalDias}</span>
+                    <span style={styles.estatLabel}>Dias</span>
+                  </div>
+                  <div style={styles.estatItem}>
+                    <span style={styles.estatNumero}>{resumo.totalRegistos}</span>
+                    <span style={styles.estatLabel}>Registos</span>
+                  </div>
+                  <div style={styles.estatItem}>
+                    <span style={styles.estatNumero}>{resumo.percentagemConfirmados}%</span>
+                    <span style={styles.estatLabel}>Confirmados</span>
+                  </div>
+                </div>
+
+                <div style={styles.obrasInfo}>
+                  <span style={styles.obrasLabel}>Obras:</span>
+                  <span style={styles.obrasTexto}>{resumo.obras.length > 0 ? resumo.obras.join(', ') : 'N/A'}</span>
+                </div>
+
+                <div style={styles.periodoInfo}>
+                  <span style={styles.periodoTexto}>📅 {resumo.periodoInicio} - {resumo.periodoFim}</span>
+                </div>
+
+                <div style={styles.clickHint}>
+                  👆 Clique para ver detalhes completos
+                </div>
               </div>
-            ))
-          ) : (
-            // Agrupamento normal por dia quando há utilizador selecionado
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Detalhes do Utilizador Selecionado */}
+      {utilizadorDetalhado && (
+        <div style={styles.detalhesSection}>
+          <div style={styles.detalhesHeader}>
+            <div>
+              <h3 style={styles.sectionTitle}>
+                <span style={styles.sectionIcon}>📋</span>
+                Detalhes - {utilizadorDetalhado.nome}
+              </h3>
+              <p style={styles.detalhesSubtitle}>{utilizadorDetalhado.email}</p>
+            </div>
+            
+            <div style={styles.detalhesActions}>
+              {registosDetalhados.length > 0 && (
+                <button 
+                  style={styles.exportButton}
+                  onClick={exportarDetalhesUtilizador}
+                >
+                  📊 Exportar Detalhes
+                </button>
+              )}
+              
+              <div style={styles.filterGroup}>
+                <select 
+                  style={styles.selectSmall}
+                  value={filtroTipo} 
+                  onChange={e => setFiltroTipo(e.target.value)}
+                >
+                  <option value="">-- Todos os tipos --</option>
+                  <option value="entrada">Entrada</option>
+                  <option value="saida">Saída</option>
+                  <option value="pausa">Pausa</option>
+                  <option value="retorno">Retorno</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {loadingDetalhes && (
+            <div style={styles.loadingCard}>
+              <div style={styles.spinner}></div>
+              <p>A carregar detalhes...</p>
+            </div>
+          )}
+
+          {!loadingDetalhes && Object.entries(registosFiltrados).length > 0 && (
             Object.entries(registosFiltrados)
               .sort(([a], [b]) => new Date(b) - new Date(a))
               .map(([dia, eventos]) => (
@@ -624,13 +687,22 @@ const RegistosPorUtilizador = () => {
                 </div>
               ))
           )}
+
+          {!loadingDetalhes && Object.entries(registosFiltrados).length === 0 && (
+            <div style={styles.emptyState}>
+              <span style={styles.emptyIcon}>📋</span>
+              <h3>Nenhum registo encontrado</h3>
+              <p>Não foram encontrados registos para os critérios selecionados.</p>
+            </div>
+          )}
         </div>
       )}
 
-      {!loading && Object.entries(registosFiltrados).length === 0 && (userSelecionado || obraSelecionada) && (
+      {/* Empty State para resumo */}
+      {!loading && !utilizadorDetalhado && resumoUtilizadores.length === 0 && (
         <div style={styles.emptyState}>
-          <span style={styles.emptyIcon}>📋</span>
-          <h3>Nenhum registo encontrado</h3>
+          <span style={styles.emptyIcon}>👥</span>
+          <h3>Nenhum utilizador encontrado</h3>
           <p>Não foram encontrados registos para os critérios selecionados.</p>
         </div>
       )}
@@ -685,7 +757,7 @@ const styles = {
   },
   filtersGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
     gap: '20px',
     marginBottom: '30px'
   },
@@ -704,6 +776,15 @@ const styles = {
     border: '2px solid #e2e8f0',
     borderRadius: '12px',
     fontSize: '1rem',
+    backgroundColor: '#ffffff',
+    transition: 'all 0.2s',
+    outline: 'none'
+  },
+  selectSmall: {
+    padding: '8px 12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: '0.9rem',
     backgroundColor: '#ffffff',
     transition: 'all 0.2s',
     outline: 'none'
@@ -745,51 +826,16 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.2s'
   },
-  statsCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: '16px',
-    padding: '30px',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-    marginBottom: '30px',
-    border: '1px solid #e2e8f0'
-  },
-  statsHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px'
-  },
-  toggleButton: {
-    backgroundColor: 'transparent',
+  detailsButton: {
+    backgroundColor: '#718096',
+    color: 'white',
     border: 'none',
-    fontSize: '1.2rem',
-    cursor: 'pointer'
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: '20px'
-  },
-  statItem: {
-    textAlign: 'center',
-    padding: '20px',
-    backgroundColor: '#f7fafc',
+    padding: '14px 28px',
     borderRadius: '12px',
-    border: '2px solid #e2e8f0'
-  },
-  statNumber: {
-    display: 'block',
-    fontSize: '2.5rem',
-    fontWeight: '700',
-    color: '#3182ce',
-    marginBottom: '8px'
-  },
-  statLabel: {
-    display: 'block',
-    fontSize: '0.9rem',
-    color: '#718096',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
+    fontSize: '1rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
   },
   loadingCard: {
     backgroundColor: '#ffffff',
@@ -807,12 +853,151 @@ const styles = {
     animation: 'spin 1s linear infinite',
     margin: '0 auto 20px'
   },
-  registosSection: {
+  resumoSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: '16px',
+    padding: '30px',
+    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+    border: '1px solid #e2e8f0',
+    marginBottom: '30px'
+  },
+  utilizadoresGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+    gap: '25px'
+  },
+  utilizadorCard: {
+    backgroundColor: '#f7fafc',
+    border: '2px solid #e2e8f0',
+    borderRadius: '16px',
+    padding: '25px',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    position: 'relative'
+  },
+  utilizadorHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '20px'
+  },
+  utilizadorInfo: {
+    flex: 1
+  },
+  utilizadorNome: {
+    margin: '0 0 5px 0',
+    color: '#2d3748',
+    fontSize: '1.3rem',
+    fontWeight: '700'
+  },
+  utilizadorEmail: {
+    margin: 0,
+    color: '#718096',
+    fontSize: '0.9rem'
+  },
+  horasDestaque: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    backgroundColor: '#3182ce',
+    color: 'white',
+    padding: '15px 20px',
+    borderRadius: '12px'
+  },
+  horasNumero: {
+    fontSize: '2rem',
+    fontWeight: '700',
+    lineHeight: 1
+  },
+  horasLabel: {
+    fontSize: '0.8rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  estatisticasGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '15px',
+    marginBottom: '20px'
+  },
+  estatItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: '15px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0'
+  },
+  estatNumero: {
+    fontSize: '1.5rem',
+    fontWeight: '700',
+    color: '#3182ce',
+    lineHeight: 1
+  },
+  estatLabel: {
+    fontSize: '0.8rem',
+    color: '#718096',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    marginTop: '5px'
+  },
+  obrasInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    marginBottom: '15px'
+  },
+  obrasLabel: {
+    fontSize: '0.9rem',
+    fontWeight: '600',
+    color: '#4a5568',
+    marginBottom: '5px'
+  },
+  obrasTexto: {
+    fontSize: '0.9rem',
+    color: '#2d3748',
+    lineHeight: 1.4
+  },
+  periodoInfo: {
+    marginBottom: '15px'
+  },
+  periodoTexto: {
+    fontSize: '0.9rem',
+    color: '#718096'
+  },
+  clickHint: {
+    position: 'absolute',
+    bottom: '10px',
+    right: '15px',
+    fontSize: '0.8rem',
+    color: '#a0aec0',
+    fontStyle: 'italic'
+  },
+  detalhesSection: {
     backgroundColor: '#ffffff',
     borderRadius: '16px',
     padding: '30px',
     boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
     border: '1px solid #e2e8f0'
+  },
+  detalhesHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '30px',
+    flexWrap: 'wrap',
+    gap: '20px'
+  },
+  detalhesSubtitle: {
+    color: '#718096',
+    fontSize: '1rem',
+    margin: '5px 0 0 0'
+  },
+  detalhesActions: {
+    display: 'flex',
+    gap: '15px',
+    alignItems: 'center',
+    flexWrap: 'wrap'
   },
   dayCard: {
     marginBottom: '30px',
@@ -920,73 +1105,56 @@ const styles = {
     fontSize: '4rem',
     display: 'block',
     marginBottom: '20px'
-  },
-  userGroupCard: {
-    marginBottom: '40px',
-    border: '3px solid #3182ce',
-    borderRadius: '16px',
-    overflow: 'hidden',
-    backgroundColor: '#ffffff'
-  },
-  userGroupHeader: {
-    backgroundColor: '#3182ce',
-    color: 'white',
-    padding: '20px',
-    textAlign: 'center'
-  },
-  userGroupTitle: {
-    margin: '0 0 8px 0',
-    fontSize: '1.4rem',
-    fontWeight: '700'
-  },
-  userGroupEmail: {
-    fontSize: '1rem',
-    opacity: 0.9
   }
 };
 
-// Adicionar animação do spinner e estilos de scroll via CSS-in-JS
-const spinKeyframes = `
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Estilos de scroll personalizados */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Scroll suave */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Garantir que o body permite scroll */
-body {
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-}
-`;
-
-// Injetar keyframes no documento
+// Hover effects
 if (typeof document !== 'undefined') {
   const style = document.createElement('style');
-  style.textContent = spinKeyframes;
+  style.textContent = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .utilizador-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.15) !important;
+    border-color: #3182ce !important;
+  }
+
+  .event-card:hover {
+    background-color: #f8f9ff !important;
+    transform: translateX(5px);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  `;
   document.head.appendChild(style);
 }
 
