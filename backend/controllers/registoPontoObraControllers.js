@@ -331,6 +331,64 @@ const listarPorUserEDia = async (req, res) => {
 };
 
 
+const listarPorUserPeriodo = async (req, res) => {
+  try {
+    const { user_id, data, ano, mes, obra_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({ message: 'Parâmetro user_id é obrigatório.' });
+    }
+
+    let dataInicio, dataFim;
+
+    // Se vier data → busca do dia
+    if (data) {
+      if (isNaN(Date.parse(data))) {
+        return res.status(400).json({ message: 'Data inválida.' });
+      }
+      dataInicio = new Date(`${data}T00:00:00.000Z`);
+      dataFim = new Date(`${data}T23:59:59.999Z`);
+    }
+
+    // Se vier ano + mês → busca do mês
+    else if (ano && mes) {
+      dataInicio = new Date(`${ano}-${mes}-01T00:00:00.000Z`);
+      dataFim = new Date(dataInicio);
+      dataFim.setMonth(dataFim.getMonth() + 1);
+    }
+
+    // Se vier só ano → busca do ano
+    else if (ano) {
+      dataInicio = new Date(`${ano}-01-01T00:00:00.000Z`);
+      dataFim = new Date(`${parseInt(ano) + 1}-01-01T00:00:00.000Z`);
+    }
+
+    // Where base
+    const whereClause = {
+      user_id,
+      ...(dataInicio && dataFim && {
+        timestamp: { [Op.between]: [dataInicio, dataFim] }
+      }),
+      ...(obra_id && { obra_id }) // filtro por obra, se existir
+    };
+
+    const registos = await RegistoPontoObra.findAll({
+      where: whereClause,
+      include: [
+        { model: User, attributes: ['id', 'nome', 'email'] },
+        { model: Obra, attributes: ['id', 'nome', 'localizacao'] }
+      ],
+      order: [['timestamp', 'ASC']]
+    });
+
+    res.status(200).json(registos);
+  } catch (err) {
+    console.error('Erro ao listar registos por período:', err);
+    res.status(500).json({ message: 'Erro interno ao listar registos.' });
+  }
+};
+
+
 module.exports = {
   registarPonto,
   listarRegistosPorDia,
@@ -342,7 +400,8 @@ module.exports = {
   confirmarPonto,
   cancelarPonto,
   listarPendentes,
-  listarPorUserEDia
+  listarPorUserEDia,
+  listarPorUserPeriodo
 };
 
 

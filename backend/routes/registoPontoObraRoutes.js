@@ -12,7 +12,8 @@ const {
   confirmarPonto,
   cancelarPonto,
   listarPendentes,
-  listarPorUserEDia
+  listarPorUserEDia,
+  listarPorUserPeriodo
 
 } = require('../controllers/registoPontoObraControllers');
 
@@ -35,6 +36,8 @@ router.delete('/cancelar/:id', authMiddleware, cancelarPonto);
 router.get('/pendentes', authMiddleware, listarPendentes);
 
 router.get('/listar-por-user-e-dia', authMiddleware, listarPorUserEDia);
+
+router.get('/listar-por-user-periodo', authMiddleware, listarPorUserPeriodo);
 
 
 module.exports = router;

@@ -492,6 +492,7 @@ const ListarObras = ({ navigation }) => {
         <body onload="window.print(); window.onafterprint = () => window.close();">
     <div class="print-wrapper">
         <h1>${item.Codigo}</h1>
+        <h1>${item.Titulo}</h1>
         <img src="${qrCodeSrc}" alt="QR Code da Obra" />
     </div>
 </body>

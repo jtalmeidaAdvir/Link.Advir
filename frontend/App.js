@@ -63,6 +63,8 @@ import PessoalObra from './src/Pages/Obras/PessoalObra';
 
 import CriarEquipa from './src/Pages/Obras/CriarEquipa';
 
+import RegistosPorUtilizador from './src/Pages/Assiduidade/RegistosPorUtilizador';
+
 import UserModulesManagement from './src/Pages/Autenticacao/UserModulesManagement';
 import logo from './assets/favicon1.ico';
 import i18n from './src/Pages/i18n';
@@ -194,6 +196,8 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                                       options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
         />
+
+        
     </>
     )}
 
@@ -277,6 +281,13 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         <DrawerItem
                             label={t("Gestão Pontos")}
                             onPress={() => props.navigation.navigate('AprovacaoPontoPendentes')}
+                            icon={() => <FontAwesome name="calendar-check-o" size={20} color="#1792FE" />}
+                              options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
+
+                        />
+                        <DrawerItem
+                            label={t("Relatórios Ponto")}
+                            onPress={() => props.navigation.navigate('RegistosPorUtilizador')}
                             icon={() => <FontAwesome name="calendar-check-o" size={20} color="#1792FE" />}
                               options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
@@ -652,6 +663,8 @@ if (loading) {
                         
                         <Drawer.Screen name="AprovacaoFaltaFerias" component={AprovacaoFaltaFerias} />
                         <Drawer.Screen name="AprovacaoPontoPendentes" component={AprovacaoPontoPendentes} />
+                        
+                        <Drawer.Screen name="RegistosPorUtilizador" component={RegistosPorUtilizador} />
 
             {!loading && (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
 
