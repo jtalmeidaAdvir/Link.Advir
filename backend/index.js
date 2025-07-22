@@ -15,6 +15,8 @@ const equipaObraRoutes = require('./routes/equipaObraRoutes');
 const partesDiariasRoutes = require('./routes/partesDiariasRoutes');
 const registoPontoObraRoutes = require('./routes/registoPontoObraRoutes');
 const faltasFeriasRoutes = require('./routes/faltasFeriasRoutes');
+const notificacaoRoutes = require('./routes/notificacaoRoutes'); // Adicionado rotas de notificação
+const testNotificacaoRoutes = require('./routes/testNotificacaoRoutes'); // Adicionado rotas de teste
 
 
 const fileUpload = require('express-fileupload');
@@ -33,7 +35,7 @@ app.use(fileUpload());
 
 async function startApp() {
     await initializeSequelize();
-    await sequelize.sync({ alter : true }) // Sincroniza sem perder dados
+    await sequelize.sync({ alter: true }) // Sincroniza sem perder dados
         .then(() => {
             console.log('Tabelas sincronizadas com sucesso.');
         })
@@ -58,6 +60,8 @@ app.use('/api/equipa-obra', equipaObraRoutes);
 app.use('/api/partes-diarias', partesDiariasRoutes);
 app.use('/api/registo-ponto-obra', registoPontoObraRoutes);
 app.use('/api/faltas-ferias', faltasFeriasRoutes);
+app.use('/api', notificacaoRoutes);
+app.use('/api', testNotificacaoRoutes);
 
 
 

@@ -207,6 +207,32 @@ const RegistoAssistencia = (props) => {
             );
 
             const data = await response.json();
+
+            // Criar notificação para o técnico
+            try {
+                await fetch("https://backend.advir.pt/api/notificacoes", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        usuario_destinatario: formData.tecnico,
+                        titulo: "Novo Pedido de Assistência",
+                        mensagem: `Foi-lhe atribuído um novo pedido de assistência do cliente ${formData.cliente}. Problema: ${formData.problema.substring(0, 100)}${formData.problema.length > 100 ? "..." : ""}`,
+                        tipo: "pedido_atribuido",
+                        pedido_id: data.PedidoID || "N/A",
+                    }),
+                });
+
+                console.log(
+                    "Notificação criada com sucesso para o técnico:",
+                    formData.tecnico,
+                );
+            } catch (notifError) {
+                console.error("Erro ao criar notificação:", notifError);
+                // Não bloqueia o fluxo principal se a notificação falhar
+            }
+
             setMessage(t("RegistoAssistencia.Aviso.2"));
 
             setFormData({
@@ -229,7 +255,6 @@ const RegistoAssistencia = (props) => {
             setActiveTab("cliente");
             setMessage("");
             props.navigation.navigate("PedidosAssistencia");
-
         } catch (error) {
             setMessage("Erro ao enviar pedido.");
             console.error("Erro ao enviar pedido:", error);
@@ -249,22 +274,36 @@ const RegistoAssistencia = (props) => {
             <div style={containerStyle}>
                 <div style={cardStyle}>
                     <header style={headerStyle}>
-                        <h1 style={titleStyle}>{t("RegistoAssistencia.Title")}</h1>
+                        <h1 style={titleStyle}>
+                            {t("RegistoAssistencia.Title")}
+                        </h1>
                         <div style={tabsContainerStyle}>
                             <button
-                                style={activeTab === "cliente" ? activeTabStyle : tabStyle}
+                                style={
+                                    activeTab === "cliente"
+                                        ? activeTabStyle
+                                        : tabStyle
+                                }
                                 onClick={() => setActiveTab("cliente")}
                             >
                                 Informações do Cliente
                             </button>
                             <button
-                                style={activeTab === "detalhes" ? activeTabStyle : tabStyle}
+                                style={
+                                    activeTab === "detalhes"
+                                        ? activeTabStyle
+                                        : tabStyle
+                                }
                                 onClick={() => setActiveTab("detalhes")}
                             >
                                 Detalhes da Assistência
                             </button>
                             <button
-                                style={activeTab === "descricao" ? activeTabStyle : tabStyle}
+                                style={
+                                    activeTab === "descricao"
+                                        ? activeTabStyle
+                                        : tabStyle
+                                }
                                 onClick={() => setActiveTab("descricao")}
                             >
                                 Descrição do Problema
@@ -276,15 +315,22 @@ const RegistoAssistencia = (props) => {
 
                     <form onSubmit={handleSubmit} style={formStyle}>
                         {activeTab === "cliente" && (
-                            <div className="tab-content" style={tabContentStyle}>
+                            <div
+                                className="tab-content"
+                                style={tabContentStyle}
+                            >
                                 <div style={sectionTitleContainerStyle}>
                                     <div style={sectionTitleLineStyle}></div>
-                                    <h2 style={sectionTitleStyle}>Informações do Cliente</h2>
+                                    <h2 style={sectionTitleStyle}>
+                                        Informações do Cliente
+                                    </h2>
                                     <div style={sectionTitleLineStyle}></div>
                                 </div>
 
                                 <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtCliente")}</label>
+                                    <label style={labelStyle}>
+                                        {t("RegistoAssistencia.TxtCliente")}
+                                    </label>
                                     <select
                                         name="cliente"
                                         value={formData.cliente}
@@ -304,19 +350,25 @@ const RegistoAssistencia = (props) => {
 
                                             // Buscar contactos
                                             try {
-                                                const contactosRes = await fetch(
-                                                    `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${value}`,
-                                                    {
-                                                        method: "GET",
-                                                        headers: {
-                                                            Authorization: `Bearer ${token}`,
-                                                            "Content-Type": "application/json",
-                                                            urlempresa: urlempresa,
+                                                const contactosRes =
+                                                    await fetch(
+                                                        `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${value}`,
+                                                        {
+                                                            method: "GET",
+                                                            headers: {
+                                                                Authorization: `Bearer ${token}`,
+                                                                "Content-Type":
+                                                                    "application/json",
+                                                                urlempresa:
+                                                                    urlempresa,
+                                                            },
                                                         },
-                                                    }
-                                                );
-                                                const contactosData = await contactosRes.json();
-                                                const contactos = contactosData?.DataSet?.Table || [];
+                                                    );
+                                                const contactosData =
+                                                    await contactosRes.json();
+                                                const contactos =
+                                                    contactosData?.DataSet
+                                                        ?.Table || [];
 
                                                 setDataLists((prev) => ({
                                                     ...prev,
@@ -326,60 +378,94 @@ const RegistoAssistencia = (props) => {
                                                 if (contactos.length === 1) {
                                                     setFormData((prev) => ({
                                                         ...prev,
-                                                        contacto: contactos[0].Contacto,
+                                                        contacto:
+                                                            contactos[0]
+                                                                .Contacto,
                                                     }));
                                                 }
                                             } catch (error) {
-                                                console.error("Erro ao buscar contactos:", error);
+                                                console.error(
+                                                    "Erro ao buscar contactos:",
+                                                    error,
+                                                );
                                             }
 
                                             // Buscar contratos
                                             try {
                                                 // Primeiro busca a lista básica de contratos
-                                                const contratosRes = await fetch(
-                                                    `https://webapiprimavera.advir.pt/routePedidos_STP/Listarcontratos/${value}`,
-                                                    {
-                                                        method: "GET",
-                                                        headers: {
-                                                            Authorization: `Bearer ${token}`,
-                                                            "Content-Type": "application/json",
-                                                            urlempresa: urlempresa,
-                                                        },
-                                                    }
-                                                );
-                                                const contratosData = await contratosRes.json();
-                                                let contratos = contratosData?.DataSet?.Table || [];
-
-                                                // Busca informações detalhadas dos contratos (incluindo horas)
-                                                try {
-                                                    const infoContratosRes = await fetch(
-                                                        `https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${value}`,
+                                                const contratosRes =
+                                                    await fetch(
+                                                        `https://webapiprimavera.advir.pt/routePedidos_STP/Listarcontratos/${value}`,
                                                         {
                                                             method: "GET",
                                                             headers: {
                                                                 Authorization: `Bearer ${token}`,
-                                                                "Content-Type": "application/json",
-                                                                urlempresa: urlempresa,
+                                                                "Content-Type":
+                                                                    "application/json",
+                                                                urlempresa:
+                                                                    urlempresa,
                                                             },
-                                                        }
+                                                        },
                                                     );
+                                                const contratosData =
+                                                    await contratosRes.json();
+                                                let contratos =
+                                                    contratosData?.DataSet
+                                                        ?.Table || [];
+
+                                                // Busca informações detalhadas dos contratos (incluindo horas)
+                                                try {
+                                                    const infoContratosRes =
+                                                        await fetch(
+                                                            `https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${value}`,
+                                                            {
+                                                                method: "GET",
+                                                                headers: {
+                                                                    Authorization: `Bearer ${token}`,
+                                                                    "Content-Type":
+                                                                        "application/json",
+                                                                    urlempresa:
+                                                                        urlempresa,
+                                                                },
+                                                            },
+                                                        );
 
                                                     if (infoContratosRes.ok) {
-                                                        const infoData = await infoContratosRes.json();
-                                                        const contratosDetalhados = infoData?.DataSet?.Table || [];
+                                                        const infoData =
+                                                            await infoContratosRes.json();
+                                                        const contratosDetalhados =
+                                                            infoData?.DataSet
+                                                                ?.Table || [];
 
                                                         // Combina as informações
-                                                        contratos = contratos.map(contrato => {
-                                                            const detalhe = contratosDetalhados.find(d => d.ID === contrato.ID);
-                                                            return {
-                                                                ...contrato,
-                                                                HorasTotais: detalhe?.HorasTotais || 0,
-                                                                HorasGastas: detalhe?.HorasGastas || 0
-                                                            };
-                                                        });
+                                                        contratos =
+                                                            contratos.map(
+                                                                (contrato) => {
+                                                                    const detalhe =
+                                                                        contratosDetalhados.find(
+                                                                            (
+                                                                                d,
+                                                                            ) =>
+                                                                                d.ID ===
+                                                                                contrato.ID,
+                                                                        );
+                                                                    return {
+                                                                        ...contrato,
+                                                                        HorasTotais:
+                                                                            detalhe?.HorasTotais ||
+                                                                            0,
+                                                                        HorasGastas:
+                                                                            detalhe?.HorasGastas ||
+                                                                            0,
+                                                                    };
+                                                                },
+                                                            );
                                                     }
                                                 } catch (infoError) {
-                                                    console.warn("Não foi possível obter detalhes dos contratos:", infoError);
+                                                    console.warn(
+                                                        "Não foi possível obter detalhes dos contratos:",
+                                                        infoError,
+                                                    );
                                                 }
 
                                                 setDataLists((prev) => ({
@@ -388,37 +474,49 @@ const RegistoAssistencia = (props) => {
                                                 }));
 
                                                 if (contratos.length === 1) {
-                                                    const contrato = contratos[0];
+                                                    const contrato =
+                                                        contratos[0];
                                                     setFormData((prev) => ({
                                                         ...prev,
                                                         contratoID: contrato.ID,
                                                     }));
 
                                                     // Define automaticamente o contrato selecionado
-                                                    const horasDisponiveis = ((contrato.HorasTotais ?? 0) - (contrato.HorasGastas ?? 0)).toFixed(2);
+                                                    const horasDisponiveis = (
+                                                        (contrato.HorasTotais ??
+                                                            0) -
+                                                        (contrato.HorasGastas ??
+                                                            0)
+                                                    ).toFixed(2);
                                                     setContratoSelecionado({
                                                         ...contrato,
-                                                        horasDisponiveis
+                                                        horasDisponiveis,
                                                     });
                                                 }
                                             } catch (error) {
-                                                console.error("Erro ao buscar contratos:", error);
+                                                console.error(
+                                                    "Erro ao buscar contratos:",
+                                                    error,
+                                                );
                                             }
                                         }}
-
                                         onClick={() =>
                                             fetchData(
                                                 "routePedidos_STP/LstClientes",
                                                 "clientes",
-                                                "carregandoClientes"
+                                                "carregandoClientes",
                                             )
                                         }
                                         style={selectStyle}
                                     >
-
-                                        <option value="">{t("RegistoAssistencia.TxtCliente")}</option>
+                                        <option value="">
+                                            {t("RegistoAssistencia.TxtCliente")}
+                                        </option>
                                         {dataLists.clientes.map((c) => (
-                                            <option key={c.Cliente} value={c.Cliente}>
+                                            <option
+                                                key={c.Cliente}
+                                                value={c.Cliente}
+                                            >
                                                 {c.Cliente} - {c.Nome}
                                             </option>
                                         ))}
@@ -427,7 +525,11 @@ const RegistoAssistencia = (props) => {
 
                                 <div style={formRowStyle}>
                                     <div style={formGroupStyle}>
-                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtContacto")}</label>
+                                        <label style={labelStyle}>
+                                            {t(
+                                                "RegistoAssistencia.TxtContacto",
+                                            )}
+                                        </label>
                                         <select
                                             name="contacto"
                                             value={formData.contacto}
@@ -442,68 +544,128 @@ const RegistoAssistencia = (props) => {
                                             style={selectStyle}
                                             disabled={!formData.cliente}
                                         >
-                                            <option value="">{t("RegistoAssistencia.TxtContacto")}</option>
+                                            <option value="">
+                                                {t(
+                                                    "RegistoAssistencia.TxtContacto",
+                                                )}
+                                            </option>
                                             {dataLists.contactos.map((co) => (
-                                                <option key={co.Contacto} value={co.Contacto}>
-                                                    {co.Contacto} - {co.PrimeiroNome} {co.UltimoNome}
+                                                <option
+                                                    key={co.Contacto}
+                                                    value={co.Contacto}
+                                                >
+                                                    {co.Contacto} -{" "}
+                                                    {co.PrimeiroNome}{" "}
+                                                    {co.UltimoNome}
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
 
                                     <div style={formGroupStyle}>
-                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtContrato")}</label>
+                                        <label style={labelStyle}>
+                                            {t(
+                                                "RegistoAssistencia.TxtContrato",
+                                            )}
+                                        </label>
                                         <select
                                             name="contratoID"
                                             value={formData.contratoID}
                                             onChange={async (e) => {
-                                                const contratoId = e.target.value;
+                                                const contratoId =
+                                                    e.target.value;
                                                 handleChange(e);
 
-                                                if (contratoId && dataLists.contratosID.length > 0) {
+                                                if (
+                                                    contratoId &&
+                                                    dataLists.contratosID
+                                                        .length > 0
+                                                ) {
                                                     // Primeiro, procura no array local
-                                                    const contratoLocal = dataLists.contratosID.find(c => c.ID === contratoId);
+                                                    const contratoLocal =
+                                                        dataLists.contratosID.find(
+                                                            (c) =>
+                                                                c.ID ===
+                                                                contratoId,
+                                                        );
 
                                                     if (contratoLocal) {
-                                                        const horasDisponiveis = ((contratoLocal.HorasTotais ?? 0) - (contratoLocal.HorasGastas ?? 0)).toFixed(2);
+                                                        const horasDisponiveis =
+                                                            (
+                                                                (contratoLocal.HorasTotais ??
+                                                                    0) -
+                                                                (contratoLocal.HorasGastas ??
+                                                                    0)
+                                                            ).toFixed(2);
                                                         setContratoSelecionado({
                                                             ...contratoLocal,
-                                                            horasDisponiveis
+                                                            horasDisponiveis,
                                                         });
                                                     } else {
                                                         // Se não encontrar, faz nova requisição
                                                         try {
-                                                            const response = await fetch(
-                                                                `https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${formData.cliente}`,
-                                                                {
-                                                                    method: "GET",
-                                                                    headers: {
-                                                                        Authorization: `Bearer ${token}`,
-                                                                        "Content-Type": "application/json",
-                                                                        urlempresa: urlempresa,
+                                                            const response =
+                                                                await fetch(
+                                                                    `https://webapiprimavera.advir.pt/clientArea/ObterInfoContrato/${formData.cliente}`,
+                                                                    {
+                                                                        method: "GET",
+                                                                        headers:
+                                                                            {
+                                                                                Authorization: `Bearer ${token}`,
+                                                                                "Content-Type":
+                                                                                    "application/json",
+                                                                                urlempresa:
+                                                                                    urlempresa,
+                                                                            },
                                                                     },
-                                                                }
-                                                            );
+                                                                );
 
                                                             if (response.ok) {
-                                                                const data = await response.json();
-                                                                const contratos = data?.DataSet?.Table || [];
-                                                                const contratoEncontrado = contratos.find(c => c.ID === contratoId);
+                                                                const data =
+                                                                    await response.json();
+                                                                const contratos =
+                                                                    data
+                                                                        ?.DataSet
+                                                                        ?.Table ||
+                                                                    [];
+                                                                const contratoEncontrado =
+                                                                    contratos.find(
+                                                                        (c) =>
+                                                                            c.ID ===
+                                                                            contratoId,
+                                                                    );
 
-                                                                if (contratoEncontrado) {
-                                                                    const horasDisponiveis = ((contratoEncontrado.HorasTotais ?? 0) - (contratoEncontrado.HorasGastas ?? 0)).toFixed(2);
-                                                                    setContratoSelecionado({
-                                                                        ...contratoEncontrado,
-                                                                        horasDisponiveis
-                                                                    });
+                                                                if (
+                                                                    contratoEncontrado
+                                                                ) {
+                                                                    const horasDisponiveis =
+                                                                        (
+                                                                            (contratoEncontrado.HorasTotais ??
+                                                                                0) -
+                                                                            (contratoEncontrado.HorasGastas ??
+                                                                                0)
+                                                                        ).toFixed(
+                                                                            2,
+                                                                        );
+                                                                    setContratoSelecionado(
+                                                                        {
+                                                                            ...contratoEncontrado,
+                                                                            horasDisponiveis,
+                                                                        },
+                                                                    );
                                                                 }
                                                             }
                                                         } catch (error) {
-                                                            console.error("Erro ao buscar informações do contrato:", error);
+                                                            console.error(
+                                                                "Erro ao buscar informações do contrato:",
+                                                                error,
+                                                            );
                                                         }
                                                     }
                                                 } else {
-                                                    setContratoSelecionado(null);
+                                                    setContratoSelecionado(
+                                                        null,
+                                                    );
                                                 }
                                             }}
                                             onClick={() =>
@@ -516,10 +678,18 @@ const RegistoAssistencia = (props) => {
                                             style={selectStyle}
                                             disabled={!formData.cliente}
                                         >
-                                            <option value="">{t("RegistoAssistencia.TxtContrato")}</option>
+                                            <option value="">
+                                                {t(
+                                                    "RegistoAssistencia.TxtContrato",
+                                                )}
+                                            </option>
                                             {dataLists.contratosID.map((ct) => (
-                                                <option key={ct.ID} value={ct.ID}>
-                                                    {ct.Codigo} - {ct.Descricao1}
+                                                <option
+                                                    key={ct.ID}
+                                                    value={ct.ID}
+                                                >
+                                                    {ct.Codigo} -{" "}
+                                                    {ct.Descricao1}
                                                 </option>
                                             ))}
                                         </select>
@@ -527,12 +697,24 @@ const RegistoAssistencia = (props) => {
                                         {/* Mostrar horas disponíveis logo abaixo do select */}
                                         {contratoSelecionado && (
                                             <div style={horasDisponiveisStyle}>
-                                                <span style={horasLabelStyle}>Horas Disponíveis: </span>
-                                                <span style={{
-                                                    ...horasValueStyle,
-                                                    color: parseFloat(contratoSelecionado.horasDisponiveis) > 0 ? '#4caf50' : '#f44336'
-                                                }}>
-                                                    {contratoSelecionado.horasDisponiveis} h
+                                                <span style={horasLabelStyle}>
+                                                    Horas Disponíveis:{" "}
+                                                </span>
+                                                <span
+                                                    style={{
+                                                        ...horasValueStyle,
+                                                        color:
+                                                            parseFloat(
+                                                                contratoSelecionado.horasDisponiveis,
+                                                            ) > 0
+                                                                ? "#4caf50"
+                                                                : "#f44336",
+                                                    }}
+                                                >
+                                                    {
+                                                        contratoSelecionado.horasDisponiveis
+                                                    }{" "}
+                                                    h
                                                 </span>
                                             </div>
                                         )}
@@ -544,41 +726,151 @@ const RegistoAssistencia = (props) => {
                                     <div style={contratoInfoStyle}>
                                         <div
                                             style={contratoHeaderClickableStyle}
-                                            onClick={() => setContratoExpandido(!contratoExpandido)}
+                                            onClick={() =>
+                                                setContratoExpandido(
+                                                    !contratoExpandido,
+                                                )
+                                            }
                                         >
-                                            <h3 style={contratoTitleStyle}>Informações do Contrato</h3>
+                                            <h3 style={contratoTitleStyle}>
+                                                Informações do Contrato
+                                            </h3>
                                             <div style={expandIconStyle}>
-                                                {contratoExpandido ? '▲' : '▼'}
+                                                {contratoExpandido ? "▲" : "▼"}
                                             </div>
                                         </div>
                                         {contratoExpandido && (
                                             <div style={contratoDetailsStyle}>
-                                                <div style={contratoDetailItemStyle}>
-                                                    <div style={contratoIconStyle}>📋</div>
+                                                <div
+                                                    style={
+                                                        contratoDetailItemStyle
+                                                    }
+                                                >
+                                                    <div
+                                                        style={
+                                                            contratoIconStyle
+                                                        }
+                                                    >
+                                                        📋
+                                                    </div>
                                                     <div>
-                                                        <div style={contratoLabelStyle}>Código:</div>
-                                                        <div style={contratoValueStyle}>{contratoSelecionado.Codigo}</div>
+                                                        <div
+                                                            style={
+                                                                contratoLabelStyle
+                                                            }
+                                                        >
+                                                            Código:
+                                                        </div>
+                                                        <div
+                                                            style={
+                                                                contratoValueStyle
+                                                            }
+                                                        >
+                                                            {
+                                                                contratoSelecionado.Codigo
+                                                            }
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div style={contratoDetailItemStyle}>
-                                                    <div style={contratoIconStyle}>⏰</div>
+                                                <div
+                                                    style={
+                                                        contratoDetailItemStyle
+                                                    }
+                                                >
+                                                    <div
+                                                        style={
+                                                            contratoIconStyle
+                                                        }
+                                                    >
+                                                        ⏰
+                                                    </div>
                                                     <div>
-                                                        <div style={contratoLabelStyle}>Horas Totais:</div>
-                                                        <div style={contratoValueStyle}>{contratoSelecionado.HorasTotais || 0} h</div>
+                                                        <div
+                                                            style={
+                                                                contratoLabelStyle
+                                                            }
+                                                        >
+                                                            Horas Totais:
+                                                        </div>
+                                                        <div
+                                                            style={
+                                                                contratoValueStyle
+                                                            }
+                                                        >
+                                                            {contratoSelecionado.HorasTotais ||
+                                                                0}{" "}
+                                                            h
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div style={contratoDetailItemStyle}>
-                                                    <div style={contratoIconStyle}>⌛</div>
+                                                <div
+                                                    style={
+                                                        contratoDetailItemStyle
+                                                    }
+                                                >
+                                                    <div
+                                                        style={
+                                                            contratoIconStyle
+                                                        }
+                                                    >
+                                                        ⌛
+                                                    </div>
                                                     <div>
-                                                        <div style={contratoLabelStyle}>Horas Gastas:</div>
-                                                        <div style={contratoValueStyle}>{contratoSelecionado.HorasGastas || 0} h</div>
+                                                        <div
+                                                            style={
+                                                                contratoLabelStyle
+                                                            }
+                                                        >
+                                                            Horas Gastas:
+                                                        </div>
+                                                        <div
+                                                            style={
+                                                                contratoValueStyle
+                                                            }
+                                                        >
+                                                            {contratoSelecionado.HorasGastas ||
+                                                                0}{" "}
+                                                            h
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div style={contratoDetailItemStyle}>
-                                                    <div style={contratoIconStyle}>✅</div>
+                                                <div
+                                                    style={
+                                                        contratoDetailItemStyle
+                                                    }
+                                                >
+                                                    <div
+                                                        style={
+                                                            contratoIconStyle
+                                                        }
+                                                    >
+                                                        ✅
+                                                    </div>
                                                     <div>
-                                                        <div style={contratoLabelStyle}>Horas Disponíveis:</div>
-                                                        <div style={{ ...contratoValueStyle, color: contratoSelecionado.horasDisponiveis > 0 ? '#4caf50' : '#f44336', fontWeight: '600' }}>{contratoSelecionado.horasDisponiveis} h</div>
+                                                        <div
+                                                            style={
+                                                                contratoLabelStyle
+                                                            }
+                                                        >
+                                                            Horas Disponíveis:
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                ...contratoValueStyle,
+                                                                color:
+                                                                    contratoSelecionado.horasDisponiveis >
+                                                                    0
+                                                                        ? "#4caf50"
+                                                                        : "#f44336",
+                                                                fontWeight:
+                                                                    "600",
+                                                            }}
+                                                        >
+                                                            {
+                                                                contratoSelecionado.horasDisponiveis
+                                                            }{" "}
+                                                            h
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -586,9 +878,17 @@ const RegistoAssistencia = (props) => {
                                     </div>
                                 )}
 
-                                <div style={window.innerWidth < 768 ? responsiveFormRowStyle : formRowStyle}>
+                                <div
+                                    style={
+                                        window.innerWidth < 768
+                                            ? responsiveFormRowStyle
+                                            : formRowStyle
+                                    }
+                                >
                                     <div style={formGroupStyle}>
-                                        <label style={labelStyle}>Data de Abertura</label>
+                                        <label style={labelStyle}>
+                                            Data de Abertura
+                                        </label>
                                         <input
                                             type="date"
                                             name="dataInicio"
@@ -598,7 +898,9 @@ const RegistoAssistencia = (props) => {
                                         />
                                     </div>
                                     <div style={formGroupStyle}>
-                                        <label style={labelStyle}>Hora de Abertura</label>
+                                        <label style={labelStyle}>
+                                            Hora de Abertura
+                                        </label>
                                         <input
                                             type="time"
                                             name="horaInicio"
@@ -609,9 +911,12 @@ const RegistoAssistencia = (props) => {
                                     </div>
                                 </div>
 
-
                                 <div style={navigationButtonsStyle}>
-                                    <button type="button" style={nextButtonStyle} onClick={() => setActiveTab("detalhes")}>
+                                    <button
+                                        type="button"
+                                        style={nextButtonStyle}
+                                        onClick={() => setActiveTab("detalhes")}
+                                    >
                                         Próximo
                                     </button>
                                 </div>
@@ -619,16 +924,23 @@ const RegistoAssistencia = (props) => {
                         )}
 
                         {activeTab === "detalhes" && (
-                            <div className="tab-content" style={tabContentStyle}>
+                            <div
+                                className="tab-content"
+                                style={tabContentStyle}
+                            >
                                 <div style={sectionTitleContainerStyle}>
                                     <div style={sectionTitleLineStyle}></div>
-                                    <h2 style={sectionTitleStyle}>Detalhes da Assistência</h2>
+                                    <h2 style={sectionTitleStyle}>
+                                        Detalhes da Assistência
+                                    </h2>
                                     <div style={sectionTitleLineStyle}></div>
                                 </div>
 
                                 <div style={formRowStyle}>
                                     <div style={formGroupStyle}>
-                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtTecnico")}</label>
+                                        <label style={labelStyle}>
+                                            {t("RegistoAssistencia.TxtTecnico")}
+                                        </label>
                                         <select
                                             name="tecnico"
                                             value={formData.tecnico}
@@ -642,16 +954,25 @@ const RegistoAssistencia = (props) => {
                                             }
                                             style={selectStyle}
                                         >
-                                            <option value="">{t("RegistoAssistencia.TxtTecnico")}</option>
+                                            <option value="">
+                                                {t(
+                                                    "RegistoAssistencia.TxtTecnico",
+                                                )}
+                                            </option>
                                             {dataLists.tecnicos.map((t) => (
-                                                <option key={t.Tecnico} value={t.Tecnico}>
+                                                <option
+                                                    key={t.Tecnico}
+                                                    value={t.Tecnico}
+                                                >
                                                     {t.Tecnico} - {t.Nome}
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
                                     <div style={formGroupStyle}>
-                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtOrigem")}</label>
+                                        <label style={labelStyle}>
+                                            {t("RegistoAssistencia.TxtOrigem")}
+                                        </label>
                                         <select
                                             name="origem"
                                             value={formData.origem}
@@ -665,13 +986,18 @@ const RegistoAssistencia = (props) => {
                                             }
                                             style={selectStyle}
                                         >
-                                            <option value="">{t("RegistoAssistencia.TxtOrigem")}</option>
+                                            <option value="">
+                                                {t(
+                                                    "RegistoAssistencia.TxtOrigem",
+                                                )}
+                                            </option>
                                             {dataLists.origens.map((o) => (
                                                 <option
                                                     key={o.OrigemProcesso}
                                                     value={o.OrigemProcesso}
                                                 >
-                                                    {o.OrigemProcesso} - {o.Descricao}
+                                                    {o.OrigemProcesso} -{" "}
+                                                    {o.Descricao}
                                                 </option>
                                             ))}
                                         </select>
@@ -680,15 +1006,20 @@ const RegistoAssistencia = (props) => {
 
                                 <div style={formRowStyle}>
                                     <div style={formGroupStyle}>
-                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtObjeto")}</label>
+                                        <label style={labelStyle}>
+                                            {t("RegistoAssistencia.TxtObjeto")}
+                                        </label>
                                         <select
                                             name="objeto"
                                             value={formData.objeto}
                                             onChange={(e) => {
                                                 handleChange(e);
-                                                const objeto = dataLists.objetos.find(
-                                                    (o) => o.Objecto === e.target.value,
-                                                );
+                                                const objeto =
+                                                    dataLists.objetos.find(
+                                                        (o) =>
+                                                            o.Objecto ===
+                                                            e.target.value,
+                                                    );
                                                 setSelectedObjeto(objeto);
                                             }}
                                             onClick={() =>
@@ -700,16 +1031,27 @@ const RegistoAssistencia = (props) => {
                                             }
                                             style={selectStyle}
                                         >
-                                            <option value="">{t("RegistoAssistencia.TxtObjeto")}</option>
+                                            <option value="">
+                                                {t(
+                                                    "RegistoAssistencia.TxtObjeto",
+                                                )}
+                                            </option>
                                             {dataLists.objetos.map((o) => (
-                                                <option key={o.ID} value={o.Objecto}>
+                                                <option
+                                                    key={o.ID}
+                                                    value={o.Objecto}
+                                                >
                                                     {o.Objecto}
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
                                     <div style={formGroupStyle}>
-                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtPrioridade")}</label>
+                                        <label style={labelStyle}>
+                                            {t(
+                                                "RegistoAssistencia.TxtPrioridade",
+                                            )}
+                                        </label>
                                         <select
                                             name="prioridade"
                                             value={formData.prioridade}
@@ -723,10 +1065,18 @@ const RegistoAssistencia = (props) => {
                                             }
                                             style={selectStyle}
                                         >
-                                            <option value="">{t("RegistoAssistencia.TxtPrioridade")}</option>
+                                            <option value="">
+                                                {t(
+                                                    "RegistoAssistencia.TxtPrioridade",
+                                                )}
+                                            </option>
                                             {dataLists.prioridades.map((p) => (
-                                                <option key={p.Prioridade} value={p.Prioridade}>
-                                                    {p.Prioridade} - {p.Descricao}
+                                                <option
+                                                    key={p.Prioridade}
+                                                    value={p.Prioridade}
+                                                >
+                                                    {p.Prioridade} -{" "}
+                                                    {p.Descricao}
                                                 </option>
                                             ))}
                                         </select>
@@ -735,7 +1085,9 @@ const RegistoAssistencia = (props) => {
 
                                 <div style={formRowStyle}>
                                     <div style={formGroupStyle}>
-                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtSecao")}</label>
+                                        <label style={labelStyle}>
+                                            {t("RegistoAssistencia.TxtSecao")}
+                                        </label>
                                         <select
                                             name="secao"
                                             value={formData.secao}
@@ -749,16 +1101,25 @@ const RegistoAssistencia = (props) => {
                                             }
                                             style={selectStyle}
                                         >
-                                            <option value="">{t("RegistoAssistencia.TxtSecao")}</option>
+                                            <option value="">
+                                                {t(
+                                                    "RegistoAssistencia.TxtSecao",
+                                                )}
+                                            </option>
                                             {dataLists.seccoes.map((s) => (
-                                                <option key={s.Seccao} value={s.Seccao}>
+                                                <option
+                                                    key={s.Seccao}
+                                                    value={s.Seccao}
+                                                >
                                                     {s.Seccao} - {s.Nome}
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
                                     <div style={formGroupStyle}>
-                                        <label style={labelStyle}>{t("RegistoAssistencia.TxtEstado")}</label>
+                                        <label style={labelStyle}>
+                                            {t("RegistoAssistencia.TxtEstado")}
+                                        </label>
                                         <select
                                             name="estado"
                                             value={formData.estado}
@@ -772,9 +1133,16 @@ const RegistoAssistencia = (props) => {
                                             }
                                             style={selectStyle}
                                         >
-                                            <option value="">{t("RegistoAssistencia.TxtEstado")}</option>
+                                            <option value="">
+                                                {t(
+                                                    "RegistoAssistencia.TxtEstado",
+                                                )}
+                                            </option>
                                             {dataLists.estados.map((e) => (
-                                                <option key={e.Estado} value={e.Estado}>
+                                                <option
+                                                    key={e.Estado}
+                                                    value={e.Estado}
+                                                >
                                                     {e.Descricao}
                                                 </option>
                                             ))}
@@ -783,7 +1151,11 @@ const RegistoAssistencia = (props) => {
                                 </div>
 
                                 <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtTipoProcesso")}</label>
+                                    <label style={labelStyle}>
+                                        {t(
+                                            "RegistoAssistencia.TxtTipoProcesso",
+                                        )}
+                                    </label>
                                     <select
                                         name="tipoProcesso"
                                         value={formData.tipoProcesso}
@@ -797,23 +1169,38 @@ const RegistoAssistencia = (props) => {
                                         }
                                         style={selectStyle}
                                     >
-                                        <option value="">{t("RegistoAssistencia.TxtTipoProcesso")}</option>
+                                        <option value="">
+                                            {t(
+                                                "RegistoAssistencia.TxtTipoProcesso",
+                                            )}
+                                        </option>
                                         {dataLists.tiposProcessos.map((tp) => (
                                             <option
                                                 key={tp.TipoProcesso}
                                                 value={tp.TipoProcesso}
                                             >
-                                                {tp.TipoProcesso} - {tp.Descricao}
+                                                {tp.TipoProcesso} -{" "}
+                                                {tp.Descricao}
                                             </option>
                                         ))}
                                     </select>
                                 </div>
 
                                 <div style={navigationButtonsStyle}>
-                                    <button type="button" style={backButtonStyle} onClick={() => setActiveTab("cliente")}>
+                                    <button
+                                        type="button"
+                                        style={backButtonStyle}
+                                        onClick={() => setActiveTab("cliente")}
+                                    >
                                         Voltar
                                     </button>
-                                    <button type="button" style={nextButtonStyle} onClick={() => setActiveTab("descricao")}>
+                                    <button
+                                        type="button"
+                                        style={nextButtonStyle}
+                                        onClick={() =>
+                                            setActiveTab("descricao")
+                                        }
+                                    >
                                         Próximo
                                     </button>
                                 </div>
@@ -821,18 +1208,27 @@ const RegistoAssistencia = (props) => {
                         )}
 
                         {activeTab === "descricao" && (
-                            <div className="tab-content" style={tabContentStyle}>
+                            <div
+                                className="tab-content"
+                                style={tabContentStyle}
+                            >
                                 <div style={sectionTitleContainerStyle}>
                                     <div style={sectionTitleLineStyle}></div>
-                                    <h2 style={sectionTitleStyle}>Descrição do Problema</h2>
+                                    <h2 style={sectionTitleStyle}>
+                                        Descrição do Problema
+                                    </h2>
                                     <div style={sectionTitleLineStyle}></div>
                                 </div>
 
                                 <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtProblema")}</label>
+                                    <label style={labelStyle}>
+                                        {t("RegistoAssistencia.TxtProblema")}
+                                    </label>
                                     <textarea
                                         name="problema"
-                                        placeholder={t("RegistoAssistencia.TxtProblema")}
+                                        placeholder={t(
+                                            "RegistoAssistencia.TxtProblema",
+                                        )}
                                         value={formData.problema}
                                         onChange={handleChange}
                                         style={textareaStyle}
@@ -841,10 +1237,16 @@ const RegistoAssistencia = (props) => {
                                 </div>
 
                                 <div style={formGroupStyle}>
-                                    <label style={labelStyle}>{t("RegistoAssistencia.TxtComoReproduzir")}</label>
+                                    <label style={labelStyle}>
+                                        {t(
+                                            "RegistoAssistencia.TxtComoReproduzir",
+                                        )}
+                                    </label>
                                     <textarea
                                         name="comoReproduzir"
-                                        placeholder={t("RegistoAssistencia.TxtComoReproduzir")}
+                                        placeholder={t(
+                                            "RegistoAssistencia.TxtComoReproduzir",
+                                        )}
                                         value={formData.comoReproduzir}
                                         onChange={handleChange}
                                         style={textareaStyle}
@@ -853,10 +1255,18 @@ const RegistoAssistencia = (props) => {
                                 </div>
 
                                 <div style={navigationButtonsStyle}>
-                                    <button type="button" style={backButtonStyle} onClick={() => setActiveTab("detalhes")}>
+                                    <button
+                                        type="button"
+                                        style={backButtonStyle}
+                                        onClick={() => setActiveTab("detalhes")}
+                                    >
                                         Voltar
                                     </button>
-                                    <button type="submit" style={submitButtonStyle} disabled={isSubmitting}>
+                                    <button
+                                        type="submit"
+                                        style={submitButtonStyle}
+                                        disabled={isSubmitting}
+                                    >
                                         {isSubmitting
                                             ? t("RegistoAssistencia.BtGravando")
                                             : t("RegistoAssistencia.BtGravar")}
@@ -894,7 +1304,6 @@ const RegistoAssistencia = (props) => {
                         >
                             {t("RegistoAssistencia.BtCancelar")}
                         </button>
-
                     </div>
                 </div>
             </div>
@@ -909,7 +1318,7 @@ const containerStyle = {
     alignItems: "center",
     minHeight: "100vh",
     width: "100%",
-    backgroundColor: '#d4e4ff',
+    backgroundColor: "#d4e4ff",
     padding: "20px",
     boxSizing: "border-box",
 };
@@ -931,8 +1340,7 @@ const headerStyle = {
     position: "relative",
 };
 
-const titleStyle = 
- {
+const titleStyle = {
     color: "#ffffff",
     fontSize: "1.8rem",
     fontWeight: "600",
@@ -948,7 +1356,6 @@ const tabsContainerStyle = {
     gap: "5px",
     marginTop: "10px",
 };
-
 
 const tabStyle = {
     flex: "1 1 auto", // Faz com que os botões ocupem o espaço disponível sem forçar um tamanho fixo
@@ -1024,9 +1431,7 @@ const labelStyle = {
     fontSize: "0.95rem",
     fontWeight: "500",
     color: "#555",
-
 };
-
 
 const selectStyle = {
     width: "100%",
@@ -1038,7 +1443,8 @@ const selectStyle = {
     transition: "border-color 0.2s ease, box-shadow 0.2s ease",
     boxSizing: "border-box",
     appearance: "none",
-    backgroundImage: "url('data:image/svg+xml;utf8,<svg fill=\"%23555\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M7 10l5 5 5-5z\"/><path d=\"M0 0h24v24H0z\" fill=\"none\"/></svg>')",
+    backgroundImage:
+        'url(\'data:image/svg+xml;utf8,<svg fill="%23555" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>\')',
     backgroundRepeat: "no-repeat",
     backgroundPosition: "right 10px center",
 };
@@ -1128,13 +1534,10 @@ const messageStyle = {
 };
 
 const scrollViewStyle = {
-
     overflowY: "auto", // Ativa scroll vertical quando necessário
     width: "100%",
     padding: "10px",
-    backgroundColor: '#d4e4ff',
-
-
+    backgroundColor: "#d4e4ff",
 };
 
 const contratoInfoStyle = {
@@ -1142,7 +1545,7 @@ const contratoInfoStyle = {
     borderRadius: "12px",
     border: "1px solid #e9ecef",
     marginBottom: "20px",
-    overflow: "hidden"
+    overflow: "hidden",
 };
 
 const contratoHeaderClickableStyle = {
@@ -1152,51 +1555,51 @@ const contratoHeaderClickableStyle = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    cursor: "pointer"
+    cursor: "pointer",
 };
 
 const contratoHeaderStyle = {
     backgroundColor: "#1792FE",
     padding: "12px 16px",
-    borderRadius: "12px 12px 0 0"
+    borderRadius: "12px 12px 0 0",
 };
 
 const contratoTitleStyle = {
     color: "#fff",
     fontSize: "1rem",
     fontWeight: "600",
-    margin: "0"
+    margin: "0",
 };
 
 const contratoDetailsStyle = {
     padding: "16px",
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "12px"
+    gap: "12px",
 };
 
 const contratoDetailItemStyle = {
     display: "flex",
     alignItems: "center",
-    gap: "8px"
+    gap: "8px",
 };
 
 const contratoIconStyle = {
     fontSize: "20px",
     width: "24px",
-    textAlign: "center"
+    textAlign: "center",
 };
 
 const contratoLabelStyle = {
     fontSize: "0.85rem",
     color: "#666",
-    fontWeight: "500"
+    fontWeight: "500",
 };
 
 const contratoValueStyle = {
     fontSize: "0.95rem",
     color: "#333",
-    fontWeight: "600"
+    fontWeight: "600",
 };
 
 const horasDisponiveisStyle = {
@@ -1207,25 +1610,24 @@ const horasDisponiveisStyle = {
     border: "1px solid #e9ecef",
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
 };
 
 const horasLabelStyle = {
     fontSize: "0.9rem",
     color: "#666",
-    fontWeight: "500"
+    fontWeight: "500",
 };
 
 const horasValueStyle = {
     fontSize: "1rem",
-    fontWeight: "600"
+    fontWeight: "600",
 };
 
 const expandIconStyle = {
     color: "#fff",
     fontSize: "1.2rem",
-    cursor: "pointer"
+    cursor: "pointer",
 };
-
 
 export default RegistoAssistencia;

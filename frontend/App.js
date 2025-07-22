@@ -653,7 +653,7 @@ if (loading) {
                         <Drawer.Screen name="AprovacaoFaltaFerias" component={AprovacaoFaltaFerias} />
                         <Drawer.Screen name="AprovacaoPontoPendentes" component={AprovacaoPontoPendentes} />
 
-            {!loading && (tipoUser === "Encarregado" || tipoUser === "Diretor") && (
+            {!loading && (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
 
                 <>
                     <Drawer.Screen name="Obras" component={Obras} />

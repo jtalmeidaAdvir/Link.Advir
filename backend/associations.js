@@ -1,30 +1,36 @@
 const User = require('./models/user');
 const Empresa = require('./models/empresa');
-const User_Empresa = require('./models/user_empresa');
+const UserEmpresa = require('./models/user_empresa');
 const Modulo = require('./models/modulo');
-const User_Modulo = require('./models/user_modulo');
 const Submodulo = require('./models/submodulo');
-const Obra = require('./models/obra');
-const PartesDiarias = require('./models/partesDiarias');
-const EquipaObra = require('./models/equipaObra');
+const UserModulo = require('./models/user_modulo');
+const UserSubmodulo = require('./models/user_submodulo');
+const EmpresaModulo = require('./models/empresa_modulo');
 const RegistoPonto = require('./models/registoPonto');
-const User_Submodulo = require('./models/user_submodulo');
+const Intervalo = require('./models/intervalo');
+const FaltasFerias = require('./models/faltas_ferias');
+const PedidoAlteracao = require('./models/pedidoalteracao');
+const Obra = require('./models/obra');
+const EquipaObra = require('./models/equipaObra');
+const RegistoPontoObra = require('./models/registoPontoObra');
+const PartesDiarias = require('./models/partesDiarias');
+const Notificacao = require('./models/notificacao');
 
 // Relação N:N entre User e Empresa
-User.belongsToMany(Empresa, { through: User_Empresa, foreignKey: 'user_id' });
-Empresa.belongsToMany(User, { through: User_Empresa, foreignKey: 'empresa_id' });
+User.belongsToMany(Empresa, { through: UserEmpresa, foreignKey: 'user_id' });
+Empresa.belongsToMany(User, { through: UserEmpresa, foreignKey: 'empresa_id' });
 
 // Relação N:N entre User e Modulo
-User.belongsToMany(Modulo, { through: User_Modulo, as: 'modulos', foreignKey: 'user_id' });
-Modulo.belongsToMany(User, { through: User_Modulo, as: 'utilizadores', foreignKey: 'modulo_id' });
+User.belongsToMany(Modulo, { through: UserModulo, as: 'modulos', foreignKey: 'user_id' });
+Modulo.belongsToMany(User, { through: UserModulo, as: 'utilizadores', foreignKey: 'modulo_id' });
 
 // Relação 1:N entre Modulo e Submodulo
 Modulo.hasMany(Submodulo, { foreignKey: 'moduloId', as: 'submodulos' });
 Submodulo.belongsTo(Modulo, { foreignKey: 'moduloId', as: 'modulo' });
 
 // Relação N:N entre User e Submodulo
-User.belongsToMany(Submodulo, { through: User_Submodulo, as: 'submodulos', foreignKey: 'user_id' });
-Submodulo.belongsToMany(User, { through: User_Submodulo, as: 'utilizadores', foreignKey: 'submodulo_id' });
+User.belongsToMany(Submodulo, { through: UserSubmodulo, as: 'submodulos', foreignKey: 'user_id' });
+Submodulo.belongsToMany(User, { through: UserSubmodulo, as: 'utilizadores', foreignKey: 'submodulo_id' });
 
 
 // Associação entre Empresa e Modulo
@@ -61,13 +67,14 @@ Obra.belongsTo(Empresa, { foreignKey: 'empresa_id' });
 module.exports = { 
     User, 
     Empresa, 
-    User_Empresa, 
+    UserEmpresa, 
     Modulo, 
-    User_Modulo, 
+    UserModulo, 
     Submodulo, 
-    User_Submodulo,
+    UserSubmodulo,
     Obra,
     PartesDiarias,
     EquipaObra,
-    RegistoPonto
+    RegistoPonto,
+    Notificacao
  };
