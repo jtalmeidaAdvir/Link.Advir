@@ -18,18 +18,18 @@ const criarNotificacao = async (req, res) => {
 
         if (data_criacao) {
             // Substitui o T por espaço e verifica se é uma data válida
-            const formatada = data_criacao.replace('T', ' ');
-            const dataMoment = moment(formatada, 'YYYY-MM-DD HH:mm:ss', true);
+            const dataObj = new Date(data_criacao);
 
-            if (!dataMoment.isValid()) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Formato de data inválido',
-                    details: 'O campo data_criacao deve estar no formato YYYY-MM-DD HH:mm:ss'
-                });
-            }
+if (isNaN(dataObj.getTime())) {
+    return res.status(400).json({
+        success: false,
+        error: 'Formato de data inválido',
+        details: 'Formato esperado: YYYY-MM-DDTHH:mm:ss ou YYYY-MM-DD HH:mm:ss'
+    });
+}
 
-            dataValida = dataMoment.toDate();
+dataValida = dataObj;
+
         }
 
         const notificacao = await Notificacao.create({
