@@ -17,8 +17,6 @@ const RegistosPorUtilizador = () => {
   const [enderecos, setEnderecos] = useState({});
   const [filtroTipo, setFiltroTipo] = useState('');
   const [exibirEstatisticas, setExibirEstatisticas] = useState(true);
-  const [tipoConsulta, setTipoConsulta] = useState('usuario'); // 'usuario' ou 'obra'
-  const [registosPorUsuario, setRegistosPorUsuario] = useState({});
 
   const token = localStorage.getItem('loginToken');
 
@@ -69,18 +67,16 @@ const RegistosPorUtilizador = () => {
   };
 
   const carregarRegistos = async () => {
-    if (tipoConsulta === 'usuario' && !userSelecionado) return;
-    if (tipoConsulta === 'obra' && !obraSelecionada) return;
+    // Se não tiver utilizador selecionado mas tiver obra, permite buscar todos os users da obra
+    if (!userSelecionado && !obraSelecionada) return;
 
     setLoading(true);
     try {
       let query = '';
-      let endpoint = '';
-
-      if (tipoConsulta === 'usuario') {
+      
+      // Se tiver utilizador selecionado, usa o endpoint original
+      if (userSelecionado) {
         query = `user_id=${userSelecionado}`;
-        endpoint = 'listar-por-user-periodo';
-        
         if (dataSelecionada) {
           query += `&data=${dataSelecionada}`;
         } else {
@@ -88,63 +84,46 @@ const RegistosPorUtilizador = () => {
           if (mesSelecionado) query += `&mes=${String(mesSelecionado).padStart(2, '0')}`;
         }
         if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
-      } else {
-        // Consulta por obra
-        query = `obra_id=${obraSelecionada}`;
-        endpoint = 'listar-por-obra-e-dia';
-        
+
+        const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        const agrupados = {};
+        data.forEach(reg => {
+          const dia = new Date(reg.timestamp).toISOString().split('T')[0];
+          if (!agrupados[dia]) agrupados[dia] = [];
+          agrupados[dia].push(reg);
+        });
+
+        setRegistos(data);
+        setAgrupadoPorDia(agrupados);
+      } 
+      // Se só tiver obra selecionada, busca todos os registos da obra
+      else if (obraSelecionada && !userSelecionado) {
         if (dataSelecionada) {
-          query += `&data=${dataSelecionada}`;
-        } else {
-          // Para obra, vamos buscar por dia se não houver data específica
-          const hoje = new Date().toISOString().split('T')[0];
-          query += `&data=${hoje}`;
-        }
-      }
-
-      const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/${endpoint}?${query}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-
-      if (tipoConsulta === 'obra') {
-        // Agrupar por usuário e depois por dia
-        const registosPorUser = {};
-        const agrupados = {};
-        
-        data.forEach(reg => {
-          const userId = reg.user_id;
-          const userName = reg.User?.nome || `Utilizador ${userId}`;
-          const dia = new Date(reg.timestamp).toISOString().split('T')[0];
+          query = `obra_id=${obraSelecionada}&data=${dataSelecionada}`;
           
-          if (!registosPorUser[userId]) {
-            registosPorUser[userId] = {
-              nome: userName,
-              email: reg.User?.email || '',
-              registos: []
-            };
-          }
-          registosPorUser[userId].registos.push(reg);
+          const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-obra-e-dia?${query}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = await res.json();
 
-          if (!agrupados[dia]) agrupados[dia] = [];
-          agrupados[dia].push(reg);
-        });
+          const agrupados = {};
+          data.forEach(reg => {
+            const dia = new Date(reg.timestamp).toISOString().split('T')[0];
+            if (!agrupados[dia]) agrupados[dia] = [];
+            agrupados[dia].push(reg);
+          });
 
-        setRegistosPorUsuario(registosPorUser);
-        setRegistos(data);
-        setAgrupadoPorDia(agrupados);
-      } else {
-        // Consulta normal por usuário
-        const agrupados = {};
-        data.forEach(reg => {
-          const dia = new Date(reg.timestamp).toISOString().split('T')[0];
-          if (!agrupados[dia]) agrupados[dia] = [];
-          agrupados[dia].push(reg);
-        });
-
-        setRegistos(data);
-        setAgrupadoPorDia(agrupados);
-        setRegistosPorUsuario({});
+          setRegistos(data);
+          setAgrupadoPorDia(agrupados);
+        } else {
+          alert('Para filtrar apenas por obra, é necessário selecionar uma data específica.');
+          setLoading(false);
+          return;
+        }
       }
     } catch (err) {
       console.error('Erro ao carregar registos:', err);
@@ -178,20 +157,13 @@ const RegistosPorUtilizador = () => {
     const registosConfirmados = registos.filter(r => r.is_confirmed).length;
     const registosNaoConfirmados = totalRegistos - registosConfirmados;
     
-    const stats = {
+    return {
       totalDias,
       totalRegistos,
       registosConfirmados,
       registosNaoConfirmados,
       percentagemConfirmados: totalRegistos > 0 ? ((registosConfirmados / totalRegistos) * 100).toFixed(1) : 0
     };
-
-    // Para consulta por obra, adicionar estatísticas de usuários
-    if (tipoConsulta === 'obra') {
-      stats.totalUsuarios = Object.keys(registosPorUsuario).length;
-    }
-
-    return stats;
   };
 
   const exportarParaExcel = () => {
@@ -206,12 +178,8 @@ const RegistosPorUtilizador = () => {
     const dadosExport = [];
     
     // Cabeçalho
-    const titulo = tipoConsulta === 'obra' 
-      ? `Relatório de Registos por Obra - ${obras.find(o => o.id == obraSelecionada)?.nome || 'Obra Selecionada'}`
-      : `Relatório de Registos - ${nomeSelecionado}`;
-    
     dadosExport.push([
-      titulo,
+      `Relatório de Registos - ${nomeSelecionado}`,
       '',
       '',
       '',
@@ -230,29 +198,32 @@ const RegistosPorUtilizador = () => {
     dadosExport.push([]);
 
     // Cabeçalhos da tabela
-    const cabecalhos = tipoConsulta === 'obra' 
-      ? ['Data', 'Hora', 'Tipo', 'Utilizador', 'Confirmado', 'Justificação', 'Localização']
-      : ['Data', 'Hora', 'Tipo', 'Obra', 'Confirmado', 'Justificação', 'Localização'];
-    
-    dadosExport.push(cabecalhos);
+    dadosExport.push([
+      'Data',
+      'Hora',
+      'Tipo',
+      'Obra',
+      'Confirmado',
+      'Justificação',
+      'Localização'
+    ]);
 
     // Dados dos registos
     Object.entries(agrupadoPorDia).forEach(([dia, eventos]) => {
       eventos
         .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
         .forEach(evento => {
-          const dadosLinha = [
+          dadosExport.push([
             new Date(dia).toLocaleDateString('pt-PT'),
             new Date(evento.timestamp).toLocaleTimeString('pt-PT'),
             evento.tipo.toUpperCase(),
-            tipoConsulta === 'obra' ? evento.User?.nome || 'N/A' : evento.Obra?.nome || 'N/A',
+            evento.Obra?.nome || 'N/A',
             evento.is_confirmed ? 'Sim' : 'Não',
             evento.justificacao || '',
             evento.latitude && evento.longitude 
               ? enderecos[`${evento.latitude},${evento.longitude}`] || 'A obter...'
               : 'N/A'
-          ];
-          dadosExport.push(dadosLinha);
+          ]);
         });
     });
 
@@ -272,11 +243,8 @@ const RegistosPorUtilizador = () => {
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Registos');
     
-    const nomeArquivo = tipoConsulta === 'obra' 
-      ? `Registos_Obra_${obras.find(o => o.id == obraSelecionada)?.nome.replace(/\s+/g, '_') || 'Obra'}_${new Date().toISOString().split('T')[0]}.xlsx`
-      : `Registos_${nomeSelecionado.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-    
-    XLSX.writeFile(workbook, nomeArquivo);
+    const fileName = `Registos_${nomeSelecionado.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
   };
 
   const registosFiltrados = Object.entries(agrupadoPorDia).reduce((acc, [dia, eventos]) => {
@@ -308,86 +276,35 @@ const RegistosPorUtilizador = () => {
           <span style={styles.sectionIcon}>🔍</span>
           Filtros de Pesquisa
         </h3>
-
-        {/* Seletor de tipo de consulta */}
-        <div style={styles.consultaTypeSelector}>
-          <div style={styles.filterGroup}>
-            <label style={styles.label}>Tipo de Consulta</label>
-            <div style={styles.radioGroup}>
-              <label style={styles.radioLabel}>
-                <input
-                  type="radio"
-                  value="usuario"
-                  checked={tipoConsulta === 'usuario'}
-                  onChange={(e) => {
-                    setTipoConsulta(e.target.value);
-                    setUserSelecionado('');
-                    setNomeSelecionado('');
-                    setObraSelecionada('');
-                    setRegistos([]);
-                    setAgrupadoPorDia({});
-                    setRegistosPorUsuario({});
-                  }}
-                  style={styles.radio}
-                />
-                👤 Por Utilizador
-              </label>
-              <label style={styles.radioLabel}>
-                <input
-                  type="radio"
-                  value="obra"
-                  checked={tipoConsulta === 'obra'}
-                  onChange={(e) => {
-                    setTipoConsulta(e.target.value);
-                    setUserSelecionado('');
-                    setNomeSelecionado('');
-                    setObraSelecionada('');
-                    setRegistos([]);
-                    setAgrupadoPorDia({});
-                    setRegistosPorUsuario({});
-                  }}
-                  style={styles.radio}
-                />
-                🏗️ Por Obra
-              </label>
-            </div>
-          </div>
-        </div>
         
         <div style={styles.filtersGrid}>
-          {tipoConsulta === 'usuario' && (
-            <div style={styles.filterGroup}>
-              <label style={styles.label}>Utilizador *</label>
-              <select 
-                style={styles.select}
-                value={userSelecionado} 
-                onChange={(e) => {
-                  const userId = e.target.value;
-                  const nome = utilizadores.find(u => u.id == userId)?.nome || '';
-                  setUserSelecionado(userId);
-                  setNomeSelecionado(nome);
-                }}
-              >
-                <option value="">-- Selecione um utilizador --</option>
-                {utilizadores.map(u => (
-                  <option key={u.id} value={u.id}>{u.nome} ({u.email})</option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div style={styles.filterGroup}>
+            <label style={styles.label}>Utilizador {!obraSelecionada ? '*' : '(opcional se obra selecionada)'}</label>
+            <select 
+              style={styles.select}
+              value={userSelecionado} 
+              onChange={(e) => {
+                const userId = e.target.value;
+                const nome = utilizadores.find(u => u.id == userId)?.nome || '';
+                setUserSelecionado(userId);
+                setNomeSelecionado(nome);
+              }}
+            >
+              <option value="">-- Selecione um utilizador --</option>
+              {utilizadores.map(u => (
+                <option key={u.id} value={u.id}>{u.nome} ({u.email})</option>
+              ))}
+            </select>
+          </div>
 
           <div style={styles.filterGroup}>
-            <label style={styles.label}>
-              {tipoConsulta === 'obra' ? 'Obra *' : 'Obra'}
-            </label>
+            <label style={styles.label}>Obra</label>
             <select 
               style={styles.select}
               value={obraSelecionada} 
               onChange={e => setObraSelecionada(e.target.value)}
             >
-              <option value="">
-                {tipoConsulta === 'obra' ? '-- Selecione uma obra --' : '-- Todas as obras --'}
-              </option>
+              <option value="">-- Todas as obras --</option>
               {obras.map(o => (
                 <option key={o.id} value={o.id}>{o.nome}</option>
               ))}
@@ -449,7 +366,7 @@ const RegistosPorUtilizador = () => {
           <button 
             style={styles.primaryButton}
             onClick={carregarRegistos}
-            disabled={(tipoConsulta === 'usuario' && !userSelecionado) || (tipoConsulta === 'obra' && !obraSelecionada) || loading}
+            disabled={(!userSelecionado && !obraSelecionada) || loading}
           >
             {loading ? '🔄 A carregar...' : '🔍 Pesquisar Registos'}
           </button>
@@ -471,10 +388,7 @@ const RegistosPorUtilizador = () => {
           <div style={styles.statsHeader}>
             <h3 style={styles.sectionTitle}>
               <span style={styles.sectionIcon}>📈</span>
-              {tipoConsulta === 'obra' 
-                ? `Estatísticas - ${obras.find(o => o.id == obraSelecionada)?.nome || 'Obra Selecionada'}`
-                : `Estatísticas - ${nomeSelecionado}`
-              }
+              Estatísticas - {nomeSelecionado}
             </h3>
             <button 
               style={styles.toggleButton}
@@ -505,12 +419,6 @@ const RegistosPorUtilizador = () => {
               <span style={styles.statNumber}>{stats.percentagemConfirmados}%</span>
               <span style={styles.statLabel}>Taxa Confirmação</span>
             </div>
-            {tipoConsulta === 'obra' && (
-              <div style={styles.statItem}>
-                <span style={styles.statNumber}>{stats.totalUsuarios || 0}</span>
-                <span style={styles.statLabel}>Utilizadores</span>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -530,85 +438,196 @@ const RegistosPorUtilizador = () => {
             Registos Detalhados
           </h3>
           
-          {Object.entries(registosFiltrados)
-            .sort(([a], [b]) => new Date(b) - new Date(a))
-            .map(([dia, eventos]) => (
-              <div key={dia} style={styles.dayCard}>
-                <div style={styles.dayHeader}>
-                  <h4 style={styles.dayTitle}>
-                    📅 {new Date(dia).toLocaleDateString('pt-PT', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </h4>
-                  <span style={styles.dayBadge}>
-                    {eventos.length} registo{eventos.length !== 1 ? 's' : ''}
-                  </span>
+          {/* Se não há utilizador selecionado (filtro só por obra), agrupa por utilizador */}
+          {!userSelecionado && obraSelecionada ? (
+            // Agrupar por utilizador quando filtrado só por obra
+            Object.entries(
+              Object.entries(registosFiltrados).reduce((acc, [dia, eventos]) => {
+                eventos.forEach(evento => {
+                  const userId = evento.User?.id;
+                  const userName = evento.User?.nome || 'Utilizador Desconhecido';
+                  if (!acc[userId]) {
+                    acc[userId] = {
+                      nome: userName,
+                      email: evento.User?.email || '',
+                      registosPorDia: {}
+                    };
+                  }
+                  if (!acc[userId].registosPorDia[dia]) {
+                    acc[userId].registosPorDia[dia] = [];
+                  }
+                  acc[userId].registosPorDia[dia].push(evento);
+                });
+                return acc;
+              }, {})
+            ).map(([userId, userData]) => (
+              <div key={userId} style={styles.userGroupCard}>
+                <div style={styles.userGroupHeader}>
+                  <h3 style={styles.userGroupTitle}>
+                    👤 {userData.nome}
+                  </h3>
+                  <span style={styles.userGroupEmail}>{userData.email}</span>
                 </div>
                 
-                <div style={styles.eventsList}>
-                  {eventos
-                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-                    .map((evento, i) => (
-                      <div key={i} style={styles.eventCard}>
-                        <div style={styles.eventHeader}>
-                          <div style={styles.eventType}>
-                            <span style={styles.typeIcon}>
-                              {evento.tipo === 'entrada' ? '🟢' : 
-                               evento.tipo === 'saida' ? '🔴' : 
-                               evento.tipo === 'pausa' ? '⏸️' : '▶️'}
-                            </span>
-                            <span style={styles.typeText}>{evento.tipo.toUpperCase()}</span>
-                          </div>
-                          <div style={styles.eventTime}>
-                            🕐 {new Date(evento.timestamp).toLocaleTimeString('pt-PT')}
-                          </div>
-                        </div>
-                        
-                        <div style={styles.eventDetails}>
-                          <div style={styles.eventInfo}>
-                            <span style={styles.infoLabel}>Obra:</span>
-                            <span style={styles.infoValue}>{evento.Obra?.nome || 'N/A'}</span>
-                          </div>
-                          
-                          <div style={styles.eventInfo}>
-                            <span style={styles.infoLabel}>Status:</span>
-                            <span style={{
-                              ...styles.infoValue,
-                              ...styles.statusBadge,
-                              ...(evento.is_confirmed ? styles.confirmed : styles.unconfirmed)
-                            }}>
-                              {evento.is_confirmed ? '✅ Confirmado' : '⏳ Pendente'}
-                            </span>
-                          </div>
-                          
-                          {evento.justificacao && (
-                            <div style={styles.eventInfo}>
-                              <span style={styles.infoLabel}>Justificação:</span>
-                              <span style={styles.infoValue}>{evento.justificacao}</span>
+                {Object.entries(userData.registosPorDia)
+                  .sort(([a], [b]) => new Date(b) - new Date(a))
+                  .map(([dia, eventos]) => (
+                    <div key={`${userId}-${dia}`} style={styles.dayCard}>
+                      <div style={styles.dayHeader}>
+                        <h4 style={styles.dayTitle}>
+                          📅 {new Date(dia).toLocaleDateString('pt-PT', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </h4>
+                        <span style={styles.dayBadge}>
+                          {eventos.length} registo{eventos.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      
+                      <div style={styles.eventsList}>
+                        {eventos
+                          .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+                          .map((evento, i) => (
+                            <div key={i} style={styles.eventCard}>
+                              <div style={styles.eventHeader}>
+                                <div style={styles.eventType}>
+                                  <span style={styles.typeIcon}>
+                                    {evento.tipo === 'entrada' ? '🟢' : 
+                                     evento.tipo === 'saida' ? '🔴' : 
+                                     evento.tipo === 'pausa' ? '⏸️' : '▶️'}
+                                  </span>
+                                  <span style={styles.typeText}>{evento.tipo.toUpperCase()}</span>
+                                </div>
+                                <div style={styles.eventTime}>
+                                  🕐 {new Date(evento.timestamp).toLocaleTimeString('pt-PT')}
+                                </div>
+                              </div>
+                              
+                              <div style={styles.eventDetails}>
+                                <div style={styles.eventInfo}>
+                                  <span style={styles.infoLabel}>Obra:</span>
+                                  <span style={styles.infoValue}>{evento.Obra?.nome || 'N/A'}</span>
+                                </div>
+                                
+                                <div style={styles.eventInfo}>
+                                  <span style={styles.infoLabel}>Status:</span>
+                                  <span style={{
+                                    ...styles.infoValue,
+                                    ...styles.statusBadge,
+                                    ...(evento.is_confirmed ? styles.confirmed : styles.unconfirmed)
+                                  }}>
+                                    {evento.is_confirmed ? '✅ Confirmado' : '⏳ Pendente'}
+                                  </span>
+                                </div>
+                                
+                                {evento.justificacao && (
+                                  <div style={styles.eventInfo}>
+                                    <span style={styles.infoLabel}>Justificação:</span>
+                                    <span style={styles.infoValue}>{evento.justificacao}</span>
+                                  </div>
+                                )}
+                                
+                                {evento.latitude && evento.longitude && (
+                                  <div style={styles.eventInfo}>
+                                    <span style={styles.infoLabel}>Localização:</span>
+                                    <span style={styles.infoValue}>
+                                      📍 {enderecos[`${evento.latitude},${evento.longitude}`] || 'A obter localização...'}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          )}
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            ))
+          ) : (
+            // Agrupamento normal por dia quando há utilizador selecionado
+            Object.entries(registosFiltrados)
+              .sort(([a], [b]) => new Date(b) - new Date(a))
+              .map(([dia, eventos]) => (
+                <div key={dia} style={styles.dayCard}>
+                  <div style={styles.dayHeader}>
+                    <h4 style={styles.dayTitle}>
+                      📅 {new Date(dia).toLocaleDateString('pt-PT', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </h4>
+                    <span style={styles.dayBadge}>
+                      {eventos.length} registo{eventos.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  
+                  <div style={styles.eventsList}>
+                    {eventos
+                      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+                      .map((evento, i) => (
+                        <div key={i} style={styles.eventCard}>
+                          <div style={styles.eventHeader}>
+                            <div style={styles.eventType}>
+                              <span style={styles.typeIcon}>
+                                {evento.tipo === 'entrada' ? '🟢' : 
+                                 evento.tipo === 'saida' ? '🔴' : 
+                                 evento.tipo === 'pausa' ? '⏸️' : '▶️'}
+                              </span>
+                              <span style={styles.typeText}>{evento.tipo.toUpperCase()}</span>
+                            </div>
+                            <div style={styles.eventTime}>
+                              🕐 {new Date(evento.timestamp).toLocaleTimeString('pt-PT')}
+                            </div>
+                          </div>
                           
-                          {evento.latitude && evento.longitude && (
+                          <div style={styles.eventDetails}>
                             <div style={styles.eventInfo}>
-                              <span style={styles.infoLabel}>Localização:</span>
-                              <span style={styles.infoValue}>
-                                📍 {enderecos[`${evento.latitude},${evento.longitude}`] || 'A obter localização...'}
+                              <span style={styles.infoLabel}>Obra:</span>
+                              <span style={styles.infoValue}>{evento.Obra?.nome || 'N/A'}</span>
+                            </div>
+                            
+                            <div style={styles.eventInfo}>
+                              <span style={styles.infoLabel}>Status:</span>
+                              <span style={{
+                                ...styles.infoValue,
+                                ...styles.statusBadge,
+                                ...(evento.is_confirmed ? styles.confirmed : styles.unconfirmed)
+                              }}>
+                                {evento.is_confirmed ? '✅ Confirmado' : '⏳ Pendente'}
                               </span>
                             </div>
-                          )}
+                            
+                            {evento.justificacao && (
+                              <div style={styles.eventInfo}>
+                                <span style={styles.infoLabel}>Justificação:</span>
+                                <span style={styles.infoValue}>{evento.justificacao}</span>
+                              </div>
+                            )}
+                            
+                            {evento.latitude && evento.longitude && (
+                              <div style={styles.eventInfo}>
+                                <span style={styles.infoLabel}>Localização:</span>
+                                <span style={styles.infoValue}>
+                                  📍 {enderecos[`${evento.latitude},${evento.longitude}`] || 'A obter localização...'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+          )}
         </div>
       )}
 
-      {!loading && Object.entries(registosFiltrados).length === 0 && userSelecionado && (
+      {!loading && Object.entries(registosFiltrados).length === 0 && (userSelecionado || obraSelecionada) && (
         <div style={styles.emptyState}>
           <span style={styles.emptyIcon}>📋</span>
           <h3>Nenhum registo encontrado</h3>
@@ -901,6 +920,28 @@ const styles = {
     fontSize: '4rem',
     display: 'block',
     marginBottom: '20px'
+  },
+  userGroupCard: {
+    marginBottom: '40px',
+    border: '3px solid #3182ce',
+    borderRadius: '16px',
+    overflow: 'hidden',
+    backgroundColor: '#ffffff'
+  },
+  userGroupHeader: {
+    backgroundColor: '#3182ce',
+    color: 'white',
+    padding: '20px',
+    textAlign: 'center'
+  },
+  userGroupTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '1.4rem',
+    fontWeight: '700'
+  },
+  userGroupEmail: {
+    fontSize: '1rem',
+    opacity: 0.9
   }
 };
 

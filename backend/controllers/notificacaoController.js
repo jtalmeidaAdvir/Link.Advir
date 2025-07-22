@@ -1,6 +1,5 @@
 
 const Notificacao = require('../models/notificacao');
-const moment = require('moment');
 
 
 const criarNotificacao = async (req, res) => {
@@ -14,24 +13,6 @@ const criarNotificacao = async (req, res) => {
             data_criacao // este campo pode vir ou não
         } = req.body;
 
-        let dataValida = undefined;
-
-        if (data_criacao) {
-            // Substitui o T por espaço e verifica se é uma data válida
-            const dataObj = new Date(data_criacao);
-
-if (isNaN(dataObj.getTime())) {
-    return res.status(400).json({
-        success: false,
-        error: 'Formato de data inválido',
-        details: 'Formato esperado: YYYY-MM-DDTHH:mm:ss ou YYYY-MM-DD HH:mm:ss'
-    });
-}
-
-dataValida = dataObj;
-
-        }
-
         const notificacaoData = {
             usuario_destinatario,
             titulo,
@@ -40,9 +21,19 @@ dataValida = dataObj;
             pedido_id
         };
 
-        // Só adiciona data_criacao se foi fornecida e validada
-        if (dataValida !== undefined) {
-            notificacaoData.data_criacao = dataValida;
+        // Só adiciona data_criacao se foi fornecida e é válida
+        if (data_criacao) {
+            const dataObj = new Date(data_criacao);
+            
+            if (isNaN(dataObj.getTime())) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Formato de data inválido',
+                    details: 'Formato esperado: YYYY-MM-DDTHH:mm:ss ou YYYY-MM-DD HH:mm:ss'
+                });
+            }
+            
+            notificacaoData.data_criacao = dataObj;
         }
 
         const notificacao = await Notificacao.create(notificacaoData);
