@@ -285,13 +285,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                               options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
                         />
-                        <DrawerItem
-                            label={t("Relatórios Ponto")}
-                            onPress={() => props.navigation.navigate('RegistosPorUtilizador')}
-                            icon={() => <FontAwesome name="calendar-check-o" size={20} color="#1792FE" />}
-                              options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
-
-                        />
+                       
                         </>
                     
 )}

@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { FaClock, FaCheckCircle, FaTimesCircle, FaSync, FaUser, FaBuilding, FaCalendarAlt, FaExclamationTriangle, FaFilter } from 'react-icons/fa';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useNavigation } from '@react-navigation/native';
+
 
 const AprovacaoPontoPendentes = () => {
   const [registos, setRegistos] = useState([]);
@@ -13,7 +15,10 @@ const AprovacaoPontoPendentes = () => {
   const token = localStorage.getItem('loginToken');
   const urlempresa = localStorage.getItem('urlempresa');
 
-  
+const navigation = useNavigation();
+
+const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se aplicável
+
 
   /**
    * Carrega os registos pendentes de aprovação
@@ -245,7 +250,22 @@ const AprovacaoPontoPendentes = () => {
               </h1>
               <p className="text-muted mb-0 small">Gerencie e aprove os registos de ponto dos colaboradores nas obras</p>
             </div>
+            
+            {tipoUser === "Administrador" && (
+                <div className="text-end mb-3">
+                    <button
+                    className="btn btn-primary rounded-pill"
+                    onClick={() => navigation.navigate('RegistosPorUtilizador')}
+                    >
+                    <FaCalendarAlt className="me-2" />
+                    Relatórios por Utilizador
+                    </button>
+                </div>
+                )}
+
           </div>
+          
+
 
           {/* KPI Cards */}
           <div className="row g-3 mb-4">

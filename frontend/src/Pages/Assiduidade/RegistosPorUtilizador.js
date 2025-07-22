@@ -6,39 +6,53 @@ const RegistosPorUtilizador = () => {
   const [nomeSelecionado, setNomeSelecionado] = useState('');
   const [obras, setObras] = useState([]);
   const [obraSelecionada, setObraSelecionada] = useState('');
-  const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1);
-  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
+  const [mesSelecionado, setMesSelecionado] = useState('');
+  const [anoSelecionado, setAnoSelecionado] = useState('');
+  const [dataSelecionada, setDataSelecionada] = useState('');
   const [registos, setRegistos] = useState([]);
   const [agrupadoPorDia, setAgrupadoPorDia] = useState({});
   const [loading, setLoading] = useState(false);
 
+  const [enderecos, setEnderecos] = useState({});
+
   const token = localStorage.getItem('loginToken');
-  const urlempresa = localStorage.getItem('urlempresa');
+
+  const obterEndereco = async (lat, lon) => {
+  const chave = `${lat},${lon}`;
+
+  // Já temos esta localização?
+  if (enderecos[chave]) return enderecos[chave];
+
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+    const data = await res.json();
+    const endereco = data.display_name || `${lat}, ${lon}`;
+
+    setEnderecos(prev => ({ ...prev, [chave]: endereco }));
+    return endereco;
+  } catch (err) {
+    console.error('Erro ao obter endereço:', err);
+    return `${lat}, ${lon}`;
+  }
+};
 
   useEffect(() => {
     carregarUtilizadores();
     carregarObras();
   }, []);
 
- const carregarUtilizadores = async () => {
-  try {
-    const res = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${localStorage.getItem('empresa_id')}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await res.json();
-    console.log('Utilizadores recebidos:', data);
-    if (Array.isArray(data)) {
-      setUtilizadores(data);
-    } else {
-      console.error('Resposta inesperada:', data);
+  const carregarUtilizadores = async () => {
+    try {
+      const res = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${localStorage.getItem('empresa_id')}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setUtilizadores(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Erro ao carregar utilizadores:', err);
       setUtilizadores([]);
     }
-  } catch (err) {
-    console.error('Erro ao carregar utilizadores:', err);
-    setUtilizadores([]);
-  }
-};
-
+  };
 
   const carregarObras = async () => {
     try {
@@ -46,32 +60,39 @@ const RegistosPorUtilizador = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      setObras(data);
+      setObras(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Erro ao carregar obras:', err);
     }
   };
 
   const carregarRegistos = async () => {
-    if (!userSelecionado || !obraSelecionada) return;
+    if (!userSelecionado) return;
+
     setLoading(true);
     try {
-      const dataFiltro = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-01`;
+      let query = `user_id=${userSelecionado}`;
+      if (dataSelecionada) {
+        query += `&data=${dataSelecionada}`;
+      } else {
+        if (anoSelecionado) query += `&ano=${anoSelecionado}`;
+        if (mesSelecionado) query += `&mes=${String(mesSelecionado).padStart(2, '0')}`;
+      }
+      if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
 
-      const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-e-dia?user_id=${userSelecionado}&data=${dataFiltro}`, {
+      const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      const filtrados = data.filter(r => r.obra_id === parseInt(obraSelecionada));
 
       const agrupados = {};
-      filtrados.forEach(reg => {
+      data.forEach(reg => {
         const dia = new Date(reg.timestamp).toISOString().split('T')[0];
         if (!agrupados[dia]) agrupados[dia] = [];
         agrupados[dia].push(reg);
       });
 
-      setRegistos(filtrados);
+      setRegistos(data);
       setAgrupadoPorDia(agrupados);
     } catch (err) {
       console.error('Erro ao carregar registos:', err);
@@ -79,6 +100,28 @@ const RegistosPorUtilizador = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+  const fetchEnderecos = async () => {
+    const promessas = [];
+
+    Object.values(agrupadoPorDia).flat().forEach((reg) => {
+      if (reg.latitude && reg.longitude) {
+        const chave = `${reg.latitude},${reg.longitude}`;
+        if (!enderecos[chave]) {
+          promessas.push(obterEndereco(reg.latitude, reg.longitude));
+        }
+      }
+    });
+
+    if (promessas.length > 0) await Promise.all(promessas);
+  };
+
+  if (Object.keys(agrupadoPorDia).length > 0) {
+    fetchEnderecos();
+  }
+}, [agrupadoPorDia]);
+
 
   return (
     <div style={{ padding: 20 }}>
@@ -101,13 +144,19 @@ const RegistosPorUtilizador = () => {
       {/* Seleção de Obra */}
       <label>Selecionar Obra:</label>
       <select value={obraSelecionada} onChange={e => setObraSelecionada(e.target.value)}>
-        <option value="">-- Seleciona --</option>
+        <option value="">-- Todas --</option>
         {obras.map(o => (
           <option key={o.id} value={o.id}>{o.nome}</option>
         ))}
       </select>
 
-      {/* Filtros de mês e ano */}
+      {/* Filtro por Data específica */}
+      <label>Data específica (opcional):</label>
+      <input type="date" value={dataSelecionada} onChange={e => setDataSelecionada(e.target.value)} />
+
+      <p style={{ fontStyle: 'italic' }}>Ou, em alternativa:</p>
+
+      {/* Filtros por mês e ano */}
       <label>Mês:</label>
       <input type="number" min="1" max="12" value={mesSelecionado} onChange={e => setMesSelecionado(e.target.value)} />
 
@@ -125,15 +174,33 @@ const RegistosPorUtilizador = () => {
           {Object.entries(agrupadoPorDia).map(([dia, eventos]) => (
             <div key={dia} style={{ marginTop: 20, border: '1px solid #ccc', padding: 10, borderRadius: 8 }}>
               <h4>{new Date(dia).toLocaleDateString('pt-PT')}</h4>
-              <ul>
+             <ul style={{ listStyleType: 'none', padding: 0 }}>
                 {eventos
-                  .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-                  .map((e, i) => (
-                    <li key={i}>
-                      [{new Date(e.timestamp).toLocaleTimeString('pt-PT')}] {e.tipo}
+                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+                    .map((e, i) => (
+                    <li key={i} style={{ 
+                        background: '#f9f9f9', 
+                        marginBottom: '10px', 
+                        padding: '10px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '6px' 
+                    }}>
+                        <strong>{e.tipo.toUpperCase()}</strong> - {new Date(e.timestamp).toLocaleTimeString('pt-PT')}
+                        <br />
+                        <span><strong>Obra:</strong> {e.Obra?.nome || 'N/A'}</span><br />
+                        <span><strong>Confirmado:</strong> {e.is_confirmed ? '✅ Sim' : '❌ Não'}</span><br />
+                        {e.justificacao && <span><strong>Justificação:</strong> {e.justificacao}</span>}<br />
+                        {e.latitude && e.longitude && (
+                            <span>
+                                <strong>Localização:</strong>{' '}
+                                {enderecos[`${e.latitude},${e.longitude}`] || 'A obter...'}
+                            </span>
+                            )}
+
                     </li>
-                ))}
-              </ul>
+                    ))}
+                </ul>
+
             </div>
           ))}
         </>
