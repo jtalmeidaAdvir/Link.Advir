@@ -250,7 +250,7 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
               </h1>
               <p className="text-muted mb-0 small">Gerencie e aprove os registos de ponto dos colaboradores nas obras</p>
             </div>
-            
+
             {tipoUser === "Administrador" && (
                 <div className="text-end mb-3">
                     <button
@@ -258,7 +258,7 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
                     onClick={() => navigation.navigate('RegistosPorUtilizador')}
                     >
                     <FaCalendarAlt className="me-2" />
-                    Relatórios por Utilizador
+                    Relatórios
                     </button>
                 </div>
                 )}
