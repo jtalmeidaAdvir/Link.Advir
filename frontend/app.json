@@ -4,7 +4,7 @@
     "slug": "AdvirLink",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/favicon1.ico",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -17,7 +17,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/favicon1.ico",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.a40238.frontend"
