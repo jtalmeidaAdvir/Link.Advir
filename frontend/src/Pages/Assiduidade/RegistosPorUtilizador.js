@@ -17,6 +17,8 @@ const RegistosPorUtilizador = () => {
   const [enderecos, setEnderecos] = useState({});
   const [filtroTipo, setFiltroTipo] = useState('');
   const [exibirEstatisticas, setExibirEstatisticas] = useState(true);
+  const [tipoConsulta, setTipoConsulta] = useState('usuario'); // 'usuario' ou 'obra'
+  const [registosPorUsuario, setRegistosPorUsuario] = useState({});
 
   const token = localStorage.getItem('loginToken');
 
@@ -67,33 +69,83 @@ const RegistosPorUtilizador = () => {
   };
 
   const carregarRegistos = async () => {
-    if (!userSelecionado) return;
+    if (tipoConsulta === 'usuario' && !userSelecionado) return;
+    if (tipoConsulta === 'obra' && !obraSelecionada) return;
 
     setLoading(true);
     try {
-      let query = `user_id=${userSelecionado}`;
-      if (dataSelecionada) {
-        query += `&data=${dataSelecionada}`;
-      } else {
-        if (anoSelecionado) query += `&ano=${anoSelecionado}`;
-        if (mesSelecionado) query += `&mes=${String(mesSelecionado).padStart(2, '0')}`;
-      }
-      if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
+      let query = '';
+      let endpoint = '';
 
-      const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
+      if (tipoConsulta === 'usuario') {
+        query = `user_id=${userSelecionado}`;
+        endpoint = 'listar-por-user-periodo';
+        
+        if (dataSelecionada) {
+          query += `&data=${dataSelecionada}`;
+        } else {
+          if (anoSelecionado) query += `&ano=${anoSelecionado}`;
+          if (mesSelecionado) query += `&mes=${String(mesSelecionado).padStart(2, '0')}`;
+        }
+        if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
+      } else {
+        // Consulta por obra
+        query = `obra_id=${obraSelecionada}`;
+        endpoint = 'listar-por-obra-e-dia';
+        
+        if (dataSelecionada) {
+          query += `&data=${dataSelecionada}`;
+        } else {
+          // Para obra, vamos buscar por dia se não houver data específica
+          const hoje = new Date().toISOString().split('T')[0];
+          query += `&data=${hoje}`;
+        }
+      }
+
+      const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/${endpoint}?${query}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
 
-      const agrupados = {};
-      data.forEach(reg => {
-        const dia = new Date(reg.timestamp).toISOString().split('T')[0];
-        if (!agrupados[dia]) agrupados[dia] = [];
-        agrupados[dia].push(reg);
-      });
+      if (tipoConsulta === 'obra') {
+        // Agrupar por usuário e depois por dia
+        const registosPorUser = {};
+        const agrupados = {};
+        
+        data.forEach(reg => {
+          const userId = reg.user_id;
+          const userName = reg.User?.nome || `Utilizador ${userId}`;
+          const dia = new Date(reg.timestamp).toISOString().split('T')[0];
+          
+          if (!registosPorUser[userId]) {
+            registosPorUser[userId] = {
+              nome: userName,
+              email: reg.User?.email || '',
+              registos: []
+            };
+          }
+          registosPorUser[userId].registos.push(reg);
 
-      setRegistos(data);
-      setAgrupadoPorDia(agrupados);
+          if (!agrupados[dia]) agrupados[dia] = [];
+          agrupados[dia].push(reg);
+        });
+
+        setRegistosPorUsuario(registosPorUser);
+        setRegistos(data);
+        setAgrupadoPorDia(agrupados);
+      } else {
+        // Consulta normal por usuário
+        const agrupados = {};
+        data.forEach(reg => {
+          const dia = new Date(reg.timestamp).toISOString().split('T')[0];
+          if (!agrupados[dia]) agrupados[dia] = [];
+          agrupados[dia].push(reg);
+        });
+
+        setRegistos(data);
+        setAgrupadoPorDia(agrupados);
+        setRegistosPorUsuario({});
+      }
     } catch (err) {
       console.error('Erro ao carregar registos:', err);
     } finally {
@@ -126,13 +178,20 @@ const RegistosPorUtilizador = () => {
     const registosConfirmados = registos.filter(r => r.is_confirmed).length;
     const registosNaoConfirmados = totalRegistos - registosConfirmados;
     
-    return {
+    const stats = {
       totalDias,
       totalRegistos,
       registosConfirmados,
       registosNaoConfirmados,
       percentagemConfirmados: totalRegistos > 0 ? ((registosConfirmados / totalRegistos) * 100).toFixed(1) : 0
     };
+
+    // Para consulta por obra, adicionar estatísticas de usuários
+    if (tipoConsulta === 'obra') {
+      stats.totalUsuarios = Object.keys(registosPorUsuario).length;
+    }
+
+    return stats;
   };
 
   const exportarParaExcel = () => {
@@ -147,8 +206,12 @@ const RegistosPorUtilizador = () => {
     const dadosExport = [];
     
     // Cabeçalho
+    const titulo = tipoConsulta === 'obra' 
+      ? `Relatório de Registos por Obra - ${obras.find(o => o.id == obraSelecionada)?.nome || 'Obra Selecionada'}`
+      : `Relatório de Registos - ${nomeSelecionado}`;
+    
     dadosExport.push([
-      `Relatório de Registos - ${nomeSelecionado}`,
+      titulo,
       '',
       '',
       '',
@@ -167,32 +230,29 @@ const RegistosPorUtilizador = () => {
     dadosExport.push([]);
 
     // Cabeçalhos da tabela
-    dadosExport.push([
-      'Data',
-      'Hora',
-      'Tipo',
-      'Obra',
-      'Confirmado',
-      'Justificação',
-      'Localização'
-    ]);
+    const cabecalhos = tipoConsulta === 'obra' 
+      ? ['Data', 'Hora', 'Tipo', 'Utilizador', 'Confirmado', 'Justificação', 'Localização']
+      : ['Data', 'Hora', 'Tipo', 'Obra', 'Confirmado', 'Justificação', 'Localização'];
+    
+    dadosExport.push(cabecalhos);
 
     // Dados dos registos
     Object.entries(agrupadoPorDia).forEach(([dia, eventos]) => {
       eventos
         .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
         .forEach(evento => {
-          dadosExport.push([
+          const dadosLinha = [
             new Date(dia).toLocaleDateString('pt-PT'),
             new Date(evento.timestamp).toLocaleTimeString('pt-PT'),
             evento.tipo.toUpperCase(),
-            evento.Obra?.nome || 'N/A',
+            tipoConsulta === 'obra' ? evento.User?.nome || 'N/A' : evento.Obra?.nome || 'N/A',
             evento.is_confirmed ? 'Sim' : 'Não',
             evento.justificacao || '',
             evento.latitude && evento.longitude 
               ? enderecos[`${evento.latitude},${evento.longitude}`] || 'A obter...'
               : 'N/A'
-          ]);
+          ];
+          dadosExport.push(dadosLinha);
         });
     });
 
@@ -212,8 +272,11 @@ const RegistosPorUtilizador = () => {
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Registos');
     
-    const fileName = `Registos_${nomeSelecionado.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
+    const nomeArquivo = tipoConsulta === 'obra' 
+      ? `Registos_Obra_${obras.find(o => o.id == obraSelecionada)?.nome.replace(/\s+/g, '_') || 'Obra'}_${new Date().toISOString().split('T')[0]}.xlsx`
+      : `Registos_${nomeSelecionado.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    
+    XLSX.writeFile(workbook, nomeArquivo);
   };
 
   const registosFiltrados = Object.entries(agrupadoPorDia).reduce((acc, [dia, eventos]) => {
@@ -245,35 +308,86 @@ const RegistosPorUtilizador = () => {
           <span style={styles.sectionIcon}>🔍</span>
           Filtros de Pesquisa
         </h3>
+
+        {/* Seletor de tipo de consulta */}
+        <div style={styles.consultaTypeSelector}>
+          <div style={styles.filterGroup}>
+            <label style={styles.label}>Tipo de Consulta</label>
+            <div style={styles.radioGroup}>
+              <label style={styles.radioLabel}>
+                <input
+                  type="radio"
+                  value="usuario"
+                  checked={tipoConsulta === 'usuario'}
+                  onChange={(e) => {
+                    setTipoConsulta(e.target.value);
+                    setUserSelecionado('');
+                    setNomeSelecionado('');
+                    setObraSelecionada('');
+                    setRegistos([]);
+                    setAgrupadoPorDia({});
+                    setRegistosPorUsuario({});
+                  }}
+                  style={styles.radio}
+                />
+                👤 Por Utilizador
+              </label>
+              <label style={styles.radioLabel}>
+                <input
+                  type="radio"
+                  value="obra"
+                  checked={tipoConsulta === 'obra'}
+                  onChange={(e) => {
+                    setTipoConsulta(e.target.value);
+                    setUserSelecionado('');
+                    setNomeSelecionado('');
+                    setObraSelecionada('');
+                    setRegistos([]);
+                    setAgrupadoPorDia({});
+                    setRegistosPorUsuario({});
+                  }}
+                  style={styles.radio}
+                />
+                🏗️ Por Obra
+              </label>
+            </div>
+          </div>
+        </div>
         
         <div style={styles.filtersGrid}>
-          <div style={styles.filterGroup}>
-            <label style={styles.label}>Utilizador *</label>
-            <select 
-              style={styles.select}
-              value={userSelecionado} 
-              onChange={(e) => {
-                const userId = e.target.value;
-                const nome = utilizadores.find(u => u.id == userId)?.nome || '';
-                setUserSelecionado(userId);
-                setNomeSelecionado(nome);
-              }}
-            >
-              <option value="">-- Selecione um utilizador --</option>
-              {utilizadores.map(u => (
-                <option key={u.id} value={u.id}>{u.nome} ({u.email})</option>
-              ))}
-            </select>
-          </div>
+          {tipoConsulta === 'usuario' && (
+            <div style={styles.filterGroup}>
+              <label style={styles.label}>Utilizador *</label>
+              <select 
+                style={styles.select}
+                value={userSelecionado} 
+                onChange={(e) => {
+                  const userId = e.target.value;
+                  const nome = utilizadores.find(u => u.id == userId)?.nome || '';
+                  setUserSelecionado(userId);
+                  setNomeSelecionado(nome);
+                }}
+              >
+                <option value="">-- Selecione um utilizador --</option>
+                {utilizadores.map(u => (
+                  <option key={u.id} value={u.id}>{u.nome} ({u.email})</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div style={styles.filterGroup}>
-            <label style={styles.label}>Obra</label>
+            <label style={styles.label}>
+              {tipoConsulta === 'obra' ? 'Obra *' : 'Obra'}
+            </label>
             <select 
               style={styles.select}
               value={obraSelecionada} 
               onChange={e => setObraSelecionada(e.target.value)}
             >
-              <option value="">-- Todas as obras --</option>
+              <option value="">
+                {tipoConsulta === 'obra' ? '-- Selecione uma obra --' : '-- Todas as obras --'}
+              </option>
               {obras.map(o => (
                 <option key={o.id} value={o.id}>{o.nome}</option>
               ))}
@@ -335,7 +449,7 @@ const RegistosPorUtilizador = () => {
           <button 
             style={styles.primaryButton}
             onClick={carregarRegistos}
-            disabled={!userSelecionado || loading}
+            disabled={(tipoConsulta === 'usuario' && !userSelecionado) || (tipoConsulta === 'obra' && !obraSelecionada) || loading}
           >
             {loading ? '🔄 A carregar...' : '🔍 Pesquisar Registos'}
           </button>
@@ -357,7 +471,10 @@ const RegistosPorUtilizador = () => {
           <div style={styles.statsHeader}>
             <h3 style={styles.sectionTitle}>
               <span style={styles.sectionIcon}>📈</span>
-              Estatísticas - {nomeSelecionado}
+              {tipoConsulta === 'obra' 
+                ? `Estatísticas - ${obras.find(o => o.id == obraSelecionada)?.nome || 'Obra Selecionada'}`
+                : `Estatísticas - ${nomeSelecionado}`
+              }
             </h3>
             <button 
               style={styles.toggleButton}
@@ -388,6 +505,12 @@ const RegistosPorUtilizador = () => {
               <span style={styles.statNumber}>{stats.percentagemConfirmados}%</span>
               <span style={styles.statLabel}>Taxa Confirmação</span>
             </div>
+            {tipoConsulta === 'obra' && (
+              <div style={styles.statItem}>
+                <span style={styles.statNumber}>{stats.totalUsuarios || 0}</span>
+                <span style={styles.statLabel}>Utilizadores</span>
+              </div>
+            )}
           </div>
         </div>
       )}

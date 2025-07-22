@@ -61,7 +61,6 @@ app.use('/api/partes-diarias', partesDiariasRoutes);
 app.use('/api/registo-ponto-obra', registoPontoObraRoutes);
 app.use('/api/faltas-ferias', faltasFeriasRoutes);
 app.use('/api', notificacaoRoutes);
-app.use('/api', testNotificacaoRoutes);
 
 
 
