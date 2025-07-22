@@ -11,8 +11,7 @@ const criarNotificacao = async (req, res) => {
             titulo,
             mensagem,
             tipo,
-            pedido_id,
-            data_criacao // este campo pode vir ou não
+            pedido_id
         } = req.body;
 
         const notificacaoData = {
@@ -24,22 +23,6 @@ const criarNotificacao = async (req, res) => {
         };
 
         console.log('Data inicial do objeto:', notificacaoData);
-        console.log('data_criacao recebida:', data_criacao, 'tipo:', typeof data_criacao);
-
-        // Só adiciona data_criacao se foi fornecida e é válida
-        if (data_criacao) {
-            const dataObj = new Date(data_criacao);
-            
-            if (isNaN(dataObj.getTime())) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Formato de data inválido',
-                    details: 'Formato esperado: YYYY-MM-DDTHH:mm:ss ou YYYY-MM-DD HH:mm:ss'
-                });
-            }
-            
-            notificacaoData.data_criacao = dataObj;
-        }
 
         console.log('Objeto final antes de criar:', notificacaoData);
         const notificacao = await Notificacao.create(notificacaoData);
@@ -65,7 +48,7 @@ const listarNotificacoes = async (req, res) => {
         
         const notificacoes = await Notificacao.findAll({
             where: { usuario_destinatario: usuario },
-            order: [['data_criacao', 'DESC']],
+            order: [['createdAt', 'DESC']],
             limit: 50,
         });
 

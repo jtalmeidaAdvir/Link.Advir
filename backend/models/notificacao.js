@@ -33,13 +33,10 @@ const Notificacao = sequelize.define('Notificacao', {
         type: DataTypes.STRING,
         allowNull: true,
     },
-    data_criacao: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW,
-    },
 }, {
     tableName: 'notificacoes',
     timestamps: true,
+    timezone: '+00:00',
     hooks: {
         beforeCreate: (notificacao, options) => {
             console.log('Before create hook - dados recebidos:', notificacao.dataValues);
