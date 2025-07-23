@@ -12,7 +12,7 @@ import {
   FaUsers
 } from 'react-icons/fa';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import NotificacaoCombinada from './Components/NotificacaoCombinada';
+import NotificacaoCombinada from './components/NotificacaoCombinada';
 
 const RegistoPontoObra = (props) => {
   const scannerRef = useRef(null);
