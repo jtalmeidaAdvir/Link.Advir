@@ -132,7 +132,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
 
 
 
-    
+
     // Conteúdo do drawer para outros utilizadores
 
     const hasOficiosModule = modules.some(module => module.nome === "Oficios");
@@ -167,7 +167,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         onPress={() => props.navigation.navigate('SelecaoEmpresa')}
                         icon={() => <FontAwesome name="briefcase" size={20} color="#1792FE" />}
                     />
-    
+
 
 
     {(tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
@@ -178,7 +178,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
             icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
                                       options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
-            
+
         />
 
         <DrawerItem
@@ -187,7 +187,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
             icon={() => <FontAwesome name="book" size={20} color="#1792FE" />}
                                       options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
-            
+
         />
         <DrawerItem
             label={t("Equipas")}
@@ -197,7 +197,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
 
         />
 
-        
+
     </>
     )}
 
@@ -222,7 +222,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                                     name={aprovacoesExpanded ? "angle-down" : "angle-up"}
                                     size={18}
                                     color="#1792FE"
-                                  
+
                                 />
                             )}
                             expanded={aprovacoesExpanded}
@@ -275,7 +275,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                           options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
                     />
-                
+
 
 
                         <DrawerItem
@@ -285,11 +285,11 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                               options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
                         />
-                       
+
                         </>
-                    
+
 )}
-           
+
 
                     {hasBotaoAssiduidadeModule && (
                         <DrawerItem
@@ -391,6 +391,7 @@ const AppNavigator = () => {
     const [hoveredLanguage, setHoveredLanguage] = useState(null);
     const [initialRoute, setInitialRoute] = useState('Login'); // Define a rota inicial com Login por padrão
     const [tipoUser, setTipoUser] = useState('');
+    const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
 
 
@@ -457,7 +458,7 @@ useEffect(() => {
     // Função para verificar se o token é válido
     const isTokenValid = (token) => {
         if (!token) return false;
-        
+
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
             const currentTime = Date.now() / 1000;
@@ -473,7 +474,7 @@ useEffect(() => {
     const token = localStorage.getItem('loginToken');
     const empresa = localStorage.getItem('empresaSelecionada');
     const tipoUser = localStorage.getItem('tipoUser');
-    
+
     // Verificar se o token existe e é válido
     if (token && isTokenValid(token)) {
         setIsLoggedIn(true);
@@ -485,7 +486,7 @@ useEffect(() => {
         setTipoUser(tipoUser || '');
 
         await fetchUserModules();
-        
+
         // Definir a rota inicial baseada no estado
         if (localStorage.getItem('superAdmin') === 'true') {
             setInitialRoute('ADHome');
@@ -503,7 +504,7 @@ useEffect(() => {
         setIsLoggedIn(false);
         setInitialRoute('Login');
     }
-    
+
     setLoading(false);
   };
 
@@ -517,7 +518,7 @@ useEffect(() => {
     const toggleLanguageSelector = () => {
         setLanguageSelectorVisible(!languageSelectorVisible); // Alterna a visibilidade do combobox de idiomas
     };
-    
+
     const handleLanguageHover = (language) => {
         setHoveredLanguage(language); // Atualiza o idioma que está em hover
     };
@@ -525,6 +526,34 @@ useEffect(() => {
     const handleLanguageLeave = () => {
         setHoveredLanguage(null); // Restaura quando o hover sai
     };
+
+    const handleLogout = () => {
+        localStorage.clear();
+        setIsLoggedIn(false);
+        setProfileMenuVisible(false);
+        setInitialRoute('Login');
+        setTimeout(() => {
+            window.location.reload();
+        }, 500);
+    };
+
+    const toggleProfileMenu = () => {
+        setProfileMenuVisible(!profileMenuVisible);
+    };
+
+    // Fechar dropdown do perfil ao clicar fora
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (profileMenuVisible && !event.target.closest('.profile-menu-container')) {
+                setProfileMenuVisible(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [profileMenuVisible]);
 
 if (loading) {
   return (
@@ -563,20 +592,19 @@ if (loading) {
                     </View>
                 ),
                 headerRight: () => (
-
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
-
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15, position: 'relative' }}>
 
                         {/* Botão de perfil/login */}
                         <TouchableOpacity
                             onPress={() => {
                                 if (isLoggedIn) {
-                                    navigation.navigate('Perfil');
+                                    toggleProfileMenu();
                                 } else {
                                     navigation.navigate('Login');
                                 }
                             }}
                             style={{ flexDirection: 'row', alignItems: 'center' }}
+                            className="profile-menu-container"
                         >
                             <FontAwesome name="user" size={20} color="#1792FE" />
                             <Text style={{ marginLeft: 8, color: '#1792FE', fontSize: 16 }}>{userNome}</Text>
@@ -586,6 +614,32 @@ if (loading) {
                                 </Text>
                             )}
                         </TouchableOpacity>
+
+                        {/* Modal do perfil */}
+                        {profileMenuVisible && isLoggedIn && (
+                            <View style={profileMenuStyles.dropdown} className="profile-menu-container">
+                                <TouchableOpacity
+                                    style={profileMenuStyles.menuItem}
+                                    onPress={() => {
+                                        setProfileMenuVisible(false);
+                                        navigation.navigate('Perfil');
+                                    }}
+                                >
+                                    <FontAwesome name="user" size={16} color="#1792FE" />
+                                    <Text style={profileMenuStyles.menuText}>Perfil</Text>
+                                </TouchableOpacity>
+                                
+                                <View style={profileMenuStyles.divider} />
+                                
+                                <TouchableOpacity
+                                    style={profileMenuStyles.menuItem}
+                                    onPress={handleLogout}
+                                >
+                                    <FontAwesome name="sign-out" size={16} color="#1792FE" />
+                                    <Text style={profileMenuStyles.menuText}>Sair</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
 
                         {/* Botão de Idioma */}
                         <TouchableOpacity
@@ -654,10 +708,10 @@ if (loading) {
             <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
                         <Drawer.Screen name="RegistoPontoObra" component={RegistoPontoObra} />
                         <Drawer.Screen name="CalendarioHorasTrabalho" component={CalendarioHorasTrabalho} />
-                        
+
                         <Drawer.Screen name="AprovacaoFaltaFerias" component={AprovacaoFaltaFerias} />
                         <Drawer.Screen name="AprovacaoPontoPendentes" component={AprovacaoPontoPendentes} />
-                        
+
                         <Drawer.Screen name="RegistosPorUtilizador" component={RegistosPorUtilizador} />
 
             {!loading && (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
@@ -715,6 +769,54 @@ if (loading) {
     );
 };
 
+const styles = StyleSheet.create({
+    background: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        justifyContent: "center", // Garante que o conteúdo está centrado
+    },
+    overlay: {
+        flex: 1,
+        backgroundColor: "rgba(255, 255, 255, 0.7)", // Ajusta a opacidade para suavizar o padrão
+    },
+});
+
+const profileMenuStyles = StyleSheet.create({
+    dropdown: {
+        position: 'absolute',
+        top: '100%',
+        right: 0,
+        backgroundColor: 'white',
+        borderRadius: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        elevation: 8,
+        minWidth: 150,
+        zIndex: 1000,
+        marginTop: 8,
+    },
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        paddingHorizontal: 16,
+    },
+    menuText: {
+        marginLeft: 12,
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#333',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#e0e0e0',
+        marginHorizontal: 8,
+    },
+});
+
 export default function App() {
 
 
@@ -736,16 +838,3 @@ export default function App() {
         </NavigationContainer>
     );
 }
-
-const styles = StyleSheet.create({
-    background: {
-        flex: 1,
-        width: "100%",
-        height: "100%",
-        justifyContent: "center", // Garante que o conteúdo está centrado
-    },
-    overlay: {
-        flex: 1,
-        backgroundColor: "rgba(255, 255, 255, 0.7)", // Ajusta a opacidade para suavizar o padrão
-    },
-});
