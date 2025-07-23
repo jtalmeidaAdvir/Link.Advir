@@ -12,8 +12,9 @@ import {
   FaUsers
 } from 'react-icons/fa';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import NotificacaoCombinada from './Components/NotificacaoCombinada';
 
-const RegistoPontoObra = () => {
+const RegistoPontoObra = (props) => {
   const scannerRef = useRef(null);
   const [scannerVisible, setScannerVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -33,6 +34,22 @@ const RegistoPontoObra = () => {
 
 
   const tipoUser = localStorage.getItem('tipoUser');
+
+  // Função para navegar para aprovação de registos
+  const handleNavigateToApproval = () => {
+    // Use navigation.navigate para navegar para a página de aprovação
+    if (props.navigation) {
+      props.navigation.navigate('AprovacaoPontoPendentes');
+    }
+  };
+
+  // Função para navegar para aprovação de faltas
+  const handleNavigateToFaltasApproval = () => {
+    // Use navigation.navigate para navegar para a página de aprovação de faltas
+    if (props.navigation) {
+      props.navigation.navigate('AprovacaoFaltaFerias');
+    }
+  };
 
   //
     useEffect(() => {
@@ -458,13 +475,28 @@ useEffect(() => {
         <div className="col-12 col-xl-10">
           {/* Header */}
           <div className="card card-moderno mb-3 mb-md-4">
-            <div className="card-body text-center py-3 py-md-4">
-              <h1 className="h4 h3-md mb-2 text-primary">
-                <FaQrcode className="me-2 me-md-3" />
-                <span className="d-none d-sm-inline">Registo de Ponto QR Code</span>
-                <span className="d-sm-none">Ponto QR Code</span>
-              </h1>
-              <p className="text-muted mb-0 small">Digitaliza QR Code ou regista manualmente</p>
+            <div className="card-body py-3 py-md-4">
+              <div className="d-flex justify-content-between align-items-center">
+                <div className="text-center flex-grow-1">
+                  <h1 className="h4 h3-md mb-2 text-primary">
+                    <FaQrcode className="me-2 me-md-3" />
+                    <span className="d-none d-sm-inline">Registo de Ponto QR Code</span>
+                    <span className="d-sm-none">Ponto QR Code</span>
+                  </h1>
+                  <p className="text-muted mb-0 small">Digitaliza QR Code ou regista manualmente</p>
+                </div>
+                
+                {/* Notification Bell for Administrators */}
+                {tipoUser === 'Administrador' && (
+                  <div className="d-flex align-items-center">
+                    <NotificacaoCombinada 
+                      tipoUser={tipoUser}
+                      onNavigateRegistos={handleNavigateToApproval}
+                      onNavigateFaltas={handleNavigateToFaltasApproval}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
