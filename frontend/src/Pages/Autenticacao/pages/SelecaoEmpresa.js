@@ -22,7 +22,7 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const route = useRoute();
-  const autoLogin = route.params?.autoLogin ?? false;
+  const autoLogin = route.params?.autoLogin ?? true;
   
 
   const entrar = useHandleEntrar({

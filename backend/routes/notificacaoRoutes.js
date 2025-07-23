@@ -16,4 +16,7 @@ router.put('/notificacoes/:id/lida', NotificacaoController.marcarComoLida);
 // Contar notificações não lidas
 router.get('/notificacoes/:usuario/nao-lidas', NotificacaoController.contarNaoLidas);
 
+// Limpar notificações lidas
+router.delete('/notificacoes/:usuario/lidas', NotificacaoController.limparNotificacoesLidas);
+
 module.exports = router;

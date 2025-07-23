@@ -22,6 +22,8 @@ const ListarObras = ({ navigation }) => {
     const [obras, setObras] = useState([]);
     const [filteredObras, setFilteredObras] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingProgress, setLoadingProgress] = useState(0);
+    const [loadingMessage, setLoadingMessage] = useState('Inicializando...');
     const [errorMessage, setErrorMessage] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [obrasImportadas, setObrasImportadas] = useState([]);
@@ -71,11 +73,14 @@ const ListarObras = ({ navigation }) => {
 
     useEffect(() => {
         fetchObras();
-        fetchObrasImportadas();
     }, []);
 
     const fetchObras = async () => {
         try {
+            setLoading(true);
+            setLoadingProgress(10);
+            setLoadingMessage('Verificando autenticação...');
+
             const token = await AsyncStorage.getItem('painelAdminToken');
             const urlempresa = await AsyncStorage.getItem('urlempresa');
 
@@ -84,6 +89,9 @@ const ListarObras = ({ navigation }) => {
                 setLoading(false);
                 return;
             }
+
+            setLoadingProgress(25);
+            setLoadingMessage('Conectando ao servidor...');
 
             const response = await fetch(`https://webapiprimavera.advir.pt/listarObras/listarObras`, {
                 method: 'GET',
@@ -98,18 +106,33 @@ const ListarObras = ({ navigation }) => {
                 throw new Error(`Erro: ${response.statusText}`);
             }
 
+            setLoadingProgress(50);
+            setLoadingMessage('Processando dados das obras...');
+
             const data = await response.json();
 
             if (data.DataSet && data.DataSet.Table) {
+                setLoadingProgress(70);
+                setLoadingMessage('Carregando obras importadas...');
+                
                 setObras(data.DataSet.Table);
                 setFilteredObras(data.DataSet.Table);
+                
+                // Carregar obras importadas em paralelo
+                await fetchObrasImportadas();
+                
+                setLoadingProgress(100);
+                setLoadingMessage('Finalizando...');
             } else {
                 setErrorMessage('Estrutura da resposta inválida.');
             }
         } catch (error) {
             setErrorMessage(error.message);
         } finally {
-            setLoading(false);
+            // Pequeno delay para mostrar 100% antes de esconder
+            setTimeout(() => {
+                setLoading(false);
+            }, 500);
         }
     };
 
@@ -149,7 +172,17 @@ const ListarObras = ({ navigation }) => {
 
     const fetchObrasImportadas = async () => {
         try {
+            setLoadingProgress(80);
+            setLoadingMessage('Sincronizando dados locais...');
+
             const token = localStorage.getItem('loginToken');
+            
+            if (!token) {
+                console.warn('Token local não encontrado');
+                setObrasImportadas([]);
+                return;
+            }
+
             const response = await fetch('https://backend.advir.pt/api/obra', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -159,11 +192,15 @@ const ListarObras = ({ navigation }) => {
             const data = await response.json();
             if (response.ok) {
                 setObrasImportadas(data);
+                setLoadingProgress(95);
+                setLoadingMessage('Aplicando filtros...');
             } else {
                 console.warn('Erro ao carregar obras importadas');
+                setObrasImportadas([]);
             }
         } catch (error) {
             console.error('Erro ao buscar obras importadas:', error);
+            setObrasImportadas([]);
         }
     };
 
@@ -580,7 +617,18 @@ const ListarObras = ({ navigation }) => {
         <View style={styles.loadingContainer}>
             <Animated.View style={[styles.loadingContent, { transform: [{ scale: pulseAnimation }] }]}>
                 <ActivityIndicator size="large" color="#1792FE" />
-                <Text style={styles.loadingText}>A carregar obras...</Text>
+                <Text style={styles.loadingText}>{loadingMessage}</Text>
+                <View style={styles.progressContainer}>
+                    <View style={styles.progressBar}>
+                        <Animated.View 
+                            style={[
+                                styles.progressFill, 
+                                { width: `${loadingProgress}%` }
+                            ]} 
+                        />
+                    </View>
+                    <Text style={styles.progressText}>{Math.round(loadingProgress)}%</Text>
+                </View>
             </Animated.View>
         </View>
     );
@@ -893,6 +941,29 @@ const styles = StyleSheet.create({
         color: '#1792FE',
         marginTop: 15,
         fontWeight: '600',
+        marginBottom: 20,
+    },
+    progressContainer: {
+        width: '80%',
+        alignItems: 'center',
+    },
+    progressBar: {
+        width: '100%',
+        height: 8,
+        backgroundColor: '#e0e0e0',
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        backgroundColor: '#1792FE',
+        borderRadius: 4,
+    },
+    progressText: {
+        fontSize: 14,
+        color: '#666',
+        marginTop: 8,
+        fontWeight: '500',
     },
     errorContainer: {
         flex: 1,

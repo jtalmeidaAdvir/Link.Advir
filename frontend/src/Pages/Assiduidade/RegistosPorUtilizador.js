@@ -697,15 +697,18 @@ const RegistosPorUtilizador = () => {
 };
 
 const styles = {
-  container: {
-    padding: '20px',
-    maxWidth: '1400px',
-    margin: '0 auto',
-    backgroundColor: '#f5f7fa',
-    minHeight: '100vh',
-    overflowY: 'auto',
-    overflowX: 'hidden'
-  },
+container: {
+  padding: '20px',
+  maxWidth: '100%', // <--- muda aqui!
+  width: '100%',
+  margin: '0 auto',
+  backgroundImage: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)',
+  minHeight: '100vh',
+  boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+  overflowX: 'hidden',
+},
+
+
   header: {
     textAlign: 'center',
     marginBottom: '30px'
@@ -724,14 +727,15 @@ const styles = {
   icon: {
     marginRight: '10px'
   },
-  filtersCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: '16px',
-    padding: '30px',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-    marginBottom: '30px',
-    border: '1px solid #e2e8f0'
-  },
+ filtersCard: {
+  background: '#ffffff',
+  borderRadius: '15px',
+  padding: '30px',
+  boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+  marginBottom: '30px',
+  border: 'none'
+},
+
   sectionTitle: {
     fontSize: '1.5rem',
     color: '#2d3748',
@@ -1137,6 +1141,7 @@ if (typeof document !== 'undefined') {
   }
 
   body {
+  background: #f5f7fa !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
   }

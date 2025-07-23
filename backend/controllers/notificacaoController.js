@@ -138,9 +138,35 @@ const contarNaoLidas = async (req, res) => {
     }
 };
 
+const limparNotificacoesLidas = async (req, res) => {
+    try {
+        const { usuario } = req.params;
+
+        await Notificacao.destroy({
+            where: {
+                usuario_destinatario: usuario,
+                lida: true,
+            },
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Notificações lidas removidas com sucesso",
+        });
+    } catch (error) {
+        console.error("Erro ao limpar notificações lidas:", error);
+        return res.status(500).json({
+            success: false,
+            error: "Erro interno do servidor",
+            details: error.message,
+        });
+    }
+};
+
 module.exports = {
     criarNotificacao,
     listarNotificacoes,
     marcarComoLida,
     contarNaoLidas,
+    limparNotificacoesLidas,
 };
