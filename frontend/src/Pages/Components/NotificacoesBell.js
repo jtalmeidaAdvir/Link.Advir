@@ -1,32 +1,32 @@
 import React, { useState, useEffect } from "react";
-
+ 
 const NotificacoesBell = ({ userId }) => {
     const [notificacoes, setNotificacoes] = useState([]);
     const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false);
     const [naoLidas, setNaoLidas] = useState(0);
-
+ 
     useEffect(() => {
         if (userId) {
             buscarNotificacoes();
             contarNaoLidas();
-
+ 
             // Atualizar a cada 30 segundos
             const interval = setInterval(() => {
                 buscarNotificacoes();
                 contarNaoLidas();
             }, 30000);
-
+ 
             return () => clearInterval(interval);
         }
     }, [userId]);
-
+ 
     const buscarNotificacoes = async () => {
         try {
             const response = await fetch(
                 `https://backend.advir.pt/api/notificacoes/${userId}`,
             );
             const data = await response.json();
-
+ 
             if (data.success) {
                 setNotificacoes(data.data);
             }
@@ -34,14 +34,14 @@ const NotificacoesBell = ({ userId }) => {
             console.error("Erro ao buscar notificações:", error);
         }
     };
-
+ 
     const contarNaoLidas = async () => {
         try {
             const response = await fetch(
                 `https://backend.advir.pt/api/notificacoes/${userId}/nao-lidas`,
             );
             const data = await response.json();
-
+ 
             if (data.success) {
                 setNaoLidas(data.data.count);
             }
@@ -49,7 +49,7 @@ const NotificacoesBell = ({ userId }) => {
             console.error("Erro ao contar notificações não lidas:", error);
         }
     };
-
+ 
     const marcarComoLida = async (notificacaoId) => {
         try {
             await fetch(
@@ -58,52 +58,77 @@ const NotificacoesBell = ({ userId }) => {
                     method: "PUT",
                 },
             );
-
+ 
             buscarNotificacoes();
             contarNaoLidas();
         } catch (error) {
             console.error("Erro ao marcar notificação como lida:", error);
         }
     };
-
+ 
+    const limparNotificacoesLidas = async () => {
+        try {
+            await fetch(
+                `https://backend.advir.pt/api/notificacoes/${userId}/lidas`,
+                {
+                    method: "DELETE",
+                },
+            );
+ 
+            buscarNotificacoes();
+            contarNaoLidas();
+        } catch (error) {
+            console.error("Erro ao limpar notificações lidas:", error);
+        }
+    };
+ 
     const formatarData = (data) => {
         return new Date(data).toLocaleString("pt-PT");
     };
-
+ 
     if (!userId) return null;
-
+ 
     return (
-        <div style={containerStyle}>
-            <div
+<div style={containerStyle}>
+<div
                 style={bellContainerStyle}
                 onClick={() => setMostrarNotificacoes(!mostrarNotificacoes)}
-            >
-                <div style={bellIconStyle}>🔔</div>
+>
+<div style={bellIconStyle}>🔔</div>
                 {naoLidas > 0 && (
-                    <div style={badgeStyle}>
+<div style={badgeStyle}>
                         {naoLidas > 99 ? "99+" : naoLidas}
-                    </div>
+</div>
                 )}
-            </div>
-
+</div>
+ 
             {mostrarNotificacoes && (
-                <div style={dropdownStyle}>
-                    <div style={headerStyle}>
-                        <h3 style={titleStyle}>Notificações</h3>
-                        <button
-                            style={closeButtonStyle}
-                            onClick={() => setMostrarNotificacoes(false)}
-                        >
-                            ×
-                        </button>
-                    </div>
-
+<div style={dropdownStyle}>
+<div style={headerStyle}>
+<h3 style={titleStyle}>Notificações</h3>
+<div style={headerButtonsStyle}>
+<button
+                                style={clearButtonStyle}
+                                onClick={limparNotificacoesLidas}
+                                title="Limpar notificações lidas"
+>
+                                🗑️
+</button>
+<button
+                                style={closeButtonStyle}
+                                onClick={() => setMostrarNotificacoes(false)}
+>
+                                ×
+</button>
+</div>
+</div>
+ 
                     <div style={notificacoesListStyle}>
                         {notificacoes.length === 0 ? (
-                            <div style={emptyStyle}>Não há notificações</div>
+<div style={emptyStyle}>Não há notificações</div>
                         ) : (
                             notificacoes.map((notif) => (
-                                <div
+<div
                                     key={notif.id}
                                     style={{
                                         ...notificacaoItemStyle,
@@ -114,37 +139,37 @@ const NotificacoesBell = ({ userId }) => {
                                     onClick={() =>
                                         !notif.lida && marcarComoLida(notif.id)
                                     }
-                                >
-                                    <div style={notifHeaderStyle}>
-                                        <span style={notifTitleStyle}>
+>
+<div style={notifHeaderStyle}>
+<span style={notifTitleStyle}>
                                             {notif.titulo}
-                                        </span>
+</span>
                                         {!notif.lida && (
-                                            <div style={unreadDotStyle}></div>
+<div style={unreadDotStyle}></div>
                                         )}
-                                    </div>
-                                    <div style={notifMessageStyle}>
+</div>
+<div style={notifMessageStyle}>
                                         {notif.mensagem}
-                                    </div>
-                                    <div style={notifDateStyle}>
+</div>
+<div style={notifDateStyle}>
                                         {formatarData(notif.data_criacao)}
-                                    </div>
-                                </div>
+</div>
+</div>
                             ))
                         )}
-                    </div>
-                </div>
+</div>
+</div>
             )}
-        </div>
+</div>
     );
 };
-
+ 
 // Estilos
 const containerStyle = {
     position: "relative",
     display: "inline-block",
 };
-
+ 
 const bellContainerStyle = {
     position: "relative",
     cursor: "pointer",
@@ -153,12 +178,12 @@ const bellContainerStyle = {
     backgroundColor: "transparent",
     transition: "background-color 0.2s",
 };
-
+ 
 const bellIconStyle = {
     fontSize: "24px",
     color: "#1792FE",
 };
-
+ 
 const badgeStyle = {
     position: "absolute",
     top: "0",
@@ -172,7 +197,7 @@ const badgeStyle = {
     minWidth: "18px",
     textAlign: "center",
 };
-
+ 
 const dropdownStyle = {
     position: "absolute",
     top: "100%",
@@ -185,7 +210,7 @@ const dropdownStyle = {
     maxHeight: "400px",
     overflow: "hidden",
 };
-
+ 
 const headerStyle = {
     display: "flex",
     justifyContent: "space-between",
@@ -193,13 +218,30 @@ const headerStyle = {
     padding: "16px",
     borderBottom: "1px solid #e9ecef",
 };
-
+ 
 const titleStyle = {
     margin: 0,
     fontSize: "16px",
     color: "#333",
 };
-
+ 
+const headerButtonsStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+};
+ 
+const clearButtonStyle = {
+    background: "none",
+    border: "none",
+    fontSize: "16px",
+    cursor: "pointer",
+    color: "#666",
+    padding: "4px",
+    borderRadius: "4px",
+    transition: "background-color 0.2s",
+};
+ 
 const closeButtonStyle = {
     background: "none",
     border: "none",
@@ -207,55 +249,55 @@ const closeButtonStyle = {
     cursor: "pointer",
     color: "#666",
 };
-
+ 
 const notificacoesListStyle = {
     maxHeight: "300px",
     overflowY: "auto",
 };
-
+ 
 const emptyStyle = {
     padding: "20px",
     textAlign: "center",
     color: "#666",
 };
-
+ 
 const notificacaoItemStyle = {
     padding: "12px 16px",
     borderBottom: "1px solid #e9ecef",
     cursor: "pointer",
     transition: "background-color 0.2s",
 };
-
+ 
 const notifHeaderStyle = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: "4px",
 };
-
+ 
 const notifTitleStyle = {
     fontWeight: "600",
     color: "#333",
     fontSize: "14px",
 };
-
+ 
 const unreadDotStyle = {
     width: "8px",
     height: "8px",
     backgroundColor: "#1792FE",
     borderRadius: "50%",
 };
-
+ 
 const notifMessageStyle = {
     fontSize: "13px",
     color: "#666",
     marginBottom: "4px",
     lineHeight: "1.4",
 };
-
+ 
 const notifDateStyle = {
     fontSize: "11px",
     color: "#999",
 };
-
+ 
 export default NotificacoesBell;
