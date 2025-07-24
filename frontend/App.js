@@ -12,6 +12,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 
 
+
+
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // Importa as páginas

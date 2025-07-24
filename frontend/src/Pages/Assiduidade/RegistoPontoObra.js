@@ -375,7 +375,12 @@ useEffect(() => {
 
   return (
     <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{overflowX: 'hidden', background: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)'}}>
+      
       <style jsx>{`
+
+        
+
+
         .scanner-container {
           border-radius: 15px;
           overflow: hidden;

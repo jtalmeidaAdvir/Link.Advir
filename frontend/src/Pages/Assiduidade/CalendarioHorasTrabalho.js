@@ -717,7 +717,9 @@ console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
       alert('Selecione uma obra antes de submeter');
       return;
     }
-
+    const [ano, mes, dia] = diaSelecionado.split('-');
+    const [hora, minuto] = novaEntrada.hora.split(':');
+    const dataLocal = new Date(ano, mes - 1, dia, hora, minuto);
     const token = localStorage.getItem('loginToken');
     try {
       setLoading(true);
@@ -729,7 +731,7 @@ console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
         },
         body: JSON.stringify({
           ...novaEntrada,
-          timestamp: `${diaSelecionado}T${novaEntrada.hora}:00`
+          timestamp: dataLocal.toISOString() 
         })
       });
 
@@ -1299,12 +1301,19 @@ const isPendente = diasPendentes.includes(dataFormatada);
                         ))}
                         <hr />
                         <div className="d-flex justify-content-between">
-                          <span className="fw-bold">Total:</span>
-                          <span className="fw-bold text-primary">
-                            {detalhes.reduce((acc, entry) => acc + entry.horas, 0)}h {' '}
-                            {detalhes.reduce((acc, entry) => acc + entry.minutos, 0)}min
-                          </span>
-                        </div>
+  <span className="fw-bold">Total:</span>
+  {(() => {
+    const totalMinutos = detalhes.reduce((acc, entry) => acc + (entry.horas * 60 + entry.minutos), 0);
+    const totalHoras = Math.floor(totalMinutos / 60);
+    const minutosRestantes = totalMinutos % 60;
+    return (
+      <span className="fw-bold text-primary">
+        {totalHoras}h {minutosRestantes > 0 ? `${minutosRestantes}min` : ''}
+      </span>
+    );
+  })()}
+</div>
+
                       </div>
                     )}
                     {faltasDoDia.length > 0 && (
