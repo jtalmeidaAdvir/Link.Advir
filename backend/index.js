@@ -63,7 +63,7 @@ app.use('/api/registo-ponto-obra', registoPontoObraRoutes);
 app.use('/api/faltas-ferias', faltasFeriasRoutes);
 app.use('/api', notificacaoRoutes);
 app.use('/api/notificacao-agendada', notificacaoAgendadaRoutes);
-app.use('/api/test', require('./routes/testNotificacaoRoutes'));
+//app.use('/api/test', require('./routes/testNotificacaoRoutes'));
 
 
 
