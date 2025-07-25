@@ -128,19 +128,32 @@ const RegistosPorUtilizador = () => {
               });
 
               let totalHorasEstimadas = 0;
-              Object.values(horasPorDia).forEach(registosDia => {
-                const entradas = registosDia.filter(r => r.tipo === 'entrada').sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                const saidas = registosDia.filter(r => r.tipo === 'saida').sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                
-                if (entradas.length > 0 && saidas.length > 0) {
-                  const primeiraEntrada = new Date(entradas[0].timestamp);
-                  const ultimaSaida = new Date(saidas[saidas.length - 1].timestamp);
-                  const horasDia = (ultimaSaida - primeiraEntrada) / (1000 * 60 * 60);
-                  if (horasDia > 0 && horasDia < 24) {
-                    totalHorasEstimadas += horasDia;
-                  }
-                }
-              });
+
+Object.values(horasPorDia).forEach(registosDia => {
+  // Ordenar os registos por timestamp
+  const eventosOrdenados = registosDia
+    .filter(r => r.tipo === 'entrada' || r.tipo === 'saida')
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  let ultimaEntrada = null;
+  let horasDia = 0;
+
+  eventosOrdenados.forEach(reg => {
+    if (reg.tipo === 'entrada') {
+      ultimaEntrada = new Date(reg.timestamp);
+    } else if (reg.tipo === 'saida' && ultimaEntrada) {
+      const saida = new Date(reg.timestamp);
+      const diff = (saida - ultimaEntrada) / (1000 * 60 * 60); // em horas
+      if (diff > 0 && diff < 24) {
+        horasDia += diff;
+      }
+      ultimaEntrada = null; // limpar entrada após pareamento
+    }
+  });
+
+  totalHorasEstimadas += horasDia;
+});
+
 
               const obrasUtilizador = [...new Set(registos.map(r => r.Obra?.nome).filter(Boolean))];
 
