@@ -394,13 +394,6 @@ const AppNavigator = () => {
     const [tipoUser, setTipoUser] = useState('');
     const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
-    // Hook para notificações OneSignal
-    const {
-        isPermissionGranted,
-        oneSignalUserId,
-        requestNotificationPermission,
-        scheduleRegistoPontoReminder
-    } = useNotifications(userNome, localStorage.getItem('userId'));
 
 
 
