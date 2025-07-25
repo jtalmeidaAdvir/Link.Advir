@@ -325,18 +325,20 @@ useEffect(() => {
     };
   }, [scannerVisible, isProcessing]);
 
-  const handleManualAction = (tipo) => {
-    const obra = obras.find(o => o.id == obraSelecionada);
-    if (!obraSelecionada || !obra) {
-      return alert('Selecione uma obra válida');
-    }
+const handleManualAction = async (tipo) => {
+  const obra = obras.find(o => o.id == obraSelecionada);
+  if (!obraSelecionada || !obra) {
+    return alert('Selecione uma obra válida');
+  }
 
-    if (tipo === 'entrada') {
-      processarEntradaComValidacao(obra.id, obra.nome);
-    } else {
-      registarPonto(tipo, obra.id, obra.nome);
-    }
-  };
+  const tipoAcao = tipo.toLowerCase();
+  if (tipoAcao === 'entrada') {
+    await processarEntradaComValidacao(obra.id, obra.nome);
+  } else if (tipoAcao === 'saida') {
+    await registarPonto(tipoAcao, obra.id, obra.nome);
+  }
+};
+
 
   const handleRegistoEquipa = async (tipo) => {
   try {
