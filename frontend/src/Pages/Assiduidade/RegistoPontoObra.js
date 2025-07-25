@@ -332,12 +332,32 @@ const handleManualAction = async (tipo) => {
   }
 
   const tipoAcao = tipo.toLowerCase();
+
   if (tipoAcao === 'entrada') {
     await processarEntradaComValidacao(obra.id, obra.nome);
-  } else if (tipoAcao === 'saida') {
-    await registarPonto(tipoAcao, obra.id, obra.nome);
+  } 
+  else if (tipoAcao === 'saida') {
+    // Verifica se há entrada anterior sem saída para a mesma obra
+    const entradaSemSaida = registos
+      .filter(r => r.tipo === 'entrada' && r.obra_id === obra.id)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .find(entrada => {
+        const saida = registos.find(saida =>
+          saida.tipo === 'saida' &&
+          saida.obra_id === entrada.obra_id &&
+          new Date(saida.timestamp) > new Date(entrada.timestamp)
+        );
+        return !saida;
+      });
+
+    if (!entradaSemSaida) {
+      return alert(`Não há entrada ativa na obra "${obra.nome}" para registar saída.`);
+    }
+
+    await registarPonto('saida', obra.id, obra.nome);
   }
 };
+
 
 
   const handleRegistoEquipa = async (tipo) => {

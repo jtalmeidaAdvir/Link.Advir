@@ -544,18 +544,7 @@ useEffect(() => {
     };
 
     // Fechar dropdown do perfil ao clicar fora
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (profileMenuVisible && !event.target.closest('.profile-menu-container')) {
-                setProfileMenuVisible(false);
-            }
-        };
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [profileMenuVisible]);
 
 if (loading) {
   return (
