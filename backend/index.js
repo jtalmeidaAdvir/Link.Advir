@@ -15,24 +15,23 @@ const equipaObraRoutes = require('./routes/equipaObraRoutes');
 const partesDiariasRoutes = require('./routes/partesDiariasRoutes');
 const registoPontoObraRoutes = require('./routes/registoPontoObraRoutes');
 const faltasFeriasRoutes = require('./routes/faltasFeriasRoutes');
-const notificacaoRoutes = require('./routes/notificacaoRoutes'); // Adicionado rotas de notificação
-const testNotificacaoRoutes = require('./routes/testNotificacaoRoutes'); // Adicionado rotas de teste
-
-
+const notificacaoRoutes = require('./routes/notificacaoRoutes');
+ 
+ 
 const fileUpload = require('express-fileupload');
 const { getDatabases } = require('./config/db');
-
-
+ 
+ 
 // Importar associações
 require('./associations');  // Importa o ficheiro onde as associações estão definidas
-
-
-
+ 
+ 
+ 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(fileUpload());
-
+ 
 async function startApp() {
     await initializeSequelize();
     await sequelize.sync({ alter: true }) // Sincroniza sem perder dados
@@ -43,7 +42,7 @@ async function startApp() {
             console.error('Erro ao sincronizar as tabelas:', err);
         });
 }
-
+ 
 // Rotas
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
@@ -61,10 +60,10 @@ app.use('/api/partes-diarias', partesDiariasRoutes);
 app.use('/api/registo-ponto-obra', registoPontoObraRoutes);
 app.use('/api/faltas-ferias', faltasFeriasRoutes);
 app.use('/api', notificacaoRoutes);
-
-
-
-
+ 
+ 
+ 
+ 
 app.get('/databases', async (req, res) => {
     try {
         const databases = await getDatabases();
@@ -73,15 +72,13 @@ app.get('/databases', async (req, res) => {
         res.status(500).json({ message: 'Erro ao obter as bases de dados' });
     }
 });
-
-app.use('/api/notificacoes', require('./routes/notificacaoRoutes'));
-app.use('/api/notifications', require('./routes/notificationRoutes'));
-
-
-
+ 
+ 
+ 
+ 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor iniciado na porta ${PORT}`);
 });
-
+ 
 startApp();

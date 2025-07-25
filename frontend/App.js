@@ -8,7 +8,6 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native'; // Importa o hook
 import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNotifications } from './src/hooks/useNotifications';
 
 
 
@@ -370,6 +369,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         label={t("Drawer.Exit")}
                         icon={() => <FontAwesome name="sign-out" size={20} color="#1792FE" />}
                         onPress={handleLogout}
+
                     />
                 )}
             </View>
