@@ -843,7 +843,7 @@ export default function App() {
       OneSignal.init({
         appId: "a9bc6538-62e7-4f65-a1bf-b502d74bd0f9",
       safari_web_id: "web.onesignal.auto.630456c0-6fee-4c63-83c2-4e6e2f9684cf",
-        serviceWorkerPath: "/OneSignal/OneSignalSDKWorker.js", // verifica o path correto na tua pasta public
+        serviceWorkerPath: "./frontend/OneSignal/OneSignalSDKWorker.js", // verifica o path correto na tua pasta public
         notifyButton: {
           enable: true,
         },
