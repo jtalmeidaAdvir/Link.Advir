@@ -15,8 +15,10 @@ const equipaObraRoutes = require('./routes/equipaObraRoutes');
 const partesDiariasRoutes = require('./routes/partesDiariasRoutes');
 const registoPontoObraRoutes = require('./routes/registoPontoObraRoutes');
 const faltasFeriasRoutes = require('./routes/faltasFeriasRoutes');
-const notificacaoRoutes = require('./routes/notificacaoRoutes'); // Adicionado rotas de notificação
+const notificacaoRoutes = require('./routes/notificacaoRoutes');
+const notificacaoAgendadaRoutes = require('./routes/notificacaoAgendadaRoutes'); // Adicionado rotas de notificação
 const testNotificacaoRoutes = require('./routes/testNotificacaoRoutes'); // Adicionado rotas de teste
+const oneSignalTestRoutes = require('./routes/oneSignalTestRoutes'); // Rotas de teste OneSignal
 
 
 const fileUpload = require('express-fileupload');
@@ -61,6 +63,9 @@ app.use('/api/partes-diarias', partesDiariasRoutes);
 app.use('/api/registo-ponto-obra', registoPontoObraRoutes);
 app.use('/api/faltas-ferias', faltasFeriasRoutes);
 app.use('/api', notificacaoRoutes);
+app.use('/api/notificacao-agendada', notificacaoAgendadaRoutes);
+app.use('/api/test', require('./routes/testNotificacaoRoutes'));
+app.use('/api/onesignal-test', oneSignalTestRoutes);
 
 
 

@@ -65,6 +65,10 @@ const PartesDiarias = ({ navigation }) => {
         { label: 'Equipamentos', value: 'Equipamentos' }
     ];
 
+
+    const [modoVisualizacao, setModoVisualizacao] = useState('obra');
+
+
     // Função para converter minutos para formato H:MM
     const formatarHorasMinutos = useCallback((minutos) => {
         if (minutos === 0) return '-';
@@ -761,6 +765,21 @@ const PartesDiarias = ({ navigation }) => {
                 >
                     <Ionicons name="chevron-forward" size={20} color="#1792FE" />
                 </TouchableOpacity>
+                <TouchableOpacity
+    style={styles.actionButton}
+    onPress={() => setModoVisualizacao(prev => prev === 'obra' ? 'user' : 'obra')}
+>
+    <LinearGradient
+        colors={['#6f42c1', '#6610f2']}
+        style={styles.buttonGradient}
+    >
+        <FontAwesome name="exchange" size={16} color="#FFFFFF" />
+        <Text style={styles.buttonText}>
+            {modoVisualizacao === 'obra' ? 'Vista por Utilizador' : 'Vista por Obra'}
+        </Text>
+    </LinearGradient>
+</TouchableOpacity>
+
             </View>
 
             <View style={styles.actionButtons}>
@@ -812,6 +831,24 @@ const PartesDiarias = ({ navigation }) => {
         }, {});
     }, [dadosProcessados]);
 
+    const dadosAgrupadosPorUser = useMemo(() => {
+    return dadosProcessados.reduce((acc, item) => {
+        const userKey = item.userId;
+        if (!acc[userKey]) {
+            acc[userKey] = {
+                userInfo: {
+                    id: item.userId,
+                    nome: item.userName
+                },
+                obras: []
+            };
+        }
+        acc[userKey].obras.push(item);
+        return acc;
+    }, {});
+}, [dadosProcessados]);
+
+
     const renderDataSheet = () => {
         if (dadosProcessados.length === 0) {
             return (
@@ -822,7 +859,7 @@ const PartesDiarias = ({ navigation }) => {
                 </View>
             );
         }
-
+if (modoVisualizacao === 'obra') {
         return (
             <View style={styles.tableWrapper}>
                 <Text style={styles.tableInstructions}>
@@ -1002,7 +1039,9 @@ const PartesDiarias = ({ navigation }) => {
                 </ScrollView>
             </View>
         );
+
     };
+}
 
     const renderConfirmModal = () => (
         <Modal

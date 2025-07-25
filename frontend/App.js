@@ -1,95 +1,112 @@
-import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
-import { View, Image, Text, ActivityIndicator, TouchableOpacity, ImageBackground, StyleSheet } from 'react-native';
-import { List } from 'react-native-paper';
-import { FaHome, FaUser, FaTool, FaClock, FaBriefcase, FaSignOutAlt, FaCog } from 'react-icons/fa';
-import { FontAwesome } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native'; // Importa o hook
+import React, { useState, useEffect } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import {
+    createDrawerNavigator,
+    DrawerContentScrollView,
+    DrawerItem,
+} from "@react-navigation/drawer";
+import {
+    View,
+    Image,
+    Text,
+    ActivityIndicator,
+    TouchableOpacity,
+    ImageBackground,
+    StyleSheet,
+} from "react-native";
+import { List } from "react-native-paper";
+import {
+    FaHome,
+    FaUser,
+    FaTool,
+    FaClock,
+    FaBriefcase,
+    FaSignOutAlt,
+    FaCog,
+} from "react-icons/fa";
+import { FontAwesome } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native"; // Importa o hook
 import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-
-
-
-
-
-import 'bootstrap/dist/css/bootstrap.min.css';
+import "bootstrap/dist/css/bootstrap.min.css";
 
 // Importa as páginas
-import Login from './src/Pages/Autenticacao/pages/Login';
-import Home from './src/Home';
-import ADHome from './src/Pages/BackOffice/ADHome';
-import Perfil from './src/Pages/Perfil';
-import PainelAdmin from './src/Pages/Autenticacao/PainelAdmin';
-import UsersEmpresa from './src/Pages/Autenticacao/UsersEmpresa';
-import RegistoUser from './src/Pages/Autenticacao/RegistoUser';
-import RegistoAdmin from './src/Pages/Autenticacao/RegistoAdmin';
-import VerificaConta from './src/Pages/Autenticacao/VerificaConta';
-import SelecaoEmpresa from './src/Pages/Autenticacao/pages/SelecaoEmpresa';
-import RecuperarPassword from './src/Pages/Autenticacao/RecuperarPassword';
-import RedefinirPassword from './src/Pages/Autenticacao/RedefinirPassword';
+import Login from "./src/Pages/Autenticacao/pages/Login";
+import Home from "./src/Home";
+import ADHome from "./src/Pages/BackOffice/ADHome";
+import Perfil from "./src/Pages/Perfil";
+import PainelAdmin from "./src/Pages/Autenticacao/PainelAdmin";
+import UsersEmpresa from "./src/Pages/Autenticacao/UsersEmpresa";
+import RegistoUser from "./src/Pages/Autenticacao/RegistoUser";
+import RegistoAdmin from "./src/Pages/Autenticacao/RegistoAdmin";
+import VerificaConta from "./src/Pages/Autenticacao/VerificaConta";
+import SelecaoEmpresa from "./src/Pages/Autenticacao/pages/SelecaoEmpresa";
+import RecuperarPassword from "./src/Pages/Autenticacao/RecuperarPassword";
+import RedefinirPassword from "./src/Pages/Autenticacao/RedefinirPassword";
 
-
-
-import ContratosList from './src/Pages/BackOffice/ContratosList';
+import ContratosList from "./src/Pages/BackOffice/ContratosList";
 
 // SERVICOS
-import PedidosAssistencia from './src/Pages/Servicos/PedidosAssistencia';
-import PandIByTecnico from './src/Pages/Servicos/PandIByTecnico';
-import RegistoPedido from './src/Pages/Servicos/RegistoAssistencia';
-import intervencoes from './src/Pages/Servicos/Intervencoes';
-import RegistoIntervencao from './src/Pages/Servicos/RegistoIntervencao';
-import DashboardAnalytics from './src/Pages/Servicos/DashboardAnalytics';
+import PedidosAssistencia from "./src/Pages/Servicos/PedidosAssistencia";
+import PandIByTecnico from "./src/Pages/Servicos/PandIByTecnico";
+import RegistoPedido from "./src/Pages/Servicos/RegistoAssistencia";
+import intervencoes from "./src/Pages/Servicos/Intervencoes";
+import RegistoIntervencao from "./src/Pages/Servicos/RegistoIntervencao";
+import DashboardAnalytics from "./src/Pages/Servicos/DashboardAnalytics";
 
 // ASSIDUIDADE
-import LeitorQRCode from './src/Pages/Assiduidade/LeitorQRCode';
-import PontoBotao from './src/Pages/Assiduidade/PontoBotao';
-import RegistoPontoAdmin from './src/Pages/Assiduidade/RegistoPontoAdmin';
-import PedidosAlteracaoAdmin from './src/Pages/Assiduidade/PedidosAlteracaoAdmin';
-import ListarRegistos from './src/Pages/Assiduidade/ListarRegistos';
+import LeitorQRCode from "./src/Pages/Assiduidade/LeitorQRCode";
+import PontoBotao from "./src/Pages/Assiduidade/PontoBotao";
+import RegistoPontoAdmin from "./src/Pages/Assiduidade/RegistoPontoAdmin";
+import PedidosAlteracaoAdmin from "./src/Pages/Assiduidade/PedidosAlteracaoAdmin";
+import ListarRegistos from "./src/Pages/Assiduidade/ListarRegistos";
 
-import RegistoPontoObra from './src/Pages/Assiduidade/RegistoPontoObra';
-import CalendarioHorasTrabalho from './src/Pages/Assiduidade/CalendarioHorasTrabalho';
+import RegistoPontoObra from "./src/Pages/Assiduidade/RegistoPontoObra";
+import CalendarioHorasTrabalho from "./src/Pages/Assiduidade/CalendarioHorasTrabalho";
 
-import AprovacaoFaltaFerias from './src/Pages/Assiduidade/AprovacaoFaltaFerias';
-import AprovacaoPontoPendentes from './src/Pages/Assiduidade/AprovacaoPontoPendentes';
+import AprovacaoFaltaFerias from "./src/Pages/Assiduidade/AprovacaoFaltaFerias";
+import AprovacaoPontoPendentes from "./src/Pages/Assiduidade/AprovacaoPontoPendentes";
 //Aprovaçoes Pendentes
-import ConcursosAprovacao from './src/Pages/Concursos/ConcursosAprovacao';
+import ConcursosAprovacao from "./src/Pages/Concursos/ConcursosAprovacao";
 
-import Obras from './src/Pages/Obras/Obras';
-import PartesDiarias from './src/Pages/Obras/PartesDiarias';
+import Obras from "./src/Pages/Obras/Obras";
+import PartesDiarias from "./src/Pages/Obras/PartesDiarias";
 
+import PessoalObra from "./src/Pages/Obras/PessoalObra";
 
-import PessoalObra from './src/Pages/Obras/PessoalObra';
+import CriarEquipa from "./src/Pages/Obras/CriarEquipa";
 
-import CriarEquipa from './src/Pages/Obras/CriarEquipa';
+import RegistosPorUtilizador from "./src/Pages/Assiduidade/RegistosPorUtilizador";
 
-import RegistosPorUtilizador from './src/Pages/Assiduidade/RegistosPorUtilizador';
-
-import UserModulesManagement from './src/Pages/Autenticacao/UserModulesManagement';
-import logo from './assets/favicon1.ico';
-import i18n from './src/Pages/i18n';
-import { useTranslation } from 'react-i18next';
-import OficiosPage from './src/Pages/Oficios/OficiosPage';
-import OficiosList from './src/Pages/Oficios/OficiosList';
-import EditOficio from './src/Pages/Oficios/EditOficio';
+import UserModulesManagement from "./src/Pages/Autenticacao/UserModulesManagement";
+import logo from "./assets/favicon1.ico";
+import i18n from "./src/Pages/i18n";
+import { useTranslation } from "react-i18next";
+import OficiosPage from "./src/Pages/Oficios/OficiosPage";
+import OficiosList from "./src/Pages/Oficios/OficiosList";
+import EditOficio from "./src/Pages/Oficios/EditOficio";
 
 const Drawer = createDrawerNavigator();
 
-
-
 // Configuração de deep linking para reconhecer URLs com parâmetros dinâmicos como o token
 const linking = {
-    prefixes: ['https://backend.advir.pt:8081'],
+    prefixes: ["https://backend.advir.pt:8081"],
     config: {
         screens: {
-            RedefinirPassword: 'redefinir-password/:token',
+            RedefinirPassword: "redefinir-password/:token",
         },
     },
 };
 
-const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoUser, ...props }) => {
+const CustomDrawerContent = ({
+    isAdmin,
+    isSuperAdmin,
+    isLoggedIn,
+    modules,
+    tipoUser,
+    ...props
+}) => {
     const [expanded, setExpanded] = useState(false);
     const { t } = useTranslation();
     const handlePress = () => setExpanded(!expanded);
@@ -97,7 +114,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
 
     const handleLogout = () => {
         localStorage.clear();
-        props.navigation.navigate('Login');
+        props.navigation.navigate("Login");
         setTimeout(() => {
             window.location.reload();
         }, 500);
@@ -106,270 +123,486 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
     // Se for superAdmin, mostra apenas opções específicas
     if (isSuperAdmin) {
         return (
-            <DrawerContentScrollView {...props} contentContainerStyle={{ flexGrow: 1 }}>
+            <DrawerContentScrollView
+                {...props}
+                contentContainerStyle={{ flexGrow: 1 }}
+            >
                 <DrawerItem
                     label="ADHome"
-                    onPress={() => props.navigation.navigate('ADHome')}
-                    icon={() => <FontAwesome name="home" size={20} color="#1792FE" />}
+                    onPress={() => props.navigation.navigate("ADHome")}
+                    icon={() => (
+                        <FontAwesome name="home" size={20} color="#1792FE" />
+                    )}
                 />
                 <DrawerItem
                     label="RegistoAdmin"
-                    onPress={() => props.navigation.navigate('RegistoAdmin')}
-                    icon={() => <FontAwesome name="home" size={20} color="#1792FE" />}
+                    onPress={() => props.navigation.navigate("RegistoAdmin")}
+                    icon={() => (
+                        <FontAwesome name="home" size={20} color="#1792FE" />
+                    )}
                 />
 
                 <DrawerItem
                     label="Meu Perfil"
-                    onPress={() => props.navigation.navigate('Perfil')}
-                    icon={() => <FontAwesome name="user" size={20} color="#1792FE" />}
+                    onPress={() => props.navigation.navigate("Perfil")}
+                    icon={() => (
+                        <FontAwesome name="user" size={20} color="#1792FE" />
+                    )}
                 />
                 <DrawerItem
                     label="Logout"
                     onPress={handleLogout}
-                    icon={() => <FontAwesome name="sign-out" size={20} color="#1792FE" />}
+                    icon={() => (
+                        <FontAwesome
+                            name="sign-out"
+                            size={20}
+                            color="#1792FE"
+                        />
+                    )}
                 />
             </DrawerContentScrollView>
         );
     }
 
-
-
-
     // Conteúdo do drawer para outros utilizadores
 
-    const hasOficiosModule = modules.some(module => module.nome === "Oficios");
+    const hasOficiosModule = modules.some(
+        (module) => module.nome === "Oficios",
+    );
 
-    const hasServicesModule = modules.some(module => module.nome === "Servicos");
+    const hasServicesModule = modules.some(
+        (module) => module.nome === "Servicos",
+    );
 
     const hasConcursosModule = modules.some(
-        module => module.nome === "Obras" && module.submodulos.some(sub => sub.nome === "Aprovacoes")
+        (module) =>
+            module.nome === "Obras" &&
+            module.submodulos.some((sub) => sub.nome === "Aprovacoes"),
     );
 
     const hasQrCodeAssiduidadeModule = modules.some(
-        module => module.nome === "Assiduidade" && module.submodulos.some(sub => sub.nome === "QrCode")
+        (module) =>
+            module.nome === "Assiduidade" &&
+            module.submodulos.some((sub) => sub.nome === "QrCode"),
     );
     const hasBotaoAssiduidadeModule = modules.some(
-        module => module.nome === "Assiduidade" && module.submodulos.some(sub => sub.nome === "Botao")
+        (module) =>
+            module.nome === "Assiduidade" &&
+            module.submodulos.some((sub) => sub.nome === "Botao"),
     );
     const hasObrasModule = modules.some(
-        module => module.nome === "Obras" && module.submodulos.some(sub => sub.nome === "Controlo")
+        (module) =>
+            module.nome === "Obras" &&
+            module.submodulos.some((sub) => sub.nome === "Controlo"),
     );
 
     return (
-        <DrawerContentScrollView {...props} contentContainerStyle={{ flexGrow: 1 }}>
+        <DrawerContentScrollView
+            {...props}
+            contentContainerStyle={{ flexGrow: 1 }}
+        >
             <DrawerItem
                 label={t("Drawer.Home")}
-                onPress={() => props.navigation.navigate('Home')}
-                icon={() => <FontAwesome name="home" size={20} color="#1792FE" />}
+                onPress={() => props.navigation.navigate("Home")}
+                icon={() => (
+                    <FontAwesome name="home" size={20} color="#1792FE" />
+                )}
             />
             {isLoggedIn && (
                 <>
                     <DrawerItem
                         label={t("Drawer.SelecaoEmpresa")}
-                        onPress={() => props.navigation.navigate('SelecaoEmpresa')}
-                        icon={() => <FontAwesome name="briefcase" size={20} color="#1792FE" />}
+                        onPress={() =>
+                            props.navigation.navigate("SelecaoEmpresa")
+                        }
+                        icon={() => (
+                            <FontAwesome
+                                name="briefcase"
+                                size={20}
+                                color="#1792FE"
+                            />
+                        )}
                     />
 
+                    {(tipoUser === "Encarregado" ||
+                        tipoUser === "Diretor" ||
+                        tipoUser === "Administrador") && (
+                        <>
+                            <DrawerItem
+                                label={t("Drawer.Obra")}
+                                onPress={() =>
+                                    props.navigation.navigate("Obras")
+                                }
+                                icon={() => (
+                                    <FontAwesome
+                                        name="road"
+                                        size={20}
+                                        color="#1792FE"
+                                    />
+                                )}
+                                options={{
+                                    drawerItemStyle:
+                                        tipoUser === "Encarregado" ||
+                                        tipoUser === "Diretor" ||
+                                        tipoUser === "Administrador"
+                                            ? {}
+                                            : { display: "none" },
+                                }}
+                            />
 
-
-    {(tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
-<>
-        <DrawerItem
-            label={t("Drawer.Obra")}
-            onPress={() => props.navigation.navigate('Obras')}
-            icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
-                                      options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
-
-
-        />
-
-        <DrawerItem
-            label={t("Partes Diarias")}
-            onPress={() => props.navigation.navigate('PartesDiarias')}
-            icon={() => <FontAwesome name="book" size={20} color="#1792FE" />}
-                                      options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
-
-
-        />
-        <DrawerItem
-            label={t("Equipas")}
-            onPress={() => props.navigation.navigate('CriarEquipa')}
-            icon={() => <FontAwesome name="users" size={20} color="#1792FE" />}
-                                      options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
-
-        />
-
-
-    </>
-    )}
-
+                            <DrawerItem
+                                label={t("Partes Diarias")}
+                                onPress={() =>
+                                    props.navigation.navigate("PartesDiarias")
+                                }
+                                icon={() => (
+                                    <FontAwesome
+                                        name="book"
+                                        size={20}
+                                        color="#1792FE"
+                                    />
+                                )}
+                                options={{
+                                    drawerItemStyle:
+                                        tipoUser === "Encarregado" ||
+                                        tipoUser === "Diretor" ||
+                                        tipoUser === "Administrador"
+                                            ? {}
+                                            : { display: "none" },
+                                }}
+                            />
+                            <DrawerItem
+                                label={t("Equipas")}
+                                onPress={() =>
+                                    props.navigation.navigate("CriarEquipa")
+                                }
+                                icon={() => (
+                                    <FontAwesome
+                                        name="users"
+                                        size={20}
+                                        color="#1792FE"
+                                    />
+                                )}
+                                options={{
+                                    drawerItemStyle:
+                                        tipoUser === "Encarregado" ||
+                                        tipoUser === "Diretor" ||
+                                        tipoUser === "Administrador"
+                                            ? {}
+                                            : { display: "none" },
+                                }}
+                            />
+                        </>
+                    )}
 
                     {hasServicesModule && (
                         <DrawerItem
                             label={t("Drawer.Servicos")}
-                            onPress={() => props.navigation.navigate('PedidosAssistencia')}
-                            icon={() => <FontAwesome name="wrench" size={20} color="#1792FE" />}
+                            onPress={() =>
+                                props.navigation.navigate("PedidosAssistencia")
+                            }
+                            icon={() => (
+                                <FontAwesome
+                                    name="wrench"
+                                    size={20}
+                                    color="#1792FE"
+                                />
+                            )}
                         />
-
                     )}
 
                     {hasConcursosModule && (
                         <List.Accordion
                             title={t("Aprovações")}
                             left={() => (
-                                <MaterialCommunityIcons name="file-check" size={20} color="#1792FE" style={{ marginLeft: 15 }} />
+                                <MaterialCommunityIcons
+                                    name="file-check"
+                                    size={20}
+                                    color="#1792FE"
+                                    style={{ marginLeft: 15 }}
+                                />
                             )}
                             right={() => (
                                 <FontAwesome
-                                    name={aprovacoesExpanded ? "angle-down" : "angle-up"}
+                                    name={
+                                        aprovacoesExpanded
+                                            ? "angle-down"
+                                            : "angle-up"
+                                    }
                                     size={18}
                                     color="#1792FE"
-
                                 />
                             )}
                             expanded={aprovacoesExpanded}
-                            onPress={() => setAprovacoesExpanded(!aprovacoesExpanded)}
-                            titleStyle={{ fontSize: 14, marginLeft: 0, flexDirection: 'row', alignItems: 'center' }}
+                            onPress={() =>
+                                setAprovacoesExpanded(!aprovacoesExpanded)
+                            }
+                            titleStyle={{
+                                fontSize: 14,
+                                marginLeft: 0,
+                                flexDirection: "row",
+                                alignItems: "center",
+                            }}
                         >
                             <List.Item
                                 title="Concursos Pendentes"
-                                onPress={() => props.navigation.navigate('ConcursosAprovacao')}
+                                onPress={() =>
+                                    props.navigation.navigate(
+                                        "ConcursosAprovacao",
+                                    )
+                                }
                             />
                         </List.Accordion>
                     )}
                     {hasOficiosModule && (
                         <DrawerItem
                             label={t("Oficios")}
-                            onPress={() => props.navigation.navigate('OficiosList')}
-                            icon={() => <FontAwesome name="file" size={20} color="#1792FE" />}
+                            onPress={() =>
+                                props.navigation.navigate("OficiosList")
+                            }
+                            icon={() => (
+                                <FontAwesome
+                                    name="file"
+                                    size={20}
+                                    color="#1792FE"
+                                />
+                            )}
                         />
                     )}
 
                     {hasQrCodeAssiduidadeModule && (
                         <DrawerItem
                             label={t("Drawer.PontoQR")}
-                            onPress={() => props.navigation.navigate('LeitorQRCode')}
-                            icon={() => <FontAwesome name="qrcode" size={20} color="#1792FE" />}
+                            onPress={() =>
+                                props.navigation.navigate("LeitorQRCode")
+                            }
+                            icon={() => (
+                                <FontAwesome
+                                    name="qrcode"
+                                    size={20}
+                                    color="#1792FE"
+                                />
+                            )}
                         />
                     )}
 
-                      {hasObrasModule && (
+                    {hasObrasModule && (
                         <DrawerItem
                             label={t("Ponto")}
-                            onPress={() => props.navigation.navigate('RegistoPontoObra')}
-                            icon={() => <FontAwesome name="qrcode" size={20} color="#1792FE" />}
+                            onPress={() =>
+                                props.navigation.navigate("RegistoPontoObra")
+                            }
+                            icon={() => (
+                                <FontAwesome
+                                    name="qrcode"
+                                    size={20}
+                                    color="#1792FE"
+                                />
+                            )}
                         />
                     )}
                     {hasObrasModule && (
                         <DrawerItem
                             label={t("Agenda")}
-                            onPress={() => props.navigation.navigate('CalendarioHorasTrabalho')}
-                            icon={() => <FontAwesome name="calendar" size={20} color="#1792FE" />}
+                            onPress={() =>
+                                props.navigation.navigate(
+                                    "CalendarioHorasTrabalho",
+                                )
+                            }
+                            icon={() => (
+                                <FontAwesome
+                                    name="calendar"
+                                    size={20}
+                                    color="#1792FE"
+                                />
+                            )}
                         />
                     )}
 
-{(tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
-<>
-                    <DrawerItem
-                        label={t("Gestão Faltas")}
-                        onPress={() => props.navigation.navigate('AprovacaoFaltaFerias')}
-                        icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
-                          options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
+                    {(tipoUser === "Encarregado" ||
+                        tipoUser === "Diretor" ||
+                        tipoUser === "Administrador") && (
+                        <>
+                            <DrawerItem
+                                label={t("Gestão Faltas")}
+                                onPress={() =>
+                                    props.navigation.navigate(
+                                        "AprovacaoFaltaFerias",
+                                    )
+                                }
+                                icon={() => (
+                                    <FontAwesome
+                                        name="check-square"
+                                        size={20}
+                                        color="#1792FE"
+                                    />
+                                )}
+                                options={{
+                                    drawerItemStyle:
+                                        tipoUser === "Encarregado" ||
+                                        tipoUser === "Diretor" ||
+                                        tipoUser === "Administrador"
+                                            ? {}
+                                            : { display: "none" },
+                                }}
+                            />
 
-                    />
-
-
-
-                        <DrawerItem
-                            label={t("Gestão Pontos")}
-                            onPress={() => props.navigation.navigate('AprovacaoPontoPendentes')}
-                            icon={() => <FontAwesome name="calendar-check-o" size={20} color="#1792FE" />}
-                              options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
-
-                        />
-
+                            <DrawerItem
+                                label={t("Gestão Pontos")}
+                                onPress={() =>
+                                    props.navigation.navigate(
+                                        "AprovacaoPontoPendentes",
+                                    )
+                                }
+                                icon={() => (
+                                    <FontAwesome
+                                        name="calendar-check-o"
+                                        size={20}
+                                        color="#1792FE"
+                                    />
+                                )}
+                                options={{
+                                    drawerItemStyle:
+                                        tipoUser === "Encarregado" ||
+                                        tipoUser === "Diretor" ||
+                                        tipoUser === "Administrador"
+                                            ? {}
+                                            : { display: "none" },
+                                }}
+                            />
                         </>
-
-)}
-
+                    )}
 
                     {hasBotaoAssiduidadeModule && (
                         <DrawerItem
                             label={t("Drawer.PontoBT")}
-                            onPress={() => props.navigation.navigate('PontoBotao')}
-                            icon={() => <FontAwesome name="clock-o" size={20} color="#1792FE" />}
+                            onPress={() =>
+                                props.navigation.navigate("PontoBotao")
+                            }
+                            icon={() => (
+                                <FontAwesome
+                                    name="clock-o"
+                                    size={20}
+                                    color="#1792FE"
+                                />
+                            )}
                         />
                     )}
                     {hasServicesModule && (
                         <DrawerItem
                             label={t("Drawer.ServicosTecnicos")}
-                            onPress={() => props.navigation.navigate('PandIByTecnico')}
-                            icon={() => <FontAwesome name="bar-chart" size={20} color="#1792FE" />}
+                            onPress={() =>
+                                props.navigation.navigate("PandIByTecnico")
+                            }
+                            icon={() => (
+                                <FontAwesome
+                                    name="bar-chart"
+                                    size={20}
+                                    color="#1792FE"
+                                />
+                            )}
                         />
-
                     )}
                 </>
             )}
-            <View style={{ flexGrow: 1, justifyContent: 'flex-end', paddingBottom: 20 }}>
+            <View
+                style={{
+                    flexGrow: 1,
+                    justifyContent: "flex-end",
+                    paddingBottom: 20,
+                }}
+            >
                 {isAdmin && (
                     <List.Accordion
                         title={t("Drawer.ADM.title")}
                         left={() => (
-                            <FontAwesome name="cogs" size={18} color="#1792FE" style={{ marginLeft: 15 }} />
+                            <FontAwesome
+                                name="cogs"
+                                size={18}
+                                color="#1792FE"
+                                style={{ marginLeft: 15 }}
+                            />
                         )}
                         right={() => (
                             <FontAwesome
                                 name={expanded ? "angle-down" : "angle-up"} // Seta para cima ou para baixo
                                 size={18}
-
                                 color="#1792FE"
                             />
                         )}
                         expanded={expanded}
                         onPress={handlePress}
-                        titleStyle={{ fontSize: 14, marginLeft: 0, flexDirection: 'row', alignItems: 'center' }}
+                        titleStyle={{
+                            fontSize: 14,
+                            marginLeft: 0,
+                            flexDirection: "row",
+                            alignItems: "center",
+                        }}
                     >
-
                         <List.Item
                             title="> Contratos Ativos"
-                            onPress={() => props.navigation.navigate('ContratosList')}
+                            onPress={() =>
+                                props.navigation.navigate("ContratosList")
+                            }
                         />
 
                         <List.Item
                             title={t("Drawer.ADM.1")}
-                            onPress={() => props.navigation.navigate('PainelAdmin')}
+                            onPress={() =>
+                                props.navigation.navigate("PainelAdmin")
+                            }
                         />
                         <List.Item
                             title={t("Drawer.ADM.2")}
-                            onPress={() => props.navigation.navigate('UsersEmpresa')}
+                            onPress={() =>
+                                props.navigation.navigate("UsersEmpresa")
+                            }
                         />
                         <List.Item
                             title={t("Drawer.ADM.3")}
-                            onPress={() => props.navigation.navigate('RegistoUser')}
+                            onPress={() =>
+                                props.navigation.navigate("RegistoUser")
+                            }
                         />
                         <List.Item
                             title={t("Drawer.ADM.4")}
-                            onPress={() => props.navigation.navigate('RegistoPontoAdmin')}
+                            onPress={() =>
+                                props.navigation.navigate("RegistoPontoAdmin")
+                            }
                         />
                         <List.Item
                             title={t("Drawer.ADM.5")}
-                            onPress={() => props.navigation.navigate('PedidosAlteracaoAdmin')}
+                            onPress={() =>
+                                props.navigation.navigate(
+                                    "PedidosAlteracaoAdmin",
+                                )
+                            }
                         />
                     </List.Accordion>
-
-
                 )}
-                {localStorage.getItem('loginToken') && (
+                {localStorage.getItem("loginToken") && (
                     <DrawerItem
                         label={t("Drawer.Perfil")}
-                        onPress={() => props.navigation.navigate('Perfil')}
-                        icon={() => <FontAwesome name="user" size={20} color="#1792FE" />}
+                        onPress={() => props.navigation.navigate("Perfil")}
+                        icon={() => (
+                            <FontAwesome
+                                name="user"
+                                size={20}
+                                color="#1792FE"
+                            />
+                        )}
                     />
                 )}
-                {localStorage.getItem('loginToken') && (
+                {localStorage.getItem("loginToken") && (
                     <DrawerItem
                         label={t("Drawer.Exit")}
-                        icon={() => <FontAwesome name="sign-out" size={20} color="#1792FE" />}
+                        icon={() => (
+                            <FontAwesome
+                                name="sign-out"
+                                size={20}
+                                color="#1792FE"
+                            />
+                        )}
                         onPress={handleLogout}
                     />
                 )}
@@ -384,75 +617,75 @@ const AppNavigator = () => {
     const [isAdmin, setIsAdmin] = useState(false);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [username, setUsername] = useState('');
-    const [userNome, setUserNome] = useState('');
-    const [empresa, setEmpresa] = useState('');
+    const [username, setUsername] = useState("");
+    const [userNome, setUserNome] = useState("");
+    const [empresa, setEmpresa] = useState("");
     const [modules, setModules] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [languageSelectorVisible, setLanguageSelectorVisible] = useState(false);
+    const [languageSelectorVisible, setLanguageSelectorVisible] =
+        useState(false);
     const [hoveredLanguage, setHoveredLanguage] = useState(null);
-    const [initialRoute, setInitialRoute] = useState('Login'); // Define a rota inicial com Login por padrão
-    const [tipoUser, setTipoUser] = useState('');
+    const [initialRoute, setInitialRoute] = useState("Login"); // Define a rota inicial com Login por padrão
+    const [tipoUser, setTipoUser] = useState("");
     const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
-
-
     // Dentro de AppNavigator:
-const fetchUserData = async () => {
-  setLoading(true);
-  const token = localStorage.getItem('loginToken');
-  const empresaLs = localStorage.getItem('empresaSelecionada');
-  const tipoUserLs = localStorage.getItem('tipoUser');
+    const fetchUserData = async () => {
+        setLoading(true);
+        const token = localStorage.getItem("loginToken");
+        const empresaLs = localStorage.getItem("empresaSelecionada");
+        const tipoUserLs = localStorage.getItem("tipoUser");
 
-  if (token && isTokenValid(token)) {
-    setIsLoggedIn(true);
-    setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
-    setIsAdmin(localStorage.getItem('isAdmin') === 'true');
-    setUsername(localStorage.getItem('username') || '');
-    setUserNome(localStorage.getItem('userNome') || '');
-    setEmpresa(empresaLs || '');
-    setTipoUser(tipoUserLs || '');
+        if (token && isTokenValid(token)) {
+            setIsLoggedIn(true);
+            setIsSuperAdmin(localStorage.getItem("superAdmin") === "true");
+            setIsAdmin(localStorage.getItem("isAdmin") === "true");
+            setUsername(localStorage.getItem("username") || "");
+            setUserNome(localStorage.getItem("userNome") || "");
+            setEmpresa(empresaLs || "");
+            setTipoUser(tipoUserLs || "");
 
-    // buscar módulos
-    await fetchUserModules();
+            // buscar módulos
+            await fetchUserModules();
 
-    // definir rota inicial
-    if (localStorage.getItem('superAdmin') === 'true') {
-      setInitialRoute('ADHome');
-    } else if (tipoUserLs && empresaLs) {
-      setInitialRoute('RegistoPontoObra');
-    } else if (empresaLs) {
-      setInitialRoute('Home');
-    } else {
-      setInitialRoute('SelecaoEmpresa');
-    }
-  } else {
-    localStorage.clear();
-    setIsLoggedIn(false);
-    setInitialRoute('Login');
-  }
+            // definir rota inicial
+            if (localStorage.getItem("superAdmin") === "true") {
+                setInitialRoute("ADHome");
+            } else if (tipoUserLs && empresaLs) {
+                setInitialRoute("RegistoPontoObra");
+            } else if (empresaLs) {
+                setInitialRoute("Home");
+            } else {
+                setInitialRoute("SelecaoEmpresa");
+            }
+        } else {
+            localStorage.clear();
+            setIsLoggedIn(false);
+            setInitialRoute("Login");
+        }
 
-  setLoading(false);
-};
+        setLoading(false);
+    };
 
-useEffect(() => {
-  fetchUserData();
-}, []);
-
-
+    useEffect(() => {
+        fetchUserData();
+    }, []);
 
     const fetchUserModules = async () => {
-        const token = localStorage.getItem('loginToken');
-        const userId = localStorage.getItem('userId');
+        const token = localStorage.getItem("loginToken");
+        const userId = localStorage.getItem("userId");
         if (userId && token) {
             try {
-                const response = await fetch(`https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
+                const response = await fetch(
+                    `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`,
+                    {
+                        headers: { Authorization: `Bearer ${token}` },
+                    },
+                );
                 const data = await response.json();
                 setModules(data.modulos);
             } catch (error) {
-                console.error('Erro ao buscar módulos:', error);
+                console.error("Erro ao buscar módulos:", error);
             }
         }
     };
@@ -462,60 +695,56 @@ useEffect(() => {
         if (!token) return false;
 
         try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
+            const payload = JSON.parse(atob(token.split(".")[1]));
             const currentTime = Date.now() / 1000;
             return payload.exp > currentTime;
         } catch (error) {
-            console.error('Erro ao verificar token:', error);
+            console.error("Erro ao verificar token:", error);
             return false;
         }
     };
 
-useEffect(() => {
-  const fetchUserData = async () => {
-    const token = localStorage.getItem('loginToken');
-    const empresa = localStorage.getItem('empresaSelecionada');
-    const tipoUser = localStorage.getItem('tipoUser');
+    useEffect(() => {
+        const fetchUserData = async () => {
+            const token = localStorage.getItem("loginToken");
+            const empresa = localStorage.getItem("empresaSelecionada");
+            const tipoUser = localStorage.getItem("tipoUser");
 
-    // Verificar se o token existe e é válido
-    if (token && isTokenValid(token)) {
-        setIsLoggedIn(true);
-        setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
-        setIsAdmin(localStorage.getItem('isAdmin') === 'true');
-        setUsername(localStorage.getItem('username') || '');
-        setUserNome(localStorage.getItem('userNome') || '');
-        setEmpresa(empresa || '');
-        setTipoUser(tipoUser || '');
+            // Verificar se o token existe e é válido
+            if (token && isTokenValid(token)) {
+                setIsLoggedIn(true);
+                setIsSuperAdmin(localStorage.getItem("superAdmin") === "true");
+                setIsAdmin(localStorage.getItem("isAdmin") === "true");
+                setUsername(localStorage.getItem("username") || "");
+                setUserNome(localStorage.getItem("userNome") || "");
+                setEmpresa(empresa || "");
+                setTipoUser(tipoUser || "");
 
-        await fetchUserModules();
+                await fetchUserModules();
 
-        // Definir a rota inicial baseada no estado
-        if (localStorage.getItem('superAdmin') === 'true') {
-            setInitialRoute('ADHome');
-        } else if (tipoUser && empresa) {
-            // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra
-            setInitialRoute('RegistoPontoObra');
-        } else if (empresa) {
-            setInitialRoute('Home');
-        } else {
-            setInitialRoute('SelecaoEmpresa');
-        }
-    } else {
-        // Token inválido ou inexistente - limpar localStorage e ir para login
-        localStorage.clear();
-        setIsLoggedIn(false);
-        setInitialRoute('Login');
-    }
+                // Definir a rota inicial baseada no estado
+                if (localStorage.getItem("superAdmin") === "true") {
+                    setInitialRoute("ADHome");
+                } else if (tipoUser && empresa) {
+                    // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra
+                    setInitialRoute("RegistoPontoObra");
+                } else if (empresa) {
+                    setInitialRoute("Home");
+                } else {
+                    setInitialRoute("SelecaoEmpresa");
+                }
+            } else {
+                // Token inválido ou inexistente - limpar localStorage e ir para login
+                localStorage.clear();
+                setIsLoggedIn(false);
+                setInitialRoute("Login");
+            }
 
-    setLoading(false);
-  };
+            setLoading(false);
+        };
 
-  fetchUserData();
-}, []);
-
-
-
-
+        fetchUserData();
+    }, []);
 
     const toggleLanguageSelector = () => {
         setLanguageSelectorVisible(!languageSelectorVisible); // Alterna a visibilidade do combobox de idiomas
@@ -533,7 +762,7 @@ useEffect(() => {
         localStorage.clear();
         setIsLoggedIn(false);
         setProfileMenuVisible(false);
-        setInitialRoute('Login');
+        setInitialRoute("Login");
         setTimeout(() => {
             window.location.reload();
         }, 500);
@@ -544,24 +773,48 @@ useEffect(() => {
     };
 
     // Fechar dropdown do perfil ao clicar fora
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (
+                profileMenuVisible &&
+                !event.target.closest(".profile-menu-container")
+            ) {
+                setProfileMenuVisible(false);
+            }
+        };
 
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [profileMenuVisible]);
 
-if (loading) {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator size="large" color="#1792FE" />
-      <Text>A carregar...</Text>
-    </View>
-  );
-}
-
-
+    if (loading) {
+        return (
+            <View
+                style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                }}
+            >
+                <ActivityIndicator size="large" color="#1792FE" />
+                <Text>A carregar...</Text>
+            </View>
+        );
+    }
 
     return (
         <Drawer.Navigator
-          key={tipoUser + JSON.stringify(tipoUser)  + isLoggedIn + isAdmin + isSuperAdmin + modules} // Adiciona uma chave única para forçar a atualização do Drawer
-
-        initialRouteName={initialRoute}
+            key={
+                tipoUser +
+                JSON.stringify(tipoUser) +
+                isLoggedIn +
+                isAdmin +
+                isSuperAdmin +
+                modules
+            } // Adiciona uma chave única para forçar a atualização do Drawer
+            initialRouteName={initialRoute}
             drawerContent={(props) => (
                 <CustomDrawerContent
                     {...props}
@@ -570,37 +823,70 @@ if (loading) {
                     isLoggedIn={isLoggedIn}
                     modules={modules}
                     tipoUser={tipoUser}
-
                 />
             )}
             screenOptions={({ navigation }) => ({
                 headerTitle: () => (
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View
+                        style={{ flexDirection: "row", alignItems: "center" }}
+                    >
                         <Image
                             source={logo}
-                            style={{ width: 40, height: 40, resizeMode: 'contain', marginLeft: 10 }}
+                            style={{
+                                width: 40,
+                                height: 40,
+                                resizeMode: "contain",
+                                marginLeft: 10,
+                            }}
                         />
                     </View>
                 ),
                 headerRight: () => (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15, position: 'relative' }}>
-
+                    <View
+                        style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            marginRight: 15,
+                            position: "relative",
+                        }}
+                    >
                         {/* Botão de perfil/login */}
                         <TouchableOpacity
                             onPress={() => {
                                 if (isLoggedIn) {
                                     toggleProfileMenu();
                                 } else {
-                                    navigation.navigate('Login');
+                                    navigation.navigate("Login");
                                 }
                             }}
-                            style={{ flexDirection: 'row', alignItems: 'center' }}
+                            style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                            }}
                             className="profile-menu-container"
                         >
-                            <FontAwesome name="user" size={20} color="#1792FE" />
-                            <Text style={{ marginLeft: 8, color: '#1792FE', fontSize: 16 }}>{userNome}</Text>
+                            <FontAwesome
+                                name="user"
+                                size={20}
+                                color="#1792FE"
+                            />
+                            <Text
+                                style={{
+                                    marginLeft: 8,
+                                    color: "#1792FE",
+                                    fontSize: 16,
+                                }}
+                            >
+                                {userNome}
+                            </Text>
                             {empresa && (
-                                <Text style={{ marginLeft: 15, color: '#1792FE', fontSize: 16 }}>
+                                <Text
+                                    style={{
+                                        marginLeft: 15,
+                                        color: "#1792FE",
+                                        fontSize: 16,
+                                    }}
+                                >
                                     {empresa}
                                 </Text>
                             )}
@@ -608,26 +894,41 @@ if (loading) {
 
                         {/* Modal do perfil */}
                         {profileMenuVisible && isLoggedIn && (
-                            <View style={profileMenuStyles.dropdown} className="profile-menu-container">
+                            <View
+                                style={profileMenuStyles.dropdown}
+                                className="profile-menu-container"
+                            >
                                 <TouchableOpacity
                                     style={profileMenuStyles.menuItem}
                                     onPress={() => {
                                         setProfileMenuVisible(false);
-                                        navigation.navigate('Perfil');
+                                        navigation.navigate("Perfil");
                                     }}
                                 >
-                                    <FontAwesome name="user" size={16} color="#1792FE" />
-                                    <Text style={profileMenuStyles.menuText}>Perfil</Text>
+                                    <FontAwesome
+                                        name="user"
+                                        size={16}
+                                        color="#1792FE"
+                                    />
+                                    <Text style={profileMenuStyles.menuText}>
+                                        Perfil
+                                    </Text>
                                 </TouchableOpacity>
-                                
+
                                 <View style={profileMenuStyles.divider} />
-                                
+
                                 <TouchableOpacity
                                     style={profileMenuStyles.menuItem}
                                     onPress={handleLogout}
                                 >
-                                    <FontAwesome name="sign-out" size={16} color="#1792FE" />
-                                    <Text style={profileMenuStyles.menuText}>Sair</Text>
+                                    <FontAwesome
+                                        name="sign-out"
+                                        size={16}
+                                        color="#1792FE"
+                                    />
+                                    <Text style={profileMenuStyles.menuText}>
+                                        Sair
+                                    </Text>
                                 </TouchableOpacity>
                             </View>
                         )}
@@ -637,35 +938,62 @@ if (loading) {
                             onPress={toggleLanguageSelector} // Alterna a visibilidade do combobox de idiomas
                             style={{ marginRight: 10, marginLeft: 10 }}
                         >
-                            <Text style={{ color: '#1792FE', fontSize: 16 }}>
-                                {i18n.language === 'pt' ? 'PT' : 'EN'}
+                            <Text style={{ color: "#1792FE", fontSize: 16 }}>
+                                {i18n.language === "pt" ? "PT" : "EN"}
                             </Text>
                         </TouchableOpacity>
 
                         {/* Exibe o combobox de idiomas se estiver visível */}
                         {languageSelectorVisible && (
-                            <View style={{
-                                position: 'absolute', top: 50, right: 0, width: 75, backgroundColor: 'white', borderRadius: 5, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3.5, elevation: 5
-                            }}>
+                            <View
+                                style={{
+                                    position: "absolute",
+                                    top: 50,
+                                    right: 0,
+                                    width: 75,
+                                    backgroundColor: "white",
+                                    borderRadius: 5,
+                                    shadowColor: "#000",
+                                    shadowOpacity: 0.25,
+                                    shadowRadius: 3.5,
+                                    elevation: 5,
+                                }}
+                            >
                                 <TouchableOpacity
                                     onPress={() => {
-                                        i18n.changeLanguage('pt');
+                                        i18n.changeLanguage("pt");
                                         setLanguageSelectorVisible(false); // Fecha o combobox
                                     }}
-                                    onMouseEnter={() => handleLanguageHover('pt')} // Evento de hover
+                                    onMouseEnter={() =>
+                                        handleLanguageHover("pt")
+                                    } // Evento de hover
                                     onMouseLeave={handleLanguageLeave} // Evento de sair do hover
-                                    style={{ padding: 10, backgroundColor: hoveredLanguage === 'pt' ? '#e1e1e1' : 'transparent' }}
+                                    style={{
+                                        padding: 10,
+                                        backgroundColor:
+                                            hoveredLanguage === "pt"
+                                                ? "#e1e1e1"
+                                                : "transparent",
+                                    }}
                                 >
                                     <Text style={{ fontSize: 16 }}>PT-PT</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={() => {
-                                        i18n.changeLanguage('en');
+                                        i18n.changeLanguage("en");
                                         setLanguageSelectorVisible(false); // Fecha o combobox
                                     }}
-                                    onMouseEnter={() => handleLanguageHover('en')} // Evento de hover
+                                    onMouseEnter={() =>
+                                        handleLanguageHover("en")
+                                    } // Evento de hover
                                     onMouseLeave={handleLanguageLeave} // Evento de sair do hover
-                                    style={{ padding: 10, backgroundColor: hoveredLanguage === 'en' ? '#e1e1e1' : 'transparent' }}
+                                    style={{
+                                        padding: 10,
+                                        backgroundColor:
+                                            hoveredLanguage === "en"
+                                                ? "#e1e1e1"
+                                                : "transparent",
+                                    }}
                                 >
                                     <Text style={{ fontSize: 16 }}>EN-EN</Text>
                                 </TouchableOpacity>
@@ -676,14 +1004,14 @@ if (loading) {
             })}
         >
             <Drawer.Screen name="Login">
-                {props => (
+                {(props) => (
                     <Login
                         {...props}
                         setIsLoggedIn={setIsLoggedIn}
                         setIsAdmin={setIsAdmin}
                         setUsername={setUsername}
                         setUserNome={setUserNome}
-                        onLoginComplete={fetchUserData}  
+                        onLoginComplete={fetchUserData}
                     />
                 )}
             </Drawer.Screen>
@@ -691,67 +1019,195 @@ if (loading) {
             {isSuperAdmin && (
                 <>
                     <Drawer.Screen name="ADHome" component={ADHome} />
-                    <Drawer.Screen name="RegistoAdmin" component={RegistoAdmin} />
+                    <Drawer.Screen
+                        name="RegistoAdmin"
+                        component={RegistoAdmin}
+                    />
                 </>
             )}
 
-            <Drawer.Screen name="ListarRegistos" component={ListarRegistos} options={{ title: "AdvirLink - Registos", drawerItemStyle: { display: 'none' } }} />
+            <Drawer.Screen
+                name="ListarRegistos"
+                component={ListarRegistos}
+                options={{
+                    title: "AdvirLink - Registos",
+                    drawerItemStyle: { display: "none" },
+                }}
+            />
             <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
-                        <Drawer.Screen name="RegistoPontoObra" component={RegistoPontoObra} />
-                        <Drawer.Screen name="CalendarioHorasTrabalho" component={CalendarioHorasTrabalho} />
+            <Drawer.Screen
+                name="RegistoPontoObra"
+                component={RegistoPontoObra}
+            />
+            <Drawer.Screen
+                name="CalendarioHorasTrabalho"
+                component={CalendarioHorasTrabalho}
+            />
 
-                        <Drawer.Screen name="AprovacaoFaltaFerias" component={AprovacaoFaltaFerias} />
-                        <Drawer.Screen name="AprovacaoPontoPendentes" component={AprovacaoPontoPendentes} />
+            <Drawer.Screen
+                name="AprovacaoFaltaFerias"
+                component={AprovacaoFaltaFerias}
+            />
+            <Drawer.Screen
+                name="AprovacaoPontoPendentes"
+                component={AprovacaoPontoPendentes}
+            />
 
-                        <Drawer.Screen name="RegistosPorUtilizador" component={RegistosPorUtilizador} />
+            <Drawer.Screen
+                name="RegistosPorUtilizador"
+                component={RegistosPorUtilizador}
+            />
 
-            {!loading && (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
-
-                <>
-                    <Drawer.Screen name="Obras" component={Obras} />
-                    <Drawer.Screen name="PartesDiarias" component={PartesDiarias} />
-                    <Drawer.Screen name="CriarEquipa" component={CriarEquipa} />
-                    <Drawer.Screen name="PessoalObra" component={PessoalObra} options={{ drawerItemStyle: { display: 'none' } }} />
-
-                </>
-            )}
+            {!loading &&
+                (tipoUser === "Encarregado" ||
+                    tipoUser === "Diretor" ||
+                    tipoUser === "Administrador") && (
+                    <>
+                        <Drawer.Screen name="Obras" component={Obras} />
+                        <Drawer.Screen
+                            name="PartesDiarias"
+                            component={PartesDiarias}
+                        />
+                        <Drawer.Screen
+                            name="CriarEquipa"
+                            component={CriarEquipa}
+                        />
+                        <Drawer.Screen
+                            name="PessoalObra"
+                            component={PessoalObra}
+                            options={{ drawerItemStyle: { display: "none" } }}
+                        />
+                    </>
+                )}
 
             <Drawer.Screen name="PontoBotao" component={PontoBotao} />
-            <Drawer.Screen name="Perfil" options={{ title: "AdvirLink - Perfil" }}>
-                {props => (
-                    <Perfil {...props} user={{ name: userNome, company: empresa }} />
+            <Drawer.Screen
+                name="Perfil"
+                options={{ title: "AdvirLink - Perfil" }}
+            >
+                {(props) => (
+                    <Perfil
+                        {...props}
+                        user={{ name: userNome, company: empresa }}
+                    />
                 )}
             </Drawer.Screen>
 
-            <Drawer.Screen name="ConcursosAprovacao" component={ConcursosAprovacao} options={{ title: "AdvirLink - Pedidos de Assistência" }} />
-            <Drawer.Screen name="PedidosAssistencia" component={PedidosAssistencia} options={{ title: "AdvirLink - Pedidos de Assistência" }} />
-            <Drawer.Screen name="PandIByTecnico" component={PandIByTecnico} options={{ title: "AdvirLink - Dashboard Técnico" }} />
-            <Drawer.Screen name="RegistoIntervencao" component={RegistoIntervencao} options={{ title: "AdvirLink - Intervenção", drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="RegistarPedido" component={RegistoPedido} options={{ title: "AdvirLink - Pedido", drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="Intervencoes" component={intervencoes} options={{ title: "AdvirLink - Intervenção", drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="DashboardAnalytics" component={DashboardAnalytics} options={{ title: "AdvirLink - Dashboard Analytics" }} />
+            <Drawer.Screen
+                name="ConcursosAprovacao"
+                component={ConcursosAprovacao}
+                options={{ title: "AdvirLink - Pedidos de Assistência" }}
+            />
+            <Drawer.Screen
+                name="PedidosAssistencia"
+                component={PedidosAssistencia}
+                options={{ title: "AdvirLink - Pedidos de Assistência" }}
+            />
+            <Drawer.Screen
+                name="PandIByTecnico"
+                component={PandIByTecnico}
+                options={{ title: "AdvirLink - Dashboard Técnico" }}
+            />
+            <Drawer.Screen
+                name="RegistoIntervencao"
+                component={RegistoIntervencao}
+                options={{
+                    title: "AdvirLink - Intervenção",
+                    drawerItemStyle: { display: "none" },
+                }}
+            />
+            <Drawer.Screen
+                name="RegistarPedido"
+                component={RegistoPedido}
+                options={{
+                    title: "AdvirLink - Pedido",
+                    drawerItemStyle: { display: "none" },
+                }}
+            />
+            <Drawer.Screen
+                name="Intervencoes"
+                component={intervencoes}
+                options={{
+                    title: "AdvirLink - Intervenção",
+                    drawerItemStyle: { display: "none" },
+                }}
+            />
+            <Drawer.Screen
+                name="DashboardAnalytics"
+                component={DashboardAnalytics}
+                options={{ title: "AdvirLink - Dashboard Analytics" }}
+            />
 
-            <Drawer.Screen name="RegistoPontoAdmin" component={RegistoPontoAdmin} />
-            <Drawer.Screen name="PedidosAlteracaoAdmin" component={PedidosAlteracaoAdmin} />
-            <Drawer.Screen name="UserModulesManagement" component={UserModulesManagement} options={{ drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="VerificaConta" component={VerificaConta} options={{ drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="OficiosPage" component={OficiosPage} options={{ title: "AdvirLink - Oficios" }} />
-            <Drawer.Screen name="OficiosList" component={OficiosList} options={{ title: "AdvirLink - Oficios" }} />
-            <Drawer.Screen name="EditOficio" component={EditOficio} options={{ title: "AdvirLink - Oficios" }} />
-            <Drawer.Screen name="Home" component={Home} options={{ title: "AdvirLink - Home" }} />
+            <Drawer.Screen
+                name="RegistoPontoAdmin"
+                component={RegistoPontoAdmin}
+            />
+            <Drawer.Screen
+                name="PedidosAlteracaoAdmin"
+                component={PedidosAlteracaoAdmin}
+            />
+            <Drawer.Screen
+                name="UserModulesManagement"
+                component={UserModulesManagement}
+                options={{ drawerItemStyle: { display: "none" } }}
+            />
+            <Drawer.Screen
+                name="VerificaConta"
+                component={VerificaConta}
+                options={{ drawerItemStyle: { display: "none" } }}
+            />
+            <Drawer.Screen
+                name="OficiosPage"
+                component={OficiosPage}
+                options={{ title: "AdvirLink - Oficios" }}
+            />
+            <Drawer.Screen
+                name="OficiosList"
+                component={OficiosList}
+                options={{ title: "AdvirLink - Oficios" }}
+            />
+            <Drawer.Screen
+                name="EditOficio"
+                component={EditOficio}
+                options={{ title: "AdvirLink - Oficios" }}
+            />
+            <Drawer.Screen
+                name="Home"
+                component={Home}
+                options={{ title: "AdvirLink - Home" }}
+            />
             {isLoggedIn && (
-                <Drawer.Screen name="SelecaoEmpresa" options={{ title: "AdvirLink - Empresa" }}>
-                    {props => <SelecaoEmpresa {...props} setEmpresa={setEmpresa} />}
+                <Drawer.Screen
+                    name="SelecaoEmpresa"
+                    options={{ title: "AdvirLink - Empresa" }}
+                >
+                    {(props) => (
+                        <SelecaoEmpresa {...props} setEmpresa={setEmpresa} />
+                    )}
                 </Drawer.Screen>
             )}
-            <Drawer.Screen name="RecuperarPassword" component={RecuperarPassword} options={{ drawerItemStyle: { display: 'none' } }} />
-            <Drawer.Screen name="RedefinirPassword" component={RedefinirPassword} options={{ drawerItemStyle: { display: 'none' } }} />
+            <Drawer.Screen
+                name="RecuperarPassword"
+                component={RecuperarPassword}
+                options={{ drawerItemStyle: { display: "none" } }}
+            />
+            <Drawer.Screen
+                name="RedefinirPassword"
+                component={RedefinirPassword}
+                options={{ drawerItemStyle: { display: "none" } }}
+            />
 
             {isAdmin && (
                 <>
                     <Drawer.Screen name="PainelAdmin" component={PainelAdmin} />
-                    <Drawer.Screen name="UsersEmpresa" component={UsersEmpresa} />
-                    <Drawer.Screen name="ContratosList" component={ContratosList} />
+                    <Drawer.Screen
+                        name="UsersEmpresa"
+                        component={UsersEmpresa}
+                    />
+                    <Drawer.Screen
+                        name="ContratosList"
+                        component={ContratosList}
+                    />
 
                     <Drawer.Screen name="RegistoUser" component={RegistoUser} />
                 </>
@@ -763,8 +1219,8 @@ if (loading) {
 const styles = StyleSheet.create({
     background: {
         flex: 1,
-        width: '100%',
-        height: '100%',
+        width: "100%",
+        height: "100%",
         justifyContent: "center", // Garante que o conteúdo está centrado
     },
     overlay: {
@@ -775,12 +1231,12 @@ const styles = StyleSheet.create({
 
 const profileMenuStyles = StyleSheet.create({
     dropdown: {
-        position: 'absolute',
-        top: '100%',
+        position: "absolute",
+        top: "100%",
         right: 0,
-        backgroundColor: 'white',
+        backgroundColor: "white",
         borderRadius: 8,
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
         shadowRadius: 8,
@@ -790,62 +1246,288 @@ const profileMenuStyles = StyleSheet.create({
         marginTop: 8,
     },
     menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         padding: 12,
         paddingHorizontal: 16,
     },
     menuText: {
         marginLeft: 12,
         fontSize: 14,
-        fontWeight: '500',
-        color: '#333',
+        fontWeight: "500",
+        color: "#333",
     },
     divider: {
         height: 1,
-        backgroundColor: '#e0e0e0',
+        backgroundColor: "#e0e0e0",
         marginHorizontal: 8,
     },
 });
 
 export default function App() {
-
-
-  const [appReady, setAppReady] = useState(false);
+    const [appReady, setAppReady] = useState(false);
 
     useEffect(() => {
         // Só para garantir que o AppNavigator não carrega antes de saber o tipoUser
         setTimeout(() => setAppReady(true), 100); // pequeno delay para garantir fetchUserData concluir
     }, []);
 
-
     useEffect(() => {
-  if (typeof window !== 'undefined') {
-    // Injecta o script do OneSignal
-    const script = document.createElement("script");
-    script.src = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
-    script.async = true;
-    document.body.appendChild(script);
+        if (typeof window !== "undefined") {
+            // Injecta o script do OneSignal
+            const script = document.createElement("script");
+            script.src =
+                "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
+            script.async = true;
+            script.onload = function () {
+                console.log("Script OneSignal carregado");
 
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(function (OneSignal) {
-      OneSignal.init({
-        appId: "a9bc6538-62e7-4f65-a1bf-b502d74bd0f9",
-      safari_web_id: "web.onesignal.auto.630456c0-6fee-4c63-83c2-4e6e2f9684cf",
-        serviceWorkerPath: "./frontend/OneSignal/OneSignalSDKWorker.js", // verifica o path correto na tua pasta public
-        notifyButton: {
-          enable: true,
-        },
-      });
-    });
-  }
-}, []);
+                window.OneSignalDeferred = window.OneSignalDeferred || [];
+                window.OneSignalDeferred.push(function (OneSignal) {
+                    // Funções globais criadas imediatamente
+                    window.getOneSignalPlayerId = function () {
+                        try {
+                            const playerId = OneSignal.User
+                                ? OneSignal.User.onesignalId
+                                : null;
+                            console.log("Player ID atual:", playerId);
+                            return playerId;
+                        } catch (error) {
+                            console.error("Erro ao obter Player ID:", error);
+                            return null;
+                        }
+                    };
 
+                    window.requestNotificationPermission = function () {
+                        try {
+                            console.log(
+                                "Estado antes de solicitar permissão:",
+                                {
+                                    permission:
+                                        OneSignal.Notifications.permission,
+                                    isPushSupported:
+                                        OneSignal.Notifications.isPushSupported(),
+                                    isInitialized: OneSignal.initialized,
+                                },
+                            );
+                            return OneSignal.Notifications.requestPermission()
+                                .then(function (granted) {
+                                    console.log(
+                                        "Permissão concedida:",
+                                        granted,
+                                    );
+                                    console.log("Novo estado:", {
+                                        permission:
+                                            OneSignal.Notifications.permission,
+                                        playerId: OneSignal.User
+                                            ? OneSignal.User.onesignalId
+                                            : null,
+                                    });
+                                    if (
+                                        granted &&
+                                        OneSignal.User &&
+                                        OneSignal.User.onesignalId
+                                    ) {
+                                        console.log(
+                                            "Player ID após solicitar permissão:",
+                                            OneSignal.User.onesignalId,
+                                        );
+                                        localStorage.setItem(
+                                            "onesignal_player_id",
+                                            OneSignal.User.onesignalId,
+                                        );
+                                    } else if (granted) {
+                                        console.log(
+                                            "Permissão concedida mas Player ID ainda não disponível, aguardando...",
+                                        );
+                                        // Aguardar um pouco para o Player ID aparecer
+                                        setTimeout(() => {
+                                            const playerId = OneSignal.User
+                                                ? OneSignal.User.onesignalId
+                                                : null;
+                                            console.log(
+                                                "Player ID após delay:",
+                                                playerId,
+                                            );
+                                            if (playerId) {
+                                                localStorage.setItem(
+                                                    "onesignal_player_id",
+                                                    playerId,
+                                                );
+                                            }
+                                        }, 2000);
+                                    }
+                                    return granted;
+                                })
+                                .catch(function (error) {
+                                    console.error(
+                                        "Erro na promessa de permissão:",
+                                        error,
+                                    );
+                                    return false;
+                                });
+                        } catch (error) {
+                            console.error(
+                                "Erro ao solicitar permissão:",
+                                error,
+                            );
+                            return Promise.resolve(false);
+                        }
+                    };
 
+                    window.getOneSignalInfo = function () {
+                        try {
+                            return {
+                                isInitialized: OneSignal.initialized || false,
+                                playerId: OneSignal.User
+                                    ? OneSignal.User.onesignalId
+                                    : null,
+                                hasPermission: OneSignal.Notifications
+                                    ? OneSignal.Notifications.permission
+                                    : false,
+                                isPushSupported: OneSignal.Notifications
+                                    ? OneSignal.Notifications.isPushSupported()
+                                    : false,
+                                sdkLoaded: typeof OneSignal !== "undefined",
+                            };
+                        } catch (error) {
+                            console.error(
+                                "Erro ao obter info OneSignal:",
+                                error,
+                            );
+                            return {
+                                isInitialized: false,
+                                playerId: null,
+                                hasPermission: false,
+                                isPushSupported: false,
+                                sdkLoaded: false,
+                                error: error.message,
+                            };
+                        }
+                    };
+
+                    console.log("Funções globais OneSignal criadas");
+
+                    // Aguardar a inicialização completa
+                    console.log("Iniciando OneSignal...");
+                    OneSignal.init({
+                        appId: "a9bc6538-62e7-4f65-a1bf-b502d74bd0f9",
+                        safari_web_id:
+                            "web.onesignal.auto.630456c0-6fee-4c63-83c2-4e6e2f9684cf",
+                        serviceWorkerPath: "./OneSignal/OneSignalSDKWorker.js",
+                        allowLocalhostAsSecureOrigin: true,
+                        notifyButton: {
+                            enable: true,
+                        },
+                    })
+                        .then(function () {
+                            console.log("OneSignal inicializado com sucesso");
+                            console.log(
+                                "OneSignal.initialized:",
+                                OneSignal.initialized,
+                            );
+                            console.log(
+                                "Permissão atual:",
+                                OneSignal.Notifications.permission,
+                            );
+
+                            // Verificar se já tem Player ID
+                            if (OneSignal.User && OneSignal.User.onesignalId) {
+                                console.log(
+                                    "Player ID já disponível:",
+                                    OneSignal.User.onesignalId,
+                                );
+                                localStorage.setItem(
+                                    "onesignal_player_id",
+                                    OneSignal.User.onesignalId,
+                                );
+                            }
+
+                            // Solicitar permissão automaticamente se ainda não foi concedida
+                            if (!OneSignal.Notifications.permission) {
+                                console.log(
+                                    "Permissão não concedida, solicitando...",
+                                );
+                                OneSignal.Notifications.requestPermission().then(
+                                    function (granted) {
+                                        console.log(
+                                            "Resposta automática da permissão:",
+                                            granted,
+                                        );
+                                    },
+                                );
+                            }
+                        })
+                        .catch(function (error) {
+                            console.error(
+                                "Erro ao inicializar OneSignal:",
+                                error,
+                            );
+                        });
+
+                    // Observer para mudanças no utilizador
+                    try {
+                        OneSignal.User.addObserver("change", function (event) {
+                            console.log("OneSignal User changed:", event);
+                            if (event.current && event.current.onesignalId) {
+                                console.log(
+                                    "Novo Player ID:",
+                                    event.current.onesignalId,
+                                );
+                                localStorage.setItem(
+                                    "onesignal_player_id",
+                                    event.current.onesignalId,
+                                );
+                            }
+                        });
+                    } catch (error) {
+                        console.error("Erro ao adicionar observer:", error);
+                    }
+
+                    // Aguardar permissão de notificação
+                    try {
+                        OneSignal.Notifications.addEventListener(
+                            "permissionChange",
+                            function (granted) {
+                                console.log(
+                                    "Permissão de notificação mudou:",
+                                    granted,
+                                );
+                                if (
+                                    granted &&
+                                    OneSignal.User &&
+                                    OneSignal.User.onesignalId
+                                ) {
+                                    console.log(
+                                        "Player ID após permissão:",
+                                        OneSignal.User.onesignalId,
+                                    );
+                                    localStorage.setItem(
+                                        "onesignal_player_id",
+                                        OneSignal.User.onesignalId,
+                                    );
+                                }
+                            },
+                        );
+                    } catch (error) {
+                        console.error(
+                            "Erro ao adicionar listener de permissão:",
+                            error,
+                        );
+                    }
+                });
+            };
+
+            document.body.appendChild(script);
+        }
+    }, []);
 
     return (
         <NavigationContainer>
-            <ImageBackground source={backgroundPattern} style={styles.background}>
+            <ImageBackground
+                source={backgroundPattern}
+                style={styles.background}
+            >
                 <View style={styles.overlay}>
                     {appReady && <AppNavigator />}
                 </View>
