@@ -8,8 +8,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native'; // Importa o hook
 import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-
+import { useNotifications } from './src/hooks/useNotifications';
 
 
 
@@ -172,36 +171,36 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
 
 
 
-    {(tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
-<>
-        <DrawerItem
-            label={t("Drawer.Obra")}
-            onPress={() => props.navigation.navigate('Obras')}
-            icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
-                                      options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
+                    {(tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
+                        <>
+                            <DrawerItem
+                                label={t("Drawer.Obra")}
+                                onPress={() => props.navigation.navigate('Obras')}
+                                icon={() => <FontAwesome name="road" size={20} color="#1792FE" />}
+                                options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
 
-        />
+                            />
 
-        <DrawerItem
-            label={t("Partes Diarias")}
-            onPress={() => props.navigation.navigate('PartesDiarias')}
-            icon={() => <FontAwesome name="book" size={20} color="#1792FE" />}
-                                      options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
-
-
-        />
-        <DrawerItem
-            label={t("Equipas")}
-            onPress={() => props.navigation.navigate('CriarEquipa')}
-            icon={() => <FontAwesome name="users" size={20} color="#1792FE" />}
-                                      options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
-
-        />
+                            <DrawerItem
+                                label={t("Partes Diarias")}
+                                onPress={() => props.navigation.navigate('PartesDiarias')}
+                                icon={() => <FontAwesome name="book" size={20} color="#1792FE" />}
+                                options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
 
-    </>
-    )}
+                            />
+                            <DrawerItem
+                                label={t("Equipas")}
+                                onPress={() => props.navigation.navigate('CriarEquipa')}
+                                icon={() => <FontAwesome name="users" size={20} color="#1792FE" />}
+                                options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
+
+                            />
+
+
+                        </>
+                    )}
 
 
                     {hasServicesModule && (
@@ -253,7 +252,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         />
                     )}
 
-                      {hasObrasModule && (
+                    {hasObrasModule && (
                         <DrawerItem
                             label={t("Ponto")}
                             onPress={() => props.navigation.navigate('RegistoPontoObra')}
@@ -268,29 +267,29 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         />
                     )}
 
-{(tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
-<>
-                    <DrawerItem
-                        label={t("Gestão Faltas")}
-                        onPress={() => props.navigation.navigate('AprovacaoFaltaFerias')}
-                        icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
-                          options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
+                    {(tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
+                        <>
+                            <DrawerItem
+                                label={t("Gestão Faltas")}
+                                onPress={() => props.navigation.navigate('AprovacaoFaltaFerias')}
+                                icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
+                                options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
-                    />
+                            />
 
 
 
-                        <DrawerItem
-                            label={t("Gestão Pontos")}
-                            onPress={() => props.navigation.navigate('AprovacaoPontoPendentes')}
-                            icon={() => <FontAwesome name="calendar-check-o" size={20} color="#1792FE" />}
-                              options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
+                            <DrawerItem
+                                label={t("Gestão Pontos")}
+                                onPress={() => props.navigation.navigate('AprovacaoPontoPendentes')}
+                                icon={() => <FontAwesome name="calendar-check-o" size={20} color="#1792FE" />}
+                                options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
 
-                        />
+                            />
 
                         </>
 
-)}
+                    )}
 
 
                     {hasBotaoAssiduidadeModule && (
@@ -395,49 +394,74 @@ const AppNavigator = () => {
     const [tipoUser, setTipoUser] = useState('');
     const [profileMenuVisible, setProfileMenuVisible] = useState(false);
 
+    // Hook para notificações OneSignal
+    const {
+        isPermissionGranted,
+        oneSignalUserId,
+        requestNotificationPermission,
+        scheduleRegistoPontoReminder
+    } = useNotifications(userNome, localStorage.getItem('userId'));
+
 
 
     // Dentro de AppNavigator:
-const fetchUserData = async () => {
-  setLoading(true);
-  const token = localStorage.getItem('loginToken');
-  const empresaLs = localStorage.getItem('empresaSelecionada');
-  const tipoUserLs = localStorage.getItem('tipoUser');
+    const fetchUserData = async () => {
+        setLoading(true);
+        const token = localStorage.getItem('loginToken');
+        const empresaLs = localStorage.getItem('empresaSelecionada');
+        const tipoUserLs = localStorage.getItem('tipoUser');
 
-  if (token && isTokenValid(token)) {
-    setIsLoggedIn(true);
-    setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
-    setIsAdmin(localStorage.getItem('isAdmin') === 'true');
-    setUsername(localStorage.getItem('username') || '');
-    setUserNome(localStorage.getItem('userNome') || '');
-    setEmpresa(empresaLs || '');
-    setTipoUser(tipoUserLs || '');
+        if (token && isTokenValid(token)) {
+            setIsLoggedIn(true);
+            setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
+            setIsAdmin(localStorage.getItem('isAdmin') === 'true');
+            setUsername(localStorage.getItem('username') || '');
+            setUserNome(localStorage.getItem('userNome') || '');
+            setEmpresa(empresaLs || '');
+            setTipoUser(tipoUserLs || '');
 
-    // buscar módulos
-    await fetchUserModules();
+            // buscar módulos
+            await fetchUserModules();
 
-    // definir rota inicial
-    if (localStorage.getItem('superAdmin') === 'true') {
-      setInitialRoute('ADHome');
-    } else if (tipoUserLs && empresaLs) {
-      setInitialRoute('RegistoPontoObra');
-    } else if (empresaLs) {
-      setInitialRoute('Home');
-    } else {
-      setInitialRoute('SelecaoEmpresa');
-    }
-  } else {
-    localStorage.clear();
-    setIsLoggedIn(false);
-    setInitialRoute('Login');
-  }
+            // definir rota inicial
+            if (localStorage.getItem('superAdmin') === 'true') {
+                setInitialRoute('ADHome');
+            } else if (tipoUserLs && empresaLs) {
+                setInitialRoute('RegistoPontoObra');
+            } else if (empresaLs) {
+                setInitialRoute('Home');
+            } else {
+                setInitialRoute('SelecaoEmpresa');
+            }
 
-  setLoading(false);
-};
+            // Configurar notificações após login
+            setupNotifications();
+        } else {
+            localStorage.clear();
+            setIsLoggedIn(false);
+            setInitialRoute('Login');
+        }
 
-useEffect(() => {
-  fetchUserData();
-}, []);
+        setLoading(false);
+    };
+
+    const setupNotifications = async () => {
+        try {
+            // Solicitar permissão para notificações se ainda não foi concedida
+            if (!isPermissionGranted) {
+                await requestNotificationPermission();
+            }
+
+            // Agendar lembrete de registo de ponto
+            await scheduleRegistoPontoReminder();
+        } catch (error) {
+            console.error('Erro ao configurar notificações:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchUserData();
+    }, []);
 
 
 
@@ -471,47 +495,47 @@ useEffect(() => {
         }
     };
 
-useEffect(() => {
-  const fetchUserData = async () => {
-    const token = localStorage.getItem('loginToken');
-    const empresa = localStorage.getItem('empresaSelecionada');
-    const tipoUser = localStorage.getItem('tipoUser');
+    useEffect(() => {
+        const fetchUserData = async () => {
+            const token = localStorage.getItem('loginToken');
+            const empresa = localStorage.getItem('empresaSelecionada');
+            const tipoUser = localStorage.getItem('tipoUser');
 
-    // Verificar se o token existe e é válido
-    if (token && isTokenValid(token)) {
-        setIsLoggedIn(true);
-        setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
-        setIsAdmin(localStorage.getItem('isAdmin') === 'true');
-        setUsername(localStorage.getItem('username') || '');
-        setUserNome(localStorage.getItem('userNome') || '');
-        setEmpresa(empresa || '');
-        setTipoUser(tipoUser || '');
+            // Verificar se o token existe e é válido
+            if (token && isTokenValid(token)) {
+                setIsLoggedIn(true);
+                setIsSuperAdmin(localStorage.getItem('superAdmin') === 'true');
+                setIsAdmin(localStorage.getItem('isAdmin') === 'true');
+                setUsername(localStorage.getItem('username') || '');
+                setUserNome(localStorage.getItem('userNome') || '');
+                setEmpresa(empresa || '');
+                setTipoUser(tipoUser || '');
 
-        await fetchUserModules();
+                await fetchUserModules();
 
-        // Definir a rota inicial baseada no estado
-        if (localStorage.getItem('superAdmin') === 'true') {
-            setInitialRoute('ADHome');
-        } else if (tipoUser && empresa) {
-            // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra
-            setInitialRoute('RegistoPontoObra');
-        } else if (empresa) {
-            setInitialRoute('Home');
-        } else {
-            setInitialRoute('SelecaoEmpresa');
-        }
-    } else {
-        // Token inválido ou inexistente - limpar localStorage e ir para login
-        localStorage.clear();
-        setIsLoggedIn(false);
-        setInitialRoute('Login');
-    }
+                // Definir a rota inicial baseada no estado
+                if (localStorage.getItem('superAdmin') === 'true') {
+                    setInitialRoute('ADHome');
+                } else if (tipoUser && empresa) {
+                    // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra
+                    setInitialRoute('RegistoPontoObra');
+                } else if (empresa) {
+                    setInitialRoute('Home');
+                } else {
+                    setInitialRoute('SelecaoEmpresa');
+                }
+            } else {
+                // Token inválido ou inexistente - limpar localStorage e ir para login
+                localStorage.clear();
+                setIsLoggedIn(false);
+                setInitialRoute('Login');
+            }
 
-    setLoading(false);
-  };
+            setLoading(false);
+        };
 
-  fetchUserData();
-}, []);
+        fetchUserData();
+    }, []);
 
 
 
@@ -543,36 +567,33 @@ useEffect(() => {
         setProfileMenuVisible(!profileMenuVisible);
     };
 
-    // Fechar dropdown do perfil ao clicar fora
+    // Fechar dropdown do perfil automaticamente após 5 segundos
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (profileMenuVisible && !event.target.closest('.profile-menu-container')) {
+        if (profileMenuVisible) {
+            const timer = setTimeout(() => {
                 setProfileMenuVisible(false);
-            }
-        };
+            }, 5000);
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+            return () => clearTimeout(timer);
+        }
     }, [profileMenuVisible]);
 
-if (loading) {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator size="large" color="#1792FE" />
-      <Text>A carregar...</Text>
-    </View>
-  );
-}
+    if (loading) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#1792FE" />
+                <Text>A carregar...</Text>
+            </View>
+        );
+    }
 
 
 
     return (
         <Drawer.Navigator
-          key={tipoUser + JSON.stringify(tipoUser)  + isLoggedIn + isAdmin + isSuperAdmin + modules} // Adiciona uma chave única para forçar a atualização do Drawer
+            key={tipoUser + JSON.stringify(tipoUser) + isLoggedIn + isAdmin + isSuperAdmin + modules} // Adiciona uma chave única para forçar a atualização do Drawer
 
-        initialRouteName={initialRoute}
+            initialRouteName={initialRoute}
             drawerContent={(props) => (
                 <CustomDrawerContent
                     {...props}
@@ -599,14 +620,15 @@ if (loading) {
                         {/* Botão de perfil/login */}
                         <TouchableOpacity
                             onPress={() => {
+                                console.log('Clicou no botão do perfil', isLoggedIn);
                                 if (isLoggedIn) {
                                     toggleProfileMenu();
                                 } else {
                                     navigation.navigate('Login');
                                 }
                             }}
-                            style={{ flexDirection: 'row', alignItems: 'center' }}
-                            className="profile-menu-container"
+                            style={{ flexDirection: 'row', alignItems: 'center', position: 'relative' }}
+                            activeOpacity={0.7}
                         >
                             <FontAwesome name="user" size={20} color="#1792FE" />
                             <Text style={{ marginLeft: 8, color: '#1792FE', fontSize: 16 }}>{userNome}</Text>
@@ -619,23 +641,30 @@ if (loading) {
 
                         {/* Modal do perfil */}
                         {profileMenuVisible && isLoggedIn && (
-                            <View style={profileMenuStyles.dropdown} className="profile-menu-container">
+                            <View style={profileMenuStyles.dropdown}>
                                 <TouchableOpacity
-                                    style={profileMenuStyles.menuItem}
+                                    style={[profileMenuStyles.menuItem, profileMenuStyles.buttonStyle]}
                                     onPress={() => {
+                                        console.log('Clicou no perfil');
                                         setProfileMenuVisible(false);
                                         navigation.navigate('Perfil');
                                     }}
+                                    activeOpacity={0.6}
                                 >
                                     <FontAwesome name="user" size={16} color="#1792FE" />
                                     <Text style={profileMenuStyles.menuText}>Perfil</Text>
                                 </TouchableOpacity>
-                                
+
                                 <View style={profileMenuStyles.divider} />
-                                
+
                                 <TouchableOpacity
-                                    style={profileMenuStyles.menuItem}
-                                    onPress={handleLogout}
+                                    style={[profileMenuStyles.menuItem, profileMenuStyles.buttonStyle]}
+                                    onPress={() => {
+                                        console.log('Clicou em sair');
+                                        setProfileMenuVisible(false);
+                                        handleLogout();
+                                    }}
+                                    activeOpacity={0.6}
                                 >
                                     <FontAwesome name="sign-out" size={16} color="#1792FE" />
                                     <Text style={profileMenuStyles.menuText}>Sair</Text>
@@ -694,7 +723,7 @@ if (loading) {
                         setIsAdmin={setIsAdmin}
                         setUsername={setUsername}
                         setUserNome={setUserNome}
-                        onLoginComplete={fetchUserData}  
+                        onLoginComplete={fetchUserData}
                     />
                 )}
             </Drawer.Screen>
@@ -708,13 +737,13 @@ if (loading) {
 
             <Drawer.Screen name="ListarRegistos" component={ListarRegistos} options={{ title: "AdvirLink - Registos", drawerItemStyle: { display: 'none' } }} />
             <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
-                        <Drawer.Screen name="RegistoPontoObra" component={RegistoPontoObra} />
-                        <Drawer.Screen name="CalendarioHorasTrabalho" component={CalendarioHorasTrabalho} />
+            <Drawer.Screen name="RegistoPontoObra" component={RegistoPontoObra} />
+            <Drawer.Screen name="CalendarioHorasTrabalho" component={CalendarioHorasTrabalho} />
 
-                        <Drawer.Screen name="AprovacaoFaltaFerias" component={AprovacaoFaltaFerias} />
-                        <Drawer.Screen name="AprovacaoPontoPendentes" component={AprovacaoPontoPendentes} />
+            <Drawer.Screen name="AprovacaoFaltaFerias" component={AprovacaoFaltaFerias} />
+            <Drawer.Screen name="AprovacaoPontoPendentes" component={AprovacaoPontoPendentes} />
 
-                        <Drawer.Screen name="RegistosPorUtilizador" component={RegistosPorUtilizador} />
+            <Drawer.Screen name="RegistosPorUtilizador" component={RegistosPorUtilizador} />
 
             {!loading && (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") && (
 
@@ -799,59 +828,46 @@ const profileMenuStyles = StyleSheet.create({
         minWidth: 150,
         zIndex: 1000,
         marginTop: 8,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
     },
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 12,
         paddingHorizontal: 16,
+        minHeight: 44,
+    },
+    buttonStyle: {
+        cursor: 'pointer',
+        backgroundColor: 'transparent',
+        borderRadius: 6,
+        marginHorizontal: 4,
+        marginVertical: 2,
     },
     menuText: {
         marginLeft: 12,
         fontSize: 14,
         fontWeight: '500',
-        color: '#333',
+        color: '#1792FE',
     },
     divider: {
         height: 1,
         backgroundColor: '#e0e0e0',
         marginHorizontal: 8,
+        marginVertical: 4,
     },
 });
 
 export default function App() {
 
 
-  const [appReady, setAppReady] = useState(false);
+    const [appReady, setAppReady] = useState(false);
 
     useEffect(() => {
         // Só para garantir que o AppNavigator não carrega antes de saber o tipoUser
         setTimeout(() => setAppReady(true), 100); // pequeno delay para garantir fetchUserData concluir
     }, []);
-
-
-    useEffect(() => {
-  if (typeof window !== 'undefined') {
-    // Injecta o script do OneSignal
-    const script = document.createElement("script");
-    script.src = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
-    script.async = true;
-    document.body.appendChild(script);
-
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(function (OneSignal) {
-      OneSignal.init({
-        appId: "a9bc6538-62e7-4f65-a1bf-b502d74bd0f9",
-      safari_web_id: "web.onesignal.auto.630456c0-6fee-4c63-83c2-4e6e2f9684cf",
-        serviceWorkerPath: "./frontend/OneSignal/OneSignalSDKWorker.js", // verifica o path correto na tua pasta public
-        notifyButton: {
-          enable: true,
-        },
-      });
-    });
-  }
-}, []);
-
 
 
     return (
