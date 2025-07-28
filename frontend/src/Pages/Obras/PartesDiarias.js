@@ -1040,7 +1040,99 @@ if (modoVisualizacao === 'obra') {
             </View>
         );
 
-    };
+    }else {
+    return (
+        // Vista por utilizador
+        <ScrollView style={styles.tableContainer}>
+            <ScrollView horizontal style={styles.horizontalScroll}>
+                <View style={styles.tableContent}>
+                    {Object.values(dadosAgrupadosPorUser).map((userGroup, userIndex) => (
+                        <View key={userGroup.userInfo.id}>
+                            <View style={styles.obraHeader}>
+                                <Text style={styles.obraHeaderText}>
+                                    {userGroup.userInfo.nome}
+                                </Text>
+                            </View>
+
+                            <View style={styles.obraDaysHeader}>
+                                <View style={[styles.tableCell, { width: 120 }]}>
+                                    <Text style={styles.obraDaysHeaderText}>Obra</Text>
+                                </View>
+                                {diasDoMes.map(dia => (
+                                    <View key={dia} style={[styles.tableCell, { width: 50 }]}>
+                                        <Text style={styles.obraDaysHeaderText}>{dia}</Text>
+                                    </View>
+                                ))}
+                                <View style={[styles.tableCell, { width: 70 }]}>
+                                    <Text style={styles.obraDaysHeaderText}>Total</Text>
+                                </View>
+                            </View>
+
+                            {userGroup.obras.map((item, obraIndex) => (
+                                <View key={`${item.userId}-${item.obraId}`} style={[
+                                    styles.tableRow,
+                                    obraIndex % 2 === 0 ? styles.evenRow : styles.oddRow,
+                                    styles.trabalhadoresRow
+                                ]}>
+                                    <View style={[styles.tableCell, { width: 120 }]}>
+                                        <Text style={styles.cellText}>
+                                            {item.obraNome}
+                                        </Text>
+                                    </View>
+                                    {diasDoMes.map(dia => {
+    const cellKey = `${item.userId}-${item.obraId}-${dia}`;
+    const isEditing = editingCell === cellKey;
+
+    return (
+        <View key={dia} style={[styles.tableCell, { width: 50 }]}>
+            {isEditing ? (
+                <View style={styles.editingContainer}>
+                    <TextInput
+                        style={styles.horasInputInline}
+                        value={tempHoras}
+                        onChangeText={setTempHoras}
+                        keyboardType="numeric"
+                        autoFocus
+                        onBlur={() => salvarHorasInline(item.userId, item.obraId, dia)}
+                        onSubmitEditing={() => salvarHorasInline(item.userId, item.obraId, dia)}
+                    />
+                </View>
+            ) : (
+                <TouchableOpacity
+                    style={styles.cellTouchable}
+                    onPress={() => abrirEdicao(item, dia)}
+                    onLongPress={() => iniciarEdicaoHoras(item.userId, item.obraId, dia, item.horasPorDia[dia] || 0)}
+                >
+                    <Text style={[
+                        styles.cellText,
+                        { textAlign: 'center' },
+                        item.horasPorDia[dia] > 0 && styles.hoursText,
+                        styles.clickableHours
+                    ]}>
+                        {formatarHorasMinutos(item.horasPorDia[dia] || 0)}
+                    </Text>
+                </TouchableOpacity>
+            )}
+        </View>
+    );
+})}
+
+                                    <View style={[styles.tableCell, { width: 70 }]}>
+                                        <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
+                                            {formatarHorasMinutos(diasDoMes.reduce((total, dia) =>
+                                                total + (item.horasPorDia[dia] || 0), 0
+                                            ))}
+                                        </Text>
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    ))}
+                </View>
+            </ScrollView>
+        </ScrollView>
+    );
+};
 }
 
     const renderConfirmModal = () => (

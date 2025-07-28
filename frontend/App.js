@@ -66,7 +66,7 @@ import CriarEquipa from './src/Pages/Obras/CriarEquipa';
 import RegistosPorUtilizador from './src/Pages/Assiduidade/RegistosPorUtilizador';
 
 import UserModulesManagement from './src/Pages/Autenticacao/UserModulesManagement';
-import logo from './assets/favicon1.ico';
+import logo from './assets/app.png';
 import i18n from './src/Pages/i18n';
 import { useTranslation } from 'react-i18next';
 import OficiosPage from './src/Pages/Oficios/OficiosPage';

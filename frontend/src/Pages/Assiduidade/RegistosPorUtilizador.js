@@ -439,7 +439,7 @@ Object.values(horasPorDia).forEach(registosDia => {
             >
               <option value="">-- Todos os utilizadores --</option>
               {utilizadores.map(u => (
-                <option key={u.id} value={u.id}>{u.nome} - {u.email}</option>
+                <option key={u.id} value={u.id}>{u.email}</option>
               ))}
             </select>
           </div>
