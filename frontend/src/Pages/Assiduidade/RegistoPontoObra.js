@@ -23,8 +23,11 @@ const RegistoPontoObra = (props) => {
   const [obraSelecionada, setObraSelecionada] = useState('');
   const [loading, setLoading] = useState(false);
   const [registosEquipa, setRegistosEquipa] = useState([]);
+  
 
-
+  const tipoUser = localStorage.getItem('tipoUser');
+const tipoUserNormalizado = (tipoUser || '').trim().toLowerCase();
+const tiposPermitidos = ['administrador', 'encarregado', 'diretor'];
   // Estado para equipas e membros
   const [minhasEquipas, setMinhasEquipas] = useState([]);
   const [membrosSelecionados, setMembrosSelecionados] = useState([]);
@@ -33,7 +36,6 @@ const RegistoPontoObra = (props) => {
   const [mostrarEquipa, setMostrarEquipa] = useState(false);
 
 
-  const tipoUser = localStorage.getItem('tipoUser');
 
   // Função para navegar para aprovação de registos
   const handleNavigateToApproval = () => {
@@ -394,6 +396,7 @@ const handleManualAction = async (tipo) => {
   }
 };
 
+console.log('tipoUser:', tipoUser);
 
   return (
     <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{overflowX: 'hidden', background: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)'}}>
@@ -513,16 +516,19 @@ const handleManualAction = async (tipo) => {
                   <p className="text-muted mb-0 small">Digitaliza QR Code ou regista manualmente</p>
                 </div>
                 
-                {/* Notification Bell for Administrators */}
-                {tipoUser === 'Administrador' && (
-                  <div className="d-flex align-items-center">
-                    <NotificacaoCombinada 
-                      tipoUser={tipoUser}
-                      onNavigateRegistos={handleNavigateToApproval}
-                      onNavigateFaltas={handleNavigateToFaltasApproval}
-                    />
-                  </div>
-                )}
+         {/* Notification Bell for Specific User Types */}
+{['Administrador', 'Encarregado', 'Diretor'].includes(tipoUser) && (
+  <div className="d-flex align-items-center">
+    <NotificacaoCombinada 
+      tipoUser={tipoUser}
+      onNavigateRegistos={handleNavigateToApproval}
+      onNavigateFaltas={handleNavigateToFaltasApproval}
+    />
+  </div>
+)}
+
+
+
               </div>
             </div>
           </div>

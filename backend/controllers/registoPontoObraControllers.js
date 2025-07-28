@@ -267,9 +267,7 @@ const cancelarPonto = async (req, res) => {
       return res.status(404).json({ message: 'Registo não encontrado.' });
     }
 
-    if (registo.is_confirmed) {
-      return res.status(400).json({ message: 'Não é possível cancelar um registo já confirmado.' });
-    }
+
 
     await registo.destroy();
 

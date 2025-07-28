@@ -6,7 +6,7 @@ export const useFaltasPendentes = (tipoUser) => {
 
   useEffect(() => {
     const fetchFaltasPendentes = async () => {
-      if (tipoUser !== 'Administrador') {
+      if (tipoUser !== 'Administrador' && tipoUser !== 'Encarregado' && tipoUser !== 'Diretor') {
         setFaltasPendentes(0);
         return;
       }

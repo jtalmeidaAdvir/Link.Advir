@@ -16,6 +16,8 @@ const CalendarioHorasTrabalho = () => {
   });
   const [registosBrutos, setRegistosBrutos] = useState([]);
   const [loading, setLoading] = useState(false);
+const [registoEmEdicao, setRegistoEmEdicao] = useState(null);
+const [novaHoraEdicao, setNovaHoraEdicao] = useState('');
 
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
@@ -771,6 +773,74 @@ console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
 
     return diasDoMes;
   };
+
+
+  const iniciarEdicaoRegisto = (registo) => {
+  const data = new Date(registo.timestamp);
+  const hora = data.toTimeString().slice(0,5);
+  setNovaHoraEdicao(hora);
+  setRegistoEmEdicao(registo);
+};
+
+const submeterAlteracaoHora = async () => {
+  if (!registoEmEdicao || !novaHoraEdicao) return;
+
+  const [ano, mes, dia] = registoEmEdicao.timestamp.split('T')[0].split('-');
+  const [hora, minuto] = novaHoraEdicao.split(':');
+  const novaData = new Date(ano, mes - 1, dia, hora, minuto);
+
+  const token = localStorage.getItem('loginToken');
+
+  try {
+    // 1. Eliminar o registo antigo
+    const resDel = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/cancelar/${registoEmEdicao.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      }
+    });
+
+    if (!resDel.ok) {
+      const erro = await resDel.text();
+      alert("Erro ao eliminar o registo anterior: " + erro);
+      return;
+    }
+
+    // 2. Criar novo registo com nova hora
+    const body = {
+      tipo: registoEmEdicao.tipo,
+      obra_id: registoEmEdicao.obra_id,
+      timestamp: novaData.toISOString(),
+      justificacao: registoEmEdicao.justificacao || 'Alterado manualmente'
+    };
+
+    const resAdd = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (resAdd.ok) {
+      alert('Alteração de ponto submetida com sucesso.');
+      setRegistoEmEdicao(null);
+      await carregarResumo();
+      await carregarDetalhes(diaSelecionado);
+    } else {
+      const erro = await resAdd.text();
+      alert('Erro ao submeter novo ponto: ' + erro);
+    }
+
+  } catch (err) {
+    console.error('Erro na alteração de ponto:', err);
+    alert('Erro inesperado na alteração de ponto.');
+  }
+};
+
+
 
  const obterClasseDia = (date) => {
   if (!date) return '';
@@ -1752,6 +1822,32 @@ const isPendente = diasPendentes.includes(dataFormatada);
 
 
 
+{registoEmEdicao && (
+  <div className="mt-3 border rounded p-3 bg-light">
+    <h6 className="fw-bold mb-2">Editar Registo</h6>
+    <div className="mb-2">
+      <label className="form-label small fw-semibold">Hora</label>
+      <input
+        type="time"
+        className="form-control"
+        value={novaHoraEdicao}
+        onChange={(e) => setNovaHoraEdicao(e.target.value)}
+      />
+    </div>
+    <button
+      className="btn btn-sm btn-primary me-2"
+      onClick={submeterAlteracaoHora}
+    >
+      Submeter Alteração
+    </button>
+    <button
+      className="btn btn-sm btn-secondary"
+      onClick={() => setRegistoEmEdicao(null)}
+    >
+      Cancelar
+    </button>
+  </div>
+)}
 
 
 
@@ -1788,7 +1884,7 @@ const isPendente = diasPendentes.includes(dataFormatada);
                                 } flex-shrink-0`} style={{fontSize: '0.7rem'}}>
                                   <span className="d-none d-sm-inline">
                                     {submission.is_confirmed ? 'Confirmado' : 'Pendente'}
-                                    {!submission.is_confirmed && (
+                                    { (
   <button
     className="btn btn-sm btn-outline-danger ms-2"
     title="Cancelar ponto pendente"
@@ -1797,6 +1893,18 @@ const isPendente = diasPendentes.includes(dataFormatada);
     ❌
   </button>
 )}
+{ (
+  <>
+    <button
+      className="btn btn-sm btn-outline-secondary ms-2"
+      title="Editar ponto"
+      onClick={() => iniciarEdicaoRegisto(submission)}
+    >
+      ✏️
+    </button>
+  </>
+)}
+
 
                                   </span>
                                   <span className="d-sm-none">

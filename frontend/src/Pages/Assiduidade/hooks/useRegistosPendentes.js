@@ -5,7 +5,7 @@ export const useRegistosPendentes = (tipoUser) => {
   const [registosPendentes, setRegistosPendentes] = useState(0);
 
   useEffect(() => {
-    if (tipoUser !== 'Administrador') return;
+    if (tipoUser !== 'Administrador' && tipoUser !== 'Encarregado' && tipoUser !== 'Diretor') return;
 
     const fetchRegistosPendentes = async () => {
       try {

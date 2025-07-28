@@ -7,7 +7,7 @@ const NotificacaoFaltasPendentes = ({ tipoUser, onNavigate }) => {
   const [mostrarDropdown, setMostrarDropdown] = useState(false);
   const faltasPendentes = useFaltasPendentes(tipoUser);
 
-  if (tipoUser !== 'Administrador') return null;
+  if (tipoUser !== 'Administrador' && tipoUser !== 'Encarregado' && tipoUser !== 'Diretor') return null;
 
   const handleClick = () => {
     setMostrarDropdown(!mostrarDropdown);

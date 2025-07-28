@@ -10,7 +10,7 @@ const NotificacaoCombinada = ({ tipoUser, onNavigateRegistos, onNavigateFaltas }
 
   const totalPendentes = registosPendentes + faltasPendentes;
 
-  if (tipoUser !== 'Administrador') return null;
+  if (tipoUser !== 'Administrador' && tipoUser !== 'Encarregado' && tipoUser !== 'Diretor' ) return null;
 
   const handleClick = () => {
     setMostrarDropdown(!mostrarDropdown);

@@ -7,7 +7,7 @@ const NotificacaoRegistosPendentes = ({ tipoUser, onNavigate }) => {
   const [mostrarDropdown, setMostrarDropdown] = useState(false);
   const registosPendentes = useRegistosPendentes(tipoUser);
 
-  if (tipoUser !== 'Administrador') return null;
+  if (tipoUser !== 'Administrador' && tipoUser !== 'Encarregado' && tipoUser !== 'Diretor') return null;
 
   const handleClick = () => {
     setMostrarDropdown(!mostrarDropdown);

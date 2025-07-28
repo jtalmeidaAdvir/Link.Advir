@@ -792,7 +792,7 @@ const PartesDiarias = ({ navigation }) => {
                         style={styles.buttonGradient}
                     >
                         <FontAwesome name="save" size={16} color="#FFFFFF" />
-                        <Text style={styles.buttonText}>Gerar Partes</Text>
+                        <Text style={styles.buttonText}>Enviar Partes</Text>
                     </LinearGradient>
                 </TouchableOpacity>
 

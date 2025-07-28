@@ -11,13 +11,37 @@ const AprovacaoPontoPendentes = () => {
   const [loading, setLoading] = useState(true);
   const [processando, setProcessando] = useState({});
   const [colaboradorFiltro, setColaboradorFiltro] = useState('');
-
+const [minhasEquipas, setMinhasEquipas] = useState([]);
   const token = localStorage.getItem('loginToken');
   const urlempresa = localStorage.getItem('urlempresa');
 
 const navigation = useNavigation();
 
 const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se aplicável
+
+  /** 1) Carrega as equipas que eu lidero, com os membros */
+ const carregarEquipas = async () => {
+     try {
+     const res = await fetch(
+       'https://backend.advir.pt/api/equipa-obra/minhas-agrupadas',
+       {
+         headers: {
+           'Content-Type': 'application/json',
+           Authorization: `Bearer ${token}`,
+           urlempresa
+         }
+       }
+     );
+     const data = await res.json();
+     setMinhasEquipas(data);
+     return data;
+   } catch (err) {
+     console.error('Erro ao carregar as tuas equipas:', err);
+     return[];
+   }
+ };
+
+
 
 
   /**
@@ -34,13 +58,30 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
         }
       });
       const data = await res.json();
-      setRegistos(data);
+        // Se for Administrador, mostra todos os registos
+     if (tipoUser === 'Administrador') {
+       setRegistos(data);
+       setLoading(false); 
+       return;
+     }
+         let resultado;
+   if (tipoUser === 'Administrador') {
+     // 1) Admin vê tudo
+     resultado = data;
+   } else {
+     // 2) Encarregado filtra pelos seus membros
+     const memberIDs = minhasEquipas.flatMap(eq => eq.membros.map(m => m.id));
+     resultado = data.filter(r => memberIDs.includes(r.User?.id));
+   }
+   setRegistos(resultado);
     } catch (err) {
       console.error('Erro ao carregar registos:', err);
     } finally {
       setLoading(false);
     }
   };
+
+
 
   /**
    * Confirma um registo específico
@@ -88,9 +129,41 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
     }
   };
 
-  useEffect(() => {
-    carregarRegistos();
-  }, []);
+   useEffect(() => {
+     if (tipoUser !== 'Administrador') {
+       carregarEquipas();
+     }
+   }, []);
+
+   useEffect(() => {
+     if (tipoUser === 'Administrador') {
+       carregarRegistos();
+     }
+   }, []);
+
+
+      useEffect(() => {
+     if (tipoUser !== 'Administrador' && minhasEquipas.length > 0) {
+       carregarRegistos();
+     }
+   }, [minhasEquipas]);
+
+
+    useEffect(() => {
+   if (tipoUser === 'Administrador') {
+     // Admin vê tudo
+     carregarRegistos();
+   } else {
+     // Encarregado: carrega equipas e, se existirem, carrega registos; senão desliga o loading
+     carregarEquipas().then(eqs => {
+       if (eqs.length > 0) {
+         carregarRegistos();
+       } else {
+         setLoading(false);
+       }
+     });
+   }
+    }, []);
 
   /**
    * Formata a data e hora para apresentação
@@ -331,19 +404,35 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
           </div>
 
           {/* Lista de Registos */}
-          <div className="row g-3" style={{marginBottom: '50px'}}>
-            {registos.length === 0 ? (
-              <div className="col-12">
-                <div className="card card-moderno">
-                  <div className="card-body text-center py-5">
-                    <FaClock className="text-muted mb-3" size={48} />
-                    <h6 className="text-muted">Nenhum registo encontrado</h6>
-                    <p className="text-muted small mb-0">
-                      {colaboradorFiltro ? `Nenhum registo pendente encontrado para ${colaboradorFiltro}.` : 'Não existem registos pendentes de aprovação no momento.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
+<div className="row g-3" style={{marginBottom: '50px'}}>
+
+   {tipoUser !== 'Administrador' && minhasEquipas.length === 0 ? (
+       <div className="col-12">
+         <div className="card card-moderno">
+           <div className="card-body text-center py-5">
+
+            <FaExclamationTriangle className="text-warning mb-3" size={48} />
+            <h6 className="text-warning">Não tens nenhuma equipa</h6>
+            <p className="text-muted small mb-0">
+              Só verás pedidos de ponto de utilizadores atribuídos a uma equipa que lideras.
+            </p>
+           </div>
+         </div>
+       </div>
+  ) : registos.length === 0 ? (
+      <div className="col-12">
+        <div className="card card-moderno">
+          <div className="card-body text-center py-5">
+            <FaClock className="text-muted mb-3" size={48} />
+            <h6 className="text-muted">Nenhum registo encontrado</h6>
+            <p className="text-muted small mb-0">
+              {colaboradorFiltro 
+                 ? `Nenhum registo pendente encontrado para ${colaboradorFiltro}.` 
+                 : 'Não existem registos pendentes de aprovação no momento.'}
+            </p>
+          </div>
+        </div>
+      </div>
             ) : (
               registos
                 .filter(r => colaboradorFiltro === '' || (r.User?.nome || 'Desconhecido') === colaboradorFiltro)
