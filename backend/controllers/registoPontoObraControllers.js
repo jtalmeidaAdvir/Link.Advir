@@ -281,20 +281,30 @@ const cancelarPonto = async (req, res) => {
 };
 
 const listarPendentes = async (req, res) => {
-  try {
-    const pendentes = await RegistoPontoObra.findAll({
-      where: { is_confirmed: false },
-      include: [
-        { model: User, attributes: ['id', 'nome', 'email'] },
-        { model: Obra, attributes: ['id', 'nome', 'localizacao'] }
-      ],
-      order: [['timestamp', 'ASC']]
+    try {
+    const userId = req.user.id;
+
+    // 1. Busca IDs dos utilizadores da equipa do user autenticado
+    const membrosEquipa = await EquipaObra.findAll({
+      where: { encarregado_id: userId }, // ou outro campo que identifique o líder da equipa
+      include: [{ model: User, as: 'membros', attributes: ['id'] }]
     });
 
-    res.status(200).json(pendentes);
-  } catch (err) {
-    console.error('Erro ao listar registos pendentes:', err);
-    res.status(500).json({ message: 'Erro interno ao listar pendentes.' });
+    const userIdsEquipa = membrosEquipa.flatMap(e => e.membros.map(m => m.id));
+
+    // 2. Vai buscar registos pendentes desses utilizadores
+    const registosPendentes = await RegistoPonto.findAll({
+      where: {
+        is_confirmed: false,
+        user_id: userIdsEquipa
+      },
+      include: [User, Obra]
+    });
+
+    res.json(registosPendentes);
+  } catch (error) {
+    console.error('Erro ao buscar registos pendentes:', error);
+    res.status(500).json({ erro: 'Erro interno do servidor' });
   }
 };
 

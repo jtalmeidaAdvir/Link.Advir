@@ -428,7 +428,7 @@ const AppNavigator = () => {
             }
 
             // Configurar notificações após login
-            setupNotifications();
+          //setupNotifications();
         } else {
             localStorage.clear();
             setIsLoggedIn(false);
@@ -438,7 +438,7 @@ const AppNavigator = () => {
         setLoading(false);
     };
 
-    const setupNotifications = async () => {
+   /* const setupNotifications = async () => {
         try {
             // Solicitar permissão para notificações se ainda não foi concedida
             if (!isPermissionGranted) {
@@ -455,7 +455,7 @@ const AppNavigator = () => {
     useEffect(() => {
         fetchUserData();
     }, []);
-
+*/
 
 
     const fetchUserModules = async () => {
