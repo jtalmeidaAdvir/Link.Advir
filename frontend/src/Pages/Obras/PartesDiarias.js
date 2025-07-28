@@ -1124,6 +1124,7 @@ if (modoVisualizacao === 'obra') {
                                             ))}
                                         </Text>
                                     </View>
+                                    
                                 </View>
                             ))}
                         </View>

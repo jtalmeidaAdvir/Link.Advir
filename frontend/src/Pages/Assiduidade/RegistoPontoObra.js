@@ -13,6 +13,8 @@ import {
 } from 'react-icons/fa';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import NotificacaoCombinada from './components/NotificacaoCombinada';
+import Select from 'react-select';
+
 
 const RegistoPontoObra = (props) => {
   const scannerRef = useRef(null);
@@ -23,7 +25,10 @@ const RegistoPontoObra = (props) => {
   const [obraSelecionada, setObraSelecionada] = useState('');
   const [loading, setLoading] = useState(false);
   const [registosEquipa, setRegistosEquipa] = useState([]);
-  
+  const opcoesObras = obras.map(obra => ({
+  value: obra.id,
+  label: obra.nome
+}));
 
   const tipoUser = localStorage.getItem('tipoUser');
 const tipoUserNormalizado = (tipoUser || '').trim().toLowerCase();
@@ -581,16 +586,15 @@ console.log('tipoUser:', tipoUser);
     <div className="p-3 p-md-4" style={{backgroundColor: '#f8f9ff'}}>
       <div className="mb-3">
         <label className="form-label fw-semibold small">Selecionar Obra</label>
-        <select
-          className="form-select form-control-custom"
-          value={obraSelecionada}
-          onChange={(e) => setObraSelecionada(e.target.value)}
-        >
-          <option value="">Escolha a obra...</option>
-          {obras.map(obra => (
-            <option key={obra.id} value={obra.id}>{obra.nome}</option>
-          ))}
-        </select>
+        <Select
+  options={opcoesObras}
+  value={opcoesObras.find(o => o.value == obraSelecionada)}
+  onChange={(opcao) => setObraSelecionada(opcao.value)}
+  placeholder="Escolha a obra..."
+  classNamePrefix="react-select"
+  isClearable
+/>
+
       </div>
 
       <div className="row g-2">
@@ -641,16 +645,14 @@ console.log('tipoUser:', tipoUser);
       {/* Obra */}
       <div className="mb-3">
         <label className="form-label fw-semibold small">Obra</label>
-        <select
-          className="form-select form-control-custom"
-          value={obraSelecionada}
-          onChange={(e) => setObraSelecionada(e.target.value)}
-        >
-          <option value="">Escolha a obra...</option>
-          {obras.map(obra => (
-            <option key={obra.id} value={obra.id}>{obra.nome}</option>
-          ))}
-        </select>
+         <Select
+  options={opcoesObras}
+  value={opcoesObras.find(o => o.value == obraSelecionada)}
+  onChange={(opcao) => setObraSelecionada(opcao.value)}
+  placeholder="Escolha a obra..."
+  classNamePrefix="react-select"
+  isClearable
+/>
       </div>
 
      {/* Membros da equipa com estado atual */}

@@ -428,6 +428,9 @@ const ListarObras = ({ navigation }) => {
                                 <Text style={styles.obraCodigo}>
                                     Código: {item.Codigo}
                                 </Text>
+                                <Text style={styles.obraCodigo}>
+                                    Estado: {item.Estado}
+                                </Text>
                             </View>
                         </View>
                         <Animated.View style={{

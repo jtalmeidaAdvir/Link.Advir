@@ -63,6 +63,8 @@ const [modoEdicaoFerias, setModoEdicaoFerias] = useState(false);
 const [faltaOriginal, setFaltaOriginal] = useState(null); // guarda Falta + Data + Funcionario
 
 const [feriasTotalizador, setFeriasTotalizador] = useState(null);
+const [novaJustificacaoEdicao, setNovaJustificacaoEdicao] = useState('');
+const [justificacaoEdicao, setJustificacaoEdicao] = useState('');
 
 
 
@@ -775,15 +777,22 @@ console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
   };
 
 
-  const iniciarEdicaoRegisto = (registo) => {
+const iniciarEdicaoRegisto = (registo) => {
   const data = new Date(registo.timestamp);
   const hora = data.toTimeString().slice(0,5);
   setNovaHoraEdicao(hora);
+  setJustificacaoEdicao(registo.justificacao || '');
   setRegistoEmEdicao(registo);
 };
 
+
 const submeterAlteracaoHora = async () => {
   if (!registoEmEdicao || !novaHoraEdicao) return;
+  if (!novaJustificacaoEdicao.trim()) {
+  alert('Indica uma justificação para a alteração.');
+  return;
+}
+
 
   const [ano, mes, dia] = registoEmEdicao.timestamp.split('T')[0].split('-');
   const [hora, minuto] = novaHoraEdicao.split(':');
@@ -812,7 +821,8 @@ const submeterAlteracaoHora = async () => {
       tipo: registoEmEdicao.tipo,
       obra_id: registoEmEdicao.obra_id,
       timestamp: novaData.toISOString(),
-      justificacao: registoEmEdicao.justificacao || 'Alterado manualmente'
+      justificacao: justificacaoEdicao.trim(),
+
     };
 
     const resAdd = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido`, {
@@ -1834,6 +1844,17 @@ const isPendente = diasPendentes.includes(dataFormatada);
         onChange={(e) => setNovaHoraEdicao(e.target.value)}
       />
     </div>
+    <div className="mb-2">
+  <label className="form-label small fw-semibold">Justificação da alteração</label>
+  <textarea
+    className="form-control"
+    rows="2"
+    value={novaJustificacaoEdicao}
+    onChange={(e) => setNovaJustificacaoEdicao(e.target.value)}
+    required
+  />
+</div>
+
     <button
       className="btn btn-sm btn-primary me-2"
       onClick={submeterAlteracaoHora}
