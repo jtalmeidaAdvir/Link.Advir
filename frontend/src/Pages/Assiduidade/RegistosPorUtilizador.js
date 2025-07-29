@@ -700,18 +700,15 @@ Object.values(horasPorDia).forEach(registosDia => {
 };
 
 const styles = {
-container: {
-  padding: '20px',
-  maxWidth: '100%', // <--- muda aqui!
-  width: '100%',
-  margin: '0 auto',
-  backgroundImage: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)',
-  minHeight: '100vh',
-  boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
-  overflowX: 'hidden',
-},
-
-
+  container: {
+    padding: '20px',
+    width: '100%',
+    margin: '0 auto',
+    backgroundImage: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)',
+    minHeight: '100vh',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+    overflowX: 'hidden'
+  },
   header: {
     textAlign: 'center',
     marginBottom: '30px'
@@ -730,15 +727,14 @@ container: {
   icon: {
     marginRight: '10px'
   },
- filtersCard: {
-  background: '#ffffff',
-  borderRadius: '15px',
-  padding: '30px',
-  boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
-  marginBottom: '30px',
-  border: 'none'
-},
-
+  filtersCard: {
+    background: '#ffffff',
+    borderRadius: '15px',
+    padding: '30px',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+    marginBottom: '30px',
+    border: 'none'
+  },
   sectionTitle: {
     fontSize: '1.5rem',
     color: '#2d3748',
@@ -750,13 +746,14 @@ container: {
   },
   filtersGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
     gap: '20px',
     marginBottom: '30px'
   },
   filterGroup: {
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    width: '100%'
   },
   label: {
     fontSize: '0.9rem',
@@ -771,7 +768,9 @@ container: {
     fontSize: '1rem',
     backgroundColor: '#ffffff',
     transition: 'all 0.2s',
-    outline: 'none'
+    outline: 'none',
+    width: '100%',
+    boxSizing: 'border-box'
   },
   selectSmall: {
     padding: '8px 12px',
@@ -780,7 +779,9 @@ container: {
     fontSize: '0.9rem',
     backgroundColor: '#ffffff',
     transition: 'all 0.2s',
-    outline: 'none'
+    outline: 'none',
+    width: '100%',
+    boxSizing: 'border-box'
   },
   input: {
     padding: '12px 16px',
@@ -789,12 +790,15 @@ container: {
     fontSize: '1rem',
     backgroundColor: '#ffffff',
     transition: 'all 0.2s',
-    outline: 'none'
+    outline: 'none',
+    width: '100%',
+    boxSizing: 'border-box'
   },
   actionButtons: {
     display: 'flex',
     gap: '15px',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start'
   },
   primaryButton: {
     backgroundColor: '#3182ce',
@@ -806,7 +810,9 @@ container: {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    minWidth: '200px'
+    minWidth: '200px',
+    width: '100%',
+    maxWidth: '300px'
   },
   exportButton: {
     backgroundColor: '#38a169',
@@ -817,7 +823,9 @@ container: {
     fontSize: '1rem',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    width: '100%',
+    maxWidth: '300px'
   },
   detailsButton: {
     backgroundColor: '#718096',
@@ -828,7 +836,9 @@ container: {
     fontSize: '1rem',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    width: '100%',
+    maxWidth: '300px'
   },
   loadingCard: {
     backgroundColor: '#ffffff',
@@ -856,7 +866,7 @@ container: {
   },
   utilizadoresGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
     gap: '25px'
   },
   utilizadorCard: {
@@ -866,13 +876,16 @@ container: {
     padding: '25px',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    position: 'relative'
+    position: 'relative',
+    width: '100%',
+    boxSizing: 'border-box'
   },
   utilizadorHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: '20px'
+    marginBottom: '20px',
+    flexWrap: 'wrap'
   },
   utilizadorInfo: {
     flex: 1
@@ -895,7 +908,8 @@ container: {
     backgroundColor: '#3182ce',
     color: 'white',
     padding: '15px 20px',
-    borderRadius: '12px'
+    borderRadius: '12px',
+    minWidth: '100px'
   },
   horasNumero: {
     fontSize: '2rem',
@@ -906,34 +920,6 @@ container: {
     fontSize: '0.8rem',
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
-  },
-  estatisticasGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '15px',
-    marginBottom: '20px'
-  },
-  estatItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    padding: '15px',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0'
-  },
-  estatNumero: {
-    fontSize: '1.5rem',
-    fontWeight: '700',
-    color: '#3182ce',
-    lineHeight: 1
-  },
-  estatLabel: {
-    fontSize: '0.8rem',
-    color: '#718096',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    marginTop: '5px'
   },
   obrasInfo: {
     display: 'flex',
@@ -1004,7 +990,8 @@ container: {
     alignItems: 'center',
     padding: '20px',
     backgroundColor: '#f7fafc',
-    borderBottom: '1px solid #e2e8f0'
+    borderBottom: '1px solid #e2e8f0',
+    flexWrap: 'wrap'
   },
   dayTitle: {
     margin: 0,
@@ -1018,7 +1005,8 @@ container: {
     padding: '6px 12px',
     borderRadius: '20px',
     fontSize: '0.9rem',
-    fontWeight: '500'
+    fontWeight: '500',
+    marginTop: '10px'
   },
   eventsList: {
     padding: '20px'
@@ -1035,7 +1023,8 @@ container: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '15px'
+    marginBottom: '15px',
+    flexWrap: 'wrap'
   },
   eventType: {
     display: 'flex',
@@ -1101,6 +1090,9 @@ container: {
   }
 };
 
+
+
+
 // Hover effects
 if (typeof document !== 'undefined') {
   const style = document.createElement('style');
@@ -1115,6 +1107,8 @@ if (typeof document !== 'undefined') {
     box-shadow: 0 15px 35px rgba(0,0,0,0.15) !important;
     border-color: #3182ce !important;
   }
+
+  
 
   .event-card:hover {
     background-color: #edf2f7 !important;
@@ -1148,6 +1142,7 @@ if (typeof document !== 'undefined') {
     overflow-y: auto !important;
     overflow-x: hidden !important;
   }
+
   `;
   document.head.appendChild(style);
 }

@@ -66,6 +66,7 @@ const [feriasTotalizador, setFeriasTotalizador] = useState(null);
 const [novaJustificacaoEdicao, setNovaJustificacaoEdicao] = useState('');
 const [justificacaoEdicao, setJustificacaoEdicao] = useState('');
 
+const [feriasOriginal, setFeriasOriginal] = useState(null);
 
 
 const [diasPendentes, setDiasPendentes] = useState([]);
@@ -369,32 +370,32 @@ const carregarTotalizadorFerias = async () => {
 
 const submeterFerias = async (e) => {
   e.preventDefault();
-  const token = localStorage.getItem("loginToken");
+  const token = localStorage.getItem("painelAdminToken");
   const urlempresa = localStorage.getItem("urlempresa");
   const funcionarioId = localStorage.getItem("codFuncionario");
 
   const { dataInicio, dataFim, Horas, Tempo, Observacoes } = novaFaltaFerias;
 
   const dados = {
-    tipoPedido: 'FERIAS',
-    funcionario: funcionarioId,
-    dataPedido: new Date().toISOString().split("T")[0],
-    duracao: Tempo,
-    horas: Horas ? 1 : 0,
-    justificacao: Observacoes,
-    observacoes: Observacoes,
-    usuarioCriador: funcionarioId,
-    origem: 'frontend',
-    dataInicio : dataInicio,
-    dataFim : dataFim
+    Funcionario: funcionarioId,
+    DataFeria: dataInicio,
+    EstadoGozo: 1,
+    OriginouFalta: 1,
+    TipoMarcacao: 1,
+    OriginouFaltaSubAlim: 0,
+    Duracao: Tempo,
+    Acerto: 0,
+    NumProc: null,
+    Origem: `'frontend'`
   };
 
-  // ⚠️ Debug temporário (remove se tudo estiver ok)
-  console.log("DADOS FÉRIAS:", dados);
-
   try {
-    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
-      method: "POST",
+    const url = modoEdicaoFerias
+      ? `https://webapiprimavera.advir.pt/routesFaltas/EditarFeriasFuncionario`
+      : `https://webapiprimavera.advir.pt/routesFaltas/InserirFeriasFuncionario`;
+
+    const res = await fetch(url, {
+      method: modoEdicaoFerias ? "PUT" : "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -404,7 +405,7 @@ const submeterFerias = async (e) => {
     });
 
     if (res.ok) {
-      alert("Pedido de férias submetido com sucesso para aprovação.");
+      alert(`Férias ${modoEdicaoFerias ? "editadas" : "submetidas"} com sucesso.`);
       setMostrarFormularioFerias(false);
       setNovaFaltaFerias({
         dataInicio: '',
@@ -413,16 +414,20 @@ const submeterFerias = async (e) => {
         Tempo: 1,
         Observacoes: ''
       });
-      await carregarFaltasFuncionario(); // se aplicável
+      setModoEdicaoFerias(false);
+      setFeriasOriginal(null);
+      await carregarFaltasFuncionario();
+      await carregarDetalhes(diaSelecionado);
     } else {
       const erro = await res.text();
-      alert("Erro ao submeter férias: " + erro);
+      alert("Erro ao submeter: " + erro);
     }
   } catch (err) {
     console.error("Erro ao submeter férias:", err);
-    alert("Erro inesperado ao submeter férias.");
+    alert("Erro inesperado.");
   }
 };
+
 
 const cancelarPedido = async (pedido) => {
   let mensagemConfirmacao = 'Tens a certeza que queres cancelar este pedido?';
@@ -1429,6 +1434,27 @@ const isPendente = diasPendentes.includes(dataFormatada);
     )}
 
   
+{f.Falta === 'F50' && (
+  <div className="mt-1 text-end">
+    <button
+      className="btn btn-sm btn-outline-secondary me-2"
+      onClick={() => {
+        setNovaFaltaFerias({
+          dataInicio: f.Data,
+          dataFim: f.Data, // ou se tiver campo fim, usa-o
+          Horas: f.Horas,
+          Tempo: f.Tempo,
+          Observacoes: f.Observacoes || ''
+        });
+        setFeriasOriginal(f);
+        setMostrarFormularioFerias(true);
+        setModoEdicaoFerias(true);
+      }}
+    >
+      ✏️ Editar
+    </button>
+  </div>
+)}
 
 
     {f.Fonte !== 'backend' && (
