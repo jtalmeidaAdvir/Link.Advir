@@ -467,17 +467,7 @@ Object.values(horasPorDia).forEach(registosDia => {
             />
           </div>
 
-          <div style={styles.filterGroup}>
-            <label style={styles.label}>Ano</label>
-            <input 
-              type="number" 
-              style={styles.input}
-              min="2020" 
-              value={anoSelecionado} 
-              onChange={e => setAnoSelecionado(e.target.value)}
-              placeholder="2024"
-            />
-          </div>
+      
         </div>
 
         <div style={styles.actionButtons}>

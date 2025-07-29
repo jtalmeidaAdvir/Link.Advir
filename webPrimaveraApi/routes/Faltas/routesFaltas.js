@@ -526,6 +526,86 @@ router.post("/InserirFeriasFuncionario", async (req, res) => {
   }
 });
 
+// Novo editar Ferias Funcionario.
+router.put("/EditarFeriasFuncionario", async (req, res) => {
+  try {
+    const dados = req.body;
+
+    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+    if (!painelAdminToken) {
+      return res.status(401).json({
+        error: "Token não encontrado. Faça login novamente.",
+      });
+    }
+
+    const urlempresa = await getEmpresaUrl(req);
+    if (!urlempresa) {
+      return res.status(400).json({ error: "URL da empresa não fornecida." });
+    }
+
+    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/EditarFeriasFuncionario`;
+    console.log("Enviando solicitação para a URL:", apiUrl);
+
+    const {
+      Funcionario,
+      DataFeria,
+      EstadoGozo,
+      OriginouFalta,
+      TipoMarcacao,
+      OriginouFaltaSubAlim,
+      Duracao,
+      Acerto,
+      NumProc,
+      Origem
+    } = dados;
+
+    const requestData = {
+      Funcionario,
+      DataFeria,
+      EstadoGozo,
+      OriginouFalta,
+      TipoMarcacao,
+      OriginouFaltaSubAlim,
+      Duracao,
+      Acerto,
+      NumProc,
+      Origem
+    };
+
+    console.log("Dados a serem enviados (edição):", requestData);
+
+    const response = await axios.put(apiUrl, requestData, {
+      headers: {
+        Authorization: `Bearer ${painelAdminToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+
+    if (response.status === 200) {
+      return res.status(200).json({
+        mensagem: "Férias atualizadas com sucesso.",
+        detalhes: response.data,
+      });
+    } else {
+      return res.status(response.status).json({
+        error: "Falha ao editar férias.",
+        details: response.data,
+      });
+    }
+  } catch (error) {
+    console.error(
+      "Erro ao editar férias:",
+      error.response ? error.response.data : error.message
+    );
+    return res.status(500).json({
+      error: "Erro inesperado ao editar férias.",
+      details: error.message,
+    });
+  }
+});
+
+
 
 router.put("/EditarFalta", async (req, res) => {
   try {
