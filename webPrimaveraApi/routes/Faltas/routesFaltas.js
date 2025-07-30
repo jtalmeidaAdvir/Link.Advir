@@ -696,15 +696,20 @@ router.delete("/EliminarFalta/:codFuncionario/:dataFalta/:tipoFalta", async (req
       });
     }
   } catch (error) {
-    console.error(
-      "Erro ao eliminar falta:",
-      error.response ? error.response.data : error.message
-    );
-    return res.status(500).json({
-      error: "Erro inesperado ao eliminar falta.",
-      details: error.message,
+  const status = error.response?.status;
+  if (status === 404) {
+    return res.status(200).json({
+      mensagem: "Férias não encontradas, já podem ter sido eliminadas.",
+      detalhes: error.response.data,
     });
   }
+
+  return res.status(500).json({
+    error: "Erro inesperado ao eliminar férias.",
+    details: error.message,
+  });
+}
+
 });
 
 

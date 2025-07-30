@@ -537,11 +537,13 @@ const eliminarFeria = async (dataFeria) => {
 
   const dataFormatada = new Date(dataFeria).toISOString().split('T')[0];
 
-  // 🔥 CORRETO: chama o backend Express
-  const apiUrl = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFeriasFuncionario/${funcionario}/${dataFormatada}`;
+  const urlFeria = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFeriasFuncionario/${funcionario}/${dataFormatada}`;
+  const urlFaltaF50 = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionario}/${dataFormatada}/F50`;
+  const urlFaltaF40 = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionario}/${dataFormatada}/F40`;
 
   try {
-    const res = await fetch(apiUrl, {
+    // Eliminar a férias
+    const resFeria = await fetch(urlFeria, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -550,21 +552,43 @@ const eliminarFeria = async (dataFeria) => {
       }
     });
 
-    if (!res.ok) {
-      const texto = await res.text();
-      throw new Error(`Status ${res.status}: ${texto}`);
+    if (!resFeria.ok) {
+      const texto = await resFeria.text();
+      throw new Error(`Erro ao eliminar férias. Status ${resFeria.status}: ${texto}`);
     }
 
+    // Tenta eliminar F50
+    await fetch(urlFaltaF50, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+        'Content-Type': 'application/json',
+      }
+    });
+
+    // Tenta eliminar F40
+    await fetch(urlFaltaF40, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+        'Content-Type': 'application/json',
+      }
+    });
+
     alert(`Férias de ${dataFormatada} eliminadas com sucesso.`);
+
     await carregarFaltasFuncionario();
     await carregarDiasPendentes();
     await carregarDetalhes(dataFormatada);
 
   } catch (err) {
-    console.error('Erro ao eliminar férias:', err);
-    alert(`Erro ao eliminar férias: ${err.message}`);
+    console.error('Erro ao eliminar férias/faltas associadas:', err);
+    alert(`Erro ao eliminar férias ou faltas associadas: ${err.message}`);
   }
 };
+
 
 
 
