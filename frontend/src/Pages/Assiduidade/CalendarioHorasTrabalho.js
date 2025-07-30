@@ -526,6 +526,48 @@ const cancelarPonto = async (registoId) => {
   }
 };
 
+// dentro do componente React
+
+// dentro do componente React
+
+const eliminarFeria = async (dataFeria) => {
+  const funcionario = localStorage.getItem('codFuncionario');
+  const token = localStorage.getItem('painelAdminToken');
+  const urlempresa = localStorage.getItem('urlempresa');
+
+  const dataFormatada = new Date(dataFeria).toISOString().split('T')[0];
+
+  // 🔥 CORRETO: chama o backend Express
+  const apiUrl = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFeriasFuncionario/${funcionario}/${dataFormatada}`;
+
+  try {
+    const res = await fetch(apiUrl, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!res.ok) {
+      const texto = await res.text();
+      throw new Error(`Status ${res.status}: ${texto}`);
+    }
+
+    alert(`Férias de ${dataFormatada} eliminadas com sucesso.`);
+    await carregarFaltasFuncionario();
+    await carregarDiasPendentes();
+    await carregarDetalhes(dataFormatada);
+
+  } catch (err) {
+    console.error('Erro ao eliminar férias:', err);
+    alert(`Erro ao eliminar férias: ${err.message}`);
+  }
+};
+
+
+
 
 
 useEffect(() => {
@@ -1258,10 +1300,26 @@ const isPendente = diasPendentes.includes(dataFormatada);
 
   return (
     <button
-      key={index}
-      className={obterClasseDia(date)}
-      onClick={() => carregarDetalhes(dataFormatada)}
-    >
+  key={index}
+  className={obterClasseDia(date)}
+  onClick={() => {
+    const faltaF50 = faltas.find(f =>
+      f.Falta === 'F50' &&
+      new Date(f.Data).toISOString().slice(0,10) === dataFormatada
+    );
+    if (faltaF50) {
+      const msg =
+        `Ao eliminar o pedido de férias de ${faltaF50.Data} ficará sem férias nesse dia ` +
+        `e terá de submeter novo pedido de férias. Confirmas?`;
+      if (window.confirm(msg)) {
+
+       eliminarFeria(dataFormatada);
+      }
+      return;
+    }
+    carregarDetalhes(dataFormatada);
+  }}
+>
       <span>{date.getDate()}</span>
 
       {existeFaltaF50 && (
@@ -1463,24 +1521,20 @@ const isPendente = diasPendentes.includes(dataFormatada);
 {f.Falta === 'F50' && (
   <div className="mt-1 text-end">
     <button
-      className="btn btn-sm btn-outline-secondary me-2"
+      className="btn btn-sm btn-outline-danger"
       onClick={() => {
-        setNovaFaltaFerias({
-          dataInicio: f.Data,
-          dataFim: f.Data, // ou se tiver campo fim, usa-o
-          Horas: f.Horas,
-          Tempo: f.Tempo,
-          Observacoes: f.Observacoes || ''
-        });
-        setFeriasOriginal(f);
-        setMostrarFormularioFerias(true);
-        setModoEdicaoFerias(true);
+        const data = new Date(f.Data).toISOString().slice(0,10);
+        const msg  = `Eliminar férias de ${data}? Terás de submeter novo pedido para esse dia.`;
+        if (window.confirm(msg)) {
+          eliminarFeria(data);
+        }
       }}
     >
-      ✏️ Editar
+      🗑️ Eliminar Férias
     </button>
   </div>
 )}
+
 
 
     {f.Fonte !== 'backend' && (

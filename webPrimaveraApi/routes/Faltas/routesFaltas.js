@@ -657,6 +657,57 @@ router.delete("/EliminarFeriasFuncionario/:codFuncionario/:dataFeria", async (re
 });
 
 
+router.delete("/EliminarFalta/:codFuncionario/:dataFalta/:tipoFalta", async (req, res) => {
+  try {
+    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+    if (!painelAdminToken) {
+      return res.status(401).json({
+        error: "Token não encontrado. Faça login novamente.",
+      });
+    }
+
+    const urlempresa = await getEmpresaUrl(req);
+    if (!urlempresa) {
+      return res.status(400).json({ error: "URL da empresa não fornecida." });
+    }
+
+    const { codFuncionario, dataFalta, tipoFalta } = req.params;
+
+    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/EliminarFalta/${codFuncionario}/${dataFalta}/${tipoFalta}`;
+    console.log("Enviando solicitação DELETE para:", apiUrl);
+
+    const response = await axios.delete(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${painelAdminToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+
+    if (response.status === 200) {
+      return res.status(200).json({
+        mensagem: "Falta eliminada com sucesso.",
+        detalhes: response.data,
+      });
+    } else {
+      return res.status(response.status).json({
+        error: "Falha ao eliminar falta.",
+        details: response.data,
+      });
+    }
+  } catch (error) {
+    console.error(
+      "Erro ao eliminar falta:",
+      error.response ? error.response.data : error.message
+    );
+    return res.status(500).json({
+      error: "Erro inesperado ao eliminar falta.",
+      details: error.message,
+    });
+  }
+});
+
+
 
 router.put("/EditarFalta", async (req, res) => {
   try {
