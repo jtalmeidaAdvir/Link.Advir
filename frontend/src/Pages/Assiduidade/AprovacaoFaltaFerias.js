@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { FaCheckCircle, FaTimesCircle, FaClock, FaUser, FaCalendarAlt, FaFilter, FaSync } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaClock, FaUser, FaCalendarAlt, FaFilter, FaSync, FaPlus } from 'react-icons/fa';
 
 const AprovacaoFaltaFerias = () => {
   const [pedidos, setPedidos] = useState([]);
@@ -16,6 +16,163 @@ const AprovacaoFaltaFerias = () => {
   const [todosPedidos, setTodosPedidos] = useState([]);
 
   const [colaboradorFiltro, setColaboradorFiltro] = useState('');
+
+const tipoUser = localStorage.getItem('tipoUser');
+
+
+
+const [colaboradoresEquipa, setColaboradoresEquipa] = useState([]);
+const [tiposFalta, setTiposFalta] = useState([]);
+const [mapaFaltas, setMapaFaltas] = useState({});
+const [minhasEquipas, setMinhasEquipas] = useState([]);
+
+const [novaFaltaEquipa, setNovaFaltaEquipa] = useState({
+  funcionario: '',
+  Falta: '',
+  Data: '',
+  Horas: false,
+  Tempo: 1,
+  Observacoes: '',
+  DescontaAlimentacao: false,
+  DescontaSubsidioTurno: false
+});
+
+useEffect(() => {
+  carregarColaboradoresEquipa();
+  carregarTiposFaltaEquipa();
+}, []);
+
+const carregarColaboradoresEquipa = async () => {
+  try {
+    const res = await fetch(
+      'https://backend.advir.pt/api/equipa-obra/minhas-agrupadas',
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          urlempresa
+        }
+      }
+    );
+    const data = await res.json();
+
+    // junta todos os membros de todas as equipas e transforma num array simples
+    const membros = data.flatMap(equipa => equipa.membros.map(m => ({
+      codigo: m.id,
+      nome: m.nome
+    })));
+
+    setColaboradoresEquipa(membros);
+  } catch (err) {
+    console.error('Erro ao carregar as tuas equipas:', err);
+    setColaboradoresEquipa([]); // para garantir consistência
+  }
+};
+
+const obterCodFuncionario = async (userId) => {
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/users/${userId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa
+      }
+    });
+
+    if (!res.ok) throw new Error('Erro ao obter codFuncionario');
+
+    const data = await res.json();
+    return data.codFuncionario;
+  } catch (err) {
+    console.error('Erro ao obter codFuncionario:', err);
+    return null;
+  }
+};
+
+
+const carregarTiposFaltaEquipa = async () => {
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas`, {
+      headers: {
+        Authorization: `Bearer ${painelToken}`,
+        urlempresa,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await res.json();
+    const lista = data?.DataSet?.Table ?? [];
+    setTiposFalta(lista);
+    const mapa = Object.fromEntries(lista.map(f => [f.Falta, f.Descricao]));
+    setMapaFaltas(mapa);
+  } catch (err) {
+    console.error('Erro ao carregar tipos de falta:', err);
+  }
+};
+
+const submeterFaltaEquipa = async (e) => {
+  e.preventDefault();
+
+if (!novaFaltaEquipa.funcionario || !novaFaltaEquipa.Falta) {
+  alert("Seleciona colaborador e tipo de falta.");
+  return;
+}
+
+// ⚠️ obter codFuncionario antes de continuar
+const codFuncionario = await obterCodFuncionario(novaFaltaEquipa.funcionario);
+if (!codFuncionario) {
+  alert("Erro ao obter funcionário associado.");
+  return;
+}
+
+
+  const dados = {
+    tipoPedido: 'FALTA',
+    funcionario: codFuncionario,
+    dataPedido: novaFaltaEquipa.Data,
+    falta: novaFaltaEquipa.Falta,
+    horas: novaFaltaEquipa.Horas ? 1 : 0,
+    tempo: novaFaltaEquipa.Tempo,
+    justificacao: novaFaltaEquipa.Observacoes,
+    observacoes: '',
+    usuarioCriador: localStorage.getItem('codFuncionario'),
+    origem: 'ENCARREGADO',
+    descontaAlimentacao: novaFaltaEquipa.DescontaAlimentacao ? 1 : 0,
+    descontaSubsidioTurno: novaFaltaEquipa.DescontaSubsidioTurno ? 1 : 0
+  };
+
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa
+      },
+      body: JSON.stringify(dados)
+    });
+
+    if (res.ok) {
+      alert('Falta registada com sucesso!');
+      setNovaFaltaEquipa({
+        funcionario: '',
+        Falta: '',
+        Horas: false,
+        Tempo: 1,
+        Observacoes: '',
+        DescontaAlimentacao: false,
+        DescontaSubsidioTurno: false
+      });
+      await carregarTodosPedidos();
+    } else {
+      alert('Erro ao registar falta: ' + await res.text());
+    }
+  } catch (err) {
+    console.error('Erro ao submeter falta:', err);
+    alert('Erro inesperado');
+  }
+};
+
 
 
 const carregarTodosPedidos = async () => {
@@ -247,7 +404,7 @@ const confirmarPedido = async (pedido) => {
       if (pedido.tipoPedido === 'FALTA') {
         const dadosFalta = {
           Funcionario: pedido.funcionario,
-          Data: pedido.dataPedido,
+          Data: new Date(pedido.dataPedido).toISOString(),
           Falta: pedido.falta,
           Horas: pedido.horas,
           Tempo: pedido.tempo,
@@ -639,6 +796,96 @@ const obterNomeFuncionario = async (codFuncionario) => {
               </div>
             </div>
           </div>
+{['Encarregado', 'Diretor', 'Administrador'].includes(tipoUser) && (
+
+        <div className="card card-moderno mb-4">
+  <div className="card-body">
+    <h5 className="text-primary fw-bold mb-3">Registar Falta da Equipa</h5>
+    <form onSubmit={submeterFaltaEquipa} className="row g-2">
+      <div className="col-md-4">
+        <label className="form-label small fw-semibold">Colaborador</label>
+        <select
+          className="form-select form-moderno"
+          value={novaFaltaEquipa.funcionario}
+          onChange={(e) => setNovaFaltaEquipa({ ...novaFaltaEquipa, funcionario: e.target.value })}
+          required
+        >
+          <option value="">Seleciona...</option>
+          {colaboradoresEquipa.map((c, i) => (
+            <option key={i} value={c.codigo}>{c.nome}</option>
+          ))}
+        </select>
+      </div>
+      <div className="col-md-2">
+  <label className="form-label small fw-semibold">Data da Falta</label>
+  <input
+    type="date"
+    className="form-control form-moderno"
+    value={novaFaltaEquipa.Data}
+    onChange={(e) => setNovaFaltaEquipa({ ...novaFaltaEquipa, Data: e.target.value })}
+    required
+  />
+</div>
+
+
+      <div className="col-md-4">
+        <label className="form-label small fw-semibold">Tipo de Falta</label>
+        <select
+          className="form-select form-moderno"
+          value={novaFaltaEquipa.Falta}
+          onChange={(e) => {
+            const falta = tiposFalta.find(f => f.Falta === e.target.value);
+            setNovaFaltaEquipa({
+              ...novaFaltaEquipa,
+              Falta: falta.Falta,
+              Horas: Number(falta.Horas) === 1,
+              Tempo: 1,
+              DescontaAlimentacao: Number(falta.DescontaSubsAlim) === 1,
+              DescontaSubsidioTurno: Number(falta.DescontaSubsTurno) === 1
+            });
+          }}
+          required
+        >
+          <option value="">Seleciona tipo...</option>
+          {tiposFalta.map((f, i) => (
+            <option key={i} value={f.Falta}>
+              {f.Falta} – {f.Descricao}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="col-md-2">
+        <label className="form-label small fw-semibold">Tempo</label>
+        <input
+          type="number"
+          className="form-control form-moderno"
+          value={novaFaltaEquipa.Tempo}
+          min={1}
+          onChange={(e) => setNovaFaltaEquipa({ ...novaFaltaEquipa, Tempo: parseInt(e.target.value) })}
+        />
+      </div>
+
+      <div className="col-md-12">
+        <label className="form-label small fw-semibold">Observações</label>
+        <textarea
+          className="form-control form-moderno"
+          rows="2"
+          value={novaFaltaEquipa.Observacoes}
+          onChange={(e) => setNovaFaltaEquipa({ ...novaFaltaEquipa, Observacoes: e.target.value })}
+        />
+      </div>
+
+      <div className="col-12">
+        <button type="submit" className="btn btn-danger w-100 rounded-pill">
+          Registar Falta
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+)}
+
 
 
           {/* Filtros e Controles */}
