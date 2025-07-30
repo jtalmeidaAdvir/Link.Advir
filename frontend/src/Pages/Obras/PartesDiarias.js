@@ -1127,6 +1127,39 @@ if (modoVisualizacao === 'obra') {
                                     
                                 </View>
                             ))}
+                            {/* Linha de total por dia para este utilizador */}
+<View style={[styles.tableRow, { backgroundColor: '#f0f0f0' }]}>
+  <View style={[styles.tableCell, { width: 120 }]}>
+    <Text style={[styles.cellText, { fontWeight: 'bold', color: '#000' }]}>
+      Total
+    </Text>
+  </View>
+
+  {diasDoMes.map(dia => {
+    const totalMinutosDia = userGroup.obras.reduce((acc, obraItem) => {
+      return acc + (obraItem.horasPorDia[dia] || 0);
+    }, 0);
+
+    return (
+      <View key={`total-${userGroup.userInfo.id}-${dia}`} style={[styles.tableCell, { width: 50 }]}>
+        <Text style={[styles.cellText, { fontWeight: '600', color: '#333', textAlign: 'center' }]}>
+          {formatarHorasMinutos(totalMinutosDia)}
+        </Text>
+      </View>
+    );
+  })}
+
+  <View style={[styles.tableCell, { width: 70 }]}>
+    <Text style={[styles.cellText, { fontWeight: '700', textAlign: 'center', color: '#1792FE' }]}>
+      {formatarHorasMinutos(
+        diasDoMes.reduce((acc, dia) => {
+          return acc + userGroup.obras.reduce((accObra, item) => accObra + (item.horasPorDia[dia] || 0), 0);
+        }, 0)
+      )}
+    </Text>
+  </View>
+</View>
+
                         </View>
                     ))}
                 </View>
@@ -1487,11 +1520,12 @@ const styles = StyleSheet.create({
         minHeight: 50,
     },
     tableRow: {
-        flexDirection: 'row',
-        minHeight: 60,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
-    },
+  flexDirection: 'row',
+  height: 50, // substitui minHeight por height fixa
+  borderBottomWidth: 1,
+  borderBottomColor: '#f0f0f0',
+},
+
     evenRow: {
         backgroundColor: '#FFFFFF',
     },
@@ -1503,6 +1537,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         borderRightWidth: 1,
         borderRightColor: '#e0e0e0',
+        alignSelf: 'stretch',
+  overflow: 'hidden',
     },
     fixedColumn: {
         backgroundColor: '#f5f5f5',
@@ -1883,8 +1919,8 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     trabalhadoresRow: {
-        marginLeft: 10,
-        borderLeftWidth: 3,
+        marginLeft: 0,
+        borderLeftWidth: 0,
         borderLeftColor: '#e3f2fd',
     },
     obraSeparator: {
@@ -1895,12 +1931,13 @@ const styles = StyleSheet.create({
         marginVertical: 5,
     },
     obraDaysHeader: {
-        flexDirection: 'row',
-        backgroundColor: '#e3f2fd',
-        minHeight: 40,
-        borderBottomWidth: 1,
-        borderBottomColor: '#1792FE',
-    },
+  flexDirection: 'row',
+  backgroundColor: '#e3f2fd',
+  height: 50, // altura igual à `tableRow`
+  borderBottomWidth: 1,
+  borderBottomColor: '#1792FE',
+},
+
     obraDaysHeaderText: {
         fontSize: 11,
         fontWeight: 'bold',
