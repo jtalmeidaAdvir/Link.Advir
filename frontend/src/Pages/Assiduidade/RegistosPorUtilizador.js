@@ -687,6 +687,8 @@ Object.values(horasPorDia).forEach(registosDia => {
         </div>
       )}
 
+        
+
       {/* Empty State para resumo */}
       {!loading && !utilizadorDetalhado && resumoUtilizadores.length === 0 && (
         <div style={styles.emptyState}>

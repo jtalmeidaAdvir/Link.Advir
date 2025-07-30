@@ -370,42 +370,65 @@ const carregarTotalizadorFerias = async () => {
 
 const submeterFerias = async (e) => {
   e.preventDefault();
-  const token = localStorage.getItem("painelAdminToken");
+
+  const token = localStorage.getItem("loginToken");
   const urlempresa = localStorage.getItem("urlempresa");
   const funcionarioId = localStorage.getItem("codFuncionario");
 
   const { dataInicio, dataFim, Horas, Tempo, Observacoes } = novaFaltaFerias;
 
-  const dados = {
-    Funcionario: funcionarioId,
-    DataFeria: dataInicio,
-    EstadoGozo: 1,
-    OriginouFalta: 1,
-    TipoMarcacao: 1,
-    OriginouFaltaSubAlim: 0,
-    Duracao: Tempo,
-    Acerto: 0,
-    NumProc: null,
-    Origem: `'frontend'`
-  };
+  if (!funcionarioId || !dataInicio || !dataFim) {
+    alert("Preenche todos os campos obrigatórios.");
+    return;
+  }
+
+const dados = {
+  tipoPedido: 'FERIAS',
+  funcionario: funcionarioId,
+  dataInicio,
+  dataFim,
+  dataPedido: dataInicio, // ← este campo é obrigatório!
+  horas: Horas ? 1 : 0,
+  tempo: Tempo,
+  justificacao: Observacoes,
+  observacoes: '',
+  usuarioCriador: funcionarioId,
+  origem: 'LINK'
+};
+
 
   try {
-    const url = modoEdicaoFerias
-      ? `https://webapiprimavera.advir.pt/routesFaltas/EditarFeriasFuncionario`
-      : `https://webapiprimavera.advir.pt/routesFaltas/InserirFeriasFuncionario`;
+    if (modoEdicaoFerias && feriasOriginal?.id) {
+      // 1. Elimina o pedido anterior
+      const resDelete = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${feriasOriginal.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          urlempresa
+        }
+      });
 
-    const res = await fetch(url, {
-      method: modoEdicaoFerias ? "PUT" : "POST",
+      if (!resDelete.ok) {
+        const erro = await resDelete.text();
+        alert("Erro ao eliminar pedido anterior: " + erro);
+        return;
+      }
+    }
+
+    // 2. Submete novo pedido de férias (criação ou atualização)
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        urlempresa: urlempresa
+        urlempresa
       },
-      body: JSON.stringify(dados),
+      body: JSON.stringify(dados)
     });
 
     if (res.ok) {
-      alert(`Férias ${modoEdicaoFerias ? "editadas" : "submetidas"} com sucesso.`);
+      alert(`Pedido de férias ${modoEdicaoFerias ? "editado" : "submetido"} com sucesso para aprovação.`);
       setMostrarFormularioFerias(false);
       setNovaFaltaFerias({
         dataInicio: '',
@@ -416,17 +439,20 @@ const submeterFerias = async (e) => {
       });
       setModoEdicaoFerias(false);
       setFeriasOriginal(null);
+
       await carregarFaltasFuncionario();
+      await carregarDiasPendentes();
       await carregarDetalhes(diaSelecionado);
     } else {
       const erro = await res.text();
-      alert("Erro ao submeter: " + erro);
+      alert("Erro ao submeter férias: " + erro);
     }
   } catch (err) {
     console.error("Erro ao submeter férias:", err);
     alert("Erro inesperado.");
   }
 };
+
 
 
 const cancelarPedido = async (pedido) => {
