@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaCalendarCheck, FaClock, FaPlus, FaExclamationTriangle, FaCheckCircle } from 'react-icons/fa';
@@ -17,569 +16,391 @@ const CalendarioHorasTrabalho = () => {
   });
   const [registosBrutos, setRegistosBrutos] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [registoEmEdicao, setRegistoEmEdicao] = useState(null);
-  const [novaHoraEdicao, setNovaHoraEdicao] = useState('');
+const [registoEmEdicao, setRegistoEmEdicao] = useState(null);
+const [novaHoraEdicao, setNovaHoraEdicao] = useState('');
+
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [mostrarFormularioFalta, setMostrarFormularioFalta] = useState(false);
+  
   const [MostrarFormularioFerias, setMostrarFormularioFerias] = useState(false);
 
-  const [faltas, setFaltas] = useState([]);
-  const [faltasDoDia, setFaltasDoDia] = useState([]);
-  const [tiposFalta, setTiposFalta] = useState([]);
-  const [mapaFaltas, setMapaFaltas] = useState({});
+const [faltas, setFaltas] = useState([]);
+const [faltasDoDia, setFaltasDoDia] = useState([]);
 
-  const [horarioFuncionario, setHorarioFuncionario] = useState(null);
-  const [horariosTrabalho, setHorariosTrabalho] = useState([]);
-  const [detalhesHorario, setDetalhesHorario] = useState(null);
-  const [pedidosPendentesDoDia, setPedidosPendentesDoDia] = useState([]);
+const [tiposFalta, setTiposFalta] = useState([]);
+const [mapaFaltas, setMapaFaltas] = useState({});
 
-  const [novaFalta, setNovaFalta] = useState({
-    Falta: '',
-    Horas: false,
-    Tempo: 1,
-    Observacoes: '',
-    DescontaAlimentacao: false,
-    DescontaSubsidioTurno: false
-  });
 
-  const [novaFaltaFerias, setNovaFaltaFerias] = useState({
-    dataInicio: '',
-    dataFim: '',
-    Horas: false,
-    Tempo: 1,
-    Observacoes: ''
-  });
+const [horarioFuncionario, setHorarioFuncionario] = useState(null); // contém o .Horario (ex: "001")
+const [horariosTrabalho, setHorariosTrabalho] = useState([]); // lista completa vinda do segundo endpoint
+const [detalhesHorario, setDetalhesHorario] = useState(null); // dados finais: descrição, horas, etc.
 
-  const [modoEdicaoFalta, setModoEdicaoFalta] = useState(false);
-  const [modoEdicaoFerias, setModoEdicaoFerias] = useState(false);
-  const [faltaOriginal, setFaltaOriginal] = useState(null);
-  const [feriasTotalizador, setFeriasTotalizador] = useState(null);
-  const [novaJustificacaoEdicao, setNovaJustificacaoEdicao] = useState('');
-  const [justificacaoEdicao, setJustificacaoEdicao] = useState('');
-  const [feriasOriginal, setFeriasOriginal] = useState(null);
-  const [diasPendentes, setDiasPendentes] = useState([]);
-  const [faltasPendentes, setFaltasPendentes] = useState([]);
+const [pedidosPendentesDoDia, setPedidosPendentesDoDia] = useState([]);
 
-  // Função centralizada para carregar todos os dados simultaneamente
-  const carregarTodosDados = async () => {
-    setLoading(true);
-    
-    const token = localStorage.getItem('painelAdminToken');
-    const loginToken = localStorage.getItem('loginToken');
-    const funcionarioId = localStorage.getItem('codFuncionario');
-    const urlempresa = localStorage.getItem('urlempresa');
-    const ano = mesAtual.getFullYear();
-    const mes = String(mesAtual.getMonth() + 1).padStart(2, '0');
 
-    
+const [novaFalta, setNovaFalta] = useState({
+  Falta: '',
+  Horas: false,
+  Tempo: 1,
+  Observacoes: '',
+  DescontaAlimentacao: false,
+  DescontaSubsidioTurno: false
+});
 
-    try {
-      // Criar todas as promises simultaneamente
-      const promises = [
-        // 1. Resumo mensal
-        fetch(`https://backend.advir.pt/api/registo-ponto-obra/resumo-mensal?ano=${ano}&mes=${mes}`, {
-          headers: { Authorization: `Bearer ${loginToken}` },
-        }),
-        
-        // 2. Obras
-        fetch(`https://backend.advir.pt/api/obra`, {
-          headers: { Authorization: `Bearer ${loginToken}` },
-        }),
-        
-        // 3. Faltas do funcionário
-        fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${funcionarioId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-            urlempresa: urlempresa,
-          },
-        }),
-        
-        // 4. Tipos de falta
-        fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-            urlempresa: urlempresa,
-          },
-        }),
-        
-        // 5. Horário do funcionário
-        fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetHorarioFuncionario/${funcionarioId}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-            urlempresa: urlempresa,
-          },
-        }),
-        
-        // 6. Horários de trabalho
-        fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetHorariosTrabalho`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-            urlempresa: urlempresa,
-          },
-        }),
-        
-        // 7. Totalizador de férias
-        fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetTotalizadorFeriasFuncionario/${funcionarioId}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-            urlempresa,
-            
-          }
-        }),
-        
-        // 8. Pendentes de aprovação
-        fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
-          headers: {
-            Authorization: `Bearer ${loginToken}`,
-            urlempresa,
-            'Content-Type': 'application/json'
-          }
-        })
-      ];
 
-      // Executar todas as promises simultaneamente
-      const results = await Promise.allSettled(promises);
-      
-      // Processar resultados
-      const [
-        resumoResult,
-        obrasResult,
-        faltasResult,
-        tiposFaltaResult,
-        horarioFuncResult,
-        horariosTrabalhoResult,
-        feriasTotalizadorResult,
-        pendentesResult
-      ] = results;
+const [novaFaltaFerias, setNovaFaltaFerias] = useState({
+  dataInicio: '',
+  dataFim: '',
+  Horas: false,
+  Tempo: 1,
+  Observacoes: ''
+});
 
-      // 1. Processar resumo mensal
-      if (resumoResult.status === 'fulfilled' && resumoResult.value.ok) {
-        const dadosResumo = await resumoResult.value.json();
-        const mapeado = {};
-        const hoje = formatarData(new Date());
+const [modoEdicaoFalta, setModoEdicaoFalta] = useState(false);
 
-        dadosResumo.forEach(dia => {
-          let minutosTotais = dia.horas * 60 + dia.minutos;
+const [modoEdicaoFerias, setModoEdicaoFerias] = useState(false);
+const [faltaOriginal, setFaltaOriginal] = useState(null); // guarda Falta + Data + Funcionario
 
-          // Se for hoje e ainda não tiver saída, calcula tempo até agora
-          if (dia.dia === hoje) {
-            const entradaSemSaida = registosBrutos
-              .filter(r => r.tipo === 'entrada' && formatarData(new Date(r.timestamp)) === hoje)
-              .some(e => {
-                const entradaTS = new Date(e.timestamp);
-                const temSaida = registosBrutos.some(s =>
-                  s.tipo === 'saida' &&
-                  s.obra_id === e.obra_id &&
-                  new Date(s.timestamp) > entradaTS
-                );
-                return !temSaida;
-              });
+const [feriasTotalizador, setFeriasTotalizador] = useState(null);
+const [novaJustificacaoEdicao, setNovaJustificacaoEdicao] = useState('');
+const [justificacaoEdicao, setJustificacaoEdicao] = useState('');
 
-            if (entradaSemSaida) {
-              const entradasAtivas = registosBrutos
-                .filter(r => r.tipo === 'entrada' && formatarData(new Date(r.timestamp)) === hoje)
-                .filter(e => {
-                  const entradaTS = new Date(e.timestamp);
-                  const temSaida = registosBrutos.some(s =>
-                    s.tipo === 'saida' &&
-                    s.obra_id === e.obra_id &&
-                    new Date(s.timestamp) > entradaTS
-                  );
-                  return !temSaida;
-                });
+const [feriasOriginal, setFeriasOriginal] = useState(null);
 
-              entradasAtivas.forEach(entrada => {
-                const entradaTS = new Date(entrada.timestamp);
-                const minutosDesdeEntrada = Math.floor((Date.now() - entradaTS.getTime()) / 60000);
-                minutosTotais += minutosDesdeEntrada;
-              });
-            }
-          }
 
-          const horas = Math.floor(minutosTotais / 60);
-          const minutos = minutosTotais % 60;
-          mapeado[dia.dia] = `${horas}h${minutos > 0 ? ` ${minutos}min` : ''}`;
-        });
+const [diasPendentes, setDiasPendentes] = useState([]);
+const [faltasPendentes, setFaltasPendentes] = useState([]);
 
-        setResumo(mapeado);
+
+const carregarFaltasPendentes = async () => {
+  const token = localStorage.getItem('loginToken');
+  const urlempresa = localStorage.getItem('urlempresa');
+
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+        'Content-Type': 'application/json'
       }
+    });
 
-      // 2. Processar obras
-      if (obrasResult.status === 'fulfilled' && obrasResult.value.ok) {
-        const dadosObras = await obrasResult.value.json();
-        setObras(dadosObras);
-      }
-
-      // 3. Processar faltas
-      if (faltasResult.status === 'fulfilled' && faltasResult.value.ok) {
-        const dadosFaltas = await faltasResult.value.json();
-        const listaFaltas = dadosFaltas?.DataSet?.Table ?? [];
-        setFaltas(listaFaltas);
-      }
-
-      // 4. Processar tipos de falta
-      if (tiposFaltaResult.status === 'fulfilled' && tiposFaltaResult.value.ok) {
-        const dadosTiposFalta = await tiposFaltaResult.value.json();
-        const lista = dadosTiposFalta?.DataSet?.Table ?? [];
-        setTiposFalta(lista);
-        const mapa = Object.fromEntries(lista.map(f => [f.Falta, f.Descricao]));
-        setMapaFaltas(mapa);
-      }
-
-      // 5. Processar horário funcionário
-      if (horarioFuncResult.status === 'fulfilled' && horarioFuncResult.value.ok) {
-        const dadosHorario = await horarioFuncResult.value.json();
-        const horario = dadosHorario?.DataSet?.Table?.[0] ?? null;
-        setHorarioFuncionario(horario);
-      }
-
-      // 6. Processar horários de trabalho
-      if (horariosTrabalhoResult.status === 'fulfilled' && horariosTrabalhoResult.value.ok) {
-        const dadosHorarios = await horariosTrabalhoResult.value.json();
-        const lista = dadosHorarios?.DataSet?.Table ?? [];
-        setHorariosTrabalho(lista);
-      }
-
-      // 7. Processar totalizador férias
-      if (feriasTotalizadorResult.status !== 'fulfilled') {
-  console.warn("Erro a carregar totalizador de férias");
-  setFeriasTotalizador(null);
-}
-
-
-      // 8. Processar pendentes
-      if (pendentesResult.status === 'fulfilled' && pendentesResult.value.ok) {
-        const dadosPendentes = await pendentesResult.value.json();
-        setFaltasPendentes(dadosPendentes || []);
-        
-        // Calcular dias pendentes
-        const apenasDoFuncionario = (dadosPendentes || []).filter(p => p.funcionario === funcionarioId);
-        const diasPendentesSet = new Set();
-
-        apenasDoFuncionario.forEach(p => {
-          if (p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim) {
-            const inicio = new Date(p.dataInicio);
-            const fim = new Date(p.dataFim);
-            let dataAtual = new Date(inicio);
-
-            while (dataAtual <= fim) {
-              const iso = dataAtual.toISOString().split('T')[0];
-              diasPendentesSet.add(iso);
-              dataAtual.setDate(dataAtual.getDate() + 1);
-            }
-          } else if (p.dataPedido) {
-            const data = new Date(p.dataPedido).toISOString().split('T')[0];
-            diasPendentesSet.add(data);
-          }
-        });
-
-        setDiasPendentes(Array.from(diasPendentesSet));
-      }
-
-      // Definir dia selecionado como hoje se não estiver definido
-      if (!diaSelecionado) {
-        const hoje = formatarData(new Date());
-        setDiaSelecionado(hoje);
-        await carregarDetalhes(hoje);
-      }
-
-    } catch (err) {
-      console.error('Erro ao carregar dados:', err);
-    } finally {
-      setLoading(false);
+    if (res.ok) {
+      const data = await res.json();
+      setFaltasPendentes(data || []);
+    } else {
+      console.warn("Erro ao buscar pendentes:", await res.text());
     }
-  };
+  } catch (err) {
+    console.error("Erro ao carregar faltas pendentes:", err);
+  }
+};
 
-  const carregarFaltasPendentes = async () => {
-    const token = localStorage.getItem('loginToken');
-    const urlempresa = localStorage.getItem('urlempresa');
+const carregarDiasPendentes = async () => {
+  const token = localStorage.getItem('loginToken');
+  const urlempresa = localStorage.getItem('urlempresa');
+  const funcionarioId = localStorage.getItem('codFuncionario');
 
-    try {
-      const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          urlempresa,
-          'Content-Type': 'application/json'
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+
+      // Filtro pelo funcionário atual
+      const apenasDoFuncionario = data.filter(p => p.funcionario === funcionarioId);
+
+      const diasPendentesSet = new Set();
+
+      apenasDoFuncionario.forEach(p => {
+        if (p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim) {
+          const inicio = new Date(p.dataInicio);
+          const fim = new Date(p.dataFim);
+          let dataAtual = new Date(inicio);
+
+          while (dataAtual <= fim) {
+            const iso = dataAtual.toISOString().split('T')[0];
+            diasPendentesSet.add(iso);
+            dataAtual.setDate(dataAtual.getDate() + 1);
+          }
+        } else if (p.dataPedido) {
+          const data = new Date(p.dataPedido).toISOString().split('T')[0];
+          diasPendentesSet.add(data);
         }
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setFaltasPendentes(data || []);
-      } else {
-        console.warn("Erro ao buscar pendentes:", await res.text());
-      }
-    } catch (err) {
-      console.error("Erro ao carregar faltas pendentes:", err);
+      setDiasPendentes(Array.from(diasPendentesSet));
+    } else {
+      console.warn("Erro ao carregar pendentes:", await res.text());
     }
+  } catch (err) {
+    console.error("Erro ao carregar pendentes:", err);
+  }
+};
+
+const submeterFalta = async (e) => {
+  e.preventDefault();
+
+  const token = localStorage.getItem('loginToken');
+  const funcionarioId = localStorage.getItem('codFuncionario');
+  const urlempresa = localStorage.getItem('urlempresa');
+  const dataFalta = diaSelecionado;
+
+  const dadosPrincipal = {
+    tipoPedido: 'FALTA',
+    funcionario: funcionarioId,
+    dataPedido: dataFalta,
+    falta: novaFalta.Falta,
+    horas: novaFalta.Horas ? 1 : 0,
+    tempo: novaFalta.Tempo,
+    justificacao: novaFalta.Observacoes,
+    observacoes: '',
+    usuarioCriador: funcionarioId,
+    origem: 'LINK',
+    descontaAlimentacao: novaFalta.DescontaAlimentacao ? 1 : 0,
+    descontaSubsidioTurno: novaFalta.DescontaSubsidioTurno ? 1 : 0
   };
 
-  const carregarDiasPendentes = async () => {
-    const token = localStorage.getItem('loginToken');
-    const urlempresa = localStorage.getItem('urlempresa');
-    const funcionarioId = localStorage.getItem('codFuncionario');
+  if (!funcionarioId || !dataFalta || !novaFalta.Falta) {
+    alert('Preenche todos os campos obrigatórios.');
+    return;
+  }
 
-    try {
-      const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          urlempresa,
-          'Content-Type': 'application/json'
-        }
-      });
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa
+      },
+      body: JSON.stringify(dadosPrincipal)
+    });
 
-      if (res.ok) {
-        const data = await res.json();
+    if (res.ok) {
+      alert('Pedido de falta submetido com sucesso para aprovação.');
 
-        // Filtro pelo funcionário atual
-        const apenasDoFuncionario = data.filter(p => p.funcionario === funcionarioId);
+      // Verifica se deve submeter automaticamente a F40
+      if (novaFalta.DescontaAlimentacao) {
+        const dadosF40 = {
+          ...dadosPrincipal,
+          falta: 'F40',
+          justificacao: 'Submetida automaticamente (desconto alimentação)',
+          observacoes: '',
+        };
 
-        const diasPendentesSet = new Set();
-
-        apenasDoFuncionario.forEach(p => {
-          if (p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim) {
-            const inicio = new Date(p.dataInicio);
-            const fim = new Date(p.dataFim);
-            let dataAtual = new Date(inicio);
-
-            while (dataAtual <= fim) {
-              const iso = dataAtual.toISOString().split('T')[0];
-              diasPendentesSet.add(iso);
-              dataAtual.setDate(dataAtual.getDate() + 1);
-            }
-          } else if (p.dataPedido) {
-            const data = new Date(p.dataPedido).toISOString().split('T')[0];
-            diasPendentesSet.add(data);
-          }
-        });
-
-        setDiasPendentes(Array.from(diasPendentesSet));
-      } else {
-        console.warn("Erro ao carregar pendentes:", await res.text());
-      }
-    } catch (err) {
-      console.error("Erro ao carregar pendentes:", err);
-    }
-  };
-
-  const submeterFalta = async (e) => {
-    e.preventDefault();
-
-    const token = localStorage.getItem('loginToken');
-    const funcionarioId = localStorage.getItem('codFuncionario');
-    const urlempresa = localStorage.getItem('urlempresa');
-    const dataFalta = diaSelecionado;
-
-    const dadosPrincipal = {
-      tipoPedido: 'FALTA',
-      funcionario: funcionarioId,
-      dataPedido: dataFalta,
-      falta: novaFalta.Falta,
-      horas: novaFalta.Horas ? 1 : 0,
-      tempo: novaFalta.Tempo,
-      justificacao: novaFalta.Observacoes,
-      observacoes: '',
-      usuarioCriador: funcionarioId,
-      origem: 'LINK',
-      descontaAlimentacao: novaFalta.DescontaAlimentacao ? 1 : 0,
-      descontaSubsidioTurno: novaFalta.DescontaSubsidioTurno ? 1 : 0
-    };
-
-    if (!funcionarioId || !dataFalta || !novaFalta.Falta) {
-      alert('Preenche todos os campos obrigatórios.');
-      return;
-    }
-
-    try {
-      const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          urlempresa
-        },
-        body: JSON.stringify(dadosPrincipal)
-      });
-
-      if (res.ok) {
-        alert('Pedido de falta submetido com sucesso para aprovação.');
-
-        // Verifica se deve submeter automaticamente a F40
-        if (novaFalta.DescontaAlimentacao) {
-          const dadosF40 = {
-            ...dadosPrincipal,
-            falta: 'F40',
-            justificacao: 'Submetida automaticamente (desconto alimentação)',
-            observacoes: '',
-          };
-
-          const resF40 = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-              urlempresa
-            },
-            body: JSON.stringify(dadosF40)
-          });
-
-          if (resF40.ok) {
-            console.log('Falta F40 submetida automaticamente.');
-          } else {
-            console.warn('Erro ao submeter falta F40:', await resF40.text());
-          }
-        }
-
-        setMostrarFormularioFalta(false);
-        setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
-        await carregarTodosDados();
-      } else {
-        const erro = await res.text();
-        alert('Erro ao submeter falta: ' + erro);
-      }
-    } catch (err) {
-      console.error('Erro ao submeter falta:', err);
-      alert('Erro inesperado.');
-    }
-  };
-
-  const carregarFaltasFuncionario = async () => {
-    const token = localStorage.getItem("painelAdminToken");
-    const funcionarioId = localStorage.getItem('codFuncionario');
-    const urlempresa = localStorage.getItem('urlempresa');
-
-    try {
-      const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${funcionarioId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          urlempresa: urlempresa,
-        },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const listaFaltas = data?.DataSet?.Table ?? [];
-        setFaltas(listaFaltas);
-        console.log('Faltas carregadas:', listaFaltas);
-      } else {
-        const msg = await res.text();
-        console.error('Erro ao carregar faltas:', res.status, msg);
-      }
-    } catch (err) {
-      console.error('Erro ao buscar faltas:', err);
-    }
-  };
-
-  const submeterFerias = async (e) => {
-    e.preventDefault();
-
-    const token = localStorage.getItem("loginToken");
-    const urlempresa = localStorage.getItem("urlempresa");
-    const funcionarioId = localStorage.getItem("codFuncionario");
-
-    const { dataInicio, dataFim, Horas, Tempo, Observacoes } = novaFaltaFerias;
-
-    if (!funcionarioId || !dataInicio || !dataFim) {
-      alert("Preenche todos os campos obrigatórios.");
-      return;
-    }
-
-    const dados = {
-      tipoPedido: 'FERIAS',
-      funcionario: funcionarioId,
-      dataInicio,
-      dataFim,
-      dataPedido: dataInicio,
-      horas: Horas ? 1 : 0,
-      tempo: Tempo,
-      justificacao: Observacoes,
-      observacoes: '',
-      usuarioCriador: funcionarioId,
-      origem: 'LINK'
-    };
-
-    try {
-      if (modoEdicaoFerias && feriasOriginal?.id) {
-        // 1. Elimina o pedido anterior
-        const resDelete = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${feriasOriginal.id}`, {
-          method: 'DELETE',
+        const resF40 = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
             urlempresa
-          }
+          },
+          body: JSON.stringify(dadosF40)
         });
 
-        if (!resDelete.ok) {
-          const erro = await resDelete.text();
-          alert("Erro ao eliminar pedido anterior: " + erro);
-          return;
+        if (resF40.ok) {
+          console.log('Falta F40 submetida automaticamente.');
+        } else {
+          console.warn('Erro ao submeter falta F40:', await resF40.text());
         }
       }
 
-      // 2. Submete novo pedido de férias
-      const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          urlempresa
-        },
-        body: JSON.stringify(dados)
-      });
+      setMostrarFormularioFalta(false);
+      setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
+      await carregarFaltasFuncionario();
+    } else {
+      const erro = await res.text();
+      alert('Erro ao submeter falta: ' + erro);
+    }
+  } catch (err) {
+    console.error('Erro ao submeter falta:', err);
+    alert('Erro inesperado.');
+  }
+};
 
-      if (res.ok) {
-        alert(`Pedido de férias ${modoEdicaoFerias ? "editado" : "submetido"} com sucesso para aprovação.`);
-        setMostrarFormularioFerias(false);
-        setNovaFaltaFerias({
-          dataInicio: '',
-          dataFim: '',
-          Horas: false,
-          Tempo: 1,
-          Observacoes: ''
-        });
-        setModoEdicaoFerias(false);
-        setFeriasOriginal(null);
+const carregarFaltasFuncionario = async () => {
+  const token = localStorage.getItem("painelAdminToken");
+  const funcionarioId = localStorage.getItem('codFuncionario');
+  const urlempresa = localStorage.getItem('urlempresa');
+  
+        
 
-        await carregarTodosDados();
-        await carregarDetalhes(diaSelecionado);
-      } else {
-        const erro = await res.text();
-        alert("Erro ao submeter férias: " + erro);
+ try {
+  const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${funcionarioId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      urlempresa: urlempresa,
+    },
+  });
+
+  if (res.ok) {
+    const data = await res.json();
+    const listaFaltas = data?.DataSet?.Table ?? [];
+    setFaltas(listaFaltas);
+    console.log('Faltas carregadas:', listaFaltas);
+  } else {
+    const msg = await res.text(); // lê a resposta mesmo se for erro
+    console.error('Erro ao carregar faltas:', res.status, msg);
+  }
+} catch (err) {
+  console.error('Erro ao buscar faltas:', err);
+}
+
+};
+
+const carregarTiposFalta = async () => {
+  const token = localStorage.getItem("painelAdminToken");
+  const urlempresa = localStorage.getItem("urlempresa");
+
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa: urlempresa,
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const lista = data?.DataSet?.Table ?? [];
+      setTiposFalta(lista);
+        const mapa = Object.fromEntries(lista.map(f => [f.Falta, f.Descricao]));
+        setMapaFaltas(mapa);
+
+      console.log('Tipos de falta carregados:', lista);
+    } else {
+      const msg = await res.text();
+      console.error('Erro ao carregar tipos de falta:', res.status, msg);
+    }
+  } catch (err) {
+    console.error('Erro ao buscar tipos de falta:', err);
+  }
+};
+
+const carregarHorarioFuncionario = async () => {
+  const token = localStorage.getItem("painelAdminToken");
+  const funcionarioId = "001";
+  const urlempresa = localStorage.getItem("urlempresa");
+
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetHorarioFuncionario/${funcionarioId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        urlempresa: urlempresa,
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const horario = data?.DataSet?.Table?.[0] ?? null;
+      setHorarioFuncionario(horario); // ex: { Funcionario: "001", Horario: "001", ... }
+    } else {
+      console.error("Erro ao carregar horário do funcionário:", res.status, await res.text());
+    }
+  } catch (err) {
+    console.error("Erro ao buscar horário do funcionário:", err);
+  }
+};
+
+const carregarHorariosTrabalho = async () => {
+  const token = localStorage.getItem("painelAdminToken");
+  const urlempresa = localStorage.getItem("urlempresa");
+
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetHorariosTrabalho`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        urlempresa: urlempresa,
+      },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const lista = data?.DataSet?.Table ?? [];
+      setHorariosTrabalho(lista);
+    } else {
+      console.error("Erro ao carregar horários de trabalho:", res.status, await res.text());
+    }
+  } catch (err) {
+    console.error("Erro ao buscar horários de trabalho:", err);
+  }
+};
+
+
+const carregarTotalizadorFerias = async () => {
+  const token = localStorage.getItem("painelAdminToken");
+  const urlempresa = localStorage.getItem("urlempresa");
+  const funcionarioId = localStorage.getItem("codFuncionario");
+
+  try {
+    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetTotalizadorFeriasFuncionario/${funcionarioId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+        'Content-Type': 'application/json'
       }
-    } catch (err) {
-      console.error("Erro ao submeter férias:", err);
-      alert("Erro inesperado.");
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setFeriasTotalizador(data?.DataSet?.Table?.[0] || null); // Assumindo estrutura com DataSet
+    } else {
+      console.warn("Erro ao carregar totalizador de férias", await res.text());
     }
-  };
+  } catch (err) {
+    console.error("Erro ao buscar totalizador de férias:", err);
+  }
+};
 
-  const cancelarPedido = async (pedido) => {
-    let mensagemConfirmacao = 'Tens a certeza que queres cancelar este pedido?';
+const submeterFerias = async (e) => {
+  e.preventDefault();
 
-    if (pedido.tipoPedido === 'FERIAS' && pedido.dataInicio && pedido.dataFim) {
-      mensagemConfirmacao = `Vais eliminar um pedido de férias de ${pedido.dataInicio} até ${pedido.dataFim}. Confirmas?`;
-    }
+  const token = localStorage.getItem("loginToken");
+  const urlempresa = localStorage.getItem("urlempresa");
+  const funcionarioId = localStorage.getItem("codFuncionario");
 
-    const confirmar = window.confirm(mensagemConfirmacao);
-    if (!confirmar) return;
+  const { dataInicio, dataFim, Horas, Tempo, Observacoes } = novaFaltaFerias;
 
-    const token = localStorage.getItem('loginToken');
-    const urlempresa = localStorage.getItem('urlempresa');
+  if (!funcionarioId || !dataInicio || !dataFim) {
+    alert("Preenche todos os campos obrigatórios.");
+    return;
+  }
 
-    try {
-      const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${pedido.id}`, {
+const dados = {
+  tipoPedido: 'FERIAS',
+  funcionario: funcionarioId,
+  dataInicio,
+  dataFim,
+  dataPedido: dataInicio, // ← este campo é obrigatório!
+  horas: Horas ? 1 : 0,
+  tempo: Tempo,
+  justificacao: Observacoes,
+  observacoes: '',
+  usuarioCriador: funcionarioId,
+  origem: 'LINK'
+};
+
+
+  try {
+    if (modoEdicaoFerias && feriasOriginal?.id) {
+      // 1. Elimina o pedido anterior
+      const resDelete = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${feriasOriginal.id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -588,130 +409,214 @@ const CalendarioHorasTrabalho = () => {
         }
       });
 
-      if (res.ok) {
-        alert('Pedido cancelado com sucesso.');
-        await carregarTodosDados();
-        await carregarDetalhes(diaSelecionado);
-      } else {
-        const erro = await res.text();
-        alert('Erro ao cancelar pedido: ' + erro);
+      if (!resDelete.ok) {
+        const erro = await resDelete.text();
+        alert("Erro ao eliminar pedido anterior: " + erro);
+        return;
       }
-    } catch (err) {
-      console.error('Erro ao cancelar pedido:', err);
-      alert('Erro inesperado ao cancelar pedido.');
+    }
+
+    // 2. Submete novo pedido de férias (criação ou atualização)
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa
+      },
+      body: JSON.stringify(dados)
+    });
+
+    if (res.ok) {
+      alert(`Pedido de férias ${modoEdicaoFerias ? "editado" : "submetido"} com sucesso para aprovação.`);
+      setMostrarFormularioFerias(false);
+      setNovaFaltaFerias({
+        dataInicio: '',
+        dataFim: '',
+        Horas: false,
+        Tempo: 1,
+        Observacoes: ''
+      });
+      setModoEdicaoFerias(false);
+      setFeriasOriginal(null);
+
+      await carregarFaltasFuncionario();
+      await carregarDiasPendentes();
+      await carregarDetalhes(diaSelecionado);
+    } else {
+      const erro = await res.text();
+      alert("Erro ao submeter férias: " + erro);
+    }
+  } catch (err) {
+    console.error("Erro ao submeter férias:", err);
+    alert("Erro inesperado.");
+  }
+};
+
+
+
+const cancelarPedido = async (pedido) => {
+  let mensagemConfirmacao = 'Tens a certeza que queres cancelar este pedido?';
+
+  if (pedido.tipoPedido === 'FERIAS' && pedido.dataInicio && pedido.dataFim) {
+    mensagemConfirmacao = `Vais eliminar um pedido de férias de ${pedido.dataInicio} até ${pedido.dataFim}. Confirmas?`;
+  }
+
+  const confirmar = window.confirm(mensagemConfirmacao);
+  if (!confirmar) return;
+
+  const token = localStorage.getItem('loginToken');
+  const urlempresa = localStorage.getItem('urlempresa');
+
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${pedido.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa
+      }
+    });
+
+    if (res.ok) {
+      alert('Pedido cancelado com sucesso.');
+      await carregarFaltasFuncionario();
+      await carregarFaltasPendentes();
+      await carregarDiasPendentes();
+      await carregarDetalhes(diaSelecionado);
+    } else {
+      const erro = await res.text();
+      alert('Erro ao cancelar pedido: ' + erro);
+    }
+  } catch (err) {
+    console.error('Erro ao cancelar pedido:', err);
+    alert('Erro inesperado ao cancelar pedido.');
+  }
+};
+
+const cancelarPonto = async (registoId) => {
+  const confirmar = window.confirm('Tens a certeza que queres cancelar este ponto pendente?');
+
+  if (!confirmar) return;
+
+  const token = localStorage.getItem('loginToken');
+  const urlempresa = localStorage.getItem('urlempresa');
+
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/cancelar/${registoId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa
+      }
+    });
+
+    if (res.ok) {
+      alert('Registo de ponto cancelado com sucesso.');
+      await carregarResumo();
+      await carregarDetalhes(diaSelecionado);
+    } else {
+      const erro = await res.text();
+      alert('Erro ao cancelar registo: ' + erro);
+    }
+  } catch (err) {
+    console.error('Erro ao cancelar registo:', err);
+    alert('Erro inesperado ao cancelar registo.');
+  }
+};
+
+// dentro do componente React
+
+// dentro do componente React
+
+const eliminarFeria = async (dataFeria) => {
+  const funcionario = localStorage.getItem('codFuncionario');
+  const token = localStorage.getItem('painelAdminToken');
+  const urlempresa = localStorage.getItem('urlempresa');
+
+  const dataFormatada = new Date(dataFeria).toISOString().split('T')[0];
+
+  const urlFeria = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFeriasFuncionario/${funcionario}/${dataFormatada}`;
+  const urlFaltaF50 = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionario}/${dataFormatada}/F50`;
+  const urlFaltaF40 = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionario}/${dataFormatada}/F40`;
+
+  try {
+    // Eliminar a férias
+    const resFeria = await fetch(urlFeria, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!resFeria.ok) {
+      const texto = await resFeria.text();
+      throw new Error(`Erro ao eliminar férias. Status ${resFeria.status}: ${texto}`);
+    }
+
+    // Tenta eliminar F50
+    await fetch(urlFaltaF50, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+        'Content-Type': 'application/json',
+      }
+    });
+
+    // Tenta eliminar F40
+    await fetch(urlFaltaF40, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+        'Content-Type': 'application/json',
+      }
+    });
+
+    alert(`Férias de ${dataFormatada} eliminadas com sucesso.`);
+
+    await carregarFaltasFuncionario();
+    await carregarDiasPendentes();
+    await carregarDetalhes(dataFormatada);
+
+  } catch (err) {
+    console.error('Erro ao eliminar férias/faltas associadas:', err);
+    alert(`Erro ao eliminar férias ou faltas associadas: ${err.message}`);
+  }
+};
+
+
+
+
+
+
+useEffect(() => {
+  const atualizar = async () => {
+    const hoje = formatarData(new Date());
+    if (diaSelecionado === hoje) {
+      await carregarResumo();
+      await carregarDetalhes(hoje);
     }
   };
 
-  const cancelarPonto = async (registoId) => {
-    const confirmar = window.confirm('Tens a certeza que queres cancelar este ponto pendente?');
+  const intervalo = setInterval(atualizar, 60 * 1000);
+  return () => clearInterval(intervalo);
+}, [diaSelecionado]);
 
-    if (!confirmar) return;
 
-    const token = localStorage.getItem('loginToken');
-    const urlempresa = localStorage.getItem('urlempresa');
 
-    try {
-      const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/cancelar/${registoId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          urlempresa
-        }
-      });
+useEffect(() => {
+  if (horarioFuncionario && horariosTrabalho.length > 0) {
+    const detalhes = horariosTrabalho.find(h => h.Horario === horarioFuncionario.Horario);
+    setDetalhesHorario(detalhes);
+  }
+}, [horarioFuncionario, horariosTrabalho]);
 
-      if (res.ok) {
-        alert('Registo de ponto cancelado com sucesso.');
-        await carregarTodosDados();
-        await carregarDetalhes(diaSelecionado);
-      } else {
-        const erro = await res.text();
-        alert('Erro ao cancelar registo: ' + erro);
-      }
-    } catch (err) {
-      console.error('Erro ao cancelar registo:', err);
-      alert('Erro inesperado ao cancelar registo.');
-    }
-  };
 
-  const eliminarFeria = async (dataFeria) => {
-    const funcionario = localStorage.getItem('codFuncionario');
-    const token = localStorage.getItem('painelAdminToken');
-    const urlempresa = localStorage.getItem('urlempresa');
-
-    const dataFormatada = new Date(dataFeria).toISOString().split('T')[0];
-
-    const urlFeria = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFeriasFuncionario/${funcionario}/${dataFormatada}`;
-    const urlFaltaF50 = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionario}/${dataFormatada}/F50`;
-    const urlFaltaF40 = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionario}/${dataFormatada}/F40`;
-
-    try {
-      // Eliminar a férias
-      const resFeria = await fetch(urlFeria, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          urlempresa,
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!resFeria.ok) {
-        const texto = await resFeria.text();
-        throw new Error(`Erro ao eliminar férias. Status ${resFeria.status}: ${texto}`);
-      }
-
-      // Tenta eliminar F50
-      await fetch(urlFaltaF50, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          urlempresa,
-          'Content-Type': 'application/json',
-        }
-      });
-
-      // Tenta eliminar F40
-      await fetch(urlFaltaF40, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          urlempresa,
-          'Content-Type': 'application/json',
-        }
-      });
-
-      alert(`Férias de ${dataFormatada} eliminadas com sucesso.`);
-
-      await carregarTodosDados();
-      await carregarDetalhes(dataFormatada);
-
-    } catch (err) {
-      console.error('Erro ao eliminar férias/faltas associadas:', err);
-      alert(`Erro ao eliminar férias ou faltas associadas: ${err.message}`);
-    }
-  };
-
-  // Atualização em tempo real para o dia atual
-  useEffect(() => {
-    const atualizar = async () => {
-      const hoje = formatarData(new Date());
-      if (diaSelecionado === hoje) {
-        await carregarTodosDados();
-        await carregarDetalhes(hoje);
-      }
-    };
-
-    const intervalo = setInterval(atualizar, 60 * 1000);
-    return () => clearInterval(intervalo);
-  }, [diaSelecionado]);
-
-  useEffect(() => {
-    if (horarioFuncionario && horariosTrabalho.length > 0) {
-      const detalhes = horariosTrabalho.find(h => h.Horario === horarioFuncionario.Horario);
-      setDetalhesHorario(detalhes);
-    }
-  }, [horarioFuncionario, horariosTrabalho]);
 
   const formatarData = (date) => {
     const ano = date.getFullYear();
@@ -720,52 +625,138 @@ const CalendarioHorasTrabalho = () => {
     return `${ano}-${mes}-${dia}`;
   };
 
+  const carregarResumo = async () => {
+    const token = localStorage.getItem('loginToken');
+    const ano = mesAtual.getFullYear();
+    const mes = String(mesAtual.getMonth() + 1).padStart(2, '0');
+
+    try {
+      setLoading(true);
+      const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/resumo-mensal?ano=${ano}&mes=${mes}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const dados = await res.json();
+      const mapeado = {};
+const hoje = formatarData(new Date());
+
+dados.forEach(dia => {
+  let minutosTotais = dia.horas * 60 + dia.minutos;
+
+  // Se for hoje e ainda não tiver saída, calcula tempo até agora
+  if (dia.dia === hoje) {
+    const entradaSemSaida = registosBrutos
+      .filter(r => r.tipo === 'entrada' && formatarData(new Date(r.timestamp)) === hoje)
+      .some(e => {
+        const entradaTS = new Date(e.timestamp);
+        const temSaida = registosBrutos.some(s =>
+          s.tipo === 'saida' &&
+          s.obra_id === e.obra_id &&
+          new Date(s.timestamp) > entradaTS
+        );
+        return !temSaida;
+      });
+
+    if (entradaSemSaida) {
+      const entradasAtivas = registosBrutos
+        .filter(r => r.tipo === 'entrada' && formatarData(new Date(r.timestamp)) === hoje)
+        .filter(e => {
+          const entradaTS = new Date(e.timestamp);
+          const temSaida = registosBrutos.some(s =>
+            s.tipo === 'saida' &&
+            s.obra_id === e.obra_id &&
+            new Date(s.timestamp) > entradaTS
+          );
+          return !temSaida;
+        });
+
+      entradasAtivas.forEach(entrada => {
+        const entradaTS = new Date(entrada.timestamp);
+        const minutosDesdeEntrada = Math.floor((Date.now() - entradaTS.getTime()) / 60000);
+        minutosTotais += minutosDesdeEntrada;
+      });
+    }
+  }
+
+  const horas = Math.floor(minutosTotais / 60);
+  const minutos = minutosTotais % 60;
+  mapeado[dia.dia] = `${horas}h${minutos > 0 ? ` ${minutos}min` : ''}`;
+});
+
+setResumo(mapeado);
+
+    } catch (err) {
+      console.error('Erro ao carregar resumo mensal:', err);
+      alert('Erro ao carregar resumo mensal');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const carregarObras = async () => {
+    const token = localStorage.getItem('loginToken');
+    try {
+      const res = await fetch(`https://backend.advir.pt/api/obra`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const dados = await res.json();
+      setObras(dados);
+    } catch (err) {
+      console.error('Erro ao carregar obras:', err);
+    }
+  };
+
   const carregarDetalhes = async (data) => {
     setDiaSelecionado(data);
     const faltasNoDia = faltas.filter(f => {
-      const dataFalta = new Date(f.Data);
-      return (
-        dataFalta.getFullYear() === new Date(data).getFullYear() &&
-        dataFalta.getMonth() === new Date(data).getMonth() &&
-        dataFalta.getDate() === new Date(data).getDate()
-      );
-    });
-    setFaltasDoDia(faltasNoDia);
+  const dataFalta = new Date(f.Data);
+  return (
+    dataFalta.getFullYear() === new Date(data).getFullYear() &&
+    dataFalta.getMonth() === new Date(data).getMonth() &&
+    dataFalta.getDate() === new Date(data).getDate()
+  );
+});
+setFaltasDoDia(faltasNoDia);
 
-    const funcionarioId = localStorage.getItem('codFuncionario');
 
-    const pedidosPendentesDoDia = faltasPendentes.filter(p => {
-      const dataSelecionada = new Date(data);
-      dataSelecionada.setHours(0, 0, 0, 0);
+const funcionarioId = localStorage.getItem('codFuncionario');
 
-      const isDoFuncionario = p.funcionario === funcionarioId;
+const pedidosPendentesDoDia = faltasPendentes.filter(p => {
+  const dataSelecionada = new Date(data);
+  dataSelecionada.setHours(0, 0, 0, 0);
 
-      const isFalta = p.tipoPedido === 'FALTA' && p.dataPedido;
-      const isFerias = p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim;
+  const isDoFuncionario = p.funcionario === funcionarioId;
 
-      let coincide = false;
+  const isFalta = p.tipoPedido === 'FALTA' && p.dataPedido;
+  const isFerias = p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim;
 
-      if (isFalta) {
-        const dataPedido = new Date(p.dataPedido);
-        dataPedido.setHours(0, 0, 0, 0);
-        coincide = dataPedido.getTime() === dataSelecionada.getTime();
-      }
+  let coincide = false;
 
-      if (isFerias) {
-        const inicio = new Date(p.dataInicio);
-        const fim = new Date(p.dataFim);
-        inicio.setHours(0, 0, 0, 0);
-        fim.setHours(0, 0, 0, 0);
-        coincide = dataSelecionada >= inicio && dataSelecionada <= fim;
-      }
+  if (isFalta) {
+    const dataPedido = new Date(p.dataPedido);
+    dataPedido.setHours(0, 0, 0, 0);
+    coincide = dataPedido.getTime() === dataSelecionada.getTime();
+  }
 
-      return isDoFuncionario && p.estadoAprovacao === 'Pendente' && coincide;
-    });
+  if (isFerias) {
+    const inicio = new Date(p.dataInicio);
+    const fim = new Date(p.dataFim);
+    inicio.setHours(0, 0, 0, 0);
+    fim.setHours(0, 0, 0, 0);
+    coincide = dataSelecionada >= inicio && dataSelecionada <= fim;
+  }
 
-    setPedidosPendentesDoDia(pedidosPendentesDoDia);
+  return isDoFuncionario && p.estadoAprovacao === 'Pendente' && coincide;
+});
+
+setPedidosPendentesDoDia(pedidosPendentesDoDia);
+console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
+
+
 
     const token = localStorage.getItem('loginToken');
     try {
+      setLoading(true);
       const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${data}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -797,12 +788,13 @@ const CalendarioHorasTrabalho = () => {
             temposPorObra[obraId].totalMinutos += minutos;
             estadoAtualPorObra[obraId] = null;
           }
-
+          // Se houver uma entrada sem saída e for o dia atual, soma tempo até agora
           if (estadoAtualPorObra[obraId] && formatarData(ts) === formatarData(new Date())) {
             const agora = new Date();
             const minutos = Math.max(0, (agora - estadoAtualPorObra[obraId]) / 60000);
             temposPorObra[obraId].totalMinutos += minutos;
           }
+
         }
 
         const detalhesPorObra = Object.values(temposPorObra).map(o => ({
@@ -815,6 +807,8 @@ const CalendarioHorasTrabalho = () => {
       }
     } catch (err) {
       console.error('Erro ao carregar detalhes do dia:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -844,8 +838,8 @@ const CalendarioHorasTrabalho = () => {
 
       if (res.ok) {
         alert('Ponto registado para aprovação');
-        await carregarTodosDados();
-        await carregarDetalhes(diaSelecionado);
+        carregarResumo();
+        carregarDetalhes(diaSelecionado);
         setNovaEntrada({ tipo: 'entrada', obra_id: '', hora: '08:00', justificacao: '' });
       } else {
         alert('Erro ao registar ponto');
@@ -879,133 +873,182 @@ const CalendarioHorasTrabalho = () => {
     return diasDoMes;
   };
 
-  const iniciarEdicaoRegisto = (registo) => {
-    const data = new Date(registo.timestamp);
-    const hora = data.toTimeString().slice(0,5);
-    setNovaHoraEdicao(hora);
-    setJustificacaoEdicao(registo.justificacao || '');
-    setRegistoEmEdicao(registo);
-  };
 
-  const submeterAlteracaoHora = async () => {
-    if (!registoEmEdicao || !novaHoraEdicao) return;
-    if (!novaJustificacaoEdicao.trim()) {
-      alert('Indica uma justificação para a alteração.');
+const iniciarEdicaoRegisto = (registo) => {
+  const data = new Date(registo.timestamp);
+  const hora = data.toTimeString().slice(0,5);
+  setNovaHoraEdicao(hora);
+  setJustificacaoEdicao(registo.justificacao || '');
+  setRegistoEmEdicao(registo);
+};
+
+
+const submeterAlteracaoHora = async () => {
+  if (!registoEmEdicao || !novaHoraEdicao) return;
+  if (!novaJustificacaoEdicao.trim()) {
+  alert('Indica uma justificação para a alteração.');
+  return;
+}
+
+
+  const [ano, mes, dia] = registoEmEdicao.timestamp.split('T')[0].split('-');
+  const [hora, minuto] = novaHoraEdicao.split(':');
+  const novaData = new Date(ano, mes - 1, dia, hora, minuto);
+
+  const token = localStorage.getItem('loginToken');
+
+  try {
+    // 1. Eliminar o registo antigo
+    const resDel = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/cancelar/${registoEmEdicao.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      }
+    });
+
+    if (!resDel.ok) {
+      const erro = await resDel.text();
+      alert("Erro ao eliminar o registo anterior: " + erro);
       return;
     }
 
-    const [ano, mes, dia] = registoEmEdicao.timestamp.split('T')[0].split('-');
-    const [hora, minuto] = novaHoraEdicao.split(':');
-    const novaData = new Date(ano, mes - 1, dia, hora, minuto);
+    // 2. Criar novo registo com nova hora
+    const body = {
+      tipo: registoEmEdicao.tipo,
+      obra_id: registoEmEdicao.obra_id,
+      timestamp: novaData.toISOString(),
+      justificacao: justificacaoEdicao.trim(),
 
-    const token = localStorage.getItem('loginToken');
+    };
 
+    const resAdd = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (resAdd.ok) {
+      alert('Alteração de ponto submetida com sucesso.');
+      setRegistoEmEdicao(null);
+      await carregarResumo();
+      await carregarDetalhes(diaSelecionado);
+    } else {
+      const erro = await resAdd.text();
+      alert('Erro ao submeter novo ponto: ' + erro);
+    }
+
+  } catch (err) {
+    console.error('Erro na alteração de ponto:', err);
+    alert('Erro inesperado na alteração de ponto.');
+  }
+};
+
+
+
+ const obterClasseDia = (date) => {
+  if (!date) return '';
+  
+  const hoje = new Date();
+  const dataFormatada = formatarData(date);
+  const isHoje = formatarData(hoje) === dataFormatada;
+  const isPassado = date < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const temRegisto = resumo[dataFormatada];
+  const diaSemana = date.getDay();
+  const isDiaUtil = diaSemana !== 0 && diaSemana !== 6;
+  const isSelecionado = diaSelecionado === dataFormatada;
+  const isPendente = diasPendentes.includes(dataFormatada);
+
+const existeFalta = Array.isArray(faltas) && faltas.some(f => {
+  const dataFalta = new Date(f.Data);
+  return (
+    dataFalta.getFullYear() === date.getFullYear() &&
+    dataFalta.getMonth() === date.getMonth() &&
+    dataFalta.getDate() === date.getDate()
+  );
+});
+
+const existeFaltaF50 = Array.isArray(faltas) && faltas.some(f => {
+  const dataFalta = new Date(f.Data);
+  return (
+    f.Falta === 'F50' &&
+    dataFalta.getFullYear() === date.getFullYear() &&
+    dataFalta.getMonth() === date.getMonth() &&
+    dataFalta.getDate() === date.getDate()
+  );
+});
+
+
+
+
+
+  let classes = 'calendario-dia btn';
+
+  if (isSelecionado) classes += ' btn-primary';
+else if (existeFalta) classes += ' dia-falta';
+
+
+  else if (isHoje) classes += ' btn-outline-primary';
+  else if (isPendente) classes += ' dia-pendente';
+
+else if (temRegisto) {
+  const horasStr = resumo[dataFormatada]?.split('h')[0];
+  const horasTrabalhadas = parseInt(horasStr, 10);
+
+  if (horasTrabalhadas >= 8) {
+    classes += ' btn-success';
+  } else {
+    classes += ' btn-menor-8h';
+  }
+}
+
+  //else if (isPassado && isDiaUtil) classes += ' btn-warning';
+  else classes += ' btn-outline-secondary';
+
+  return classes;
+};
+
+
+
+  
+
+useEffect(() => {
+  const inicializarTudo = async () => {
+    setLoading(true);
     try {
-      // 1. Eliminar o registo antigo
-      const resDel = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/cancelar/${registoEmEdicao.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        }
-      });
+      await carregarResumo();
+      await carregarObras();
+      await carregarFaltasFuncionario();
+      await carregarTiposFalta();
+      await carregarHorarioFuncionario();
+      await carregarHorariosTrabalho();
+      await carregarTotalizadorFerias();
+      await carregarDiasPendentes();
+      await carregarFaltasPendentes();
 
-      if (!resDel.ok) {
-        const erro = await resDel.text();
-        alert("Erro ao eliminar o registo anterior: " + erro);
-        return;
-      }
+      const hoje = new Date();
+      const dataFormatada = formatarData(hoje);
 
-      // 2. Criar novo registo com nova hora
-      const body = {
-        tipo: registoEmEdicao.tipo,
-        obra_id: registoEmEdicao.obra_id,
-        timestamp: novaData.toISOString(),
-        justificacao: justificacaoEdicao.trim(),
-      };
+      // Primeiro define o dia
+      setDiaSelecionado(dataFormatada);
 
-      const resAdd = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (resAdd.ok) {
-        alert('Alteração de ponto submetida com sucesso.');
-        setRegistoEmEdicao(null);
-        await carregarTodosDados();
-        await carregarDetalhes(diaSelecionado);
-      } else {
-        const erro = await resAdd.text();
-        alert('Erro ao submeter novo ponto: ' + erro);
-      }
-
+      // Depois carrega os detalhes com base nesse dia
+      await carregarDetalhes(dataFormatada);
     } catch (err) {
-      console.error('Erro na alteração de ponto:', err);
-      alert('Erro inesperado na alteração de ponto.');
+      console.error('Erro ao carregar dados iniciais:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const obterClasseDia = (date) => {
-    if (!date) return '';
-    
-    const hoje = new Date();
-    const dataFormatada = formatarData(date);
-    const isHoje = formatarData(hoje) === dataFormatada;
-    const isPassado = date < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-    const temRegisto = resumo[dataFormatada];
-    const diaSemana = date.getDay();
-    const isDiaUtil = diaSemana !== 0 && diaSemana !== 6;
-    const isSelecionado = diaSelecionado === dataFormatada;
-    const isPendente = diasPendentes.includes(dataFormatada);
+  inicializarTudo();
+}, [mesAtual]);
 
-    const existeFalta = Array.isArray(faltas) && faltas.some(f => {
-      const dataFalta = new Date(f.Data);
-      return (
-        dataFalta.getFullYear() === date.getFullYear() &&
-        dataFalta.getMonth() === date.getMonth() &&
-        dataFalta.getDate() === date.getDate()
-      );
-    });
 
-    const existeFaltaF50 = Array.isArray(faltas) && faltas.some(f => {
-      const dataFalta = new Date(f.Data);
-      return (
-        f.Falta === 'F50' &&
-        dataFalta.getFullYear() === date.getFullYear() &&
-        dataFalta.getMonth() === date.getMonth() &&
-        dataFalta.getDate() === date.getDate()
-      );
-    });
 
-    let classes = 'calendario-dia btn';
-
-    if (isSelecionado) classes += ' btn-primary';
-    else if (existeFalta) classes += ' dia-falta';
-    else if (isHoje) classes += ' btn-outline-primary';
-    else if (isPendente) classes += ' dia-pendente';
-    else if (temRegisto) {
-      const horasStr = resumo[dataFormatada]?.split('h')[0];
-      const horasTrabalhadas = parseInt(horasStr, 10);
-
-      if (horasTrabalhadas >= 8) {
-        classes += ' btn-success';
-      } else {
-        classes += ' btn-menor-8h';
-      }
-    }
-    else classes += ' btn-outline-secondary';
-
-    return classes;
-  };
-
-  // Carregamento inicial otimizado
-  useEffect(() => {
-    carregarTodosDados();
-  }, [mesAtual]);
 
   const diasDoMes = gerarCalendario();
 
@@ -1028,29 +1071,34 @@ const CalendarioHorasTrabalho = () => {
           transition: all 0.3s ease;
           cursor: pointer;
         }
-        .dia-falta {
-          position: relative;
-          background-image: repeating-linear-gradient(
-            45deg,
-            #dee2e6 0,
-            #dee2e6 4px,
-            #f8f9fa 4px,
-            #f8f9fa 8px
-          );
-          color: #6c757d !important;
-          border: 1px solid #ced4da;
-        }
-        .btn-menor-8h {
-          background-color: #fff3cd !important;
-          border: 1px solid #ffeeba;
-          color: #856404;
-        }
-        .dia-pendente {
-          background-color: #ffe0b2 !important;
-          color: #8d6e63 !important;
-          border: 1px solid #ffb74d;
-          position: relative;
-        }
+          .dia-falta {
+  position: relative;
+  background-image: repeating-linear-gradient(
+    45deg,
+    #dee2e6 0,
+    #dee2e6 4px,
+    #f8f9fa 4px,
+    #f8f9fa 8px
+  );
+  color: #6c757d !important;
+  border: 1px solid #ced4da;
+}
+  .btn-menor-8h {
+  background-color: #fff3cd !important; /* amarelo claro */
+  border: 1px solid #ffeeba;
+  color: #856404;
+}
+
+.dia-pendente {
+  background-color: #ffe0b2 !important;
+  color: #8d6e63 !important;
+  border: 1px solid #ffb74d;
+  position: relative;
+}
+
+
+
+
         @media (min-width: 768px) {
           .calendario-dia {
             height: 80px;
@@ -1148,6 +1196,7 @@ const CalendarioHorasTrabalho = () => {
             overflow-y: visible;
           }
         }
+        /* Custom scrollbar */
         .sidebar-sticky::-webkit-scrollbar {
           width: 6px;
         }
@@ -1162,6 +1211,7 @@ const CalendarioHorasTrabalho = () => {
         .sidebar-sticky::-webkit-scrollbar-thumb:hover {
           background: #a8a8a8;
         }
+        /* Custom scrollbar for history */
         .custom-scroll::-webkit-scrollbar {
           width: 4px;
         }
@@ -1176,9 +1226,11 @@ const CalendarioHorasTrabalho = () => {
         .custom-scroll::-webkit-scrollbar-thumb:hover {
           background: #a8a8a8;
         }
+        /* Smooth scroll behavior */
         html {
           scroll-behavior: smooth;
         }
+        /* Mobile scroll improvements */
         @media (max-width: 767px) {
           .container-fluid {
             padding-left: 0.75rem;
@@ -1254,79 +1306,82 @@ const CalendarioHorasTrabalho = () => {
                   {/* Grade do calendário */}
                   <div className="calendario-grid">
                     {diasDoMes.map((date, index) => {
-                      if (!date) return <button key={index} className="invisible" disabled></button>;
+  if (!date) return <button key={index} className="invisible" disabled></button>;
 
-                      const dataFormatada = formatarData(date);
-                      const isPendente = diasPendentes.includes(dataFormatada);
+  const dataFormatada = formatarData(date);
+const isPendente = diasPendentes.includes(dataFormatada);
 
-                      const existeFaltaF50 = Array.isArray(faltas) && faltas.some(f => {
-                        const dataFalta = new Date(f.Data);
-                        return (
-                          f.Falta === 'F50' &&
-                          dataFalta.getFullYear() === date.getFullYear() &&
-                          dataFalta.getMonth() === date.getMonth() &&
-                          dataFalta.getDate() === date.getDate()
-                        );
-                      });
 
-                      return (
-                        <button
-                          key={index}
-                          className={obterClasseDia(date)}
-                          onClick={() => {
-                            const faltaF50 = faltas.find(f =>
-                              f.Falta === 'F50' &&
-                              new Date(f.Data).toISOString().slice(0,10) === dataFormatada
-                            );
-                            
-                            carregarDetalhes(dataFormatada);
-                          }}
-                        >
-                          <span>{date.getDate()}</span>
+  const existeFaltaF50 = Array.isArray(faltas) && faltas.some(f => {
+    const dataFalta = new Date(f.Data);
+    return (
+      f.Falta === 'F50' &&
+      dataFalta.getFullYear() === date.getFullYear() &&
+      dataFalta.getMonth() === date.getMonth() &&
+      dataFalta.getDate() === date.getDate()
+    );
+  });
 
-                          {existeFaltaF50 && (
-                            <span
-                              style={{
-                                position: 'absolute',
-                                top: '4px',
-                                right: '6px',
-                                fontSize: '0.8rem'
-                              }}
-                              title="Férias"
-                            >
-                              🌴
-                            </span>
-                          )}
-                          {isPendente && (
-                            <span
-                              style={{
-                                position: 'absolute',
-                                bottom: '4px',
-                                right: '6px',
-                                fontSize: '0.85rem',
-                                color: '#f0ad4e'
-                              }}
-                              title="Pendente de aprovação"
-                            >
-                              ⏳
-                            </span>
-                          )}
+  return (
+    <button
+  key={index}
+  className={obterClasseDia(date)}
+  onClick={() => {
+    const faltaF50 = faltas.find(f =>
+      f.Falta === 'F50' &&
+      new Date(f.Data).toISOString().slice(0,10) === dataFormatada
+    );
+ 
+    carregarDetalhes(dataFormatada);
+  }}
+>
+      <span>{date.getDate()}</span>
 
-                          {resumo[dataFormatada] && (
-                            <span className="horas-dia">
-                              {resumo[dataFormatada].split('h')[0]}h
-                            </span>
-                          )}
+      {existeFaltaF50 && (
+        <span
+          style={{
+            position: 'absolute',
+            top: '4px',
+            right: '6px',
+            fontSize: '0.8rem'
+          }}
+          title="Férias"
+        >
+          🌴
+        </span>
+      )}
+      {isPendente && (
+  <span
+    style={{
+      position: 'absolute',
+      bottom: '4px',
+      right: '6px',
+      fontSize: '0.85rem',
+      color: '#f0ad4e'
+    }}
+    title="Pendente de aprovação"
+  >
+    ⏳
+  </span>
+)}
 
-                          {!resumo[dataFormatada] &&
-                            date < new Date() &&
-                            date.getDay() !== 0 &&
-                            date.getDay() !== 6 && (
-                              <FaExclamationTriangle className="text-warning mt-1" size={12} />
-                            )}
-                        </button>
-                      );
-                    })}
+
+      {resumo[dataFormatada] && (
+  <span className="horas-dia">
+    {resumo[dataFormatada].split('h')[0]}h
+  </span>
+)}
+
+      {!resumo[dataFormatada] &&
+        date < new Date() &&
+        date.getDay() !== 0 &&
+        date.getDay() !== 6 && (
+          <FaExclamationTriangle className="text-warning mt-1" size={12} />
+        )}
+    </button>
+  );
+})}
+
                   </div>
 
                   {/* Legenda */}
@@ -1360,33 +1415,39 @@ const CalendarioHorasTrabalho = () => {
 
             {/* Detalhes do dia */}
             <div className="col-12 col-lg-4">
+               
+
+
               {diaSelecionado ? (
                 <div className="card card-moderno sidebar-sticky" style={{ marginBottom: '100px' }}>
+
+                    
                   <div className="card-body p-3 p-md-4">
                     {detalhesHorario && (
-                      <div className="mb-3">
-                        <h6 className="fw-bold text-muted mb-2">Horário Contratual & Férias</h6>
-                        <div className="row g-2">
-                          <div className="col-12 col-md-6">
-                            <div className="border-start border-info border-3 ps-3 small">
-                              <div><strong>Descrição:</strong> {detalhesHorario.Descricao}</div>
-                              <div><strong>Horas por dia:</strong> {detalhesHorario.Horas1}</div>
-                              <div><strong>Total Horas Semanais:</strong> {detalhesHorario.TotalHoras}</div>
-                            </div>
-                          </div>
-                          <div className="col-12 col-md-6">
-                            <div className="border-start border-success border-3 ps-3 small">
-                              <div><strong>Dias Direito:</strong> {feriasTotalizador?.DiasDireito} dias</div>
-                              <div><strong>Dias Ano Anterior:</strong> {feriasTotalizador?.DiasAnoAnterior} dias</div>
-                              <div><strong>Total Dias:</strong> {feriasTotalizador?.TotalDias} dias</div>
-                              <div><strong>Dias Já Gozados:</strong> {feriasTotalizador?.DiasJaGozados} dias</div>
-                              <div><strong>Total Por Gozar:</strong> {feriasTotalizador?.DiasPorGozar} dias</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                <div className="mb-3">
+  <h6 className="fw-bold text-muted mb-2">Horário Contratual & Férias</h6>
+  <div className="row g-2">
+    <div className="col-12 col-md-6">
+      <div className="border-start border-info border-3 ps-3 small">
+        <div><strong>Descrição:</strong> {detalhesHorario.Descricao}</div>
+        <div><strong>Horas por dia:</strong> {detalhesHorario.Horas1}</div>
+        <div><strong>Total Horas Semanais:</strong> {detalhesHorario.TotalHoras}</div>
+      </div>
+    </div>
+    <div className="col-12 col-md-6">
+      <div className="border-start border-success border-3 ps-3 small">
+        <div><strong>Dias Direito:</strong> {feriasTotalizador.DiasDireito} dias</div>
+        <div><strong>Dias Ano Anterior:</strong> {feriasTotalizador.DiasAnoAnterior} dias</div>
+        <div><strong>Total Dias:</strong> {feriasTotalizador.TotalDias} dias</div>
+        <div><strong>Dias Já Gozados:</strong> {feriasTotalizador.DiasJaGozados} dias</div>
+        <div><strong>Total Por Gozar:</strong> {feriasTotalizador.DiasPorGozar} dias</div>
+      </div>
+    </div>
+  </div>
+</div>
 
+
+                )}
                     <h5 className="card-title d-flex align-items-center mb-3 mb-md-4" style={{fontSize: 'clamp(1rem, 3vw, 1.25rem)'}}>
                       <FaClock className="text-primary me-2 flex-shrink-0" />
                       <span className="text-truncate">
@@ -1409,6 +1470,7 @@ const CalendarioHorasTrabalho = () => {
                     {/* Resumo do dia */}
                     {detalhes.length > 0 && (
                       <div className="mb-4">
+                        
                         <h6 className="fw-bold text-muted mb-3">Resumo do Dia</h6>
                         
                         {detalhes.map((entry, index) => (
@@ -1423,451 +1485,520 @@ const CalendarioHorasTrabalho = () => {
                         ))}
                         <hr />
                         <div className="d-flex justify-content-between">
-                          <span className="fw-bold">Total:</span>
-                          {(() => {
-                            const totalMinutos = detalhes.reduce((acc, entry) => acc + (entry.horas * 60 + entry.minutos), 0);
-                            const totalHoras = Math.floor(totalMinutos / 60);
-                            const minutosRestantes = totalMinutos % 60;
-                            return (
-                              <span className="fw-bold text-primary">
-                                {totalHoras}h {minutosRestantes > 0 ? `${minutosRestantes}min` : ''}
-                              </span>
-                            );
-                          })()}
-                        </div>
+  <span className="fw-bold">Total:</span>
+  {(() => {
+    const totalMinutos = detalhes.reduce((acc, entry) => acc + (entry.horas * 60 + entry.minutos), 0);
+    const totalHoras = Math.floor(totalMinutos / 60);
+    const minutosRestantes = totalMinutos % 60;
+    return (
+      <span className="fw-bold text-primary">
+        {totalHoras}h {minutosRestantes > 0 ? `${minutosRestantes}min` : ''}
+      </span>
+    );
+  })()}
+</div>
+
                       </div>
                     )}
-
                     {faltasDoDia.length > 0 && (
-                      <div className="mb-4">
-                        <h6 className="fw-bold text-danger mb-3">Faltas neste dia</h6>
-                        {faltasDoDia.map((f, idx) => (
-                          <div
-                            key={idx}
-                            className={`border-start ps-3 mb-2 ${
-                              f.Estado === 'pendente' ? 'border-warning' : 'border-danger'
-                            } border-3`}
-                          >
-                            <div className="d-flex justify-content-between small">
-                              <span className="fw-semibold">📌 Código:</span>
-                              <span>{f.Falta} – {mapaFaltas[f.Falta] || 'Desconhecido'}</span>
-                            </div>
+  <div className="mb-4">
+    <h6 className="fw-bold text-danger mb-3">Faltas neste dia</h6>
+    {faltasDoDia.map((f, idx) => (
+  <div
+    key={idx}
+    className={`border-start ps-3 mb-2 ${
+      f.Estado === 'pendente' ? 'border-warning' : 'border-danger'
+    } border-3`}
+  >
+    <div className="d-flex justify-content-between small">
+      <span className="fw-semibold">📌 Código:</span>
+      <span>{f.Falta} – {mapaFaltas[f.Falta] || 'Desconhecido'}</span>
+    </div>
 
-                            <div className="d-flex justify-content-between small">
-                              <span>Tipo:</span>
-                              <span>{f.Horas ? 'Por horas' : 'Dia inteiro'}</span>
-                            </div>
+    <div className="d-flex justify-content-between small">
+      <span>Tipo:</span>
+      <span>{f.Horas ? 'Por horas' : 'Dia inteiro'}</span>
+    </div>
 
-                            <div className="d-flex justify-content-between small">
-                              <span>Duração:</span>
-                              <span>{f.Tempo} {f.Horas ? 'h' : 'dia(s)'}</span>
-                            </div>
+    <div className="d-flex justify-content-between small">
+      <span>Duração:</span>
+      <span>{f.Tempo} {f.Horas ? 'h' : 'dia(s)'}</span>
+    </div>
 
-                            {f.Observacoes && (
-                              <div className="small">
-                                <strong>Obs.:</strong> {f.Observacoes}
-                              </div>
-                            )}
 
-                            {f.Falta === 'F50' && (
-                              <div className="mt-1 text-end">
-                                <button
-                                  className="btn btn-sm btn-outline-danger"
-                                  onClick={() => {
-                                    const data = f.Data.split('T')[0];
+    {f.Observacoes && (
+      <div className="small">
+        <strong>Obs.:</strong> {f.Observacoes}
+      </div>
+    )}
 
-                                    const msg  = `Eliminar férias de ${data}? Terás de submeter novo pedido para esse dia.`;
-                                    if (window.confirm(msg)) {
-                                      eliminarFeria(data);
-                                    }
-                                  }}
-                                >
-                                  🗑️ Eliminar Férias
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+  
+{f.Falta === 'F50' && (
+  <div className="mt-1 text-end">
+    <button
+      className="btn btn-sm btn-outline-danger"
+      onClick={() => {
+        const data = f.Data.split('T')[0];
+        const msg  = `Eliminar férias de ${data}? Terás de submeter novo pedido para esse dia.`;
+        if (window.confirm(msg)) {
+          eliminarFeria(data);
+        }
+      }}
+    >
+      🗑️ Eliminar Férias
+    </button>
+  </div>
+)}
 
-                    {pedidosPendentesDoDia.length > 0 && (
-                      <div className="mb-4">
-                        <h6 className="fw-bold text-warning mb-3">Pedidos Pendentes</h6>
-                        {pedidosPendentesDoDia.map((p, idx) => (
-                          <div key={idx} className="border-start border-warning border-3 ps-3 mb-2">
-                            {p.estadoAprovacao === 'Pendente' && (
-                              <div className="mt-1 text-end">
-                                <button
-                                  className="btn btn-sm btn-outline-danger"
-                                  onClick={() => cancelarPedido(p)}
-                                >
-                                  ❌
-                                </button>
-                              </div>
-                            )}
 
-                            <div className="d-flex justify-content-between small">
-                              <span className="fw-semibold">📌 Código:</span>
-                              <span>
-                                {p.tipoPedido === 'FERIAS' ? 'FERIAS' : p.falta} – {p.tipoPedido === 'FERIAS'
-                                  ? 'Férias'
-                                  : mapaFaltas[p.falta?.toUpperCase()] || 'Desconhecido'}
-                              </span>
-                            </div>
 
-                            <div className="d-flex justify-content-between small">
-                              <span>Tipo:</span>
-                              <span>{p.horas ? 'Por horas' : 'Dia inteiro'}</span>
-                            </div>
+    {f.Fonte !== 'backend' && (
+      <div className="mt-1 text-end">
+    
+      </div>
+    )}
+  </div>
+))}
 
-                            <div className="d-flex justify-content-between small">
-                              <span>Duração:</span>
-                              <span>{p.tempo} {p.horas ? 'h' : 'dia(s)'}</span>
-                            </div>
 
-                            {p.justificacao && (
-                              <div className="small">
-                                <strong>Obs.:</strong> {p.justificacao}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
 
-                    {/* Formulário de ponto esquecido */}
-                    <div>
-                      <button
-                        className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
-                        onClick={() => setMostrarFormulario(prev => !prev)}
-                        type="button"
-                      >
-                        {mostrarFormulario ? '- Recolher Registo' : '+ Registar Ponto Esquecido'}
-                      </button>
+  </div>
+)}
+{pedidosPendentesDoDia.length > 0 && (
+  <div className="mb-4">
+    <h6 className="fw-bold text-warning mb-3">Pedidos Pendentes</h6>
+    {pedidosPendentesDoDia.map((p, idx) => (
+      <div key={idx} className="border-start border-warning border-3 ps-3 mb-2">
+        {p.estadoAprovacao === 'Pendente' && (
+  <div className="mt-1 text-end">
+    <button
+      className="btn btn-sm btn-outline-danger"
+      onClick={() => cancelarPedido(p)}
 
-                      {mostrarFormulario && (
-                        <div className="border border-primary rounded p-3 mt-2" style={{ backgroundColor: '#f8f9ff' }}>
-                          <h6 className="text-primary fw-bold mb-3" style={{ fontSize: 'clamp(0.9rem, 2.5vw, 1rem)' }}>
-                            <FaPlus className="me-2" />
-                            <span className="d-none d-sm-inline">Novo Registo Manual</span>
-                            <span className="d-sm-none">Novo Registo</span>
-                          </h6>
+    >
+      ❌
+    </button>
+  </div>
+)}
 
-                          <form onSubmit={submeterPontoEsquecido}>
-                            <div className="mb-3">
-                              <label className="form-label fw-semibold small">Obra</label>
-                              <select
-                                className="form-select form-moderno"
-                                value={novaEntrada.obra_id}
-                                onChange={(e) => setNovaEntrada({ ...novaEntrada, obra_id: e.target.value })}
-                                required
-                              >
-                                <option value="">Selecione uma obra...</option>
-                                {obras.map(obra => (
-                                  <option key={obra.id} value={obra.id}>{obra.nome}</option>
-                                ))}
-                              </select>
-                            </div>
+        <div className="d-flex justify-content-between small">
+          <span className="fw-semibold">📌 Código:</span>
+          <span>
+  {p.tipoPedido === 'FERIAS' ? 'FERIAS' : p.falta} – {p.tipoPedido === 'FERIAS'
+    ? 'Férias'
+    : mapaFaltas[p.falta?.toUpperCase()] || 'Desconhecido'}
+</span>
 
-                            <div className="row g-2 mb-3">
-                              <div className="col-6">
-                                <label className="form-label fw-semibold small">Tipo</label>
-                                <select
-                                  className="form-select form-moderno"
-                                  value={novaEntrada.tipo}
-                                  onChange={(e) => setNovaEntrada({ ...novaEntrada, tipo: e.target.value })}
-                                >
-                                  <option value="entrada">Entrada</option>
-                                  <option value="saida">Saída</option>
-                                </select>
-                              </div>
-                              <div className="col-6">
-                                <label className="form-label fw-semibold small">Hora</label>
-                                <input
-                                  type="time"
-                                  className="form-control form-moderno"
-                                  value={novaEntrada.hora}
-                                  onChange={(e) => setNovaEntrada({ ...novaEntrada, hora: e.target.value })}
-                                />
-                              </div>
-                            </div>
+        </div>
 
-                            <div className="mb-3">
-                              <label className="form-label fw-semibold small">Justificação</label>
-                              <textarea
-                                className="form-control form-moderno"
-                                rows="2"
-                                placeholder="Motivo do registo manual..."
-                                value={novaEntrada.justificacao}
-                                onChange={(e) => setNovaEntrada({ ...novaEntrada, justificacao: e.target.value })}
-                              />
-                            </div>
+        <div className="d-flex justify-content-between small">
+          <span>Tipo:</span>
+          <span>{p.horas ? 'Por horas' : 'Dia inteiro'}</span>
+        </div>
 
-                            <button
-                              type="submit"
-                              className="btn btn-primary w-100 rounded-pill btn-responsive"
-                              disabled={loading}
-                            >
-                              {loading ? (
-                                <>
-                                  <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                                  Registando...
-                                </>
-                              ) : (
-                                <>
-                                  <FaCheckCircle className="me-2" />
-                                  <span className="d-none d-sm-inline">Submeter Registo</span>
-                                  <span className="d-sm-none">Submeter</span>
-                                </>
-                              )}
-                            </button>
-                          </form>
-                        </div>
-                      )}
-                    </div>
+        <div className="d-flex justify-content-between small">
+          <span>Duração:</span>
+          <span>{p.tempo} {p.horas ? 'h' : 'dia(s)'}</span>
+        </div>
 
-                    {/* Formulário de falta */}
-                    <button
-                      className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
-                      onClick={() => setMostrarFormularioFalta(prev => !prev)}
-                      type="button"
-                    >
-                      {mostrarFormularioFalta ? '- Recolher Falta' : '+ Registar Falta'}
-                    </button>
+        {p.justificacao && (
+          <div className="small">
+            <strong>Obs.:</strong> {p.justificacao}
+          </div>
+        )}
+      </div>
+    ))}
+  </div>
+)}
 
-                    {mostrarFormularioFalta && (
-                      <div className="border border-danger rounded p-3 mt-4" style={{ backgroundColor: '#fff5f5' }}>
-                        <h6 className="text-danger fw-bold mb-3">
-                          <FaPlus className="me-2" />
-                          <span className="d-none d-sm-inline">Registar Falta</span>
-                          <span className="d-sm-none">Falta</span>
-                        </h6>
 
-                        <form onSubmit={submeterFalta}>
-                          <div className="mb-3">
-                            <label className="form-label small fw-semibold">Tipo de Falta</label>
-                            <select
-                              className="form-select form-moderno"
-                              value={novaFalta.Falta}
-                              onChange={(e) => {
-                                const codigo = e.target.value;
-                                const faltaSelecionada = tiposFalta.find(f => f.Falta === codigo);
-                                if (faltaSelecionada) {
-                                  setNovaFalta({
-                                    Falta: codigo,
-                                    Horas: Number(faltaSelecionada.Horas) === 1,
-                                    Tempo: 1,
-                                    Observacoes: '',
-                                    DescontaAlimentacao: Number(faltaSelecionada.DescontaSubsAlim) === 1,
-                                    DescontaSubsidioTurno: Number(faltaSelecionada.DescontaSubsTurno) === 1
-                                  });
-                                } else {
-                                  setNovaFalta({
-                                    Falta: '',
-                                    Horas: false,
-                                    Tempo: 1,
-                                    Observacoes: '',
-                                    DescontaAlimentacao: false,
-                                    DescontaSubsidioTurno: false
-                                  });
-                                }
-                              }}
-                              required
-                            >
-                              <option value="">Selecione o tipo...</option>
-                              {tiposFalta.map((t, i) => (
-                                <option key={i} value={t.Falta}>
-                                  {t.Falta} – {t.Descricao}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
 
-                          <div className="row g-2 mb-3">
-                            <div className="col-6">
-                              <label className="form-label small fw-semibold">Duração</label>
-                              <input
-                                type="number"
-                                className="form-control form-moderno"
-                                min="1"
-                                value={novaFalta.Tempo}
-                                onChange={(e) => setNovaFalta({ ...novaFalta, Tempo: parseInt(e.target.value) })}
-                                required
-                              />
-                            </div>
-                            <div className="col-6">
-                              <label className="form-label small fw-semibold">Tipo</label>
-                              <input
-                                type="text"
-                                className="form-control form-moderno bg-light"
-                                readOnly
-                                value={novaFalta.Horas ? 'Por horas' : 'Dia completo'}
-                              />
-                            </div>
-                          </div>
+                    {/* Formulário */}
+                    <div >
+  <button
+    className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
+    onClick={() => setMostrarFormulario(prev => !prev)}
+    type="button"
+  >
+    {mostrarFormulario ? '- Recolher Registo' : '+ Registar Ponto Esquecido'}
+  </button>
 
-                          <div className="mb-3">
-                            <label className="form-label small fw-semibold">Observações</label>
-                            <textarea
-                              className="form-control form-moderno"
-                              rows="2"
-                              value={novaFalta.Observacoes}
-                              onChange={(e) => setNovaFalta({ ...novaFalta, Observacoes: e.target.value })}
-                            />
-                          </div>
+  {mostrarFormulario && (
+    <div className="border border-primary rounded p-3 mt-2" style={{ backgroundColor: '#f8f9ff' }}>
+      <h6 className="text-primary fw-bold mb-3" style={{ fontSize: 'clamp(0.9rem, 2.5vw, 1rem)' }}>
+        <FaPlus className="me-2" />
+        <span className="d-none d-sm-inline">Novo Registo Manual</span>
+        <span className="d-sm-none">Novo Registo</span>
+      </h6>
 
-                          {novaFalta.Falta && (
-                            <div className="alert alert-light border small">
-                              <div><strong>Tipo:</strong> {novaFalta.Horas ? 'Por horas' : 'Dia completo'}</div>
-                              <div><strong>Desconta Subsídio Alimentação:</strong> {novaFalta.DescontaAlimentacao ? 'Sim' : 'Não'}</div>
-                              <div><strong>Desconta Subsídio Turno:</strong> {novaFalta.DescontaSubsidioTurno ? 'Sim' : 'Não'}</div>
-                            </div>
-                          )}
+      <form onSubmit={submeterPontoEsquecido}>
+        <div className="mb-3">
+          <label className="form-label fw-semibold small">Obra</label>
+          <select
+            className="form-select form-moderno"
+            value={novaEntrada.obra_id}
+            onChange={(e) => setNovaEntrada({ ...novaEntrada, obra_id: e.target.value })}
+            required
+          >
+            <option value="">Selecione uma obra...</option>
+            {obras.map(obra => (
+              <option key={obra.id} value={obra.id}>{obra.nome}</option>
+            ))}
+          </select>
+        </div>
 
-                          <button
-                            type="submit"
-                            className={`btn ${modoEdicaoFalta ? "btn-warning" : "btn-danger"} w-100 rounded-pill btn-responsive`}
-                            disabled={loading}
-                          >
-                            {loading
-                              ? modoEdicaoFalta ? "A editar..." : "A registar..."
-                              : modoEdicaoFalta ? "Guardar Alterações" : "Registar Falta"}
-                          </button>
+        <div className="row g-2 mb-3">
+          <div className="col-6">
+            <label className="form-label fw-semibold small">Tipo</label>
+            <select
+              className="form-select form-moderno"
+              value={novaEntrada.tipo}
+              onChange={(e) => setNovaEntrada({ ...novaEntrada, tipo: e.target.value })}
+            >
+              <option value="entrada">Entrada</option>
+              <option value="saida">Saída</option>
+            </select>
+          </div>
+          <div className="col-6">
+            <label className="form-label fw-semibold small">Hora</label>
+            <input
+              type="time"
+              className="form-control form-moderno"
+              value={novaEntrada.hora}
+              onChange={(e) => setNovaEntrada({ ...novaEntrada, hora: e.target.value })}
+            />
+          </div>
+        </div>
 
-                          {modoEdicaoFalta && (
-                            <button
-                              type="button"
-                              className="btn btn-outline-secondary w-100 rounded-pill btn-responsive mt-2"
-                              onClick={() => {
-                                setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
-                                setModoEdicaoFalta(false);
-                                setFaltaOriginal(null);
-                              }}
-                            >
-                              Cancelar Edição
-                            </button>
-                          )}
-                        </form>
-                      </div>
-                    )}
+        <div className="mb-3">
+          <label className="form-label fw-semibold small">Justificação</label>
+          <textarea
+            className="form-control form-moderno"
+            rows="2"
+            placeholder="Motivo do registo manual..."
+            value={novaEntrada.justificacao}
+            onChange={(e) => setNovaEntrada({ ...novaEntrada, justificacao: e.target.value })}
+          />
+        </div>
 
-                    {/* Formulário de férias */}
-                    <button
-                      className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
-                      onClick={() => setMostrarFormularioFerias(prev => !prev)}
-                      type="button"
-                    >
-                      {MostrarFormularioFerias ? '- Recolher Férias' : '+ Registar Férias'}
-                    </button>
+        <button
+          type="submit"
+          className="btn btn-primary w-100 rounded-pill btn-responsive"
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+              Registando...
+            </>
+          ) : (
+            <>
+              <FaCheckCircle className="me-2" />
+              <span className="d-none d-sm-inline">Submeter Registo</span>
+              <span className="d-sm-none">Submeter</span>
+            </>
+          )}
+        </button>
+      </form>
+    </div>
+  )}
+</div>
 
-                    {MostrarFormularioFerias && (
-                      <div className="border border-danger rounded p-3 mt-4" style={{ backgroundColor: '#fff5f5' }}>
-                        <h6 className="text-danger fw-bold mb-3">
-                          <FaPlus className="me-2" />
-                          <span className="d-none d-sm-inline">Registar Férias</span>
-                          <span className="d-sm-none">Férias</span>
-                        </h6>
 
-                        <form onSubmit={submeterFerias}>
-                          <div className="row g-2 mb-3">
-                            <div className="col-6">
-                              <label className="form-label small fw-semibold">Data Início</label>
-                              <input
-                                type="date"
-                                className="form-control form-moderno"
-                                value={novaFaltaFerias.dataInicio}
-                                onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, dataInicio: e.target.value })}
-                                required
-                              />
-                            </div>
-                            <div className="col-6">
-                              <label className="form-label small fw-semibold">Data Fim</label>
-                              <input
-                                type="date"
-                                className="form-control form-moderno"
-                                value={novaFaltaFerias.dataFim}
-                                onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, dataFim: e.target.value })}
-                                required
-                              />
-                            </div>
-                          </div>
 
-                          <div className="mb-3">
-                            <label className="form-label small fw-semibold">Observações</label>
-                            <textarea
-                              className="form-control form-moderno"
-                              rows="2"
-                              value={novaFaltaFerias.Observacoes}
-                              onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, Observacoes: e.target.value })}
-                            />
-                          </div>
+ <button
+    className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
+    onClick={() => setMostrarFormularioFalta(prev => !prev)}
+    type="button"
+  >
+    {mostrarFormularioFalta ? '- Recolher Falta' : '+ Registar Falta'}
+  </button>
 
-                          <button
-                            type="submit"
-                            className={`btn ${modoEdicaoFerias ? "btn-warning" : "btn-danger"} w-100 rounded-pill btn-responsive`}
-                            disabled={loading}
-                          >
-                            {loading
-                              ? modoEdicaoFerias ? "A editar..." : "A registar..."
-                              : modoEdicaoFerias ? "Guardar Alterações" : "Registar Férias"}
-                          </button>
+{mostrarFormularioFalta && (
+<div className="border border-danger rounded p-3 mt-4" style={{ backgroundColor: '#fff5f5' }}>
+  <h6 className="text-danger fw-bold mb-3">
+    <FaPlus className="me-2" />
+    <span className="d-none d-sm-inline">Registar Falta</span>
+    <span className="d-sm-none">Falta</span>
+  </h6>
 
-                          {modoEdicaoFerias && (
-                            <button
-                              type="button"
-                              className="btn btn-outline-secondary w-100 rounded-pill btn-responsive mt-2"
-                              onClick={() => {
-                                setNovaFaltaFerias({ dataInicio: '', dataFim: '', Horas: false, Tempo: 1, Observacoes: '' });
-                                setModoEdicaoFerias(false);
-                                setFeriasOriginal(null);
-                              }}
-                            >
-                              Cancelar Edição
-                            </button>
-                          )}
-                        </form>
-                      </div>
-                    )}
+  <form onSubmit={submeterFalta}>
+    <div className="mb-3">
+      <label className="form-label small fw-semibold">Tipo de Falta</label>
+      <select
+        className="form-select form-moderno"
+        value={novaFalta.Falta}
+        onChange={(e) => {
+  const codigo = e.target.value;
+  const faltaSelecionada = tiposFalta.find(f => f.Falta === codigo);
+  if (faltaSelecionada) {
+    setNovaFalta({
+      Falta: codigo,
+      Horas: Number(faltaSelecionada.Horas) === 1,
+      Tempo: 1,
+      Observacoes: '',
+      DescontaAlimentacao: Number(faltaSelecionada.DescontaSubsAlim) === 1,
+      DescontaSubsidioTurno: Number(faltaSelecionada.DescontaSubsTurno) === 1
+    });
+  } else {
+    setNovaFalta({
+      Falta: '',
+      Horas: false,
+      Tempo: 1,
+      Observacoes: '',
+      DescontaAlimentacao: false,
+      DescontaSubsidioTurno: false
+    });
+  }
+}}
 
-                    {/* Edição de registo */}
-                    {registoEmEdicao && (
-                      <div className="mt-3 border rounded p-3 bg-light">
-                        <h6 className="fw-bold mb-2">Editar Registo</h6>
-                        <div className="mb-2">
-                          <label className="form-label small fw-semibold">Hora</label>
-                          <input
-                            type="time"
-                            className="form-control"
-                            value={novaHoraEdicao}
-                            onChange={(e) => setNovaHoraEdicao(e.target.value)}
-                          />
-                        </div>
-                        <div className="mb-2">
-                          <label className="form-label small fw-semibold">Justificação da alteração</label>
-                          <textarea
-                            className="form-control"
-                            rows="2"
-                            value={novaJustificacaoEdicao}
-                            onChange={(e) => setNovaJustificacaoEdicao(e.target.value)}
-                            required
-                          />
-                        </div>
+        required
+        >
 
-                        <button
-                          className="btn btn-sm btn-primary me-2"
-                          onClick={submeterAlteracaoHora}
-                        >
-                          Submeter Alteração
-                        </button>
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => setRegistoEmEdicao(null)}
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    )}
+
+        <option value="">Selecione o tipo...</option>
+        {tiposFalta.map((t, i) => (
+          <option key={i} value={t.Falta}>
+            {t.Falta} – {t.Descricao}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    <div className="row g-2 mb-3">
+      <div className="col-6">
+        <label className="form-label small fw-semibold">Duração</label>
+        <input
+          type="number"
+          className="form-control form-moderno"
+          min="1"
+          value={novaFalta.Tempo}
+          onChange={(e) => setNovaFalta({ ...novaFalta, Tempo: parseInt(e.target.value) })}
+          required
+        />
+      </div>
+      <div className="col-6">
+  <label className="form-label small fw-semibold">Tipo</label>
+  <input
+    type="text"
+    className="form-control form-moderno bg-light"
+    readOnly
+    value={novaFalta.Horas ? 'Por horas' : 'Dia completo'}
+  />
+</div>
+
+    </div>
+
+    <div className="mb-3">
+      <label className="form-label small fw-semibold">Observações</label>
+      <textarea
+        className="form-control form-moderno"
+        rows="2"
+        value={novaFaltaFerias.Observacoes}
+        onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, Observacoes: e.target.value })}
+        />
+
+    </div>
+    {novaFalta.Falta && (
+  <div className="alert alert-light border small">
+    <div><strong>Tipo:</strong> {novaFalta.Horas ? 'Por horas' : 'Dia completo'}</div>
+    <div><strong>Desconta Subsídio Alimentação:</strong> {novaFalta.DescontaAlimentacao ? 'Sim' : 'Não'}</div>
+    <div><strong>Desconta Subsídio Turno:</strong> {novaFalta.DescontaSubsidioTurno ? 'Sim' : 'Não'}</div>
+  </div>
+)}
+
+
+    <button
+  type="submit"
+  className={`btn ${modoEdicaoFalta ? "btn-warning" : "btn-danger"} w-100 rounded-pill btn-responsive`}
+  disabled={loading}
+>
+  {loading
+    ? modoEdicaoFalta ? "A editar..." : "A registar..."
+    : modoEdicaoFalta ? "Guardar Alterações" : "Registar Falta"}
+</button>
+{modoEdicaoFalta && (
+  <button
+    type="button"
+    className="btn btn-outline-secondary w-100 rounded-pill btn-responsive mt-2"
+    onClick={() => {
+      setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
+      setModoEdicaoFalta(false);
+      setFaltaOriginal(null);
+    }}
+  >
+    Cancelar Edição
+  </button>
+)}
+
+
+  </form>
+</div>
+)}
+
+
+
+
+
+<button
+    className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
+    onClick={() => setMostrarFormularioFerias(prev => !prev)}
+    type="button"
+  >
+    {MostrarFormularioFerias ? '- Recolher Férias' : '+ Registar Férias'}
+  </button>
+
+{MostrarFormularioFerias && (
+<div className="border border-danger rounded p-3 mt-4" style={{ backgroundColor: '#fff5f5' }}>
+  <h6 className="text-danger fw-bold mb-3">
+    <FaPlus className="me-2" />
+    <span className="d-none d-sm-inline">Registar Férias</span>
+    <span className="d-sm-none">Férias</span>
+  </h6>
+
+  <form onSubmit={submeterFerias}>
+
+   
+
+    <div className="row g-2 mb-3">
+  <div className="col-6">
+    <label className="form-label small fw-semibold">Data Início</label>
+    <input
+      type="date"
+      className="form-control form-moderno"
+      value={novaFaltaFerias.dataInicio}
+      onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, dataInicio: e.target.value })}
+      required
+    />
+  </div>
+  <div className="col-6">
+    <label className="form-label small fw-semibold">Data Fim</label>
+    <input
+      type="date"
+      className="form-control form-moderno"
+      value={novaFaltaFerias.dataFim}
+      onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, dataFim: e.target.value })}
+      required
+    />
+  </div>
+</div>
+
+
+    <div className="mb-3">
+      <label className="form-label small fw-semibold">Observações</label>
+      <textarea
+        className="form-control form-moderno"
+        rows="2"
+        value={novaFalta.Observacoes}
+        onChange={(e) => setNovaFalta({ ...novaFalta, Observacoes: e.target.value })}
+      />
+    </div>
+
+    <button
+  type="submit"
+  className={`btn ${modoEdicaoFerias ? "btn-warning" : "btn-danger"} w-100 rounded-pill btn-responsive`}
+  disabled={loading}
+>
+  {loading
+    ? modoEdicaoFerias ? "A editar..." : "A registar..."
+    : modoEdicaoFerias ? "Guardar Alterações" : "Registar Férias"}
+</button>
+{modoEdicaoFerias && (
+  <button
+    type="button"
+    className="btn btn-outline-secondary w-100 rounded-pill btn-responsive mt-2"
+    onClick={() => {
+      setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
+      setModoEdicaoFerias(false);
+      setFaltaOriginal(null);
+    }}
+  >
+    Cancelar Edição
+  </button>
+)}
+
+
+  </form>
+</div>
+)}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{registoEmEdicao && (
+  <div className="mt-3 border rounded p-3 bg-light">
+    <h6 className="fw-bold mb-2">Editar Registo</h6>
+    <div className="mb-2">
+      <label className="form-label small fw-semibold">Hora</label>
+      <input
+        type="time"
+        className="form-control"
+        value={novaHoraEdicao}
+        onChange={(e) => setNovaHoraEdicao(e.target.value)}
+      />
+    </div>
+    <div className="mb-2">
+  <label className="form-label small fw-semibold">Justificação da alteração</label>
+  <textarea
+    className="form-control"
+    rows="2"
+    value={novaJustificacaoEdicao}
+    onChange={(e) => setNovaJustificacaoEdicao(e.target.value)}
+    required
+  />
+</div>
+
+    <button
+      className="btn btn-sm btn-primary me-2"
+      onClick={submeterAlteracaoHora}
+    >
+      Submeter Alteração
+    </button>
+    <button
+      className="btn btn-sm btn-secondary"
+      onClick={() => setRegistoEmEdicao(null)}
+    >
+      Cancelar
+    </button>
+  </div>
+)}
+
+
+
+
+
+
+
+
+
 
                     {/* Histórico */}
                     {registosBrutos.length > 0 && (
@@ -1880,6 +2011,7 @@ const CalendarioHorasTrabalho = () => {
                           {registosBrutos.map((submission) => (
                             <div key={submission.id} className="border rounded p-2 mb-2 bg-light">
                               <div className="d-flex justify-content-between align-items-start mb-1">
+                                
                                 <div className="flex-grow-1 me-2">
                                   <span className="fw-semibold small">{submission.tipo}</span>
                                   <small className="text-muted ms-1 d-block d-sm-inline">
@@ -1894,20 +2026,28 @@ const CalendarioHorasTrabalho = () => {
                                 } flex-shrink-0`} style={{fontSize: '0.7rem'}}>
                                   <span className="d-none d-sm-inline">
                                     {submission.is_confirmed ? 'Confirmado' : 'Pendente'}
-                                    <button
-                                      className="btn btn-sm btn-outline-danger ms-2"
-                                      title="Cancelar ponto pendente"
-                                      onClick={() => cancelarPonto(submission.id)}
-                                    >
-                                      ❌
-                                    </button>
-                                    <button
-                                      className="btn btn-sm btn-outline-secondary ms-2"
-                                      title="Editar ponto"
-                                      onClick={() => iniciarEdicaoRegisto(submission)}
-                                    >
-                                      ✏️
-                                    </button>
+                                    { (
+  <button
+    className="btn btn-sm btn-outline-danger ms-2"
+    title="Cancelar ponto pendente"
+    onClick={() => cancelarPonto(submission.id)}
+  >
+    ❌
+  </button>
+)}
+{ (
+  <>
+    <button
+      className="btn btn-sm btn-outline-secondary ms-2"
+      title="Editar ponto"
+      onClick={() => iniciarEdicaoRegisto(submission)}
+    >
+      ✏️
+    </button>
+  </>
+)}
+
+
                                   </span>
                                   <span className="d-sm-none">
                                     {submission.is_confirmed ? '✓' : '⏳'}
@@ -1922,10 +2062,13 @@ const CalendarioHorasTrabalho = () => {
                                   {submission.justificacao}
                                 </small>
                               )}
+                              
+                              
                             </div>
                           ))}
                         </div>
                       </div>
+                      
                     )}
                   </div>
                 </div>

@@ -12,12 +12,15 @@ const AprovacaoFaltaFerias = () => {
   const painelToken = localStorage.getItem('painelAdminToken');
   const urlempresa = localStorage.getItem('urlempresa');
   const userNome = localStorage.getItem('userNome');
+    const empresaId = localStorage.getItem('empresa_id');
 
   const [todosPedidos, setTodosPedidos] = useState([]);
 
   const [colaboradorFiltro, setColaboradorFiltro] = useState('');
 
 const tipoUser = localStorage.getItem('tipoUser');
+
+const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
 
 
@@ -44,30 +47,51 @@ useEffect(() => {
 
 const carregarColaboradoresEquipa = async () => {
   try {
-    const res = await fetch(
-      'https://backend.advir.pt/api/equipa-obra/minhas-agrupadas',
-      {
+    let membros = [];
+
+    if (tipoUser === 'Administrador') {
+      const res = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaId}`, {
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  }
+});
+
+
+      if (!res.ok) throw new Error('Erro ao obter utilizadores');
+
+      const data = await res.json();
+
+      membros = data.map(u => ({
+  codigo: u.id,
+  nome: u.nome ? `${u.nome} (${u.email})` : u.email
+}));
+
+    } else {
+      const res = await fetch('https://backend.advir.pt/api/equipa-obra/minhas-agrupadas', {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
-          urlempresa
-        }
-      }
-    );
-    const data = await res.json();
 
-    // junta todos os membros de todas as equipas e transforma num array simples
-    const membros = data.flatMap(equipa => equipa.membros.map(m => ({
-      codigo: m.id,
-      nome: m.nome
-    })));
+        }
+      });
+
+      const data = await res.json();
+
+      membros = data.flatMap(equipa => equipa.membros.map(m => ({
+        codigo: m.id,
+        nome: m.nome
+      })));
+    }
 
     setColaboradoresEquipa(membros);
   } catch (err) {
-    console.error('Erro ao carregar as tuas equipas:', err);
-    setColaboradoresEquipa([]); // para garantir consistência
+    console.error('Erro ao carregar colaboradores:', err);
+    setColaboradoresEquipa([]);
   }
 };
+
+
 
 const obterCodFuncionario = async (userId) => {
   try {
@@ -796,95 +820,122 @@ const obterNomeFuncionario = async (codFuncionario) => {
               </div>
             </div>
           </div>
+
+
+
+
 {['Encarregado', 'Diretor', 'Administrador'].includes(tipoUser) && (
+  <>
+    <div className="card card-moderno mb-4">
+      <div className="card-body">
+        <h5 className="text-primary fw-bold mb-3">Registar Falta de um Colaborador</h5>
 
-        <div className="card card-moderno mb-4">
-  <div className="card-body">
-    <h5 className="text-primary fw-bold mb-3">Registar Falta da Equipa</h5>
-    <form onSubmit={submeterFaltaEquipa} className="row g-2">
-      <div className="col-md-4">
-        <label className="form-label small fw-semibold">Colaborador</label>
-        <select
-          className="form-select form-moderno"
-          value={novaFaltaEquipa.funcionario}
-          onChange={(e) => setNovaFaltaEquipa({ ...novaFaltaEquipa, funcionario: e.target.value })}
-          required
+        <button
+          className="btn btn-outline-secondary btn-sm mb-3"
+          type="button"
+          onClick={() => setMostrarFormulario(!mostrarFormulario)}
         >
-          <option value="">Seleciona...</option>
-          {colaboradoresEquipa.map((c, i) => (
-            <option key={i} value={c.codigo}>{c.nome}</option>
-          ))}
-        </select>
-      </div>
-      <div className="col-md-2">
-  <label className="form-label small fw-semibold">Data da Falta</label>
-  <input
-    type="date"
-    className="form-control form-moderno"
-    value={novaFaltaEquipa.Data}
-    onChange={(e) => setNovaFaltaEquipa({ ...novaFaltaEquipa, Data: e.target.value })}
-    required
-  />
-</div>
-
-
-      <div className="col-md-4">
-        <label className="form-label small fw-semibold">Tipo de Falta</label>
-        <select
-          className="form-select form-moderno"
-          value={novaFaltaEquipa.Falta}
-          onChange={(e) => {
-            const falta = tiposFalta.find(f => f.Falta === e.target.value);
-            setNovaFaltaEquipa({
-              ...novaFaltaEquipa,
-              Falta: falta.Falta,
-              Horas: Number(falta.Horas) === 1,
-              Tempo: 1,
-              DescontaAlimentacao: Number(falta.DescontaSubsAlim) === 1,
-              DescontaSubsidioTurno: Number(falta.DescontaSubsTurno) === 1
-            });
-          }}
-          required
-        >
-          <option value="">Seleciona tipo...</option>
-          {tiposFalta.map((f, i) => (
-            <option key={i} value={f.Falta}>
-              {f.Falta} – {f.Descricao}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="col-md-2">
-        <label className="form-label small fw-semibold">Tempo</label>
-        <input
-          type="number"
-          className="form-control form-moderno"
-          value={novaFaltaEquipa.Tempo}
-          min={1}
-          onChange={(e) => setNovaFaltaEquipa({ ...novaFaltaEquipa, Tempo: parseInt(e.target.value) })}
-        />
-      </div>
-
-      <div className="col-md-12">
-        <label className="form-label small fw-semibold">Observações</label>
-        <textarea
-          className="form-control form-moderno"
-          rows="2"
-          value={novaFaltaEquipa.Observacoes}
-          onChange={(e) => setNovaFaltaEquipa({ ...novaFaltaEquipa, Observacoes: e.target.value })}
-        />
-      </div>
-
-      <div className="col-12">
-        <button type="submit" className="btn btn-danger w-100 rounded-pill">
-          Registar Falta
+          {mostrarFormulario ? 'Esconder' : 'Mostrar'} Formulário
         </button>
+
+        {mostrarFormulario && (
+          <form onSubmit={submeterFaltaEquipa} className="row g-2">
+            <div className="col-md-4">
+              <label className="form-label small fw-semibold">Colaborador</label>
+              <select
+                className="form-select form-moderno"
+                value={novaFaltaEquipa.funcionario}
+                onChange={(e) =>
+                  setNovaFaltaEquipa({ ...novaFaltaEquipa, funcionario: e.target.value })
+                }
+                required
+              >
+                <option value="">Seleciona...</option>
+                {colaboradoresEquipa.map((c, i) => (
+                  <option key={i} value={c.codigo}>
+                    {c.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-md-2">
+              <label className="form-label small fw-semibold">Data da Falta</label>
+              <input
+                type="date"
+                className="form-control form-moderno"
+                value={novaFaltaEquipa.Data}
+                onChange={(e) =>
+                  setNovaFaltaEquipa({ ...novaFaltaEquipa, Data: e.target.value })
+                }
+                required
+              />
+            </div>
+
+            <div className="col-md-4">
+              <label className="form-label small fw-semibold">Tipo de Falta</label>
+              <select
+                className="form-select form-moderno"
+                value={novaFaltaEquipa.Falta}
+                onChange={(e) => {
+                  const falta = tiposFalta.find(f => f.Falta === e.target.value);
+                  setNovaFaltaEquipa({
+                    ...novaFaltaEquipa,
+                    Falta: falta.Falta,
+                    Horas: Number(falta.Horas) === 1,
+                    Tempo: 1,
+                    DescontaAlimentacao: Number(falta.DescontaSubsAlim) === 1,
+                    DescontaSubsidioTurno: Number(falta.DescontaSubsTurno) === 1
+                  });
+                }}
+                required
+              >
+                <option value="">Seleciona tipo...</option>
+                {tiposFalta.map((f, i) => (
+                  <option key={i} value={f.Falta}>
+                    {f.Falta} – {f.Descricao}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-md-2">
+              <label className="form-label small fw-semibold">Tempo</label>
+              <input
+                type="number"
+                className="form-control form-moderno"
+                value={novaFaltaEquipa.Tempo}
+                min={1}
+                onChange={(e) =>
+                  setNovaFaltaEquipa({ ...novaFaltaEquipa, Tempo: parseInt(e.target.value) })
+                }
+              />
+            </div>
+
+            <div className="col-md-12">
+              <label className="form-label small fw-semibold">Observações</label>
+              <textarea
+                className="form-control form-moderno"
+                rows="2"
+                value={novaFaltaEquipa.Observacoes}
+                onChange={(e) =>
+                  setNovaFaltaEquipa({ ...novaFaltaEquipa, Observacoes: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="col-12">
+              <button type="submit" className="btn btn-danger w-100 rounded-pill">
+                Registar Falta
+              </button>
+            </div>
+          </form>
+        )}
       </div>
-    </form>
-  </div>
-</div>
+    </div>
+  </>
 )}
+
 
 
 
