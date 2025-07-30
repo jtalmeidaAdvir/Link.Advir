@@ -633,18 +633,23 @@ router.delete("/EliminarFeriasFuncionario/:codFuncionario/:dataFeria", async (re
       },
     });
 
-    if (response.status === 200) {
+    return res.status(200).json({
+      mensagem: "Férias eliminadas com sucesso.",
+      detalhes: response.data,
+    });
+
+  } catch (error) {
+    const status = error.response?.status;
+
+    if (status === 404) {
+      // Férias já estavam eliminadas
+      console.warn("Férias já não existiam:", error.response?.data);
       return res.status(200).json({
-        mensagem: "Férias eliminadas com sucesso.",
-        detalhes: response.data,
-      });
-    } else {
-      return res.status(response.status).json({
-        error: "Falha ao eliminar férias.",
-        details: response.data,
+        mensagem: "Férias já não existiam para esse dia.",
+        detalhes: error.response.data,
       });
     }
-  } catch (error) {
+
     console.error(
       "Erro ao eliminar férias:",
       error.response ? error.response.data : error.message
@@ -655,6 +660,7 @@ router.delete("/EliminarFeriasFuncionario/:codFuncionario/:dataFeria", async (re
     });
   }
 });
+
 
 
 router.delete("/EliminarFalta/:codFuncionario/:dataFalta/:tipoFalta", async (req, res) => {
