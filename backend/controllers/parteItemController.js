@@ -17,7 +17,7 @@ exports.obter = async (req, res) => {
 exports.criar = async (req, res) => {
   console.log('🔎 Dados recebidos:', req.body);
 
-  if (!req.body.ObraID || !req.body.Data || !req.body.Numero) {
+  if (!req.body.ObraID || !req.body.Data) {
     return res.status(400).json({ erro: 'Campos obrigatórios em falta.', recebido: req.body });
   }
 
