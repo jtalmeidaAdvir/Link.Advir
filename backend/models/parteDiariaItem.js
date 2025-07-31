@@ -52,6 +52,7 @@ const ParteDiariaItem = sequelize.define('ParteDiariaItem', {
   }
 }, { // ← aqui está a abertura correta da config
   tableName: 'ParteDiariaItem',
+    timestamps: false
 });
 
 module.exports = ParteDiariaItem;
