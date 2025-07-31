@@ -23,7 +23,7 @@ exports.criar = async (req, res) => {
 
   try {
     const novo = await ParteDiariaItem.create(req.body);
-    res.status(201).json(novo);
+    return res.status(201).json(novo);
   } catch (err) {
     console.error('Erro Sequelize:', err);
     res.status(400).json({
@@ -32,6 +32,7 @@ exports.criar = async (req, res) => {
     });
   }
 };
+
 
 
 
