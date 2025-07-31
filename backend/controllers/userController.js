@@ -266,7 +266,22 @@ console.log("→ Empresa predefinida do utilizador:", userPlain.empresaPredefini
 };
 
 
+const getCodFuncionario = async (req, res) => {
+  const { userId } = req.params;
 
+  try {
+    // Supondo que tens a relação entre user e funcionário (ex: numa tabela UtilizadorFuncionario)
+    const resultado = await db.UtilizadorFuncionario.findOne({ where: { userId } });
+
+    if (!resultado) {
+      return res.status(404).json({ erro: 'Funcionário não encontrado para este utilizador' });
+    }
+
+    res.json({ codFuncionario: resultado.codFuncionario });
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao obter funcionário', detalhes: err.message });
+  }
+};
 
 
 
@@ -885,5 +900,6 @@ module.exports = {
     definirEmpresaPredefinida,
     atualizarDadosUtilizador,
     getDadosUtilizador,
-    removerUtilizador
+    removerUtilizador,
+    getCodFuncionario
 };

@@ -20,7 +20,8 @@ const {
     definirEmpresaPredefinida,
     atualizarDadosUtilizador,
     getDadosUtilizador,
-    removerUtilizador
+    removerUtilizador,
+    getCodFuncionario
 } = require('../controllers/userController');
 const router = express.Router();
 
@@ -39,6 +40,8 @@ router.post('/alterarPassword', authMiddleware, alterarPassword);
 router.get('/verify/:token', verificarConta);
 router.post('/recuperar-password', recuperarPassword);
 router.post('/redefinir-password/:token', redefinirPassword);
+
+router.get('/getCodFuncionario/:userId', getCodFuncionario);
 
 // Rotas para operações de empresa
 router.get('/usersByEmpresa', authMiddleware, getUsersByEmpresa);
@@ -69,5 +72,7 @@ router.get('/:userId', authMiddleware, getDadosUtilizador);
 
 // Rota para remover utilizador
 router.delete('/:userId', authMiddleware, removerUtilizador);
+
+
 
 module.exports = router;
