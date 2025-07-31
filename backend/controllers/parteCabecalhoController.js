@@ -15,20 +15,38 @@ exports.obter = async (req, res) => {
 };
 
 exports.criar = async (req, res) => {
-  const { ObraID, Data, Numero } = req.body;
+  const { ObraID, Data } = req.body;
 
-  if (!ObraID || !Data || !Numero) {
-    return res.status(400).json({ erro: 'Campos obrigatórios em falta.' });
+  if (!ObraID || !Data) {
+    return res.status(400).json({ erro: 'ObraID e Data são obrigatórios.' });
   }
 
   try {
-    const novo = await ParteDiariaCabecalho.create(req.body);
-    res.status(201).json(novo);
+    const payload = {
+      ObraID: Number(ObraID),
+      Data,                                   // YYYY-MM-DD
+      Notas: req.body.Notas ?? '',
+      CriadoPor: req.body.CriadoPor ?? req.user?.userNome ?? 'Sistema',
+      Utilizador: req.body.Utilizador ?? req.user?.userNome ?? 'Sistema',
+      TipoEntidade: (req.body.TipoEntidade ?? 'O').slice(0,1),
+      ColaboradorID: req.body.ColaboradorID ?? null   // "022"
+    };
+
+    const novo = await ParteDiariaCabecalho.create(
+      payload,
+      { fields: ['ObraID','Data','Notas','CriadoPor','Utilizador','TipoEntidade','ColaboradorID'] }
+    );
+
+    return res.status(201).json(novo);
   } catch (err) {
-    console.error('Erro ao criar parte diária:', err); // log mais útil
-    res.status(400).json({ erro: err.message || 'Erro desconhecido ao criar cabeçalho.' });
+    console.error('Erro ao criar parte diária:', err);
+    return res.status(400).json({
+      erro: 'Erro ao criar cabeçalho.',
+      detalhe: err?.original?.message || err.message
+    });
   }
 };
+
 
 
 exports.atualizar = async (req, res) => {

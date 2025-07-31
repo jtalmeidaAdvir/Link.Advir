@@ -717,7 +717,6 @@ const criarParteDiaria = async () => {
       const observacoes = ""; // ou algum campo editável no modal
 
       const payloadCab = {
-        Numero: numeroUnico,
         ObraID: item.obraId,
         Data: dataSelecionada,
         Notas: observacoes,
@@ -726,6 +725,8 @@ const criarParteDiaria = async () => {
         TipoEntidade: 'O',
         ColaboradorID: codFuncionario
       };
+      console.log(">>> CABEÇALHO JSON:", payloadCab);
+
 
       const resposta = await fetch("https://backend.advir.pt/api/parte-diaria/cabecalhos", {
         method: "POST",
