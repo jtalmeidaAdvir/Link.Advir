@@ -1,6 +1,6 @@
-import { DataTypes } from 'sequelize';
-import sequelize from '../config/database';
-
+// models/ParteDiariaCabecalho.js
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
 const ParteDiariaCabecalho = sequelize.define('ParteDiariaCabecalho', {
   DocumentoID: {
     type: DataTypes.UUID,
