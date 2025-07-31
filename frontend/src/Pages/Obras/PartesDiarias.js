@@ -713,12 +713,15 @@ const criarParteDiaria = async () => {
 
       const dataHoje = new Date();
       const dataSelecionada = `${dataHoje.getFullYear()}-${String(dataHoje.getMonth() + 1).padStart(2, '0')}-${String(dataHoje.getDate()).padStart(2, '0')}`;
+      const dataFormatada = new Date(dataSelecionada).toISOString().split('T')[0];
+// dá "2025-07-31"
+
       const numeroUnico = Date.now(); // podes gerar outro número se necessário
       const observacoes = ""; // ou algum campo editável no modal
 
       const payloadCab = {
         ObraID: item.obraId,
-        Data: dataSelecionada,
+        Data: dataFormatada,
         Notas: observacoes,
         CriadoPor: userLogado,
         Utilizador: userLogado,

@@ -24,7 +24,7 @@ exports.criar = async (req, res) => {
   try {
     const payload = {
       ObraID: Number(ObraID),
-      Data,                                   // YYYY-MM-DD
+      Data: new Date(req.body.Data).toISOString().split('T')[0],
       Notas: req.body.Notas ?? '',
       CriadoPor: req.body.CriadoPor ?? req.user?.userNome ?? 'Sistema',
       Utilizador: req.body.Utilizador ?? req.user?.userNome ?? 'Sistema',
