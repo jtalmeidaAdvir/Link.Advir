@@ -804,7 +804,7 @@ const criarItensParaMembro = async (documentoID, item) => {
                      ? `${mesAno.ano}-${String(mesAno.mes).padStart(2,'0')}-${String(esp.dia).padStart(2,'0')}`
                      : new Date().toISOString().slice(0,10),
       Numero:       i + 1,
-      ColaboradorID: Number(codFuncionario),          // string ou número conforme API
+      ColaboradorID: codFuncionario,          // string ou número conforme API
       Funcionario:   String(codFuncionario),  // id numérico do funcionário
       ClasseID:      classeId,                // id da especialidade/classe
       NumHoras:      minutosTotal,            // minutos trabalhados

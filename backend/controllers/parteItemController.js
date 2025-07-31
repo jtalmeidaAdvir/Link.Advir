@@ -16,15 +16,20 @@ exports.obter = async (req, res) => {
 
 exports.criar = async (req, res) => {
   try {
+    const { ObraID, Data, Numero } = req.body;
+
+    if (!ObraID || !Data || !Numero) {
+      return res.status(400).json({ erro: 'Campos obrigatórios em falta.' });
+    }
+
     const novo = await ParteDiariaItem.create(req.body);
-    if (!req.body.ObraID || !req.body.Data || !req.body.Numero) {
-  return res.status(400).json({ erro: 'Campos obrigatórios em falta.' });
-}
     res.status(201).json(novo);
+
   } catch (err) {
     res.status(400).json({ erro: err.message });
   }
 };
+
 
 exports.atualizar = async (req, res) => {
   const { id } = req.params;
