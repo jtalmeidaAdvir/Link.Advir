@@ -39,9 +39,10 @@ const ParteDiariaCabecalho = sequelize.define('ParteDiariaCabecalho', {
     defaultValue: 'O'
   },
   ColaboradorID: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-  }
+  type: DataTypes.STRING(10),
+  allowNull: true
+}
+
 }, {
   tableName: 'ParteDiariaCabecalho',
 });
