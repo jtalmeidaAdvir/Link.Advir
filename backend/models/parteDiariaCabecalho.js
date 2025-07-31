@@ -36,12 +36,8 @@ const ParteDiariaCabecalho = sequelize.define('ParteDiariaCabecalho', {
   ColaboradorID: {
     type: DataTypes.STRING(10),
     allowNull: true
-  },
-  Numero: {
-    type: DataTypes.BIGINT,
-    allowNull: false,
-    autoIncrement: true
   }
+
 }, {
   tableName: 'ParteDiariaCabecalho',
   timestamps: false

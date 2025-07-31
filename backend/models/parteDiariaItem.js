@@ -49,11 +49,8 @@ const ParteDiariaItem = sequelize.define('ParteDiariaItem', {
   ObraID: {
   type: DataTypes.INTEGER,
   allowNull: false,
-},
-Numero: {
-  type: DataTypes.INTEGER,
-  allowNull: false,
-},
+}
+
 
 }, {
   tableName: 'ParteDiariaItem',
