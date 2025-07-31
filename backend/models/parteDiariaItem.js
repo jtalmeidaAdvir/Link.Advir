@@ -47,12 +47,10 @@ const ParteDiariaItem = sequelize.define('ParteDiariaItem', {
     allowNull: false,
   },
   ObraID: {
-  type: DataTypes.INTEGER,
-  allowNull: false,
-},
-
-
-}, {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  }
+}, { // ← aqui está a abertura correta da config
   tableName: 'ParteDiariaItem',
 });
 
