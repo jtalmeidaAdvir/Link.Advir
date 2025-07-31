@@ -655,60 +655,130 @@ const PartesDiarias = ({ navigation }) => {
         }
     }, [selectedTrabalhador, selectedDia, editData, dadosProcessados]);
 
-    const criarParteDiaria = async () => {
-        try {
-            const partesDiarias = [];
-            
-            dadosProcessados.forEach(item => {
-                diasDoMes.forEach(dia => {
-                    if (item.horasPorDia[dia] > 0) {
-                        const especialidadesDia = item.especialidades?.filter(esp => esp.dia === dia) || [];
-                        
-                        if (especialidadesDia.length > 0) {
-                            especialidadesDia.forEach(esp => {
-                                if (esp.horas > 0) {
-                                    partesDiarias.push({
-                                        categoria: esp.categoria,
-                                        quantidade: esp.horas,
-                                        especialidade: esp.especialidade,
-                                        unidade: 'horas',
-                                        designacao: `${esp.especialidade} - Trabalho em ${item.obraNome}`,
-                                        data: `${mesAno.ano}-${String(mesAno.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
-                                        horas: esp.horas,
-                                        nome: item.userName,
-                                        obra_id: item.obraId
-                                    });
-                                }
-                            });
-                        } else {
-                            partesDiarias.push({
-                                categoria: item.categoria,
-                                quantidade: item.horasPorDia[dia],
-                                especialidade: item.especialidade,
-                                unidade: 'horas',
-                                designacao: `Trabalho em ${item.obraNome}`,
-                                data: `${mesAno.ano}-${String(mesAno.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
-                                horas: item.horasPorDia[dia],
-                                nome: item.userName,
-                                obra_id: item.obraId
-                            });
-                        }
-                    }
-                });
-            });
+const criarParteDiaria = async () => {
+  try {
+    const token    = await AsyncStorage.getItem('loginToken');
+    const username = await AsyncStorage.getItem('username') || 'Sistema';
 
-            console.log('Partes diárias que seriam criadas:', partesDiarias);
-            
-            await new Promise(resolve => setTimeout(resolve, 1500));
+    const resultados = [];
+    const gruposPorObra = Object.values(dadosAgrupadosPorObra);
 
-            Alert.alert('Sucesso (Simulação)', `${partesDiarias.length} partes diárias seriam criadas!\n\nCada especialidade será registada separadamente.\n\nQuando implementar os endpoints, esta funcionalidade enviará os dados para o backend.`);
-            setModalVisible(false);
-            
-        } catch (error) {
-            console.error('Erro ao criar partes diárias:', error);
-            Alert.alert('Erro', 'Erro ao criar partes diárias');
-        }
-    };
+    for (const grupo of gruposPorObra) {
+  const obraId      = grupo.obraInfo.id;
+  const numeroUnico = Math.floor(Date.now()/1000);
+  const username    = await AsyncStorage.getItem('username') || 'Sistema';
+
+  const payloadCab = {
+    Numero:       numeroUnico,
+    ObraID:       obraId,
+    Data:         new Date().toISOString().slice(0,10),
+    Notas:        '',
+    CriadoPor:    username,
+    Utilizador:   username,
+    TipoEntidade: 'O',
+    ColaboradorID:null
+  };
+
+  console.log('>>> CABEÇALHO JSON:', JSON.stringify(payloadCab));
+
+  const resCab = await fetch(
+    'https://backend.advir.pt/api/parte-diaria/cabecalhos',
+    {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization:  `Bearer ${token}`
+      },
+      body: JSON.stringify(payloadCab)
+    }
+  );
+
+if (!resCab.ok) {
+  // Primeiro tenta ler como JSON
+  let texto;
+  try {
+    texto = JSON.stringify(await resCab.json());
+  } catch {
+    texto = await resCab.text();
+  }
+  console.error(`Cabeçalho inválido (HTTP ${resCab.status}):`, texto);
+  throw new Error(`HTTP ${resCab.status}: ${texto}`);
+}
+
+
+  const { DocumentoID } = await resCab.json();
+
+      // --- agora envia os itens exatamente como antes, usando DocumentoID ---
+      const promisesItens = [];
+      grupo.trabalhadores.forEach(item => {
+        diasDoMes.forEach(dia => {
+          const mins = item.horasPorDia[dia] || 0;
+          if (mins > 0) {
+            const dtoBase = {
+              DocumentoID,
+              Funcionario:   item.userName,
+              ClasseID:      item.categoria === 'MaoObra' ? 1 : 2,
+              SubEmpID:      item.especialidade || null,
+              TipoEntidade:  'O',
+              ColaboradorID: item.userId,
+              Data:          `${mesAno.ano}-${String(mesAno.mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`
+            };
+            const espDia = (item.especialidades||[]).filter(e => e.dia===dia && e.horas>0);
+            if (espDia.length) {
+              espDia.forEach(esp => {
+                promisesItens.push(fetch(
+                  'https://backend.advir.pt/api/parte-diaria/itens',{
+                    method:  'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization:  `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                      ...dtoBase,
+                      NumHoras:  esp.horas,
+                      PrecoUnit: 0
+                    })
+                  }
+                ));
+              });
+            } else {
+              promisesItens.push(fetch(
+                'https://backend.advir.pt/api/parte-diaria/itens',{
+                  method:  'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization:  `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    ...dtoBase,
+                    NumHoras:  mins/60,
+                    PrecoUnit: 0
+                  })
+                }
+              ));
+            }
+          }
+        });
+      });
+
+      await Promise.all(promisesItens);
+      resultados.push({ obraId, itens: promisesItens.length });
+    }
+
+    Alert.alert(
+      'Sucesso',
+      `Foram inseridos partes para ${resultados.length} obras.`
+    );
+    setModalVisible(false);
+
+  } catch (error) {
+    console.error(error);
+    Alert.alert('Erro', error.message);
+  }
+};
+
+
+
 
     const exportarExcel = useCallback(() => {
         const workbook = XLSX.utils.book_new();
