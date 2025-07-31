@@ -25,12 +25,13 @@ exports.criar = async (req, res) => {
     const novo = await ParteDiariaItem.create(req.body);
     return res.status(201).json(novo);
   } catch (err) {
-    console.error('Erro Sequelize:', err);
-    res.status(400).json({
-      erro: err.message || 'Erro inesperado',
-      detalhe: err.errors || null
-    });
-  }
+  console.error('🔥 Erro Sequelize completo:', JSON.stringify(err, null, 2));
+  return res.status(400).json({
+    erro: err.message || 'Erro inesperado',
+    detalhe: err.errors || err
+  });
+}
+
 };
 
 
