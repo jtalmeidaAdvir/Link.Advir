@@ -66,10 +66,8 @@ Empresa.hasMany(Obra, { foreignKey: 'empresa_id' });
 Obra.belongsTo(Empresa, { foreignKey: 'empresa_id' });
 
 
-// Associação
-ParteDiariaCabecalho.hasMany(ParteDiariaItem, { foreignKey: 'DocumentoID', sourceKey: 'DocumentoID' });
-ParteDiariaItem.belongsTo(ParteDiariaCabecalho, { foreignKey: 'DocumentoID', targetKey: 'DocumentoID' });
-
+ParteDiariaCabecalho.hasMany(ParteDiariaItem, { foreignKey: 'DocumentoID' });
+ParteDiariaItem.belongsTo(ParteDiariaCabecalho, { foreignKey: 'DocumentoID' });
 
 
 module.exports = { 
