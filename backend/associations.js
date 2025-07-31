@@ -15,6 +15,8 @@ const EquipaObra = require('./models/equipaObra');
 const RegistoPontoObra = require('./models/registoPontoObra');
 const PartesDiarias = require('./models/partesDiarias');
 const Notificacao = require('./models/notificacao');
+const ParteDiariaCabecalho = require('./models/parteDiariaCabecalho');
+const ParteDiariaItem = require('./models/parteDiariaItem');
 
 // Relação N:N entre User e Empresa
 User.belongsToMany(Empresa, { through: UserEmpresa, foreignKey: 'user_id' });
@@ -64,6 +66,12 @@ Empresa.hasMany(Obra, { foreignKey: 'empresa_id' });
 Obra.belongsTo(Empresa, { foreignKey: 'empresa_id' });
 
 
+// Associação
+ParteDiariaCabecalho.hasMany(ParteDiariaItem, { foreignKey: 'DocumentoID', sourceKey: 'DocumentoID' });
+ParteDiariaItem.belongsTo(ParteDiariaCabecalho, { foreignKey: 'DocumentoID', targetKey: 'DocumentoID' });
+
+
+
 module.exports = { 
     User, 
     Empresa, 
@@ -76,5 +84,6 @@ module.exports = {
     PartesDiarias,
     EquipaObra,
     RegistoPonto,
-    Notificacao
+    Notificacao,
+    
  };

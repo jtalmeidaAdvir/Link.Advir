@@ -45,26 +45,59 @@ const PartesDiarias = ({ navigation }) => {
     const [tempHoras, setTempHoras] = useState('');
 
     // Especialidades disponíveis
-    const especialidades = [
-        'Servente',
-        'Pedreiro',
-        'Carpinteiro',
-        'Ferreiro',
-        'Eletricista',
-        'Canalizador',
-        'Pintor',
-        'Soldador',
-        'Operador de Máquinas',
-        'Encarregado',
-        'Técnico'
-    ];
+    const [especialidades, setEspecialidades] = useState([]);
+    const carregarEspecialidades = useCallback(async () => {
+  const painelToken = await AsyncStorage.getItem('painelAdminToken');
+  const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+  try {
+    const res = await fetch(
+      'https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades',
+      {
+        headers: {
+          Authorization: `Bearer ${painelToken}`,
+          urlempresa,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!res.ok) throw new Error('Erro ao obter especialidades');
+
+    const data = await res.json();
+
+    // Extrai o array real
+    const table = data?.DataSet?.Table;
+    if (!Array.isArray(table)) {
+      console.warn('Formato inesperado de especialidades:', data);
+      setEspecialidades([]);
+      return;
+    }
+
+    // Mapeia para o shape que queres usar no picker
+    const especialidadesFormatadas = table.map(item => ({
+      codigo: item.SubEmp,        // ou item.SubEmpId, conforme prefiras
+      descricao: item.Descricao
+    }));
+
+    setEspecialidades(especialidadesFormatadas);
+  } catch (err) {
+    console.error('Erro ao carregar especialidades:', err);
+    Alert.alert('Erro', 'Não foi possível carregar as especialidades');
+  }
+}, []);
+
+
+    useEffect(() => {
+    carregarEspecialidades();
+    }, []);
+
 
     const categorias = [
         { label: 'Mão de Obra', value: 'MaoObra' },
-        { label: 'Materiais', value: 'Materiais' },
         { label: 'Equipamentos', value: 'Equipamentos' }
     ];
-
+    
 
     const [modoVisualizacao, setModoVisualizacao] = useState('obra');
 
@@ -1337,23 +1370,26 @@ if (modoVisualizacao === 'obra') {
                                     <View style={styles.inputGroup}>
                                         <Text style={styles.inputLabelSmall}>Especialidade</Text>
                                         <View style={styles.pickerContainer}>
-                                            {especialidades.map((esp, espIndex) => (
-                                                <TouchableOpacity
-                                                    key={espIndex}
-                                                    style={[
-                                                        styles.pickerOptionSmall,
-                                                        espItem.especialidade === esp && styles.pickerOptionSelected
-                                                    ]}
-                                                    onPress={() => atualizarEspecialidade(index, 'especialidade', esp)}
-                                                >
-                                                    <Text style={[
-                                                        styles.pickerOptionTextSmall,
-                                                        espItem.especialidade === esp && styles.pickerOptionTextSelected
-                                                    ]}>
-                                                        {esp}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            ))}
+                                    {especialidades.map((esp) => (
+                                        <TouchableOpacity
+                                            key={esp.codigo}
+                                            style={[
+                                            styles.pickerOptionSmall,
+                                            espItem.especialidade === esp.codigo && styles.pickerOptionSelected
+                                            ]}
+                                            onPress={() => atualizarEspecialidade(index, 'especialidade', esp.codigo)}
+                                        >
+                                            <Text style={[
+                                            styles.pickerOptionTextSmall,
+                                            espItem.especialidade === esp.codigo && styles.pickerOptionTextSelected
+                                            ]}>
+                                            {esp.descricao}
+                                            </Text>
+                                        </TouchableOpacity>
+                                        ))}
+
+
+
                                         </View>
                                     </View>
 
