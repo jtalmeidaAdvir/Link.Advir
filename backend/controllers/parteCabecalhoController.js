@@ -18,22 +18,34 @@ exports.criar = async (req, res) => {
   const { ObraID, Data } = req.body;
 
   if (!ObraID || !Data) {
-    return res.status(400).json({ erro: 'Campos obrigatórios em falta.' });
+    return res.status(400).json({ erro: 'ObraID e Data são obrigatórios.' });
   }
 
   try {
-    // 👇 evitar campo Numero no insert
-    const dados = { ...req.body };
-    delete dados.Numero;
+    const payload = {
+      ObraID: Number(ObraID),
+      Data: new Date(req.body.Data).toISOString().split('T')[0],
+      Notas: req.body.Notas ?? '',
+      CriadoPor: req.body.CriadoPor ?? req.user?.userNome ?? 'Sistema',
+      Utilizador: req.body.Utilizador ?? req.user?.userNome ?? 'Sistema',
+      TipoEntidade: (req.body.TipoEntidade ?? 'O').slice(0,1),
+      ColaboradorID: req.body.ColaboradorID ?? null   // "022"
+    };
 
-    const novo = await ParteDiariaCabecalho.create(dados);
-    res.status(201).json(novo);
+    const novo = await ParteDiariaCabecalho.create(
+      payload,
+      { fields: ['ObraID','Data','Notas','CriadoPor','Utilizador','TipoEntidade','ColaboradorID'] }
+    );
+
+    return res.status(201).json(novo);
   } catch (err) {
     console.error('Erro ao criar parte diária:', err);
-    res.status(400).json({ erro: 'Erro ao criar cabeçalho.', detalhe: err.message });
+    return res.status(400).json({
+      erro: 'Erro ao criar cabeçalho.',
+      detalhe: err?.original?.message || err.message
+    });
   }
 };
-
 
 
 
