@@ -46,6 +46,13 @@ const PartesDiarias = ({ navigation }) => {
 
     // Especialidades disponíveis
     const [especialidades, setEspecialidades] = useState([]);
+
+
+const [membrosSelecionados, setMembrosSelecionados] = useState([]);
+const [equipaSelecionada, setEquipaSelecionada] = useState(null);
+
+
+
     const carregarEspecialidades = useCallback(async () => {
   const painelToken = await AsyncStorage.getItem('painelAdminToken');
   const urlempresa = await AsyncStorage.getItem('urlempresa');
@@ -91,6 +98,14 @@ const PartesDiarias = ({ navigation }) => {
     useEffect(() => {
     carregarEspecialidades();
     }, []);
+
+
+    useEffect(() => {
+  if (equipaSelecionada && equipaSelecionada.membros) {
+    setMembrosSelecionados(equipaSelecionada.membros);
+  }
+}, [equipaSelecionada]);
+
 
 
     const categorias = [
@@ -655,127 +670,94 @@ const PartesDiarias = ({ navigation }) => {
         }
     }, [selectedTrabalhador, selectedDia, editData, dadosProcessados]);
 
-const criarParteDiaria = async () => {
-  try {
-    const token    = await AsyncStorage.getItem('loginToken');
-    const username = await AsyncStorage.getItem('username') || 'Sistema';
+const obterCodFuncionario = async (userId) => {
+  const painelToken = localStorage.getItem("painelAdminToken");
 
-    const resultados = [];
-    const gruposPorObra = Object.values(dadosAgrupadosPorObra);
-
-    for (const grupo of gruposPorObra) {
-  const obraId      = grupo.obraInfo.id;
-  const numeroUnico = Math.floor(Date.now()/1000);
-  const username    = await AsyncStorage.getItem('username') || 'Sistema';
-
-  const payloadCab = {
-    Numero:       numeroUnico,
-    ObraID:       obraId,
-    Data:         new Date().toISOString().slice(0,10),
-    Notas:        '',
-    CriadoPor:    username,
-    Utilizador:   username,
-    TipoEntidade: 'O',
-    ColaboradorID:null
-  };
-
-  console.log('>>> CABEÇALHO JSON:', JSON.stringify(payloadCab));
-
-  const resCab = await fetch(
-    'https://backend.advir.pt/api/parte-diaria/cabecalhos',
-    {
-      method:  'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization:  `Bearer ${token}`
-      },
-      body: JSON.stringify(payloadCab)
+  const resposta = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${userId}`, {
+    headers: {
+      Authorization: `Bearer ${painelToken}`
     }
-  );
+  });
 
-if (!resCab.ok) {
-  // Primeiro tenta ler como JSON
-  let texto;
-  try {
-    texto = JSON.stringify(await resCab.json());
-  } catch {
-    texto = await resCab.text();
+  if (!resposta.ok) {
+    console.error("Erro ao obter codFuncionario para o user", userId);
+    return null;
   }
-  console.error(`Cabeçalho inválido (HTTP ${resCab.status}):`, texto);
-  throw new Error(`HTTP ${resCab.status}: ${texto}`);
-}
+
+  const data = await resposta.json();
+  return data.codFuncionario;
+};
 
 
-  const { DocumentoID } = await resCab.json();
 
-      // --- agora envia os itens exatamente como antes, usando DocumentoID ---
-      const promisesItens = [];
-      grupo.trabalhadores.forEach(item => {
-        diasDoMes.forEach(dia => {
-          const mins = item.horasPorDia[dia] || 0;
-          if (mins > 0) {
-            const dtoBase = {
-              DocumentoID,
-              Funcionario:   item.userName,
-              ClasseID:      item.categoria === 'MaoObra' ? 1 : 2,
-              SubEmpID:      item.especialidade || null,
-              TipoEntidade:  'O',
-              ColaboradorID: item.userId,
-              Data:          `${mesAno.ano}-${String(mesAno.mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`
-            };
-            const espDia = (item.especialidades||[]).filter(e => e.dia===dia && e.horas>0);
-            if (espDia.length) {
-              espDia.forEach(esp => {
-                promisesItens.push(fetch(
-                  'https://backend.advir.pt/api/parte-diaria/itens',{
-                    method:  'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization:  `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                      ...dtoBase,
-                      NumHoras:  esp.horas,
-                      PrecoUnit: 0
-                    })
-                  }
-                ));
-              });
-            } else {
-              promisesItens.push(fetch(
-                'https://backend.advir.pt/api/parte-diaria/itens',{
-                  method:  'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization:  `Bearer ${token}`
-                  },
-                  body: JSON.stringify({
-                    ...dtoBase,
-                    NumHoras:  mins/60,
-                    PrecoUnit: 0
-                  })
-                }
-              ));
-            }
-          }
-        });
+
+
+
+const criarParteDiaria = async () => {
+  const painelToken = localStorage.getItem("painelAdminToken");
+  const userLogado = localStorage.getItem("userNome");
+
+  if (!dadosProcessados || dadosProcessados.length === 0) {
+    Alert.alert("Erro", "Não existem dados para submeter.");
+    return;
+  }
+
+  for (const item of dadosProcessados) {
+    try {
+      const codFuncionario = await obterCodFuncionario(item.userId);
+
+      if (!codFuncionario) {
+        console.warn(`codFuncionario não encontrado para ${item.userName}`);
+        continue;
+      }
+
+      const dataHoje = new Date();
+      const dataSelecionada = `${dataHoje.getFullYear()}-${String(dataHoje.getMonth() + 1).padStart(2, '0')}-${String(dataHoje.getDate()).padStart(2, '0')}`;
+      const numeroUnico = Date.now(); // podes gerar outro número se necessário
+      const observacoes = ""; // ou algum campo editável no modal
+
+      const payloadCab = {
+        Numero: numeroUnico,
+        ObraID: item.obraId,
+        Data: dataSelecionada,
+        Notas: observacoes,
+        CriadoPor: userLogado,
+        Utilizador: userLogado,
+        TipoEntidade: 'O',
+        ColaboradorID: codFuncionario
+      };
+
+      const resposta = await fetch("https://backend.advir.pt/api/parte-diaria/cabecalhos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${painelToken}`
+        },
+        body: JSON.stringify(payloadCab)
       });
 
-      await Promise.all(promisesItens);
-      resultados.push({ obraId, itens: promisesItens.length });
+      if (!resposta.ok) {
+        const erro = await resposta.json();
+        console.error(`Erro ao criar cabeçalho para ${item.userName}:`, erro);
+        continue;
+      }
+
+      const cabecalhoCriado = await resposta.json();
+      console.log(`✅ Parte criada para ${item.userName}:`, cabecalhoCriado);
+
+      // Se quiseres, podes agora também gerar os itens com base nas especialidades
+      // await criarItensParaMembro(cabecalhoCriado.DocumentoID, item);
+
+    } catch (erro) {
+      console.error(`Erro geral com o item ${item.userName}:`, erro);
     }
-
-    Alert.alert(
-      'Sucesso',
-      `Foram inseridos partes para ${resultados.length} obras.`
-    );
-    setModalVisible(false);
-
-  } catch (error) {
-    console.error(error);
-    Alert.alert('Erro', error.message);
   }
+
+  Alert.alert("Sucesso", "Partes diárias geradas com sucesso!");
 };
+
+
+
 
 
 
