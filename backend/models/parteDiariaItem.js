@@ -39,8 +39,8 @@ const ParteDiariaItem = sequelize.define('ParteDiariaItem', {
     defaultValue: 'O'
   },
   ColaboradorID: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
+    type: DataTypes.STRING(10),
+    allowNull: true
   },
   Data: {
     type: DataTypes.DATEONLY,

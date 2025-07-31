@@ -750,7 +750,12 @@ const criarParteDiaria = async () => {
       console.log(`✅ Parte criada para ${item.userName}:`, cabecalhoCriado);
 
       // Se quiseres, podes agora também gerar os itens com base nas especialidades
-      // await criarItensParaMembro(cabecalhoCriado.DocumentoID, item);
+       await criarItensParaMembro(
+  cabecalhoCriado.DocumentoID,
+  item,
+  codFuncionario,
+  mesAno
+);
 
     } catch (erro) {
       console.error(`Erro geral com o item ${item.userName}:`, erro);
@@ -759,6 +764,78 @@ const criarParteDiaria = async () => {
 
   Alert.alert("Sucesso", "Partes diárias geradas com sucesso!");
 };
+
+// Adiciona esta função no teu componente:
+
+const criarItensParaMembro = async (documentoID, item) => {
+  const painelToken = await AsyncStorage.getItem("painelAdminToken");
+
+ const codFuncionario = await obterCodFuncionario(item.userId);
+  if (!codFuncionario) {
+    console.warn(`Sem codFuncionario para ${item.userName}, salto item.`);
+    return;
+  }
+
+  // Se não houver especialidades, envia tudo numa linha só
+  const linhas = item.especialidades.length > 0
+    ? item.especialidades
+    : [{
+        dia: null,
+        especialidade: item.especialidade,
+        categoria: item.categoria,
+        horas: Object.values(item.horasPorDia).reduce((sum, m) => sum + m, 0) / 60
+      }];
+
+  for (let i = 0; i < linhas.length; i++) {
+    const esp = linhas[i];
+
+    // 1) Calcula minutosTotal antes de construir o payload
+    const minutosTotal = Math.round((esp.horas || 0) * 60);
+
+    // 2) Faz lookup do ID da classe (se tiveres um `esp.classeId` guardado)
+    //    ou mapeia o teu código de especialidade para um ID numérico aqui.
+    const classeId = esp.classeId || /* fallback ao id por defeito */ 1;
+
+    // 3) Constrói o payload usando somente campos NOT NULL
+    const payloadItem = {
+      DocumentoID:  documentoID,
+      ObraID:       item.obraId,
+      Data:         esp.dia
+                     ? `${mesAno.ano}-${String(mesAno.mes).padStart(2,'0')}-${String(esp.dia).padStart(2,'0')}`
+                     : new Date().toISOString().slice(0,10),
+      Numero:       i + 1,
+      ColaboradorID: Number(codFuncionario),          // string ou número conforme API
+      Funcionario:   String(codFuncionario),  // id numérico do funcionário
+      ClasseID:      classeId,                // id da especialidade/classe
+      NumHoras:      minutosTotal,            // minutos trabalhados
+      PrecoUnit:     esp.precoUnit || 0       // se for obrigatório
+    };
+
+    console.log("Payload Item:", payloadItem);
+
+    try {
+      const resp = await fetch("https://backend.advir.pt/api/parte-diaria/itens", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${painelToken}`
+        },
+        body: JSON.stringify(payloadItem)
+      });
+
+      if (!resp.ok) {
+  const err = await resp.json(); // lê apenas uma vez
+  console.warn(`Erro ao criar item ${i+1} para ${item.userName}:`, err);
+} else {
+  console.log(`✅ Item ${i+1} criado para ${item.userName}`);
+}
+
+    } catch (e) {
+      console.error(`Erro de rede ao criar item ${i+1}:`, e);
+    }
+  }
+};
+
 
 
 
