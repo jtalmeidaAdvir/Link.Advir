@@ -47,4 +47,4 @@ const ParteDiariaCabecalho = sequelize.define('ParteDiariaCabecalho', {
   timestamps: false
 });
 
-export default ParteDiariaCabecalho;
+module.exports = ParteDiariaCabecalho;
