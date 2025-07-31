@@ -16,19 +16,17 @@ exports.obter = async (req, res) => {
 
 exports.criar = async (req, res) => {
   try {
-    const { ObraID, Data, Numero } = req.body;
-
-    if (!ObraID || !Data || !Numero) {
-      return res.status(400).json({ erro: 'Campos obrigatórios em falta.' });
-    }
-
     const novo = await ParteDiariaItem.create(req.body);
     res.status(201).json(novo);
-
   } catch (err) {
-    res.status(400).json({ erro: err.message });
+    console.error('Erro Sequelize:', err); // <-- Mostra tudo na consola
+    res.status(400).json({
+      erro: err.message || 'Erro inesperado',
+      detalhe: err.errors || null
+    });
   }
 };
+
 
 
 exports.atualizar = async (req, res) => {
