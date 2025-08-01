@@ -20,7 +20,7 @@ router.put('/itens/:id', item.atualizar);
 router.delete('/itens/:id', item.remover);
 
 
-router.get('/parte-diaria/partes-existentes', cab.partesExistentesPorUserObraData);
+router.get('/partes-existentes', cab.partesExistentesPorUserObraData);
 
 
 module.exports = router;
