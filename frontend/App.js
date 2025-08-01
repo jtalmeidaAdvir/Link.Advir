@@ -51,6 +51,8 @@ import RegistoPontoObra from './src/Pages/Assiduidade/RegistoPontoObra';
 import CalendarioHorasTrabalho from './src/Pages/Assiduidade/CalendarioHorasTrabalho';
 
 import AprovacaoFaltaFerias from './src/Pages/Assiduidade/AprovacaoFaltaFerias';
+import GestaoPartesDiarias from './src/Pages/Obras/GestaoPartesDiarias';
+
 import AprovacaoPontoPendentes from './src/Pages/Assiduidade/AprovacaoPontoPendentes';
 //Aprovaçoes Pendentes
 import ConcursosAprovacao from './src/Pages/Concursos/ConcursosAprovacao';
@@ -286,10 +288,22 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
 
                             />
 
+
+                           
+
                         </>
 
                     )}
 
+                    {(tipoUser === "Diretor" || tipoUser === "Administrador") && (
+                     <DrawerItem
+                                label={t("Gestão Partes Diárias")}
+                                onPress={() => props.navigation.navigate('GestaoPartesDiarias')}
+                                icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
+                                options={{ drawerItemStyle: (tipoUser === "Encarregado" || tipoUser === "Diretor" || tipoUser === "Administrador") ? {} : { display: 'none' } }}
+
+                            />
+                    )}
 
                     {hasBotaoAssiduidadeModule && (
                         <DrawerItem
@@ -735,6 +749,8 @@ const AppNavigator = () => {
 
             <Drawer.Screen name="AprovacaoFaltaFerias" component={AprovacaoFaltaFerias} />
             <Drawer.Screen name="AprovacaoPontoPendentes" component={AprovacaoPontoPendentes} />
+            <Drawer.Screen name="GestaoPartesDiarias" component={GestaoPartesDiarias} />
+            
 
             <Drawer.Screen name="RegistosPorUtilizador" component={RegistosPorUtilizador} />
 

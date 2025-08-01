@@ -44,6 +44,10 @@ const PartesDiarias = ({ navigation }) => {
     const [editingCell, setEditingCell] = useState(null);
     const [tempHoras, setTempHoras] = useState('');
 
+    const [codMap, setCodMap] = useState({});
+const [submittedSet, setSubmittedSet] = useState(new Set());
+
+
     // Especialidades disponíveis
     const [especialidades, setEspecialidades] = useState([]);
 
@@ -268,6 +272,16 @@ const carregarItensSubmetidos = async () => {
                     });
                 }
             });
+            // Dentro de carregarDadosReais, logo depois de montar equipasFormatadas e membrosIds:
+                    const uniqueUserIds = [...new Set(membrosIds)];
+                    const novoCodMap = {};
+                    await Promise.all(uniqueUserIds.map(async uid => {
+                    const cod = await obterCodFuncionario(uid);
+                    if (cod) novoCodMap[uid] = String(cod).padStart(3, '0');
+                    }));
+                    setCodMap(novoCodMap);
+
+
 
             console.log('IDs dos membros encontrados:', membrosIds);
             setLoadingProgress(40);
@@ -326,6 +340,8 @@ const carregarItensSubmetidos = async () => {
                     // Aguardar todas as requisições do chunk
                     const results = await Promise.all(promises);
                     
+                    
+
                     // Processar resultados
                     results.forEach(({ registos }) => {
                         registos.forEach(registo => {
@@ -375,6 +391,20 @@ const carregarItensSubmetidos = async () => {
             Alert.alert('Erro', 'Erro ao carregar dados do servidor: ' + error.message);
         }
     };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     // Memoizar processamento de dados para evitar recálculos desnecessários
     const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
@@ -427,6 +457,7 @@ const carregarItensSubmetidos = async () => {
                 id: `${grupo.user.id}-${grupo.obra.id}`,
                 userId: grupo.user.id,
                 userName: grupo.user.nome,
+                codFuncionario: codMap[grupo.user.id] || null,
                 obraId: grupo.obra.id,
                 obraNome: grupo.obra.nome,
                 obraCodigo: grupo.obra.codigo,
@@ -442,6 +473,19 @@ const carregarItensSubmetidos = async () => {
         setHorasOriginais(novasHorasOriginais);
         setDadosProcessados(dadosProcessados);
     }, [diasDoMes, equipas]);
+
+
+    useEffect(() => {
+  if (itensSubmetidos.length === 0) return;
+  const submittedSet = new Set(
+    itensSubmetidos.map(item => {
+      const data = item.Data.split('T')[0];           // "2025-07-22"
+      const [ano,mes,dia] = data.split('-');
+      return `${item.ColaboradorID}-${item.ObraID}-${parseInt(dia)}`;
+    })
+  );
+  setSubmittedSet(submittedSet);
+}, [itensSubmetidos]);
 
     // Memoizar cálculo de horas para melhor performance
     const calcularHorasPorDia = useCallback((registos, diasDoMes) => {
@@ -581,15 +625,8 @@ const carregarItensSubmetidos = async () => {
     }, []);
 
 
-    const itemJaSubmetido = (userId, obraId, dia) => {
-  return itensSubmetidos.some(item =>
-    item.ColaboradorID === String(userId) &&
-    item.ObraID === obraId &&
-    new Date(item.Data).getDate() === dia &&
-    new Date(item.Data).getMonth() + 1 === mesAno.mes &&
-    new Date(item.Data).getFullYear() === mesAno.ano
-  );
-};
+const itemJaSubmetido = (codFuncionario, obraId, dia) =>
+  submittedSet.has(`${codFuncionario}-${obraId}-${dia}`);
 
 
     const salvarHorasInline = useCallback((userId, obraId, dia) => {
@@ -1092,11 +1129,16 @@ if (modoVisualizacao === 'obra') {
                                             {diasDoMes.map(dia => {
                                                 const cellKey = `${item.userId}-${item.obraId}-${dia}`;
                                                 const isEditing = editingCell === cellKey;
-                                                
+                                                const submetido = itemJaSubmetido(item.codFuncionario, item.obraId, dia);
+
                                                 return (
                                                     <View 
-                                                        key={dia} 
-                                                        style={[styles.tableCell, { width: 50 }]}
+                                                    key={dia} 
+                                                    style={[
+                                                        styles.tableCell, 
+                                                        { width: 50 },
+                                                        submetido && styles.cellSubmetido // <- aplica estilo extra
+                                                    ]}
                                                     >
                                                         {isEditing ? (
                                                             <View style={styles.editingContainer}>
@@ -1111,24 +1153,38 @@ if (modoVisualizacao === 'obra') {
                                                                 />
                                                             </View>
                                                         ) : (
-                                                            <TouchableOpacity
-                                                                style={styles.cellTouchable}
-                                                                onPress={() => abrirEdicao(item, dia)}
-                                                                onLongPress={() => iniciarEdicaoHoras(item.userId, item.obraId, dia, item.horasPorDia[dia] || 0)}
-                                                            >
-                                                                <Text style={[
-                                                                    styles.cellText,
-                                                                    { textAlign: 'center' },
-                                                                    item.horasPorDia[dia] > 0 && styles.hoursText,
-                                                                    styles.clickableHours
-                                                                ]}>
-                                                                    {formatarHorasMinutos(item.horasPorDia[dia] || 0)}
-                                                                </Text>
-                                                            </TouchableOpacity>
-                                                        )}
-                                                    </View>
-                                                );
-                                            })}
+                                                             <TouchableOpacity
+                                                                    style={[
+                                                                        styles.cellTouchable,
+                                                                        submetido && styles.cellSubmetido, // já estava
+                                                                        submetido && { opacity: 0.6 }      // dá um feedback visual
+                                                                    ]}
+                                                                    disabled={submetido}
+                                                                    onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
+                                                                    onLongPress={submetido ? undefined : () => iniciarEdicaoHoras(item.userId, item.obraId, dia, item.horasPorDia[dia] || 0)}
+                                                                    >
+                                                                    <Text style={[
+                                                                        styles.cellText,
+                                                                        { textAlign: 'center' },
+                                                                        item.horasPorDia[dia] > 0 && styles.hoursText,
+                                                                        styles.clickableHours
+                                                                    ]}>
+                                                                        {formatarHorasMinutos(item.horasPorDia[dia] || 0)}
+                                                                    </Text>
+                                                                    {submetido && (
+                                                                        <Ionicons
+                                                                        name="checkmark-circle"
+                                                                        size={16}
+                                                                        color="#28a745"
+                                                                        style={styles.iconSubmetido}
+                                                                        />
+                                                                    )}
+                                                                    </TouchableOpacity>
+
+      )}
+    </View>
+  );
+})}
                                             <View style={[styles.tableCell, { width: 70 }]}>
                                                 <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
                                                     {formatarHorasMinutos(diasDoMes.reduce((total, dia) => 
@@ -1192,11 +1248,20 @@ if (modoVisualizacao === 'obra') {
                                         </Text>
                                     </View>
                                     {diasDoMes.map(dia => {
-    const cellKey = `${item.userId}-${item.obraId}-${dia}`;
-    const isEditing = editingCell === cellKey;
+  const cellKey = `${item.userId}-${item.obraId}-${dia}`;
+  const isEditing = editingCell === cellKey;
+  // 👉 Aqui você precisa chamar itemJaSubmetido com o codFuncionario:
+  const submetido = itemJaSubmetido(item.codFuncionario, item.obraId, dia);
 
-    return (
-        <View key={dia} style={[styles.tableCell, { width: 50 }]}>
+  return (
+    <View
+      key={dia}
+      style={[
+        styles.tableCell,
+        { width: 50 },
+        submetido && styles.cellSubmetido   // aplica fundo verde
+      ]}
+    >
             {isEditing ? (
                 <View style={styles.editingContainer}>
                     <TextInput
@@ -1211,22 +1276,36 @@ if (modoVisualizacao === 'obra') {
                 </View>
             ) : (
                 <TouchableOpacity
-                    style={styles.cellTouchable}
-                    onPress={() => abrirEdicao(item, dia)}
-                    onLongPress={() => iniciarEdicaoHoras(item.userId, item.obraId, dia, item.horasPorDia[dia] || 0)}
-                >
-                    <Text style={[
-                        styles.cellText,
-                        { textAlign: 'center' },
-                        item.horasPorDia[dia] > 0 && styles.hoursText,
-                        styles.clickableHours
-                    ]}>
-                        {formatarHorasMinutos(item.horasPorDia[dia] || 0)}
-                    </Text>
-                </TouchableOpacity>
-            )}
-        </View>
-    );
+  style={[
+    styles.cellTouchable,
+    submetido && styles.cellSubmetido, // já estava
+    submetido && { opacity: 0.6 }      // dá um feedback visual
+  ]}
+  disabled={submetido}
+  onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
+  onLongPress={submetido ? undefined : () => iniciarEdicaoHoras(item.userId, item.obraId, dia, item.horasPorDia[dia] || 0)}
+>
+  <Text style={[
+    styles.cellText,
+    { textAlign: 'center' },
+    item.horasPorDia[dia] > 0 && styles.hoursText,
+    styles.clickableHours
+  ]}>
+    {formatarHorasMinutos(item.horasPorDia[dia] || 0)}
+  </Text>
+  {submetido && (
+    <Ionicons
+      name="checkmark-circle"
+      size={16}
+      color="#28a745"
+      style={styles.iconSubmetido}
+    />
+  )}
+</TouchableOpacity>
+
+      )}
+    </View>
+  );
 })}
 
                                     <View style={[styles.tableCell, { width: 70 }]}>
@@ -2066,6 +2145,14 @@ const styles = StyleSheet.create({
         borderTopColor: '#e0e0e0',
         marginVertical: 5,
     },
+    cellSubmetido: {
+    backgroundColor: '#e6f9e6', // verde muito claro
+  },
+  iconSubmetido: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+  },
     obraDaysHeader: {
   flexDirection: 'row',
   backgroundColor: '#e3f2fd',
