@@ -63,3 +63,22 @@ exports.remover = async (req, res) => {
   res.sendStatus(204);
 };
 
+exports.partesExistentesPorUserObraData = async (req, res) => {
+  try {
+    const partes = await ParteDiariaItem.findAll({
+      attributes: ['ColaboradorID', 'ObraID', 'Data'],
+      raw: true,
+    });
+
+    const resultado = partes.map(p => ({
+      colaboradorId: p.ColaboradorID,
+      obraId: p.ObraID,
+      data: p.Data
+    }));
+
+    res.json(resultado);
+  } catch (error) {
+    console.error('Erro ao listar partes existentes:', error);
+    res.status(500).json({ erro: 'Erro ao buscar partes existentes.' });
+  }
+};

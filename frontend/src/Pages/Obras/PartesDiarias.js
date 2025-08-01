@@ -51,6 +51,7 @@ const PartesDiarias = ({ navigation }) => {
 const [membrosSelecionados, setMembrosSelecionados] = useState([]);
 const [equipaSelecionada, setEquipaSelecionada] = useState(null);
 
+const [diasSubmetidos, setDiasSubmetidos] = useState([]);
 
 
     const carregarEspecialidades = useCallback(async () => {
@@ -83,9 +84,11 @@ const [equipaSelecionada, setEquipaSelecionada] = useState(null);
 
     // Mapeia para o shape que queres usar no picker
     const especialidadesFormatadas = table.map(item => ({
-      codigo: item.SubEmp,        // ou item.SubEmpId, conforme prefiras
-      descricao: item.Descricao
-    }));
+        codigo: item.SubEmp,        // ← Aqui está o que está visível
+        descricao: item.Descricao,
+        subEmpId: item.SubEmpId     // ← Aqui está o ID verdadeiro que precisas para o backend
+        }));
+
 
     setEspecialidades(especialidadesFormatadas);
   } catch (err) {
@@ -225,6 +228,17 @@ const [equipaSelecionada, setEquipaSelecionada] = useState(null);
             setLoading(false);
         }
     };
+
+    const isDiaSubmetido = (colaboradorId, obraId, dia) => {
+  const dataStr = `${mesAno.ano}-${String(mesAno.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+  return diasSubmetidos.some(d =>
+    String(d.colaboradorId) === String(colaboradorId) &&
+    String(d.obraId) === String(obraId) &&
+    String(d.data).startsWith(dataStr)
+  );
+};
+
+
 
     const carregarDadosReais = async () => {
         const token = await AsyncStorage.getItem('loginToken');
@@ -372,6 +386,13 @@ const [equipaSelecionada, setEquipaSelecionada] = useState(null);
             setLoadingProgress(100);
             processarDadosPartes(todosRegistos, equipasFormatadas);
 
+            const respostaSubmetidos = await fetch('https://backend.advir.pt/api/parte-diaria/partes-existentes', {
+                headers: { Authorization: `Bearer ${token}` }
+                });
+                const dadosSubmetidos = await respostaSubmetidos.json();
+                setDiasSubmetidos(dadosSubmetidos);
+
+
         } catch (error) {
             console.error('Erro ao carregar dados reais:', error);
             Alert.alert('Erro', 'Erro ao carregar dados do servidor: ' + error.message);
@@ -435,6 +456,7 @@ const [equipaSelecionada, setEquipaSelecionada] = useState(null);
                 horasPorDia,
                 especialidade: 'Servente',
                 categoria: 'MaoObra',
+
                 especialidades: [],
                 isOriginal: true
             });
@@ -515,7 +537,7 @@ const [equipaSelecionada, setEquipaSelecionada] = useState(null);
         setSelectedTrabalhador(trabalhador);
         setSelectedDia(dia);
         
-        const especialidadesDia = trabalhador.especialidades?.filter(esp => esp.dia === dia) || [];
+  const especialidadesDia = trabalhador.especialidades?.filter(esp => esp.dia === dia) || [];
         
         setEditData({
             especialidade: trabalhador.especialidade || 'Servente',
@@ -617,58 +639,81 @@ const [equipaSelecionada, setEquipaSelecionada] = useState(null);
         setTempHoras('');
     }, [tempHoras, dadosProcessados]);
 
-    const salvarEdicao = useCallback(() => {
-        if (selectedTrabalhador && selectedDia) {
-            const totalMinutosDia = selectedTrabalhador.horasPorDia[selectedDia] || 0;
-            const somaMinutosEspecialidades = editData.especialidadesDia.reduce((sum, esp) => {
-                const horas = parseFloat(esp.horas) || 0;
-                return sum + Math.round(horas * 60);
-            }, 0);
-            
-            if (Math.abs(somaMinutosEspecialidades - totalMinutosDia) > 5 && totalMinutosDia > 0) {
-                Alert.alert('Erro', `A soma das horas das especialidades (${formatarHorasMinutos(somaMinutosEspecialidades)}) deve ser igual ao total trabalhado no dia (${formatarHorasMinutos(totalMinutosDia)})`);
-                return;
-            }
-            
-            const novoDados = dadosProcessados.map(item => {
-                if (item.userId === selectedTrabalhador.userId && 
-                    item.obraId === selectedTrabalhador.obraId) {
-                    
-                    const novasHorasDia = editData.especialidadesDia.reduce((sum, esp) => sum + (parseFloat(esp.horas) || 0), 0);
-                    
-                    const especialidadesAtualizadas = item.especialidades || [];
-                    const especialidadesFiltradas = especialidadesAtualizadas.filter(esp => esp.dia !== selectedDia);
-                    
-                    editData.especialidadesDia.forEach(esp => {
-                        if (esp.horas > 0) {
-                            especialidadesFiltradas.push({
-                                dia: selectedDia,
-                                especialidade: esp.especialidade,
-                                categoria: esp.categoria,
-                                horas: parseFloat(esp.horas)
-                            });
-                        }
-                    });
-                    
-                    return {
-                        ...item,
-                        horasPorDia: {
-                            ...item.horasPorDia,
-                            [selectedDia]: novasHorasDia
-                        },
-                        especialidades: especialidadesFiltradas,
-                        especialidade: editData.especialidadesDia.length > 0 ? editData.especialidadesDia[0].especialidade : item.especialidade,
-                        categoria: editData.especialidadesDia.length > 0 ? editData.especialidadesDia[0].categoria : item.categoria
-                    };
-                }
-                return item;
-            });
-            
-            setDadosProcessados(novoDados);
-            setEditModalVisible(false);
-            Alert.alert('Sucesso', 'Especialidades atualizadas com sucesso!');
-        }
-    }, [selectedTrabalhador, selectedDia, editData, dadosProcessados]);
+
+
+
+
+
+// 1) Dentro de salvarEdicao(), valida a soma em minutos e prepara as especialidades
+const salvarEdicao = useCallback(() => {
+  if (!selectedTrabalhador || selectedDia == null) return;
+
+  // total em minutos que veio do registo
+  const totalMinutosDia = selectedTrabalhador.horasPorDia[selectedDia] || 0;
+
+  // soma em minutos das especialidades inseridas (editData.horas está em horas decimais)
+  const somaMinutosEspecialidades = editData.especialidadesDia.reduce((sum, esp) => {
+    return sum + Math.round((esp.horas || 0) * 60);
+  }, 0);
+
+  if (totalMinutosDia > 0 && somaMinutosEspecialidades !== totalMinutosDia) {
+    return Alert.alert(
+      'Erro',
+      `A soma das especialidades (${formatarHorasMinutos(somaMinutosEspecialidades)}) deve ser igual ao total do dia (${formatarHorasMinutos(totalMinutosDia)})`
+    );
+  }
+
+  // 2) Atualiza o estado global dadosProcessados, injetando N especialidades
+  const novoDados = dadosProcessados.map(item => {
+    if (item.userId === selectedTrabalhador.userId && item.obraId === selectedTrabalhador.obraId) {
+      // recria o objeto horasPorDia com o total correcto
+      const horasPorDiaAtualizado = {
+        ...item.horasPorDia,
+        [selectedDia]: somaMinutosEspecialidades
+      };
+
+      // filtra fora as entradas antigas deste dia e adiciona todas as novas
+      const especiaisFiltradas = (item.especialidades || [])
+        .filter(e => e.dia !== selectedDia)
+        .concat(
+          editData.especialidadesDia.map(esp => ({
+            dia: selectedDia,
+            especialidade: esp.especialidade,
+            categoria: esp.categoria,
+            horas: esp.horas,            // horas em decimal
+            subEmpId: esp.subEmpId,      // assegura que guardas o ID correcto
+            classeId: esp.classeId       // idem
+          }))
+        );
+
+      return {
+        ...item,
+        horasPorDia: horasPorDiaAtualizado,
+        especialidades: especiaisFiltradas,
+        // mantém uma “especialidade de cabeçalho” só para exibição na tabela
+        especialidade: especiaisFiltradas[0]?.especialidade || item.especialidade,
+        categoria: especiaisFiltradas[0]?.categoria || item.categoria
+      };
+    }
+    return item;
+  });
+
+  setDadosProcessados(novoDados);
+  setEditModalVisible(false);
+  Alert.alert('Sucesso', 'Especialidades atualizadas com sucesso!');
+}, [
+  selectedTrabalhador,
+  selectedDia,
+  editData,
+  dadosProcessados,
+  formatarHorasMinutos
+]);
+
+
+
+
+
+
 
 const obterCodFuncionario = async (userId) => {
   const painelToken = localStorage.getItem("painelAdminToken");
@@ -776,42 +821,51 @@ const criarItensParaMembro = async (documentoID, item) => {
     return;
   }
 
-  // Se não houver especialidades, envia tudo numa linha só
-  const linhas = item.especialidades.length > 0
+ // Normaliza cada especialidade para garantir subEmpId e classeId
+  const linhas = (item.especialidades.length > 0
     ? item.especialidades
     : [{
         dia: null,
         especialidade: item.especialidade,
         categoria: item.categoria,
-        horas: Object.values(item.horasPorDia).reduce((sum, m) => sum + m, 0) / 60
-      }];
+        horas: Object.values(item.horasPorDia).reduce((sum, m) => sum + m, 0) / 60,
+        // fallback ao subEmpId default
+        subEmpId: especialidades.find(e => e.codigo === item.especialidade)?.subEmpId ?? 0,
+        classeId: 1
+      }]
+  ).map(esp => {
+    // aplica fallback em cada esp para nunca ficar undefined
+    const subId = esp.subEmpId
+      ?? especialidades.find(e => e.codigo === esp.especialidade)?.subEmpId
+      ?? 0;
+    return {
+      ...esp,
+      subEmpId: subId,
+      classeId: esp.classeId ?? subId
+    };
+});
+    
 
-  for (let i = 0; i < linhas.length; i++) {
-    const esp = linhas[i];
+for (let i = 0; i < linhas.length; i++) {
+  const esp = linhas[i];
+  const minutosTotal = Math.round((esp.horas || 0) * 60);
 
-    // 1) Calcula minutosTotal antes de construir o payload
-    const minutosTotal = Math.round((esp.horas || 0) * 60);
-
-    // 2) Faz lookup do ID da classe (se tiveres um `esp.classeId` guardado)
-    //    ou mapeia o teu código de especialidade para um ID numérico aqui.
-    const classeId = esp.classeId || /* fallback ao id por defeito */ 1;
-
-    // 3) Constrói o payload usando somente campos NOT NULL
-    const payloadItem = {
-      DocumentoID:  documentoID,
-      ObraID:       item.obraId,
-      Data:         esp.dia
+  const payloadItem = {
+    DocumentoID:  documentoID,
+    ObraID:       item.obraId,
+    Data:         esp.dia
                      ? `${mesAno.ano}-${String(mesAno.mes).padStart(2,'0')}-${String(esp.dia).padStart(2,'0')}`
                      : new Date().toISOString().slice(0,10),
-      Numero:       i + 1,
-      ColaboradorID: codFuncionario,          // string ou número conforme API
-      Funcionario:   String(codFuncionario),  // id numérico do funcionário
-      ClasseID:      classeId,                // id da especialidade/classe
-      NumHoras:      minutosTotal,            // minutos trabalhados
-      PrecoUnit:     esp.precoUnit || 0       // se for obrigatório
-    };
+    Numero:         i + 1,
+    ColaboradorID:  codFuncionario,
+    Funcionario:    String(codFuncionario),
+    ClasseID:       esp.classeId,
+    SubEmpID:       esp.subEmpId,
+    NumHoras:       minutosTotal,
+    PrecoUnit:      esp.precoUnit || 0
+  };
 
-    console.log("Payload Item:", payloadItem);
+  console.log("▶ payloadItem", payloadItem);
 
     try {
       const resp = await fetch("https://backend.advir.pt/api/parte-diaria/itens", {
@@ -1158,14 +1212,22 @@ if (modoVisualizacao === 'obra') {
                                                             </View>
                                                         ) : (
                                                             <TouchableOpacity
-                                                                style={styles.cellTouchable}
+                                                                style={[styles.cellTouchable,
+                                                                    isDiaSubmetido(item.userId, item.obraId, dia) && { backgroundColor: '#e6e6e6' }
+]}
                                                                 onPress={() => abrirEdicao(item, dia)}
+                                                                
                                                                 onLongPress={() => iniciarEdicaoHoras(item.userId, item.obraId, dia, item.horasPorDia[dia] || 0)}
                                                             >
                                                                 <Text style={[
                                                                     styles.cellText,
                                                                     { textAlign: 'center' },
-                                                                    item.horasPorDia[dia] > 0 && styles.hoursText,
+                                                                    item.horasPorDia[dia] > 0 && (
+                                                                    (item.especialidades?.some(esp => esp.dia === dia)
+                                                                        ? styles.specialityConfirmedText
+                                                                        : styles.hoursText)
+                                                                    ),
+
                                                                     styles.clickableHours
                                                                 ]}>
                                                                     {formatarHorasMinutos(item.horasPorDia[dia] || 0)}
@@ -1504,22 +1566,43 @@ if (modoVisualizacao === 'obra') {
                                         <Text style={styles.inputLabelSmall}>Especialidade</Text>
                                         <View style={styles.pickerContainer}>
                                     {especialidades.map((esp) => (
-                                        <TouchableOpacity
-                                            key={esp.codigo}
-                                            style={[
-                                            styles.pickerOptionSmall,
-                                            espItem.especialidade === esp.codigo && styles.pickerOptionSelected
-                                            ]}
-                                            onPress={() => atualizarEspecialidade(index, 'especialidade', esp.codigo)}
-                                        >
-                                            <Text style={[
-                                            styles.pickerOptionTextSmall,
-                                            espItem.especialidade === esp.codigo && styles.pickerOptionTextSelected
-                                            ]}>
-                                            {esp.descricao}
-                                            </Text>
-                                        </TouchableOpacity>
-                                        ))}
+                            <TouchableOpacity
+                                key={esp.codigo}
+                                style={[
+                                    styles.pickerOptionSmall,
+                                    String(espItem.especialidade) === String(esp.codigo) && styles.pickerOptionSelected
+                                ]}
+                                onPress={() => {
+                                    setEditData(prev => {
+                                        // Clona a lista antiga
+                                        const novas = [...prev.especialidadesDia];
+                                        // Sobrescreve apenas o item na posição 'index'
+                                        novas[index] = {
+                                        ...novas[index],
+                                        especialidade: String(esp.codigo),
+                                        classeId:      esp.subEmpId,
+                                        subEmpId:      esp.subEmpId
+                                        };
+                                        return {
+                                        ...prev,
+                                        especialidadesDia: novas
+                                        };
+                                    });
+                                    }}
+
+
+                                >
+                                <Text style={[
+                                    styles.pickerOptionTextSmall,
+                                    String(espItem.especialidade) === String(esp.codigo) && styles.pickerOptionTextSelected
+                                ]}>
+                                    {esp.descricao}
+                                </Text>
+                                </TouchableOpacity>
+
+
+                                                            ))}
+
 
 
 
@@ -1727,6 +1810,11 @@ const styles = StyleSheet.create({
         color: '#666',
         marginTop: 2,
     },
+    specialityConfirmedText: {
+  fontWeight: '600',
+  color: '#28a745' // verde
+},
+
     hoursText: {
         fontWeight: '600',
         color: '#1792FE',
