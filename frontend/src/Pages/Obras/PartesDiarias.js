@@ -122,10 +122,13 @@ const carregarItensSubmetidos = async () => {
 }, []);
 
 
-    useEffect(() => {
-    carregarEspecialidades();
-    carregarItensSubmetidos();
-    }, []);
+useEffect(() => {
+  (async () => {
+    await carregarEspecialidades();
+    await carregarItensSubmetidos(); // Espera até termos o Set atualizado
+    await carregarDados(); // Só agora processa os dados
+  })();
+}, [mesAno]); // ou [] se só quiseres na abertura, mas recomendável manter ligado ao mês
 
 
     useEffect(() => {
@@ -174,9 +177,6 @@ const carregarItensSubmetidos = async () => {
     // Cache key baseado no mês/ano
     const cacheKey = useMemo(() => `partes-diarias-${mesAno.mes}-${mesAno.ano}`, [mesAno]);
 
-    useEffect(() => {
-        carregarDados();
-    }, [mesAno]);
 
     // Função para verificar se o cache é válido
     const isCacheValid = useCallback((key) => {
@@ -478,12 +478,13 @@ const carregarItensSubmetidos = async () => {
     useEffect(() => {
   if (itensSubmetidos.length === 0) return;
   const submittedSet = new Set(
-    itensSubmetidos.map(item => {
-      const data = item.Data.split('T')[0];           // "2025-07-22"
-      const [ano,mes,dia] = data.split('-');
-      return `${item.ColaboradorID}-${item.ObraID}-${parseInt(dia)}`;
-    })
-  );
+  itensSubmetidos.map(item => {
+    const data = item.Data.split('T')[0]; // "2025-07-22"
+    const [ano, mes, dia] = data.split('-');
+    return `${item.ColaboradorID}-${item.ObraID}-${ano}-${mes}-${dia}`;
+  })
+);
+
   setSubmittedSet(submittedSet);
 }, [itensSubmetidos]);
 
@@ -625,8 +626,13 @@ const carregarItensSubmetidos = async () => {
     }, []);
 
 
-const itemJaSubmetido = (codFuncionario, obraId, dia) =>
-  submittedSet.has(`${codFuncionario}-${obraId}-${dia}`);
+const itemJaSubmetido = (codFuncionario, obraId, dia) => {
+  const diaStr = String(dia).padStart(2, '0');
+  const mesStr = String(mesAno.mes).padStart(2, '0');
+  const anoStr = String(mesAno.ano);
+  return submittedSet.has(`${codFuncionario}-${obraId}-${anoStr}-${mesStr}-${diaStr}`);
+};
+
 
 
     const salvarHorasInline = useCallback((userId, obraId, dia) => {
