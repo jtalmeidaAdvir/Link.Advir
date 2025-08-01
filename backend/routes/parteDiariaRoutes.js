@@ -20,7 +20,5 @@ router.put('/itens/:id', item.atualizar);
 router.delete('/itens/:id', item.remover);
 
 
-router.get('/partes-existentes', cab.partesExistentesPorUserObraData);
-
 
 module.exports = router;

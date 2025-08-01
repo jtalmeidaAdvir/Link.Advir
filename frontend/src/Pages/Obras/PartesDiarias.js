@@ -51,7 +51,27 @@ const PartesDiarias = ({ navigation }) => {
 const [membrosSelecionados, setMembrosSelecionados] = useState([]);
 const [equipaSelecionada, setEquipaSelecionada] = useState(null);
 
-const [diasSubmetidos, setDiasSubmetidos] = useState([]);
+const [itensSubmetidos, setItensSubmetidos] = useState([]);
+
+const carregarItensSubmetidos = async () => {
+  const painelToken = await AsyncStorage.getItem("painelAdminToken");
+
+  try {
+    const res = await fetch('https://backend.advir.pt/api/parte-diaria/itens', {
+      headers: {
+        'Authorization': `Bearer ${painelToken}`
+      }
+    });
+
+    if (!res.ok) throw new Error('Erro ao carregar itens submetidos');
+
+    const data = await res.json();
+    setItensSubmetidos(data);
+  } catch (err) {
+    console.error("Erro ao carregar itens submetidos:", err);
+  }
+};
+
 
 
     const carregarEspecialidades = useCallback(async () => {
@@ -100,6 +120,7 @@ const [diasSubmetidos, setDiasSubmetidos] = useState([]);
 
     useEffect(() => {
     carregarEspecialidades();
+    carregarItensSubmetidos();
     }, []);
 
 
@@ -145,33 +166,6 @@ const [diasSubmetidos, setDiasSubmetidos] = useState([]);
         return Array.from({ length: diasNoMes }, (_, i) => i + 1);
     }, [mesAno.mes, mesAno.ano]);
 
-    // Função para calcular e formatar variação de horas
-    const calcularVariacao = useCallback((item) => {
-        const chaveOriginal = `${item.userId}-${item.obraId}`;
-        const horasOriginaisItem = horasOriginais.get(chaveOriginal);
-        
-        if (!horasOriginaisItem) return { texto: '', cor: '#666' };
-
-        const totalAtual = diasDoMes.reduce((total, dia) => total + (item.horasPorDia[dia] || 0), 0);
-        const totalOriginal = diasDoMes.reduce((total, dia) => total + (horasOriginaisItem[dia] || 0), 0);
-        const diferenca = totalAtual - totalOriginal;
-
-        if (diferenca === 0) {
-            return { texto: '', cor: '#666' };
-        } else if (diferenca > 0) {
-            return { 
-                texto: `+${formatarHorasMinutos(diferenca)}`, 
-                cor: '#28a745',
-                icon: '↗️'
-            };
-        } else {
-            return { 
-                texto: `${formatarHorasMinutos(diferenca)}`, 
-                cor: '#dc3545',
-                icon: '↘️'
-            };
-        }
-    }, [horasOriginais, diasDoMes, formatarHorasMinutos]);
 
     // Cache key baseado no mês/ano
     const cacheKey = useMemo(() => `partes-diarias-${mesAno.mes}-${mesAno.ano}`, [mesAno]);
@@ -228,17 +222,6 @@ const [diasSubmetidos, setDiasSubmetidos] = useState([]);
             setLoading(false);
         }
     };
-
-    const isDiaSubmetido = (colaboradorId, obraId, dia) => {
-  const dataStr = `${mesAno.ano}-${String(mesAno.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-  return diasSubmetidos.some(d =>
-    String(d.colaboradorId) === String(colaboradorId) &&
-    String(d.obraId) === String(obraId) &&
-    String(d.data).startsWith(dataStr)
-  );
-};
-
-
 
     const carregarDadosReais = async () => {
         const token = await AsyncStorage.getItem('loginToken');
@@ -385,13 +368,7 @@ const [diasSubmetidos, setDiasSubmetidos] = useState([]);
 
             setLoadingProgress(100);
             processarDadosPartes(todosRegistos, equipasFormatadas);
-
-            const respostaSubmetidos = await fetch('https://backend.advir.pt/api/parte-diaria/partes-existentes', {
-                headers: { Authorization: `Bearer ${token}` }
-                });
-                const dadosSubmetidos = await respostaSubmetidos.json();
-                setDiasSubmetidos(dadosSubmetidos);
-
+            
 
         } catch (error) {
             console.error('Erro ao carregar dados reais:', error);
@@ -603,6 +580,18 @@ const [diasSubmetidos, setDiasSubmetidos] = useState([]);
         setTempHoras('');
     }, []);
 
+
+    const itemJaSubmetido = (userId, obraId, dia) => {
+  return itensSubmetidos.some(item =>
+    item.ColaboradorID === String(userId) &&
+    item.ObraID === obraId &&
+    new Date(item.Data).getDate() === dia &&
+    new Date(item.Data).getMonth() + 1 === mesAno.mes &&
+    new Date(item.Data).getFullYear() === mesAno.ano
+  );
+};
+
+
     const salvarHorasInline = useCallback((userId, obraId, dia) => {
         // Converter formato H:MM para minutos
         let novosMinutos = 0;
@@ -639,81 +628,59 @@ const [diasSubmetidos, setDiasSubmetidos] = useState([]);
         setTempHoras('');
     }, [tempHoras, dadosProcessados]);
 
-
-
-
-
-
-// 1) Dentro de salvarEdicao(), valida a soma em minutos e prepara as especialidades
-const salvarEdicao = useCallback(() => {
-  if (!selectedTrabalhador || selectedDia == null) return;
-
-  // total em minutos que veio do registo
-  const totalMinutosDia = selectedTrabalhador.horasPorDia[selectedDia] || 0;
-
-  // soma em minutos das especialidades inseridas (editData.horas está em horas decimais)
-  const somaMinutosEspecialidades = editData.especialidadesDia.reduce((sum, esp) => {
-    return sum + Math.round((esp.horas || 0) * 60);
-  }, 0);
-
-  if (totalMinutosDia > 0 && somaMinutosEspecialidades !== totalMinutosDia) {
-    return Alert.alert(
-      'Erro',
-      `A soma das especialidades (${formatarHorasMinutos(somaMinutosEspecialidades)}) deve ser igual ao total do dia (${formatarHorasMinutos(totalMinutosDia)})`
-    );
-  }
-
-  // 2) Atualiza o estado global dadosProcessados, injetando N especialidades
-  const novoDados = dadosProcessados.map(item => {
-    if (item.userId === selectedTrabalhador.userId && item.obraId === selectedTrabalhador.obraId) {
-      // recria o objeto horasPorDia com o total correcto
-      const horasPorDiaAtualizado = {
-        ...item.horasPorDia,
-        [selectedDia]: somaMinutosEspecialidades
-      };
-
-      // filtra fora as entradas antigas deste dia e adiciona todas as novas
-      const especiaisFiltradas = (item.especialidades || [])
-        .filter(e => e.dia !== selectedDia)
-        .concat(
-          editData.especialidadesDia.map(esp => ({
-            dia: selectedDia,
-            especialidade: esp.especialidade,
-            categoria: esp.categoria,
-            horas: esp.horas,            // horas em decimal
-            subEmpId: esp.subEmpId,      // assegura que guardas o ID correcto
-            classeId: esp.classeId       // idem
-          }))
-        );
-
-      return {
-        ...item,
-        horasPorDia: horasPorDiaAtualizado,
-        especialidades: especiaisFiltradas,
-        // mantém uma “especialidade de cabeçalho” só para exibição na tabela
-        especialidade: especiaisFiltradas[0]?.especialidade || item.especialidade,
-        categoria: especiaisFiltradas[0]?.categoria || item.categoria
-      };
-    }
-    return item;
-  });
-
-  setDadosProcessados(novoDados);
-  setEditModalVisible(false);
-  Alert.alert('Sucesso', 'Especialidades atualizadas com sucesso!');
-}, [
-  selectedTrabalhador,
-  selectedDia,
-  editData,
-  dadosProcessados,
-  formatarHorasMinutos
-]);
-
-
-
-
-
-
+    const salvarEdicao = useCallback(() => {
+        if (selectedTrabalhador && selectedDia) {
+            const totalMinutosDia = selectedTrabalhador.horasPorDia[selectedDia] || 0;
+            const somaMinutosEspecialidades = editData.especialidadesDia.reduce((sum, esp) => {
+                const horas = parseFloat(esp.horas) || 0;
+                return sum + Math.round(horas * 60);
+            }, 0);
+            
+            if (Math.abs(somaMinutosEspecialidades - totalMinutosDia) > 5 && totalMinutosDia > 0) {
+                Alert.alert('Erro', `A soma das horas das especialidades (${formatarHorasMinutos(somaMinutosEspecialidades)}) deve ser igual ao total trabalhado no dia (${formatarHorasMinutos(totalMinutosDia)})`);
+                return;
+            }
+            
+            const novoDados = dadosProcessados.map(item => {
+                if (item.userId === selectedTrabalhador.userId && 
+                    item.obraId === selectedTrabalhador.obraId) {
+                    
+                    const novasHorasDia = editData.especialidadesDia.reduce((sum, esp) => sum + (parseFloat(esp.horas) || 0), 0);
+                    
+                    const especialidadesAtualizadas = item.especialidades || [];
+                    const especialidadesFiltradas = especialidadesAtualizadas.filter(esp => esp.dia !== selectedDia);
+                    
+                    editData.especialidadesDia.forEach(esp => {
+                        if (esp.horas > 0) {
+                            especialidadesFiltradas.push({
+                                dia: selectedDia,
+                                especialidade: esp.especialidade,
+                                categoria: esp.categoria,
+                                horas: parseFloat(esp.horas)
+                            });
+                        }
+                    });
+                    
+                    return {
+                        ...item,
+                        horasPorDia: {
+                            ...item.horasPorDia,
+                            [selectedDia]: novasHorasDia
+                        },
+                        especialidades: especialidadesFiltradas,
+                        especialidade: editData.especialidadesDia.length > 0 ? editData.especialidadesDia[0].especialidade : item.especialidade,
+                        categoria: editData.especialidadesDia.length > 0 ? editData.especialidadesDia[0].categoria : item.categoria
+                    };
+                }
+                return item;
+            });
+            
+            setDadosProcessados(novoDados);
+            setEditModalVisible(false);
+            Alert.alert('Sucesso', 'Especialidades atualizadas com sucesso!');
+        }
+    }, [selectedTrabalhador, selectedDia, editData, dadosProcessados]);
+    
 
 const obterCodFuncionario = async (userId) => {
   const painelToken = localStorage.getItem("painelAdminToken");
@@ -794,6 +761,16 @@ const criarParteDiaria = async () => {
       const cabecalhoCriado = await resposta.json();
       console.log(`✅ Parte criada para ${item.userName}:`, cabecalhoCriado);
 
+
+      const diasComHoras = diasDoMes.filter(dia => item.horasPorDia[dia] > 0);
+
+// só continua se houver dias ainda por submeter
+const diasValidos = diasComHoras.filter(dia => !itemJaSubmetido(item.userId, item.obraId, dia));
+if (diasValidos.length === 0) {
+  console.log(`🔒 Todos os dias do trabalhador ${item.userName} já têm partes submetidas`);
+  continue;
+}
+
       // Se quiseres, podes agora também gerar os itens com base nas especialidades
        await criarItensParaMembro(
   cabecalhoCriado.DocumentoID,
@@ -823,27 +800,28 @@ const criarItensParaMembro = async (documentoID, item) => {
 
  // Normaliza cada especialidade para garantir subEmpId e classeId
   const linhas = (item.especialidades.length > 0
-    ? item.especialidades
-    : [{
-        dia: null,
-        especialidade: item.especialidade,
-        categoria: item.categoria,
-        horas: Object.values(item.horasPorDia).reduce((sum, m) => sum + m, 0) / 60,
-        // fallback ao subEmpId default
-        subEmpId: especialidades.find(e => e.codigo === item.especialidade)?.subEmpId ?? 0,
-        classeId: 1
-      }]
-  ).map(esp => {
-    // aplica fallback em cada esp para nunca ficar undefined
-    const subId = esp.subEmpId
-      ?? especialidades.find(e => e.codigo === esp.especialidade)?.subEmpId
-      ?? 0;
-    return {
-      ...esp,
-      subEmpId: subId,
-      classeId: esp.classeId ?? subId
-    };
+  ? item.especialidades.filter(esp =>
+      !esp.dia || diasValidos.includes(esp.dia)
+    )
+  : [{
+      dia: null,
+      especialidade: item.especialidade,
+      categoria: item.categoria,
+      horas: Object.values(item.horasPorDia).reduce((sum, m) => sum + m, 0) / 60,
+      subEmpId: especialidades.find(e => e.codigo === item.especialidade)?.subEmpId ?? 0,
+      classeId: 1
+    }]
+).map(esp => {
+  const subId = esp.subEmpId ?? especialidades.find(e => e.codigo === esp.especialidade)?.subEmpId ?? 0;
+  return {
+    ...esp,
+    subEmpId: subId,
+    classeId: esp.classeId ?? subId
+  };
 });
+
+
+
     
 
 for (let i = 0; i < linhas.length; i++) {
@@ -896,48 +874,6 @@ for (let i = 0; i < linhas.length; i++) {
 
 
 
-
-    const exportarExcel = useCallback(() => {
-        const workbook = XLSX.utils.book_new();
-        
-        const dadosExcel = [];
-        
-        const cabecalho = ['Trabalhador', 'Obra', 'Código', 'Especialidade', 'Categoria', ...diasDoMes.map(d => d.toString()), 'Total'];
-        dadosExcel.push(cabecalho);
-        
-        dadosProcessados.forEach(item => {
-            const linha = [
-                item.userName,
-                item.obraNome,
-                item.obraCodigo,
-                item.especialidade || 'Servente',
-                item.categoria || 'MaoObra',
-                ...diasDoMes.map(dia => item.horasPorDia[dia] || 0),
-                diasDoMes.reduce((total, dia) => total + (item.horasPorDia[dia] || 0), 0).toFixed(2)
-            ];
-            dadosExcel.push(linha);
-        });
-        
-        const worksheet = XLSX.utils.aoa_to_sheet(dadosExcel);
-        
-        const wscols = [
-            { wch: 20 },
-            { wch: 25 },
-            { wch: 10 },
-            { wch: 15 },
-            { wch: 12 },
-            ...diasDoMes.map(() => ({ wch: 6 })),
-            { wch: 10 }
-        ];
-        worksheet['!cols'] = wscols;
-        
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Partes Diárias');
-        
-        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
-        const fileName = `PartesDiarias_${mesAno.mes}_${mesAno.ano}.xlsx`;
-        saveAs(blob, fileName);
-    }, [dadosProcessados, diasDoMes, mesAno]);
 
     const renderHeader = () => (
         <LinearGradient
@@ -1016,18 +952,7 @@ for (let i = 0; i < linhas.length; i++) {
                     </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={exportarExcel}
-                >
-                    <LinearGradient
-                        colors={['#1792FE', '#0B5ED7']}
-                        style={styles.buttonGradient}
-                    >
-                        <FontAwesome name="download" size={16} color="#FFFFFF" />
-                        <Text style={styles.buttonText}>Exportar</Text>
-                    </LinearGradient>
-                </TouchableOpacity>
+
             </View>
         </View>
     );
@@ -1128,32 +1053,9 @@ if (modoVisualizacao === 'obra') {
                                                     );
                                                 }, 0))}
                                             </Text>
-                                            {(() => {
-                                                const variacaoTotalObra = obraGroup.trabalhadores.reduce((totalVariacao, trab) => {
-                                                    const variacao = calcularVariacao(trab);
-                                                    if (variacao.texto) {
-                                                        // Extrair o valor numérico da variação (remover + ou -)
-                                                        const valor = variacao.texto.replace('+', '').replace('-', '');
-                                                        const minutos = valor.includes('h') 
-                                                            ? (parseInt(valor.split('h')[0]) * 60) + (parseInt(valor.split('h')[1]?.replace('m', '') || '0'))
-                                                            : parseInt(valor.replace('m', '') || '0');
-                                                        return totalVariacao + (variacao.texto.startsWith('-') ? -minutos : minutos);
-                                                    }
-                                                    return totalVariacao;
-                                                }, 0);
+                                           
                                                 
-                                                if (variacaoTotalObra !== 0) {
-                                                    return (
-                                                        <Text style={[
-                                                            styles.obraStatsText, 
-                                                            { color: variacaoTotalObra > 0 ? '#28a745' : '#dc3545' }
-                                                        ]}>
-                                                            Variação: {variacaoTotalObra > 0 ? '+' : ''}{formatarHorasMinutos(Math.abs(variacaoTotalObra))}
-                                                        </Text>
-                                                    );
-                                                }
-                                                return null;
-                                            })()}
+                                      
                                         </View>
                                     </View>
 
@@ -1171,9 +1073,7 @@ if (modoVisualizacao === 'obra') {
                                         <View style={[styles.tableCell, { width: 70 }]}>
                                             <Text style={styles.obraDaysHeaderText}>Total</Text>
                                         </View>
-                                        <View style={[styles.tableCell, { width: 80 }]}>
-                                            <Text style={styles.obraDaysHeaderText}>Variação</Text>
-                                        </View>
+                                        
                                     </View>
 
                                     {/* Trabalhadores da obra */}
@@ -1212,22 +1112,14 @@ if (modoVisualizacao === 'obra') {
                                                             </View>
                                                         ) : (
                                                             <TouchableOpacity
-                                                                style={[styles.cellTouchable,
-                                                                    isDiaSubmetido(item.userId, item.obraId, dia) && { backgroundColor: '#e6e6e6' }
-]}
+                                                                style={styles.cellTouchable}
                                                                 onPress={() => abrirEdicao(item, dia)}
-                                                                
                                                                 onLongPress={() => iniciarEdicaoHoras(item.userId, item.obraId, dia, item.horasPorDia[dia] || 0)}
                                                             >
                                                                 <Text style={[
                                                                     styles.cellText,
                                                                     { textAlign: 'center' },
-                                                                    item.horasPorDia[dia] > 0 && (
-                                                                    (item.especialidades?.some(esp => esp.dia === dia)
-                                                                        ? styles.specialityConfirmedText
-                                                                        : styles.hoursText)
-                                                                    ),
-
+                                                                    item.horasPorDia[dia] > 0 && styles.hoursText,
                                                                     styles.clickableHours
                                                                 ]}>
                                                                     {formatarHorasMinutos(item.horasPorDia[dia] || 0)}
@@ -1244,15 +1136,7 @@ if (modoVisualizacao === 'obra') {
                                                     ))}
                                                 </Text>
                                             </View>
-                                            <View style={[styles.tableCell, { width: 80 }]}>
-                                                <Text style={[
-                                                    styles.cellText, 
-                                                    styles.variacaoText,
-                                                    { textAlign: 'center', color: calcularVariacao(item).cor, fontWeight: '600' }
-                                                ]}>
-                                                    {calcularVariacao(item).texto}
-                                                </Text>
-                                            </View>
+                                          
                                         </View>
                                     ))}
 
@@ -1810,11 +1694,6 @@ const styles = StyleSheet.create({
         color: '#666',
         marginTop: 2,
     },
-    specialityConfirmedText: {
-  fontWeight: '600',
-  color: '#28a745' // verde
-},
-
     hoursText: {
         fontWeight: '600',
         color: '#1792FE',
