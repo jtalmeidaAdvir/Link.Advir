@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback  } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -21,10 +21,7 @@ const GestaoPartesDiarias = () => {
   const [selectedCabecalho, setSelectedCabecalho] = useState(null);
   const [especialidadesMap, setEspecialidadesMap] = useState({});
   const [obrasMap, setObrasMap] = useState({});
-
   const [cacheNomes, setCacheNomes] = useState({});
-
-
 
   useEffect(() => {
     (async () => {
@@ -61,84 +58,70 @@ const GestaoPartesDiarias = () => {
     }
   };
 
+  const obterNomeFuncionario = useCallback(async (codFuncionario) => {
+    if (cacheNomes[codFuncionario]) return cacheNomes[codFuncionario];
 
-const obterNomeFuncionario = useCallback(async (codFuncionario) => {
-  if (cacheNomes[codFuncionario]) {
-    return cacheNomes[codFuncionario];
-  }
+    try {
+      const painelToken = await AsyncStorage.getItem('painelAdminToken');
+      const urlempresa = await AsyncStorage.getItem('urlempresa');
+      const res = await fetch(
+        `https://webapiprimavera.advir.pt/routesFaltas/GetNomeFuncionario/${codFuncionario}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${painelToken}`,
+            urlempresa,
+          }
+        }
+      );
 
-  try {
-    const painelToken = await AsyncStorage.getItem('painelAdminToken');
-    const urlempresa = await AsyncStorage.getItem('urlempresa');
-    
-    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetNomeFuncionario/${codFuncionario}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${painelToken}`,
-        urlempresa,
+      if (res.ok) {
+        const data = await res.json();
+        const nome = data?.DataSet?.Table?.[0]?.Nome || codFuncionario;
+        setCacheNomes(prev => ({ ...prev, [codFuncionario]: nome }));
+        return nome;
       }
-    });
 
-    if (res.ok) {
-      const data = await res.json();
-      const nome = data?.DataSet?.Table?.[0]?.Nome || codFuncionario;
-      setCacheNomes(prev => ({ ...prev, [codFuncionario]: nome }));
-      return nome;
-    } else {
       console.warn(`Erro ao obter nome do funcionário ${codFuncionario}`);
       setCacheNomes(prev => ({ ...prev, [codFuncionario]: codFuncionario }));
       return codFuncionario;
+    } catch (err) {
+      console.error('Erro ao obter nome do funcionário:', err);
+      setCacheNomes(prev => ({ ...prev, [codFuncionario]: codFuncionario }));
+      return codFuncionario;
     }
-  } catch (err) {
-    console.error("Erro ao obter nome do funcionário:", err);
-    setCacheNomes(prev => ({ ...prev, [codFuncionario]: codFuncionario }));
-    return codFuncionario;
-  }
-}, [cacheNomes]);
+  }, [cacheNomes]);
 
-
-
- const fetchObras = async () => {
-  try {
-    const logintoken = await AsyncStorage.getItem('loginToken');
-    const res = await fetch('https://backend.advir.pt/api/obra', {
-      headers: {
-        Authorization: `Bearer ${logintoken}`,
-        'Content-Type': 'application/json',
-      }
-    });
-    if (!res.ok) throw new Error('Falha ao obter obras');
-    
-    const obras = await res.json(); // <-- Aqui já vem o array
-    const map = {};
-    
-    obras.forEach(obra => {
-      const key = String(obra.id || obra.ID); // <- Confirma o nome do campo da PK
-      map[key] = {
-        codigo: obra.codigo,
-        descricao: obra.nome
-      };
-    });
-
-    console.log('obrasMap final:', map);
-    setObrasMap(map);
-  } catch (err) {
-    console.warn('Erro obras:', err.message);
-  }
-};
-
-
-
+  const fetchObras = async () => {
+    try {
+      const logintoken = await AsyncStorage.getItem('loginToken');
+      const res = await fetch('https://backend.advir.pt/api/obra', {
+        headers: {
+          Authorization: `Bearer ${logintoken}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!res.ok) throw new Error('Falha ao obter obras');
+      const obras = await res.json();
+      const map = {};
+      obras.forEach(obra => {
+        const key = String(obra.id || obra.ID);
+        map[key] = { codigo: obra.codigo, descricao: obra.nome };
+      });
+      setObrasMap(map);
+    } catch (err) {
+      console.warn('Erro obras:', err.message);
+    }
+  };
 
   const fetchCabecalhos = async () => {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem('painelAdminToken');
       if (!token) throw new Error('Token de autenticação não encontrado.');
-      const res = await fetch(
-        'https://backend.advir.pt/api/parte-diaria/cabecalhos',
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await fetch('https://backend.advir.pt/api/parte-diaria/cabecalhos', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!res.ok) throw new Error('Falha ao obter partes diárias.');
       const data = await res.json();
       setCabecalhos(data);
@@ -150,17 +133,24 @@ const obterNomeFuncionario = useCallback(async (codFuncionario) => {
     }
   };
 
+  // Funções para os novos botões
+  const handleIntegrar = async (item) => {
+    // TODO: implementar integração com ERP
+    console.log('Integrar Parte Diária:', item.DocumentoID);
+  };
+
+  const handleRejeitar = async (item) => {
+    // TODO: implementar rejeição de parte
+    console.log('Rejeitar parte:', item.DocumentoID);
+  };
+
   const abrirDetalhes = async (cab) => {
-  if (cab?.ParteDiariaItems?.length > 0) {
-    for (const item of cab.ParteDiariaItems) {
-      await obterNomeFuncionario(item.ColaboradorID);
+    if (cab?.ParteDiariaItems?.length > 0) {
+      for (const item of cab.ParteDiariaItems) await obterNomeFuncionario(item.ColaboradorID);
     }
-  }
-
-  setSelectedCabecalho(cab);
-  setModalVisible(true);
-};
-
+    setSelectedCabecalho(cab);
+    setModalVisible(true);
+  };
 
   const fecharModal = () => {
     setModalVisible(false);
@@ -168,26 +158,35 @@ const obterNomeFuncionario = useCallback(async (codFuncionario) => {
   };
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.card} onPress={() => abrirDetalhes(item)}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Parte Diária</Text>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
+    <View style={styles.card}>
+      <TouchableOpacity onPress={() => abrirDetalhes(item)}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Parte Diária</Text>
+
+  <Text style={{ fontSize: 14, color: '#666', fontWeight: '500' }}>Ver Detalhes</Text>
+
+
+        </View>
+        <Text style={styles.cardText}>Registado por: {item.CriadoPor || item.Utilizador}</Text>
+        <Text style={styles.cardText}>
+          {obrasMap[String(item.ObraID)] ?
+            `${obrasMap[String(item.ObraID)].codigo} — ${obrasMap[String(item.ObraID)].descricao}` :
+            item.ObraID || 'Obra não definida'}
+        </Text>
+        <Text style={styles.cardText}>Data do Registo: {new Date(item.Data).toLocaleDateString('pt-PT')}</Text>
+        <Text style={styles.cardText}>Itens: {item.ParteDiariaItems?.length || 0}</Text>
+      </TouchableOpacity>
+
+      {/* Botões Integrar ERP e Rejeitar Parte */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.integrarButton} onPress={() => handleIntegrar(item)}>
+          <Text style={styles.buttonText}>Integrar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.rejeitarButton} onPress={() => handleRejeitar(item)}>
+          <Text style={styles.buttonText}>Rejeitar</Text>
+        </TouchableOpacity>
       </View>
-      <Text style={styles.cardText}>Registado por: {item.CriadoPor || item.Utilizador}</Text>
-      <Text style={styles.cardText}>
-  {obrasMap[String(item.ObraID)]
-    ? `${obrasMap[String(item.ObraID)].codigo} — ${obrasMap[String(item.ObraID)].descricao}`
-    : item.ObraID || 'Obra não definida'}
-</Text>
-
-
-
-
-
-
-      <Text style={styles.cardText}>Data do Registo: {new Date(item.Data).toLocaleDateString('pt-PT')}</Text>
-      <Text style={styles.cardText}>Itens: {item.ParteDiariaItems?.length || 0}</Text>
-    </TouchableOpacity>
+    </View>
   );
 
   if (loading) return (
@@ -232,14 +231,12 @@ const obterNomeFuncionario = useCallback(async (codFuncionario) => {
           <ScrollView contentContainerStyle={styles.modalBody}>
             {selectedCabecalho && (
               <>
-                
                 <Text style={styles.modalLabel}>Registado por</Text>
                 <Text style={styles.modalValue}>{selectedCabecalho.CriadoPor || selectedCabecalho.Utilizador}</Text>
 
                 <Text style={styles.modalLabel}>Data do registo</Text>
                 <Text style={styles.modalValue}>{new Date(selectedCabecalho.Data).toLocaleDateString('pt-PT')}</Text>
 
-     
                 <Text style={styles.modalLabel}>Itens</Text>
                 {selectedCabecalho.ParteDiariaItems?.length > 0 ? (
                   selectedCabecalho.ParteDiariaItems.map(itm => (
@@ -247,9 +244,9 @@ const obterNomeFuncionario = useCallback(async (codFuncionario) => {
                       <Text style={styles.itemText}>
                         Data: {itm.Data}{"\n"}
                         Colaborador: {cacheNomes[itm.ColaboradorID] || itm.ColaboradorID}{"\n"}
-                         Obra: {obrasMap[String(itm.ObraID)] 
-                            ? `${obrasMap[String(itm.ObraID)].codigo} — ${obrasMap[String(itm.ObraID)].descricao}` 
-                            : itm.ObraID}{"\n"}
+                        Obra: {obrasMap[String(itm.ObraID)]
+                          ? `${obrasMap[String(itm.ObraID)].codigo} — ${obrasMap[String(itm.ObraID)].descricao}`
+                          : itm.ObraID}{"\n"}
                         Especialidade: {especialidadesMap[itm.SubEmpID] || itm.SubEmpID}{"\n"}
                         Horas: {itm.NumHoras}m
                       </Text>
@@ -279,6 +276,10 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   cardText: { fontSize: 14, color: '#555', marginTop: 4 },
+  buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  integrarButton: { flex: 1, padding: 10, backgroundColor: '#28a745', borderRadius: 5, marginRight: 5, alignItems: 'center' },
+  rejeitarButton: { flex: 1, padding: 10, backgroundColor: '#dc3545', borderRadius: 5, marginLeft: 5, alignItems: 'center' },
+  buttonText: { color: '#fff', fontWeight: '600' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
   emptyText: { fontSize: 16, color: '#999', marginTop: 10 },
   modalContainer: { flex: 1, backgroundColor: '#fff' },

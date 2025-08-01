@@ -809,12 +809,14 @@ if (diasValidos.length === 0) {
 }
 
       // Se quiseres, podes agora também gerar os itens com base nas especialidades
-       await criarItensParaMembro(
+await criarItensParaMembro(
   cabecalhoCriado.DocumentoID,
   item,
   codFuncionario,
-  mesAno
+  mesAno,
+  diasValidos
 );
+
 
     } catch (erro) {
       console.error(`Erro geral com o item ${item.userName}:`, erro);
@@ -826,10 +828,9 @@ if (diasValidos.length === 0) {
 
 // Adiciona esta função no teu componente:
 
-const criarItensParaMembro = async (documentoID, item) => {
+const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, diasValidos) => {
   const painelToken = await AsyncStorage.getItem("painelAdminToken");
 
- const codFuncionario = await obterCodFuncionario(item.userId);
   if (!codFuncionario) {
     console.warn(`Sem codFuncionario para ${item.userName}, salto item.`);
     return;
