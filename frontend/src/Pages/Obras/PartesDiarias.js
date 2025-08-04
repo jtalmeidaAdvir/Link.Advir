@@ -16,8 +16,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import { Picker } from '@react-native-picker/picker';
+
 
 const { width } = Dimensions.get('window');
 
@@ -41,15 +41,16 @@ const PartesDiarias = ({ navigation }) => {
         especialidade: '',
         categoria: 'MaoObra'
     });
-    const [editingCell, setEditingCell] = useState(null);
-    const [tempHoras, setTempHoras] = useState('');
 
-    const [codMap, setCodMap] = useState({});
+    const [editingCell, setEditingCell] = useState(null);
+const [tempHoras, setTempHoras] = useState('');
+
+const [codMap, setCodMap] = useState({});
 const [submittedSet, setSubmittedSet] = useState(new Set());
 
 
     // Especialidades disponíveis
-    const [especialidades, setEspecialidades] = useState([]);
+const [especialidades, setEspecialidades] = useState([]);
 
 
 const [membrosSelecionados, setMembrosSelecionados] = useState([]);
@@ -123,12 +124,16 @@ const carregarItensSubmetidos = async () => {
 
 
 useEffect(() => {
-  (async () => {
+  const carregarTudo = async () => {
     await carregarEspecialidades();
-    await carregarItensSubmetidos(); // Espera até termos o Set atualizado
-    await carregarDados(); // Só agora processa os dados
-  })();
-}, [mesAno]); // ou [] se só quiseres na abertura, mas recomendável manter ligado ao mês
+    await carregarItensSubmetidos(); 
+    await carregarDados();           
+  };
+
+  carregarTudo();
+}, [mesAno]);
+
+
 
 
     useEffect(() => {
@@ -411,6 +416,7 @@ useEffect(() => {
         const dadosProcessados = [];
         const novasHorasOriginais = new Map();
 
+        
         // Filtrar apenas registos dos membros das minhas equipas
         const membrosEquipas = equipasData.flatMap(equipa => 
             equipa.membros ? equipa.membros.map(m => m.id) : []
@@ -1532,52 +1538,6 @@ if (modoVisualizacao === 'obra') {
                                         </View>
                                     </View>
 
-                                    <View style={styles.inputGroup}>
-                                        <Text style={styles.inputLabelSmall}>Especialidade</Text>
-                                        <View style={styles.pickerContainer}>
-                                    {especialidades.map((esp) => (
-                            <TouchableOpacity
-                                key={esp.codigo}
-                                style={[
-                                    styles.pickerOptionSmall,
-                                    String(espItem.especialidade) === String(esp.codigo) && styles.pickerOptionSelected
-                                ]}
-                                onPress={() => {
-                                    setEditData(prev => {
-                                        // Clona a lista antiga
-                                        const novas = [...prev.especialidadesDia];
-                                        // Sobrescreve apenas o item na posição 'index'
-                                        novas[index] = {
-                                        ...novas[index],
-                                        especialidade: String(esp.codigo),
-                                        classeId:      esp.subEmpId,
-                                        subEmpId:      esp.subEmpId
-                                        };
-                                        return {
-                                        ...prev,
-                                        especialidadesDia: novas
-                                        };
-                                    });
-                                    }}
-
-
-                                >
-                                <Text style={[
-                                    styles.pickerOptionTextSmall,
-                                    String(espItem.especialidade) === String(esp.codigo) && styles.pickerOptionTextSelected
-                                ]}>
-                                    {esp.descricao}
-                                </Text>
-                                </TouchableOpacity>
-
-
-                                                            ))}
-
-
-
-
-                                        </View>
-                                    </View>
 
                                     <View style={styles.inputGroup}>
                                         <Text style={styles.inputLabelSmall}>Categoria</Text>
@@ -1601,6 +1561,45 @@ if (modoVisualizacao === 'obra') {
                                             ))}
                                         </View>
                                     </View>
+
+
+
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabelSmall}>Especialidade</Text>
+                                        
+                                        <Picker
+                                            selectedValue={espItem.especialidade}
+                                            onValueChange={(valor) => {
+                                                const especialidadeSelecionada = especialidades.find(e => e.codigo === valor);
+                                                setEditData(prev => {
+                                                const novas = [...prev.especialidadesDia];
+                                                novas[index] = {
+                                                    ...novas[index],
+                                                    especialidade: valor,
+                                                    classeId: especialidadeSelecionada?.subEmpId,
+                                                    subEmpId: especialidadeSelecionada?.subEmpId
+                                                };
+                                                return { ...prev, especialidadesDia: novas };
+                                                });
+                                            }}
+                                            style={{
+                                                backgroundColor: '#f0f0f0',
+                                                borderRadius: 8,
+                                                height: 44,
+                                                marginTop: 4,
+                                                marginBottom: 10,
+                                            }}
+                                            >
+                                            {especialidades.map(esp => (
+                                                <Picker.Item key={esp.codigo} label={esp.descricao} value={esp.codigo} />
+                                            ))}
+                                            </Picker>
+
+
+                                    </View>
+
+                                    
                                 </View>
                             ))}
 
