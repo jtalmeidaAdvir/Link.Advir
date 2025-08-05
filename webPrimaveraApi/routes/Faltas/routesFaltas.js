@@ -964,7 +964,7 @@ router.get("/GetListaEquipamentos", async (req, res) => {
 });
 
 
-router.post('/InsertParteDiariaItem', autenticarToken, async (req, res) => {
+router.put('/InsertParteDiariaItem', autenticarToken, async (req, res) => {
      try {
         const painelAdminToken = req.headers["authorization"]?.split(" ")[1]; // Obtendo o token do cabeçalho
         if (!painelAdminToken) {
