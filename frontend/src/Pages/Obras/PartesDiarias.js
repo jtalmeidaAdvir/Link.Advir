@@ -11,6 +11,7 @@ import {
     TextInput,
     Modal,
     Dimensions,
+    SafeAreaView,
     FlatList
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -177,15 +178,35 @@ useEffect(() => {
 
 useEffect(() => {
   const carregarTudo = async () => {
-    setLoading(true);
-    await carregarDados();
-             
-    await carregarItensSubmetidos(); 
-    setLoading(false);
-  };
+  setLoading(true);
+  
+  // Primeiro carrega os itens submetidos
+  await carregarItensSubmetidos(); 
+
+  // Só depois carrega os dados (já vai conseguir bloquear os dias)
+  await carregarDados();
+
+  setLoading(false);
+};
+
 
   carregarTudo();
 }, [mesAno]);
+
+const [refreshToggle, setRefreshToggle] = useState(false);
+
+useEffect(() => {
+  if (
+    registosPonto.length > 0 &&
+    equipas.length > 0 &&
+    submittedSet &&
+    submittedSet.size >= 0 // mesmo que seja vazio
+  ) {
+    console.log('✅ A processar dados com submittedSet carregado');
+    processarDadosPartes(registosPonto, equipas);
+  }
+}, [registosPonto, equipas, submittedSet]);
+
 
 
 
@@ -259,6 +280,17 @@ useEffect(() => {
   carregarCategoriaDinamicamente();
 }, [editData?.categoria]);
 
+useEffect(() => {
+  const dadosOk =
+    registosPonto.length > 0 &&
+    equipas.length > 0 &&
+    submittedSet &&
+    submittedSet.size >= 0; // permitir zero se necessário
+
+  if (dadosOk) {
+    processarDadosPartes(registosPonto, equipas);
+  }
+}, [registosPonto, equipas, submittedSet]);
 
 
 
@@ -585,6 +617,7 @@ useEffect(() => {
 
         setHorasOriginais(novasHorasOriginais);
         setDadosProcessados(dadosProcessados);
+        
     }, [diasDoMes, equipas]);
 
 
@@ -1102,7 +1135,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
     onPress={() => setModoVisualizacao(prev => prev === 'obra' ? 'user' : 'obra')}
 >
     <LinearGradient
-        colors={['#6f42c1', '#6610f2']}
+        colors={['#1792FE', '#0B5ED7']}
         style={styles.buttonGradient}
     >
         <FontAwesome name="exchange" size={16} color="#FFFFFF" />
@@ -1127,6 +1160,25 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                         <Text style={styles.buttonText}>Enviar Partes</Text>
                     </LinearGradient>
                 </TouchableOpacity>
+                 {/* NOVO BOTÃO DE ATUALIZAR */}
+  <TouchableOpacity
+  style={styles.actionButton}
+  onPress={async () => {
+    setLoading(true); // ativa o loading e barra de progresso
+    setDiasEditadosManualmente(new Set()); // limpa marcações manuais (se quiseres manter)
+    await carregarItensSubmetidos(); // recarrega os submetidos
+    setLoading(false);
+  }}
+>
+  <LinearGradient
+    colors={['#007bff', '#0056b3']}
+    style={styles.buttonGradient}
+  >
+    <Ionicons name="refresh" size={16} color="#FFFFFF" />
+    <Text style={styles.buttonText}>Limpar Partes</Text>
+  </LinearGradient>
+</TouchableOpacity>
+
 
 
             </View>
@@ -1780,21 +1832,29 @@ if (modoVisualizacao === 'obra') {
         );
     }
 
-    return (
-        <View style={styles.container}>
-            {renderHeader()}
-            {renderControls()}
-            {renderDataSheet()}
-            {renderConfirmModal()}
-            {renderEditModal()}
-        </View>
-    );
+ return (
+  <LinearGradient
+    colors={['#e3f2fd', '#bbdefb', '#90caf9']}
+    style={{ flex: 1 }}
+  >
+    <SafeAreaView style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {renderHeader()}
+        {renderControls()}
+        {renderDataSheet()}
+        {renderConfirmModal()}
+        {renderEditModal()}
+      </ScrollView>
+    </SafeAreaView>
+  </LinearGradient>
+);
+
+
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
     },
     cellEditado: {
   backgroundColor: '#fff3cd', // amarelo claro
@@ -1868,7 +1928,6 @@ const styles = StyleSheet.create({
     tableContainer: {
         flex: 1,
         margin: 10,
-        backgroundColor: '#FFFFFF',
         borderRadius: 10,
         elevation: 2,
     },
@@ -1935,7 +1994,7 @@ const styles = StyleSheet.create({
     tableWrapper: {
         flex: 1,
         margin: 10,
-        backgroundColor: '#FFFFFF',
+        
         borderRadius: 10,
         elevation: 2,
     },

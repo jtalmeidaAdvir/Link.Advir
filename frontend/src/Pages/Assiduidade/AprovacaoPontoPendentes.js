@@ -188,8 +188,8 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
    */
   const getBadgeColor = (tipo) => {
     const tipos = {
-      entrada: 'success',
-      saida: 'danger',
+      entrada: 'primary',
+      saida: 'primary',
       pausa_inicio: 'warning',
       pausa_fim: 'info'
     };
@@ -495,7 +495,7 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
                           <div className="mt-auto">
                             <div className="d-flex gap-2">
                               <button
-                                className="btn btn-success btn-responsive rounded-pill flex-fill"
+                                className="btn btn-primary btn-responsive rounded-pill flex-fill"
                                 onClick={() => confirmar(registo.id)}
                                 disabled={isProcessando}
                               >
@@ -506,7 +506,7 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
                                 <span className="d-sm-none">✔</span>
                               </button>
                               <button
-                                className="btn btn-danger btn-responsive rounded-pill flex-fill"
+                                className="btn btn-primary btn-responsive rounded-pill flex-fill"
                                 onClick={() => cancelar(registo.id)}
                                 disabled={isProcessando}
                               >
