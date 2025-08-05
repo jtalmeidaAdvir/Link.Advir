@@ -134,10 +134,69 @@ const GestaoPartesDiarias = () => {
   };
 
   // Funções para os novos botões
-  const handleIntegrar = async (item) => {
-    // TODO: implementar integração com ERP
-    console.log('Integrar Parte Diária:', item.DocumentoID);
-  };
+const handleIntegrar = async (item) => {
+  try {
+    const token = await AsyncStorage.getItem('painelAdminToken');
+    const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+    if (!token || !urlempresa) {
+      alert('Erro: token ou empresa em falta.');
+      return;
+    }
+
+    const apiUrl = 'https://webapiprimavera.advir.pt/routesFaltas/InsertParteDiariaItem';
+
+    const payload = {
+      Cabecalho: {
+        DocumentoID: item.DocumentoID,
+        ObraID: item.ObraID,
+        Data: item.Data,
+        Notas: item.Notas || '',
+        CriadoPor: item.CriadoPor,
+        Utilizador: item.Utilizador,
+        TipoEntidade: item.TipoEntidade,
+        ColaboradorID: item.ColaboradorID
+      },
+      Itens: item.ParteDiariaItems.map(it => ({
+        ComponenteID: it.ComponenteID,
+        Funcionario: it.Funcionario,
+        ClasseID: it.ClasseID,
+        SubEmpID: it.SubEmpID,
+        NumHoras: it.NumHoras,
+        TipoEntidade: it.TipoEntidade,
+        ColaboradorID: it.ColaboradorID,
+        Data: it.Data,
+        ObraID: it.ObraID
+      }))
+    };
+
+    console.log("📤 A enviar para API InsertParteDiariaItem:", payload);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'urlempresa': urlempresa
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      alert('Parte integrada com sucesso!');
+      // Opcional: podes remover da lista ou atualizar o estado
+    } else {
+      console.error("❌ Erro:", result);
+      alert(`Erro ao integrar: ${result.error || 'Erro desconhecido.'}`);
+    }
+  } catch (err) {
+    console.error('Erro na integração:', err);
+    alert('Erro inesperado ao integrar parte.');
+  }
+};
+
 
   const handleRejeitar = async (item) => {
     // TODO: implementar rejeição de parte
