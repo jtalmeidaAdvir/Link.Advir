@@ -22,6 +22,8 @@ const GestaoPartesDiarias = () => {
   const [especialidadesMap, setEspecialidadesMap] = useState({});
   const [obrasMap, setObrasMap] = useState({});
   const [cacheNomes, setCacheNomes] = useState({});
+  const [cacheColaboradorID, setCacheColaboradorID] = useState({});
+
 
   useEffect(() => {
     (async () => {
@@ -92,6 +94,75 @@ const GestaoPartesDiarias = () => {
     }
   }, [cacheNomes]);
 
+const obterColaboradorID = useCallback(async (codFuncionario) => {
+  if (cacheColaboradorID[codFuncionario]) return cacheColaboradorID[codFuncionario];
+
+  try {
+    const painelToken = await AsyncStorage.getItem('painelAdminToken');
+    const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+    const res = await fetch(
+      `https://webapiprimavera.advir.pt/routesFaltas/GetColaboradorId/${codFuncionario}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${painelToken}`,
+          urlempresa,
+        },
+      }
+    );
+
+    const data = await res.json();
+    console.log("🔎 Resposta GetColaboradorId:", data);
+
+    const colaboradorID = data?.DataSet?.Table?.[0]?.IDOperador || null;
+
+    if (colaboradorID !== null) {
+      setCacheColaboradorID(prev => ({ ...prev, [codFuncionario]: colaboradorID }));
+      return colaboradorID;
+    }
+
+    console.warn(`ColaboradorID não encontrado para ${codFuncionario}`);
+    setCacheColaboradorID(prev => ({ ...prev, [codFuncionario]: null }));
+    return null;
+
+  } catch (err) {
+    console.error(`Erro ao obter ColaboradorID para ${codFuncionario}:`, err);
+    setCacheColaboradorID(prev => ({ ...prev, [codFuncionario]: null }));
+    return null;
+  }
+}, [cacheColaboradorID]);
+
+  const obterCodObra = useCallback(async (obraID) => {
+  try {
+    const token = await AsyncStorage.getItem('loginToken');
+    const empresaId = await AsyncStorage.getItem('empresa_id');
+
+    const response = await fetch(`https://backend.advir.pt/api/obra/getcodigo/${obraID}`, {
+      method: 'GET', // Se o endpoint é para obter, usa GET
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      }
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('Código da obra obtido com sucesso!');
+      console.log('🧱 Obra encontrada:', data);
+      return data; // ou return data.codigo se for o valor que queres
+    } else {
+      alert(`Erro ao obter obra: ${data.message}`);
+    }
+  } catch (error) {
+    console.error('Erro ao obter obra:', error);
+    alert('Erro ao obter obra');
+  }
+}, []);
+
+
+
   const fetchObras = async () => {
     try {
       const logintoken = await AsyncStorage.getItem('loginToken');
@@ -139,12 +210,21 @@ const handleIntegrar = async (item) => {
     const token = await AsyncStorage.getItem('painelAdminToken');
     const urlempresa = await AsyncStorage.getItem('urlempresa');
 
+    
+
     if (!token || !urlempresa) {
       alert('Erro: token ou empresa em falta.');
       return;
     }
 
     const apiUrl = 'https://webapiprimavera.advir.pt/routesFaltas/InsertParteDiariaItem';
+    console.log(item.ColaboradorID);
+const colaboradorID = await obterColaboradorID(item.ColaboradorID);
+console.log(colaboradorID);
+const dadosObra = await obterCodObra(item.ObraID);
+// Se quiseres apenas o código:
+const codigoObra = dadosObra?.codigo;
+
 
     const payload = {
       Cabecalho: {
@@ -155,7 +235,7 @@ const handleIntegrar = async (item) => {
         CriadoPor: "",
         Utilizador: "",
         TipoEntidade: "O",
-        ColaboradorID: item.ColaboradorID
+        ColaboradorID:""  //Buscar colaboradorId de quem registou.
       },
       Itens: item.ParteDiariaItems.map(it => ({
         ComponenteID: it.ComponenteID,
@@ -164,7 +244,7 @@ const handleIntegrar = async (item) => {
         SubEmpID: it.SubEmpID,
         NumHoras: it.NumHoras,
         TipoEntidade: "O",
-        ColaboradorID: it.ColaboradorID,
+        ColaboradorID: colaboradorID,
         Data: it.Data,
         ObraID: it.ObraID
       }))

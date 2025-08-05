@@ -8,13 +8,15 @@ const {
     obterObra,
     atualizarObra,
     eliminarObra,
-    listarObrasPorEmpresa
+    listarObrasPorEmpresa,
+    obterCodigoObra
 } = require('../controllers/obraController');
 
 router.get('/', authMiddleware, listarObras);
 router.get('/por-empresa', authMiddleware, listarObrasPorEmpresa);
 router.post('/', authMiddleware, criarObra);
 router.get('/:id', authMiddleware, obterObra);
+router.get('/getCodigo/:id', authMiddleware, obterCodigoObra);
 router.put('/:id', authMiddleware, atualizarObra);
 router.delete('/:id', authMiddleware, eliminarObra);
 

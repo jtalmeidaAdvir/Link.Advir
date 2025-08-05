@@ -16,6 +16,7 @@ const listarObras = async (req, res) => {
 };
 
 
+
 const listarObrasPorEmpresa = async (req, res) => {
     try {
         const { empresa_id } = req.query;
@@ -133,11 +134,37 @@ const eliminarObra = async (req, res) => {
     }
 };
 
+// Obter apenas o código da obra
+const obterCodigoObra = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            return res.status(400).json({ message: 'ID da obra é obrigatório.' });
+        }
+
+        const obra = await Obra.findByPk(id, {
+            attributes: ['codigo'] // Só vai buscar o campo "codigo"
+        });
+
+        if (!obra) {
+            return res.status(404).json({ message: 'Obra não encontrada.' });
+        }
+
+        res.status(200).json({ codigo: obra.codigo });
+    } catch (error) {
+        console.error('Erro ao obter código da obra:', error);
+        res.status(500).json({ message: 'Erro interno do servidor.' });
+    }
+};
+
+
 module.exports = {
     listarObras,
     criarObra,
     obterObra,
     atualizarObra,
     eliminarObra,
-    listarObrasPorEmpresa
+    listarObrasPorEmpresa,
+    obterCodigoObra
 };
