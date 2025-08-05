@@ -178,8 +178,9 @@ useEffect(() => {
 useEffect(() => {
   const carregarTudo = async () => {
     setLoading(true);
+    await carregarDados();
+             
     await carregarItensSubmetidos(); 
-    await carregarDados();           
     setLoading(false);
   };
 
@@ -342,6 +343,7 @@ useEffect(() => {
             }
 
             await carregarDadosReais();
+            
         } catch (error) {
             console.error('Erro ao carregar dados:', error);
             Alert.alert('Erro', 'Erro ao carregar os dados necessários');
@@ -941,8 +943,11 @@ await criarItensParaMembro(
     }
   }
 
-  Alert.alert("Sucesso", "Partes diárias geradas com sucesso!");
-  setDiasEditadosManualmente(new Set());
+setModalVisible(false);                            // Fecha o modal
+Alert.alert("Sucesso", "Partes diárias submetidas para o diretor de obra com sucesso.");
+setDiasEditadosManualmente(new Set());             // Limpa estados locais
+carregarDados();                                   // Faz refresh aos dados da página
+carregarItensSubmetidos();
 
 };
 

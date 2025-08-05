@@ -148,22 +148,22 @@ const handleIntegrar = async (item) => {
 
     const payload = {
       Cabecalho: {
-        DocumentoID: item.DocumentoID,
-        ObraID: item.ObraID,
+        DocumentoID: "1747FEA9-5D2F-45B4-A89B-9EA30B1E0DCB",
+        ObraID: "79411550-E027-4DC0-B09F-08C28B45E630",//item.ObraID,
         Data: item.Data,
         Notas: item.Notas || '',
-        CriadoPor: item.CriadoPor,
-        Utilizador: item.Utilizador,
-        TipoEntidade: item.TipoEntidade,
+        CriadoPor: "",
+        Utilizador: "",
+        TipoEntidade: "O",
         ColaboradorID: item.ColaboradorID
       },
       Itens: item.ParteDiariaItems.map(it => ({
         ComponenteID: it.ComponenteID,
-        Funcionario: it.Funcionario,
+        Funcionario: "",
         ClasseID: it.ClasseID,
         SubEmpID: it.SubEmpID,
         NumHoras: it.NumHoras,
-        TipoEntidade: it.TipoEntidade,
+        TipoEntidade: "O",
         ColaboradorID: it.ColaboradorID,
         Data: it.Data,
         ObraID: it.ObraID
@@ -173,7 +173,7 @@ const handleIntegrar = async (item) => {
     console.log("📤 A enviar para API InsertParteDiariaItem:", payload);
 
     const response = await fetch(apiUrl, {
-      method: 'POST',
+      method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
