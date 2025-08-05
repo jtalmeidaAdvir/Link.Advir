@@ -49,6 +49,12 @@ const [codMap, setCodMap] = useState({});
 const [submittedSet, setSubmittedSet] = useState(new Set());
 
 
+const [especialidadesList, setEspecialidadesList] = useState([]);
+const [equipamentosList, setEquipamentosList] = useState([]);
+
+const [diasEditadosManualmente, setDiasEditadosManualmente] = useState(new Set());
+
+
     // Especialidades disponíveis
 const [especialidades, setEspecialidades] = useState([]);
 
@@ -71,7 +77,18 @@ const carregarItensSubmetidos = async () => {
     if (!res.ok) throw new Error('Erro ao carregar itens submetidos');
 
     const data = await res.json();
+     // 1) Atualiza o state dos itens
     setItensSubmetidos(data);
+    // 2) Constroi imediatamente o Set de submetidos
+    const novoSubmittedSet = new Set(
+      data.map(item => {
+        // Data vem no formato "YYYY-MM-DD" ou "YYYY-MM-DDTHH:mm:ss"
+        const diaISO = item.Data.split('T')[0];
+        const [ano, mes, dia] = diaISO.split('-');
+        return `${item.ColaboradorID}-${item.ObraID}-${ano}-${mes}-${dia}`;
+      })
+    );
+    setSubmittedSet(novoSubmittedSet);
   } catch (err) {
     console.error("Erro ao carregar itens submetidos:", err);
   }
@@ -79,59 +96,96 @@ const carregarItensSubmetidos = async () => {
 
 
 
-    const carregarEspecialidades = useCallback(async () => {
+
+const carregarEspecialidades = useCallback(async () => {
   const painelToken = await AsyncStorage.getItem('painelAdminToken');
   const urlempresa = await AsyncStorage.getItem('urlempresa');
-
   try {
-    const res = await fetch(
+    const data = await fetchComRetentativas(
       'https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades',
       {
-        headers: {
-          Authorization: `Bearer ${painelToken}`,
-          urlempresa,
-          'Content-Type': 'application/json'
-        }
+        headers: { Authorization: `Bearer ${painelToken}`, urlempresa }
       }
     );
-
-    if (!res.ok) throw new Error('Erro ao obter especialidades');
-
-    const data = await res.json();
-
-    // Extrai o array real
     const table = data?.DataSet?.Table;
-    if (!Array.isArray(table)) {
-      console.warn('Formato inesperado de especialidades:', data);
-      setEspecialidades([]);
-      return;
-    }
-
-    // Mapeia para o shape que queres usar no picker
-    const especialidadesFormatadas = table.map(item => ({
-        codigo: item.SubEmp,        // ← Aqui está o que está visível
-        descricao: item.Descricao,
-        subEmpId: item.SubEmpId     // ← Aqui está o ID verdadeiro que precisas para o backend
-        }));
-
-
-    setEspecialidades(especialidadesFormatadas);
+    const items = Array.isArray(table)
+      ? table.map(item => ({
+          codigo: item.SubEmp,
+          descricao: item.Descricao,
+          subEmpId: item.SubEmpId
+        }))
+      : [];
+    setEspecialidadesList(items);
   } catch (err) {
-    console.error('Erro ao carregar especialidades:', err);
+    console.error("Erro ao obter especialidades:", err);
     Alert.alert('Erro', 'Não foi possível carregar as especialidades');
   }
 }, []);
 
 
+
+
+const carregarEquipamentos = useCallback(async () => {
+  const painelToken = await AsyncStorage.getItem('painelAdminToken');
+  const urlempresa = await AsyncStorage.getItem('urlempresa');
+  try {
+    const data = await fetchComRetentativas(
+      'https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos',
+      {
+        headers: { Authorization: `Bearer ${painelToken}`, urlempresa }
+      }
+    );
+    const table = data?.DataSet?.Table;
+    const items = Array.isArray(table)
+      ? table.map(item => ({
+          codigo: item.Codigo,
+          descricao: item.Desig,
+          subEmpId: item.ComponenteID
+        }))
+      : [];
+    setEquipamentosList(items);
+  } catch (err) {
+    console.error("Erro ao obter equipamentos:", err);
+    Alert.alert('Erro', 'Não foi possível carregar os equipamentos');
+  }
+}, []);
+
+
+
+const fetchComRetentativas = async (url, options, tentativas = 3, delay = 1000) => {
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      if (i === tentativas - 1) throw err;
+      await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i))); // Exponential backoff
+    }
+  }
+};
+
+
+
+useEffect(() => {
+  carregarEspecialidades();
+  carregarEquipamentos();
+}, [carregarEspecialidades, carregarEquipamentos]);
+
+
+
+
 useEffect(() => {
   const carregarTudo = async () => {
-    await carregarEspecialidades();
+    setLoading(true);
     await carregarItensSubmetidos(); 
     await carregarDados();           
+    setLoading(false);
   };
 
   carregarTudo();
 }, [mesAno]);
+
 
 
 
@@ -141,6 +195,70 @@ useEffect(() => {
     setMembrosSelecionados(equipaSelecionada.membros);
   }
 }, [equipaSelecionada]);
+
+
+
+useEffect(() => {
+  if (!editData?.categoria) return;
+
+  const carregarCategoriaDinamicamente = async () => {
+    const painelToken = await AsyncStorage.getItem('painelAdminToken');
+    const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+    try {
+      const endpoint = editData.categoria === 'Equipamentos'
+        ? 'GetListaEquipamentos'
+        : 'GetListaEspecialidades';
+
+      const res = await fetch(
+        `https://webapiprimavera.advir.pt/routesFaltas/${endpoint}`,
+        {
+          headers: {
+            Authorization: `Bearer ${painelToken}`,
+            urlempresa,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!res.ok) throw new Error(`Erro ao obter ${editData.categoria}`);
+
+      const data = await res.json();
+      const table = data?.DataSet?.Table;
+      if (!Array.isArray(table)) {
+        console.warn(`Formato inesperado de ${editData.categoria}:`, data);
+        setEspecialidades([]);
+        return;
+      }
+
+      const itemsFormatados = table.map(item => {
+  if (editData.categoria === 'Equipamentos') {
+    return {
+      codigo: item.Codigo,
+      descricao: item.Desig,
+      subEmpId: item.ComponenteID 
+    };
+  } else {
+    return {
+      codigo: item.SubEmp,
+      descricao: item.Descricao,
+      subEmpId: item.SubEmpId
+    };
+  }
+});
+
+
+      setEspecialidades(itemsFormatados);
+    } catch (err) {
+      console.error(`Erro ao carregar ${editData.categoria}:`, err);
+      Alert.alert('Erro', `Não foi possível carregar os dados de ${editData.categoria}`);
+    }
+  };
+
+  carregarCategoriaDinamicamente();
+}, [editData?.categoria]);
+
+
 
 
 
@@ -399,18 +517,6 @@ useEffect(() => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
     // Memoizar processamento de dados para evitar recálculos desnecessários
     const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
         const dadosProcessados = [];
@@ -468,8 +574,7 @@ useEffect(() => {
                 obraNome: grupo.obra.nome,
                 obraCodigo: grupo.obra.codigo,
                 horasPorDia,
-                especialidade: 'Servente',
-                categoria: 'MaoObra',
+
 
                 especialidades: [],
                 isOriginal: true
@@ -481,18 +586,7 @@ useEffect(() => {
     }, [diasDoMes, equipas]);
 
 
-    useEffect(() => {
-  if (itensSubmetidos.length === 0) return;
-  const submittedSet = new Set(
-  itensSubmetidos.map(item => {
-    const data = item.Data.split('T')[0]; // "2025-07-22"
-    const [ano, mes, dia] = data.split('-');
-    return `${item.ColaboradorID}-${item.ObraID}-${ano}-${mes}-${dia}`;
-  })
-);
 
-  setSubmittedSet(submittedSet);
-}, [itensSubmetidos]);
 
     // Memoizar cálculo de horas para melhor performance
     const calcularHorasPorDia = useCallback((registos, diasDoMes) => {
@@ -562,30 +656,32 @@ useEffect(() => {
     }, []);
 
     const abrirEdicao = useCallback((trabalhador, dia) => {
-        setSelectedTrabalhador(trabalhador);
-        setSelectedDia(dia);
-        
-  const especialidadesDia = trabalhador.especialidades?.filter(esp => esp.dia === dia) || [];
-        
-        setEditData({
-            especialidade: trabalhador.especialidade || 'Servente',
-            categoria: trabalhador.categoria || 'MaoObra',
-            especialidadesDia: especialidadesDia.length > 0 ? especialidadesDia : [
-                {
-                    especialidade: trabalhador.especialidade || 'Servente',
-                    categoria: trabalhador.categoria || 'MaoObra',
-                    horas: (trabalhador.horasPorDia[dia] || 0) / 60 // Converter minutos para horas decimais
-                }
-            ]
-        });
-        setEditModalVisible(true);
-    }, []);
+            setSelectedTrabalhador(trabalhador);
+    setSelectedDia(dia);
+
+    const especialidadesDia = trabalhador.especialidades?.filter(esp => esp.dia === dia) || [];
+    setEditData({
+      especialidadesDia: especialidadesDia.length > 0
+        ? especialidadesDia
+        : [
+            {
+              dia,
+              // PASSAR sempre pelo parâmetro `trabalhador`, não pelo estado
+              categoria: trabalhador.categoria || 'MaoObra',
+              especialidade: trabalhador.especialidade || '',
+              horas: (trabalhador.horasPorDia[dia] || 0) / 60,
+              subEmpId: trabalhador.subEmpId || null
+            }
+         ]
+    });
+    setEditModalVisible(true);
+ }, []);
+
 
     const adicionarEspecialidade = useCallback(() => {
         const novasEspecialidades = [...(editData.especialidadesDia || [])];
         novasEspecialidades.push({
-            especialidade: 'Servente',
-            categoria: 'MaoObra',
+
             horas: 0
         });
         
@@ -605,18 +701,22 @@ useEffect(() => {
         }
     }, [editData]);
 
-    const atualizarEspecialidade = useCallback((index, campo, valor) => {
-        const novasEspecialidades = [...editData.especialidadesDia];
-        novasEspecialidades[index] = {
-            ...novasEspecialidades[index],
-            [campo]: valor
-        };
-        
-        setEditData({
-            ...editData,
-            especialidadesDia: novasEspecialidades
-        });
-    }, [editData]);
+ const atualizarEspecialidade = (index, campo, valor, subEmpId = null) => {
+   const novas = [...editData.especialidadesDia];
+
+   // actualiza o campo
+   novas[index] = { ...novas[index], [campo]: valor };
+
+   // se vier subEmpId, actualiza-o também
+   if (campo === 'especialidade' && subEmpId != null) {
+     novas[index].subEmpId = subEmpId;
+   }
+
+   setEditData({ ...editData, especialidadesDia: novas });
+ };
+
+
+
 
     const iniciarEdicaoHoras = useCallback((userId, obraId, dia, minutosAtuais) => {
         setEditingCell(`${userId}-${obraId}-${dia}`);
@@ -705,7 +805,8 @@ const itemJaSubmetido = (codFuncionario, obraId, dia) => {
                                 dia: selectedDia,
                                 especialidade: esp.especialidade,
                                 categoria: esp.categoria,
-                                horas: parseFloat(esp.horas)
+                                horas: parseFloat(esp.horas),
+                                subEmpId: esp.subEmpId   
                             });
                         }
                     });
@@ -723,7 +824,9 @@ const itemJaSubmetido = (codFuncionario, obraId, dia) => {
                 }
                 return item;
             });
-            
+            const chaveDiaEditado = `${selectedTrabalhador.userId}-${selectedTrabalhador.obraId}-${selectedDia}`;
+setDiasEditadosManualmente(prev => new Set(prev).add(chaveDiaEditado));
+
             setDadosProcessados(novoDados);
             setEditModalVisible(false);
             Alert.alert('Sucesso', 'Especialidades atualizadas com sucesso!');
@@ -750,10 +853,6 @@ const obterCodFuncionario = async (userId) => {
 };
 
 
-
-
-
-
 const criarParteDiaria = async () => {
   const painelToken = localStorage.getItem("painelAdminToken");
   const userLogado = localStorage.getItem("userNome");
@@ -772,6 +871,21 @@ const criarParteDiaria = async () => {
         continue;
       }
 
+
+            const diasValidos = diasDoMes.filter(dia => {
+  const chave = `${item.userId}-${item.obraId}-${dia}`;
+  return diasEditadosManualmente.has(chave) && !itemJaSubmetido(item.userId, item.obraId, dia);
+});
+
+
+
+            // só continua se houver dias ainda por submeter
+            if (diasValidos.length === 0) {
+            console.log(`🔒 Todos os dias do trabalhador ${item.userName} já têm partes submetidas`);
+            continue;
+            }
+
+
       const dataHoje = new Date();
       const dataSelecionada = `${dataHoje.getFullYear()}-${String(dataHoje.getMonth() + 1).padStart(2, '0')}-${String(dataHoje.getDate()).padStart(2, '0')}`;
       const dataFormatada = new Date(dataSelecionada).toISOString().split('T')[0];
@@ -783,7 +897,7 @@ const criarParteDiaria = async () => {
       const payloadCab = {
         ObraID: item.obraId,
         Data: dataFormatada,
-        Notas: observacoes,
+        Notas: observacoes ,
         CriadoPor: userLogado,
         Utilizador: userLogado,
         TipoEntidade: 'O',
@@ -811,14 +925,6 @@ const criarParteDiaria = async () => {
       console.log(`✅ Parte criada para ${item.userName}:`, cabecalhoCriado);
 
 
-      const diasComHoras = diasDoMes.filter(dia => item.horasPorDia[dia] > 0);
-
-// só continua se houver dias ainda por submeter
-const diasValidos = diasComHoras.filter(dia => !itemJaSubmetido(item.userId, item.obraId, dia));
-if (diasValidos.length === 0) {
-  console.log(`🔒 Todos os dias do trabalhador ${item.userName} já têm partes submetidas`);
-  continue;
-}
 
       // Se quiseres, podes agora também gerar os itens com base nas especialidades
 await criarItensParaMembro(
@@ -836,65 +942,66 @@ await criarItensParaMembro(
   }
 
   Alert.alert("Sucesso", "Partes diárias geradas com sucesso!");
+  setDiasEditadosManualmente(new Set());
+
 };
 
-// Adiciona esta função no teu componente:
+
 
 const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, diasValidos) => {
   const painelToken = await AsyncStorage.getItem("painelAdminToken");
+  const listaDefault = item.categoria === 'MaoObra'
+    ? especialidadesList
+    : equipamentosList;
 
-  if (!codFuncionario) {
-    console.warn(`Sem codFuncionario para ${item.userName}, salto item.`);
-    return;
+  // Declara 'linhas' antes de usar
+  let linhas = [];
+  if (item.especialidades.length > 0) {
+    linhas = item.especialidades
+      .filter(esp => diasValidos.includes(esp.dia))
+      .map(esp => ({
+        dia:           esp.dia,
+        especialidade: esp.especialidade,
+        categoria:     esp.categoria,
+        horas:         esp.horas,
+        subEmpId:      esp.subEmpId
+      }));
+  } else {
+    linhas = diasValidos.map(dia => {
+      const match = 
+        listaDefault.find(opt => opt.codigo === item.especialidade)
+        || listaDefault.find(opt => opt.descricao === item.especialidade);
+
+      return {
+        dia,
+        especialidade: item.especialidade,
+        categoria:     item.categoria,
+        horas:         (item.horasPorDia[dia] || 0) / 60,
+        subEmpId:      match?.subEmpId ?? null
+      };
+    });
   }
 
- // Normaliza cada especialidade para garantir subEmpId e classeId
-  const linhas = (item.especialidades.length > 0
-  ? item.especialidades.filter(esp =>
-      !esp.dia || diasValidos.includes(esp.dia)
-    )
-  : [{
-      dia: null,
-      especialidade: item.especialidade,
-      categoria: item.categoria,
-      horas: Object.values(item.horasPorDia).reduce((sum, m) => sum + m, 0) / 60,
-      subEmpId: especialidades.find(e => e.codigo === item.especialidade)?.subEmpId ?? 0,
-      classeId: 1
-    }]
-).map(esp => {
-  const subId = esp.subEmpId ?? especialidades.find(e => e.codigo === esp.especialidade)?.subEmpId ?? 0;
-  return {
-    ...esp,
-    subEmpId: subId,
-    classeId: esp.classeId ?? subId
-  };
-});
+  if (linhas.length === 0) return;
 
+  for (let i = 0; i < linhas.length; i++) {
+    const esp = linhas[i];
+    const minutosTotal = Math.round((esp.horas || 0) * 60);
+    const payloadItem = {
+      DocumentoID:   documentoID,
+      ObraID:        item.obraId,
+      Data:          `${mesAno.ano}-${String(mesAno.mes).padStart(2,'0')}-${String(esp.dia).padStart(2,'0')}`,
+      Numero:        i + 1,
+      ColaboradorID: codFuncionario,
+      Funcionario:   String(codFuncionario),
+      ClasseID:      1,
+      SubEmpID:      esp.subEmpId,    // agora corretamente preenchido
+      NumHoras:      minutosTotal,
+      PrecoUnit:     esp.precoUnit || 0,
+      Categoria:     esp.categoria
+    };
 
-
-    
-
-for (let i = 0; i < linhas.length; i++) {
-  const esp = linhas[i];
-  const minutosTotal = Math.round((esp.horas || 0) * 60);
-
-  const payloadItem = {
-    DocumentoID:  documentoID,
-    ObraID:       item.obraId,
-    Data:         esp.dia
-                     ? `${mesAno.ano}-${String(mesAno.mes).padStart(2,'0')}-${String(esp.dia).padStart(2,'0')}`
-                     : new Date().toISOString().slice(0,10),
-    Numero:         i + 1,
-    ColaboradorID:  codFuncionario,
-    Funcionario:    String(codFuncionario),
-    ClasseID:       esp.classeId,
-    SubEmpID:       esp.subEmpId,
-    NumHoras:       minutosTotal,
-    PrecoUnit:      esp.precoUnit || 0
-  };
-
-  console.log("▶ payloadItem", payloadItem);
-
+    console.log("▶ payloadItem", payloadItem);
     try {
       const resp = await fetch("https://backend.advir.pt/api/parte-diaria/itens", {
         method: "POST",
@@ -904,23 +1011,17 @@ for (let i = 0; i < linhas.length; i++) {
         },
         body: JSON.stringify(payloadItem)
       });
-
       if (!resp.ok) {
-  const err = await resp.json(); // lê apenas uma vez
-  console.warn(`Erro ao criar item ${i+1} para ${item.userName}:`, err);
-} else {
-  console.log(`✅ Item ${i+1} criado para ${item.userName}`);
-}
-
+        const err = await resp.json();
+        console.warn(`Erro a criar item ${i+1}:`, err);
+      } else {
+        console.log(`✅ Item ${i+1} criado`);
+      }
     } catch (e) {
-      console.error(`Erro de rede ao criar item ${i+1}:`, e);
+      console.error(`Erro de rede item ${i+1}:`, e);
     }
   }
 };
-
-
-
-
 
 
 
@@ -1141,6 +1242,8 @@ if (modoVisualizacao === 'obra') {
                                        
                                             {diasDoMes.map(dia => {
                                                 const cellKey = `${item.userId}-${item.obraId}-${dia}`;
+                                                const editadoManual = diasEditadosManualmente.has(cellKey);
+
                                                 const isEditing = editingCell === cellKey;
                                                 const submetido = itemJaSubmetido(item.codFuncionario, item.obraId, dia);
 
@@ -1148,10 +1251,12 @@ if (modoVisualizacao === 'obra') {
                                                     <View 
                                                     key={dia} 
                                                     style={[
-                                                        styles.tableCell, 
+                                                        styles.tableCell,
                                                         { width: 50 },
-                                                        submetido && styles.cellSubmetido // <- aplica estilo extra
-                                                    ]}
+                                                        submetido && styles.cellSubmetido,
+                                                        editadoManual && styles.cellEditado // <- novo estilo
+                                                        ]}
+
                                                     >
                                                         {isEditing ? (
                                                             <View style={styles.editingContainer}>
@@ -1394,15 +1499,10 @@ if (modoVisualizacao === 'obra') {
 
                     <View style={styles.modalBody}>
                         <Text style={styles.confirmText}>
-                            Pretende gerar as partes diárias para todos os trabalhadores 
-                            da sua equipa baseado nos registos de ponto?
+                            Pretende gerar as partes diárias os registos de ponto que mapeou as respetivas tarefas?
                         </Text>
                         
-                        <Text style={styles.confirmSubText}>
-                            Serão criadas {dadosProcessados.reduce((total, item) => {
-                                return total + diasDoMes.filter(dia => item.horasPorDia[dia] > 0).length;
-                            }, 0)} partes diárias.
-                        </Text>
+                  
 
                         <View style={styles.confirmButtons}>
                             <TouchableOpacity
@@ -1566,35 +1666,39 @@ if (modoVisualizacao === 'obra') {
 
 
                                     <View style={styles.inputGroup}>
-                                        <Text style={styles.inputLabelSmall}>Especialidade</Text>
                                         
                                         <Picker
                                             selectedValue={espItem.especialidade}
                                             onValueChange={(valor) => {
-                                                const especialidadeSelecionada = especialidades.find(e => e.codigo === valor);
-                                                setEditData(prev => {
-                                                const novas = [...prev.especialidadesDia];
-                                                novas[index] = {
-                                                    ...novas[index],
-                                                    especialidade: valor,
-                                                    classeId: especialidadeSelecionada?.subEmpId,
-                                                    subEmpId: especialidadeSelecionada?.subEmpId
-                                                };
-                                                return { ...prev, especialidadesDia: novas };
-                                                });
+                                                // encontra o objecto completo para extrair o subEmpId
+                                                const match = especialidades.find(opt => opt.codigo === valor);
+                                                atualizarEspecialidade(index, "especialidade", valor, match?.subEmpId);
                                             }}
                                             style={{
-                                                backgroundColor: '#f0f0f0',
+                                                backgroundColor: "#f0f0f0",
                                                 borderRadius: 8,
                                                 height: 44,
                                                 marginTop: 4,
                                                 marginBottom: 10,
                                             }}
                                             >
-                                            {especialidades.map(esp => (
-                                                <Picker.Item key={esp.codigo} label={esp.descricao} value={esp.codigo} />
+                                            <Picker.Item
+                                                label="— Selecione a categoria —"
+                                                value=""
+                                                enabled={false}
+                                                color="#999"
+                                            />
+                                            {(espItem.categoria === "MaoObra" ? especialidadesList : equipamentosList).map((opt) => (
+                                                <Picker.Item
+                                                key={opt.codigo}
+                                                label={opt.descricao}
+                                                value={opt.codigo}
+                                                />
                                             ))}
                                             </Picker>
+
+
+
 
 
                                     </View>
@@ -1663,6 +1767,10 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f5f5f5',
     },
+    cellEditado: {
+  backgroundColor: '#fff3cd', // amarelo claro
+},
+
     header: {
         paddingTop: 50,
         paddingBottom: 20,

@@ -964,4 +964,58 @@ router.get("/GetListaEquipamentos", async (req, res) => {
 });
 
 
+router.post('/InsertParteDiariaItem', autenticarToken, async (req, res) => {
+    try {
+        const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({
+                error: "Token não encontrado. Faça login novamente."
+            });
+        }
+
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({
+                error: "URL da empresa não fornecida."
+            });
+        }
+
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InsertParteDiariaItem`;
+
+        console.log("🔁 Enviando request para:", apiUrl);
+        console.log("📦 Dados enviados:", req.body);
+
+        const response = await axios.put(apiUrl, req.body, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+        });
+
+        if (response.status === 200) {
+            return res.status(200).json({
+                mensagem: "Parte diária inserida com sucesso.",
+                detalhes: response.data
+            });
+        } else {
+            return res.status(response.status).json({
+                error: "Falha ao inserir parte diária.",
+                detalhes: response.data
+            });
+        }
+    } catch (error) {
+        console.error("❌ Erro ao inserir parte diária:", error.response?.data || error.message);
+        return res.status(500).json({
+            error: "Erro inesperado ao inserir parte diária.",
+            detalhes: error.response?.data || error.message
+        });
+    }
+});
+
+
+
+
+
+
 module.exports = router;
