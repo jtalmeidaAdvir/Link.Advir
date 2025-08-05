@@ -249,6 +249,7 @@ const handleIntegrar = async (item) => {
   try {
     const token = await AsyncStorage.getItem('painelAdminToken');
     const urlempresa = await AsyncStorage.getItem('urlempresa');
+    const logintoken =  await AsyncStorage.getItem('loginToken');
 
     
 
@@ -313,8 +314,22 @@ const payload = {
     const result = await response.json();
 
     if (response.ok) {
-      alert('Parte integrada com sucesso!');
-      // Opcional: podes remover da lista ou atualizar o estado
+      // ✅ Marcar como integrado no backend
+      const marcarRes = await fetch(`https://backend.advir.pt/api/parte-diaria/cabecalhos/${item.DocumentoID}/integrar`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${logintoken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (marcarRes.ok) {
+        alert('Parte integrada e marcada como integrada com sucesso!');
+        fetchCabecalhos(); // Atualiza a lista removendo o item
+      } else {
+        console.warn('⚠️ Parte enviada mas falhou ao marcar como integrada.');
+        alert('Parte enviada mas falhou ao marcar como integrada.');
+      }
     } else {
       console.error("❌ Erro:", result);
       alert(`Erro ao integrar: ${result.error || 'Erro desconhecido.'}`);
@@ -354,6 +369,9 @@ const payload = {
 
 
         </View>
+        <Text style={{ color: item.IntegradoERP ? 'green' : 'orange', fontWeight: 'bold' }}>
+  {item.IntegradoERP ? '✅ Integrado' : '🕒 Pendente'}
+</Text>
         <Text style={styles.cardText}>Registado por: {item.CriadoPor || item.Utilizador}</Text>
         <Text style={styles.cardText}>
           {obrasMap[String(item.ObraID)] ?
