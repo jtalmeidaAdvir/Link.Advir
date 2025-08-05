@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,13 @@ const GestaoPartesDiarias = () => {
   const [obrasMap, setObrasMap] = useState({});
   const [cacheNomes, setCacheNomes] = useState({});
   const [cacheColaboradorID, setCacheColaboradorID] = useState({});
+  const [filtroEstado, setFiltroEstado] = useState('pendentes'); // 'todos' | 'pendentes' | 'integrados'
+
+const cabecalhosFiltrados = useMemo(() => {
+  if (filtroEstado === 'pendentes') return cabecalhos.filter(c => !c.IntegradoERP);
+  if (filtroEstado === 'integrados') return cabecalhos.filter(c => c.IntegradoERP);
+  return cabecalhos;
+}, [cabecalhos, filtroEstado]);
 
 
   useEffect(() => {
@@ -412,8 +419,25 @@ const payload = {
 
   return (
     <SafeAreaView style={styles.container}>
+        <View style={styles.filtroContainer}>
+  {['todos', 'pendentes', 'integrados'].map(opcao => (
+    <TouchableOpacity
+      key={opcao}
+      style={[
+        styles.filtroBotao,
+        filtroEstado === opcao && styles.filtroBotaoAtivo
+      ]}
+      onPress={() => setFiltroEstado(opcao)}
+    >
+      <Text style={filtroEstado === opcao ? styles.filtroTextoAtivo : styles.filtroTexto}>
+        {opcao === 'todos' ? 'Todos' : opcao === 'pendentes' ? 'Pendentes' : 'Integrados'}
+      </Text>
+    </TouchableOpacity>
+  ))}
+</View>
+
       <FlatList
-        data={cabecalhos}
+data={cabecalhosFiltrados}
         keyExtractor={itm => String(itm.DocumentoID)}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
@@ -495,7 +519,34 @@ const styles = StyleSheet.create({
   modalLabel: { fontSize: 14, fontWeight: '600', color: '#555', marginTop: 10 },
   modalValue: { fontSize: 14, color: '#333', marginTop: 4 },
   itemRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  itemText: { fontSize: 13, color: '#555', lineHeight: 18 }
+  itemText: { fontSize: 13, color: '#555', lineHeight: 18 },
+  filtroContainer: {
+  flexDirection: 'row',
+  justifyContent: 'space-around',
+  marginHorizontal: 10,
+  marginBottom: 10,
+  paddingVertical: 8,
+  backgroundColor: '#fff',
+  borderRadius: 8,
+  elevation: 1
+},
+filtroBotao: {
+  paddingVertical: 6,
+  paddingHorizontal: 12,
+  borderRadius: 6,
+},
+filtroBotaoAtivo: {
+  backgroundColor: '#1792FE',
+},
+filtroTexto: {
+  color: '#1792FE',
+  fontWeight: '500',
+},
+filtroTextoAtivo: {
+  color: '#fff',
+  fontWeight: '600',
+},
+
 });
 
 export default GestaoPartesDiarias;
