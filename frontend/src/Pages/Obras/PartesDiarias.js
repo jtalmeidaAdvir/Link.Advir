@@ -680,18 +680,34 @@ useEffect(() => {
  }, []);
 
 
-    const adicionarEspecialidade = useCallback(() => {
-        const novasEspecialidades = [...(editData.especialidadesDia || [])];
-        novasEspecialidades.push({
+const adicionarEspecialidade = useCallback(() => {
+  const novasEspecialidades = [...(editData.especialidadesDia || [])];
 
-            horas: 0
-        });
-        
-        setEditData({
-            ...editData,
-            especialidadesDia: novasEspecialidades
-        });
-    }, [editData]);
+  // Calcular o total de minutos já atribuídos
+  const minutosAtribuidos = novasEspecialidades.reduce((acc, esp) => {
+    return acc + Math.round((parseFloat(esp.horas) || 0) * 60);
+  }, 0);
+
+  const totalMinutos = selectedTrabalhador?.horasPorDia[selectedDia] || 0;
+
+  // Calcular os minutos que faltam
+  const minutosRestantes = totalMinutos - minutosAtribuidos;
+  const horasRestantes = Math.max(0, Math.round((minutosRestantes / 60) * 100) / 100); // arredondado a 2 decimais
+
+  novasEspecialidades.push({
+    horas: horasRestantes,
+    categoria: 'MaoObra',
+    especialidade: '',
+    subEmpId: null,
+    dia: selectedDia
+  });
+
+  setEditData({
+    ...editData,
+    especialidadesDia: novasEspecialidades
+  });
+}, [editData, selectedTrabalhador, selectedDia]);
+
 
     const removerEspecialidade = useCallback((index) => {
         if (editData.especialidadesDia.length > 1) {
@@ -779,13 +795,16 @@ const itemJaSubmetido = (codFuncionario, obraId, dia) => {
         setTempHoras('');
     }, [tempHoras, dadosProcessados]);
 
+
+
+    
     const salvarEdicao = useCallback(() => {
         if (selectedTrabalhador && selectedDia) {
-            const totalMinutosDia = selectedTrabalhador.horasPorDia[selectedDia] || 0;
-            const somaMinutosEspecialidades = editData.especialidadesDia.reduce((sum, esp) => {
-                const horas = parseFloat(esp.horas) || 0;
-                return sum + Math.round(horas * 60);
-            }, 0);
+                    // totalMinutosDia (em minutos) que veio do servidor ou de edição inline
+        const totalMinutosDia = selectedTrabalhador.horasPorDia[selectedDia] || 0;
+        // soma em minutos das especialidades editadas
+        const somaMinutosEspecialidades = editData.especialidadesDia
+            .reduce((sum, esp) => sum + Math.round((parseFloat(esp.horas) || 0) * 60), 0);
             
             if (Math.abs(somaMinutosEspecialidades - totalMinutosDia) > 5 && totalMinutosDia > 0) {
                 Alert.alert('Erro', `A soma das horas das especialidades (${formatarHorasMinutos(somaMinutosEspecialidades)}) deve ser igual ao total trabalhado no dia (${formatarHorasMinutos(totalMinutosDia)})`);
@@ -796,7 +815,8 @@ const itemJaSubmetido = (codFuncionario, obraId, dia) => {
                 if (item.userId === selectedTrabalhador.userId && 
                     item.obraId === selectedTrabalhador.obraId) {
                     
-                    const novasHorasDia = editData.especialidadesDia.reduce((sum, esp) => sum + (parseFloat(esp.horas) || 0), 0);
+                    const novasHorasDia = somaMinutosEspecialidades;
+
                     
                     const especialidadesAtualizadas = item.especialidades || [];
                     const especialidadesFiltradas = especialidadesAtualizadas.filter(esp => esp.dia !== selectedDia);
@@ -807,7 +827,7 @@ const itemJaSubmetido = (codFuncionario, obraId, dia) => {
                                 dia: selectedDia,
                                 especialidade: esp.especialidade,
                                 categoria: esp.categoria,
-                                horas: parseFloat(esp.horas),
+                                horas: Math.round((parseFloat(esp.horas) || 0) * 100) / 100,  // <- aqui
                                 subEmpId: esp.subEmpId   
                             });
                         }
@@ -815,9 +835,9 @@ const itemJaSubmetido = (codFuncionario, obraId, dia) => {
                     
                     return {
                         ...item,
-                        horasPorDia: {
+                         horasPorDia: {
                             ...item.horasPorDia,
-                            [selectedDia]: novasHorasDia
+                            [selectedDia]: novasHorasDia    // agora em minutos
                         },
                         especialidades: especialidadesFiltradas,
                         especialidade: editData.especialidadesDia.length > 0 ? editData.especialidadesDia[0].especialidade : item.especialidade,
@@ -1350,6 +1370,7 @@ if (modoVisualizacao === 'obra') {
                                     <Text style={styles.obraDaysHeaderText}>Obra</Text>
                                 </View>
                                 {diasDoMes.map(dia => (
+                                    
                                     <View key={dia} style={[styles.tableCell, { width: 50 }]}>
                                         <Text style={styles.obraDaysHeaderText}>{dia}</Text>
                                     </View>
@@ -1375,6 +1396,7 @@ if (modoVisualizacao === 'obra') {
   const isEditing = editingCell === cellKey;
   // 👉 Aqui você precisa chamar itemJaSubmetido com o codFuncionario:
   const submetido = itemJaSubmetido(item.codFuncionario, item.obraId, dia);
+  const editadoManual = diasEditadosManualmente.has(cellKey); // <- ADICIONA ISTO
 
   return (
     <View
@@ -1382,7 +1404,9 @@ if (modoVisualizacao === 'obra') {
       style={[
         styles.tableCell,
         { width: 50 },
-        submetido && styles.cellSubmetido   // aplica fundo verde
+        submetido && styles.cellSubmetido,   // aplica fundo verde
+                editadoManual && styles.cellEditado // <- AQUI TAMBÉM
+
       ]}
     >
             {isEditing ? (

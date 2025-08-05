@@ -3,9 +3,40 @@ const ParteDiariaCabecalho = require('../models/parteDiariaCabecalho');
 const ParteDiariaItem = require('../models/parteDiariaItem');
 
 exports.listar = async (req, res) => {
-  const cabecalhos = await ParteDiariaCabecalho.findAll({ include: ParteDiariaItem });
+  const { integrado } = req.query;
+  const where = {};
+
+  if (integrado === 'true') where.IntegradoERP = true;
+  else if (integrado === 'false') where.IntegradoERP = false;
+
+  const cabecalhos = await ParteDiariaCabecalho.findAll({
+    where,
+    include: ParteDiariaItem
+  });
+
   res.json(cabecalhos);
 };
+
+
+exports.marcarIntegrado = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [updated] = await ParteDiariaCabecalho.update(
+      { IntegradoERP: true },
+      { where: { DocumentoID: id } }
+    );
+
+    if (!updated) return res.status(404).json({ erro: 'Parte não encontrado.' });
+
+    res.json({ sucesso: true });
+  } catch (err) {
+    console.error('Erro ao marcar como integrado:', err);
+    res.status(500).json({ erro: 'Erro ao atualizar.' });
+  }
+};
+
+
 
 exports.obter = async (req, res) => {
   const { id } = req.params;

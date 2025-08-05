@@ -11,6 +11,7 @@ router.get('/cabecalhos/:id', cab.obter);
 router.post('/cabecalhos', cab.criar);
 router.put('/cabecalhos/:id', cab.atualizar);
 router.delete('/cabecalhos/:id', cab.remover);
+router.put('/cabecalhos/:id/integrar', cab.marcarIntegrado);
 
 // Itens
 router.get('/itens', item.listar);

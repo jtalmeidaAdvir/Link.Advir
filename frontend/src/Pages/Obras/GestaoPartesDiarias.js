@@ -149,7 +149,6 @@ const obterColaboradorID = useCallback(async (codFuncionario) => {
     const data = await response.json();
 
     if (response.ok) {
-      alert('Código da obra obtido com sucesso!');
       console.log('🧱 Obra encontrada:', data);
       return data; // ou return data.codigo se for o valor que queres
     } else {
@@ -161,6 +160,40 @@ const obterColaboradorID = useCallback(async (codFuncionario) => {
   }
 }, []);
 
+
+const obterIDObra = useCallback(async (codigoObra) => {
+  try {
+    const token = await AsyncStorage.getItem('painelAdminToken');
+    const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+    const response = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetObraId/${codigoObra}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'urlempresa': urlempresa
+      }
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      const id = data?.DataSet?.Table?.[0]?.Id;
+      if (!id) {
+        return null;
+      }
+
+      return id;
+    } else {
+      alert(`Erro ao obter ID da obra: ${data.message}`);
+      return null;
+    }
+  } catch (error) {
+    console.error('Erro ao obter ID da obra:', error);
+    alert('Erro ao obter ID da obra');
+    return null;
+  }
+}, []);
 
 
   const fetchObras = async () => {
@@ -204,6 +237,13 @@ const obterColaboradorID = useCallback(async (codFuncionario) => {
     }
   };
 
+  const formatarHoras = (minutos) => {
+  const h = Math.floor(minutos / 60);
+  const m = minutos % 60;
+  return `${h > 0 ? `${h}h ` : ''}${m}m`;
+};
+
+
   // Funções para os novos botões
 const handleIntegrar = async (item) => {
   try {
@@ -222,29 +262,37 @@ const handleIntegrar = async (item) => {
 const colaboradorID = await obterColaboradorID(item.ColaboradorID);
 console.log(colaboradorID);
 const dadosObra = await obterCodObra(item.ObraID);
-// Se quiseres apenas o código:
 const codigoObra = dadosObra?.codigo;
+const IdObra = await obterIDObra(codigoObra);
 
 
-    const payload = {
+const cod = localStorage.getItem("codFuncionario");
+const CodFuncionario = await obterColaboradorID(cod);
+
+
+
+
+
+const payload = {
       Cabecalho: {
         DocumentoID: "1747FEA9-5D2F-45B4-A89B-9EA30B1E0DCB",
-        ObraID: "79411550-E027-4DC0-B09F-08C28B45E630",//item.ObraID,
+        ObraID: IdObra,//item.ObraID,
         Data: item.Data,
         Notas: item.Notas || '',
         CriadoPor: "",
         Utilizador: "",
         TipoEntidade: "O",
-        ColaboradorID:""  //Buscar colaboradorId de quem registou.
+        ColaboradorID: CodFuncionario  //Buscar colaboradorId de quem registou.
       },
       Itens: item.ParteDiariaItems.map(it => ({
         ComponenteID: it.ComponenteID,
         Funcionario: "",
         ClasseID: it.ClasseID,
         SubEmpID: it.SubEmpID,
-        NumHoras: it.NumHoras,
+        NumHoras: (it.NumHoras / 60).toFixed(2), // convertido em horas
+        TotalHoras: (it.NumHoras / 60).toFixed(2), 
         TipoEntidade: "O",
-        ColaboradorID: colaboradorID,
+        ColaboradorID: colaboradorID, // vai buscar pelo cod funcionario
         Data: it.Data,
         ObraID: it.ObraID
       }))
@@ -387,7 +435,8 @@ const codigoObra = dadosObra?.codigo;
                           ? `${obrasMap[String(itm.ObraID)].codigo} — ${obrasMap[String(itm.ObraID)].descricao}`
                           : itm.ObraID}{"\n"}
                         Especialidade: {especialidadesMap[itm.SubEmpID] || itm.SubEmpID}{"\n"}
-                        Horas: {itm.NumHoras}m
+                        Horas: {formatarHoras(itm.NumHoras)}
+
                       </Text>
                     </View>
                   ))

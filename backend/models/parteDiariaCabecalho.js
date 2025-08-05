@@ -36,7 +36,13 @@ const ParteDiariaCabecalho = sequelize.define('ParteDiariaCabecalho', {
   ColaboradorID: {
     type: DataTypes.STRING(10),
     allowNull: true
-  }
+  },
+  IntegradoERP: {
+  type: DataTypes.BOOLEAN,
+  allowNull: false,
+  defaultValue: false
+}
+
 
 }, {
   tableName: 'ParteDiariaCabecalho',
