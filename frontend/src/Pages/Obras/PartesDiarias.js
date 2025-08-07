@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -65,6 +65,9 @@ const [equipaSelecionada, setEquipaSelecionada] = useState(null);
 
 const [itensSubmetidos, setItensSubmetidos] = useState([]);
 
+
+
+
 const carregarItensSubmetidos = async () => {
   const painelToken = await AsyncStorage.getItem("painelAdminToken");
 
@@ -90,6 +93,7 @@ const carregarItensSubmetidos = async () => {
       })
     );
     setSubmittedSet(novoSubmittedSet);
+  return novoSubmittedSet; 
   } catch (err) {
     console.error("Erro ao carregar itens submetidos:", err);
   }
@@ -173,51 +177,29 @@ useEffect(() => {
   carregarEquipamentos();
 }, [carregarEspecialidades, carregarEquipamentos]);
 
-
-
-
 useEffect(() => {
-  const carregarTudo = async () => {
-  setLoading(true);
-  
-  // Primeiro carrega os itens submetidos
-  await carregarItensSubmetidos(); 
+  const init = async () => {
+    setLoading(true);
+    try {
+    // 1) carregar e definir submittedSet, e já ter o valor correto aqui
+    const novoSet = await carregarItensSubmetidos();
+    console.log('🔍 submittedSet contém:', Array.from(novoSet));
 
-  // Só depois carrega os dados (já vai conseguir bloquear os dias)
-  await carregarDados();
+    // 2) buscar equipas+registos e processar
+const resultado = await carregarDados() || { equipas: [], registos: [] };
+const { equipas: eq, registos } = resultado;
 
-  setLoading(false);
-};
+    processarDadosPartes(registos, eq);
+  } catch (err) {
+    console.error(err);
+    Alert.alert('Erro', 'Falha ao carregar dados.');
+  } finally {
+    setLoading(false);
+    }
+  };
 
-
-  carregarTudo();
+  init();
 }, [mesAno]);
-
-const [refreshToggle, setRefreshToggle] = useState(false);
-
-useEffect(() => {
-  if (
-    registosPonto.length > 0 &&
-    equipas.length > 0 &&
-    submittedSet &&
-    submittedSet.size >= 0 // mesmo que seja vazio
-  ) {
-    console.log('✅ A processar dados com submittedSet carregado');
-    processarDadosPartes(registosPonto, equipas);
-  }
-}, [registosPonto, equipas, submittedSet]);
-
-
-
-
-
-
-    useEffect(() => {
-  if (equipaSelecionada && equipaSelecionada.membros) {
-    setMembrosSelecionados(equipaSelecionada.membros);
-  }
-}, [equipaSelecionada]);
-
 
 
 useEffect(() => {
@@ -279,18 +261,6 @@ useEffect(() => {
 
   carregarCategoriaDinamicamente();
 }, [editData?.categoria]);
-
-useEffect(() => {
-  const dadosOk =
-    registosPonto.length > 0 &&
-    equipas.length > 0 &&
-    submittedSet &&
-    submittedSet.size >= 0; // permitir zero se necessário
-
-  if (dadosOk) {
-    processarDadosPartes(registosPonto, equipas);
-  }
-}, [registosPonto, equipas, submittedSet]);
 
 
 
@@ -358,8 +328,7 @@ useEffect(() => {
     }, []);
 
     const carregarDados = async () => {
-        setLoading(true);
-        setLoadingProgress(0);
+ setLoadingProgress(0);
         
         try {
             // Verificar cache primeiro
@@ -370,17 +339,22 @@ useEffect(() => {
                 setObras(cachedData.obras);
                 setRegistosPonto(cachedData.registos);
                 processarDadosPartes(cachedData.registos, cachedData.equipas);
-                setLoading(false);
-                return;
+             
+                   return {
+    equipas: cachedData.equipas,
+    registos: cachedData.registos
+  };
+ 
             }
+ const resultado = await carregarDadosReais();
 
-            await carregarDadosReais();
+  return resultado;  
             
         } catch (error) {
             console.error('Erro ao carregar dados:', error);
             Alert.alert('Erro', 'Erro ao carregar os dados necessários');
         } finally {
-            setLoading(false);
+
         }
     };
 
@@ -539,9 +513,13 @@ useEffect(() => {
                 registos: todosRegistos
             });
 
+            setEquipas(equipasFormatadas);
+            setRegistosPonto(todosRegistos);
             setLoadingProgress(100);
             processarDadosPartes(todosRegistos, equipasFormatadas);
+return { equipas: equipasFormatadas, registos: todosRegistos };
             
+
 
         } catch (error) {
             console.error('Erro ao carregar dados reais:', error);
@@ -618,7 +596,7 @@ useEffect(() => {
         setHorasOriginais(novasHorasOriginais);
         setDadosProcessados(dadosProcessados);
         
-    }, [diasDoMes, equipas]);
+    }, [diasDoMes, equipas, codMap]);
 
 
 
@@ -1001,6 +979,8 @@ Alert.alert("Sucesso", "Partes diárias submetidas para o diretor de obra com su
 setDiasEditadosManualmente(new Set());             // Limpa estados locais
 carregarDados();                                   // Faz refresh aos dados da página
 carregarItensSubmetidos();
+console.log('🔍 submittedSet contém:', Array.from(submittedSet).slice(0, 10));
+
 
 };
 
@@ -1167,6 +1147,8 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
     setLoading(true); // ativa o loading e barra de progresso
     setDiasEditadosManualmente(new Set()); // limpa marcações manuais (se quiseres manter)
     await carregarItensSubmetidos(); // recarrega os submetidos
+    console.log('🔍 submittedSet contém:', Array.from(submittedSet).slice(0, 10));
+
     setLoading(false);
   }}
 >

@@ -82,25 +82,31 @@ const CriarEquipa = () => {
 
 
 
-const fetchEquipasCriadas = async () => {
-  try {
-    const token = await AsyncStorage.getItem('loginToken');
-    const userId = localStorage.getItem('userId');
+    const fetchEquipasCriadas = async () => {
+        try {
+            const token = await AsyncStorage.getItem('loginToken');
+            const userId = await AsyncStorage.getItem('userId');
+            const tipoUser = await AsyncStorage.getItem('tipoUser'); // assume userType guardado
 
-    const res = await fetch('https://backend.advir.pt/api/equipa-obra/listar-todas', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+            const res = await fetch('https://backend.advir.pt/api/equipa-obra/listar-todas', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
 
-    const data = await res.json();
-
-    if (res.ok) {
-      const equipasDoEncarregado = data.filter(e => e.encarregado?.id == userId);
-      setEquipasCriadas(equipasDoEncarregado);
-    }
-  } catch (err) {
-    console.error('Erro ao carregar equipas criadas:', err);
-  }
-};
+            const data = await res.json();
+            if (res.ok) {
+                if (tipoUser === 'Administrador') {
+                    setEquipasCriadas(data);
+                } else {
+                    const equipasDoEncarregado = data.filter(e => e.encarregado?.id == userId);
+                    setEquipasCriadas(equipasDoEncarregado);
+                }
+            } else {
+                console.error('Erro ao carregar equipas:', data.message);
+            }
+        } catch (err) {
+            console.error('Erro ao carregar equipas criadas:', err);
+        }
+    };
 
 
     const obterIdDaEmpresa = async () => {

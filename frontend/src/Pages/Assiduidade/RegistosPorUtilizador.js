@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 
@@ -18,7 +17,7 @@ const RegistosPorUtilizador = () => {
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
   const [enderecos, setEnderecos] = useState({});
   const [filtroTipo, setFiltroTipo] = useState('');
-  
+
   // New states for grid view
   const [viewMode, setViewMode] = useState('resumo'); // 'resumo', 'grade', 'detalhes'
   const [dadosGrade, setDadosGrade] = useState([]);
@@ -81,15 +80,15 @@ const RegistosPorUtilizador = () => {
 
   const gerarDiasDoMes = (ano, mes) => {
     if (!ano || !mes) return [];
-    
+
     const dataInicio = new Date(ano, mes - 1, 1);
     const dataFim = new Date(ano, mes, 0);
     const dias = [];
-    
+
     for (let dia = 1; dia <= dataFim.getDate(); dia++) {
       dias.push(dia);
     }
-    
+
     return dias;
   };
 
@@ -101,7 +100,7 @@ const RegistosPorUtilizador = () => {
 
     setLoadingGrade(true);
     setDadosGrade([]);
-    
+
     try {
       const dias = gerarDiasDoMes(parseInt(anoSelecionado), parseInt(mesSelecionado));
       setDiasDoMes(dias);
@@ -116,7 +115,7 @@ const RegistosPorUtilizador = () => {
             headers: { Authorization: `Bearer ${token}` }
           }).then(res => res.json()).catch(() => []);
         });
-        
+
         const resultados = await Promise.all(promises);
         const userIdsObra = [...new Set(resultados.flat().map(reg => reg.User?.id).filter(Boolean))];
         utilizadoresParaPesquisar = utilizadores.filter(u => userIdsObra.includes(u.id));
@@ -132,10 +131,10 @@ const RegistosPorUtilizador = () => {
           const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          
+
           if (res.ok) {
             const registos = await res.json();
-            
+
             // Organizar registos por dia
             const registosPorDia = {};
             registos.forEach(reg => {
@@ -151,7 +150,7 @@ const RegistosPorUtilizador = () => {
               const saidas = regs.filter(r => r.tipo === 'saida').length;
               const confirmados = regs.filter(r => r.is_confirmed).length;
               const naoConfirmados = regs.length - confirmados;
-              
+
               // Calcular horas estimadas
               let horasEstimadas = 0;
               const eventosOrdenados = regs
@@ -213,7 +212,7 @@ const RegistosPorUtilizador = () => {
     setLoading(true);
     setResumoUtilizadores([]);
     setUtilizadorDetalhado(null);
-    
+
     try {
       let utilizadoresParaPesquisar = utilizadores;
 
@@ -228,7 +227,7 @@ const RegistosPorUtilizador = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         const dataObraUsers = await resObraUsers.json();
-        
+
         // Extrair utilizadores únicos desta obra
         const userIdsObra = [...new Set(dataObraUsers.map(reg => reg.User?.id).filter(Boolean))];
         utilizadoresParaPesquisar = utilizadores.filter(u => userIdsObra.includes(u.id));
@@ -239,7 +238,7 @@ const RegistosPorUtilizador = () => {
       for (const user of utilizadoresParaPesquisar) {
         try {
           let query = `user_id=${user.id}`;
-          
+
           if (dataSelecionada) {
             query += `&data=${dataSelecionada}`;
           } else {
@@ -251,16 +250,16 @@ const RegistosPorUtilizador = () => {
           const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          
+
           if (res.ok) {
             const registos = await res.json();
-            
+
             if (registos.length > 0) {
               // Calcular estatísticas do utilizador
               const diasUnicos = [...new Set(registos.map(r => new Date(r.timestamp).toISOString().split('T')[0]))];
               const totalRegistos = registos.length;
               const registosConfirmados = registos.filter(r => r.is_confirmed).length;
-              
+
               // Calcular horas trabalhadas (estimativa baseada em entradas/saídas)
               const horasPorDia = {};
               registos.forEach(reg => {
@@ -331,10 +330,10 @@ const RegistosPorUtilizador = () => {
   const carregarDetalhesUtilizador = async (user) => {
     setLoadingDetalhes(true);
     setUtilizadorDetalhado(user);
-    
+
     try {
       let query = `user_id=${user.id}`;
-      
+
       if (dataSelecionada) {
         query += `&data=${dataSelecionada}`;
       } else {
@@ -346,7 +345,7 @@ const RegistosPorUtilizador = () => {
       const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       const data = await res.json();
 
       const agrupados = {};
@@ -369,7 +368,7 @@ const RegistosPorUtilizador = () => {
   useEffect(() => {
     const fetchEnderecos = async () => {
       if (!utilizadorDetalhado) return;
-      
+
       const promessas = [];
       Object.values(agrupadoPorDia).flat().forEach((reg) => {
         if (reg.latitude && reg.longitude) {
@@ -394,9 +393,9 @@ const RegistosPorUtilizador = () => {
     }
 
     const workbook = XLSX.utils.book_new();
-    
+
     const dadosExport = [];
-    
+
     // Cabeçalho
     dadosExport.push([
       'Resumo de Registos por Utilizador',
@@ -406,7 +405,7 @@ const RegistosPorUtilizador = () => {
       `Período: ${dataSelecionada || `${mesSelecionado}/${anoSelecionado}`}`
     ]);
     dadosExport.push([]);
-    
+
     // Cabeçalhos da tabela
     dadosExport.push([
       'Utilizador',
@@ -438,7 +437,7 @@ const RegistosPorUtilizador = () => {
     });
 
     const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
-    
+
     const wscols = [
       { wch: 20 }, // Utilizador
       { wch: 25 }, // Email
@@ -454,7 +453,7 @@ const RegistosPorUtilizador = () => {
     worksheet['!cols'] = wscols;
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumo');
-    
+
     const fileName = `Resumo_Utilizadores_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
@@ -466,9 +465,9 @@ const RegistosPorUtilizador = () => {
     }
 
     const workbook = XLSX.utils.book_new();
-    
+
     const dadosExport = [];
-    
+
     // Cabeçalho
     dadosExport.push([
       'Grade Mensal de Registos',
@@ -478,7 +477,7 @@ const RegistosPorUtilizador = () => {
       `${mesSelecionado}/${anoSelecionado}`
     ]);
     dadosExport.push([]);
-    
+
     // Cabeçalhos da tabela
     const headers = ['Utilizador', 'Email'];
     diasDoMes.forEach(dia => headers.push(`Dia ${dia}`));
@@ -488,7 +487,7 @@ const RegistosPorUtilizador = () => {
     // Dados dos utilizadores
     dadosGrade.forEach(item => {
       const row = [item.utilizador.nome, item.utilizador.email];
-      
+
       diasDoMes.forEach(dia => {
         const estatisticas = item.estatisticasDias[dia];
         if (estatisticas) {
@@ -497,14 +496,14 @@ const RegistosPorUtilizador = () => {
           row.push('-');
         }
       });
-      
+
       row.push(item.totalDias, `${item.totalHorasEstimadas}h`);
       dadosExport.push(row);
     });
 
     const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Grade');
-    
+
     const fileName = `Grade_Mensal_${mesSelecionado}_${anoSelecionado}_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
@@ -516,9 +515,9 @@ const RegistosPorUtilizador = () => {
     }
 
     const workbook = XLSX.utils.book_new();
-    
+
     const dadosExport = [];
-    
+
     // Cabeçalho
     dadosExport.push([
       `Detalhes de Registos - ${utilizadorDetalhado.nome}`,
@@ -528,7 +527,7 @@ const RegistosPorUtilizador = () => {
       `Período: ${dataSelecionada || `${mesSelecionado}/${anoSelecionado}`}`
     ]);
     dadosExport.push([]);
-    
+
     // Cabeçalhos da tabela
     dadosExport.push([
       'Data',
@@ -552,7 +551,7 @@ const RegistosPorUtilizador = () => {
             evento.Obra?.nome || 'N/A',
             evento.is_confirmed ? 'Sim' : 'Não',
             evento.justificacao || '',
-            evento.latitude && evento.longitude 
+            evento.latitude && evento.longitude
               ? enderecos[`${evento.latitude},${evento.longitude}`] || 'A obter...'
               : 'N/A'
           ]);
@@ -560,7 +559,7 @@ const RegistosPorUtilizador = () => {
     });
 
     const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
-    
+
     const wscols = [
       { wch: 12 }, // Data
       { wch: 10 }, // Hora
@@ -573,16 +572,16 @@ const RegistosPorUtilizador = () => {
     worksheet['!cols'] = wscols;
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Detalhes');
-    
+
     const fileName = `Detalhes_${utilizadorDetalhado.nome.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(workbook, fileName);
   };
 
   const registosFiltrados = Object.entries(agrupadoPorDia).reduce((acc, [dia, eventos]) => {
-    const eventosFiltrados = filtroTipo 
+    const eventosFiltrados = filtroTipo
       ? eventos.filter(e => e.tipo === filtroTipo)
       : eventos;
-    
+
     if (eventosFiltrados.length > 0) {
       acc[dia] = eventosFiltrados;
     }
@@ -591,14 +590,84 @@ const RegistosPorUtilizador = () => {
 
   const obterCorStatusDia = (estatisticas) => {
     if (!estatisticas || estatisticas.totalRegistos === 0) return '#f8f9fa';
-    
+
     const percentagemConfirmados = (estatisticas.confirmados / estatisticas.totalRegistos) * 100;
     const horas = parseFloat(estatisticas.horasEstimadas);
-    
+
     if (percentagemConfirmados === 100 && horas >= 7) return '#d4edda'; // Verde claro - perfeito
     if (percentagemConfirmados >= 80 && horas >= 6) return '#fff3cd'; // Amarelo - bom
     if (percentagemConfirmados >= 50 || horas >= 4) return '#f8d7da'; // Rosa - problema menor
     return '#f5c6cb'; // Vermelho claro - problema sério
+  };
+
+  const registarPontoParaUtilizador = async (userId, dia) => {
+    try {
+      const token = localStorage.getItem('loginToken');
+
+      // Obter horário de trabalho do utilizador (pode ser configurado ou usar padrão)
+      const horaEntrada = '08:00';
+      const horaSaida = '17:00';
+
+      const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+
+      // Confirmar com o utilizador
+      const utilizador = utilizadores.find(u => u.id === userId);
+      const confirmar = window.confirm(`Registar ponto para ${utilizador?.nome || 'utilizador'} no dia ${dia}/${mesSelecionado}/${anoSelecionado}?\n\nEntrada: ${horaEntrada}\nSaída: ${horaSaida}`);
+
+      if (!confirmar) return;
+
+      // Registar entrada
+      const responseEntrada = await fetch('https://backend.advir.pt/api/registoPonto/registar-para-outro', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          empresa: localStorage.getItem('empresaSelecionada'),
+          latitude: null,
+          longitude: null,
+          endereco: 'Registo manual via administração',
+          obra_id: obraSelecionada || null
+        })
+      });
+
+      if (responseEntrada.ok) {
+        // Simular espera e registar saída
+        setTimeout(async () => {
+          const responseSaida = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto-para-outro', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              empresa: localStorage.getItem('empresaSelecionada'),
+              latitude: null,
+              longitude: null,
+              endereco: 'Registo manual via administração',
+              obra_id: obraSelecionada || null
+            })
+          });
+
+          if (responseSaida.ok) {
+            alert('Ponto registado com sucesso (entrada e saída)!');
+            // Recarregar dados da grade
+            carregarDadosGrade();
+          } else {
+            alert('Entrada registada, mas erro ao registar saída');
+          }
+        }, 1000);
+      } else {
+        const errorData = await responseEntrada.json();
+        alert(`Erro ao registar entrada: ${errorData.message}`);
+      }
+    } catch (error) {
+      console.error('Erro ao registar ponto:', error);
+      alert('Erro ao registar ponto');
+    }
   };
 
   return (
@@ -613,20 +682,20 @@ const RegistosPorUtilizador = () => {
 
       {/* Navigation Tabs */}
       <div style={styles.navigationTabs}>
-        <button 
+        <button
           style={{...styles.navTab, ...(viewMode === 'resumo' ? styles.navTabActive : {})}}
           onClick={() => setViewMode('resumo')}
         >
           📊 Resumo
         </button>
-        <button 
+        <button
           style={{...styles.navTab, ...(viewMode === 'grade' ? styles.navTabActive : {})}}
           onClick={() => setViewMode('grade')}
         >
           📅 Grade Mensal
         </button>
         {utilizadorDetalhado && (
-          <button 
+          <button
             style={{...styles.navTab, ...(viewMode === 'detalhes' ? styles.navTabActive : {})}}
             onClick={() => setViewMode('detalhes')}
           >
@@ -641,13 +710,13 @@ const RegistosPorUtilizador = () => {
           <span style={styles.sectionIcon}>🔍</span>
           Filtros de Pesquisa
         </h3>
-        
+
         <div style={styles.filtersGrid}>
           <div style={styles.filterGroup}>
             <label style={styles.label}>Obra</label>
-            <select 
+            <select
               style={styles.select}
-              value={obraSelecionada} 
+              value={obraSelecionada}
               onChange={e => setObraSelecionada(e.target.value)}
             >
               <option value="">-- Todas as obras --</option>
@@ -659,9 +728,9 @@ const RegistosPorUtilizador = () => {
 
           <div style={styles.filterGroup}>
             <label style={styles.label}>Utilizador (Opcional)</label>
-            <select 
+            <select
               style={styles.select}
-              value={utilizadorSelecionado} 
+              value={utilizadorSelecionado}
               onChange={e => setUtilizadorSelecionado(e.target.value)}
             >
               <option value="">-- Todos os utilizadores --</option>
@@ -673,22 +742,22 @@ const RegistosPorUtilizador = () => {
 
           <div style={styles.filterGroup}>
             <label style={styles.label}>Data Específica</label>
-            <input 
-              type="date" 
+            <input
+              type="date"
               style={styles.input}
-              value={dataSelecionada} 
-              onChange={e => setDataSelecionada(e.target.value)} 
+              value={dataSelecionada}
+              onChange={e => setDataSelecionada(e.target.value)}
             />
           </div>
 
           <div style={styles.filterGroup}>
             <label style={styles.label}>Mês</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               style={styles.input}
-              min="1" 
-              max="12" 
-              value={mesSelecionado} 
+              min="1"
+              max="12"
+              value={mesSelecionado}
               onChange={e => setMesSelecionado(e.target.value)}
               placeholder="1-12"
             />
@@ -696,12 +765,12 @@ const RegistosPorUtilizador = () => {
 
           <div style={styles.filterGroup}>
             <label style={styles.label}>Ano</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               style={styles.input}
-              min="2020" 
-              max="2030" 
-              value={anoSelecionado} 
+              min="2020"
+              max="2030"
+              value={anoSelecionado}
               onChange={e => setAnoSelecionado(e.target.value)}
               placeholder="2024"
             />
@@ -711,16 +780,16 @@ const RegistosPorUtilizador = () => {
         <div style={styles.actionButtons}>
           {viewMode === 'resumo' && (
             <>
-              <button 
+              <button
                 style={styles.primaryButton}
                 onClick={carregarResumoUtilizadores}
                 disabled={loading}
               >
                 {loading ? '🔄 A carregar...' : '🔍 Carregar Resumo'}
               </button>
-              
+
               {resumoUtilizadores.length > 0 && (
-                <button 
+                <button
                   style={styles.exportButton}
                   onClick={exportarResumo}
                 >
@@ -732,16 +801,16 @@ const RegistosPorUtilizador = () => {
 
           {viewMode === 'grade' && (
             <>
-              <button 
+              <button
                 style={styles.primaryButton}
                 onClick={carregarDadosGrade}
                 disabled={loadingGrade || !anoSelecionado || !mesSelecionado}
               >
                 {loadingGrade ? '🔄 A carregar...' : '📅 Carregar Grade'}
               </button>
-              
+
               {dadosGrade.length > 0 && (
-                <button 
+                <button
                   style={styles.exportButton}
                   onClick={exportarGrade}
                 >
@@ -753,7 +822,7 @@ const RegistosPorUtilizador = () => {
 
           {viewMode === 'detalhes' && utilizadorDetalhado && (
             <>
-              <button 
+              <button
                 style={styles.detailsButton}
                 onClick={() => {
                   setUtilizadorDetalhado(null);
@@ -762,9 +831,9 @@ const RegistosPorUtilizador = () => {
               >
                 ← Voltar ao Resumo
               </button>
-              
+
               {registosDetalhados.length > 0 && (
-                <button 
+                <button
                   style={styles.exportButton}
                   onClick={exportarDetalhesUtilizador}
                 >
@@ -791,12 +860,12 @@ const RegistosPorUtilizador = () => {
             <span style={styles.sectionIcon}>📊</span>
             Resumo por Utilizador ({resumoUtilizadores.length} utilizadores)
           </h3>
-          
+
           <div style={styles.utilizadoresGrid}>
             {resumoUtilizadores.map((resumo, index) => (
-              <div 
-                key={resumo.utilizador.id} 
-                style={styles.utilizadorCard}
+              <div
+                key={resumo.utilizador.id}
+                style={{...styles.utilizadorCard, ...styles.utilizadorCardHover}}
                 onClick={() => {
                   carregarDetalhesUtilizador(resumo.utilizador);
                   setViewMode('detalhes');
@@ -855,7 +924,7 @@ const RegistosPorUtilizador = () => {
             <span style={styles.sectionIcon}>📅</span>
             Grade Mensal - {mesSelecionado}/{anoSelecionado} ({dadosGrade.length} utilizadores)
           </h3>
-          
+
           <div style={styles.legendaContainer}>
             <h4 style={styles.legendaTitle}>Legenda:</h4>
             <div style={styles.legendaItems}>
@@ -889,7 +958,9 @@ const RegistosPorUtilizador = () => {
                   <tr>
                     <th style={{...styles.gradeHeader, ...styles.gradeHeaderFixed}}>Utilizador</th>
                     {diasDoMes.map(dia => (
-                      <th key={dia} style={styles.gradeHeader}>{dia}</th>
+                      <th key={dia} style={styles.gradeHeader} onClick={() => registarPontoParaUtilizador(utilizadorSelecionado, dia)}>
+                        {dia}
+                      </th>
                     ))}
                     <th style={styles.gradeHeader}>Total</th>
                   </tr>
@@ -897,7 +968,7 @@ const RegistosPorUtilizador = () => {
                 <tbody>
                   {dadosGrade.map((item, index) => (
                     <tr key={item.utilizador.id} style={index % 2 === 0 ? styles.gradeRowEven : styles.gradeRowOdd}>
-                      <td 
+                      <td
                         style={{...styles.gradeCell, ...styles.gradeCellFixed}}
                         onClick={() => {
                           carregarDetalhesUtilizador(item.utilizador);
@@ -912,17 +983,19 @@ const RegistosPorUtilizador = () => {
                       {diasDoMes.map(dia => {
                         const estatisticas = item.estatisticasDias[dia];
                         return (
-                          <td 
-                            key={dia} 
+                          <td
+                            key={dia}
                             style={{
                               ...styles.gradeCell,
-                              backgroundColor: obterCorStatusDia(estatisticas),
-                              cursor: estatisticas ? 'pointer' : 'default'
+                              backgroundColor: estatisticas ? obterCorStatusDia(estatisticas) : '#fafafa',
+                              cursor: 'pointer',
+                              border: estatisticas ? '1px solid #e2e8f0' : '1px dashed #cbd5e1'
                             }}
-                            title={estatisticas ? 
-                              `${estatisticas.totalRegistos} registos\n${estatisticas.horasEstimadas} horas\n${estatisticas.confirmados}/${estatisticas.totalRegistos} confirmados\nPrimeiro: ${estatisticas.primeiroRegisto}\nÚltimo: ${estatisticas.ultimoRegisto}` 
-                              : 'Sem registos'
+                            title={estatisticas ?
+                              `${estatisticas.totalRegistos} registos\n${estatisticas.horasEstimadas} horas\n${estatisticas.confirmados}/${estatisticas.totalRegistos} confirmados\nPrimeiro: ${estatisticas.primeiroRegisto}\nÚltimo: ${estatisticas.ultimoRegisto}\n\nClique para registar novo ponto`
+                              : 'Sem registos\n\nClique para registar ponto'
                             }
+                            onClick={() => registarPontoParaUtilizador(item.utilizador.id, dia)}
                           >
                             {estatisticas ? (
                               <div style={styles.gradeCellContent}>
@@ -933,7 +1006,9 @@ const RegistosPorUtilizador = () => {
                                 )}
                               </div>
                             ) : (
-                              <div style={styles.gradeCellEmpty}>-</div>
+                              <div style={{...styles.gradeCellEmpty, cursor: 'pointer'}}>
+                                <div style={{fontSize: '0.7rem', color: '#a0aec0'}}>+</div>
+                              </div>
                             )}
                           </td>
                         );
@@ -964,21 +1039,21 @@ const RegistosPorUtilizador = () => {
               </h3>
               <p style={styles.detalhesSubtitle}>{utilizadorDetalhado.email}</p>
             </div>
-            
+
             <div style={styles.detalhesActions}>
               {registosDetalhados.length > 0 && (
-                <button 
+                <button
                   style={styles.exportButton}
                   onClick={exportarDetalhesUtilizador}
                 >
                   📊 Exportar Detalhes
                 </button>
               )}
-              
+
               <div style={styles.filterGroup}>
-                <select 
+                <select
                   style={styles.selectSmall}
-                  value={filtroTipo} 
+                  value={filtroTipo}
                   onChange={e => setFiltroTipo(e.target.value)}
                 >
                   <option value="">-- Todos os tipos --</option>
@@ -1005,28 +1080,28 @@ const RegistosPorUtilizador = () => {
                 <div key={dia} style={styles.dayCard}>
                   <div style={styles.dayHeader}>
                     <h4 style={styles.dayTitle}>
-                      📅 {new Date(dia).toLocaleDateString('pt-PT', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
+                      📅 {new Date(dia).toLocaleDateString('pt-PT', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
                       })}
                     </h4>
                     <span style={styles.dayBadge}>
                       {eventos.length} registo{eventos.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  
+
                   <div style={styles.eventsList}>
                     {eventos
                       .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
                       .map((evento, i) => (
-                        <div key={i} style={styles.eventCard}>
+                        <div key={i} style={{...styles.eventCard, ...styles.eventCardHover}}>
                           <div style={styles.eventHeader}>
                             <div style={styles.eventType}>
                               <span style={styles.typeIcon}>
-                                {evento.tipo === 'entrada' ? '🟢' : 
-                                 evento.tipo === 'saida' ? '🔴' : 
+                                {evento.tipo === 'entrada' ? '🟢' :
+                                 evento.tipo === 'saida' ? '🔴' :
                                  evento.tipo === 'pausa' ? '⏸️' : '▶️'}
                               </span>
                               <span style={styles.typeText}>{evento.tipo.toUpperCase()}</span>
@@ -1035,13 +1110,13 @@ const RegistosPorUtilizador = () => {
                               🕐 {new Date(evento.timestamp).toLocaleTimeString('pt-PT')}
                             </div>
                           </div>
-                          
+
                           <div style={styles.eventDetails}>
                             <div style={styles.eventInfo}>
                               <span style={styles.infoLabel}>Obra:</span>
                               <span style={styles.infoValue}>{evento.Obra?.nome || 'N/A'}</span>
                             </div>
-                            
+
                             <div style={styles.eventInfo}>
                               <span style={styles.infoLabel}>Status:</span>
                               <span style={{
@@ -1052,14 +1127,14 @@ const RegistosPorUtilizador = () => {
                                 {evento.is_confirmed ? '✅ Confirmado' : '⏳ Pendente'}
                               </span>
                             </div>
-                            
+
                             {evento.justificacao && (
                               <div style={styles.eventInfo}>
                                 <span style={styles.infoLabel}>Justificação:</span>
                                 <span style={styles.infoValue}>{evento.justificacao}</span>
                               </div>
                             )}
-                            
+
                             {evento.latitude && evento.longitude && (
                               <div style={styles.eventInfo}>
                                 <span style={styles.infoLabel}>Localização:</span>
@@ -1310,6 +1385,13 @@ const styles = {
     position: 'relative',
     width: '100%',
     boxSizing: 'border-box'
+  },
+  utilizadorCardHover: {
+    ':hover': {
+      transform: 'translateY(-5px)',
+      boxShadow: '0 15px 35px rgba(0,0,0,0.15)',
+      borderColor: '#3182ce'
+    }
   },
   utilizadorHeader: {
     display: 'flex',
@@ -1630,6 +1712,12 @@ const styles = {
     marginBottom: '15px',
     transition: 'all 0.2s'
   },
+  eventCardHover: {
+    ':hover': {
+      backgroundColor: '#edf2f7',
+      transform: 'translateX(5px)'
+    }
+  },
   eventHeader: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -1755,14 +1843,14 @@ if (typeof document !== 'undefined') {
       .grade-table {
         font-size: 0.7rem;
       }
-      
+
       .grade-header,
       .grade-cell {
         padding: 4px !important;
         min-width: 40px !important;
         max-width: 40px !important;
       }
-      
+
       .grade-cell-fixed {
         min-width: 150px !important;
         max-width: 150px !important;
@@ -1773,15 +1861,15 @@ if (typeof document !== 'undefined') {
       .utilizadores-grid {
         grid-template-columns: 1fr !important;
       }
-      
+
       .filters-grid {
         grid-template-columns: 1fr !important;
       }
-      
+
       .navigation-tabs {
         flex-direction: column !important;
       }
-      
+
       .nav-tab {
         width: 100% !important;
       }
