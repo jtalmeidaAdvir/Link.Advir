@@ -20,6 +20,7 @@ import Home from './src/Home';
 import ADHome from './src/Pages/BackOffice/ADHome';
 import Perfil from './src/Pages/Perfil';
 import PainelAdmin from './src/Pages/Autenticacao/PainelAdmin';
+import WhatsAppWebConfig from './src/Pages/WhatsApp/WhatsAppWebConfig';
 import UsersEmpresa from './src/Pages/Autenticacao/UsersEmpresa';
 import RegistoUser from './src/Pages/Autenticacao/RegistoUser';
 import RegistoAdmin from './src/Pages/Autenticacao/RegistoAdmin';
@@ -350,6 +351,10 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                         <List.Item
                             title={t("Drawer.ADM.1")}
                             onPress={() => props.navigation.navigate('PainelAdmin')}
+                        />
+                        <List.Item
+                            title={t("WhatsAppWebConfig")}
+                            onPress={() => props.navigation.navigate('WhatsAppWebConfig')}
                         />
                         <List.Item
                             title={t("Drawer.ADM.2")}
@@ -799,6 +804,7 @@ const AppNavigator = () => {
             {isAdmin && (
                 <>
                     <Drawer.Screen name="PainelAdmin" component={PainelAdmin} />
+                    <Drawer.Screen name="WhatsAppWebConfig" component={WhatsAppWebConfig} />
                     <Drawer.Screen name="UsersEmpresa" component={UsersEmpresa} />
                     <Drawer.Screen name="ContratosList" component={ContratosList} />
 

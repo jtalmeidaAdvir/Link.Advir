@@ -36,7 +36,8 @@ const initializeWhatsAppWeb = () => {
     client.on("qr", (qr) => {
         qrCodeData = qr;
         clientStatus = "qr_received";
-        console.log("QR Code recebido! Escaneie com seu WhatsApp");
+        console.log("📱 QR Code recebido! Tamanho:", qr.length);
+        console.log("📱 Primeiros 100 caracteres:", qr.substring(0, 100));
         qrcode.generate(qr, { small: true });
     });
 
@@ -69,12 +70,23 @@ const initializeWhatsAppWeb = () => {
 
 // Endpoint para inicializar/obter status
 router.get("/status", (req, res) => {
-    res.json({
+    const response = {
         status: clientStatus,
         isReady: isClientReady,
         qrCode: qrCodeData,
         hasQrCode: !!qrCodeData,
+        timestamp: new Date().toISOString(),
+        clientExists: !!client,
+        qrCodeLength: qrCodeData ? qrCodeData.length : 0
+    };
+
+    console.log("📊 Status solicitado:", {
+        status: clientStatus,
+        hasQrCode: !!qrCodeData,
+        qrLength: qrCodeData ? qrCodeData.length : 0
     });
+
+    res.json(response);
 });
 
 // Endpoint para iniciar conexão
@@ -113,6 +125,40 @@ router.post("/disconnect", async (req, res) => {
     } catch (error) {
         console.error("Erro ao desconectar:", error);
         res.status(500).json({ error: "Erro ao desconectar WhatsApp Web" });
+    }
+});
+
+// Endpoint para limpar sessão completamente (para trocar de conta)
+router.post("/clear-session", async (req, res) => {
+    try {
+        // Primeiro desconectar se estiver conectado
+        if (client) {
+            await client.destroy();
+            client = null;
+            isClientReady = false;
+            clientStatus = "disconnected";
+            qrCodeData = null;
+        }
+
+        // Limpar dados da sessão usando shell command
+        const fs = require('fs');
+        const path = require('path');
+
+        const sessionPath = path.join(process.cwd(), 'whatsapp-session');
+
+        // Remover diretório da sessão se existir
+        if (fs.existsSync(sessionPath)) {
+            fs.rmSync(sessionPath, { recursive: true, force: true });
+            console.log('Sessão WhatsApp limpa com sucesso');
+        }
+
+        res.json({
+            message: "Sessão limpa com sucesso. Pode agora conectar com uma nova conta.",
+            sessionCleared: true
+        });
+    } catch (error) {
+        console.error("Erro ao limpar sessão:", error);
+        res.status(500).json({ error: "Erro ao limpar sessão WhatsApp" });
     }
 });
 
@@ -255,10 +301,28 @@ router.get("/me", async (req, res) => {
         }
 
         const info = client.info;
+
+        // Formatar o número para exibição mais amigável
+        let formattedNumber = info.wid._serialized;
+        if (formattedNumber.includes('@')) {
+            formattedNumber = formattedNumber.split('@')[0];
+        }
+
+        // Adicionar formatação com código de país se possível
+        if (formattedNumber.length > 10) {
+            const countryCode = formattedNumber.substring(0, formattedNumber.length - 9);
+            const phoneNumber = formattedNumber.substring(formattedNumber.length - 9);
+            formattedNumber = `+${countryCode} ${phoneNumber}`;
+        }
+
         res.json({
             wid: info.wid._serialized,
-            pushname: info.pushname,
+            pushname: info.pushname || "Utilizador WhatsApp",
             me: info.me._serialized,
+            formattedNumber: formattedNumber,
+            isReady: isClientReady,
+            connectionTime: new Date().toISOString(),
+            platform: info.platform || "WhatsApp Web"
         });
     } catch (error) {
         console.error("Erro ao obter informações:", error);
@@ -359,8 +423,8 @@ router.put("/schedule/:id", (req, res) => {
         }
 
         // Atualizar dados
-        scheduledMessages[scheduleIndex] = { 
-            ...scheduledMessages[scheduleIndex], 
+        scheduledMessages[scheduleIndex] = {
+            ...scheduledMessages[scheduleIndex],
             ...updates,
             updatedAt: new Date().toISOString()
         };
@@ -429,16 +493,224 @@ router.post("/schedule/:id/execute", async (req, res) => {
 // Endpoint para testar sistema de logs
 router.post("/test-logs", (req, res) => {
     const testId = "TEST_" + Date.now();
-    
+
     addLog(testId, 'info', 'Log de teste criado');
     addLog(testId, 'success', 'Sistema de logs funcionando perfeitamente');
     addLog(testId, 'warning', 'Este é um aviso de teste');
     addLog(testId, 'error', 'Este é um erro de teste (simulado)');
-    
-    res.json({ 
+
+    res.json({
         message: "Logs de teste criados com sucesso",
         testId: testId
     });
+});
+
+// Endpoint para teste rápido de agendamento (executa imediatamente)
+router.post("/test-schedule", async (req, res) => {
+    try {
+        if (!isClientReady || !client) {
+            return res.status(400).json({
+                error: "WhatsApp Web não está conectado",
+            });
+        }
+
+        const { message, contacts, priority = "normal" } = req.body;
+
+        if (!message || !contacts || !Array.isArray(contacts)) {
+            return res.status(400).json({
+                error: "Mensagem e array de contactos são obrigatórios",
+            });
+        }
+
+        // Criar um agendamento temporário para teste
+        const testSchedule = {
+            id: "TEST_" + Date.now(),
+            message,
+            contactList: contacts.map(contact => ({
+                name: contact.name || 'Teste',
+                phone: contact.phone
+            })),
+            priority,
+            frequency: 'test',
+            time: new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }),
+            enabled: true
+        };
+
+        addLog(testSchedule.id, 'info', 'Teste de agendamento iniciado via API');
+        const result = await executeScheduledMessage(testSchedule);
+
+        res.json({
+            message: "Teste de agendamento executado",
+            scheduleId: testSchedule.id,
+            result
+        });
+    } catch (error) {
+        console.error("Erro no teste de agendamento:", error);
+        res.status(500).json({ error: "Erro ao executar teste de agendamento" });
+    }
+});
+
+// Endpoint para forçar execução de agendamento em uma hora específica (para testes)
+router.post("/force-schedule-time", async (req, res) => {
+    try {
+        const { message, contacts, testTime, priority = "normal" } = req.body;
+
+        if (!message || !contacts || !testTime) {
+            return res.status(400).json({
+                error: "Mensagem, contactos e hora de teste são obrigatórios",
+            });
+        }
+
+        const scheduleId = "FORCED_" + Date.now();
+        const schedule = {
+            id: scheduleId,
+            message,
+            contactList: contacts.map(contact => ({
+                name: contact.name || 'Teste',
+                phone: contact.phone
+            })),
+            frequency: 'test',
+            time: testTime,
+            enabled: true,
+            priority,
+            createdAt: new Date().toISOString(),
+            lastSent: null,
+            totalSent: 0
+        };
+
+        // Adicionar à lista de agendamentos
+        scheduledMessages.push(schedule);
+
+        addLog(scheduleId, 'info', `Agendamento forçado criado para ${testTime}`);
+
+        // Agendar para executar na próxima vez que a hora bater
+        startSchedule(schedule);
+
+        res.json({
+            message: "Agendamento forçado criado com sucesso",
+            schedule,
+            note: `Será executado quando o relógio marcar ${testTime}`
+        });
+    } catch (error) {
+        console.error("Erro ao criar agendamento forçado:", error);
+        res.status(500).json({ error: "Erro ao criar agendamento forçado" });
+    }
+});
+
+// Endpoint para verificar status dos agendamentos ativos
+router.get("/schedule-status", (req, res) => {
+    const now = new Date();
+    const currentTime = now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+
+    res.json({
+        currentTime,
+        totalSchedules: scheduledMessages.length,
+        activeSchedules: activeSchedules.size,
+        schedules: scheduledMessages.map(schedule => ({
+            id: schedule.id,
+            message: schedule.message.substring(0, 50) + "...",
+            frequency: schedule.frequency,
+            time: schedule.time,
+            enabled: schedule.enabled,
+            lastSent: schedule.lastSent,
+            totalSent: schedule.totalSent,
+            contactCount: schedule.contactList.length,
+            isActive: activeSchedules.has(schedule.id)
+        }))
+    });
+});
+
+// Endpoint para debug completo do WhatsApp Web
+router.get("/debug", (req, res) => {
+    res.json({
+        timestamp: new Date().toISOString(),
+        status: clientStatus,
+        isReady: isClientReady,
+        hasClient: !!client,
+        qrCode: {
+            exists: !!qrCodeData,
+            length: qrCodeData ? qrCodeData.length : 0,
+            preview: qrCodeData ? qrCodeData.substring(0, 50) + "..." : null
+        },
+        environment: {
+            nodeVersion: process.version,
+            platform: process.platform
+        }
+    });
+});
+
+// Endpoint para simular que é uma hora específica (para testes)
+router.post("/simulate-time", async (req, res) => {
+    try {
+        const { time, scheduleId } = req.body;
+
+        if (!time) {
+            return res.status(400).json({
+                error: "Hora é obrigatória (formato HH:MM)"
+            });
+        }
+
+        let targetSchedules = scheduledMessages;
+        if (scheduleId) {
+            targetSchedules = scheduledMessages.filter(s => s.id === scheduleId);
+            if (targetSchedules.length === 0) {
+                return res.status(404).json({
+                    error: "Agendamento não encontrado"
+                });
+            }
+        }
+
+        const results = [];
+
+        for (const schedule of targetSchedules) {
+            if (!schedule.enabled) {
+                results.push({
+                    scheduleId: schedule.id,
+                    executed: false,
+                    reason: "Agendamento desabilitado"
+                });
+                continue;
+            }
+
+            if (schedule.time === time) {
+                addLog(schedule.id, 'info', `Simulação de execução para hora ${time}`);
+
+                // Simular que deve executar hoje
+                const fakeNow = new Date();
+                const shouldExecute = shouldExecuteToday(schedule, fakeNow);
+
+                if (shouldExecute) {
+                    const result = await executeScheduledMessage(schedule);
+                    results.push({
+                        scheduleId: schedule.id,
+                        executed: true,
+                        result
+                    });
+                } else {
+                    results.push({
+                        scheduleId: schedule.id,
+                        executed: false,
+                        reason: "Condições de execução não atendidas"
+                    });
+                }
+            } else {
+                results.push({
+                    scheduleId: schedule.id,
+                    executed: false,
+                    reason: `Hora não coincide (agendado: ${schedule.time}, simulado: ${time})`
+                });
+            }
+        }
+
+        res.json({
+            message: `Simulação para hora ${time} concluída`,
+            simulatedTime: time,
+            results
+        });
+    } catch (error) {
+        console.error("Erro na simulação de tempo:", error);
+        res.status(500).json({ error: "Erro na simulação de tempo" });
+    }
 });
 
 // Função para adicionar log
@@ -451,14 +723,14 @@ function addLog(scheduleId, type, message, details = null) {
         details,
         timestamp: new Date().toISOString()
     };
-    
+
     scheduleLogs.unshift(log); // Adiciona no início para logs mais recentes primeiro
-    
+
     // Manter apenas os últimos 500 logs
     if (scheduleLogs.length > 500) {
         scheduleLogs = scheduleLogs.slice(0, 500);
     }
-    
+
     // Log no console também
     const timestamp = new Date().toLocaleString('pt-PT');
     console.log(`[${timestamp}] SCHEDULE ${scheduleId} - ${type.toUpperCase()}: ${message}`);
@@ -490,7 +762,7 @@ function startSchedule(schedule) {
         // Verificar se é a hora correta (com margem de 1 minuto)
         if (now.getHours() === scheduleHour && now.getMinutes() === scheduleMinute) {
             addLog(schedule.id, 'info', 'Hora de execução atingida, verificando condições...');
-            
+
             // Verificar se deve executar baseado na frequência
             if (shouldExecuteToday(schedule, now)) {
                 addLog(schedule.id, 'info', 'Condições atendidas, iniciando execução...');
@@ -562,7 +834,7 @@ function shouldExecuteToday(schedule, now) {
 // Função para executar mensagem agendada
 async function executeScheduledMessage(schedule) {
     addLog(schedule.id, 'info', `Iniciando execução para ${schedule.contactList.length} contactos`);
-    
+
     try {
         if (!isClientReady || !client) {
             addLog(schedule.id, 'error', 'WhatsApp não está conectado');
@@ -589,7 +861,7 @@ async function executeScheduledMessage(schedule) {
         for (let i = 0; i < schedule.contactList.length; i++) {
             const contact = schedule.contactList[i];
             addLog(schedule.id, 'info', `Enviando para contacto ${i + 1}/${schedule.contactList.length}: ${contact.name} (${contact.phone})`);
-            
+
             try {
                 let phoneNumber = contact.phone.replace(/\D/g, "");
                 if (!phoneNumber.includes("@")) {
@@ -677,22 +949,22 @@ function initializeSchedules() {
 // Endpoint para obter logs dos agendamentos
 router.get("/logs", (req, res) => {
     const { scheduleId, type, limit = 50 } = req.query;
-    
+
     let filteredLogs = scheduleLogs;
-    
+
     // Filtrar por ID do agendamento se fornecido
     if (scheduleId) {
         filteredLogs = filteredLogs.filter(log => log.scheduleId === scheduleId);
     }
-    
+
     // Filtrar por tipo se fornecido
     if (type) {
         filteredLogs = filteredLogs.filter(log => log.type === type);
     }
-    
+
     // Limitar número de logs
     const limitedLogs = filteredLogs.slice(0, parseInt(limit));
-    
+
     res.json({
         logs: limitedLogs,
         total: filteredLogs.length,
@@ -703,7 +975,7 @@ router.get("/logs", (req, res) => {
 // Endpoint para limpar logs
 router.delete("/logs", (req, res) => {
     const { scheduleId } = req.query;
-    
+
     if (scheduleId) {
         scheduleLogs = scheduleLogs.filter(log => log.scheduleId !== scheduleId);
         res.json({ message: `Logs do agendamento ${scheduleId} removidos` });
@@ -731,8 +1003,92 @@ router.get("/stats", (req, res) => {
             message: log.message
         }))
     };
-    
+
     res.json(stats);
+});
+
+// Endpoint para sincronizar agendamentos do frontend com backend
+router.post("/sync-schedules", (req, res) => {
+    try {
+        const { schedules } = req.body;
+
+        if (!schedules || !Array.isArray(schedules)) {
+            return res.status(400).json({
+                error: "Array de agendamentos é obrigatório"
+            });
+        }
+
+        // Parar todos os agendamentos ativos
+        activeSchedules.forEach((intervalId, scheduleId) => {
+            clearInterval(intervalId);
+            addLog(scheduleId, 'info', 'Agendamento parado para sincronização');
+        });
+        activeSchedules.clear();
+
+        // Atualizar lista de agendamentos
+        scheduledMessages = schedules.map(schedule => ({
+            ...schedule,
+            syncedAt: new Date().toISOString()
+        }));
+
+        // Reiniciar agendamentos habilitados
+        let startedCount = 0;
+        scheduledMessages.forEach(schedule => {
+            if (schedule.enabled) {
+                startSchedule(schedule);
+                startedCount++;
+            }
+        });
+
+        addLog('SYSTEM', 'success', `Sincronização concluída: ${scheduledMessages.length} agendamentos, ${startedCount} ativos`);
+
+        res.json({
+            message: "Agendamentos sincronizados com sucesso",
+            total: scheduledMessages.length,
+            active: startedCount,
+            schedules: scheduledMessages
+        });
+    } catch (error) {
+        console.error("Erro na sincronização:", error);
+        res.status(500).json({ error: "Erro na sincronização de agendamentos" });
+    }
+});
+
+// Endpoint para debugging - mostrar próximas execuções
+router.get("/next-executions", (req, res) => {
+    const now = new Date();
+    const executions = [];
+
+    scheduledMessages.forEach(schedule => {
+        if (!schedule.enabled) return;
+
+        const [hours, minutes] = schedule.time.split(':');
+        let nextExecution = new Date();
+        nextExecution.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+        // Se já passou da hora hoje, agendar para amanhã
+        if (nextExecution <= now) {
+            nextExecution.setDate(nextExecution.getDate() + 1);
+        }
+
+        executions.push({
+            scheduleId: schedule.id,
+            message: schedule.message.substring(0, 50) + "...",
+            frequency: schedule.frequency,
+            time: schedule.time,
+            nextExecution: nextExecution.toISOString(),
+            timeUntilNext: Math.ceil((nextExecution - now) / 60000) + " minutos",
+            isActive: activeSchedules.has(schedule.id)
+        });
+    });
+
+    // Ordenar por próxima execução
+    executions.sort((a, b) => new Date(a.nextExecution) - new Date(b.nextExecution));
+
+    res.json({
+        currentTime: now.toISOString(),
+        nextExecutions: executions
+    });
 });
 
 // Chamar inicialização quando o cliente estiver pronto

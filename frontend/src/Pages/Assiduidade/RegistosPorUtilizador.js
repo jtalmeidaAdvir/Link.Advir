@@ -26,6 +26,23 @@ const RegistosPorUtilizador = () => {
 
   const token = localStorage.getItem('loginToken');
 
+
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+const [userToRegistar, setUserToRegistar] = useState(null);
+const [diaToRegistar, setDiaToRegistar] = useState(null);
+const [obraNoDialog, setObraNoDialog] = useState(obraSelecionada || '');
+
+const [horarios, setHorarios] = useState({
+  entradaManha: '09:00',
+  saidaManha: '13:00',
+  entradaTarde: '14:00',
+  saidaTarde: '18:00'
+});
+
+
+
+
   const obterEndereco = async (lat, lon) => {
     const chave = `${lat},${lon}`;
     if (enderecos[chave]) return enderecos[chave];
@@ -365,6 +382,9 @@ const RegistosPorUtilizador = () => {
     }
   };
 
+
+  
+
   useEffect(() => {
     const fetchEnderecos = async () => {
       if (!utilizadorDetalhado) return;
@@ -600,75 +620,27 @@ const RegistosPorUtilizador = () => {
     return '#f5c6cb'; // Vermelho claro - problema sério
   };
 
-  const registarPontoParaUtilizador = async (userId, dia) => {
-    try {
-      const token = localStorage.getItem('loginToken');
+  // Função ajustada para registar entrada/saída usando o endpoint '/'
+const registarPontoParaUtilizador = async (userId, dia, obraId) => {
+  if (!userId || !dia || !anoSelecionado || !mesSelecionado || !obraId) {
+    return alert('Faltam dados para registar ponto');
+  }
+  const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+  try {
+    const entrada = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ tipo: 'entrada', obra_id: +obraId, user_id: userId, data: dataFormatada })
+    });
+    if (!entrada.ok) throw new Error('Erro na entrada');
+    // idem para saída, se necessário…
+    if (viewMode === 'grade') carregarDadosGrade();
+    alert(`Ponto registado para obra ${obraId}`);
+  } catch (err) {
+    alert(err.message);
+  }
+};
 
-      // Obter horário de trabalho do utilizador (pode ser configurado ou usar padrão)
-      const horaEntrada = '08:00';
-      const horaSaida = '17:00';
-
-      const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-
-      // Confirmar com o utilizador
-      const utilizador = utilizadores.find(u => u.id === userId);
-      const confirmar = window.confirm(`Registar ponto para ${utilizador?.nome || 'utilizador'} no dia ${dia}/${mesSelecionado}/${anoSelecionado}?\n\nEntrada: ${horaEntrada}\nSaída: ${horaSaida}`);
-
-      if (!confirmar) return;
-
-      // Registar entrada
-      const responseEntrada = await fetch('https://backend.advir.pt/api/registoPonto/registar-para-outro', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          empresa: localStorage.getItem('empresaSelecionada'),
-          latitude: null,
-          longitude: null,
-          endereco: 'Registo manual via administração',
-          obra_id: obraSelecionada || null
-        })
-      });
-
-      if (responseEntrada.ok) {
-        // Simular espera e registar saída
-        setTimeout(async () => {
-          const responseSaida = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto-para-outro', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              user_id: userId,
-              empresa: localStorage.getItem('empresaSelecionada'),
-              latitude: null,
-              longitude: null,
-              endereco: 'Registo manual via administração',
-              obra_id: obraSelecionada || null
-            })
-          });
-
-          if (responseSaida.ok) {
-            alert('Ponto registado com sucesso (entrada e saída)!');
-            // Recarregar dados da grade
-            carregarDadosGrade();
-          } else {
-            alert('Entrada registada, mas erro ao registar saída');
-          }
-        }, 1000);
-      } else {
-        const errorData = await responseEntrada.json();
-        alert(`Erro ao registar entrada: ${errorData.message}`);
-      }
-    } catch (error) {
-      console.error('Erro ao registar ponto:', error);
-      alert('Erro ao registar ponto');
-    }
-  };
 
   return (
     <div style={styles.container}>
@@ -958,7 +930,7 @@ const RegistosPorUtilizador = () => {
                   <tr>
                     <th style={{...styles.gradeHeader, ...styles.gradeHeaderFixed}}>Utilizador</th>
                     {diasDoMes.map(dia => (
-                      <th key={dia} style={styles.gradeHeader} onClick={() => registarPontoParaUtilizador(utilizadorSelecionado, dia)}>
+                      <th key={dia} style={styles.gradeHeader}>
                         {dia}
                       </th>
                     ))}
@@ -995,7 +967,14 @@ const RegistosPorUtilizador = () => {
                               `${estatisticas.totalRegistos} registos\n${estatisticas.horasEstimadas} horas\n${estatisticas.confirmados}/${estatisticas.totalRegistos} confirmados\nPrimeiro: ${estatisticas.primeiroRegisto}\nÚltimo: ${estatisticas.ultimoRegisto}\n\nClique para registar novo ponto`
                               : 'Sem registos\n\nClique para registar ponto'
                             }
-                            onClick={() => registarPontoParaUtilizador(item.utilizador.id, dia)}
+   
+                              onClick={() => {
+                                setUserToRegistar(item.utilizador.id);
+                                setDiaToRegistar(dia);
+                                setObraNoDialog(obraSelecionada || ''); // ou ''  
+                                setDialogOpen(true);
+                              }}
+
                           >
                             {estatisticas ? (
                               <div style={styles.gradeCellContent}>
@@ -1027,6 +1006,102 @@ const RegistosPorUtilizador = () => {
           </div>
         </div>
       )}
+{dialogOpen && (
+  <div style={{
+    position: 'fixed',
+    top: 0, left: 0, right: 0, bottom: 0,
+    background: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000
+  }}>
+    <div style={{ display: 'grid', gap: '8px' }}>
+  <label>Entrada (manhã):</label>
+  <input
+    type="time"
+    value={horarios.entradaManha}
+    onChange={e => setHorarios(h => ({ ...h, entradaManha: e.target.value }))}
+  />
+
+  <label>Saída (manhã):</label>
+  <input
+    type="time"
+    value={horarios.saidaManha}
+    onChange={e => setHorarios(h => ({ ...h, saidaManha: e.target.value }))}
+  />
+
+  <label>Entrada (tarde):</label>
+  <input
+    type="time"
+    value={horarios.entradaTarde}
+    onChange={e => setHorarios(h => ({ ...h, entradaTarde: e.target.value }))}
+  />
+
+  <label>Saída (tarde):</label>
+  <input
+    type="time"
+    value={horarios.saidaTarde}
+    onChange={e => setHorarios(h => ({ ...h, saidaTarde: e.target.value }))}
+  />
+</div>
+
+    <div style={{
+      background: 'white',
+      padding: '20px',
+      borderRadius: '8px',
+      minWidth: '300px'
+    }}>
+      <h4>Registar para dia {diaToRegistar}</h4>
+      <label>Obra:</label>
+      <select
+        style={{ width: '100%', margin: '10px 0', padding: '8px' }}
+        value={obraNoDialog}
+        onChange={e => setObraNoDialog(e.target.value)}
+      >
+        <option value="">-- selecione obra --</option>
+        {obras.map(o => (
+          <option key={o.id} value={o.id}>{o.nome}</option>
+        ))}
+      </select>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+        <button onClick={() => setDialogOpen(false)}>Cancelar</button>
+        <button onClick={async () => {
+               const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(diaToRegistar).padStart(2,'0')}`;
+
+  const tipos = ['entrada','saida','entrada','saida'];
+  const horas = [
+    horarios.entradaManha,
+    horarios.saidaManha,
+    horarios.entradaTarde,
+    horarios.saidaTarde
+  ];
+  for (let i = 0; i < tipos.length; i++) {
+    await fetch(`https://backend.advir.pt/api/registo-ponto-obra/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        tipo: tipos[i],
+        obra_id: +obraNoDialog,
+        user_id: userToRegistar,
+        timestamp: `${dataFormatada}T${horas[i]}:00`
+      })
+    });
+  }
+  setDialogOpen(false);
+  if (viewMode === 'grade') carregarDadosGrade();
+  alert('Quatro pontos registados com sucesso!');
+}}>
+  Confirmar
+</button>
+
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Detalhes do Utilizador Selecionado */}
       {viewMode === 'detalhes' && utilizadorDetalhado && (

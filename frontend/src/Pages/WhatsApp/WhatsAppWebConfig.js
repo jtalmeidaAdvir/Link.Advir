@@ -38,11 +38,14 @@ const WhatsAppWebConfig = () => {
 
     // Estados para visualização
     const [activeTab, setActiveTab] = useState('connection'); // connection, schedule, contacts, logs
-    
+
     // Estados para logs
     const [logs, setLogs] = useState([]);
     const [stats, setStats] = useState({});
     const [logFilter, setLogFilter] = useState({ scheduleId: '', type: '', limit: 50 });
+
+    // Estados para informações do utilizador conectado
+    const [userInfo, setUserInfo] = useState(null);
 
     useEffect(() => {
         checkStatus();
@@ -53,6 +56,7 @@ const WhatsAppWebConfig = () => {
         // Verificar status a cada 3 segundos
         const interval = setInterval(() => {
             checkStatus();
+            loadUserInfo();
             if (activeTab === 'logs') {
                 loadLogs();
                 loadStats();
@@ -63,7 +67,7 @@ const WhatsAppWebConfig = () => {
 
     const checkStatus = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/whatsapp-web/status');
+            const response = await fetch('https://backend.advir.pt/api/whatsapp-web/status');
             const data = await response.json();
             setStatus(data);
         } catch (error) {
@@ -102,7 +106,7 @@ const WhatsAppWebConfig = () => {
             if (logFilter.type) params.append('type', logFilter.type);
             params.append('limit', logFilter.limit);
 
-            const response = await fetch(`http://localhost:5000/api/whatsapp-web/logs?${params}`);
+            const response = await fetch(`https://backend.advir.pt/api/whatsapp-web/logs?${params}`);
             const data = await response.json();
             setLogs(data.logs || []);
         } catch (error) {
@@ -112,7 +116,7 @@ const WhatsAppWebConfig = () => {
 
     const loadStats = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/whatsapp-web/stats');
+            const response = await fetch('https://backend.advir.pt/api/whatsapp-web/stats');
             const data = await response.json();
             setStats(data);
         } catch (error) {
@@ -120,12 +124,31 @@ const WhatsAppWebConfig = () => {
         }
     };
 
+    const loadUserInfo = async () => {
+        if (status.isReady) {
+            try {
+                const response = await fetch('https://backend.advir.pt/api/whatsapp-web/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    setUserInfo(data);
+                } else {
+                    setUserInfo(null);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar informações do utilizador:', error);
+                setUserInfo(null);
+            }
+        } else {
+            setUserInfo(null);
+        }
+    };
+
     const clearLogs = async (scheduleId = null) => {
         try {
-            const url = scheduleId 
-                ? `http://localhost:5000/api/whatsapp-web/logs?scheduleId=${scheduleId}`
-                : 'http://localhost:5000/api/whatsapp-web/logs';
-                
+            const url = scheduleId
+                ? `https://backend.advir.pt/api/whatsapp-web/logs?scheduleId=${scheduleId}`
+                : 'https://backend.advir.pt/api/whatsapp-web/logs';
+
             await fetch(url, { method: 'DELETE' });
             loadLogs();
             loadStats();
@@ -139,15 +162,15 @@ const WhatsAppWebConfig = () => {
     const handleConnect = async () => {
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:5000/api/whatsapp-web/connect', {
+            const response = await fetch('https://backend.advir.pt/api/whatsapp-web/connect', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
-            
+
             const data = await response.json();
-            
+
             if (response.ok) {
                 alert('Iniciando conexão... Aguarde o QR Code aparecer!');
                 checkStatus();
@@ -165,17 +188,18 @@ const WhatsAppWebConfig = () => {
     const handleDisconnect = async () => {
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:5000/api/whatsapp-web/disconnect', {
+            const response = await fetch('https://backend.advir.pt/api/whatsapp-web/disconnect', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
-            
+
             const data = await response.json();
-            
+
             if (response.ok) {
                 alert('WhatsApp Web desconectado com sucesso!');
+                setUserInfo(null);
                 checkStatus();
             } else {
                 alert(`Erro: ${data.error}`);
@@ -188,21 +212,74 @@ const WhatsAppWebConfig = () => {
         }
     };
 
+    const handleChangeAccount = async () => {
+        if (confirm('Tem certeza que deseja trocar de conta WhatsApp? Isso irá limpar completamente a sessão atual.')) {
+            setLoading(true);
+            try {
+                // Primeiro limpar a sessão completamente
+                const clearResponse = await fetch('https://backend.advir.pt/api/whatsapp-web/clear-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (clearResponse.ok) {
+                    const clearData = await clearResponse.json();
+                    console.log('Sessão limpa:', clearData);
+
+                    // Aguardar um pouco e depois tentar conectar novamente
+                    setTimeout(async () => {
+                        try {
+                            const connectResponse = await fetch('https://backend.advir.pt/api/whatsapp-web/connect', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+
+                            if (connectResponse.ok) {
+                                alert('Sessão limpa! Aguarde o novo QR Code aparecer para conectar com uma conta diferente.');
+                                setUserInfo(null);
+                                checkStatus();
+                            } else {
+                                alert('Erro ao iniciar nova conexão');
+                            }
+                        } catch (error) {
+                            console.error('Erro ao conectar após limpeza:', error);
+                            alert('Erro ao iniciar nova conexão');
+                        } finally {
+                            setLoading(false);
+                        }
+                    }, 2000);
+                } else {
+                    const errorData = await clearResponse.json();
+                    alert(`Erro ao limpar sessão: ${errorData.error}`);
+                    setLoading(false);
+                }
+            } catch (error) {
+                console.error('Erro ao limpar sessão:', error);
+                alert('Erro ao limpar sessão WhatsApp');
+                setLoading(false);
+            }
+        }
+    };
+
     const handleTestMessage = async (e) => {
         e.preventDefault();
         setLoading(true);
-        
+
         try {
-            const response = await fetch('http://localhost:5000/api/whatsapp-web/send', {
+            const response = await fetch('https://backend.advir.pt/api/whatsapp-web/send', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(testMessage)
             });
-            
+
             const data = await response.json();
-            
+
             if (response.ok) {
                 alert('Mensagem enviada com sucesso!');
                 setTestMessage({ to: '', message: '', priority: 'normal' });
@@ -227,7 +304,13 @@ const WhatsAppWebConfig = () => {
         const contacts = newContactList.contacts
             .split('\n')
             .map(contact => contact.trim())
-            .filter(contact => contact.length > 0);
+            .filter(contact => contact.length > 0)
+            .map(phone => phone.replace(/\D/g, '')); // Limpar caracteres não numéricos
+
+        if (contacts.length === 0) {
+            alert('Adicione pelo menos um contacto válido');
+            return;
+        }
 
         const newList = {
             id: Date.now(),
@@ -242,34 +325,77 @@ const WhatsAppWebConfig = () => {
         alert('Lista de contactos criada com sucesso!');
     };
 
-    const handleCreateSchedule = (e) => {
+    const handleCreateSchedule = async (e) => {
         e.preventDefault();
         if (!newSchedule.message || newSchedule.contactList.length === 0) {
             alert('Mensagem e lista de contactos são obrigatórios');
             return;
         }
 
+        const contactListWithNames = newSchedule.contactList.map(contact => {
+            // Se contact já é um objeto com phone, usa ele diretamente
+            if (typeof contact === 'object' && contact.phone) {
+                return contact;
+            }
+            // Se contact é uma string (número de telefone), cria objeto
+            if (typeof contact === 'string') {
+                return {
+                    name: `Contacto ${contact.slice(-4)}`,
+                    phone: contact
+                };
+            }
+            // Fallback para casos inesperados
+            return {
+                name: `Contacto ${String(contact).slice(-4)}`,
+                phone: String(contact)
+            };
+        });
+
         const schedule = {
             id: Date.now(),
             ...newSchedule,
+            contactList: contactListWithNames,
             createdAt: new Date().toISOString(),
             lastSent: null,
             nextSend: calculateNextSend()
         };
 
-        const updatedSchedules = [...scheduledMessages, schedule];
-        saveScheduledMessages(updatedSchedules);
-        setNewSchedule({
-            message: '',
-            contactList: [],
-            frequency: 'daily',
-            time: '09:00',
-            days: [],
-            startDate: '',
-            enabled: true,
-            priority: 'normal'
-        });
-        alert('Agendamento criado com sucesso!');
+        try {
+            // Criar no backend
+            const response = await fetch('https://backend.advir.pt/api/whatsapp-web/schedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(schedule)
+            });
+
+            if (response.ok) {
+                const updatedSchedules = [...scheduledMessages, schedule];
+                saveScheduledMessages(updatedSchedules);
+
+                // Sincronizar com backend
+                await syncSchedulesWithBackend(updatedSchedules);
+
+                setNewSchedule({
+                    message: '',
+                    contactList: [],
+                    frequency: 'daily',
+                    time: '09:00',
+                    days: [],
+                    startDate: '',
+                    enabled: true,
+                    priority: 'normal'
+                });
+                alert('Agendamento criado e sincronizado com sucesso!');
+            } else {
+                const error = await response.json();
+                alert(`Erro ao criar agendamento no backend: ${error.error}`);
+            }
+        } catch (error) {
+            console.error('Erro ao criar agendamento:', error);
+            alert('Erro ao criar agendamento. Verificar logs.');
+        }
     };
 
     const calculateNextSend = () => {
@@ -307,6 +433,113 @@ const WhatsAppWebConfig = () => {
         }
     };
 
+    const syncSchedulesWithBackend = async (schedules = scheduledMessages) => {
+        try {
+            const response = await fetch('https://backend.advir.pt/api/whatsapp-web/sync-schedules', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ schedules })
+            });
+
+            if (response.ok) {
+                console.log('Agendamentos sincronizados com backend');
+                return true;
+            } else {
+                console.error('Erro ao sincronizar com backend');
+                return false;
+            }
+        } catch (error) {
+            console.error('Erro na sincronização:', error);
+            return false;
+        }
+    };
+
+    const testScheduleNow = async () => {
+        if (scheduledMessages.length === 0) {
+            alert('Crie pelo menos um agendamento primeiro');
+            return;
+        }
+
+        const schedule = scheduledMessages[0];
+
+        try {
+            const response = await fetch('https://backend.advir.pt/api/whatsapp-web/test-schedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: schedule.message,
+                    contacts: schedule.contactList,
+                    priority: schedule.priority
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert('Teste executado! Verificar logs para detalhes.');
+            } else {
+                alert(`Erro no teste: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Erro no teste:', error);
+            alert('Erro ao executar teste');
+        }
+    };
+
+    const forceScheduleExecution = async (scheduleId) => {
+        try {
+            const response = await fetch(`https://backend.advir.pt/api/whatsapp-web/schedule/${scheduleId}/execute`, {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert('Agendamento executado manualmente! Verificar logs.');
+                loadLogs();
+            } else {
+                alert(`Erro: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Erro ao executar agendamento:', error);
+            alert('Erro ao executar agendamento');
+        }
+    };
+
+    const simulateTimeExecution = async () => {
+        const time = prompt('Digite a hora para simular (formato HH:MM):');
+        if (!time || !/^\d{2}:\d{2}$/.test(time)) {
+            alert('Formato de hora inválido. Use HH:MM');
+            return;
+        }
+
+        try {
+            const response = await fetch('https://backend.advir.pt/api/whatsapp-web/simulate-time', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ time })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(`Simulação para ${time} concluída! Verificar logs para detalhes.`);
+                loadLogs();
+            } else {
+                alert(`Erro na simulação: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Erro na simulação:', error);
+            alert('Erro na simulação de tempo');
+        }
+    };
+
     const renderLogsTab = () => (
         <div>
             <div style={styles.grid}>
@@ -327,19 +560,19 @@ const WhatsAppWebConfig = () => {
                             <p style={styles.statNumber}>{stats.totalLogs || 0}</p>
                         </div>
                     </div>
-                    
+
                     {stats.logsByType && (
                         <div style={styles.logsTypeGrid}>
-                            <div style={{...styles.statCard, backgroundColor: '#e3f2fd'}}>
+                            <div style={{ ...styles.statCard, backgroundColor: '#e3f2fd' }}>
                                 <span>ℹ️ Info: {stats.logsByType.info}</span>
                             </div>
-                            <div style={{...styles.statCard, backgroundColor: '#e8f5e8'}}>
+                            <div style={{ ...styles.statCard, backgroundColor: '#e8f5e8' }}>
                                 <span>✅ Sucesso: {stats.logsByType.success}</span>
                             </div>
-                            <div style={{...styles.statCard, backgroundColor: '#fff3e0'}}>
+                            <div style={{ ...styles.statCard, backgroundColor: '#fff3e0' }}>
                                 <span>⚠️ Avisos: {stats.logsByType.warning}</span>
                             </div>
-                            <div style={{...styles.statCard, backgroundColor: '#ffebee'}}>
+                            <div style={{ ...styles.statCard, backgroundColor: '#ffebee' }}>
                                 <span>❌ Erros: {stats.logsByType.error}</span>
                             </div>
                         </div>
@@ -354,7 +587,7 @@ const WhatsAppWebConfig = () => {
                         <select
                             style={styles.select}
                             value={logFilter.scheduleId}
-                            onChange={(e) => setLogFilter({...logFilter, scheduleId: e.target.value})}
+                            onChange={(e) => setLogFilter({ ...logFilter, scheduleId: e.target.value })}
                         >
                             <option value="">Todos os agendamentos</option>
                             {scheduledMessages.map(schedule => (
@@ -364,13 +597,13 @@ const WhatsAppWebConfig = () => {
                             ))}
                         </select>
                     </div>
-                    
+
                     <div style={styles.formGroup}>
                         <label style={styles.label}>Tipo</label>
                         <select
                             style={styles.select}
                             value={logFilter.type}
-                            onChange={(e) => setLogFilter({...logFilter, type: e.target.value})}
+                            onChange={(e) => setLogFilter({ ...logFilter, type: e.target.value })}
                         >
                             <option value="">Todos os tipos</option>
                             <option value="info">ℹ️ Informação</option>
@@ -379,13 +612,13 @@ const WhatsAppWebConfig = () => {
                             <option value="error">❌ Erro</option>
                         </select>
                     </div>
-                    
+
                     <div style={styles.formGroup}>
                         <label style={styles.label}>Limite</label>
                         <select
                             style={styles.select}
                             value={logFilter.limit}
-                            onChange={(e) => setLogFilter({...logFilter, limit: parseInt(e.target.value)})}
+                            onChange={(e) => setLogFilter({ ...logFilter, limit: parseInt(e.target.value) })}
                         >
                             <option value={50}>50 logs</option>
                             <option value={100}>100 logs</option>
@@ -393,12 +626,12 @@ const WhatsAppWebConfig = () => {
                             <option value={500}>500 logs</option>
                         </select>
                     </div>
-                    
+
                     <div style={styles.buttonGroup}>
                         <button onClick={loadLogs} style={styles.button}>
                             🔄 Atualizar Logs
                         </button>
-                        <button onClick={() => clearLogs()} style={{...styles.button, backgroundColor: '#f44336'}}>
+                        <button onClick={() => clearLogs()} style={{ ...styles.button, backgroundColor: '#f44336' }}>
                             🗑️ Limpar Todos
                         </button>
                     </div>
@@ -461,7 +694,7 @@ const WhatsAppWebConfig = () => {
     };
 
     const toggleSchedule = (id) => {
-        const updatedSchedules = scheduledMessages.map(schedule => 
+        const updatedSchedules = scheduledMessages.map(schedule =>
             schedule.id === id ? { ...schedule, enabled: !schedule.enabled } : schedule
         );
         saveScheduledMessages(updatedSchedules);
@@ -492,7 +725,10 @@ const WhatsAppWebConfig = () => {
             maxWidth: '1200px',
             margin: '0 auto',
             padding: '20px',
-            fontFamily: 'Arial, sans-serif'
+            fontFamily: 'Arial, sans-serif',
+            height: '100vh',
+            overflowY: 'auto',
+            overflowX: 'hidden'
         },
         header: {
             textAlign: 'center',
@@ -740,6 +976,54 @@ const WhatsAppWebConfig = () => {
         },
         checkbox: {
             marginRight: '5px'
+        },
+        testButtonsContainer: {
+            backgroundColor: '#f0f8ff',
+            padding: '15px',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            border: '2px solid #2196f3'
+        },
+        userInfoCard: {
+            background: '#f0f8ff',
+            padding: '20px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            border: '2px solid #25D366'
+        },
+        userInfoContent: {
+            marginBottom: '15px'
+        },
+        userInfoItem: {
+            padding: '8px 0',
+            borderBottom: '1px solid #e0e0e0',
+            fontSize: '14px'
+        },
+        userInfoActions: {
+            textAlign: 'center',
+            marginBottom: '15px'
+        },
+        userInfoNote: {
+            backgroundColor: '#fff3cd',
+            padding: '10px',
+            borderRadius: '5px',
+            border: '1px solid #ffeaa7',
+            lineHeight: '1.4'
+        },
+        dayLabel: {
+            display: 'flex',
+            alignItems: 'center',
+            padding: '5px 10px',
+            backgroundColor: '#f5f5f5',
+            borderRadius: '3px',
+            margin: '2px'
+        },
+        helpText: {
+            color: '#666',
+            fontSize: '12px',
+            marginTop: '8px',
+            display: 'block',
+            fontStyle: 'italic'
         }
     };
 
@@ -766,18 +1050,52 @@ const WhatsAppWebConfig = () => {
 
             <div style={styles.controls}>
                 {!status.isReady ? (
-                    <button 
-                        onClick={handleConnect}
-                        style={{
-                            ...styles.button,
-                            ...(loading ? styles.buttonDisabled : {})
-                        }}
-                        disabled={loading}
-                    >
-                        {loading ? 'Conectando...' : 'Conectar WhatsApp Web'}
-                    </button>
+                    <div>
+                        <button
+                            onClick={handleConnect}
+                            style={{
+                                ...styles.button,
+                                ...(loading ? styles.buttonDisabled : {})
+                            }}
+                            disabled={loading}
+                        >
+                            {loading ? 'Conectando...' : 'Conectar WhatsApp Web'}
+                        </button>
+
+                        <button
+                            onClick={async () => {
+                                if (confirm('Isso irá limpar completamente qualquer sessão existente. Continuar?')) {
+                                    setLoading(true);
+                                    try {
+                                        const response = await fetch('https://backend.advir.pt/api/whatsapp-web/clear-session', {
+                                            method: 'POST'
+                                        });
+
+                                        if (response.ok) {
+                                            alert('Sessão limpa! Agora pode conectar com qualquer conta.');
+                                            setTimeout(() => handleConnect(), 1000);
+                                        } else {
+                                            alert('Erro ao limpar sessão');
+                                        }
+                                    } catch (error) {
+                                        alert('Erro ao limpar sessão');
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }
+                            }}
+                            style={{
+                                ...styles.button,
+                                backgroundColor: '#ff9800',
+                                ...(loading ? styles.buttonDisabled : {})
+                            }}
+                            disabled={loading}
+                        >
+                            🗑️ Limpar Sessão e Conectar
+                        </button>
+                    </div>
                 ) : (
-                    <button 
+                    <button
                         onClick={handleDisconnect}
                         style={{
                             ...styles.buttonSecondary,
@@ -790,30 +1108,128 @@ const WhatsAppWebConfig = () => {
                 )}
             </div>
 
-            {status.hasQrCode && status.qrCode && (
+            {/* Debug do status */}
+            <div style={{ ...styles.form, backgroundColor: '#f0f8ff', border: '1px solid #0066cc' }}>
+                <h4>🔍 Debug - Status da Conexão</h4>
+                <pre style={{ fontSize: '12px', background: '#fff', padding: '10px', borderRadius: '5px' }}>
+                    {JSON.stringify(status, null, 2)}
+                </pre>
+            </div>
+
+            {/* QR Code com melhor detecção */}
+            {(status.status === 'qr_received' || status.hasQrCode || status.qrCode) && (
                 <div style={styles.qrContainer}>
                     <h3>📱 Escaneie este QR Code com seu WhatsApp:</h3>
-                    <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(status.qrCode)}`}
-                        alt="QR Code WhatsApp"
-                        style={styles.qrCode}
-                    />
-                    <p><strong>⏱️ Aguardando escaneamento...</strong></p>
-                    <p>O QR Code é atualizado automaticamente a cada 3 segundos</p>
+                    {status.qrCode ? (
+                        <div>
+                            <img
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(status.qrCode)}`}
+                                alt="QR Code WhatsApp"
+                                style={styles.qrCode}
+                                onError={(e) => {
+                                    console.error('Erro ao carregar QR Code:', e);
+                                    e.target.style.display = 'none';
+                                }}
+                            />
+                            <p><strong>⏱️ Aguardando escaneamento...</strong></p>
+                            <p>O QR Code é atualizado automaticamente a cada 3 segundos</p>
+
+                            {/* QR Code alternativo usando canvas */}
+                            <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '5px' }}>
+                                <small><strong>QR Code Data:</strong></small>
+                                <div style={{
+                                    wordBreak: 'break-all',
+                                    fontSize: '10px',
+                                    maxHeight: '100px',
+                                    overflow: 'auto',
+                                    backgroundColor: 'white',
+                                    padding: '5px',
+                                    border: '1px solid #ddd'
+                                }}>
+                                    {status.qrCode.substring(0, 200)}...
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{ padding: '20px', backgroundColor: '#fff3cd', borderRadius: '5px' }}>
+                            <p>⚠️ QR Code não disponível. Status: {status.status}</p>
+                            <button onClick={() => {
+                                console.log('Forçando nova verificação de status...');
+                                checkStatus();
+                            }} style={styles.button}>
+                                🔄 Tentar Novamente
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Botão para forçar obtenção de QR Code */}
+            {status.status === 'disconnected' && (
+                <div style={{ ...styles.form, backgroundColor: '#fff3cd', border: '1px solid #ffc107' }}>
+                    <h4>🔧 Ferramentas de Debug</h4>
+                    <button onClick={async () => {
+                        try {
+                            const response = await fetch('https://backend.advir.pt/api/whatsapp-web/qr');
+                            const data = await response.json();
+                            console.log('QR Response:', data);
+                            alert(`QR Status: ${data.status}\nQR Available: ${!!data.qrCode}`);
+                        } catch (error) {
+                            console.error('Erro ao obter QR:', error);
+                            alert('Erro ao obter QR Code');
+                        }
+                    }} style={styles.button}>
+                        🔍 Verificar QR Code Diretamente
+                    </button>
+                </div>
+            )}
+
+            {status.isReady && userInfo && (
+                <div style={styles.userInfoCard}>
+                    <h3>👤 Contacto Principal Conectado</h3>
+                    <div style={styles.userInfoContent}>
+                        <div style={styles.userInfoItem}>
+                            <strong>📱 Nome:</strong> {userInfo.pushname || 'Utilizador WhatsApp'}
+                        </div>
+                        <div style={styles.userInfoItem}>
+                            <strong>🔢 Número:</strong> {userInfo.formattedNumber || userInfo.wid || 'Não disponível'}
+                        </div>
+                        <div style={styles.userInfoItem}>
+                            <strong>💻 Plataforma:</strong> {userInfo.platform || 'WhatsApp Web'}
+                        </div>
+                        <div style={styles.userInfoItem}>
+                            <strong>⚡ Status:</strong> ✅ Conectado e ativo
+                        </div>
+                    </div>
+                    <div style={styles.userInfoActions}>
+                        <button
+                            onClick={handleChangeAccount}
+                            style={{ ...styles.button, backgroundColor: '#ff9800' }}
+                            disabled={loading}
+                        >
+                            🔄 Trocar Conta WhatsApp
+                        </button>
+                    </div>
+                    <div style={styles.userInfoNote}>
+                        <small>
+                            📝 <strong>Nota:</strong> Todas as mensagens serão enviadas a partir desta conta WhatsApp.
+                            Para usar uma conta diferente, clique em "Trocar Conta WhatsApp".
+                        </small>
+                    </div>
                 </div>
             )}
 
             {status.isReady && (
                 <form onSubmit={handleTestMessage} style={styles.form}>
                     <h3>📱 Enviar Mensagem de Teste</h3>
-                    
+
                     <div style={styles.formGroup}>
                         <label style={styles.label}>Número de Destino *</label>
                         <input
                             type="tel"
                             style={styles.input}
                             value={testMessage.to}
-                            onChange={(e) => setTestMessage({...testMessage, to: e.target.value})}
+                            onChange={(e) => setTestMessage({ ...testMessage, to: e.target.value })}
                             placeholder="351912345678 (com código do país)"
                             required
                         />
@@ -824,7 +1240,7 @@ const WhatsAppWebConfig = () => {
                         <textarea
                             style={styles.textarea}
                             value={testMessage.message}
-                            onChange={(e) => setTestMessage({...testMessage, message: e.target.value})}
+                            onChange={(e) => setTestMessage({ ...testMessage, message: e.target.value })}
                             placeholder="Digite sua mensagem aqui..."
                             required
                         />
@@ -835,7 +1251,7 @@ const WhatsAppWebConfig = () => {
                         <select
                             style={styles.select}
                             value={testMessage.priority}
-                            onChange={(e) => setTestMessage({...testMessage, priority: e.target.value})}
+                            onChange={(e) => setTestMessage({ ...testMessage, priority: e.target.value })}
                         >
                             <option value="normal">Normal</option>
                             <option value="info">Informação</option>
@@ -844,8 +1260,8 @@ const WhatsAppWebConfig = () => {
                         </select>
                     </div>
 
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         style={{
                             ...styles.button,
                             ...(loading ? styles.buttonDisabled : {}),
@@ -865,14 +1281,14 @@ const WhatsAppWebConfig = () => {
             <div style={styles.grid}>
                 <form onSubmit={handleCreateContactList} style={styles.form}>
                     <h3>👥 Criar Lista de Contactos</h3>
-                    
+
                     <div style={styles.formGroup}>
                         <label style={styles.label}>Nome da Lista *</label>
                         <input
                             type="text"
                             style={styles.input}
                             value={newContactList.name}
-                            onChange={(e) => setNewContactList({...newContactList, name: e.target.value})}
+                            onChange={(e) => setNewContactList({ ...newContactList, name: e.target.value })}
                             placeholder="Ex: Clientes VIP, Equipa Vendas..."
                             required
                         />
@@ -881,16 +1297,16 @@ const WhatsAppWebConfig = () => {
                     <div style={styles.formGroup}>
                         <label style={styles.label}>Contactos (um por linha) *</label>
                         <textarea
-                            style={{...styles.textarea, minHeight: '120px'}}
+                            style={{ ...styles.textarea, minHeight: '120px' }}
                             value={newContactList.contacts}
-                            onChange={(e) => setNewContactList({...newContactList, contacts: e.target.value})}
+                            onChange={(e) => setNewContactList({ ...newContactList, contacts: e.target.value })}
                             placeholder="351912345678&#10;351923456789&#10;351934567890"
                             required
                         />
                         <small>Insira um número por linha, com código do país (ex: 351912345678)</small>
                     </div>
 
-                    <button type="submit" style={{...styles.button, width: '100%'}}>
+                    <button type="submit" style={{ ...styles.button, width: '100%' }}>
                         Criar Lista de Contactos
                     </button>
                 </form>
@@ -936,13 +1352,13 @@ const WhatsAppWebConfig = () => {
             <div style={styles.grid}>
                 <form onSubmit={handleCreateSchedule} style={styles.form}>
                     <h3>⏰ Agendar Mensagens</h3>
-                    
+
                     <div style={styles.formGroup}>
                         <label style={styles.label}>Mensagem *</label>
                         <textarea
                             style={styles.textarea}
                             value={newSchedule.message}
-                            onChange={(e) => setNewSchedule({...newSchedule, message: e.target.value})}
+                            onChange={(e) => setNewSchedule({ ...newSchedule, message: e.target.value })}
                             placeholder="Digite a mensagem a ser enviada periodicamente..."
                             required
                         />
@@ -956,7 +1372,12 @@ const WhatsAppWebConfig = () => {
                             onChange={(e) => {
                                 setSelectedContactList(e.target.value);
                                 const list = contactLists.find(l => l.id.toString() === e.target.value);
-                                setNewSchedule({...newSchedule, contactList: list ? list.contacts : []});
+                                // Converter array de strings para array de objetos
+                                const formattedContacts = list ? list.contacts.map(phone => ({
+                                    name: `Contacto ${phone.slice(-4)}`,
+                                    phone: phone
+                                })) : [];
+                                setNewSchedule({ ...newSchedule, contactList: formattedContacts });
                             }}
                             required
                         >
@@ -974,9 +1395,10 @@ const WhatsAppWebConfig = () => {
                         <select
                             style={styles.select}
                             value={newSchedule.frequency}
-                            onChange={(e) => setNewSchedule({...newSchedule, frequency: e.target.value})}
+                            onChange={(e) => setNewSchedule({ ...newSchedule, frequency: e.target.value, days: [] })}
                         >
                             <option value="daily">Diariamente</option>
+                            <option value="custom">Dias Específicos</option>
                             <option value="weekly">Semanalmente</option>
                             <option value="monthly">Mensalmente</option>
                         </select>
@@ -988,16 +1410,18 @@ const WhatsAppWebConfig = () => {
                             type="time"
                             style={styles.input}
                             value={newSchedule.time}
-                            onChange={(e) => setNewSchedule({...newSchedule, time: e.target.value})}
+                            onChange={(e) => setNewSchedule({ ...newSchedule, time: e.target.value })}
                         />
                     </div>
 
-                    {newSchedule.frequency === 'weekly' && (
+                    {(newSchedule.frequency === 'weekly' || newSchedule.frequency === 'custom') && (
                         <div style={styles.formGroup}>
-                            <label style={styles.label}>Dias da Semana</label>
+                            <label style={styles.label}>
+                                {newSchedule.frequency === 'weekly' ? 'Dias da Semana' : 'Escolher Dias (excluir fins de semana, feriados, etc.)'}
+                            </label>
                             <div style={styles.checkboxGroup}>
                                 {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map((day, index) => (
-                                    <label key={index}>
+                                    <label key={index} style={styles.dayLabel}>
                                         <input
                                             type="checkbox"
                                             style={styles.checkbox}
@@ -1010,13 +1434,19 @@ const WhatsAppWebConfig = () => {
                                                     const i = days.indexOf(index + 1);
                                                     if (i > -1) days.splice(i, 1);
                                                 }
-                                                setNewSchedule({...newSchedule, days});
+                                                setNewSchedule({ ...newSchedule, days });
                                             }}
                                         />
                                         {day}
                                     </label>
                                 ))}
                             </div>
+                            {newSchedule.frequency === 'custom' && (
+                                <small style={styles.helpText}>
+                                    💡 Dica: Selecione apenas os dias em que deseja que as mensagens sejam enviadas.
+                                    Por exemplo, exclua sábados e domingos para envios apenas em dias úteis.
+                                </small>
+                            )}
                         </div>
                     )}
 
@@ -1026,7 +1456,7 @@ const WhatsAppWebConfig = () => {
                             type="date"
                             style={styles.input}
                             value={newSchedule.startDate}
-                            onChange={(e) => setNewSchedule({...newSchedule, startDate: e.target.value})}
+                            onChange={(e) => setNewSchedule({ ...newSchedule, startDate: e.target.value })}
                         />
                     </div>
 
@@ -1035,7 +1465,7 @@ const WhatsAppWebConfig = () => {
                         <select
                             style={styles.select}
                             value={newSchedule.priority}
-                            onChange={(e) => setNewSchedule({...newSchedule, priority: e.target.value})}
+                            onChange={(e) => setNewSchedule({ ...newSchedule, priority: e.target.value })}
                         >
                             <option value="normal">Normal</option>
                             <option value="info">Informação</option>
@@ -1044,13 +1474,30 @@ const WhatsAppWebConfig = () => {
                         </select>
                     </div>
 
-                    <button type="submit" style={{...styles.button, width: '100%'}}>
+                    <button type="submit" style={{ ...styles.button, width: '100%' }}>
                         Agendar Mensagens
                     </button>
                 </form>
 
                 <div style={styles.form}>
                     <h3>📅 Mensagens Agendadas ({scheduledMessages.length})</h3>
+
+                    {/* Botões de Teste */}
+                    <div style={styles.testButtonsContainer}>
+                        <h4>🧪 Ferramentas de Teste</h4>
+                        <div style={styles.buttonGroup}>
+                            <button onClick={testScheduleNow} style={styles.buttonSmall}>
+                                🚀 Testar Primeiro Agendamento
+                            </button>
+                            <button onClick={simulateTimeExecution} style={styles.buttonSmall}>
+                                ⏰ Simular Hora
+                            </button>
+                            <button onClick={() => syncSchedulesWithBackend()} style={styles.buttonSmall}>
+                                🔄 Sincronizar Backend
+                            </button>
+                        </div>
+                    </div>
+
                     {scheduledMessages.length === 0 ? (
                         <p>Nenhuma mensagem agendada ainda.</p>
                     ) : (
@@ -1060,8 +1507,14 @@ const WhatsAppWebConfig = () => {
                                     <strong>{schedule.message.substring(0, 50)}...</strong>
                                     <br />
                                     <small>
-                                        Frequência: {schedule.frequency === 'daily' ? 'Diária' : 
-                                                   schedule.frequency === 'weekly' ? 'Semanal' : 'Mensal'} às {schedule.time}
+                                        Frequência: {schedule.frequency === 'daily' ? 'Diária' :
+                                            schedule.frequency === 'weekly' ? 'Semanal' :
+                                                schedule.frequency === 'custom' ? 'Dias Específicos' : 'Mensal'} às {schedule.time}
+                                        {schedule.days && schedule.days.length > 0 && (
+                                            <span> - Dias: {schedule.days.map(d =>
+                                                ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][d === 7 ? 0 : d]
+                                            ).join(', ')}</span>
+                                        )}
                                     </small>
                                     <br />
                                     <small>{schedule.contactList.length} contactos</small>
@@ -1071,6 +1524,12 @@ const WhatsAppWebConfig = () => {
                                     </small>
                                 </div>
                                 <div style={styles.listActions}>
+                                    <button
+                                        onClick={() => forceScheduleExecution(schedule.id)}
+                                        style={{ ...styles.buttonSmall, backgroundColor: '#2196f3' }}
+                                    >
+                                        ▶️ Executar
+                                    </button>
                                     <button
                                         onClick={() => toggleSchedule(schedule.id)}
                                         style={schedule.enabled ? styles.buttonDanger : styles.buttonSmall}
@@ -1095,7 +1554,7 @@ const WhatsAppWebConfig = () => {
     return (
         <div style={styles.container}>
             <h1 style={styles.header}>📱 WhatsApp Web API - Sistema Completo</h1>
-            
+
             <div style={styles.tabContainer}>
                 <button
                     style={{
