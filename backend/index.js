@@ -65,7 +65,6 @@ app.use('/api/registo-ponto-obra', registoPontoObraRoutes);
 app.use('/api/faltas-ferias', faltasFeriasRoutes);
 app.use('/api', notificacaoRoutes);
 app.use('/api/parte-diaria', parteRoutes);
-app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/whatsapp-web', whatsappWebRoutes);
 
 
