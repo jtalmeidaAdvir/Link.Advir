@@ -17,7 +17,6 @@ const registoPontoObraRoutes = require('./routes/registoPontoObraRoutes');
 const faltasFeriasRoutes = require('./routes/faltasFeriasRoutes');
 const notificacaoRoutes = require('./routes/notificacaoRoutes');
 const parteRoutes = require('./routes/parteDiariaRoutes');
-const whatsappRoutes = require('./routes/whatsappRoutes');
 const whatsappWebRoutes = require('./routes/whatsappWebRoutes');
 
 
