@@ -91,7 +91,7 @@ const ListarObras = ({ navigation }) => {
             }
 
             setLoadingProgress(25);
-            setLoadingMessage('Conectando ao servidor...');
+            setLoadingMessage('A carregar Obras...');
 
             const response = await fetch(`https://webapiprimavera.advir.pt/listarObras/listarObras`, {
                 method: 'GET',

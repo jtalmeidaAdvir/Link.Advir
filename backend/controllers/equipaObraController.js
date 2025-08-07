@@ -1,15 +1,15 @@
 const EquipaObra = require('../models/equipaObra');
 const User = require('../models/user');
 
-// Criar equipa
+// Criar equipa (Encarregado, Diretor e Administrador podem criar)
 const criarEquipa = async (req, res) => {
     try {
         const { nome, membros } = req.body;
         const encarregado_id = req.user.id;
 
         const user = await User.findByPk(encarregado_id);
-        if (!user || !['Encarregado', 'Diretor'].includes(user.tipoUser)) {
-            return res.status(403).json({ message: 'Apenas encarregados e diretores podem criar equipas.' });
+        if (!user || !['Encarregado', 'Diretor', 'Administrador'].includes(user.tipoUser)) {
+            return res.status(403).json({ message: 'Apenas Encarregados, Diretores e Administradores podem criar equipas.' });
         }
 
         const equipaPromises = membros.map(user_id =>
@@ -28,11 +28,38 @@ const criarEquipa = async (req, res) => {
     }
 };
 
-// Listar equipas do utilizador
+// Listar equipas do utilizador (Administradores veem todas as equipas)
 const listarMinhasEquipas = async (req, res) => {
     try {
         const user_id = req.user.id;
+        const user = await User.findByPk(user_id);
 
+        if (user.tipoUser === 'Administrador') {
+            // Administrador vê todas as equipas, agrupadas por nome
+            const todosRegistos = await EquipaObra.findAll({
+                include: [
+                    { model: User, as: 'membro', attributes: ['id', 'nome', 'email', 'tipoUser'] },
+                    { model: User, as: 'encarregado', attributes: ['id', 'nome'] }
+                ]
+            });
+
+            // Agrupar por nome de equipa
+            const equipasAgrupadas = {};
+            for (const reg of todosRegistos) {
+                if (!equipasAgrupadas[reg.nome]) {
+                    equipasAgrupadas[reg.nome] = {
+                        nome: reg.nome,
+                        encarregado: reg.encarregado,
+                        membros: []
+                    };
+                }
+                equipasAgrupadas[reg.nome].membros.push(reg.membro);
+            }
+
+            return res.status(200).json(Object.values(equipasAgrupadas));
+        }
+
+        // Demais utilizadores só veem as suas próprias equipas
         const equipas = await EquipaObra.findAll({
             where: { user_id },
             include: [
@@ -59,17 +86,14 @@ const removerMembroEquipa = async (req, res) => {
             return res.status(404).json({ message: 'Registo de equipa não encontrado.' });
         }
 
-        if (equipa.encarregado_id !== encarregado_id) {
-            return res.status(403).json({ message: 'Apenas o encarregado da equipa pode remover membros.' });
+        if (equipa.encarregado_id !== encarregado_id && req.user.tipoUser !== 'Administrador') {
+            return res.status(403).json({ message: 'Apenas o encarregado ou administrador pode remover membros.' });
         }
 
         await equipa.destroy();
         res.status(200).json({ message: 'Membro removido da equipa com sucesso.' });
     } catch (error) {
-        console.error('Erro ao remover membro da equipa:', error);
-        res.status(500).json({ message: 'Erro interno do servidor.' });
-    }
-};
+}};
 
 // Listar todas as equipas com os seus membros agrupadas
 const listarTodasEquipasAgrupadas = async (req, res) => {
