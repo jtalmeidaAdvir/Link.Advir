@@ -1042,7 +1042,8 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
       NumHoras:      minutosTotal,
       PrecoUnit:     esp.precoUnit || 0,
       Categoria:     esp.categoria,
-      TipoHoraID: esp.especialidade && esp.especialidade !== '' ? 'H01' : ''
+      TipoHoraID: esp.horaExtra === true ? "H01" : null
+
 
     };
 

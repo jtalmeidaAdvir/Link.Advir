@@ -134,34 +134,118 @@ router.post("/disconnect", async (req, res) => {
 // Endpoint para limpar sessão completamente (para trocar de conta)
 router.post("/clear-session", async (req, res) => {
     try {
+        console.log("🧹 Iniciando limpeza de sessão WhatsApp...");
+
         // Primeiro desconectar se estiver conectado
         if (client) {
-            await client.destroy();
+            try {
+                await client.destroy();
+                console.log("✅ Cliente WhatsApp desconectado");
+            } catch (destroyError) {
+                console.error("⚠️ Erro ao destruir cliente (pode ser normal):", destroyError.message);
+            }
             client = null;
             isClientReady = false;
             clientStatus = "disconnected";
             qrCodeData = null;
         }
 
-        // Limpar dados da sessão usando shell command
+        // Limpar dados da sessão
         const fs = require('fs');
         const path = require('path');
 
         const sessionPath = path.join(process.cwd(), 'whatsapp-session');
+        console.log("📁 Caminho da sessão:", sessionPath);
 
-        // Remover diretório da sessão se existir
+        let sessionCleared = false;
+
+        // Tentar remover diretório da sessão se existir
         if (fs.existsSync(sessionPath)) {
-            fs.rmSync(sessionPath, { recursive: true, force: true });
-            console.log('Sessão WhatsApp limpa com sucesso');
+            try {
+                // Método mais compatível para remover recursivamente
+                const rimraf = (dirPath) => {
+                    try {
+                        const files = fs.readdirSync(dirPath);
+                        for (const file of files) {
+                            const fullPath = path.join(dirPath, file);
+                            const stat = fs.statSync(fullPath);
+                            if (stat.isDirectory()) {
+                                rimraf(fullPath);
+                            } else {
+                                try {
+                                    fs.unlinkSync(fullPath);
+                                } catch (unlinkError) {
+                                    console.warn(`⚠️ Não foi possível remover arquivo ${fullPath}:`, unlinkError.message);
+                                }
+                            }
+                        }
+                        fs.rmdirSync(dirPath);
+                    } catch (rmdirError) {
+                        console.warn(`⚠️ Erro ao remover diretório ${dirPath}:`, rmdirError.message);
+                    }
+                };
+
+                rimraf(sessionPath);
+                sessionCleared = true;
+                console.log('✅ Sessão WhatsApp limpa com sucesso');
+            } catch (removeError) {
+                console.error("❌ Erro ao remover sessão com método personalizado:", removeError);
+
+                // Tentar com fs.rmSync como fallback
+                try {
+                    fs.rmSync(sessionPath, { recursive: true, force: true });
+                    sessionCleared = true;
+                    console.log('✅ Sessão WhatsApp limpa com sucesso (fallback)');
+                } catch (rmSyncError) {
+                    console.error("❌ Erro com fs.rmSync:", rmSyncError);
+                    sessionCleared = false;
+                }
+            }
+        } else {
+            console.log("ℹ️ Diretório de sessão não existe");
+            sessionCleared = true;
         }
 
+        // Resetar variáveis globais independentemente
+        client = null;
+        isClientReady = false;
+        clientStatus = "disconnected";
+        qrCodeData = null;
+
+        console.log("🎯 Estado final - Cliente limpo, status resetado");
+
         res.json({
-            message: "Sessão limpa com sucesso. Pode agora conectar com uma nova conta.",
-            sessionCleared: true
+            message: sessionCleared
+                ? "Sessão limpa com sucesso. Pode agora conectar com uma nova conta."
+                : "Cliente resetado. Pode tentar conectar novamente.",
+            sessionCleared,
+            clientReset: true,
+            timestamp: new Date().toISOString()
         });
+
     } catch (error) {
-        console.error("Erro ao limpar sessão:", error);
-        res.status(500).json({ error: "Erro ao limpar sessão WhatsApp" });
+        console.error("❌ Erro crítico ao limpar sessão:", error);
+
+        // Mesmo com erro, tentar resetar as variáveis
+        try {
+            if (client) {
+                await client.destroy().catch(() => { });
+            }
+        } catch (finalError) {
+            console.error("Erro final:", finalError);
+        }
+
+        client = null;
+        isClientReady = false;
+        clientStatus = "disconnected";
+        qrCodeData = null;
+
+        res.status(500).json({
+            error: "Erro ao limpar sessão WhatsApp",
+            details: error.message,
+            clientReset: true,
+            timestamp: new Date().toISOString()
+        });
     }
 });
 
