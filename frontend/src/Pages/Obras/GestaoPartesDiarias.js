@@ -297,7 +297,9 @@ const GestaoPartesDiarias = () => {
           TipoEntidade: "O",
           ColaboradorID: colaboradorID,
           Data: it.Data,
-          ObraID: it.ObraID
+          ObraID: it.ObraID,
+          TipoHoraID: it.horaExtra ? "H01" : null
+
         }))
       };
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 
 const WhatsAppWebConfig = () => {
@@ -19,9 +20,9 @@ const WhatsAppWebConfig = () => {
     const [newSchedule, setNewSchedule] = useState({
         message: "",
         contactList: [],
-        frequency: "daily", // daily, weekly, monthly, custom
+        frequency: "daily",
         time: "09:00",
-        days: [], // Para frequência semanal
+        days: [],
         startDate: "",
         enabled: true,
         priority: "normal",
@@ -36,7 +37,7 @@ const WhatsAppWebConfig = () => {
     const [selectedContactList, setSelectedContactList] = useState("");
 
     // Estados para visualização
-    const [activeTab, setActiveTab] = useState("connection"); // connection, schedule, contacts, logs
+    const [activeTab, setActiveTab] = useState("connection");
 
     // Estados para logs
     const [logs, setLogs] = useState([]);
@@ -50,8 +51,34 @@ const WhatsAppWebConfig = () => {
     // Estados para informações do utilizador conectado
     const [userInfo, setUserInfo] = useState(null);
 
-    // API base URL usando localhost
+    // API base URL
     const API_BASE_URL = "https://backend.advir.pt/api/whatsapp-web";
+
+    // Add custom scrollbar styles for webkit browsers
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+            .custom-scroll::-webkit-scrollbar {
+                width: 8px;
+            }
+            .custom-scroll::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 10px;
+            }
+            .custom-scroll::-webkit-scrollbar-thumb {
+                background: #c1c1c1;
+                border-radius: 10px;
+            }
+            .custom-scroll::-webkit-scrollbar-thumb:hover {
+                background: #a8a8a8;
+            }
+        `;
+        document.head.appendChild(style);
+
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
 
     useEffect(() => {
         checkStatus();
@@ -59,7 +86,6 @@ const WhatsAppWebConfig = () => {
         loadContactLists();
         loadLogs();
         loadStats();
-        // Verificar status a cada 3 segundos
         const interval = setInterval(() => {
             checkStatus();
             loadUserInfo();
@@ -81,7 +107,6 @@ const WhatsAppWebConfig = () => {
         }
     };
 
-    // Load scheduled messages from database
     const loadScheduledMessages = async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/schedules`);
@@ -92,7 +117,6 @@ const WhatsAppWebConfig = () => {
         }
     };
 
-    // Load contact lists from database
     const loadContactLists = async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/contacts`);
@@ -102,6 +126,7 @@ const WhatsAppWebConfig = () => {
             console.error("Erro ao carregar listas de contactos:", error);
         }
     };
+
     const loadLogs = async () => {
         try {
             const params = new URLSearchParams();
@@ -139,10 +164,7 @@ const WhatsAppWebConfig = () => {
                     setUserInfo(null);
                 }
             } catch (error) {
-                console.error(
-                    "Erro ao carregar informações do utilizador:",
-                    error,
-                );
+                console.error("Erro ao carregar informações do utilizador:", error);
                 setUserInfo(null);
             }
         } else {
@@ -222,12 +244,11 @@ const WhatsAppWebConfig = () => {
     const handleChangeAccount = async () => {
         if (
             confirm(
-                "Tem certeza que deseja trocar de conta WhatsApp? Isso irá limpar completamente a sessão atual.",
+                "Tem certeza que deseja trocar de conta WhatsApp? Isso irá limpar completamente a sessão atual."
             )
         ) {
             setLoading(true);
             try {
-                // Primeiro limpar a sessão completamente
                 const clearResponse = await fetch(
                     `${API_BASE_URL}/clear-session`,
                     {
@@ -235,14 +256,10 @@ const WhatsAppWebConfig = () => {
                         headers: {
                             "Content-Type": "application/json",
                         },
-                    },
+                    }
                 );
 
                 if (clearResponse.ok) {
-                    const clearData = await clearResponse.json();
-                    console.log("Sessão limpa:", clearData);
-
-                    // Aguardar um pouco e depois tentar conectar novamente
                     setTimeout(async () => {
                         try {
                             const connectResponse = await fetch(
@@ -252,12 +269,12 @@ const WhatsAppWebConfig = () => {
                                     headers: {
                                         "Content-Type": "application/json",
                                     },
-                                },
+                                }
                             );
 
                             if (connectResponse.ok) {
                                 alert(
-                                    "Sessão limpa! Aguarde o novo QR Code aparecer para conectar com uma conta diferente.",
+                                    "Sessão limpa! Aguarde o novo QR Code aparecer para conectar com uma conta diferente."
                                 );
                                 setUserInfo(null);
                                 checkStatus();
@@ -265,10 +282,7 @@ const WhatsAppWebConfig = () => {
                                 alert("Erro ao iniciar nova conexão");
                             }
                         } catch (error) {
-                            console.error(
-                                "Erro ao conectar após limpeza:",
-                                error,
-                            );
+                            console.error("Erro ao conectar após limpeza:", error);
                             alert("Erro ao iniciar nova conexão");
                         } finally {
                             setLoading(false);
@@ -327,7 +341,7 @@ const WhatsAppWebConfig = () => {
             .split("\n")
             .map((contact) => contact.trim())
             .filter((contact) => contact.length > 0)
-            .map((phone) => phone.replace(/\D/g, "")); // Limpar caracteres não numéricos
+            .map((phone) => phone.replace(/\D/g, ""));
 
         if (contacts.length === 0) {
             alert("Adicione pelo menos um contacto válido");
@@ -429,7 +443,7 @@ const WhatsAppWebConfig = () => {
                     `${API_BASE_URL}/contact-lists/${id}`,
                     {
                         method: "DELETE",
-                    },
+                    }
                 );
 
                 if (response.ok) {
@@ -485,7 +499,7 @@ const WhatsAppWebConfig = () => {
                 `${API_BASE_URL}/schedule/${scheduleId}/execute`,
                 {
                     method: "POST",
-                },
+                }
             );
 
             const result = await response.json();
@@ -522,7 +536,7 @@ const WhatsAppWebConfig = () => {
 
             if (response.ok) {
                 alert(
-                    `Simulação para ${time} concluída! Verificar logs para detalhes.`,
+                    `Simulação para ${time} concluída! Verificar logs para detalhes.`
                 );
                 loadLogs();
             } else {
@@ -560,78 +574,1066 @@ const WhatsAppWebConfig = () => {
         }
     };
 
-    const renderLogsTab = () => (
-        <div>
-            <div style={styles.grid}>
-                {/* Estatísticas */}
-                <div style={styles.form}>
-                    <h3>📊 Estatísticas dos Agendamentos</h3>
-                    <div style={styles.statsGrid}>
-                        <div style={styles.statCard}>
-                            <h4>📅 Total de Agendamentos</h4>
-                            <p style={styles.statNumber}>
-                                {stats.totalSchedules || 0}
-                            </p>
-                        </div>
-                        <div style={styles.statCard}>
-                            <h4>🟢 Agendamentos Ativos</h4>
-                            <p style={styles.statNumber}>
-                                {stats.activeSchedules || 0}
-                            </p>
-                        </div>
-                        <div style={styles.statCard}>
-                            <h4>📝 Total de Logs</h4>
-                            <p style={styles.statNumber}>
-                                {stats.totalLogs || 0}
-                            </p>
-                        </div>
-                    </div>
+    const getStatusColor = () => {
+        switch (status.status) {
+            case "ready":
+                return "#28a745";
+            case "qr_received":
+                return "#ffc107";
+            case "authenticated":
+                return "#28a745";
+            case "auth_failure":
+                return "#dc3545";
+            default:
+                return "#6c757d";
+        }
+    };
 
-                    {stats.logsByType && (
-                        <div style={styles.logsTypeGrid}>
-                            <div
+    const getStatusText = () => {
+        switch (status.status) {
+            case "ready":
+                return "Conectado e Pronto";
+            case "qr_received":
+                return "QR Code Disponível - Escaneie!";
+            case "authenticated":
+                return "Autenticado";
+            case "auth_failure":
+                return "Falha na Autenticação";
+            default:
+                return "Desconectado";
+        }
+    };
+
+    const getStatusIcon = () => {
+        switch (status.status) {
+            case "ready":
+                return "✅";
+            case "qr_received":
+                return "📱";
+            case "authenticated":
+                return "🔐";
+            case "auth_failure":
+                return "❌";
+            default:
+                return "⚫";
+        }
+    };
+
+    const getLogColor = (type) => {
+        switch (type) {
+            case "success":
+                return "#28a745";
+            case "error":
+                return "#dc3545";
+            case "warning":
+                return "#ffc107";
+            case "info":
+            default:
+                return "#007bff";
+        }
+    };
+
+    const getLogIcon = (type) => {
+        switch (type) {
+            case "success":
+                return "✅";
+            case "error":
+                return "❌";
+            case "warning":
+                return "⚠️";
+            case "info":
+            default:
+                return "ℹ️";
+        }
+    };
+
+    const styles = {
+        container: {
+            minHeight: '100vh',
+            backgroundColor: '#f8f9fa',
+            padding: '20px',
+            overflowY: 'auto',
+            maxHeight: '100vh'
+        },
+        header: {
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '30px',
+            marginBottom: '30px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            textAlign: 'center',
+            border: '1px solid #e9ecef'
+        },
+        title: {
+            color: '#343a40',
+            fontSize: '2.5rem',
+            fontWeight: '600',
+            marginBottom: '10px',
+            fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif'
+        },
+        subtitle: {
+            color: '#6c757d',
+            fontSize: '1.1rem',
+            marginBottom: '0'
+        },
+        navTabs: {
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '8px',
+            marginBottom: '30px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            display: 'flex',
+            gap: '8px',
+            border: '1px solid #e9ecef'
+        },
+        tab: {
+            flex: 1,
+            padding: '15px 20px',
+            backgroundColor: 'transparent',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: '500',
+            transition: 'all 0.3s ease',
+            color: '#6c757d'
+        },
+        activeTab: {
+            backgroundColor: '#007bff',
+            color: '#fff',
+            transform: 'translateY(-2px)',
+            boxShadow: '0 4px 12px rgba(0,123,255,0.3)'
+        },
+        content: {
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '30px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            border: '1px solid #e9ecef',
+            marginBottom: '20px'
+        },
+        statusCard: {
+            background: `linear-gradient(135deg, ${getStatusColor()}15, ${getStatusColor()}05)`,
+            padding: '25px',
+            borderRadius: '12px',
+            marginBottom: '30px',
+            border: `2px solid ${getStatusColor()}`,
+            textAlign: 'center'
+        },
+        statusIcon: {
+            fontSize: '3rem',
+            marginBottom: '15px',
+            display: 'block'
+        },
+        statusText: {
+            fontSize: '1.5rem',
+            fontWeight: '600',
+            color: getStatusColor(),
+            marginBottom: '10px'
+        },
+        statusSubtext: {
+            color: '#6c757d',
+            fontSize: '1rem'
+        },
+        grid: {
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+            gap: '30px',
+            marginBottom: '30px'
+        },
+        card: {
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '25px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            border: '1px solid #e9ecef'
+        },
+        cardTitle: {
+            fontSize: '1.4rem',
+            fontWeight: '600',
+            color: '#343a40',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+        },
+        formGroup: {
+            marginBottom: '20px'
+        },
+        label: {
+            display: 'block',
+            marginBottom: '8px',
+            fontWeight: '500',
+            color: '#495057',
+            fontSize: '0.95rem'
+        },
+        input: {
+            width: '100%',
+            padding: '12px 16px',
+            border: '2px solid #e9ecef',
+            borderRadius: '8px',
+            fontSize: '16px',
+            transition: 'border-color 0.3s ease',
+            fontFamily: 'inherit'
+        },
+        inputFocus: {
+            borderColor: '#007bff',
+            boxShadow: '0 0 0 3px rgba(0,123,255,0.1)'
+        },
+        textarea: {
+            width: '100%',
+            padding: '12px 16px',
+            border: '2px solid #e9ecef',
+            borderRadius: '8px',
+            fontSize: '16px',
+            minHeight: '120px',
+            resize: 'vertical',
+            transition: 'border-color 0.3s ease',
+            fontFamily: 'inherit'
+        },
+        select: {
+            width: '100%',
+            padding: '12px 16px',
+            border: '2px solid #e9ecef',
+            borderRadius: '8px',
+            fontSize: '16px',
+            backgroundColor: '#fff',
+            transition: 'border-color 0.3s ease'
+        },
+        button: {
+            backgroundColor: '#007bff',
+            color: '#fff',
+            padding: '12px 24px',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '16px',
+            fontWeight: '500',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px'
+        },
+        buttonHover: {
+            backgroundColor: '#0056b3',
+            transform: 'translateY(-2px)',
+            boxShadow: '0 4px 12px rgba(0,123,255,0.3)'
+        },
+        buttonSuccess: {
+            backgroundColor: '#28a745'
+        },
+        buttonDanger: {
+            backgroundColor: '#dc3545'
+        },
+        buttonWarning: {
+            backgroundColor: '#ffc107',
+            color: '#212529'
+        },
+        buttonSecondary: {
+            backgroundColor: '#6c757d'
+        },
+        buttonDisabled: {
+            backgroundColor: '#e9ecef',
+            color: '#6c757d',
+            cursor: 'not-allowed'
+        },
+        buttonGroup: {
+            display: 'flex',
+            gap: '12px',
+            flexWrap: 'wrap'
+        },
+        qrContainer: {
+            backgroundColor: '#fff',
+            padding: '30px',
+            borderRadius: '12px',
+            marginBottom: '30px',
+            textAlign: 'center',
+            border: '2px solid #ffc107',
+            boxShadow: '0 4px 20px rgba(255,193,7,0.2)'
+        },
+        qrCode: {
+            maxWidth: '280px',
+            margin: '20px auto',
+            display: 'block',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+        },
+        listItem: {
+            backgroundColor: '#f8f9fa',
+            padding: '20px',
+            marginBottom: '15px',
+            borderRadius: '12px',
+            border: '1px solid #e9ecef',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            transition: 'all 0.3s ease'
+        },
+        listItemHover: {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            transform: 'translateY(-2px)'
+        },
+        listContent: {
+            flex: 1
+        },
+        listTitle: {
+            fontWeight: '600',
+            color: '#343a40',
+            fontSize: '1.1rem',
+            marginBottom: '8px'
+        },
+        listMeta: {
+            color: '#6c757d',
+            fontSize: '0.9rem',
+            marginBottom: '4px'
+        },
+        statsGrid: {
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '20px',
+            marginBottom: '30px'
+        },
+        statCard: {
+            padding: '20px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '12px',
+            textAlign: 'center',
+            border: '1px solid #e9ecef',
+            transition: 'all 0.3s ease'
+        },
+        statNumber: {
+            fontSize: '2rem',
+            fontWeight: '700',
+            color: '#343a40',
+            marginBottom: '8px'
+        },
+        statLabel: {
+            color: '#6c757d',
+            fontSize: '0.9rem',
+            fontWeight: '500'
+        },
+        logsContainer: {
+            maxHeight: '500px',
+            overflowY: 'auto',
+            border: '1px solid #e9ecef',
+            borderRadius: '12px',
+            padding: '15px',
+            backgroundColor: '#f8f9fa'
+        },
+        logItem: {
+            padding: '15px',
+            marginBottom: '12px',
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            borderLeft: '4px solid #007bff',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+        },
+        logHeader: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '8px'
+        },
+        logType: {
+            fontWeight: '600',
+            fontSize: '0.85rem',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            backgroundColor: '#e9ecef'
+        },
+        logTime: {
+            fontSize: '0.8rem',
+            color: '#6c757d'
+        },
+        logMessage: {
+            fontSize: '0.9rem',
+            lineHeight: '1.4',
+            color: '#495057'
+        },
+        userInfoCard: {
+            background: 'linear-gradient(135deg, #28a74515, #28a74505)',
+            padding: '25px',
+            borderRadius: '12px',
+            marginBottom: '30px',
+            border: '2px solid #28a745'
+        },
+        userAvatar: {
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            margin: '0 auto 15px',
+            display: 'block'
+        },
+        helpBox: {
+            backgroundColor: '#e3f2fd',
+            padding: '20px',
+            borderRadius: '12px',
+            marginBottom: '30px',
+            border: '1px solid #bbdefb'
+        },
+        helpTitle: {
+            color: '#1976d2',
+            fontWeight: '600',
+            marginBottom: '15px',
+            fontSize: '1.2rem'
+        },
+        helpList: {
+            color: '#424242',
+            lineHeight: '1.6'
+        }
+    };
+
+    const renderConnectionTab = () => (
+        <div>
+            {/* Status Card */}
+            <div style={styles.statusCard}>
+                <span style={styles.statusIcon}>{getStatusIcon()}</span>
+                <div style={styles.statusText}>{getStatusText()}</div>
+                <div style={styles.statusSubtext}>Status: {status.status}</div>
+            </div>
+
+            {/* Help Box */}
+            <div style={styles.helpBox}>
+                <h3 style={styles.helpTitle}>📋 Como conectar o WhatsApp Web</h3>
+                <ol style={styles.helpList}>
+                    <li>Clique em "Conectar WhatsApp Web"</li>
+                    <li>Aguarde o QR Code aparecer</li>
+                    <li>Abra o WhatsApp no seu telemóvel</li>
+                    <li>Vá em Definições → Dispositivos conectados → Conectar dispositivo</li>
+                    <li>Escaneie o QR Code</li>
+                    <li>Aguarde a confirmação de conexão</li>
+                </ol>
+            </div>
+
+            {/* Connection Controls */}
+            <div style={{ ...styles.card, textAlign: 'center', marginBottom: '30px' }}>
+                <div style={styles.buttonGroup}>
+                    {!status.isReady ? (
+                        <>
+                            <button
+                                onClick={handleConnect}
                                 style={{
-                                    ...styles.statCard,
-                                    backgroundColor: "#e3f2fd",
+                                    ...styles.button,
+                                    ...(loading ? styles.buttonDisabled : {}),
                                 }}
+                                disabled={loading}
                             >
-                                <span>ℹ️ Info: {stats.logsByType.info}</span>
-                            </div>
-                            <div
+                                {loading ? "🔄 Conectando..." : "🔗 Conectar WhatsApp Web"}
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (confirm("Isso irá limpar completamente qualquer sessão existente. Continuar?")) {
+                                        setLoading(true);
+                                        try {
+                                            const response = await fetch(`${API_BASE_URL}/clear-session`, {
+                                                method: "POST",
+                                            });
+
+                                            if (response.ok) {
+                                                alert("Sessão limpa! Agora pode conectar com qualquer conta.");
+                                                setTimeout(() => handleConnect(), 1000);
+                                            } else {
+                                                alert("Erro ao limpar sessão");
+                                            }
+                                        } catch (error) {
+                                            alert("Erro ao limpar sessão");
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    }
+                                }}
                                 style={{
-                                    ...styles.statCard,
-                                    backgroundColor: "#e8f5e8",
+                                    ...styles.button,
+                                    ...styles.buttonWarning,
+                                    ...(loading ? styles.buttonDisabled : {}),
                                 }}
+                                disabled={loading}
                             >
-                                <span>
-                                    ✅ Sucesso: {stats.logsByType.success}
-                                </span>
-                            </div>
-                            <div
-                                style={{
-                                    ...styles.statCard,
-                                    backgroundColor: "#fff3e0",
-                                }}
-                            >
-                                <span>
-                                    ⚠️ Avisos: {stats.logsByType.warning}
-                                </span>
-                            </div>
-                            <div
-                                style={{
-                                    ...styles.statCard,
-                                    backgroundColor: "#ffebee",
-                                }}
-                            >
-                                <span>❌ Erros: {stats.logsByType.error}</span>
-                            </div>
+                                🗑️ Limpar Sessão
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            onClick={handleDisconnect}
+                            style={{
+                                ...styles.button,
+                                ...styles.buttonDanger,
+                                ...(loading ? styles.buttonDisabled : {}),
+                            }}
+                            disabled={loading}
+                        >
+                            {loading ? "🔄 Desconectando..." : "🔌 Desconectar"}
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* QR Code */}
+            {(status.status === "qr_received" || status.hasQrCode || status.qrCode) && (
+                <div style={styles.qrContainer}>
+                    <h3 style={styles.cardTitle}>📱 Escaneie o QR Code</h3>
+                    {status.qrCode ? (
+                        <div>
+                            <img
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(status.qrCode)}`}
+                                alt="QR Code WhatsApp"
+                                style={styles.qrCode}
+                            />
+                            <p style={{ color: '#ffc107', fontWeight: '600' }}>
+                                ⏱️ Aguardando escaneamento...
+                            </p>
+                            <p style={{ color: '#6c757d', fontSize: '0.9rem' }}>
+                                O QR Code é atualizado automaticamente
+                            </p>
+                        </div>
+                    ) : (
+                        <div style={{ backgroundColor: '#fff3cd', padding: '20px', borderRadius: '8px' }}>
+                            <p>⚠️ QR Code não disponível</p>
+                            <button onClick={checkStatus} style={styles.button}>
+                                🔄 Tentar Novamente
+                            </button>
                         </div>
                     )}
                 </div>
+            )}
 
-                {/* Filtros e Controles */}
-                <div style={styles.form}>
-                    <h3>🔍 Filtros de Logs</h3>
+            {/* User Info */}
+            {status.isReady && userInfo && (
+                <div style={styles.userInfoCard}>
+                    <h3 style={styles.cardTitle}>👤 Conta Conectada</h3>
+                    <div style={{ marginBottom: '20px' }}>
+                        <div style={{ marginBottom: '10px' }}>
+                            <strong>📱 Nome:</strong> {userInfo.pushname || "Utilizador WhatsApp"}
+                        </div>
+                        <div style={{ marginBottom: '10px' }}>
+                            <strong>🔢 Número:</strong> {userInfo.formattedNumber || userInfo.wid || "Não disponível"}
+                        </div>
+                        <div style={{ marginBottom: '10px' }}>
+                            <strong>💻 Plataforma:</strong> {userInfo.platform || "WhatsApp Web"}
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                        <button
+                            onClick={handleChangeAccount}
+                            style={{
+                                ...styles.button,
+                                ...styles.buttonWarning,
+                            }}
+                            disabled={loading}
+                        >
+                            🔄 Trocar Conta
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Test Message */}
+            {status.isReady && (
+                <div style={styles.card}>
+                    <h3 style={styles.cardTitle}>📤 Enviar Mensagem de Teste</h3>
+                    <form onSubmit={handleTestMessage}>
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Número de Destino *</label>
+                            <input
+                                type="tel"
+                                style={styles.input}
+                                value={testMessage.to}
+                                onChange={(e) =>
+                                    setTestMessage({
+                                        ...testMessage,
+                                        to: e.target.value,
+                                    })
+                                }
+                                placeholder="351912345678 (com código do país)"
+                                required
+                            />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Mensagem *</label>
+                            <textarea
+                                style={styles.textarea}
+                                value={testMessage.message}
+                                onChange={(e) =>
+                                    setTestMessage({
+                                        ...testMessage,
+                                        message: e.target.value,
+                                    })
+                                }
+                                placeholder="Digite sua mensagem aqui..."
+                                required
+                            />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Prioridade</label>
+                            <select
+                                style={styles.select}
+                                value={testMessage.priority}
+                                onChange={(e) =>
+                                    setTestMessage({
+                                        ...testMessage,
+                                        priority: e.target.value,
+                                    })
+                                }
+                            >
+                                <option value="normal">Normal</option>
+                                <option value="info">Informação</option>
+                                <option value="warning">Aviso</option>
+                                <option value="urgent">Urgente</option>
+                            </select>
+                        </div>
+
+                        <button
+                            type="submit"
+                            style={{
+                                ...styles.button,
+                                ...styles.buttonSuccess,
+                                width: '100%',
+                                ...(loading ? styles.buttonDisabled : {}),
+                            }}
+                            disabled={loading}
+                        >
+                            {loading ? "📤 Enviando..." : "📤 Enviar Mensagem"}
+                        </button>
+                    </form>
+                </div>
+            )}
+        </div>
+    );
+
+    const renderContactsTab = () => (
+        <div style={styles.grid}>
+            {/* Create Contact List */}
+            <div style={styles.card}>
+                <h3 style={styles.cardTitle}>👥 Criar Lista de Contactos</h3>
+                <form onSubmit={handleCreateContactList}>
+                    <div style={styles.formGroup}>
+                        <label style={styles.label}>Nome da Lista *</label>
+                        <input
+                            type="text"
+                            style={styles.input}
+                            value={newContactList.name}
+                            onChange={(e) =>
+                                setNewContactList({
+                                    ...newContactList,
+                                    name: e.target.value,
+                                })
+                            }
+                            placeholder="Ex: Clientes VIP, Equipa Vendas..."
+                            required
+                        />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                        <label style={styles.label}>Contactos (um por linha) *</label>
+                        <textarea
+                            style={styles.textarea}
+                            value={newContactList.contacts}
+                            onChange={(e) =>
+                                setNewContactList({
+                                    ...newContactList,
+                                    contacts: e.target.value,
+                                })
+                            }
+                            placeholder="351912345678&#10;351923456789&#10;351934567890"
+                            required
+                        />
+                        <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
+                            Insira um número por linha, com código do país (ex: 351912345678)
+                        </small>
+                    </div>
+
+                    <button
+                        type="submit"
+                        style={{
+                            ...styles.button,
+                            ...styles.buttonSuccess,
+                            width: '100%'
+                        }}
+                    >
+                        ✅ Criar Lista
+                    </button>
+                </form>
+            </div>
+
+            {/* Contact Lists */}
+            <div style={styles.card}>
+                <h3 style={styles.cardTitle}>📋 Listas de Contactos ({contactLists.length})</h3>
+                {contactLists.length === 0 ? (
+                    <p style={{ textAlign: 'center', color: '#6c757d', padding: '20px' }}>
+                        Nenhuma lista de contactos criada ainda.
+                    </p>
+                ) : (
+                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                        {contactLists.map((list) => (
+                            <div key={list.id} style={styles.listItem}>
+                                <div style={styles.listContent}>
+                                    <div style={styles.listTitle}>{list.name}</div>
+                                    <div style={styles.listMeta}>
+                                        👥 {list.contacts.length} contactos
+                                    </div>
+                                    <div style={styles.listMeta}>
+                                        📅 {new Date(list.createdAt).toLocaleDateString('pt-PT')}
+                                    </div>
+                                </div>
+                                <div style={styles.buttonGroup}>
+                                    <button
+                                        onClick={() =>
+                                            alert(`Contactos:\n${list.contacts.join("\n")}`)
+                                        }
+                                        style={{
+                                            ...styles.button,
+                                            padding: '8px 12px',
+                                            fontSize: '0.85rem'
+                                        }}
+                                    >
+                                        👁️ Ver
+                                    </button>
+                                    <button
+                                        onClick={() => deleteContactList(list.id)}
+                                        style={{
+                                            ...styles.button,
+                                            ...styles.buttonDanger,
+                                            padding: '8px 12px',
+                                            fontSize: '0.85rem'
+                                        }}
+                                    >
+                                        🗑️ Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    const renderScheduleTab = () => (
+        <div style={styles.grid}>
+            {/* Create Schedule */}
+            <div style={styles.card}>
+                <h3 style={styles.cardTitle}>⏰ Agendar Mensagens</h3>
+                <form onSubmit={handleCreateSchedule}>
+                    <div style={styles.formGroup}>
+                        <label style={styles.label}>Mensagem *</label>
+                        <textarea
+                            style={styles.textarea}
+                            value={newSchedule.message}
+                            onChange={(e) =>
+                                setNewSchedule({
+                                    ...newSchedule,
+                                    message: e.target.value,
+                                })
+                            }
+                            placeholder="Digite a mensagem a ser enviada..."
+                            required
+                        />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                        <label style={styles.label}>Lista de Contactos *</label>
+                        <select
+                            style={styles.select}
+                            value={selectedContactList}
+                            onChange={(e) => {
+                                setSelectedContactList(e.target.value);
+                                const list = contactLists.find(
+                                    (l) => l.id.toString() === e.target.value
+                                );
+                                const formattedContacts = list
+                                    ? list.contacts.map((phone) => ({
+                                        name: `Contacto ${phone.slice(-4)}`,
+                                        phone: phone,
+                                    }))
+                                    : [];
+                                setNewSchedule({
+                                    ...newSchedule,
+                                    contactList: formattedContacts,
+                                });
+                            }}
+                            required
+                        >
+                            <option value="">Selecione uma lista...</option>
+                            {contactLists.map((list) => (
+                                <option key={list.id} value={list.id}>
+                                    {list.name} ({list.contacts.length} contactos)
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                        <label style={styles.label}>Frequência</label>
+                        <select
+                            style={styles.select}
+                            value={newSchedule.frequency}
+                            onChange={(e) =>
+                                setNewSchedule({
+                                    ...newSchedule,
+                                    frequency: e.target.value,
+                                    days: [],
+                                })
+                            }
+                        >
+                            <option value="daily">Diariamente</option>
+                            <option value="custom">Dias Específicos</option>
+                            <option value="weekly">Semanalmente</option>
+                            <option value="monthly">Mensalmente</option>
+                        </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                        <label style={styles.label}>Hora</label>
+                        <input
+                            type="time"
+                            style={styles.input}
+                            value={newSchedule.time}
+                            onChange={(e) =>
+                                setNewSchedule({
+                                    ...newSchedule,
+                                    time: e.target.value,
+                                })
+                            }
+                        />
+                    </div>
+
+                    {(newSchedule.frequency === "weekly" || newSchedule.frequency === "custom") && (
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>
+                                {newSchedule.frequency === "weekly" ? "Dias da Semana" : "Dias Específicos"}
+                            </label>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                {["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"].map((day, index) => (
+                                    <label
+                                        key={index}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '8px 12px',
+                                            backgroundColor: newSchedule.days.includes(index + 1) ? '#007bff' : '#f8f9fa',
+                                            color: newSchedule.days.includes(index + 1) ? '#fff' : '#495057',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem',
+                                            transition: 'all 0.3s ease'
+                                        }}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            style={{ marginRight: '8px' }}
+                                            checked={newSchedule.days.includes(index + 1)}
+                                            onChange={(e) => {
+                                                const days = [...newSchedule.days];
+                                                if (e.target.checked) {
+                                                    days.push(index + 1);
+                                                } else {
+                                                    const i = days.indexOf(index + 1);
+                                                    if (i > -1) days.splice(i, 1);
+                                                }
+                                                setNewSchedule({
+                                                    ...newSchedule,
+                                                    days,
+                                                });
+                                            }}
+                                        />
+                                        {day}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div style={styles.formGroup}>
+                        <label style={styles.label}>Data de Início (opcional)</label>
+                        <input
+                            type="date"
+                            style={styles.input}
+                            value={newSchedule.startDate}
+                            onChange={(e) =>
+                                setNewSchedule({
+                                    ...newSchedule,
+                                    startDate: e.target.value,
+                                })
+                            }
+                        />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                        <label style={styles.label}>Prioridade</label>
+                        <select
+                            style={styles.select}
+                            value={newSchedule.priority}
+                            onChange={(e) =>
+                                setNewSchedule({
+                                    ...newSchedule,
+                                    priority: e.target.value,
+                                })
+                            }
+                        >
+                            <option value="normal">Normal</option>
+                            <option value="info">Informação</option>
+                            <option value="warning">Aviso</option>
+                            <option value="urgent">Urgente</option>
+                        </select>
+                    </div>
+
+                    <button
+                        type="submit"
+                        style={{
+                            ...styles.button,
+                            ...styles.buttonSuccess,
+                            width: '100%'
+                        }}
+                    >
+                        ⏰ Agendar Mensagens
+                    </button>
+                </form>
+            </div>
+
+            {/* Scheduled Messages */}
+            <div style={styles.card}>
+                <h3 style={styles.cardTitle}>📅 Mensagens Agendadas ({scheduledMessages.length})</h3>
+
+                {/* Test Tools */}
+                <div style={{
+                    backgroundColor: '#e3f2fd',
+                    padding: '20px',
+                    borderRadius: '8px',
+                    marginBottom: '20px',
+                    border: '1px solid #bbdefb'
+                }}>
+                    <h4 style={{ color: '#1976d2', marginBottom: '15px' }}>🧪 Ferramentas de Teste</h4>
+                    <div style={styles.buttonGroup}>
+                        <button
+                            onClick={testScheduleNow}
+                            style={{
+                                ...styles.button,
+                                fontSize: '0.85rem',
+                                padding: '8px 12px'
+                            }}
+                        >
+                            🚀 Testar
+                        </button>
+                        <button
+                            onClick={simulateTimeExecution}
+                            style={{
+                                ...styles.button,
+                                fontSize: '0.85rem',
+                                padding: '8px 12px'
+                            }}
+                        >
+                            ⏰ Simular Hora
+                        </button>
+                        <button
+                            onClick={() => loadScheduledMessages()}
+                            style={{
+                                ...styles.button,
+                                fontSize: '0.85rem',
+                                padding: '8px 12px'
+                            }}
+                        >
+                            🔄 Atualizar
+                        </button>
+                    </div>
+                </div>
+
+                {scheduledMessages.length === 0 ? (
+                    <p style={{ textAlign: 'center', color: '#6c757d', padding: '20px' }}>
+                        Nenhuma mensagem agendada ainda.
+                    </p>
+                ) : (
+                    <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                        {scheduledMessages.map((schedule) => (
+                            <div key={schedule.id} style={styles.listItem}>
+                                <div style={styles.listContent}>
+                                    <div style={styles.listTitle}>
+                                        {schedule.message.substring(0, 50)}...
+                                    </div>
+                                    <div style={styles.listMeta}>
+                                        🔄 {schedule.frequency === "daily" ? "Diária" :
+                                            schedule.frequency === "weekly" ? "Semanal" :
+                                                schedule.frequency === "custom" ? "Dias Específicos" : "Mensal"} às {schedule.time}
+                                    </div>
+                                    <div style={styles.listMeta}>
+                                        👥 {schedule.contactList.length} contactos
+                                    </div>
+                                    <div style={styles.listMeta}>
+                                        {schedule.enabled ? "✅ Ativo" : "⏸️ Pausado"}
+                                    </div>
+                                </div>
+                                <div style={styles.buttonGroup}>
+                                    <button
+                                        onClick={() => forceScheduleExecution(schedule.id)}
+                                        style={{
+                                            ...styles.button,
+                                            padding: '6px 10px',
+                                            fontSize: '0.8rem'
+                                        }}
+                                    >
+                                        ▶️ Executar
+                                    </button>
+                                    <button
+                                        onClick={() => toggleSchedule(schedule.id)}
+                                        style={{
+                                            ...styles.button,
+                                            ...(schedule.enabled ? styles.buttonWarning : styles.buttonSuccess),
+                                            padding: '6px 10px',
+                                            fontSize: '0.8rem'
+                                        }}
+                                    >
+                                        {schedule.enabled ? "⏸️ Pausar" : "▶️ Ativar"}
+                                    </button>
+                                    <button
+                                        onClick={() => deleteSchedule(schedule.id)}
+                                        style={{
+                                            ...styles.button,
+                                            ...styles.buttonDanger,
+                                            padding: '6px 10px',
+                                            fontSize: '0.8rem'
+                                        }}
+                                    >
+                                        🗑️ Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    const renderLogsTab = () => (
+        <div>
+            {/* Stats Cards */}
+            <div style={styles.statsGrid}>
+                <div style={styles.statCard}>
+                    <div style={styles.statNumber}>{stats.totalSchedules || 0}</div>
+                    <div style={styles.statLabel}>📅 Total Agendamentos</div>
+                </div>
+                <div style={styles.statCard}>
+                    <div style={styles.statNumber}>{stats.activeSchedules || 0}</div>
+                    <div style={styles.statLabel}>🟢 Ativos</div>
+                </div>
+                <div style={styles.statCard}>
+                    <div style={styles.statNumber}>{stats.totalLogs || 0}</div>
+                    <div style={styles.statLabel}>📝 Total Logs</div>
+                </div>
+                {stats.logsByType && (
+                    <div style={styles.statCard}>
+                        <div style={styles.statNumber}>{stats.logsByType.error || 0}</div>
+                        <div style={styles.statLabel}>❌ Erros</div>
+                    </div>
+                )}
+            </div>
+
+            <div style={styles.grid}>
+                {/* Log Filters */}
+                <div style={styles.card}>
+                    <h3 style={styles.cardTitle}>🔍 Filtros de Logs</h3>
+
                     <div style={styles.formGroup}>
                         <label style={styles.label}>Agendamento</label>
                         <select
@@ -693,28 +1695,58 @@ const WhatsAppWebConfig = () => {
                     </div>
 
                     <div style={styles.buttonGroup}>
-                        <button onClick={loadLogs} style={styles.button}>
-                            🔄 Atualizar Logs
+                        <button
+                            onClick={loadLogs}
+                            style={styles.button}
+                        >
+                            🔄 Atualizar
                         </button>
                         <button
                             onClick={() => clearLogs()}
                             style={{
                                 ...styles.button,
-                                backgroundColor: "#f44336",
+                                ...styles.buttonDanger,
                             }}
                         >
                             🗑️ Limpar Todos
                         </button>
                     </div>
                 </div>
+
+                {/* Type Stats */}
+                {stats.logsByType && (
+                    <div style={styles.card}>
+                        <h3 style={styles.cardTitle}>📊 Estatísticas por Tipo</h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                            <div style={{ ...styles.statCard, backgroundColor: '#e3f2fd' }}>
+                                <div style={{ ...styles.statNumber, fontSize: '1.5rem' }}>{stats.logsByType.info || 0}</div>
+                                <div style={styles.statLabel}>ℹ️ Info</div>
+                            </div>
+                            <div style={{ ...styles.statCard, backgroundColor: '#e8f5e8' }}>
+                                <div style={{ ...styles.statNumber, fontSize: '1.5rem' }}>{stats.logsByType.success || 0}</div>
+                                <div style={styles.statLabel}>✅ Sucesso</div>
+                            </div>
+                            <div style={{ ...styles.statCard, backgroundColor: '#fff3e0' }}>
+                                <div style={{ ...styles.statNumber, fontSize: '1.5rem' }}>{stats.logsByType.warning || 0}</div>
+                                <div style={styles.statLabel}>⚠️ Avisos</div>
+                            </div>
+                            <div style={{ ...styles.statCard, backgroundColor: '#ffebee' }}>
+                                <div style={{ ...styles.statNumber, fontSize: '1.5rem' }}>{stats.logsByType.error || 0}</div>
+                                <div style={styles.statLabel}>❌ Erros</div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Lista de Logs */}
-            <div style={styles.form}>
-                <h3>📋 Logs dos Agendamentos ({logs.length})</h3>
+            {/* Logs List */}
+            <div style={styles.card}>
+                <h3 style={styles.cardTitle}>📋 Logs dos Agendamentos ({logs.length})</h3>
                 <div style={styles.logsContainer}>
                     {logs.length === 0 ? (
-                        <p>Nenhum log encontrado.</p>
+                        <p style={{ textAlign: 'center', color: '#6c757d', padding: '20px' }}>
+                            Nenhum log encontrado.
+                        </p>
                     ) : (
                         logs.map((log) => (
                             <div
@@ -725,28 +1757,35 @@ const WhatsAppWebConfig = () => {
                                 }}
                             >
                                 <div style={styles.logHeader}>
-                                    <span style={styles.logType}>
-                                        {getLogIcon(log.type)}{" "}
-                                        {log.type.toUpperCase()}
+                                    <span style={{
+                                        ...styles.logType,
+                                        backgroundColor: getLogColor(log.type),
+                                        color: '#fff'
+                                    }}>
+                                        {getLogIcon(log.type)} {log.type.toUpperCase()}
                                     </span>
                                     <span style={styles.logTime}>
-                                        {new Date(log.timestamp).toLocaleString(
-                                            "pt-PT",
-                                        )}
+                                        {new Date(log.timestamp).toLocaleString('pt-PT')}
                                     </span>
                                 </div>
                                 <div style={styles.logMessage}>
                                     {log.message}
                                 </div>
                                 {log.details && (
-                                    <details style={styles.logDetails}>
-                                        <summary>Ver detalhes</summary>
-                                        <pre style={styles.logDetailsContent}>
-                                            {JSON.stringify(
-                                                log.details,
-                                                null,
-                                                2,
-                                            )}
+                                    <details style={{ marginTop: '10px' }}>
+                                        <summary style={{ cursor: 'pointer', color: '#007bff' }}>
+                                            Ver detalhes
+                                        </summary>
+                                        <pre style={{
+                                            background: '#f8f9fa',
+                                            padding: '10px',
+                                            borderRadius: '4px',
+                                            fontSize: '0.8rem',
+                                            overflow: 'auto',
+                                            maxHeight: '200px',
+                                            marginTop: '8px'
+                                        }}>
+                                            {JSON.stringify(log.details, null, 2)}
                                         </pre>
                                     </details>
                                 )}
@@ -758,1200 +1797,51 @@ const WhatsAppWebConfig = () => {
         </div>
     );
 
-    const getLogColor = (type) => {
-        switch (type) {
-            case "success":
-                return "#4caf50";
-            case "error":
-                return "#f44336";
-            case "warning":
-                return "#ff9800";
-            case "info":
-            default:
-                return "#2196f3";
-        }
-    };
-
-    const getLogIcon = (type) => {
-        switch (type) {
-            case "success":
-                return "✅";
-            case "error":
-                return "❌";
-            case "warning":
-                return "⚠️";
-            case "info":
-            default:
-                return "ℹ️";
-        }
-    };
-
-    const getStatusColor = () => {
-        switch (status.status) {
-            case "ready":
-                return "#25D366";
-            case "qr_received":
-                return "#FFA500";
-            case "authenticated":
-                return "#4CAF50";
-            case "auth_failure":
-                return "#f44336";
-            default:
-                return "#f44336";
-        }
-    };
-
-    const getStatusText = () => {
-        switch (status.status) {
-            case "ready":
-                return "✅ Conectado e Pronto";
-            case "qr_received":
-                return "📱 QR Code Disponível - Escaneie!";
-            case "authenticated":
-                return "🔐 Autenticado";
-            case "auth_failure":
-                return "❌ Falha na Autenticação";
-            default:
-                return "⚫ Desconectado";
-        }
-    };
-
-    const styles = {
-        container: {
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "20px",
-            fontFamily: "Arial, sans-serif",
-            height: "100vh",
-            overflowY: "auto",
-            overflowX: "hidden",
-        },
-        header: {
-            textAlign: "center",
-            marginBottom: "30px",
-            color: "#25D366",
-        },
-        tabContainer: {
-            display: "flex",
-            marginBottom: "20px",
-            borderBottom: "2px solid #eee",
-        },
-        tab: {
-            padding: "10px 20px",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "16px",
-            borderBottom: "3px solid transparent",
-        },
-        activeTab: {
-            borderBottom: "3px solid #25D366",
-            color: "#25D366",
-            fontWeight: "bold",
-        },
-        statusCard: {
-            background: "#f9f9f9",
-            padding: "20px",
-            borderRadius: "10px",
-            marginBottom: "20px",
-            border: `3px solid ${getStatusColor()}`,
-            textAlign: "center",
-        },
-        statusText: {
-            fontSize: "18px",
-            fontWeight: "bold",
-            color: getStatusColor(),
-            marginBottom: "10px",
-        },
-        qrContainer: {
-            background: "white",
-            padding: "20px",
-            borderRadius: "10px",
-            marginBottom: "20px",
-            textAlign: "center",
-            border: "2px solid #FFA500",
-        },
-        qrCode: {
-            maxWidth: "300px",
-            margin: "0 auto 15px",
-            display: "block",
-        },
-        form: {
-            background: "#f9f9f9",
-            padding: "20px",
-            borderRadius: "10px",
-            marginBottom: "20px",
-        },
-        formGroup: {
-            marginBottom: "15px",
-        },
-        label: {
-            display: "block",
-            marginBottom: "5px",
-            fontWeight: "bold",
-        },
-        input: {
-            width: "100%",
-            padding: "10px",
-            border: "1px solid #ddd",
-            borderRadius: "5px",
-            fontSize: "16px",
-        },
-        textarea: {
-            width: "100%",
-            padding: "10px",
-            border: "1px solid #ddd",
-            borderRadius: "5px",
-            fontSize: "16px",
-            minHeight: "80px",
-            resize: "vertical",
-        },
-        select: {
-            width: "100%",
-            padding: "10px",
-            border: "1px solid #ddd",
-            borderRadius: "5px",
-            fontSize: "16px",
-        },
-        button: {
-            background: "#25D366",
-            color: "white",
-            padding: "12px 24px",
-            border: "none",
-            borderRadius: "5px",
-            fontSize: "16px",
-            cursor: "pointer",
-            margin: "5px",
-        },
-        buttonSecondary: {
-            background: "#f44336",
-            color: "white",
-            padding: "12px 24px",
-            border: "none",
-            borderRadius: "5px",
-            fontSize: "16px",
-            cursor: "pointer",
-            margin: "5px",
-        },
-        buttonSmall: {
-            background: "#25D366",
-            color: "white",
-            padding: "8px 16px",
-            border: "none",
-            borderRadius: "3px",
-            fontSize: "12px",
-            cursor: "pointer",
-            margin: "2px",
-        },
-        buttonDanger: {
-            background: "#f44336",
-            color: "white",
-            padding: "8px 16px",
-            border: "none",
-            borderRadius: "3px",
-            fontSize: "12px",
-            cursor: "pointer",
-            margin: "2px",
-        },
-        buttonDisabled: {
-            background: "#ccc",
-            cursor: "not-allowed",
-        },
-        instructions: {
-            background: "#e3f2fd",
-            padding: "15px",
-            borderRadius: "5px",
-            marginBottom: "20px",
-            fontSize: "14px",
-            lineHeight: "1.5",
-        },
-        controls: {
-            textAlign: "center",
-            marginBottom: "20px",
-        },
-        listItem: {
-            background: "white",
-            padding: "15px",
-            marginBottom: "10px",
-            borderRadius: "5px",
-            border: "1px solid #ddd",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-        },
-        listContent: {
-            flex: 1,
-        },
-        listActions: {
-            display: "flex",
-            gap: "5px",
-        },
-        statsGrid: {
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-            gap: "15px",
-            marginBottom: "20px",
-        },
-        statCard: {
-            padding: "15px",
-            backgroundColor: "#f5f5f5",
-            borderRadius: "8px",
-            textAlign: "center",
-            border: "1px solid #ddd",
-        },
-        statNumber: {
-            fontSize: "24px",
-            fontWeight: "bold",
-            margin: "5px 0",
-            color: "#333",
-        },
-        logsTypeGrid: {
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-            gap: "10px",
-        },
-        logsContainer: {
-            maxHeight: "500px",
-            overflowY: "auto",
-            border: "1px solid #ddd",
-            borderRadius: "8px",
-            padding: "10px",
-        },
-        logItem: {
-            padding: "10px",
-            marginBottom: "10px",
-            backgroundColor: "#f9f9f9",
-            borderRadius: "5px",
-            borderLeft: "4px solid #2196f3",
-        },
-        logHeader: {
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "5px",
-        },
-        logType: {
-            fontWeight: "bold",
-            fontSize: "12px",
-        },
-        logTime: {
-            fontSize: "11px",
-            color: "#666",
-        },
-        logMessage: {
-            fontSize: "14px",
-            lineHeight: "1.4",
-        },
-        logDetails: {
-            marginTop: "10px",
-        },
-        logDetailsContent: {
-            background: "#f0f0f0",
-            padding: "10px",
-            borderRadius: "3px",
-            fontSize: "11px",
-            overflow: "auto",
-            maxHeight: "200px",
-        },
-        buttonGroup: {
-            display: "flex",
-            gap: "10px",
-            marginTop: "10px",
-        },
-        grid: {
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "20px",
-            marginBottom: "20px",
-        },
-        checkboxGroup: {
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "10px",
-            marginTop: "5px",
-        },
-        checkbox: {
-            marginRight: "5px",
-        },
-        testButtonsContainer: {
-            backgroundColor: "#f0f8ff",
-            padding: "15px",
-            borderRadius: "8px",
-            marginBottom: "20px",
-            border: "2px solid #2196f3",
-        },
-        userInfoCard: {
-            background: "#f0f8ff",
-            padding: "20px",
-            borderRadius: "10px",
-            marginBottom: "20px",
-            border: "2px solid #25D366",
-        },
-        userInfoContent: {
-            marginBottom: "15px",
-        },
-        userInfoItem: {
-            padding: "8px 0",
-            borderBottom: "1px solid #e0e0e0",
-            fontSize: "14px",
-        },
-        userInfoActions: {
-            textAlign: "center",
-            marginBottom: "15px",
-        },
-        userInfoNote: {
-            backgroundColor: "#fff3cd",
-            padding: "10px",
-            borderRadius: "5px",
-            border: "1px solid #ffeaa7",
-            lineHeight: "1.4",
-        },
-        dayLabel: {
-            display: "flex",
-            alignItems: "center",
-            padding: "5px 10px",
-            backgroundColor: "#f5f5f5",
-            borderRadius: "3px",
-            margin: "2px",
-        },
-        helpText: {
-            color: "#666",
-            fontSize: "12px",
-            marginTop: "8px",
-            display: "block",
-            fontStyle: "italic",
-        },
-    };
-
-    const renderConnectionTab = () => (
-        <div>
-            <div style={styles.statusCard}>
-                <div style={styles.statusText}>{getStatusText()}</div>
-                <div>
-                    Status: <strong>{status.status}</strong>
-                </div>
-            </div>
-
-            <div style={styles.instructions}>
-                <h3>📋 Como usar o WhatsApp Web API:</h3>
-                <ol>
-                    <li>Clique em "Conectar WhatsApp Web"</li>
-                    <li>Aguarde o QR Code aparecer</li>
-                    <li>Abra o WhatsApp no seu celular</li>
-                    <li>
-                        Vá em Configurações → Dispositivos conectados → Conectar
-                        dispositivo
-                    </li>
-                    <li>Escaneie o QR Code que aparece abaixo</li>
-                    <li>Aguarde a confirmação de conexão</li>
-                    <li>Teste enviando mensagens!</li>
-                </ol>
-                <p>
-                    <strong>✅ Vantagens:</strong> Totalmente gratuito,
-                    ilimitado, sem configuração de tokens!
+    return (
+        <div style={{
+            ...styles.container,
+            // Custom scrollbar styles
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#c1c1c1 #f1f1f1'
+        }}
+            className="custom-scroll"
+        >
+            {/* Header */}
+            <div style={styles.header}>
+                <h1 style={styles.title}>WhatsApp Web API</h1>
+                <p style={styles.subtitle}>
+                    Sistema completo de gestão de mensagens WhatsApp
                 </p>
             </div>
 
-            <div style={styles.controls}>
-                {!status.isReady ? (
-                    <div>
-                        <button
-                            onClick={handleConnect}
-                            style={{
-                                ...styles.button,
-                                ...(loading ? styles.buttonDisabled : {}),
-                            }}
-                            disabled={loading}
-                        >
-                            {loading
-                                ? "Conectando..."
-                                : "Conectar WhatsApp Web"}
-                        </button>
-
-                        <button
-                            onClick={async () => {
-                                if (
-                                    confirm(
-                                        "Isso irá limpar completamente qualquer sessão existente. Continuar?",
-                                    )
-                                ) {
-                                    setLoading(true);
-                                    try {
-                                        const response = await fetch(
-                                            `${API_BASE_URL}/clear-session`,
-                                            {
-                                                method: "POST",
-                                            },
-                                        );
-
-                                        if (response.ok) {
-                                            alert(
-                                                "Sessão limpa! Agora pode conectar com qualquer conta.",
-                                            );
-                                            setTimeout(
-                                                () => handleConnect(),
-                                                1000,
-                                            );
-                                        } else {
-                                            alert("Erro ao limpar sessão");
-                                        }
-                                    } catch (error) {
-                                        alert("Erro ao limpar sessão");
-                                    } finally {
-                                        setLoading(false);
-                                    }
-                                }
-                            }}
-                            style={{
-                                ...styles.button,
-                                backgroundColor: "#ff9800",
-                                ...(loading ? styles.buttonDisabled : {}),
-                            }}
-                            disabled={loading}
-                        >
-                            🗑️ Limpar Sessão e Conectar
-                        </button>
-                    </div>
-                ) : (
+            {/* Navigation Tabs */}
+            <div style={styles.navTabs}>
+                {[
+                    { id: 'connection', icon: '🔗', label: 'Conexão' },
+                    { id: 'contacts', icon: '👥', label: 'Contactos' },
+                    { id: 'schedule', icon: '⏰', label: 'Agendamento' },
+                    { id: 'logs', icon: '📋', label: 'Logs' }
+                ].map(tab => (
                     <button
-                        onClick={handleDisconnect}
+                        key={tab.id}
                         style={{
-                            ...styles.buttonSecondary,
-                            ...(loading ? styles.buttonDisabled : {}),
+                            ...styles.tab,
+                            ...(activeTab === tab.id ? styles.activeTab : {})
                         }}
-                        disabled={loading}
+                        onClick={() => setActiveTab(tab.id)}
                     >
-                        {loading ? "Desconectando..." : "Desconectar"}
+                        {tab.icon} {tab.label}
                     </button>
-                )}
+                ))}
             </div>
 
-            {/* Debug do status */}
-            <div
-                style={{
-                    ...styles.form,
-                    backgroundColor: "#f0f8ff",
-                    border: "1px solid #0066cc",
-                }}
-            >
-                <h4>🔍 Debug - Status da Conexão</h4>
-                <pre
-                    style={{
-                        fontSize: "12px",
-                        background: "#fff",
-                        padding: "10px",
-                        borderRadius: "5px",
-                    }}
-                >
-                    {JSON.stringify(status, null, 2)}
-                </pre>
+            {/* Content */}
+            <div style={styles.content}>
+                {activeTab === "connection" && renderConnectionTab()}
+                {activeTab === "contacts" && renderContactsTab()}
+                {activeTab === "schedule" && renderScheduleTab()}
+                {activeTab === "logs" && renderLogsTab()}
             </div>
-
-            {/* QR Code com melhor detecção */}
-            {(status.status === "qr_received" ||
-                status.hasQrCode ||
-                status.qrCode) && (
-                    <div style={styles.qrContainer}>
-                        <h3>📱 Escaneie este QR Code com seu WhatsApp:</h3>
-                        {status.qrCode ? (
-                            <div>
-                                <img
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(status.qrCode)}`}
-                                    alt="QR Code WhatsApp"
-                                    style={styles.qrCode}
-                                    onError={(e) => {
-                                        console.error(
-                                            "Erro ao carregar QR Code:",
-                                            e,
-                                        );
-                                        e.target.style.display = "none";
-                                    }}
-                                />
-                                <p>
-                                    <strong>⏱️ Aguardando escaneamento...</strong>
-                                </p>
-                                <p>
-                                    O QR Code é atualizado automaticamente a cada 3
-                                    segundos
-                                </p>
-
-                                {/* QR Code alternativo usando canvas */}
-                                <div
-                                    style={{
-                                        marginTop: "20px",
-                                        padding: "10px",
-                                        backgroundColor: "#f5f5f5",
-                                        borderRadius: "5px",
-                                    }}
-                                >
-                                    <small>
-                                        <strong>QR Code Data:</strong>
-                                    </small>
-                                    <div
-                                        style={{
-                                            wordBreak: "break-all",
-                                            fontSize: "10px",
-                                            maxHeight: "100px",
-                                            overflow: "auto",
-                                            backgroundColor: "white",
-                                            padding: "5px",
-                                            border: "1px solid #ddd",
-                                        }}
-                                    >
-                                        {status.qrCode.substring(0, 200)}...
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div
-                                style={{
-                                    padding: "20px",
-                                    backgroundColor: "#fff3cd",
-                                    borderRadius: "5px",
-                                }}
-                            >
-                                <p>
-                                    ⚠️ QR Code não disponível. Status:{" "}
-                                    {status.status}
-                                </p>
-                                <button
-                                    onClick={() => {
-                                        console.log(
-                                            "Forçando nova verificação de status...",
-                                        );
-                                        checkStatus();
-                                    }}
-                                    style={styles.button}
-                                >
-                                    🔄 Tentar Novamente
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-            {/* Botão para forçar obtenção de QR Code */}
-            {status.status === "disconnected" && (
-                <div
-                    style={{
-                        ...styles.form,
-                        backgroundColor: "#fff3cd",
-                        border: "1px solid #ffc107",
-                    }}
-                >
-                    <h4>🔧 Ferramentas de Debug</h4>
-                    <button
-                        onClick={async () => {
-                            try {
-                                const response = await fetch(
-                                    `${API_BASE_URL}/qr`,
-                                );
-                                const data = await response.json();
-                                console.log("QR Response:", data);
-                                alert(
-                                    `QR Status: ${data.status}\nQR Available: ${!!data.qrCode}`,
-                                );
-                            } catch (error) {
-                                console.error("Erro ao obter QR:", error);
-                                alert("Erro ao obter QR Code");
-                            }
-                        }}
-                        style={styles.button}
-                    >
-                        🔍 Verificar QR Code Diretamente
-                    </button>
-                </div>
-            )}
-
-            {status.isReady && userInfo && (
-                <div style={styles.userInfoCard}>
-                    <h3>👤 Contacto Principal Conectado</h3>
-                    <div style={styles.userInfoContent}>
-                        <div style={styles.userInfoItem}>
-                            <strong>📱 Nome:</strong>{" "}
-                            {userInfo.pushname || "Utilizador WhatsApp"}
-                        </div>
-                        <div style={styles.userInfoItem}>
-                            <strong>🔢 Número:</strong>{" "}
-                            {userInfo.formattedNumber ||
-                                userInfo.wid ||
-                                "Não disponível"}
-                        </div>
-                        <div style={styles.userInfoItem}>
-                            <strong>💻 Plataforma:</strong>{" "}
-                            {userInfo.platform || "WhatsApp Web"}
-                        </div>
-                        <div style={styles.userInfoItem}>
-                            <strong>⚡ Status:</strong> ✅ Conectado e ativo
-                        </div>
-                    </div>
-                    <div style={styles.userInfoActions}>
-                        <button
-                            onClick={handleChangeAccount}
-                            style={{
-                                ...styles.button,
-                                backgroundColor: "#ff9800",
-                            }}
-                            disabled={loading}
-                        >
-                            🔄 Trocar Conta WhatsApp
-                        </button>
-                    </div>
-                    <div style={styles.userInfoNote}>
-                        <small>
-                            📝 <strong>Nota:</strong> Todas as mensagens serão
-                            enviadas a partir desta conta WhatsApp. Para usar
-                            uma conta diferente, clique em "Trocar Conta
-                            WhatsApp".
-                        </small>
-                    </div>
-                </div>
-            )}
-
-            {status.isReady && (
-                <form onSubmit={handleTestMessage} style={styles.form}>
-                    <h3>📱 Enviar Mensagem de Teste</h3>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Número de Destino *</label>
-                        <input
-                            type="tel"
-                            style={styles.input}
-                            value={testMessage.to}
-                            onChange={(e) =>
-                                setTestMessage({
-                                    ...testMessage,
-                                    to: e.target.value,
-                                })
-                            }
-                            placeholder="351912345678 (com código do país)"
-                            required
-                        />
-                    </div>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Mensagem *</label>
-                        <textarea
-                            style={styles.textarea}
-                            value={testMessage.message}
-                            onChange={(e) =>
-                                setTestMessage({
-                                    ...testMessage,
-                                    message: e.target.value,
-                                })
-                            }
-                            placeholder="Digite sua mensagem aqui..."
-                            required
-                        />
-                    </div>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Prioridade</label>
-                        <select
-                            style={styles.select}
-                            value={testMessage.priority}
-                            onChange={(e) =>
-                                setTestMessage({
-                                    ...testMessage,
-                                    priority: e.target.value,
-                                })
-                            }
-                        >
-                            <option value="normal">Normal</option>
-                            <option value="info">Informação</option>
-                            <option value="warning">Aviso</option>
-                            <option value="urgent">Urgente</option>
-                        </select>
-                    </div>
-
-                    <button
-                        type="submit"
-                        style={{
-                            ...styles.button,
-                            ...(loading ? styles.buttonDisabled : {}),
-                            width: "100%",
-                        }}
-                        disabled={loading}
-                    >
-                        {loading ? "Enviando..." : "Enviar Mensagem de Teste"}
-                    </button>
-                </form>
-            )}
-        </div>
-    );
-
-    const renderContactsTab = () => (
-        <div>
-            <div style={styles.grid}>
-                <form onSubmit={handleCreateContactList} style={styles.form}>
-                    <h3>👥 Criar Lista de Contactos</h3>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Nome da Lista *</label>
-                        <input
-                            type="text"
-                            style={styles.input}
-                            value={newContactList.name}
-                            onChange={(e) =>
-                                setNewContactList({
-                                    ...newContactList,
-                                    name: e.target.value,
-                                })
-                            }
-                            placeholder="Ex: Clientes VIP, Equipa Vendas..."
-                            required
-                        />
-                    </div>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>
-                            Contactos (um por linha) *
-                        </label>
-                        <textarea
-                            style={{ ...styles.textarea, minHeight: "120px" }}
-                            value={newContactList.contacts}
-                            onChange={(e) =>
-                                setNewContactList({
-                                    ...newContactList,
-                                    contacts: e.target.value,
-                                })
-                            }
-                            placeholder="351912345678&#10;351923456789&#10;351934567890"
-                            required
-                        />
-                        <small>
-                            Insira um número por linha, com código do país (ex:
-                            351912345678)
-                        </small>
-                    </div>
-
-                    <button
-                        type="submit"
-                        style={{ ...styles.button, width: "100%" }}
-                    >
-                        Criar Lista de Contactos
-                    </button>
-                </form>
-
-                <div style={styles.form}>
-                    <h3>📋 Listas de Contactos ({contactLists.length})</h3>
-                    {contactLists.length === 0 ? (
-                        <p>Nenhuma lista de contactos criada ainda.</p>
-                    ) : (
-                        contactLists.map((list) => (
-                            <div key={list.id} style={styles.listItem}>
-                                <div style={styles.listContent}>
-                                    <strong>{list.name}</strong>
-                                    <br />
-                                    <small>
-                                        {list.contacts.length} contactos
-                                    </small>
-                                    <br />
-                                    <small>
-                                        Criada:{" "}
-                                        {new Date(
-                                            list.createdAt,
-                                        ).toLocaleDateString()}
-                                    </small>
-                                </div>
-                                <div style={styles.listActions}>
-                                    <button
-                                        onClick={() =>
-                                            alert(
-                                                `Contactos:\n${list.contacts.join("\n")}`,
-                                            )
-                                        }
-                                        style={styles.buttonSmall}
-                                    >
-                                        Ver
-                                    </button>
-                                    <button
-                                        onClick={() =>
-                                            deleteContactList(list.id)
-                                        }
-                                        style={styles.buttonDanger}
-                                    >
-                                        Eliminar
-                                    </button>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-
-    const renderScheduleTab = () => (
-        <div>
-            <div style={styles.grid}>
-                <form onSubmit={handleCreateSchedule} style={styles.form}>
-                    <h3>⏰ Agendar Mensagens</h3>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Mensagem *</label>
-                        <textarea
-                            style={styles.textarea}
-                            value={newSchedule.message}
-                            onChange={(e) =>
-                                setNewSchedule({
-                                    ...newSchedule,
-                                    message: e.target.value,
-                                })
-                            }
-                            placeholder="Digite a mensagem a ser enviada periodicamente..."
-                            required
-                        />
-                    </div>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Lista de Contactos *</label>
-                        <select
-                            style={styles.select}
-                            value={selectedContactList}
-                            onChange={(e) => {
-                                setSelectedContactList(e.target.value);
-                                const list = contactLists.find(
-                                    (l) => l.id.toString() === e.target.value,
-                                );
-                                // Converter array de strings para array de objetos
-                                const formattedContacts = list
-                                    ? list.contacts.map((phone) => ({
-                                        name: `Contacto ${phone.slice(-4)}`,
-                                        phone: phone,
-                                    }))
-                                    : [];
-                                setNewSchedule({
-                                    ...newSchedule,
-                                    contactList: formattedContacts,
-                                });
-                            }}
-                            required
-                        >
-                            <option value="">Selecione uma lista...</option>
-                            {contactLists.map((list) => (
-                                <option key={list.id} value={list.id}>
-                                    {list.name} ({list.contacts.length}{" "}
-                                    contactos)
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Frequência</label>
-                        <select
-                            style={styles.select}
-                            value={newSchedule.frequency}
-                            onChange={(e) =>
-                                setNewSchedule({
-                                    ...newSchedule,
-                                    frequency: e.target.value,
-                                    days: [],
-                                })
-                            }
-                        >
-                            <option value="daily">Diariamente</option>
-                            <option value="custom">Dias Específicos</option>
-                            <option value="weekly">Semanalmente</option>
-                            <option value="monthly">Mensalmente</option>
-                        </select>
-                    </div>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Hora</label>
-                        <input
-                            type="time"
-                            style={styles.input}
-                            value={newSchedule.time}
-                            onChange={(e) =>
-                                setNewSchedule({
-                                    ...newSchedule,
-                                    time: e.target.value,
-                                })
-                            }
-                        />
-                    </div>
-
-                    {(newSchedule.frequency === "weekly" ||
-                        newSchedule.frequency === "custom") && (
-                            <div style={styles.formGroup}>
-                                <label style={styles.label}>
-                                    {newSchedule.frequency === "weekly"
-                                        ? "Dias da Semana"
-                                        : "Escolher Dias (excluir fins de semana, feriados, etc.)"}
-                                </label>
-                                <div style={styles.checkboxGroup}>
-                                    {[
-                                        "Segunda",
-                                        "Terça",
-                                        "Quarta",
-                                        "Quinta",
-                                        "Sexta",
-                                        "Sábado",
-                                        "Domingo",
-                                    ].map((day, index) => (
-                                        <label key={index} style={styles.dayLabel}>
-                                            <input
-                                                type="checkbox"
-                                                style={styles.checkbox}
-                                                checked={newSchedule.days.includes(
-                                                    index + 1,
-                                                )}
-                                                onChange={(e) => {
-                                                    const days = [
-                                                        ...newSchedule.days,
-                                                    ];
-                                                    if (e.target.checked) {
-                                                        days.push(index + 1);
-                                                    } else {
-                                                        const i = days.indexOf(
-                                                            index + 1,
-                                                        );
-                                                        if (i > -1)
-                                                            days.splice(i, 1);
-                                                    }
-                                                    setNewSchedule({
-                                                        ...newSchedule,
-                                                        days,
-                                                    });
-                                                }}
-                                            />
-                                            {day}
-                                        </label>
-                                    ))}
-                                </div>
-                                {newSchedule.frequency === "custom" && (
-                                    <small style={styles.helpText}>
-                                        💡 Dica: Selecione apenas os dias em que
-                                        deseja que as mensagens sejam enviadas. Por
-                                        exemplo, exclua sábados e domingos para
-                                        envios apenas em dias úteis.
-                                    </small>
-                                )}
-                            </div>
-                        )}
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>
-                            Data de Início (opcional)
-                        </label>
-                        <input
-                            type="date"
-                            style={styles.input}
-                            value={newSchedule.startDate}
-                            onChange={(e) =>
-                                setNewSchedule({
-                                    ...newSchedule,
-                                    startDate: e.target.value,
-                                })
-                            }
-                        />
-                    </div>
-
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Prioridade</label>
-                        <select
-                            style={styles.select}
-                            value={newSchedule.priority}
-                            onChange={(e) =>
-                                setNewSchedule({
-                                    ...newSchedule,
-                                    priority: e.target.value,
-                                })
-                            }
-                        >
-                            <option value="normal">Normal</option>
-                            <option value="info">Informação</option>
-                            <option value="warning">Aviso</option>
-                            <option value="urgent">Urgente</option>
-                        </select>
-                    </div>
-
-                    <button
-                        type="submit"
-                        style={{ ...styles.button, width: "100%" }}
-                    >
-                        Agendar Mensagens
-                    </button>
-                </form>
-
-                <div style={styles.form}>
-                    <h3>📅 Mensagens Agendadas ({scheduledMessages.length})</h3>
-
-                    {/* Botões de Teste */}
-                    <div style={styles.testButtonsContainer}>
-                        <h4>🧪 Ferramentas de Teste</h4>
-                        <div style={styles.buttonGroup}>
-                            <button
-                                onClick={testScheduleNow}
-                                style={styles.buttonSmall}
-                            >
-                                🚀 Testar Primeiro Agendamento
-                            </button>
-                            <button
-                                onClick={simulateTimeExecution}
-                                style={styles.buttonSmall}
-                            >
-                                ⏰ Simular Hora
-                            </button>
-                            <button
-                                onClick={() => loadScheduledMessages()}
-                                style={styles.buttonSmall}
-                            >
-                                🔄 Atualizar Lista
-                            </button>
-                        </div>
-                    </div>
-
-                    {scheduledMessages.length === 0 ? (
-                        <p>Nenhuma mensagem agendada ainda.</p>
-                    ) : (
-                        scheduledMessages.map((schedule) => (
-                            <div key={schedule.id} style={styles.listItem}>
-                                <div style={styles.listContent}>
-                                    <strong>
-                                        {schedule.message.substring(0, 50)}...
-                                    </strong>
-                                    <br />
-                                    <small>
-                                        Frequência:{" "}
-                                        {schedule.frequency === "daily"
-                                            ? "Diária"
-                                            : schedule.frequency === "weekly"
-                                                ? "Semanal"
-                                                : schedule.frequency === "custom"
-                                                    ? "Dias Específicos"
-                                                    : "Mensal"}{" "}
-                                        às {schedule.time}
-                                        {schedule.days &&
-                                            schedule.days.length > 0 && (
-                                                <span>
-                                                    {" "}
-                                                    - Dias:{" "}
-                                                    {schedule.days
-                                                        .map(
-                                                            (d) =>
-                                                                [
-                                                                    "Dom",
-                                                                    "Seg",
-                                                                    "Ter",
-                                                                    "Qua",
-                                                                    "Qui",
-                                                                    "Sex",
-                                                                    "Sáb",
-                                                                ][
-                                                                d === 7
-                                                                    ? 0
-                                                                    : d
-                                                                ],
-                                                        )
-                                                        .join(", ")}
-                                                </span>
-                                            )}
-                                    </small>
-                                    <br />
-                                    <small>
-                                        {schedule.contactList.length} contactos
-                                    </small>
-                                    <br />
-                                    <small>
-                                        Status:{" "}
-                                        {schedule.enabled
-                                            ? "✅ Ativo"
-                                            : "⏸️ Pausado"}
-                                    </small>
-                                </div>
-                                <div style={styles.listActions}>
-                                    <button
-                                        onClick={() =>
-                                            forceScheduleExecution(schedule.id)
-                                        }
-                                        style={{
-                                            ...styles.buttonSmall,
-                                            backgroundColor: "#2196f3",
-                                        }}
-                                    >
-                                        ▶️ Executar
-                                    </button>
-                                    <button
-                                        onClick={() =>
-                                            toggleSchedule(schedule.id)
-                                        }
-                                        style={
-                                            schedule.enabled
-                                                ? styles.buttonDanger
-                                                : styles.buttonSmall
-                                        }
-                                    >
-                                        {schedule.enabled ? "Pausar" : "Ativar"}
-                                    </button>
-                                    <button
-                                        onClick={() =>
-                                            deleteSchedule(schedule.id)
-                                        }
-                                        style={styles.buttonDanger}
-                                    >
-                                        Eliminar
-                                    </button>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-
-    return (
-        <div style={styles.container}>
-            <h1 style={styles.header}>
-                📱 WhatsApp Web API - Sistema Completo
-            </h1>
-
-            <div style={styles.tabContainer}>
-                <button
-                    style={{
-                        ...styles.tab,
-                        ...(activeTab === "connection" ? styles.activeTab : {}),
-                    }}
-                    onClick={() => setActiveTab("connection")}
-                >
-                    🔗 Conexão
-                </button>
-                <button
-                    style={{
-                        ...styles.tab,
-                        ...(activeTab === "contacts" ? styles.activeTab : {}),
-                    }}
-                    onClick={() => setActiveTab("contacts")}
-                >
-                    👥 Contactos
-                </button>
-                <button
-                    style={{
-                        ...styles.tab,
-                        ...(activeTab === "schedule" ? styles.activeTab : {}),
-                    }}
-                    onClick={() => setActiveTab("schedule")}
-                >
-                    ⏰ Agendamento
-                </button>
-                <button
-                    style={{
-                        ...styles.tab,
-                        ...(activeTab === "logs" ? styles.activeTab : {}),
-                    }}
-                    onClick={() => setActiveTab("logs")}
-                >
-                    📋 Logs
-                </button>
-            </div>
-
-            {activeTab === "connection" && renderConnectionTab()}
-            {activeTab === "contacts" && renderContactsTab()}
-            {activeTab === "schedule" && renderScheduleTab()}
-            {activeTab === "logs" && renderLogsTab()}
         </div>
     );
 };
