@@ -11,20 +11,26 @@ let qrCodeData = null;
 let clientStatus = "disconnected";
 
 // Função para inicializar o cliente WhatsApp Web
-const initializeWhatsAppWeb = () => {
+const initializeWhatsAppWeb = async () => {
     if (client) {
-        return; // Cliente já inicializado
+        console.log("Cliente WhatsApp já existe, destruindo primeiro...");
+        try {
+            await client.destroy();
+        } catch (error) {
+            console.log("⚠️ Erro ao destruir cliente anterior (normal):", error.message);
+        }
+        client = null;
     }
     // Configuração específica para produção/servidor
     const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEV_DOMAIN;
-    
+
     client = new Client({
         authStrategy: new LocalAuth({
             dataPath: "./whatsapp-session",
         }),
         puppeteer: {
             headless: true,
-            executablePath: isProduction ? '/usr/bin/google-chrome' : undefined,
+            executablePath: isProduction ? '/usr/bin/chromium-browser' : undefined,
             args: [
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
@@ -86,7 +92,13 @@ const initializeWhatsAppWeb = () => {
     client.initialize();
 };
 // Chamar a função de inicialização no início do script
-initializeWhatsAppWeb();
+(async () => {
+    try {
+        await initializeWhatsAppWeb();
+    } catch (error) {
+        console.error("Erro na inicialização inicial do WhatsApp:", error);
+    }
+})();
 router.get("/agendamentos/logs", (req, res) => {
     const result = {
         logs: scheduleLogs,
@@ -117,10 +129,10 @@ router.get("/status", (req, res) => {
 });
 
 // Endpoint para iniciar conexão
-router.post("/connect", (req, res) => {
+router.post("/connect", async (req, res) => {
     try {
         if (!client) {
-            initializeWhatsAppWeb();
+            await initializeWhatsAppWeb();
             res.json({
                 message: "Iniciando conexão WhatsApp Web...",
                 status: clientStatus,
@@ -134,7 +146,7 @@ router.post("/connect", (req, res) => {
         }
     } catch (error) {
         console.error("Erro ao iniciar WhatsApp Web:", error);
-        res.status(500).json({ error: "Erro ao iniciar WhatsApp Web" });
+        res.status(500).json({ error: "Erro ao iniciar WhatsApp Web: " + error.message });
     }
 });
 
@@ -159,7 +171,7 @@ router.post("/disconnect", async (req, res) => {
 router.post("/clear-session", async (req, res) => {
     try {
         console.log("🧹 Iniciando limpeza de sessão WhatsApp...");
-        
+
         // Primeiro desconectar se estiver conectado
         if (client) {
             try {
@@ -214,7 +226,7 @@ router.post("/clear-session", async (req, res) => {
                 console.log('✅ Sessão WhatsApp limpa com sucesso');
             } catch (removeError) {
                 console.error("❌ Erro ao remover sessão com método personalizado:", removeError);
-                
+
                 // Tentar com fs.rmSync como fallback
                 try {
                     fs.rmSync(sessionPath, { recursive: true, force: true });
@@ -239,7 +251,7 @@ router.post("/clear-session", async (req, res) => {
         console.log("🎯 Estado final - Cliente limpo, status resetado");
 
         res.json({
-            message: sessionCleared 
+            message: sessionCleared
                 ? "Sessão limpa com sucesso. Pode agora conectar com uma nova conta."
                 : "Cliente resetado. Pode tentar conectar novamente.",
             sessionCleared,
@@ -249,22 +261,22 @@ router.post("/clear-session", async (req, res) => {
 
     } catch (error) {
         console.error("❌ Erro crítico ao limpar sessão:", error);
-        
+
         // Mesmo com erro, tentar resetar as variáveis
         try {
             if (client) {
-                await client.destroy().catch(() => {});
+                await client.destroy().catch(() => { });
             }
         } catch (finalError) {
             console.error("Erro final:", finalError);
         }
-        
+
         client = null;
         isClientReady = false;
         clientStatus = "disconnected";
         qrCodeData = null;
 
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Erro ao limpar sessão WhatsApp",
             details: error.message,
             clientReset: true,
@@ -933,6 +945,16 @@ router.get("/schedule-status", (req, res) => {
 
 // Endpoint para debug completo do WhatsApp Web
 router.get("/debug", (req, res) => {
+    const fs = require('fs');
+    const chromePaths = [
+        '/usr/bin/chromium-browser',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chrome',
+        '/snap/bin/chromium'
+    ];
+
+    const availableChrome = chromePaths.find(path => fs.existsSync(path));
+
     res.json({
         timestamp: new Date().toISOString(),
         status: clientStatus,
@@ -945,7 +967,12 @@ router.get("/debug", (req, res) => {
         },
         environment: {
             nodeVersion: process.version,
-            platform: process.platform
+            platform: process.platform,
+            availableChrome: availableChrome || 'Nenhum Chrome encontrado',
+            chromePaths: chromePaths.map(path => ({
+                path,
+                exists: fs.existsSync(path)
+            }))
         }
     });
 });
