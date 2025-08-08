@@ -1012,6 +1012,7 @@ router.put('/InsertParteDiariaItem', async (req, res) => {
             });
         }
     } catch (error) {
+        console.log("📦 Body:", JSON.stringify(req.body, null, 2));
         console.error("❌ Erro ao inserir parte diária:", error.response?.data || error.message);
         return res.status(500).json({
             error: "Erro inesperado ao inserir parte diária.",
