@@ -984,6 +984,8 @@ router.put('/InsertParteDiariaItem', async (req, res) => {
         console.log("🔁 Enviando PUT para Primavera:");
         console.log("🌐 URL:", apiUrl);
         console.log("📦 Body:", JSON.stringify(req.body, null, 2));
+        console.log("🔎 Valor de HorasExtra:", req.body?.HorasExtra);
+
         console.log("🧾 Headers:", {
             Authorization: `Bearer ${painelAdminToken}`,
             "Content-Type": "application/json",
