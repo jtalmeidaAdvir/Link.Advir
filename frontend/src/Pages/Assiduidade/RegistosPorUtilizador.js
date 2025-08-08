@@ -33,6 +33,10 @@ const [userToRegistar, setUserToRegistar] = useState(null);
 const [diaToRegistar, setDiaToRegistar] = useState(null);
 const [obraNoDialog, setObraNoDialog] = useState(obraSelecionada || '');
 
+const [selectedCells, setSelectedCells] = useState([]); 
+const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+
+
 const [horarios, setHorarios] = useState({
   entradaManha: '09:00',
   saidaManha: '13:00',
@@ -40,6 +44,55 @@ const [horarios, setHorarios] = useState({
   saidaTarde: '18:00'
 });
 
+
+const handleBulkConfirm = async () => {
+  if (!obraNoDialog) {
+    return alert('Escolhe uma obra para registar.');
+  }
+  try {
+    for (const cellKey of selectedCells) {
+      const [userId, dia] = cellKey.split('-').map(Number);
+      const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+      const tipos = ['entrada','saida','entrada','saida'];
+      const horas = [
+        horarios.entradaManha,
+        horarios.saidaManha,
+        horarios.entradaTarde,
+        horarios.saidaTarde
+      ];
+      for (let i = 0; i < 4; i++) {
+        const res = await fetch(
+          `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              tipo: tipos[i],
+              obra_id: +obraNoDialog,
+              user_id: userId,
+              timestamp: `${dataFormatada}T${horas[i]}:00`
+            })
+          }
+        );
+        if (!res.ok) throw new Error('Falha ao criar ponto');
+        const json = await res.json();
+        await fetch(
+          `https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`,
+          { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+    }
+    alert(`Registados e confirmados em bloco ${selectedCells.length} pontos!`);
+    setBulkDialogOpen(false);
+    setSelectedCells([]);        // <-- aqui
+    carregarDadosGrade();
+  } catch (err) {
+    alert(err.message);
+  }
+};
 
 
 
@@ -789,6 +842,67 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
                   📊 Exportar Grade
                 </button>
               )}
+
+              {viewMode === 'grade' && selectedCells.length > 0 && (
+              <button
+                style={styles.primaryButton}
+                onClick={() => setBulkDialogOpen(true)}
+              >
+                🗓️ Registar em bloco ({selectedCells.length} dias)
+              </button>
+            )}
+
+            {bulkDialogOpen && (
+  <div style={styles.modalOverlay}>
+    <div style={styles.modal}>
+      <h4>Registar em bloco ({selectedCells.join(', ')})</h4>
+      <div style={{ display: 'grid', gap: '8px' }}>
+  <label>Entrada (manhã):</label>
+  <input
+    type="time"
+    value={horarios.entradaManha}
+    onChange={e => setHorarios(h => ({ ...h, entradaManha: e.target.value }))}
+  />
+
+  <label>Saída (manhã):</label>
+  <input
+    type="time"
+    value={horarios.saidaManha}
+    onChange={e => setHorarios(h => ({ ...h, saidaManha: e.target.value }))}
+  />
+
+  <label>Entrada (tarde):</label>
+  <input
+    type="time"
+    value={horarios.entradaTarde}
+    onChange={e => setHorarios(h => ({ ...h, entradaTarde: e.target.value }))}
+  />
+
+  <label>Saída (tarde):</label>
+  <input
+    type="time"
+    value={horarios.saidaTarde}
+    onChange={e => setHorarios(h => ({ ...h, saidaTarde: e.target.value }))}
+  />
+</div>
+      <label>Obra:</label>
+      <select
+        style={{ width: '100%', margin: '10px 0', padding: '8px' }}
+        value={obraNoDialog}
+        onChange={e => setObraNoDialog(e.target.value)}
+      >
+        <option value="">-- selecione obra --</option>
+        {obras.map(o => (
+          <option key={o.id} value={o.id}>{o.nome}</option>
+        ))}
+      </select>
+      <button onClick={()=>setBulkDialogOpen(false)}>Cancelar</button>
+      <button onClick={handleBulkConfirm}>Confirmar</button>
+    </div>
+  </div>
+)}
+
+
             </>
           )}
 
@@ -929,11 +1043,26 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
                 <thead>
                   <tr>
                     <th style={{...styles.gradeHeader, ...styles.gradeHeaderFixed}}>Utilizador</th>
-                    {diasDoMes.map(dia => (
-                      <th key={dia} style={styles.gradeHeader}>
-                        {dia}
-                      </th>
-                    ))}
+                    {diasDoMes.map(dia => {
+  // certifica-te de transformar strings em números
+  const y = parseInt(anoSelecionado, 10);
+  const m = parseInt(mesSelecionado, 10) - 1;
+  const dateObj = new Date(y, m, dia);
+  const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+
+  return (
+    <th
+      key={dia}
+      style={{
+        ...styles.gradeHeader,
+        ...(isWeekend ? styles.weekendHeader : {})
+      }}
+    >
+      {dia}
+    </th>
+  );
+})}
+
                     <th style={styles.gradeHeader}>Total</th>
                   </tr>
                 </thead>
@@ -953,27 +1082,46 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
                         </div>
                       </td>
                       {diasDoMes.map(dia => {
-                        const estatisticas = item.estatisticasDias[dia];
-                        return (
-                          <td
-                            key={dia}
-                            style={{
-                              ...styles.gradeCell,
-                              backgroundColor: estatisticas ? obterCorStatusDia(estatisticas) : '#fafafa',
-                              cursor: 'pointer',
-                              border: estatisticas ? '1px solid #e2e8f0' : '1px dashed #cbd5e1'
-                            }}
+  const estatisticas = item.estatisticasDias[dia];
+  const cellKey = `${item.utilizador.id}-${dia}`;
+
+  return (
+    <td
+  onClick={e => {
+    const cellKey = `${item.utilizador.id}-${dia}`;
+    if (e.ctrlKey) {
+      setSelectedCells(cells =>
+        cells.includes(cellKey)
+          ? cells.filter(c => c !== cellKey)
+          : [...cells, cellKey]
+      );
+    } else {
+      setUserToRegistar(item.utilizador.id);
+      setDiaToRegistar(dia);
+      setDialogOpen(true);
+    }
+  }}
+  style={{
+    ...styles.gradeCell,
+    border: selectedCells.includes(`${item.utilizador.id}-${dia}`)
+      ? '3px solid #3182ce'
+      : estatisticas
+        ? '1px solid #e2e8f0'
+        : '1px dashed #cbd5e1',
+    backgroundColor: selectedCells.includes(`${item.utilizador.id}-${dia}`)
+      ? '#bee3f8'
+      : estatisticas
+        ? obterCorStatusDia(estatisticas)
+        : '#fafafa',
+    cursor: 'pointer'
+  }}
+
                             title={estatisticas ?
                               `${estatisticas.totalRegistos} registos\n${estatisticas.horasEstimadas} horas\n${estatisticas.confirmados}/${estatisticas.totalRegistos} confirmados\nPrimeiro: ${estatisticas.primeiroRegisto}\nÚltimo: ${estatisticas.ultimoRegisto}\n\nClique para registar novo ponto`
                               : 'Sem registos\n\nClique para registar ponto'
                             }
    
-                              onClick={() => {
-                                setUserToRegistar(item.utilizador.id);
-                                setDiaToRegistar(dia);
-                                setObraNoDialog(obraSelecionada || ''); // ou ''  
-                                setDialogOpen(true);
-                              }}
+                             
 
                           >
                             {estatisticas ? (
@@ -1016,7 +1164,16 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
     justifyContent: 'center',
     zIndex: 1000
   }}>
-    <div style={{ display: 'grid', gap: '8px' }}>
+  
+
+    <div style={{
+      background: 'white',
+      padding: '20px',
+      borderRadius: '8px',
+      minWidth: '300px'
+    }}>
+      <h4>Registar para dia {diaToRegistar}</h4>
+        <div style={{ display: 'grid', gap: '8px' }}>
   <label>Entrada (manhã):</label>
   <input
     type="time"
@@ -1045,14 +1202,6 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
     onChange={e => setHorarios(h => ({ ...h, saidaTarde: e.target.value }))}
   />
 </div>
-
-    <div style={{
-      background: 'white',
-      padding: '20px',
-      borderRadius: '8px',
-      minWidth: '300px'
-    }}>
-      <h4>Registar para dia {diaToRegistar}</h4>
       <label>Obra:</label>
       <select
         style={{ width: '100%', margin: '10px 0', padding: '8px' }}
@@ -1067,17 +1216,24 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
         <button onClick={() => setDialogOpen(false)}>Cancelar</button>
         <button onClick={async () => {
-               const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(diaToRegistar).padStart(2,'0')}`;
+  // monta a data
+  const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(diaToRegistar).padStart(2,'0')}`;
 
+  // tipos fixos
   const tipos = ['entrada','saida','entrada','saida'];
+
+  // usa diretamente o state "horarios" para compor o array de horas
   const horas = [
     horarios.entradaManha,
     horarios.saidaManha,
     horarios.entradaTarde,
     horarios.saidaTarde
   ];
+
+  // cria cada registro esquecido
+  const novosRegistos = [];
   for (let i = 0; i < tipos.length; i++) {
-    await fetch(`https://backend.advir.pt/api/registo-ponto-obra/`, {
+    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1086,17 +1242,32 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
       body: JSON.stringify({
         tipo: tipos[i],
         obra_id: +obraNoDialog,
-        user_id: userToRegistar,
-        timestamp: `${dataFormatada}T${horas[i]}:00`
+        timestamp: `${dataFormatada}T${horas[i]}:00`,
+        justificacao: '',
+
       })
     });
+    if (!res.ok) throw new Error('Falha ao criar ponto');
+    const json = await res.json();
+    novosRegistos.push(json);
   }
+
+  // confirma cada um dos registros recém-criados
+  for (const reg of novosRegistos) {
+    await fetch(`https://backend.advir.pt/api/registo-ponto-obra/confirmar/${reg.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  }
+
   setDialogOpen(false);
   if (viewMode === 'grade') carregarDadosGrade();
-  alert('Quatro pontos registados com sucesso!');
+  alert('Quatro pontos registados e confirmados com sucesso!');
 }}>
   Confirmar
 </button>
+
+
 
       </div>
     </div>
@@ -1629,6 +1800,14 @@ const styles = {
     border: '1px solid #e2e8f0',
     minWidth: '60px'
   },
+  // Destacar cabeçalhos de fim-de-semana
+weekendHeader: {
+  backgroundColor: '#e0f7fa'
+},
+// Destacar células de fim-de-semana
+weekendCell: {
+  backgroundColor: '#f0f8ff'
+},
   gradeHeaderFixed: {
     position: 'sticky',
     left: 0,
@@ -1861,7 +2040,17 @@ const styles = {
     fontSize: '4rem',
     display: 'block',
     marginBottom: '20px'
-  }
+  },
+  modalOverlay: {
+  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+  background: 'rgba(0,0,0,0.5)', display: 'flex',
+  alignItems: 'center', justifyContent: 'center', zIndex: 1000
+},
+modal: {
+  background: 'white', padding: '20px',
+  borderRadius: '8px', minWidth: '320px'
+}
+
 };
 
 // CSS animations and responsive styles

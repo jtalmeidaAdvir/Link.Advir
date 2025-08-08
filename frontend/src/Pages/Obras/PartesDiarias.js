@@ -573,8 +573,12 @@ return { equipas: equipasFormatadas, registos: todosRegistos };
             const horasPorDia = calcularHorasPorDia(grupo.registos, diasDoMes);
             
             // Armazenar horas originais para comparação
-            const chaveOriginal = `${grupo.user.id}-${grupo.obra.id}`;
-            novasHorasOriginais.set(chaveOriginal, {...horasPorDia});
+             // Vamos guardar também as horas originais e criar o mapa de horas por defeito
+ const horasOriginaisPorDia = {...horasPorDia};
+ const horasPorDefeito = {};
+ diasDoMes.forEach(dia => {
+   horasPorDefeito[dia] = horasOriginaisPorDia[dia] > 0 ? 480 : 0;
+ });
             
             // Criar entrada base para cada usuário-obra
             dadosProcessados.push({
@@ -585,7 +589,8 @@ return { equipas: equipasFormatadas, registos: todosRegistos };
                 obraId: grupo.obra.id,
                 obraNome: grupo.obra.nome,
                 obraCodigo: grupo.obra.codigo,
-                horasPorDia,
+                horasPorDia: horasPorDefeito,       // usar 8h por defeito
+                horasOriginais: horasOriginaisPorDia, // guardar o real
 
 
                 especialidades: [],
@@ -1036,7 +1041,9 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
       SubEmpID:      esp.subEmpId,    // agora corretamente preenchido
       NumHoras:      minutosTotal,
       PrecoUnit:     esp.precoUnit || 0,
-      Categoria:     esp.categoria
+      Categoria:     esp.categoria,
+      TipoHoraID: esp.especialidade && esp.especialidade !== '' ? "H01" : ''
+
     };
 
     console.log("▶ payloadItem", payloadItem);
@@ -1340,14 +1347,12 @@ if (modoVisualizacao === 'obra') {
                                                                     onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
                                                                     onLongPress={submetido ? undefined : () => iniciarEdicaoHoras(item.userId, item.obraId, dia, item.horasPorDia[dia] || 0)}
                                                                     >
-                                                                    <Text style={[
-                                                                        styles.cellText,
-                                                                        { textAlign: 'center' },
-                                                                        item.horasPorDia[dia] > 0 && styles.hoursText,
-                                                                        styles.clickableHours
-                                                                    ]}>
-                                                                        {formatarHorasMinutos(item.horasPorDia[dia] || 0)}
-                                                                    </Text>
+                                                                    <Text style={[styles.cellText, { textAlign: 'center' }, item.horasPorDia[dia] > 0 && styles.hoursText, styles.clickableHours]}>
+  { item.horasPorDia[dia] > 0
+    ? `${formatarHorasMinutos(item.horasPorDia[dia])}`
+    : '-' }
+</Text>
+
                                                                     {submetido && (
                                                                         <Ionicons
                                                                         name="checkmark-circle"
@@ -1472,7 +1477,10 @@ if (modoVisualizacao === 'obra') {
     item.horasPorDia[dia] > 0 && styles.hoursText,
     styles.clickableHours
   ]}>
-    {formatarHorasMinutos(item.horasPorDia[dia] || 0)}
+    { item.horasOriginais[dia] > 0
+    ? `${formatarHorasMinutos(480)}/${formatarHorasMinutos(item.horasOriginais[dia])}`
+    : '-' }
+
   </Text>
   {submetido && (
     <Ionicons
@@ -1595,12 +1603,14 @@ if (modoVisualizacao === 'obra') {
     );
 
     const renderEditModal = () => (
+        
         <Modal
             animationType="slide"
             transparent={true}
             visible={editModalVisible}
             onRequestClose={() => setEditModalVisible(false)}
         >
+            
             <View style={styles.modalContainer}>
                 <View style={styles.modalContent}>
                     <View style={styles.modalHeader}>
@@ -1623,8 +1633,12 @@ if (modoVisualizacao === 'obra') {
                                     Obra: {selectedTrabalhador.obraNome}
                                 </Text>
                                 <Text style={styles.editInfoText}>
-                                    Dia: {selectedDia} - Horas: {formatarHorasMinutos(selectedTrabalhador.horasPorDia[selectedDia] || 0)}
+                                Horas Reais de Ponto: {formatarHorasMinutos(selectedTrabalhador.horasOriginais[selectedDia] || 0)}
                                 </Text>
+                                <Text style={styles.editInfoText}>
+                                Horas para Parte Diária: {formatarHorasMinutos(selectedTrabalhador.horasPorDia[selectedDia] || 0)}
+                                </Text>
+
                                 <Text style={styles.editInfoSubText}>
                                     {selectedTrabalhador.horasPorDia[selectedDia] > 0 
                                         ? 'Baseado em registo de ponto' 
@@ -1648,8 +1662,25 @@ if (modoVisualizacao === 'obra') {
 
                             {editData.especialidadesDia?.map((espItem, index) => (
                                 <View key={index} style={styles.especialidadeItem}>
-                                    <View style={styles.especialidadeHeader}>
-                                        <Text style={styles.especialidadeTitle}>Especialidade {index + 1}</Text>
+                                    <View style={styles.especialidadeHeader}><View style={{ flexDirection: 'row', alignItems: 'center' }}>
+  <Text style={styles.especialidadeTitle}>Especialidade {index + 1}</Text>
+  <TouchableOpacity
+    onPress={() => {
+      atualizarEspecialidade(index, 'horaExtra', !espItem.horaExtra);
+    }}
+    style={{ marginLeft: 8 }}
+  >
+
+    <Text>Hora Extra</Text>
+    <Ionicons
+      name={espItem.horaExtra ? 'checkmark-circle' : 'ellipse-outline'}
+      size={20}
+      color={espItem.horaExtra ? '#28a745' : '#ccc'}
+    />
+
+  </TouchableOpacity>
+</View>
+
                                         {editData.especialidadesDia.length > 1 && (
                                             <TouchableOpacity
                                                 style={styles.removeButton}
