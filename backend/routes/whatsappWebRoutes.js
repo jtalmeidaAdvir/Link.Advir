@@ -30,6 +30,15 @@ const initializeWhatsAppWeb = () => {
                 "--no-zygote",
                 "--single-process",
                 "--disable-gpu",
+                "--disable-web-security",
+                "--disable-features=VizDisplayCompositor",
+                "--disable-extensions",
+                "--disable-plugins",
+                "--disable-default-apps",
+                "--no-default-browser-check",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-renderer-backgrounding"
             ],
         },
     });
