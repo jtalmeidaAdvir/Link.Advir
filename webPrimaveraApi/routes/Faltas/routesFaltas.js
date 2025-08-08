@@ -965,26 +965,30 @@ router.get("/GetListaEquipamentos", async (req, res) => {
 
 
 router.put('/InsertParteDiariaItem', async (req, res) => {
-     try {
+    try {
         const painelAdminToken = req.headers["authorization"]?.split(" ")[1]; // Obtendo o token do cabeçalho
         if (!painelAdminToken) {
-            return res
-                .status(401)
-                .json({
-                    error: "Token de administrador não encontrado. Faça login novamente.",
-                });
+            return res.status(401).json({
+                error: "Token de administrador não encontrado. Faça login novamente.",
+            });
         }
 
         const urlempresa = await getEmpresaUrl(req); // Usando a função para obter o urlempresa
         if (!urlempresa) {
-            return res
-                .status(400)
-                .json({ error: "URL da empresa não fornecida." });
+            return res.status(400).json({ error: "URL da empresa não fornecida." });
         }
+
         const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InsertParteDiariaItem`;
 
-        console.log("🔁 Enviando request para:", apiUrl);
-        console.log("📦 Dados enviados:", req.body);
+        // DEBUG LOGS DETALHADOS
+        console.log("🔁 Enviando PUT para Primavera:");
+        console.log("🌐 URL:", apiUrl);
+        console.log("📦 Body:", JSON.stringify(req.body, null, 2));
+        console.log("🧾 Headers:", {
+            Authorization: `Bearer ${painelAdminToken}`,
+            "Content-Type": "application/json",
+            Accept: "application/json"
+        });
 
         const response = await axios.put(apiUrl, req.body, {
             headers: {
@@ -1013,6 +1017,7 @@ router.put('/InsertParteDiariaItem', async (req, res) => {
         });
     }
 });
+
 
 router.get("/GetColaboradorId/:codFuncionario", async (req, res) => {
     try {
