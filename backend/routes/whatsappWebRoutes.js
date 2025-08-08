@@ -13,24 +13,18 @@ let clientStatus = "disconnected";
 // Função para inicializar o cliente WhatsApp Web
 const initializeWhatsAppWeb = () => {
     if (client) {
-        console.log("Cliente WhatsApp já inicializado, reiniciando...");
-        try {
-            client.destroy();
-        } catch (e) {
-            console.log("Erro ao destruir cliente anterior:", e.message);
-        }
-        client = null;
+        return; // Cliente já inicializado
     }
-
-    console.log("🚀 Inicializando WhatsApp Web cliente...");
+    // Configuração específica para produção/servidor
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEV_DOMAIN;
     
     client = new Client({
         authStrategy: new LocalAuth({
             dataPath: "./whatsapp-session",
-            clientId: "whatsapp-web-client"
         }),
         puppeteer: {
             headless: true,
+            executablePath: isProduction ? '/usr/bin/google-chrome' : undefined,
             args: [
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
@@ -49,12 +43,18 @@ const initializeWhatsAppWeb = () => {
                 "--disable-background-timer-throttling",
                 "--disable-backgrounding-occluded-windows",
                 "--disable-renderer-backgrounding",
-                "--disable-ipc-flooding-protection",
-                "--disable-renderer-backgrounding",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-background-timer-throttling"
+                ...(isProduction ? [
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-software-rasterizer",
+                    "--disable-background-networking",
+                    "--disable-default-apps",
+                    "--disable-sync",
+                    "--metrics-recording-only",
+                    "--no-first-run",
+                    "--safebrowsing-disable-auto-update",
+                    "--disable-crash-reporter"
+                ] : [])
             ],
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
         },
     });
     client.on("qr", (qr) => {
@@ -62,17 +62,7 @@ const initializeWhatsAppWeb = () => {
         clientStatus = "qr_received";
         console.log("📱 QR Code recebido! Tamanho:", qr.length);
         console.log("📱 Primeiros 100 caracteres:", qr.substring(0, 100));
-        console.log("📱 Status atualizado para:", clientStatus);
         qrcode.generate(qr, { small: true });
-    });
-
-    client.on("loading_screen", (percent, message) => {
-        console.log(`⏳ Carregando WhatsApp Web: ${percent}% - ${message}`);
-    });
-
-    client.on("auth_failure", (msg) => {
-        console.error("❌ Falha na autenticação WhatsApp:", msg);
-        clientStatus = "auth_failure";
     });
     client.on("ready", () => {
         console.log("WhatsApp Web Cliente conectado!");
@@ -95,11 +85,8 @@ const initializeWhatsAppWeb = () => {
     });
     client.initialize();
 };
-// Inicializar WhatsApp Web com delay para garantir que o servidor esteja pronto
-setTimeout(() => {
-    console.log("🎯 Iniciando WhatsApp Web após startup do servidor...");
-    initializeWhatsAppWeb();
-}, 2000);
+// Chamar a função de inicialização no início do script
+initializeWhatsAppWeb();
 router.get("/agendamentos/logs", (req, res) => {
     const result = {
         logs: scheduleLogs,
@@ -132,16 +119,13 @@ router.get("/status", (req, res) => {
 // Endpoint para iniciar conexão
 router.post("/connect", (req, res) => {
     try {
-        console.log("🔄 Solicitação de conexão recebida");
-        if (!client || clientStatus === "disconnected") {
-            console.log("🚀 Inicializando cliente WhatsApp...");
+        if (!client) {
             initializeWhatsAppWeb();
             res.json({
                 message: "Iniciando conexão WhatsApp Web...",
                 status: clientStatus,
             });
         } else {
-            console.log("ℹ️ Cliente já existe, status:", clientStatus);
             res.json({
                 message: "Cliente já iniciado",
                 status: clientStatus,
@@ -151,43 +135,6 @@ router.post("/connect", (req, res) => {
     } catch (error) {
         console.error("Erro ao iniciar WhatsApp Web:", error);
         res.status(500).json({ error: "Erro ao iniciar WhatsApp Web" });
-    }
-});
-
-// Endpoint para forçar reinicialização completa
-router.post("/force-restart", async (req, res) => {
-    try {
-        console.log("🔄 Forçando reinicialização do WhatsApp Web...");
-        
-        // Limpar cliente atual
-        if (client) {
-            try {
-                await client.destroy();
-            } catch (e) {
-                console.log("Aviso ao destruir cliente:", e.message);
-            }
-        }
-        
-        // Reset variables
-        client = null;
-        isClientReady = false;
-        clientStatus = "disconnected";
-        qrCodeData = null;
-        
-        // Aguardar um momento
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Reinicializar
-        initializeWhatsAppWeb();
-        
-        res.json({
-            message: "WhatsApp Web reinicializado com sucesso",
-            status: clientStatus,
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error("Erro ao reinicializar:", error);
-        res.status(500).json({ error: "Erro ao reinicializar WhatsApp Web" });
     }
 });
 
