@@ -17,6 +17,11 @@ const PartesDiarias = require('./models/partesDiarias');
 const Notificacao = require('./models/notificacao');
 const ParteDiariaCabecalho = require('./models/parteDiariaCabecalho');
 const ParteDiariaItem = require('./models/parteDiariaItem');
+const Contact = require('./models/contact');
+const Schedule = require('./models/schedule');
+
+// Nota: Contact e Schedule são tabelas independentes para o WhatsApp Web
+// sem relações diretas com outras tabelas
 
 // Relação N:N entre User e Empresa
 User.belongsToMany(Empresa, { through: UserEmpresa, foreignKey: 'user_id' });
@@ -70,18 +75,19 @@ ParteDiariaCabecalho.hasMany(ParteDiariaItem, { foreignKey: 'DocumentoID' });
 ParteDiariaItem.belongsTo(ParteDiariaCabecalho, { foreignKey: 'DocumentoID' });
 
 
-module.exports = { 
-    User, 
-    Empresa, 
-    UserEmpresa, 
-    Modulo, 
-    UserModulo, 
-    Submodulo, 
+module.exports = {
+    User,
+    Empresa,
+    UserEmpresa,
+    Modulo,
+    UserModulo,
+    Submodulo,
     UserSubmodulo,
     Obra,
     PartesDiarias,
     EquipaObra,
     RegistoPonto,
     Notificacao,
-    
- };
+    Contact,
+    Schedule
+};

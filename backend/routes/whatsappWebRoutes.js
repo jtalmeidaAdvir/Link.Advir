@@ -2,18 +2,19 @@ const express = require("express");
 const router = express.Router();
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
-
+//const { Schedule } = require('../models'); // Importar modelos de Schedule e Contact
+const scheduleLogs = [];
+const activeSchedules = new Map();
 let client = null;
 let isClientReady = false;
 let qrCodeData = null;
 let clientStatus = "disconnected";
 
-// Inicializar cliente WhatsApp Web
+// Função para inicializar o cliente WhatsApp Web
 const initializeWhatsAppWeb = () => {
     if (client) {
-        return;
+        return; // Cliente já inicializado
     }
-
     client = new Client({
         authStrategy: new LocalAuth({
             dataPath: "./whatsapp-session",
@@ -32,7 +33,6 @@ const initializeWhatsAppWeb = () => {
             ],
         },
     });
-
     client.on("qr", (qr) => {
         qrCodeData = qr;
         clientStatus = "qr_received";
@@ -40,34 +40,37 @@ const initializeWhatsAppWeb = () => {
         console.log("📱 Primeiros 100 caracteres:", qr.substring(0, 100));
         qrcode.generate(qr, { small: true });
     });
-
     client.on("ready", () => {
         console.log("WhatsApp Web Cliente conectado!");
         isClientReady = true;
         clientStatus = "ready";
         qrCodeData = null;
+        // Inicializar agendamentos ao estar pronto
+        initializeSchedules();
     });
-
     client.on("authenticated", () => {
         console.log("WhatsApp Web autenticado!");
         clientStatus = "authenticated";
     });
-
-    client.on("auth_failure", (msg) => {
-        console.error("Falha na autenticação:", msg);
-        clientStatus = "auth_failure";
-    });
-
     client.on("disconnected", (reason) => {
         console.log("WhatsApp Web desconectado:", reason);
         isClientReady = false;
         clientStatus = "disconnected";
-        client = null;
+        // Reiniciar o cliente após a desconexão
+        setTimeout(initializeWhatsAppWeb, 5000); // Reinicia após 5 segundos
     });
-
     client.initialize();
 };
-
+// Chamar a função de inicialização no início do script
+initializeWhatsAppWeb();
+router.get("/agendamentos/logs", (req, res) => {
+    const result = {
+        logs: scheduleLogs,
+        ativo: activeSchedules.size > 0 ? "Sim" : "Não",
+        totalAgendamentos: scheduleLogs.length,
+    };
+    res.json(result);
+});
 // Endpoint para inicializar/obter status
 router.get("/status", (req, res) => {
     const response = {
@@ -346,11 +349,97 @@ router.get("/qr", (req, res) => {
     }
 });
 
-// Sistema de armazenamento simples em memória para agendamentos
-let scheduledMessages = [];
-let activeSchedules = new Map();
-let scheduleLogs = [];
+// Sistema de armazenamento em base de dados para agendamentos
+const { sequelize } = require('../config/db');
+const { Op } = require('sequelize');
+const Contact = require('../models/contact');
+const Schedule = require('../models/schedule');
 
+// Endpoint para criar lista de contactos
+router.post("/contact-lists", async (req, res) => {
+    try {
+        const { name, contacts } = req.body;
+
+        if (!name || !contacts || contacts.length === 0) {
+            return res.status(400).json({
+                error: "Nome e lista de contactos são obrigatórios",
+            });
+        }
+
+        const newContactList = await Contact.create({
+            name,
+            contacts: JSON.stringify(contacts)
+        });
+
+        res.json({
+            message: "Lista de contactos criada com sucesso",
+            contactList: {
+                id: newContactList.id,
+                name: newContactList.name,
+                contacts: JSON.parse(newContactList.contacts),
+                createdAt: newContactList.created_at
+            }
+        });
+    } catch (error) {
+        console.error("Erro ao criar lista de contactos:", error);
+        res.status(500).json({ error: "Erro ao criar lista de contactos" });
+    }
+});
+
+// Endpoint para obter listas de contactos
+router.get('/contacts', async (req, res) => {
+    try {
+        // Verificar se a tabela existe, se não, tentar criar
+        try {
+            await Contact.sync({ force: false });
+        } catch (syncError) {
+            console.error('Erro ao sincronizar tabela contacts:', syncError);
+            return res.status(500).json({
+                message: 'Tabela contacts não existe. Use /api/init-whatsapp-tables para criar.'
+            });
+        }
+
+        const contacts = await Contact.findAll({
+            order: [['created_at', 'DESC']]
+        });
+
+        const formattedContacts = contacts.map(contact => ({
+            id: contact.id,
+            name: contact.name,
+            contacts: JSON.parse(contact.contacts),
+            createdAt: contact.created_at
+        }));
+
+        res.json(formattedContacts);
+    } catch (error) {
+        console.error('Erro ao carregar listas de contactos:', error);
+        res.status(500).json({
+            message: 'Erro ao carregar listas de contactos',
+            error: error.message
+        });
+    }
+});
+
+// Endpoint para eliminar lista de contactos
+router.delete("/contact-lists/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deleted = await Contact.destroy({
+            where: { id }
+        });
+
+        if (deleted) {
+            res.json({ message: "Lista de contactos eliminada com sucesso" });
+        } else {
+            res.status(404).json({ error: "Lista não encontrada" });
+        }
+    } catch (error) {
+        console.error("Erro ao eliminar lista:", error);
+        res.status(500).json({ error: "Erro ao eliminar lista de contactos" });
+    }
+});
+const scheduledMessages = {};
 // Endpoint para criar agendamento de mensagens
 router.post("/schedule", async (req, res) => {
     try {
@@ -362,37 +451,84 @@ router.post("/schedule", async (req, res) => {
 
         const { message, contactList, frequency, time, days, startDate, enabled, priority } = req.body;
 
+        console.log("📥 Requisição recebida em POST /schedule");
+        console.log("📦 Dados recebidos:", req.body);
+
         if (!message || !contactList || contactList.length === 0) {
             return res.status(400).json({
                 error: "Mensagem e lista de contactos são obrigatórios",
             });
         }
 
-        const scheduleId = Date.now().toString();
-        const schedule = {
-            id: scheduleId,
+        // Função para validar formato HH:MM ou HH:MM:SS
+        function isValidTimeFormat(timeStr) {
+            return /^(\d{2}):(\d{2})(?::(\d{2}))?$/.test(timeStr);
+        }
+
+        // Função para completar o tempo para HH:MM:SS (se for HH:MM adiciona :00)
+        function normalizeTimeFormat(timeStr) {
+            if (/^\d{2}:\d{2}$/.test(timeStr)) {
+                return timeStr + ":00";
+            }
+            return timeStr;
+        }
+
+        // Função para converter hora em objeto Date com base em 1970-01-01
+        function parseTimeToDate(timeStr) {
+            const [hours, minutes, seconds] = timeStr.split(":").map(Number);
+            const date = new Date(0); // 1970-01-01T00:00:00Z
+            date.setUTCHours(hours, minutes, seconds, 0);
+            return date;
+        }
+
+        let formattedTimeStr = time || "09:00:00";
+        if (!isValidTimeFormat(formattedTimeStr)) {
+            return res.status(400).json({
+                error: "Formato de hora inválido. Utilize o formato HH:MM ou HH:MM:SS."
+            });
+        }
+
+        formattedTimeStr = normalizeTimeFormat(formattedTimeStr);
+
+        console.log("⏰ Horário formatado para salvar:", formattedTimeStr);
+
+        const parsedTime = parseTimeToDate(formattedTimeStr);
+
+        const newSchedule = await Schedule.create({
             message,
-            contactList,
-            frequency: frequency || 'daily',
-            time: time || '09:00',
-            days: days || [],
-            startDate: startDate || new Date().toISOString().split('T')[0],
-            enabled: enabled !== false,
-            priority: priority || 'normal',
-            createdAt: new Date().toISOString(),
-            lastSent: null,
-            totalSent: 0
+            contact_list: JSON.stringify(contactList),
+            frequency: frequency || "daily",
+            time: parsedTime,
+            days: days ? JSON.stringify(days) : JSON.stringify([1, 2, 3, 4, 5]),
+            start_date: startDate ? new Date(startDate) : new Date(),
+            enabled: enabled !== undefined ? enabled : true,
+            priority: priority || "normal"
+        });
+
+        const scheduleData = {
+            id: newSchedule.id,
+            message: newSchedule.message,
+            contactList: JSON.parse(newSchedule.contact_list),
+            frequency: newSchedule.frequency,
+            time: formattedTimeStr,
+            days: newSchedule.days ? JSON.parse(newSchedule.days) : [],
+            startDate: newSchedule.start_date,
+            enabled: newSchedule.enabled,
+            priority: newSchedule.priority,
+            createdAt: newSchedule.created_at,
+            lastSent: newSchedule.last_sent,
+            totalSent: newSchedule.total_sent
         };
 
-        scheduledMessages.push(schedule);
-
-        if (schedule.enabled) {
-            startSchedule(schedule);
+        if (enabled) {
+            startSchedule(scheduleData);
         }
+
+        console.log("Criando agendamento com os seguintes dados:", scheduleData);
 
         res.json({
             message: "Agendamento criado com sucesso",
-            schedule
+            schedule: scheduleData
         });
     } catch (error) {
         console.error("Erro ao criar agendamento:", error);
@@ -400,43 +536,104 @@ router.post("/schedule", async (req, res) => {
     }
 });
 
-// Endpoint para listar agendamentos
-router.get("/schedules", (req, res) => {
-    res.json({ schedules: scheduledMessages });
+
+
+
+
+// Endpoint para obter agendamentos
+router.get('/schedules', async (req, res) => {
+    try {
+        // Verificar se a tabela existe, se não, tentar criar
+        try {
+            await Schedule.sync({ force: false });
+        } catch (syncError) {
+            console.error('Erro ao sincronizar tabela schedules:', syncError);
+            return res.status(500).json({
+                message: 'Tabela schedules não existe. Use /api/init-whatsapp-tables para criar.'
+            });
+        }
+
+        const schedules = await Schedule.findAll({
+            order: [['created_at', 'DESC']]
+        });
+
+        const formattedSchedules = schedules.map(schedule => ({
+            id: schedule.id,
+            message: schedule.message,
+            contactList: JSON.parse(schedule.contact_list),
+            frequency: schedule.frequency,
+            time: schedule.time,
+            days: schedule.days ? JSON.parse(schedule.days) : [],
+            startDate: schedule.start_date,
+            enabled: schedule.enabled,
+            priority: schedule.priority,
+            createdAt: schedule.created_at,
+            lastSent: schedule.last_sent,
+            totalSent: schedule.total_sent
+        }));
+
+        res.json(formattedSchedules);
+    } catch (error) {
+        console.error('Erro ao carregar agendamentos:', error);
+        res.status(500).json({
+            message: 'Erro ao carregar agendamentos',
+            error: error.message
+        });
+    }
 });
 
 // Endpoint para atualizar agendamento
-router.put("/schedule/:id", (req, res) => {
+router.put("/schedule/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
 
-        const scheduleIndex = scheduledMessages.findIndex(s => s.id === id);
-        if (scheduleIndex === -1) {
+        const schedule = await Schedule.findByPk(id);
+        if (!schedule) {
             return res.status(404).json({ error: "Agendamento não encontrado" });
         }
 
         // Parar agendamento atual se ativo
-        if (activeSchedules.has(id)) {
-            clearInterval(activeSchedules.get(id));
-            activeSchedules.delete(id);
+        if (activeSchedules.has(id.toString())) {
+            clearInterval(activeSchedules.get(id.toString()));
+            activeSchedules.delete(id.toString());
         }
 
-        // Atualizar dados
-        scheduledMessages[scheduleIndex] = {
-            ...scheduledMessages[scheduleIndex],
-            ...updates,
-            updatedAt: new Date().toISOString()
+        // Atualizar dados na base de dados
+        await schedule.update({
+            message: updates.message || schedule.message,
+            contact_list: updates.contactList ? JSON.stringify(updates.contactList) : schedule.contact_list,
+            frequency: updates.frequency || schedule.frequency,
+            time: updates.time || schedule.time,
+            days: updates.days ? JSON.stringify(updates.days) : schedule.days,
+            start_date: updates.startDate || schedule.start_date,
+            enabled: updates.enabled !== undefined ? updates.enabled : schedule.enabled,
+            priority: updates.priority || schedule.priority
+        });
+
+        const updatedSchedule = {
+            id: schedule.id,
+            message: schedule.message,
+            contactList: JSON.parse(schedule.contact_list),
+            frequency: schedule.frequency,
+            time: schedule.time,
+            days: schedule.days ? JSON.parse(schedule.days) : [],
+            startDate: schedule.start_date,
+            enabled: schedule.enabled,
+            priority: schedule.priority,
+            createdAt: schedule.created_at,
+            lastSent: schedule.last_sent,
+            totalSent: schedule.total_sent
         };
 
         // Reiniciar se habilitado
-        if (scheduledMessages[scheduleIndex].enabled) {
-            startSchedule(scheduledMessages[scheduleIndex]);
+        if (schedule.enabled) {
+            startSchedule(updatedSchedule);
         }
 
         res.json({
             message: "Agendamento atualizado com sucesso",
-            schedule: scheduledMessages[scheduleIndex]
+            schedule: updatedSchedule
         });
     } catch (error) {
         console.error("Erro ao atualizar agendamento:", error);
@@ -445,20 +642,26 @@ router.put("/schedule/:id", (req, res) => {
 });
 
 // Endpoint para deletar agendamento
-router.delete("/schedule/:id", (req, res) => {
+router.delete("/schedule/:id", async (req, res) => {
     try {
         const { id } = req.params;
 
         // Parar agendamento se ativo
-        if (activeSchedules.has(id)) {
-            clearInterval(activeSchedules.get(id));
-            activeSchedules.delete(id);
+        if (activeSchedules.has(id.toString())) {
+            clearInterval(activeSchedules.get(id.toString()));
+            activeSchedules.delete(id.toString());
         }
 
-        // Remover da lista
-        scheduledMessages = scheduledMessages.filter(s => s.id !== id);
+        // Remover da base de dados
+        const deleted = await Schedule.destroy({
+            where: { id }
+        });
 
-        res.json({ message: "Agendamento removido com sucesso" });
+        if (deleted) {
+            res.json({ message: "Agendamento removido com sucesso" });
+        } else {
+            res.status(404).json({ error: "Agendamento não encontrado" });
+        }
     } catch (error) {
         console.error("Erro ao remover agendamento:", error);
         res.status(500).json({ error: "Erro ao remover agendamento" });
@@ -469,7 +672,7 @@ router.delete("/schedule/:id", (req, res) => {
 router.post("/schedule/:id/execute", async (req, res) => {
     try {
         const { id } = req.params;
-        const schedule = scheduledMessages.find(s => s.id === id);
+        const schedule = await Schedule.findByPk(id);
 
         if (!schedule) {
             return res.status(404).json({ error: "Agendamento não encontrado" });
@@ -481,28 +684,28 @@ router.post("/schedule/:id/execute", async (req, res) => {
             });
         }
 
-        addLog(id, 'info', 'Execução manual iniciada pelo utilizador');
+        const scheduleData = {
+            id: schedule.id,
+            message: schedule.message,
+            contactList: JSON.parse(schedule.contact_list),
+            frequency: schedule.frequency,
+            time: schedule.time,
+            days: schedule.days ? JSON.parse(schedule.days) : [],
+            startDate: schedule.start_date,
+            enabled: schedule.enabled,
+            priority: schedule.priority,
+            createdAt: schedule.created_at,
+            lastSent: schedule.last_sent,
+            totalSent: schedule.total_sent
+        };
+
+        addLog(id.toString(), 'info', 'Execução manual iniciada pelo utilizador');
         const result = await executeScheduledMessage(schedule);
         res.json(result);
     } catch (error) {
         console.error("Erro ao executar agendamento:", error);
         res.status(500).json({ error: "Erro ao executar agendamento" });
     }
-});
-
-// Endpoint para testar sistema de logs
-router.post("/test-logs", (req, res) => {
-    const testId = "TEST_" + Date.now();
-
-    addLog(testId, 'info', 'Log de teste criado');
-    addLog(testId, 'success', 'Sistema de logs funcionando perfeitamente');
-    addLog(testId, 'warning', 'Este é um aviso de teste');
-    addLog(testId, 'error', 'Este é um erro de teste (simulado)');
-
-    res.json({
-        message: "Logs de teste criados com sucesso",
-        testId: testId
-    });
 });
 
 // Endpoint para teste rápido de agendamento (executa imediatamente)
@@ -747,34 +950,30 @@ function startSchedule(schedule) {
     } else {
         addLog(schedule.id, 'info', `Agendamento iniciado - Frequência: ${schedule.frequency}, Hora: ${schedule.time}`);
     }
-
     const checkAndExecute = () => {
         const now = new Date();
+        if (typeof schedule.time !== 'string') {
+            addLog(schedule.id, 'error', `Formato inválido para schedule.time: ${schedule.time}`);
+            return; // Sai da função se o formato for inválido
+        }
         const scheduleTime = schedule.time.split(':');
         const scheduleHour = parseInt(scheduleTime[0]);
         const scheduleMinute = parseInt(scheduleTime[1]);
-
-        // Log de verificação a cada hora (não a cada minuto para não poluir)
         if (now.getMinutes() === 0) {
             addLog(schedule.id, 'info', `Verificação automática - Próxima execução prevista: ${schedule.time}`);
         }
-
-        // Verificar se é a hora correta (com margem de 1 minuto)
         if (now.getHours() === scheduleHour && now.getMinutes() === scheduleMinute) {
             addLog(schedule.id, 'info', 'Hora de execução atingida, verificando condições...');
-
-            // Verificar se deve executar baseado na frequência
             if (shouldExecuteToday(schedule, now)) {
                 addLog(schedule.id, 'info', 'Condições atendidas, iniciando execução...');
-                executeScheduledMessage(schedule);
+                executeScheduledMessage(schedule); // Certifique-se de que executeScheduledMessage está definida corretamente
             } else {
                 addLog(schedule.id, 'warning', 'Condições não atendidas para execução hoje');
             }
         }
     };
-
-    // Verificar a cada minuto
-    const intervalId = setInterval(checkAndExecute, 60000);
+    // Define o intervalo para verificar a hora
+    const intervalId = setInterval(checkAndExecute, 60000); // Verifica a cada minuto
     activeSchedules.set(schedule.id, intervalId);
 }
 
@@ -906,11 +1105,16 @@ async function executeScheduledMessage(schedule) {
             }
         }
 
-        // Atualizar estatísticas do agendamento
-        const scheduleIndex = scheduledMessages.findIndex(s => s.id === schedule.id);
-        if (scheduleIndex !== -1) {
-            scheduledMessages[scheduleIndex].lastSent = new Date().toISOString();
-            scheduledMessages[scheduleIndex].totalSent += successCount;
+        // Atualizar estatísticas do agendamento na base de dados
+        try {
+            await Schedule.update({
+                last_sent: new Date(),
+                total_sent: sequelize.literal(`total_sent + ${successCount}`)
+            }, {
+                where: { id: schedule.id }
+            });
+        } catch (error) {
+            console.error("Erro ao atualizar estatísticas:", error);
         }
 
         addLog(schedule.id, 'success', `Execução concluída: ${successCount} sucessos, ${errorCount} erros`, {
@@ -1098,5 +1302,18 @@ if (client) {
         initializeSchedules();
     });
 }
+
+// Endpoint para criar as tabelas do WhatsApp Web (contacts e schedules)
+router.post('/init-whatsapp-tables', async (req, res) => {
+    try {
+        await Contact.sync({ force: true }); // force: true irá apagar e recriar a tabela
+        await Schedule.sync({ force: true }); // force: true irá apagar e recriar a tabela
+        console.log('Tabelas contacts e schedules criadas com sucesso!');
+        res.json({ message: 'Tabelas contacts e schedules criadas com sucesso!' });
+    } catch (error) {
+        console.error('Erro ao criar tabelas:', error);
+        res.status(500).json({ error: 'Erro ao criar tabelas', details: error.message });
+    }
+});
 
 module.exports = router;

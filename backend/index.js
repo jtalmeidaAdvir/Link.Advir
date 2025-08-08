@@ -37,13 +37,42 @@ app.use(fileUpload());
 
 async function startApp() {
     await initializeSequelize();
-    await sequelize.sync({ alter: true }) // Sincroniza sem perder dados
-        .then(() => {
-            console.log('Tabelas sincronizadas com sucesso.');
-        })
-        .catch((err) => {
-            console.error('Erro ao sincronizar as tabelas:', err);
-        });
+
+    try {
+        console.log('Iniciando sincronização das tabelas...');
+
+        // Primeiro, tentar criar tabelas que não existem
+        await sequelize.sync({ force: false });
+        console.log('Tabelas sincronizadas com sucesso.');
+
+        // Tentar criar especificamente as tabelas do WhatsApp Web
+        try {
+            const Contact = require('./models/contact');
+            const Schedule = require('./models/schedule');
+
+            await Contact.sync({ force: false });
+            await Schedule.sync({ force: false });
+            console.log('Tabelas do WhatsApp Web verificadas/criadas.');
+
+        } catch (whatsappErr) {
+            console.error('Erro ao criar tabelas WhatsApp:', whatsappErr);
+            console.log('Use o endpoint /api/init-whatsapp-tables para criar manualmente');
+        }
+
+    } catch (err) {
+        console.error('Erro na sincronização:', err);
+
+        try {
+            console.log('Tentando sincronização com alterações...');
+            // Fallback: tentar com alter para tabelas existentes
+            await sequelize.sync({ alter: true });
+            console.log('Sincronização com alterações concluída.');
+
+        } catch (alterErr) {
+            console.error('Erro na sincronização com alterações:', alterErr);
+            console.log('A aplicação continuará mesmo com erros de sincronização...');
+        }
+    }
 }
 
 // Rotas
@@ -75,6 +104,34 @@ app.get('/databases', async (req, res) => {
         res.json(databases);
     } catch (error) {
         res.status(500).json({ message: 'Erro ao obter as bases de dados' });
+    }
+});
+
+// Endpoint para inicializar tabelas do WhatsApp Web
+app.post('/api/init-whatsapp-tables', async (req, res) => {
+    try {
+        const Contact = require('./models/contact');
+        const Schedule = require('./models/schedule');
+
+        console.log('Criando tabelas do WhatsApp Web...');
+
+        // Forçar criação das tabelas
+        await Contact.sync({ force: true });
+        console.log('Tabela contacts criada com sucesso');
+
+        await Schedule.sync({ force: true });
+        console.log('Tabela schedules criada com sucesso');
+
+        res.json({
+            message: 'Tabelas do WhatsApp Web criadas com sucesso',
+            tables: ['contacts', 'schedules']
+        });
+    } catch (error) {
+        console.error('Erro ao criar tabelas WhatsApp:', error);
+        res.status(500).json({
+            message: 'Erro ao criar tabelas do WhatsApp Web',
+            error: error.message
+        });
     }
 });
 
