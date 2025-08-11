@@ -20,10 +20,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const GestaoPartesDiarias = () => {
 // === NO TOPO DO FICHEIRO (fora do componente) ===
-const DOC_ID_DEFAULT = '1747FEA9-5D2F-45B4-A89B-9EA30B1E0DCB'; // mão-de-obra/otros
+// === NO TOPO DO FICHEIRO (fora do componente) ===
+const DOC_ID_DEFAULT = '1747FEA9-5D2F-45B4-A89B-9EA30B1E0DCB'; // mão-de-obra/outros
 const DOC_ID_EQUIP   = '11C77189-1046-4CDE-96F9-503B8EB25B08'; // equipamentos
 
-const buildPayload = ({ docId, cab, itens, idObra, colaboradorIdCab, colaboradorIdItens }) => ({
+// Pessoal / mão-de-obra (usa InsertParteDiariaItem)
+const buildPayloadPessoal = ({ docId, cab, itens, idObra, colaboradorIdCab, colaboradorIdItens }) => ({
   Cabecalho: {
     DocumentoID: docId,
     ObraID: idObra,
@@ -39,19 +41,43 @@ const buildPayload = ({ docId, cab, itens, idObra, colaboradorIdCab, colaborador
     Funcionario: '',
     ClasseID: it.ClasseID,
     SubEmpID: it.SubEmpID,
-    NumHoras: (it.NumHoras / 60).toFixed(2),
-    TotalHoras: (it.NumHoras / 60).toFixed(2),
+    NumHoras: Number((it.NumHoras / 60).toFixed(2)), // horas decimais
+    TotalHoras: Number((it.NumHoras / 60).toFixed(2)),
     TipoEntidade: 'O',
     ColaboradorID: colaboradorIdItens ?? null,
     Data: it.Data,
-    // garantir que vai o ID da obra do ERP
     ObraID: idObra,
-    // para equipamentos não mandamos TipoHoraID
-    TipoHoraID: String(it.Categoria || '').toLowerCase() === 'equipamentos'
-      ? null
-      : (it.TipoHoraID ?? null),
+    TipoHoraID: (it.TipoHoraID ?? null),
   })),
 });
+
+// Equipamentos (usa InsertParteDiariaEquipamento)
+// ATENÇÃO: schema diferente (NumHorasTrabalho / PrecoUnit / etc.) e sem TipoEntidade/ColaboradorID/TIpoHoraID
+const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
+  Cabecalho: {
+    DocumentoID: docId,
+    ObraID: idObra,
+    Data: cab.Data,
+    Notas: cab.Notas || '',
+    CriadoPor: cab.CriadoPor || '',
+    Utilizador: cab.Utilizador || '',
+    Encarregado: null,
+  },
+  Itens: itens.map(it => ({
+    // aqui o ComponenteID recebe o que vinha no SubEmpID
+    ComponenteID: it.SubEmpID ?? 0,
+    Funcionario: '',
+    ClasseID: it.ClasseID ?? -1,
+    Fornecedor: null,
+    SubEmpID: null, // força vazio
+    NumHorasTrabalho: Number((it.NumHoras / 60).toFixed(2)),
+    NumHorasOrdem: 0,
+    NumHorasAvariada: 0,
+    PrecoUnit: it.PrecoUnit ?? 0,
+    ItemId: null,
+  })),
+});
+
 
 
   const [loading, setLoading] = useState(true);
@@ -301,7 +327,8 @@ const handleIntegrar = async (cab) => {
       return;
     }
 
-    const apiUrl = 'https://webapiprimavera.advir.pt/routesFaltas/InsertParteDiariaItem';
+    const apiUrlPessoal = 'https://webapiprimavera.advir.pt/routesFaltas/InsertParteDiariaItem';
+    const apiUrlEquip   = 'https://webapiprimavera.advir.pt/routesFaltas/InsertParteDiariaEquipamento';
 
     // Obra (converter para ID do ERP)
     const dadosObra = await obterCodObra(cab.ObraID);
@@ -321,25 +348,25 @@ const handleIntegrar = async (cab) => {
     const itensEquip   = itens.filter(it => String(it.Categoria || '').toLowerCase() === 'equipamentos');
     const itensOutros  = itens.filter(it => String(it.Categoria || '').toLowerCase() !== 'equipamentos');
 
-    // construir pedidos (equipamentos usa DOC_ID_EQUIP)
+    // construir pedidos com URL por tipo
     const pedidos = [];
     if (itensEquip.length > 0) {
       pedidos.push({
         nome: 'equipamentos',
-        payload: buildPayload({
+        url: apiUrlEquip,
+        payload: buildPayloadEquip({
           docId: DOC_ID_EQUIP,
           cab,
           itens: itensEquip,
           idObra,
-          colaboradorIdCab,
-          colaboradorIdItens,
         }),
       });
     }
     if (itensOutros.length > 0) {
       pedidos.push({
-        nome: 'outros',
-        payload: buildPayload({
+        nome: 'pessoal',
+        url: apiUrlPessoal,
+        payload: buildPayloadPessoal({
           docId: DOC_ID_DEFAULT,
           cab,
           itens: itensOutros,
@@ -352,7 +379,7 @@ const handleIntegrar = async (cab) => {
 
     // enviar em sequência (erro pára tudo)
     for (const p of pedidos) {
-      const resp = await fetch(apiUrl, {
+      const resp = await fetch(p.url, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -393,6 +420,7 @@ const handleIntegrar = async (cab) => {
     });
   }
 };
+
 
 
   const handleRejeitar = async (item) => {

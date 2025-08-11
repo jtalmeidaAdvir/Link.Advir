@@ -573,7 +573,11 @@ router.post("/schedule", async (req, res) => {
 
         console.log("📥 Requisição recebida em POST /schedule");
         console.log("📦 Dados recebidos:", req.body);
-
+        // Adjusting the time before considering it for scheduling
+        const timeParts = time.split(':');
+        const adjustedHour = parseInt(timeParts[0]) - 1; // Subtracting one hour
+        const adjustedTime = `${adjustedHour.toString().padStart(2, '0')}:${timeParts[1]}`;
+        console.log("Adjusted Time:", adjustedTime);
         if (!message || !contactList || contactList.length === 0) {
             return res.status(400).json({
                 error: "Mensagem e lista de contactos são obrigatórios",
@@ -1059,22 +1063,16 @@ function addLog(scheduleId, type, message, details = null) {
         type, // 'info', 'success', 'error', 'warning'
         message,
         details,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString() // Ensure this is correctly defined
     };
-
-    scheduleLogs.unshift(log); // Adiciona no início para logs mais recentes primeiro
-
-    // Manter apenas os últimos 500 logs
+    scheduleLogs.unshift(log); // Add to the beginning for recent logs
+    // Keep only the latest 500 logs
     if (scheduleLogs.length > 500) {
         scheduleLogs = scheduleLogs.slice(0, 500);
     }
-
-    // Log no console também
-    const timestamp = new Date().toLocaleString('pt-PT');
-    console.log(`[${timestamp}] SCHEDULE ${scheduleId} - ${type.toUpperCase()}: ${message}`);
-    if (details) {
-        console.log(`[${timestamp}] DETAILS:`, details);
-    }
+    // Log in console also with time in Portugal
+    const portugalTime = new Date().toLocaleString("pt-PT", { timeZone: "Europe/Lisbon" });
+    console.log(`[${portugalTime}] ${type.toUpperCase()}: ${message}`); // Ensure this line is correctly formatted
 }
 
 // Função para iniciar um agendamento
@@ -1086,7 +1084,10 @@ function startSchedule(schedule) {
         addLog(schedule.id, 'info', `Agendamento iniciado - Frequência: ${schedule.frequency}, Hora: ${schedule.time}`);
     }
     const checkAndExecute = () => {
+        // Usar fuso horário de Lisboa/Portugal como padrão
         const now = new Date();
+        const portugalTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Lisbon" }));
+
         if (typeof schedule.time !== 'string') {
             addLog(schedule.id, 'error', `Formato inválido para schedule.time: ${schedule.time}`);
             return; // Sai da função se o formato for inválido
@@ -1094,12 +1095,14 @@ function startSchedule(schedule) {
         const scheduleTime = schedule.time.split(':');
         const scheduleHour = parseInt(scheduleTime[0]);
         const scheduleMinute = parseInt(scheduleTime[1]);
-        if (now.getMinutes() === 0) {
-            addLog(schedule.id, 'info', `Verificação automática - Próxima execução prevista: ${schedule.time}`);
+
+        if (portugalTime.getMinutes() === 0) {
+            addLog(schedule.id, 'info', `Verificação automática - Próxima execução prevista: ${schedule.time} (Hora Portugal: ${portugalTime.getHours()}:${portugalTime.getMinutes().toString().padStart(2, '0')})`);
         }
-        if (now.getHours() === scheduleHour && now.getMinutes() === scheduleMinute) {
+
+        if (portugalTime.getHours() === scheduleHour && portugalTime.getMinutes() === scheduleMinute) {
             addLog(schedule.id, 'info', 'Hora de execução atingida, verificando condições...');
-            if (shouldExecuteToday(schedule, now)) {
+            if (shouldExecuteToday(schedule, portugalTime)) {
                 addLog(schedule.id, 'info', 'Condições atendidas, iniciando execução...');
                 executeScheduledMessage(schedule); // Certifique-se de que executeScheduledMessage está definida corretamente
             } else {
@@ -1114,11 +1117,13 @@ function startSchedule(schedule) {
 
 // Função para verificar se deve executar hoje
 function shouldExecuteToday(schedule, now) {
-    const today = now.getDay(); // 0 = Domingo, 1 = Segunda, etc.
-    const todayDate = now.toISOString().split('T')[0];
+    // Garantir que estamos a usar a hora de Portugal
+    const portugalTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Lisbon" }));
+    const today = portugalTime.getDay(); // 0 = Domingo, 1 = Segunda, etc.
+    const todayDate = portugalTime.toISOString().split('T')[0];
     const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
-    // Verificar se já foi enviado hoje
+    // Verificar se já foi enviado hoje (usando data de Portugal)
     if (schedule.lastSent && schedule.lastSent.startsWith(todayDate)) {
         addLog(schedule.id, 'warning', `Já foi enviado hoje (${todayDate})`);
         return false;
@@ -1158,6 +1163,8 @@ function shouldExecuteToday(schedule, now) {
     addLog(schedule.id, 'info', `Verificação de execução: ${reason}`, {
         frequency: schedule.frequency,
         today: dayNames[today],
+        portugalTime: portugalTime.toLocaleString('pt-PT'),
+        scheduleTime: schedule.timeay,
         selectedDays: schedule.days,
         shouldExecute
     });
@@ -1167,12 +1174,20 @@ function shouldExecuteToday(schedule, now) {
 
 // Função para executar mensagem agendada
 async function executeScheduledMessage(schedule) {
-    addLog(schedule.id, 'info', `Iniciando execução para ${schedule.contactList.length} contactos`);
+    // Log inicial da execução
+    addLog(schedule.id, 'info', `Iniciando execução para ${schedule.contactList ? schedule.contactList.length : 0} contactos`);
 
     try {
+        // Verificar se o cliente do WhatsApp está pronto
         if (!isClientReady || !client) {
             addLog(schedule.id, 'error', 'WhatsApp não está conectado');
             return { success: false, error: "WhatsApp não conectado" };
+        }
+
+        // Verificar se contactList está definido e contém contactos
+        if (!schedule.contactList || !Array.isArray(schedule.contactList) || schedule.contactList.length === 0) {
+            addLog(schedule.id, 'error', 'Lista de contactos está vazia ou indefinida');
+            return { success: false, error: "Nenhum contacto disponível" };
         }
 
         const results = [];
@@ -1191,15 +1206,14 @@ async function executeScheduledMessage(schedule) {
 
         addLog(schedule.id, 'info', `Mensagem formatada com prioridade: ${schedule.priority}`);
 
-        // Enviar para cada contacto
+        // Enviar para cada contacto na lista
         for (let i = 0; i < schedule.contactList.length; i++) {
             const contact = schedule.contactList[i];
-            addLog(schedule.id, 'info', `Enviando para contacto ${i + 1}/${schedule.contactList.length}: ${contact.name} (${contact.phone})`);
-
+            addLog(schedule.id, 'info', `Enviando para ${contact.name}`);
             try {
                 let phoneNumber = contact.phone.replace(/\D/g, "");
                 if (!phoneNumber.includes("@")) {
-                    phoneNumber = phoneNumber + "@c.us";
+                    phoneNumber = phoneNumber + "@c.us"; // Formatar para número WhatsApp
                 }
 
                 const isValidNumber = await client.isRegisteredUser(phoneNumber);
@@ -1216,7 +1230,7 @@ async function executeScheduledMessage(schedule) {
                 }
 
                 const response = await client.sendMessage(phoneNumber, formattedMessage);
-                addLog(schedule.id, 'success', `Mensagem enviada com sucesso para ${contact.name}`);
+                addLog(schedule.id, 'info', `Mensagem enviada para ${contact.name}`);
                 results.push({
                     success: true,
                     contact: contact.name,
@@ -1240,24 +1254,8 @@ async function executeScheduledMessage(schedule) {
             }
         }
 
-        // Atualizar estatísticas do agendamento na base de dados
-        try {
-            await Schedule.update({
-                last_sent: new Date(),
-                total_sent: sequelize.literal(`total_sent + ${successCount}`)
-            }, {
-                where: { id: schedule.id }
-            });
-        } catch (error) {
-            console.error("Erro ao atualizar estatísticas:", error);
-        }
-
-        addLog(schedule.id, 'success', `Execução concluída: ${successCount} sucessos, ${errorCount} erros`, {
-            total: schedule.contactList.length,
-            success: successCount,
-            errors: errorCount,
-            results
-        });
+        // Atualizar o log de estatísticas de execução
+        addLog(schedule.id, 'success', `Execução concluída: ${successCount} sucessos, ${errorCount} erros`);
 
         return {
             success: true,
@@ -1265,14 +1263,14 @@ async function executeScheduledMessage(schedule) {
             summary: {
                 total: schedule.contactList.length,
                 success: successCount,
-                errors: errorCount
-            },
-            results
+                errors: errorCount,
+                results
+            }
         };
     } catch (error) {
-        addLog(schedule.id, 'error', `Erro crítico na execução: ${error.message}`, error);
         console.error("Erro ao executar mensagem agendada:", error);
-        return { success: false, error: error.message };
+        addLog(schedule.id, 'error', 'Erro ao executar mensagem: ' + error.message);
+        return { success: false, error: "Erro ao executar mensagem" };
     }
 }
 
@@ -1391,6 +1389,21 @@ router.post("/sync-schedules", (req, res) => {
         console.error("Erro na sincronização:", error);
         res.status(500).json({ error: "Erro na sincronização de agendamentos" });
     }
+});
+
+// Endpoint para debug de timezone
+router.get("/timezone-debug", (req, res) => {
+    const now = new Date();
+    const portugalTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Lisbon" }));
+
+    res.json({
+        serverTime: now.toISOString(),
+        portugalTime: portugalTime.toLocaleString('pt-PT'),
+        serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        portugalHour: portugalTime.getHours(),
+        portugalMinute: portugalTime.getMinutes(),
+        portugalDay: portugalTime.getDay()
+    });
 });
 
 // Endpoint para debugging - mostrar próximas execuções
