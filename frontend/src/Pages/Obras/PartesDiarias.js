@@ -43,8 +43,7 @@ const PartesDiarias = ({ navigation }) => {
         categoria: 'MaoObra'
     });
 
-    const [editingCell, setEditingCell] = useState(null);
-const [tempHoras, setTempHoras] = useState('');
+
 
 const [codMap, setCodMap] = useState({});
 const [submittedSet, setSubmittedSet] = useState(new Set());
@@ -744,19 +743,9 @@ return { equipas: equipasFormatadas, registos: todosRegistos };
 const adicionarEspecialidade = useCallback(() => {
   const novasEspecialidades = [...(editData.especialidadesDia || [])];
 
-  // Calcular o total de minutos já atribuídos
-  const minutosAtribuidos = novasEspecialidades.reduce((acc, esp) => {
-    return acc + Math.round((parseFloat(esp.horas) || 0) * 60);
-  }, 0);
-
-  const totalMinutos = selectedTrabalhador?.horasPorDia[selectedDia] || 0;
-
-  // Calcular os minutos que faltam
-  const minutosRestantes = totalMinutos - minutosAtribuidos;
-  const horasRestantes = Math.max(0, Math.round((minutosRestantes / 60) * 100) / 100); // arredondado a 2 decimais
 
   novasEspecialidades.push({
-    horas: horasRestantes,
+    horas: 0,
     categoria: 'MaoObra',
     especialidade: '',
     subEmpId: null,
@@ -803,19 +792,6 @@ const adicionarEspecialidade = useCallback(() => {
 
 
 
-    const iniciarEdicaoHoras = useCallback((userId, obraId, dia, minutosAtuais) => {
-        setEditingCell(`${userId}-${obraId}-${dia}`);
-        // Converter minutos para formato H:MM para edição
-        const horas = Math.floor(minutosAtuais / 60);
-        const mins = minutosAtuais % 60;
-        setTempHoras(horas > 0 || mins > 0 ? `${horas}:${mins.toString().padStart(2, '0')}` : '0:00');
-    }, []);
-
-    const cancelarEdicaoHoras = useCallback(() => {
-        setEditingCell(null);
-        setTempHoras('');
-    }, []);
-
 
 const itemJaSubmetido = (codFuncionario, obraId, dia) => {
   const diaStr = String(dia).padStart(2, '0');
@@ -832,57 +808,18 @@ const codRaw = String(codFuncionario ?? '');
 
 
 
-    const salvarHorasInline = useCallback((userId, obraId, dia) => {
-        // Converter formato H:MM para minutos
-        let novosMinutos = 0;
-        
-        if (tempHoras.includes(':')) {
-            const [horas, mins] = tempHoras.split(':').map(num => parseInt(num) || 0);
-            novosMinutos = (horas * 60) + mins;
-        } else {
-            // Se foi inserido apenas um número, assumir que são horas
-            const horas = parseFloat(tempHoras) || 0;
-            novosMinutos = Math.round(horas * 60);
-        }
-        
-        if (novosMinutos < 0 || novosMinutos > (24 * 60)) {
-            Alert.alert('Erro', 'As horas devem estar entre 0 e 24');
-            return;
-        }
-
-        const novoDados = dadosProcessados.map(item => {
-            if (item.userId === userId && item.obraId === obraId) {
-                return {
-                    ...item,
-                    horasPorDia: {
-                        ...item.horasPorDia,
-                        [dia]: novosMinutos
-                    }
-                };
-            }
-            return item;
-        });
-
-        setDadosProcessados(novoDados);
-        setEditingCell(null);
-        setTempHoras('');
-    }, [tempHoras, dadosProcessados]);
-
 
 
     
     const salvarEdicao = useCallback(() => {
         if (selectedTrabalhador && selectedDia) {
                     // totalMinutosDia (em minutos) que veio do servidor ou de edição inline
-        const totalMinutosDia = selectedTrabalhador.horasPorDia[selectedDia] || 0;
-        // soma em minutos das especialidades editadas
-        const somaMinutosEspecialidades = editData.especialidadesDia
+                const somaMinutosEspecialidades = editData.especialidadesDia
             .reduce((sum, esp) => sum + Math.round((parseFloat(esp.horas) || 0) * 60), 0);
-            
-            if (Math.abs(somaMinutosEspecialidades - totalMinutosDia) > 5 && totalMinutosDia > 0) {
-                Alert.alert('Erro', `A soma das horas das especialidades (${formatarHorasMinutos(somaMinutosEspecialidades)}) deve ser igual ao total trabalhado no dia (${formatarHorasMinutos(totalMinutosDia)})`);
-                return;
-            }
+        const totalMinutosDiaAnterior = selectedTrabalhador.horasPorDia[selectedDia] || 0;
+        if (somaMinutosEspecialidades !== totalMinutosDiaAnterior) {
+          console.log(`ℹ️ Divergência de horas no dia ${selectedDia}: antes=${totalMinutosDiaAnterior}m, agora=${somaMinutosEspecialidades}m`);
+        }
             
             const novoDados = dadosProcessados.map(item => {
                 if (item.userId === selectedTrabalhador.userId && 
@@ -1298,7 +1235,7 @@ if (modoVisualizacao === 'obra') {
         return (
             <View style={styles.tableWrapper}>
                 <Text style={styles.tableInstructions}>
-                    Toque para editar especialidades • Toque longo para editar horas diretamente
+                    Toque para definir as especialidades
                 </Text>
                 <ScrollView 
                     style={styles.tableContainer}
@@ -1383,62 +1320,31 @@ if (modoVisualizacao === 'obra') {
                                                 const cellKey = `${item.userId}-${item.obraId}-${dia}`;
                                                 const editadoManual = diasEditadosManualmente.has(cellKey);
 
-                                                const isEditing = editingCell === cellKey;
                                                 const submetido = itemJaSubmetido(item.codFuncionario, item.obraId, dia);
 
-                                                return (
-                                                    <View 
-                                                    key={dia} 
-                                                    style={[
-                                                        styles.tableCell,
-                                                        { width: 50 },
-                                                        submetido && styles.cellSubmetido,
-                                                        editadoManual && styles.cellEditado // <- novo estilo
-                                                        ]}
-
-                                                    >
-                                                        {isEditing ? (
-                                                            <View style={styles.editingContainer}>
-                                                                <TextInput
-                                                                    style={styles.horasInputInline}
-                                                                    value={tempHoras}
-                                                                    onChangeText={setTempHoras}
-                                                                    keyboardType="numeric"
-                                                                    autoFocus
-                                                                    onBlur={() => salvarHorasInline(item.userId, item.obraId, dia)}
-                                                                    onSubmitEditing={() => salvarHorasInline(item.userId, item.obraId, dia)}
-                                                                />
-                                                            </View>
-                                                        ) : (
-                                                             <TouchableOpacity
-                                                                    style={[
-                                                                        styles.cellTouchable,
-                                                                        submetido && styles.cellSubmetido, // já estava
-                                                                        submetido && { opacity: 0.6 }      // dá um feedback visual
-                                                                    ]}
-                                                                    disabled={submetido}
-                                                                    onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
-                                                                    onLongPress={submetido ? undefined : () => iniciarEdicaoHoras(item.userId, item.obraId, dia, item.horasPorDia[dia] || 0)}
-                                                                    >
-                                                                    <Text style={[styles.cellText, { textAlign: 'center' }, item.horasPorDia[dia] > 0 && styles.hoursText, styles.clickableHours]}>
-  { item.horasPorDia[dia] > 0
-    ? `${formatarHorasMinutos(item.horasPorDia[dia])}`
-    : '-' }
-</Text>
-
-                                                                    {submetido && (
-                                                                        <Ionicons
-                                                                        name="checkmark-circle"
-                                                                        size={16}
-                                                                        color="#28a745"
-                                                                        style={styles.iconSubmetido}
-                                                                        />
-                                                                    )}
-                                                                    </TouchableOpacity>
-
-      )}
-    </View>
-  );
+return (
+   <View style={[styles.tableCell, { width: 50 }, submetido && styles.cellSubmetido, editadoManual && styles.cellEditado]}>
+     <TouchableOpacity
+       style={[styles.cellTouchable, submetido && styles.cellSubmetido, submetido && { opacity: 0.6 }]}
+       disabled={submetido}
+       onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
+     >
+       <Text style={[styles.cellText, { textAlign: 'center' }, item.horasPorDia[dia] > 0 && styles.hoursText, styles.clickableHours]}>
+         { item.horasOriginais[dia] > 0
+           ? `${formatarHorasMinutos(480)}`
+           : '-' }
+       </Text>
+       {submetido && (
+         <Ionicons
+           name="checkmark-circle"
+           size={16}
+           color="#28a745"
+           style={styles.iconSubmetido}
+         />
+       )}
+     </TouchableOpacity>
+   </View>
+ );
 })}
                                             <View style={[styles.tableCell, { width: 70 }]}>
                                                 <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
@@ -1505,69 +1411,32 @@ if (modoVisualizacao === 'obra') {
                                     </View>
                                     {diasDoMes.map(dia => {
   const cellKey = `${item.userId}-${item.obraId}-${dia}`;
-  const isEditing = editingCell === cellKey;
+
   // 👉 Aqui você precisa chamar itemJaSubmetido com o codFuncionario:
   const submetido = itemJaSubmetido(item.codFuncionario, item.obraId, dia);
   const editadoManual = diasEditadosManualmente.has(cellKey); // <- ADICIONA ISTO
 
-  return (
-    <View
-      key={dia}
-      style={[
-        styles.tableCell,
-        { width: 50 },
-        submetido && styles.cellSubmetido,   // aplica fundo verde
-                editadoManual && styles.cellEditado // <- AQUI TAMBÉM
-
-      ]}
-    >
-            {isEditing ? (
-                <View style={styles.editingContainer}>
-                    <TextInput
-                        style={styles.horasInputInline}
-                        value={tempHoras}
-                        onChangeText={setTempHoras}
-                        keyboardType="numeric"
-                        autoFocus
-                        onBlur={() => salvarHorasInline(item.userId, item.obraId, dia)}
-                        onSubmitEditing={() => salvarHorasInline(item.userId, item.obraId, dia)}
-                    />
-                </View>
-            ) : (
-                <TouchableOpacity
-  style={[
-    styles.cellTouchable,
-    submetido && styles.cellSubmetido, // já estava
-    submetido && { opacity: 0.6 }      // dá um feedback visual
-  ]}
-  disabled={submetido}
-  onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
-  onLongPress={submetido ? undefined : () => iniciarEdicaoHoras(item.userId, item.obraId, dia, item.horasPorDia[dia] || 0)}
->
-  <Text style={[
-    styles.cellText,
-    { textAlign: 'center' },
-    item.horasPorDia[dia] > 0 && styles.hoursText,
-    styles.clickableHours
-  ]}>
-    { item.horasOriginais[dia] > 0
-    ? `${formatarHorasMinutos(480)}/${formatarHorasMinutos(item.horasOriginais[dia])}`
-    : '-' }
-
-  </Text>
-  {submetido && (
-    <Ionicons
-      name="checkmark-circle"
-      size={16}
-      color="#28a745"
-      style={styles.iconSubmetido}
-    />
-  )}
-</TouchableOpacity>
-
-      )}
-    </View>
-  );
+return (
+   <View style={[styles.tableCell, { width: 50 }, submetido && styles.cellSubmetido, editadoManual && styles.cellEditado]}>
+     <TouchableOpacity
+       style={[styles.cellTouchable, submetido && styles.cellSubmetido, submetido && { opacity: 0.6 }]}
+       disabled={submetido}
+       onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
+     >
+       <Text style={[styles.cellText, { textAlign: 'center' }, item.horasPorDia[dia] > 0 && styles.hoursText, styles.clickableHours]}>
+         { item.horasPorDia[dia] > 0 ? `${formatarHorasMinutos(item.horasPorDia[dia])}` : '-' }
+       </Text>
+       {submetido && (
+         <Ionicons
+           name="checkmark-circle"
+           size={16}
+           color="#28a745"
+           style={styles.iconSubmetido}
+         />
+       )}
+     </TouchableOpacity>
+   </View>
+ );
 })}
 
                                     <View style={[styles.tableCell, { width: 70 }]}>
