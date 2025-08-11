@@ -1,4 +1,10 @@
 // models/ParteDiariaItem.js
+
+// models/ParteDiariaCabecalho.js
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
+
+
 const ParteDiariaItem = sequelize.define('ParteDiariaItem', {
   ComponenteID: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   DocumentoID:  { type: DataTypes.UUID, allowNull: false },
@@ -27,3 +33,6 @@ const ParteDiariaItem = sequelize.define('ParteDiariaItem', {
   tableName: 'ParteDiariaItem',
   timestamps: false
 });
+
+
+module.exports = ParteDiariaItem;
