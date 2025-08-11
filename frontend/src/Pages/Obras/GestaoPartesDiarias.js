@@ -19,6 +19,41 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const GestaoPartesDiarias = () => {
+// === NO TOPO DO FICHEIRO (fora do componente) ===
+const DOC_ID_DEFAULT = '1747FEA9-5D2F-45B4-A89B-9EA30B1E0DCB'; // mão-de-obra/otros
+const DOC_ID_EQUIP   = '11C77189-1046-4CDE-96F9-503B8EB25B08'; // equipamentos
+
+const buildPayload = ({ docId, cab, itens, idObra, colaboradorIdCab, colaboradorIdItens }) => ({
+  Cabecalho: {
+    DocumentoID: docId,
+    ObraID: idObra,
+    Data: cab.Data,
+    Notas: cab.Notas || '',
+    CriadoPor: cab.CriadoPor || '',
+    Utilizador: cab.Utilizador || '',
+    TipoEntidade: 'O',
+    ColaboradorID: colaboradorIdCab ?? colaboradorIdItens ?? null,
+  },
+  Itens: itens.map(it => ({
+    ComponenteID: it.ComponenteID,
+    Funcionario: '',
+    ClasseID: it.ClasseID,
+    SubEmpID: it.SubEmpID,
+    NumHoras: (it.NumHoras / 60).toFixed(2),
+    TotalHoras: (it.NumHoras / 60).toFixed(2),
+    TipoEntidade: 'O',
+    ColaboradorID: colaboradorIdItens ?? null,
+    Data: it.Data,
+    // garantir que vai o ID da obra do ERP
+    ObraID: idObra,
+    // para equipamentos não mandamos TipoHoraID
+    TipoHoraID: String(it.Categoria || '').toLowerCase() === 'equipamentos'
+      ? null
+      : (it.TipoHoraID ?? null),
+  })),
+});
+
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cabecalhos, setCabecalhos] = useState([]);
@@ -253,99 +288,112 @@ const GestaoPartesDiarias = () => {
     return `${h > 0 ? `${h}h ` : ''}${m}m`;
   };
 
-  const handleIntegrar = async (item) => {
-    setIntegrandoIds(prev => new Set(prev).add(item.DocumentoID));
-    
-    try {
-      const token = await AsyncStorage.getItem('painelAdminToken');
-      const urlempresa = await AsyncStorage.getItem('urlempresa');
-      const logintoken = await AsyncStorage.getItem('loginToken');
+// === DENTRO DO COMPONENTE, SUBSTITUI TOTALMENTE O TEU handleIntegrar POR ESTE ===
+const handleIntegrar = async (cab) => {
+  setIntegrandoIds(prev => new Set(prev).add(cab.DocumentoID));
 
-      if (!token || !urlempresa) {
-        Alert.alert('Erro', 'Token ou empresa em falta.');
-        return;
-      }
+  try {
+    const token = await AsyncStorage.getItem('painelAdminToken');
+    const urlempresa = await AsyncStorage.getItem('urlempresa');
+    const loginToken = await AsyncStorage.getItem('loginToken');
+    if (!token || !urlempresa) {
+      Alert.alert('Erro', 'Token ou empresa em falta.');
+      return;
+    }
 
-      const apiUrl = 'https://webapiprimavera.advir.pt/routesFaltas/InsertParteDiariaItem';
-      
-      const colaboradorID = await obterColaboradorID(item.ColaboradorID);
-      const dadosObra = await obterCodObra(item.ObraID);
-      const codigoObra = dadosObra?.codigo;
-      const IdObra = await obterIDObra(codigoObra);
+    const apiUrl = 'https://webapiprimavera.advir.pt/routesFaltas/InsertParteDiariaItem';
 
-      const cod = localStorage.getItem("codFuncionario");
-      const CodFuncionario = await obterColaboradorID(cod);
+    // Obra (converter para ID do ERP)
+    const dadosObra = await obterCodObra(cab.ObraID);
+    const codigoObra = dadosObra?.codigo;
+    const idObra = await obterIDObra(codigoObra);
 
-      const payload = {
-        Cabecalho: {
-          DocumentoID: "1747FEA9-5D2F-45B4-A89B-9EA30B1E0DCB",
-          ObraID: IdObra,
-          Data: item.Data,
-          Notas: item.Notas || '',
-          CriadoPor: "",
-          Utilizador: "",
-          TipoEntidade: "O",
-          ColaboradorID: CodFuncionario
-        },
-        Itens: item.ParteDiariaItems.map(it => ({
-          ComponenteID: it.ComponenteID,
-          Funcionario: "",
-          ClasseID: it.ClasseID,
-          SubEmpID: it.SubEmpID,
-          NumHoras: (it.NumHoras / 60).toFixed(2),
-          TotalHoras: (it.NumHoras / 60).toFixed(2), 
-          TipoEntidade: "O",
-          ColaboradorID: colaboradorID,
-          Data: it.Data,
-          ObraID: it.ObraID,
-          TipoHoraID: it.TipoHoraID ?? null
+    // Colaborador no cabeçalho (se existir em storage)
+    const codFuncLocal = await AsyncStorage.getItem('codFuncionario');
+    const colaboradorIdCab = codFuncLocal ? (await obterColaboradorID(codFuncLocal)) : null;
 
-        }))
-      };
+    // Colaborador para os itens (se precisares)
+    const primeiroItemColab = cab?.ParteDiariaItems?.[0]?.ColaboradorID;
+    const colaboradorIdItens = primeiroItemColab ? (await obterColaboradorID(primeiroItemColab)) : null;
 
-      const response = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'urlempresa': urlempresa
-        },
-        body: JSON.stringify(payload)
-      });
+    // dividir itens por categoria
+    const itens = cab.ParteDiariaItems || [];
+    const itensEquip   = itens.filter(it => String(it.Categoria || '').toLowerCase() === 'equipamentos');
+    const itensOutros  = itens.filter(it => String(it.Categoria || '').toLowerCase() !== 'equipamentos');
 
-      const result = await response.json();
-
-      if (response.ok) {
-        const marcarRes = await fetch(`https://backend.advir.pt/api/parte-diaria/cabecalhos/${item.DocumentoID}/integrar`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${logintoken}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (marcarRes.ok) {
-          Alert.alert('Sucesso', 'Parte integrada com sucesso!');
-          fetchCabecalhos();
-        } else {
-          console.warn('⚠️ Parte enviada mas falhou ao marcar como integrada.');
-          Alert.alert('Aviso', 'Parte enviada mas falhou ao marcar como integrada.');
-        }
-      } else {
-        console.error("❌ Erro:", result);
-        Alert.alert('Erro', `Erro ao integrar: ${result.error || 'Erro desconhecido.'}`);
-      }
-    } catch (err) {
-      console.error('Erro na integração:', err);
-      Alert.alert('Erro', 'Erro inesperado ao integrar parte.');
-    } finally {
-      setIntegrandoIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(item.DocumentoID);
-        return newSet;
+    // construir pedidos (equipamentos usa DOC_ID_EQUIP)
+    const pedidos = [];
+    if (itensEquip.length > 0) {
+      pedidos.push({
+        nome: 'equipamentos',
+        payload: buildPayload({
+          docId: DOC_ID_EQUIP,
+          cab,
+          itens: itensEquip,
+          idObra,
+          colaboradorIdCab,
+          colaboradorIdItens,
+        }),
       });
     }
-  };
+    if (itensOutros.length > 0) {
+      pedidos.push({
+        nome: 'outros',
+        payload: buildPayload({
+          docId: DOC_ID_DEFAULT,
+          cab,
+          itens: itensOutros,
+          idObra,
+          colaboradorIdCab,
+          colaboradorIdItens,
+        }),
+      });
+    }
+
+    // enviar em sequência (erro pára tudo)
+    for (const p of pedidos) {
+      const resp = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          urlempresa,
+        },
+        body: JSON.stringify(p.payload),
+      });
+      const result = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        console.error(`❌ Falha ao integrar (${p.nome}):`, result);
+        Alert.alert('Erro', `Falha ao integrar (${p.nome}): ${result?.detalhes || result?.error || 'erro desconhecido'}`);
+        return;
+      }
+    }
+
+    // marcar como integrado no teu backend
+    const marcarRes = await fetch(`https://backend.advir.pt/api/parte-diaria/cabecalhos/${cab.DocumentoID}/integrar`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${loginToken}`, 'Content-Type': 'application/json' },
+    });
+
+    if (marcarRes.ok) {
+      Alert.alert('Sucesso', 'Parte integrada com sucesso!');
+      fetchCabecalhos();
+    } else {
+      Alert.alert('Aviso', 'Parte enviada mas falhou ao marcar como integrada.');
+    }
+
+  } catch (err) {
+    console.error('Erro na integração:', err);
+    Alert.alert('Erro', 'Erro inesperado ao integrar parte.');
+  } finally {
+    setIntegrandoIds(prev => {
+      const s = new Set(prev);
+      s.delete(cab.DocumentoID);
+      return s;
+    });
+  }
+};
+
 
   const handleRejeitar = async (item) => {
     Alert.alert(

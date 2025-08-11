@@ -1137,4 +1137,96 @@ router.get("/GetObraId/:codObra", async (req, res) => {
 });
 
 
+
+router.put("/InsertParteDiariaEquipamento", async (req, res) => {
+  try {
+    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+    if (!painelAdminToken) {
+      return res.status(401).json({ error: "Token não encontrado. Faça login novamente." });
+    }
+
+    const urlempresa = await getEmpresaUrl(req);
+    if (!urlempresa) {
+      return res.status(400).json({ error: "URL da empresa não fornecida." });
+    }
+
+    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InsertParteDiariaEquipamento`;
+
+    console.log("🔁 PUT Primavera (Equipamentos):", apiUrl);
+    console.log("📦 Body:", JSON.stringify(req.body, null, 2));
+
+    const response = await axios.put(apiUrl, req.body, {
+      headers: {
+        Authorization: `Bearer ${painelAdminToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+
+    if (response.status === 200) {
+      return res.status(200).json({
+        mensagem: "Parte diária de equipamentos inserida com sucesso.",
+        detalhes: response.data,
+      });
+    } else {
+      return res.status(response.status).json({
+        error: "Falha ao inserir parte diária de equipamentos.",
+        detalhes: response.data,
+      });
+    }
+  } catch (error) {
+    console.error("❌ Erro ao inserir parte diária de equipamentos:",
+      error.response?.data || error.message
+    );
+    return res.status(500).json({
+      error: "Erro inesperado ao inserir parte diária de equipamentos.",
+      detalhes: error.response?.data || error.message,
+    });
+  }
+});
+
+
+router.get("/ValidaSubEmpId/:subEmpId", async (req, res) => {
+  try {
+    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+    if (!painelAdminToken) {
+      return res.status(401).json({ error: "Token não encontrado. Faça login novamente." });
+    }
+
+    const urlempresa = await getEmpresaUrl(req);
+    if (!urlempresa) {
+      return res.status(400).json({ error: "URL da empresa não fornecida." });
+    }
+
+    const { subEmpId } = req.params;
+    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/ValidaSubEmpId/${subEmpId}`;
+
+    console.log("🔎 GET Primavera (ValidaSubEmpId):", apiUrl);
+
+    const response = await axios.get(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${painelAdminToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
+
+    // Se a tua WebAPI não tiver este endpoint, podes trocar por um SELECT direto no teu backend.
+    // Aqui devolvemos `exists: true/false`.
+    return res.status(200).json(response.data);
+  } catch (error) {
+    // Se a tua WebAPI não expuser ValidaSubEmpId, devolve 501 para não confundir o frontend
+    if (!error.response) {
+      return res.status(501).json({
+        error: "Validação remota de SubEmpId não suportada nesta instância.",
+      });
+    }
+    return res.status(error.response.status || 500).json({
+      error: "Erro ao validar SubEmpId.",
+      detalhes: error.response?.data || error.message,
+    });
+  }
+});
+
+
 module.exports = router;
