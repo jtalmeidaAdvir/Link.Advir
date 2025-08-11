@@ -386,6 +386,65 @@ const listarPorUserPeriodo = async (req, res) => {
   }
 };
 
+// --- NOVO: registar ponto esquecido por outro utilizador ---
+const registarPontoEsquecidoPorOutro = async (req, res) => {
+  try {
+    const {
+      tipo,
+      obra_id,
+      obraId,
+      timestamp,
+      justificacao,
+      user_id: bodyUserId,
+      userId: bodyUserIdCamel
+    } = req.body;
+
+    // Permissões: ajusta à tua realidade
+    const podeAgirPorOutros =
+      req.user?.role === 'admin' ||
+      req.user?.isGestor ||
+      req.user?.permissoes?.includes?.('ponto:registar_outros');
+
+    if (!podeAgirPorOutros) {
+      return res.status(403).json({ message: 'Sem permissões para registar por outros utilizadores.' });
+    }
+
+    const targetUserId = Number(bodyUserId ?? bodyUserIdCamel);
+    const targetObraId = Number(obra_id ?? obraId);
+
+    if (!targetUserId || !targetObraId || !tipo || !timestamp) {
+      return res.status(400).json({ message: 'Campos obrigatórios: user_id, obra_id, tipo, timestamp.' });
+    }
+
+    // (Opcional) validações extra
+    const userExiste = await User.findByPk(targetUserId);
+    if (!userExiste) return res.status(404).json({ message: 'Utilizador alvo não encontrado.' });
+
+    const obraExiste = await Obra.findByPk(targetObraId);
+    if (!obraExiste) return res.status(404).json({ message: 'Obra não encontrada.' });
+
+    // (Opcional) garantir que pertence à mesma empresa
+    if (req.user.empresa_id && userExiste.empresa_id && req.user.empresa_id !== userExiste.empresa_id) {
+      return res.status(403).json({ message: 'Utilizador alvo não pertence à mesma empresa.' });
+    }
+
+    const novoRegisto = await RegistoPontoObra.create({
+      user_id: targetUserId,
+      obra_id: targetObraId,
+      tipo,
+      timestamp: new Date(timestamp),
+      is_confirmed: false,
+      justificacao
+    });
+
+    return res.status(201).json(novoRegisto);
+  } catch (err) {
+    console.error('Erro ao registar ponto esquecido por outro:', err);
+    return res.status(500).json({ message: 'Erro interno ao registar ponto.' });
+  }
+};
+
+
 
 module.exports = {
   registarPonto,
@@ -399,7 +458,8 @@ module.exports = {
   cancelarPonto,
   listarPendentes,
   listarPorUserEDia,
-  listarPorUserPeriodo
+  listarPorUserPeriodo,
+  registarPontoEsquecidoPorOutro
 };
 
 

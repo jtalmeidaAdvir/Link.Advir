@@ -64,7 +64,7 @@ const handleBulkConfirm = async () => {
       ];
       for (let i = 0; i < 4; i++) {
         const res = await fetch(
-          `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido`,
+          `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`,
           {
             method: 'POST',
             headers: {
@@ -73,8 +73,8 @@ const handleBulkConfirm = async () => {
             },
             body: JSON.stringify({
               tipo: tipos[i],
-              obra_id: +obraNoDialog,
-              user_id: userId,
+              obra_id: Number(obraNoDialog),
+              user_id: Number(userId),
               timestamp: `${dataFormatada}T${horas[i]}:00`
             })
           }
@@ -841,26 +841,36 @@ const handleBulkConfirm = async () => {
     return '#f5c6cb'; // Vermelho claro - problema sério
   };
 
-  // Função ajustada para registar entrada/saída usando o endpoint '/'
-const registarPontoParaUtilizador = async (userId, dia, obraId) => {
-  if (!userId || !dia || !anoSelecionado || !mesSelecionado || !obraId) {
-    return alert('Faltam dados para registar ponto');
-  }
-  const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
-  try {
-    const entrada = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ tipo: 'entrada', obra_id: +obraId, user_id: userId, data: dataFormatada })
-    });
-    if (!entrada.ok) throw new Error('Erro na entrada');
-    // idem para saída, se necessário…
-    if (viewMode === 'grade') carregarDadosGrade();
-    alert(`Ponto registado para obra ${obraId}`);
-  } catch (err) {
-    alert(err.message);
-  }
-};
+ // Registar ponto para um utilizador específico usando SEMPRE o endpoint de "esquecido" + confirmar
+ const registarPontoParaUtilizador = async (userId, dia, obraId, tipo = 'entrada', hora = '09:00') => {
+   if (!userId || !dia || !anoSelecionado || !mesSelecionado || !obraId) {
+     return alert('Faltam dados para registar ponto');
+   }
+   const uid = Number(userId);
+   const oid = Number(obraId);
+   const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+   try {
+     const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`, {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+       body: JSON.stringify({
+         tipo,
+         obra_id: oid,
+         user_id: uid,
+         timestamp: `${dataFormatada}T${hora}:00`
+       })
+     });
+     if (!res.ok) throw new Error('Falha ao criar ponto');
+     const json = await res.json();
+     await fetch(`https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`, {
+       method: 'PATCH',
+       headers: { Authorization: `Bearer ${token}` }
+     });
+     if (viewMode === 'grade') carregarDadosGrade();
+   } catch (err) {
+     alert(err.message);
+   }
+ };
 
   // Function to get cell content (including absence data)
   const obterConteudoCelula = (funcionario, dia) => {
@@ -1314,7 +1324,7 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
                           
                           for (let i = 0; i < 4; i++) {
                             const res = await fetch(
-                              `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido`,
+                              `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`,
                               {
                                 method: 'POST',
                                 headers: {
@@ -1323,8 +1333,8 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
                                 },
                                 body: JSON.stringify({
                                   tipo: tipos[i],
-                                  obra_id: +obraNoDialog,
-                                  user_id: userToRegistar,
+                                  obra_id: Number(obraNoDialog),
+                                  user_id: Number(userToRegistar),
                                   timestamp: `${dataFormatada}T${horas[i]}:00`
                                 })
                               }

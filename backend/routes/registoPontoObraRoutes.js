@@ -13,7 +13,8 @@ const {
   cancelarPonto,
   listarPendentes,
   listarPorUserEDia,
-  listarPorUserPeriodo
+  listarPorUserPeriodo,
+  registarPontoEsquecidoPorOutro
 
 } = require('../controllers/registoPontoObraControllers');
 
@@ -26,6 +27,8 @@ router.post('/registar-esquecido', authMiddleware, registarPontoEsquecido);
 router.get('/listar-por-obra-e-dia', authMiddleware, listarPorObraEDia);
 
 router.post('/registar-ponto-equipa', authMiddleware, registarPontoEquipa);
+
+router.post('/registar-esquecido-por-outro', authMiddleware, registarPontoEsquecidoPorOutro);
 
 router.get('/listar-dia-equipa', authMiddleware, listarRegistosHojeEquipa);
 
