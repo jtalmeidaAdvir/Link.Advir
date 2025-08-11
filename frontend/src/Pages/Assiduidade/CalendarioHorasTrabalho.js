@@ -73,6 +73,65 @@ const [diasPendentes, setDiasPendentes] = useState([]);
 const [faltasPendentes, setFaltasPendentes] = useState([]);
 
 
+ // Helper genérico para fetch com erro legível
+ const fetchJSON = async (url, options = {}) => {
+   const res = await fetch(url, options);
+   const txt = await res.text();
+   if (!res.ok) throw new Error(`${res.status} ${txt || res.statusText}`);
+   return txt ? JSON.parse(txt) : null;
+ };
+
+ const safeJson = (p) =>
+   p.then((v) => ({ ok: true, v })).catch((e) => ({ ok: false, e }));
+
+ const formatISO = (d) => new Date(d).toISOString().split('T')[0];
+
+
+
+  // --- Helpers de retry/backoff ---
+ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+ const fetchJSONWithRetry = async (url, {
+   method = 'GET',
+   headers = {},
+   body,
+   maxAttempts = 4,         // 1 tentativa + 3 retries
+   timeoutMs = 12000,       // timeout por tentativa
+   backoffBaseMs = 600,     // 0.6s, 1.2s, 2.4s...
+   retryOn = [429, 500, 502, 503, 504] // códigos a re-tentar
+ } = {}) => {
+   let attempt = 0;
+   let lastErr;
+   while (attempt < maxAttempts) {
+     attempt++;
+     const ac = new AbortController();
+     const t = setTimeout(() => ac.abort(), timeoutMs);
+     try {
+       const res = await fetch(url, { method, headers, body, signal: ac.signal });
+       const txt = await res.text();
+       clearTimeout(t);
+       if (!res.ok) {
+         // se não for um erro “retriable”, rebenta já
+         if (!retryOn.includes(res.status)) {
+           throw new Error(`${res.status} ${txt || res.statusText}`);
+         }
+         // cai no retry
+         lastErr = new Error(`${res.status} ${txt || res.statusText}`);
+       } else {
+         return txt ? JSON.parse(txt) : null;
+       }
+     } catch (e) {
+       clearTimeout(t);
+       lastErr = e.name === 'AbortError' ? new Error('Timeout') : e;
+     }
+     // backoff exponencial com jitter
+     const wait = Math.round(backoffBaseMs * (2 ** (attempt - 1)) * (0.75 + Math.random() * 0.5));
+     await sleep(wait);
+   }
+   throw lastErr || new Error('Falha ao obter recurso');
+ };
+
+
 const carregarFaltasPendentes = async () => {
   const token = localStorage.getItem('loginToken');
   const urlempresa = localStorage.getItem('urlempresa');
@@ -589,6 +648,198 @@ const eliminarFeria = async (dataFeria) => {
   }
 };
 
+ const carregarTudoEmParalelo = async (diaISO) => {
+   const loginToken = localStorage.getItem('loginToken');
+   const painelAdminToken = localStorage.getItem('painelAdminToken');
+   const urlempresa = localStorage.getItem('urlempresa');
+   const funcionarioId = localStorage.getItem('codFuncionario');
+
+   const ano = mesAtual.getFullYear();
+   const mes = String(mesAtual.getMonth() + 1).padStart(2, '0');
+
+   // Dispara tudo em paralelo
+ const results = await Promise.allSettled([
+   safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/registo-ponto-obra/resumo-mensal?ano=${ano}&mes=${mes}`, {
+      headers: { Authorization: `Bearer ${loginToken}` },
+   })),
+   safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/obra`, {
+      headers: { Authorization: `Bearer ${loginToken}` },
+   })),
+   safeJson(fetchJSONWithRetry(`https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${funcionarioId}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${painelAdminToken}`, urlempresa },
+   })),
+   safeJson(fetchJSONWithRetry(`https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${painelAdminToken}`, urlempresa },
+   })),
+   safeJson(fetchJSONWithRetry(`https://webapiprimavera.advir.pt/routesFaltas/GetHorarioFuncionario/${funcionarioId}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${painelAdminToken}`, urlempresa },
+   })),
+   safeJson(fetchJSONWithRetry(`https://webapiprimavera.advir.pt/routesFaltas/GetHorariosTrabalho`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${painelAdminToken}`, urlempresa },
+   })),
+   safeJson(fetchJSONWithRetry(`https://webapiprimavera.advir.pt/routesFaltas/GetTotalizadorFeriasFuncionario/${funcionarioId}`, {
+      headers: { Authorization: `Bearer ${painelAdminToken}`, urlempresa, 'Content-Type': 'application/json' },
+   })),
+   safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
+      headers: { Authorization: `Bearer ${loginToken}`, urlempresa, 'Content-Type': 'application/json' },
+   })),
+   safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${diaISO}`, {
+      headers: { Authorization: `Bearer ${loginToken}` },
+    })),
+  ]);
+
+  // Extrair com defaults quando falha
+  const get = (idx, def = null) => {
+    const r = results[idx];
+    if (r.status !== 'fulfilled' || !r.value?.ok) return def;
+    return r.value.v ?? def;
+  };
+
+  const resumoMensal = get(0, []);
+  const listaObras = get(1, []);
+  const faltasFuncData = get(2, null);
+  const tiposFaltaData = get(3, null);
+  const horarioFuncData = get(4, null);
+  const horariosData = get(5, null);
+  const totalizadorFeriasData = get(6, null);
+  const pendentesAprovacao = get(7, []);
+  const registosDia = get(8, []);
+
+  // Logs leves para debug (não bloqueiam UI)
+  results.forEach((r, i) => {
+    if (r.status !== 'fulfilled' || !r.value?.ok) {
+      console.warn('Falha no bootstrap item', i, r);
+    }
+  });
+
+   // Normalizações rápidas dos datasets “DataSet.Table”
+   const faltasLista = faltasFuncData?.DataSet?.Table ?? [];
+   const tiposFaltaLista = tiposFaltaData?.DataSet?.Table ?? [];
+   const horarioFunc = horarioFuncData?.DataSet?.Table?.[0] ?? null;
+   const horariosLista = horariosData?.DataSet?.Table ?? [];
+   const totalFerias = totalizadorFeriasData?.DataSet?.Table?.[0] ?? null;
+
+   // Mapa faltas
+   const mapa = Object.fromEntries(tiposFaltaLista.map(f => [f.Falta, f.Descricao]));
+
+     const faltasNoDiaBootstrap = faltasLista.filter(f => {
+    const d = new Date(f.Data);
+    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return iso === diaISO;
+  });
+
+   // Dias pendentes calculados dos pendentes do funcionário
+   const pendDoFuncionario = (pendentesAprovacao || []).filter(p => p.funcionario === funcionarioId);
+   const diasPendSet = new Set();
+   pendDoFuncionario.forEach(p => {
+     if (p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim) {
+       const inicio = new Date(p.dataInicio), fim = new Date(p.dataFim);
+       const d = new Date(inicio);
+       while (d <= fim) {
+         diasPendSet.add(formatISO(d));
+         d.setDate(d.getDate() + 1);
+       }
+     } else if (p.dataPedido) {
+       diasPendSet.add(formatISO(p.dataPedido));
+     }
+   });
+   const diasPendArr = Array.from(diasPendSet);
+
+   // Resumo mensal com tua regra para hoje
+   const hojeISO = formatISO(new Date());
+   const registosHoje = diaISO === hojeISO ? registosDia : [];
+   const resumoMap = {};
+   resumoMensal.forEach((dia) => {
+     let minutosTotais = dia.horas * 60 + dia.minutos;
+     if (dia.dia === hojeISO && registosHoje.length) {
+       const entradasAtivas = registosHoje
+         .filter(r => r.tipo === 'entrada')
+         .filter(e => {
+           const entradaTS = new Date(e.timestamp);
+           const temSaida = registosHoje.some(s =>
+             s.tipo === 'saida' &&
+             s.obra_id === e.obra_id &&
+             new Date(s.timestamp) > entradaTS
+           );
+           return !temSaida;
+         });
+       entradasAtivas.forEach(e => {
+         const entradaTS = new Date(e.timestamp);
+         minutosTotais += Math.floor((Date.now() - entradaTS.getTime()) / 60000);
+       });
+     }
+     const h = Math.floor(minutosTotais / 60);
+     const m = minutosTotais % 60;
+     resumoMap[dia.dia] = `${h}h${m > 0 ? ` ${m}min` : ''}`;
+   });
+
+   // Detalhes por obra do dia selecionado (a tua lógica)
+   const ordenado = [...registosDia].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+   const temposPorObra = {};
+   const estadoAtual = {};
+   ordenado.forEach((r) => {
+     const obraId = r.obra_id;
+     const nomeObra = r.Obra?.nome || 'Sem nome';
+     const ts = new Date(r.timestamp);
+     if (!temposPorObra[obraId]) temposPorObra[obraId] = { nome: nomeObra, totalMinutos: 0 };
+     if (r.tipo === 'entrada') estadoAtual[obraId] = ts;
+     if (r.tipo === 'saida' && estadoAtual[obraId]) {
+       const minutos = Math.max(0, (ts - estadoAtual[obraId]) / 60000);
+       temposPorObra[obraId].totalMinutos += minutos;
+       estadoAtual[obraId] = null;
+     }
+   });
+   // Soma “até agora” se o dia é hoje e há entradas ativas
+   if (diaISO === hojeISO) {
+     Object.entries(estadoAtual).forEach(([obraId, entradaTS]) => {
+       if (entradaTS) {
+        const minutos = Math.max(0, (new Date() - entradaTS) / 60000);
+         temposPorObra[obraId].totalMinutos += minutos;
+       }
+     });
+   }
+   const detalhesPorObra = Object.values(temposPorObra).map(o => ({
+     nome: o.nome,
+     horas: Math.floor(o.totalMinutos / 60),
+     minutos: Math.round(o.totalMinutos % 60),
+   }));
+
+   // Pedidos pendentes “do dia”
+   const pendentesDoDia = pendDoFuncionario.filter(p => {
+     const dataSel = new Date(diaISO); dataSel.setHours(0,0,0,0);
+     if (p.tipoPedido === 'FALTA' && p.dataPedido) {
+       const d = new Date(p.dataPedido); d.setHours(0,0,0,0);
+       return p.estadoAprovacao === 'Pendente' && d.getTime() === dataSel.getTime();
+     }
+     if (p.tipoPedido === 'FERIAS' && p.dataInicio && p.dataFim) {
+       const i = new Date(p.dataInicio), f = new Date(p.dataFim);
+       i.setHours(0,0,0,0); f.setHours(0,0,0,0);
+       return p.estadoAprovacao === 'Pendente' && dataSel >= i && dataSel <= f;
+     }
+     return false;
+   });
+
+   // Um único “batch” de setState
+   setResumo(resumoMap);
+   setObras(listaObras);
+   setFaltas(faltasLista);
+   setTiposFalta(tiposFaltaLista);
+   setMapaFaltas(mapa);
+   setHorarioFuncionario(horarioFunc);
+   setHorariosTrabalho(horariosLista);
+   setFeriasTotalizador(totalFerias);
+   setFaltasPendentes(pendentesAprovacao || []);
+   setDiasPendentes(diasPendArr);
+   setDiaSelecionado(diaISO);
+   setRegistosBrutos(registosDia);
+   setDetalhes(detalhesPorObra);
+   setPedidosPendentesDoDia(pendentesDoDia);
+   setFaltasDoDia(faltasNoDiaBootstrap);
+ };
 
 
 
@@ -1015,37 +1266,21 @@ else if (temRegisto) {
 
   
 
-useEffect(() => {
-  const inicializarTudo = async () => {
-    setLoading(true);
-    try {
-      await carregarResumo();
-      await carregarObras();
-      await carregarFaltasFuncionario();
-      await carregarTiposFalta();
-      await carregarHorarioFuncionario();
-      await carregarHorariosTrabalho();
-      await carregarTotalizadorFerias();
-      await carregarDiasPendentes();
-      await carregarFaltasPendentes();
-
-      const hoje = new Date();
-      const dataFormatada = formatarData(hoje);
-
-      // Primeiro define o dia
-      setDiaSelecionado(dataFormatada);
-
-      // Depois carrega os detalhes com base nesse dia
-      await carregarDetalhes(dataFormatada);
-    } catch (err) {
-      console.error('Erro ao carregar dados iniciais:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  inicializarTudo();
-}, [mesAtual]);
+ useEffect(() => {
+   const boot = async () => {
+     setLoading(true);
+     try {
+       const hojeISO = formatarData(new Date());
+       await carregarTudoEmParalelo(hojeISO);
+     } catch (e) {
+       console.error('Erro no bootstrap:', e);
+       alert('Erro ao carregar dados iniciais.');
+     } finally {
+       setLoading(false);
+     }
+   };
+   boot();
+ }, [mesAtual]);
 
 
 
@@ -1836,10 +2071,6 @@ const isPendente = diasPendentes.includes(dataFormatada);
 </div>
 )}
 
-
-
-
-
 <button
     className="btn btn-outline-primary w-100 rounded-pill btn-responsive mb-2"
     onClick={() => setMostrarFormularioFerias(prev => !prev)}
@@ -1883,7 +2114,6 @@ const isPendente = diasPendentes.includes(dataFormatada);
   </div>
 </div>
 
-
     <div className="mb-3">
       <label className="form-label small fw-semibold">Observações</label>
       <textarea
@@ -1917,41 +2147,9 @@ const isPendente = diasPendentes.includes(dataFormatada);
   </button>
 )}
 
-
   </form>
 </div>
 )}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 {registoEmEdicao && (
   <div className="mt-3 border rounded p-3 bg-light">
@@ -1990,15 +2188,6 @@ const isPendente = diasPendentes.includes(dataFormatada);
     </button>
   </div>
 )}
-
-
-
-
-
-
-
-
-
 
                     {/* Histórico */}
                     {registosBrutos.length > 0 && (
@@ -2046,7 +2235,6 @@ const isPendente = diasPendentes.includes(dataFormatada);
     </button>
   </>
 )}
-
 
                                   </span>
                                   <span className="d-sm-none">
