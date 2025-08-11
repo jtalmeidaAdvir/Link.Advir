@@ -6,8 +6,8 @@ const RegistosPorUtilizador = () => {
   const [obras, setObras] = useState([]);
   const [obraSelecionada, setObraSelecionada] = useState('');
   const [utilizadorSelecionado, setUtilizadorSelecionado] = useState('');
-  const [mesSelecionado, setMesSelecionado] = useState('');
-  const [anoSelecionado, setAnoSelecionado] = useState('');
+  const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth() + 1);
+  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
   const [dataSelecionada, setDataSelecionada] = useState('');
   const [resumoUtilizadores, setResumoUtilizadores] = useState([]);
   const [utilizadorDetalhado, setUtilizadorDetalhado] = useState(null);
@@ -23,17 +23,19 @@ const RegistosPorUtilizador = () => {
   const [dadosGrade, setDadosGrade] = useState([]);
   const [loadingGrade, setLoadingGrade] = useState(false);
   const [diasDoMes, setDiasDoMes] = useState([]);
+  const [tiposFaltas, setTiposFaltas] = useState({});
 
   const token = localStorage.getItem('loginToken');
 
-
+  // State for loading status in grade view
+  const [carregando, setCarregando] = useState(false);
 
   const [dialogOpen, setDialogOpen] = useState(false);
 const [userToRegistar, setUserToRegistar] = useState(null);
 const [diaToRegistar, setDiaToRegistar] = useState(null);
 const [obraNoDialog, setObraNoDialog] = useState(obraSelecionada || '');
 
-const [selectedCells, setSelectedCells] = useState([]); 
+const [selectedCells, setSelectedCells] = useState([]);
 const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
 
 
@@ -115,7 +117,38 @@ const handleBulkConfirm = async () => {
   useEffect(() => {
     carregarUtilizadores();
     carregarObras();
+    carregarTiposFaltas();
   }, []);
+
+  const carregarTiposFaltas = async () => {
+    const painelAdminToken = localStorage.getItem('painelAdminToken');
+    const urlempresa = localStorage.getItem('urlempresa');
+
+    if (!painelAdminToken || !urlempresa) return;
+
+    try {
+      const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${painelAdminToken}`,
+          urlempresa: urlempresa,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const tipos = data?.DataSet?.Table ?? [];
+        const mapaFaltas = {};
+        tipos.forEach(t => {
+          mapaFaltas[t.Falta] = t.Descricao;
+        });
+        setTiposFaltas(mapaFaltas);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar tipos de faltas:', err);
+    }
+  };
 
   useEffect(() => {
     if (utilizadorSelecionado) {
@@ -195,12 +228,101 @@ const handleBulkConfirm = async () => {
 
       for (const user of utilizadoresParaPesquisar) {
         try {
+          // Carregar registos de ponto
           let query = `user_id=${user.id}&ano=${anoSelecionado}&mes=${String(mesSelecionado).padStart(2, '0')}`;
           if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
 
           const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
+
+          // Carregar faltas do utilizador
+          const painelAdminToken = localStorage.getItem('painelAdminToken');
+          const urlempresa = localStorage.getItem('urlempresa');
+          const loginToken = localStorage.getItem('loginToken');
+
+          console.log(`[DEBUG] Carregando faltas para ${user.nome} (ID: ${user.id})`);
+          console.log(`[DEBUG] painelAdminToken:`, painelAdminToken ? 'Existe' : 'Não existe');
+          console.log(`[DEBUG] urlempresa:`, urlempresa);
+          console.log(`[DEBUG] loginToken:`, loginToken ? 'Existe' : 'Não existe');
+
+          let faltasUtilizador = [];
+          if (painelAdminToken && urlempresa && loginToken) {
+            try {
+              // Primeiro, obter o codFuncionario do backend
+              console.log(`[DEBUG] Obtendo codFuncionario para userId: ${user.id}`);
+              const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${loginToken}`,
+                  'Content-Type': 'application/json',
+                },
+              });
+
+              if (!resCodFuncionario.ok) {
+                const errorText = await resCodFuncionario.text();
+                console.warn(`[DEBUG] Erro ao obter codFuncionario para ${user.nome}:`, errorText);
+                throw new Error(`Erro ao obter código do funcionário: ${errorText}`);
+              }
+
+              const dataCodFuncionario = await resCodFuncionario.json();
+              const codFuncionario = dataCodFuncionario.codFuncionario;
+
+              if (!codFuncionario) {
+                console.warn(`[DEBUG] codFuncionario não encontrado para ${user.nome}`);
+                throw new Error('Código do funcionário não encontrado');
+              }
+
+              console.log(`[DEBUG] codFuncionario obtido para ${user.nome}:`, codFuncionario);
+
+              // Agora usar o codFuncionario para buscar as faltas
+              const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
+              console.log(`[DEBUG] URL chamada para faltas:`, urlFaltas);
+              
+              const resFaltas = await fetch(urlFaltas, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${painelAdminToken}`,
+                  urlempresa: urlempresa,
+                'Authorization': `Bearer ${painelAdminToken}`,
+                  'urlempresa': urlempresa
+                },
+              });
+
+              console.log(`[DEBUG] Status da resposta faltas:`, resFaltas.status);
+
+              if (resFaltas.ok) {
+                const dataFaltas = await resFaltas.json();
+                console.log(`[DEBUG] Resposta completa das faltas para ${user.nome} (codFuncionario: ${codFuncionario}):`, dataFaltas);
+                
+                const listaFaltas = dataFaltas?.DataSet?.Table ?? [];
+                console.log(`[DEBUG] Lista de faltas extraída:`, listaFaltas);
+                console.log(`[DEBUG] Número total de faltas encontradas:`, listaFaltas.length);
+
+                // Filtrar faltas do mês/ano atual
+                faltasUtilizador = listaFaltas.filter(f => {
+                  const dataFalta = new Date(f.Data);
+                  const anoFalta = dataFalta.getFullYear();
+                  const mesFalta = dataFalta.getMonth();
+                  const filtroMatch = anoFalta === parseInt(anoSelecionado) && mesFalta === parseInt(mesSelecionado) - 1;
+                  
+                  console.log(`[DEBUG] Falta: ${f.Data} - Ano: ${anoFalta}, Mês: ${mesFalta + 1}, Match: ${filtroMatch}`);
+                  
+                  return filtroMatch;
+                });
+                
+                console.log(`[DEBUG] Faltas filtradas para ${user.nome} (${mesSelecionado}/${anoSelecionado}):`, faltasUtilizador);
+              } else {
+                const errorText = await resFaltas.text();
+                console.error(`[DEBUG] Erro na resposta das faltas (status: ${resFaltas.status}):`, errorText);
+              }
+            } catch (faltaErr) {
+              console.error(`[DEBUG] Erro completo ao carregar faltas para ${user.nome}:`, faltaErr);
+            }
+          } else {
+            console.warn(`[DEBUG] Tokens em falta - painelAdminToken: ${!!painelAdminToken}, urlempresa: ${!!urlempresa}, loginToken: ${!!loginToken}`);
+          }
 
           if (res.ok) {
             const registos = await res.json();
@@ -213,63 +335,109 @@ const handleBulkConfirm = async () => {
               registosPorDia[dia].push(reg);
             });
 
-            // Calcular estatísticas por dia
-            const estatisticasDias = {};
-            Object.entries(registosPorDia).forEach(([dia, regs]) => {
-              const entradas = regs.filter(r => r.tipo === 'entrada').length;
-              const saidas = regs.filter(r => r.tipo === 'saida').length;
-              const confirmados = regs.filter(r => r.is_confirmed).length;
-              const naoConfirmados = regs.length - confirmados;
-
-              // Calcular horas estimadas
-              let horasEstimadas = 0;
-              const eventosOrdenados = regs
-                .filter(r => r.tipo === 'entrada' || r.tipo === 'saida')
-                .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-              let ultimaEntrada = null;
-              eventosOrdenados.forEach(reg => {
-                if (reg.tipo === 'entrada') {
-                  ultimaEntrada = new Date(reg.timestamp);
-                } else if (reg.tipo === 'saida' && ultimaEntrada) {
-                  const saida = new Date(reg.timestamp);
-                  const diff = (saida - ultimaEntrada) / (1000 * 60 * 60);
-                  if (diff > 0 && diff < 24) {
-                    horasEstimadas += diff;
-                  }
-                  ultimaEntrada = null;
-                }
-              });
-
-              estatisticasDias[dia] = {
-                totalRegistos: regs.length,
-                entradas,
-                saidas,
-                confirmados,
-                naoConfirmados,
-                horasEstimadas: horasEstimadas.toFixed(1),
-                primeiroRegisto: regs.length > 0 ? new Date(Math.min(...regs.map(r => new Date(r.timestamp)))).toLocaleTimeString('pt-PT') : null,
-                ultimoRegisto: regs.length > 0 ? new Date(Math.max(...regs.map(r => new Date(r.timestamp)))).toLocaleTimeString('pt-PT') : null,
-                obras: [...new Set(regs.map(r => r.Obra?.nome).filter(Boolean))]
-              };
+            // Organizar faltas por dia
+            const faltasPorDia = {};
+            faltasUtilizador.forEach(falta => {
+              const dia = new Date(falta.Data).getDate();
+              if (!faltasPorDia[dia]) faltasPorDia[dia] = [];
+              faltasPorDia[dia].push(falta);
             });
 
-            dadosGradeTemp.push({
+            // Calcular estatísticas por dia
+            const estatisticasDias = {};
+
+            // Processar todos os dias do mês
+            dias.forEach(dia => {
+              const regs = registosPorDia[dia] || [];
+              const faltas = faltasPorDia[dia] || [];
+
+              if (regs.length > 0 || faltas.length > 0) {
+                const entradas = regs.filter(r => r.tipo === 'entrada').length;
+                const saidas = regs.filter(r => r.tipo === 'saida').length;
+                const confirmados = regs.filter(r => r.is_confirmed).length;
+                const naoConfirmados = regs.length - confirmados;
+
+                // Calcular horas estimadas
+                let horasEstimadas = 0;
+                const eventosOrdenados = regs
+                  .filter(r => r.tipo === 'entrada' || r.tipo === 'saida')
+                  .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                let ultimaEntrada = null;
+                eventosOrdenados.forEach(reg => {
+                  if (reg.tipo === 'entrada') {
+                    ultimaEntrada = new Date(reg.timestamp);
+                  } else if (reg.tipo === 'saida' && ultimaEntrada) {
+                    const saida = new Date(reg.timestamp);
+                    const diff = (saida - ultimaEntrada) / (1000 * 60 * 60);
+                    if (diff > 0 && diff < 24) {
+                      horasEstimadas += diff;
+                    }
+                    ultimaEntrada = null;
+                  }
+                });
+
+                estatisticasDias[dia] = {
+                  totalRegistos: regs.length,
+                  entradas,
+                  saidas,
+                  confirmados,
+                  naoConfirmados,
+                  horasEstimadas: horasEstimadas.toFixed(1),
+                  primeiroRegisto: regs.length > 0 ? new Date(Math.min(...regs.map(r => new Date(r.timestamp)))).toLocaleTimeString('pt-PT') : null,
+                  ultimoRegisto: regs.length > 0 ? new Date(Math.max(...regs.map(r => new Date(r.timestamp)))).toLocaleTimeString('pt-PT') : null,
+                  obras: [...new Set(regs.map(r => r.Obra?.nome).filter(Boolean))],
+                  faltas: faltas
+                };
+              }
+            });
+
+            const totalDiasComRegistos = Object.keys(registosPorDia).length;
+            const totalHorasEstimadas = Object.values(estatisticasDias).reduce((acc, dia) => acc + parseFloat(dia?.horasEstimadas || 0), 0);
+
+            const dadosUtilizador = {
               utilizador: user,
               estatisticasDias,
-              totalDias: Object.keys(registosPorDia).length,
+              totalDias: totalDiasComRegistos,
               totalRegistos: registos.length,
-              totalHorasEstimadas: Object.values(estatisticasDias).reduce((acc, dia) => acc + parseFloat(dia.horasEstimadas || 0), 0).toFixed(1)
+              totalHorasEstimadas: totalHorasEstimadas.toFixed(1),
+              totalFaltas: faltasUtilizador.length
+            };
+            
+            console.log(`[DEBUG] Dados finais para ${user.nome}:`, dadosUtilizador);
+            console.log(`[DEBUG] Estatísticas por dia para ${user.nome}:`, estatisticasDias);
+            
+            dadosGradeTemp.push(dadosUtilizador);
+          } else {
+            // Mesmo se não houver registos, adicionar o utilizador com dados vazios
+            dadosGradeTemp.push({
+              utilizador: user,
+              estatisticasDias: {},
+              totalDias: 0,
+              totalRegistos: 0,
+              totalHorasEstimadas: '0.0',
+              totalFaltas: 0
             });
           }
         } catch (err) {
           console.error(`Erro ao carregar dados do utilizador ${user.nome}:`, err);
+          // Adicionar utilizador com dados vazios em caso de erro
+          dadosGradeTemp.push({
+            utilizador: user,
+            estatisticasDias: {},
+            totalDias: 0,
+            totalRegistos: 0,
+            totalHorasEstimadas: '0.0',
+            totalFaltas: 0
+          });
         }
       }
 
       // Ordenar por total de horas (decrescente)
       dadosGradeTemp.sort((a, b) => parseFloat(b.totalHorasEstimadas) - parseFloat(a.totalHorasEstimadas));
       setDadosGrade(dadosGradeTemp);
+
+      console.log('Dados carregados para a grade:', dadosGradeTemp);
 
     } catch (err) {
       console.error('Erro ao carregar dados da grade:', err);
@@ -436,7 +604,7 @@ const handleBulkConfirm = async () => {
   };
 
 
-  
+
 
   useEffect(() => {
     const fetchEnderecos = async () => {
@@ -694,6 +862,47 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
   }
 };
 
+  // Function to get cell content (including absence data)
+  const obterConteudoCelula = (funcionario, dia) => {
+    const registosDoDia = funcionario.registos?.filter(r => {
+      const dataRegisto = new Date(r.dataRegisto || r.Data);
+      return dataRegisto.getDate() === dia;
+    }) || [];
+
+    // Verificar se há faltas neste dia
+    const faltasDoDia = funcionario.faltas?.filter(f => {
+      const dataFalta = new Date(f.Data);
+      return dataFalta.getDate() === dia;
+    }) || [];
+
+    // Se há falta, mostrar F
+    if (faltasDoDia.length > 0) {
+      const tipoFalta = faltasDoDia[0].Falta || 'F';
+      return {
+        texto: tipoFalta,
+        cor: '#ffebee',
+        textoCor: '#d32f2f',
+        title: `Falta: ${faltasDoDia[0].Falta || 'Não especificada'}`
+      };
+    }
+
+    if (registosDoDia.length === 0) {
+      return { texto: '-', cor: '#f5f5f5', textoCor: '#999' };
+    }
+
+    // Lógica para determinar o conteúdo baseado nos registos
+    const temEntrada = registosDoDia.some(r => r.tipo === 'entrada' || r.TipoRegisto === 'Entrada');
+    const temSaida = registosDoDia.some(r => r.tipo === 'saida' || r.TipoRegisto === 'Saída');
+
+    if (temEntrada && temSaida) {
+      return { texto: 'P', cor: '#e8f5e8', textoCor: '#2e7d32' }; // Presente
+    } else if (temEntrada) {
+      return { texto: '½', cor: '#fff3e0', textoCor: '#f57c00' }; // Meio dia
+    } else {
+      return { texto: '?', cor: '#ffebee', textoCor: '#d32f2f' }; // Situação indefinida
+    }
+  };
+
 
   return (
     <div style={styles.container}>
@@ -854,54 +1063,295 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
 
             {bulkDialogOpen && (
   <div style={styles.modalOverlay}>
-    <div style={styles.modal}>
-      <h4>Registar em bloco ({selectedCells.join(', ')})</h4>
-      <div style={{ display: 'grid', gap: '8px' }}>
-  <label>Entrada (manhã):</label>
-  <input
-    type="time"
-    value={horarios.entradaManha}
-    onChange={e => setHorarios(h => ({ ...h, entradaManha: e.target.value }))}
-  />
+    <div style={styles.bulkModal}>
+      <div style={styles.bulkModalHeader}>
+        <h3 style={styles.bulkModalTitle}>
+          🗓️ Registar Pontos em Bloco
+        </h3>
+        <p style={styles.bulkModalSubtitle}>
+          Registando para {selectedCells.length} seleções
+        </p>
+        <button 
+          style={styles.closeButton}
+          onClick={() => setBulkDialogOpen(false)}
+          aria-label="Fechar"
+        >
+          ×
+        </button>
+      </div>
 
-  <label>Saída (manhã):</label>
-  <input
-    type="time"
-    value={horarios.saidaManha}
-    onChange={e => setHorarios(h => ({ ...h, saidaManha: e.target.value }))}
-  />
+      <div style={styles.bulkModalContent}>
+        <div style={styles.selectedCellsContainer}>
+          <span style={styles.selectedCellsLabel}>Células selecionadas:</span>
+          <div style={styles.selectedCellsList}>
+            {selectedCells.map((cell, index) => (
+              <span key={index} style={styles.selectedCell}>
+                {cell}
+              </span>
+            ))}
+          </div>
+        </div>
 
-  <label>Entrada (tarde):</label>
-  <input
-    type="time"
-    value={horarios.entradaTarde}
-    onChange={e => setHorarios(h => ({ ...h, entradaTarde: e.target.value }))}
-  />
+        <div style={styles.horariosContainer}>
+          <h4 style={styles.horariosTitle}>⏰ Configurar Horários</h4>
+          
+          <div style={styles.horariosGrid}>
+            <div style={styles.periodoContainer}>
+              <div style={styles.periodoHeader}>
+                <span style={styles.periodoIcon}>🌅</span>
+                <span style={styles.periodoTitle}>Manhã</span>
+              </div>
+              <div style={styles.horarioRow}>
+                <div style={styles.inputGroup}>
+                  <label style={styles.timeLabel}>Entrada</label>
+                  <input
+                    type="time"
+                    style={styles.timeInput}
+                    value={horarios.entradaManha}
+                    onChange={e => setHorarios(h => ({ ...h, entradaManha: e.target.value }))}
+                  />
+                </div>
+                <div style={styles.inputGroup}>
+                  <label style={styles.timeLabel}>Saída</label>
+                  <input
+                    type="time"
+                    style={styles.timeInput}
+                    value={horarios.saidaManha}
+                    onChange={e => setHorarios(h => ({ ...h, saidaManha: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
 
-  <label>Saída (tarde):</label>
-  <input
-    type="time"
-    value={horarios.saidaTarde}
-    onChange={e => setHorarios(h => ({ ...h, saidaTarde: e.target.value }))}
-  />
-</div>
-      <label>Obra:</label>
-      <select
-        style={{ width: '100%', margin: '10px 0', padding: '8px' }}
-        value={obraNoDialog}
-        onChange={e => setObraNoDialog(e.target.value)}
-      >
-        <option value="">-- selecione obra --</option>
-        {obras.map(o => (
-          <option key={o.id} value={o.id}>{o.nome}</option>
-        ))}
-      </select>
-      <button onClick={()=>setBulkDialogOpen(false)}>Cancelar</button>
-      <button onClick={handleBulkConfirm}>Confirmar</button>
+            <div style={styles.periodoContainer}>
+              <div style={styles.periodoHeader}>
+                <span style={styles.periodoIcon}>🌇</span>
+                <span style={styles.periodoTitle}>Tarde</span>
+              </div>
+              <div style={styles.horarioRow}>
+                <div style={styles.inputGroup}>
+                  <label style={styles.timeLabel}>Entrada</label>
+                  <input
+                    type="time"
+                    style={styles.timeInput}
+                    value={horarios.entradaTarde}
+                    onChange={e => setHorarios(h => ({ ...h, entradaTarde: e.target.value }))}
+                  />
+                </div>
+                <div style={styles.inputGroup}>
+                  <label style={styles.timeLabel}>Saída</label>
+                  <input
+                    type="time"
+                    style={styles.timeInput}
+                    value={horarios.saidaTarde}
+                    onChange={e => setHorarios(h => ({ ...h, saidaTarde: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.obraContainer}>
+          <label style={styles.obraLabel}>
+            <span style={styles.obraIcon}>🏗️</span>
+            Selecionar Obra
+          </label>
+          <select
+            style={styles.obraSelect}
+            value={obraNoDialog}
+            onChange={e => setObraNoDialog(e.target.value)}
+          >
+            <option value="">-- Selecione uma obra --</option>
+            {obras.map(o => (
+              <option key={o.id} value={o.id}>{o.nome}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div style={styles.bulkModalActions}>
+        <button 
+          style={styles.cancelButton}
+          onClick={() => setBulkDialogOpen(false)}
+        >
+          Cancelar
+        </button>
+        <button 
+          style={styles.confirmButton}
+          onClick={handleBulkConfirm}
+          disabled={!obraNoDialog}
+        >
+          ✅ Confirmar Registo em Bloco
+        </button>
+      </div>
     </div>
   </div>
 )}
 
+            {/* Modal para registo individual */}
+            {dialogOpen && (
+              <div style={styles.modalOverlay}>
+                <div style={styles.individualModal}>
+                  <div style={styles.individualModalHeader}>
+                    <h3 style={styles.individualModalTitle}>
+                      📝 Registar Ponto Individual
+                    </h3>
+                    <p style={styles.individualModalSubtitle}>
+                      Dia {diaToRegistar} - {utilizadores.find(u => u.id === userToRegistar)?.nome}
+                    </p>
+                    <button 
+                      style={styles.closeButton}
+                      onClick={() => setDialogOpen(false)}
+                      aria-label="Fechar"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div style={styles.individualModalContent}>
+                    <div style={styles.horariosContainer}>
+                      <h4 style={styles.horariosTitle}>⏰ Configurar Horários</h4>
+                      
+                      <div style={styles.horariosGrid}>
+                        <div style={styles.periodoContainer}>
+                          <div style={styles.periodoHeader}>
+                            <span style={styles.periodoIcon}>🌅</span>
+                            <span style={styles.periodoTitle}>Manhã</span>
+                          </div>
+                          <div style={styles.horarioRow}>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.timeLabel}>Entrada</label>
+                              <input
+                                type="time"
+                                style={styles.timeInput}
+                                value={horarios.entradaManha}
+                                onChange={e => setHorarios(h => ({ ...h, entradaManha: e.target.value }))}
+                              />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.timeLabel}>Saída</label>
+                              <input
+                                type="time"
+                                style={styles.timeInput}
+                                value={horarios.saidaManha}
+                                onChange={e => setHorarios(h => ({ ...h, saidaManha: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={styles.periodoContainer}>
+                          <div style={styles.periodoHeader}>
+                            <span style={styles.periodoIcon}>🌇</span>
+                            <span style={styles.periodoTitle}>Tarde</span>
+                          </div>
+                          <div style={styles.horarioRow}>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.timeLabel}>Entrada</label>
+                              <input
+                                type="time"
+                                style={styles.timeInput}
+                                value={horarios.entradaTarde}
+                                onChange={e => setHorarios(h => ({ ...h, entradaTarde: e.target.value }))}
+                              />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.timeLabel}>Saída</label>
+                              <input
+                                type="time"
+                                style={styles.timeInput}
+                                value={horarios.saidaTarde}
+                                onChange={e => setHorarios(h => ({ ...h, saidaTarde: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={styles.obraContainer}>
+                      <label style={styles.obraLabel}>
+                        <span style={styles.obraIcon}>🏗️</span>
+                        Selecionar Obra
+                      </label>
+                      <select
+                        style={styles.obraSelect}
+                        value={obraNoDialog}
+                        onChange={e => setObraNoDialog(e.target.value)}
+                      >
+                        <option value="">-- Selecione uma obra --</option>
+                        {obras.map(o => (
+                          <option key={o.id} value={o.id}>{o.nome}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={styles.individualModalActions}>
+                    <button 
+                      style={styles.cancelButton}
+                      onClick={() => setDialogOpen(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      style={styles.confirmButton}
+                      onClick={async () => {
+                        if (!obraNoDialog) {
+                          return alert('Escolhe uma obra para registar.');
+                        }
+                        
+                        try {
+                          const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(diaToRegistar).padStart(2,'0')}`;
+                          const tipos = ['entrada','saida','entrada','saida'];
+                          const horas = [
+                            horarios.entradaManha,
+                            horarios.saidaManha,
+                            horarios.entradaTarde,
+                            horarios.saidaTarde
+                          ];
+                          
+                          for (let i = 0; i < 4; i++) {
+                            const res = await fetch(
+                              `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido`,
+                              {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  Authorization: `Bearer ${token}`
+                                },
+                                body: JSON.stringify({
+                                  tipo: tipos[i],
+                                  obra_id: +obraNoDialog,
+                                  user_id: userToRegistar,
+                                  timestamp: `${dataFormatada}T${horas[i]}:00`
+                                })
+                              }
+                            );
+                            if (!res.ok) throw new Error('Falha ao criar ponto');
+                            const json = await res.json();
+                            await fetch(
+                              `https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`,
+                              { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }
+                            );
+                          }
+                          
+                          alert('Quatro pontos registados e confirmados com sucesso!');
+                          setDialogOpen(false);
+                          if (viewMode === 'grade') carregarDadosGrade();
+                        } catch (err) {
+                          alert(err.message);
+                        }
+                      }}
+                      disabled={!obraNoDialog}
+                    >
+                      ✅ Confirmar Registo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             </>
           )}
@@ -1004,7 +1454,7 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
       )}
 
       {/* Grade Mensal */}
-      {viewMode === 'grade' && !loadingGrade && dadosGrade.length > 0 && (
+      {viewMode === 'grade' && !loadingGrade && (anoSelecionado && mesSelecionado) && (
         <div style={styles.gradeSection}>
           <h3 style={styles.sectionTitle}>
             <span style={styles.sectionIcon}>📅</span>
@@ -1103,6 +1553,7 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
   }}
   style={{
     ...styles.gradeCell,
+    ...(new Date(parseInt(anoSelecionado, 10), parseInt(mesSelecionado, 10) - 1, dia).getDay() === 0 || new Date(parseInt(anoSelecionado, 10), parseInt(mesSelecionado, 10) - 1, dia).getDay() === 6 ? styles.weekendCell : {}),
     border: selectedCells.includes(`${item.utilizador.id}-${dia}`)
       ? '3px solid #3182ce'
       : estatisticas
@@ -1117,17 +1568,20 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
   }}
 
                             title={estatisticas ?
-                              `${estatisticas.totalRegistos} registos\n${estatisticas.horasEstimadas} horas\n${estatisticas.confirmados}/${estatisticas.totalRegistos} confirmados\nPrimeiro: ${estatisticas.primeiroRegisto}\nÚltimo: ${estatisticas.ultimoRegisto}\n\nClique para registar novo ponto`
+                              `${estatisticas.totalRegistos} registos\n${estatisticas.horasEstimadas} horas\n${estatisticas.confirmados}/${estatisticas.totalRegistos} confirmados\nPrimeiro: ${estatisticas.primeiroRegisto}\nÚltimo: ${estatisticas.ultimoRegisto}${estatisticas.faltas && estatisticas.faltas.length > 0 ? `\n\nFaltas: ${estatisticas.faltas.map(f => `${f.Falta} - ${tiposFaltas[f.Falta] || 'Desconhecido'} (${f.Tempo}${f.Horas ? 'h' : 'd'})`).join(', ')}` : ''}\n\nClique para registar novo ponto`
                               : 'Sem registos\n\nClique para registar ponto'
                             }
-   
-                             
+
+
 
                           >
                             {estatisticas ? (
                               <div style={styles.gradeCellContent}>
                                 <div style={styles.gradeCellHoras}>{estatisticas.horasEstimadas}h</div>
                                 <div style={styles.gradeCellRegistos}>{estatisticas.totalRegistos}r</div>
+                                {estatisticas.faltas && estatisticas.faltas.length > 0 && (
+                                  <div style={styles.gradeCellFaltas}>📅{estatisticas.faltas.length}</div>
+                                )}
                                 {estatisticas.naoConfirmados > 0 && (
                                   <div style={styles.gradeCellAlert}>⚠️{estatisticas.naoConfirmados}</div>
                                 )}
@@ -1144,6 +1598,9 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
                         <div style={styles.gradeTotalContent}>
                           <div style={styles.gradeTotalHoras}>{item.totalHorasEstimadas}h</div>
                           <div style={styles.gradeTotalDias}>{item.totalDias} dias</div>
+                          {item.totalFaltas > 0 && (
+                            <div style={styles.gradeTotalFaltas}>{item.totalFaltas} faltas</div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1154,125 +1611,6 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
           </div>
         </div>
       )}
-{dialogOpen && (
-  <div style={{
-    position: 'fixed',
-    top: 0, left: 0, right: 0, bottom: 0,
-    background: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000
-  }}>
-  
-
-    <div style={{
-      background: 'white',
-      padding: '20px',
-      borderRadius: '8px',
-      minWidth: '300px'
-    }}>
-      <h4>Registar para dia {diaToRegistar}</h4>
-        <div style={{ display: 'grid', gap: '8px' }}>
-  <label>Entrada (manhã):</label>
-  <input
-    type="time"
-    value={horarios.entradaManha}
-    onChange={e => setHorarios(h => ({ ...h, entradaManha: e.target.value }))}
-  />
-
-  <label>Saída (manhã):</label>
-  <input
-    type="time"
-    value={horarios.saidaManha}
-    onChange={e => setHorarios(h => ({ ...h, saidaManha: e.target.value }))}
-  />
-
-  <label>Entrada (tarde):</label>
-  <input
-    type="time"
-    value={horarios.entradaTarde}
-    onChange={e => setHorarios(h => ({ ...h, entradaTarde: e.target.value }))}
-  />
-
-  <label>Saída (tarde):</label>
-  <input
-    type="time"
-    value={horarios.saidaTarde}
-    onChange={e => setHorarios(h => ({ ...h, saidaTarde: e.target.value }))}
-  />
-</div>
-      <label>Obra:</label>
-      <select
-        style={{ width: '100%', margin: '10px 0', padding: '8px' }}
-        value={obraNoDialog}
-        onChange={e => setObraNoDialog(e.target.value)}
-      >
-        <option value="">-- selecione obra --</option>
-        {obras.map(o => (
-          <option key={o.id} value={o.id}>{o.nome}</option>
-        ))}
-      </select>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-        <button onClick={() => setDialogOpen(false)}>Cancelar</button>
-        <button onClick={async () => {
-  // monta a data
-  const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(diaToRegistar).padStart(2,'0')}`;
-
-  // tipos fixos
-  const tipos = ['entrada','saida','entrada','saida'];
-
-  // usa diretamente o state "horarios" para compor o array de horas
-  const horas = [
-    horarios.entradaManha,
-    horarios.saidaManha,
-    horarios.entradaTarde,
-    horarios.saidaTarde
-  ];
-
-  // cria cada registro esquecido
-  const novosRegistos = [];
-  for (let i = 0; i < tipos.length; i++) {
-    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        tipo: tipos[i],
-        obra_id: +obraNoDialog,
-        timestamp: `${dataFormatada}T${horas[i]}:00`,
-        justificacao: '',
-
-      })
-    });
-    if (!res.ok) throw new Error('Falha ao criar ponto');
-    const json = await res.json();
-    novosRegistos.push(json);
-  }
-
-  // confirma cada um dos registros recém-criados
-  for (const reg of novosRegistos) {
-    await fetch(`https://backend.advir.pt/api/registo-ponto-obra/confirmar/${reg.id}`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}` }
-    });
-  }
-
-  setDialogOpen(false);
-  if (viewMode === 'grade') carregarDadosGrade();
-  alert('Quatro pontos registados e confirmados com sucesso!');
-}}>
-  Confirmar
-</button>
-
-
-
-      </div>
-    </div>
-  </div>
-)}
 
       {/* Detalhes do Utilizador Selecionado */}
       {viewMode === 'detalhes' && utilizadorDetalhado && (
@@ -1419,8 +1757,14 @@ const registarPontoParaUtilizador = async (userId, dia, obraId) => {
       {viewMode === 'grade' && !loadingGrade && dadosGrade.length === 0 && anoSelecionado && mesSelecionado && (
         <div style={styles.emptyState}>
           <span style={styles.emptyIcon}>📅</span>
-          <h3>Nenhum registo encontrado para a grade</h3>
-          <p>Não foram encontrados registos para {mesSelecionado}/{anoSelecionado} com os critérios selecionados.</p>
+          <h3>Nenhum utilizador encontrado para a grade</h3>
+          <p>Não foram encontrados utilizadores para {mesSelecionado}/{anoSelecionado} com os critérios selecionados.</p>
+          <p style={{fontSize: '0.9rem', color: '#666', marginTop: '10px'}}>
+            Verifique se:
+            <br />• Os utilizadores têm registos no período selecionado
+            <br />• A obra selecionada tem utilizadores associados
+            <br />• Os filtros estão corretos
+          </p>
         </div>
       )}
     </div>
@@ -1879,6 +2223,11 @@ weekendCell: {
     color: '#e53e3e',
     fontWeight: '600'
   },
+  gradeCellFaltas: {
+    fontSize: '0.7rem',
+    color: '#d69e2e',
+    fontWeight: '600'
+  },
   gradeCellEmpty: {
     color: '#a0aec0',
     fontSize: '0.9rem'
@@ -1897,6 +2246,11 @@ weekendCell: {
   gradeTotalDias: {
     fontSize: '0.7rem',
     color: '#718096'
+  },
+  gradeTotalFaltas: {
+    fontSize: '0.7rem',
+    color: '#d69e2e',
+    fontWeight: '600'
   },
   // Detalhes Styles (mantendo os existentes)
   detalhesSection: {
@@ -2042,14 +2396,261 @@ weekendCell: {
     marginBottom: '20px'
   },
   modalOverlay: {
-  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-  background: 'rgba(0,0,0,0.5)', display: 'flex',
-  alignItems: 'center', justifyContent: 'center', zIndex: 1000
-},
-modal: {
-  background: 'white', padding: '20px',
-  borderRadius: '8px', minWidth: '320px'
-}
+    position: 'fixed', 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    bottom: 0,
+    background: 'rgba(0,0,0,0.6)', 
+    display: 'flex',
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    zIndex: 1000,
+    backdropFilter: 'blur(3px)'
+  },
+  modal: {
+    background: 'white', 
+    padding: '20px',
+    borderRadius: '8px', 
+    minWidth: '320px'
+  },
+  bulkModal: {
+    background: '#ffffff',
+    borderRadius: '16px',
+    maxWidth: '600px',
+    width: '90vw',
+    maxHeight: '80vh',
+    overflow: 'hidden',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+    position: 'relative',
+    animation: 'modalSlideIn 0.3s ease-out'
+  },
+  bulkModalHeader: {
+    background: 'linear-gradient(135deg, #3182ce, #2c5aa0)',
+    color: 'white',
+    padding: '25px 30px',
+    position: 'relative'
+  },
+  bulkModalTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '1.5rem',
+    fontWeight: '700'
+  },
+  bulkModalSubtitle: {
+    margin: 0,
+    fontSize: '0.95rem',
+    opacity: 0.9
+  },
+  closeButton: {
+    position: 'absolute',
+    top: '20px',
+    right: '25px',
+    background: 'rgba(255,255,255,0.2)',
+    border: 'none',
+    color: 'white',
+    fontSize: '24px',
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s'
+  },
+  bulkModalContent: {
+    padding: '30px',
+    maxHeight: 'calc(80vh - 180px)',
+    overflowY: 'auto'
+  },
+  selectedCellsContainer: {
+    marginBottom: '25px',
+    padding: '20px',
+    background: '#f8fafc',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0'
+  },
+  selectedCellsLabel: {
+    fontSize: '0.9rem',
+    fontWeight: '600',
+    color: '#4a5568',
+    marginBottom: '10px',
+    display: 'block'
+  },
+  selectedCellsList: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px'
+  },
+  selectedCell: {
+    background: '#3182ce',
+    color: 'white',
+    padding: '4px 12px',
+    borderRadius: '20px',
+    fontSize: '0.8rem',
+    fontWeight: '500'
+  },
+  horariosContainer: {
+    marginBottom: '25px'
+  },
+  horariosTitle: {
+    fontSize: '1.2rem',
+    fontWeight: '600',
+    color: '#2d3748',
+    marginBottom: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  horariosGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '20px'
+  },
+  periodoContainer: {
+    background: '#ffffff',
+    border: '2px solid #e2e8f0',
+    borderRadius: '12px',
+    padding: '20px',
+    transition: 'all 0.2s'
+  },
+  periodoHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '15px'
+  },
+  periodoIcon: {
+    fontSize: '1.2rem'
+  },
+  periodoTitle: {
+    fontSize: '1rem',
+    fontWeight: '600',
+    color: '#2d3748'
+  },
+  horarioRow: {
+    display: 'flex',
+    gap: '15px'
+  },
+  inputGroup: {
+    flex: 1
+  },
+  timeLabel: {
+    display: 'block',
+    fontSize: '0.85rem',
+    fontWeight: '500',
+    color: '#4a5568',
+    marginBottom: '6px'
+  },
+  timeInput: {
+    width: '100%',
+    padding: '10px 12px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: '0.95rem',
+    transition: 'all 0.2s',
+    outline: 'none',
+    boxSizing: 'border-box'
+  },
+  obraContainer: {
+    marginBottom: '20px'
+  },
+  obraLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '1rem',
+    fontWeight: '600',
+    color: '#2d3748',
+    marginBottom: '12px'
+  },
+  obraIcon: {
+    fontSize: '1.1rem'
+  },
+  obraSelect: {
+    width: '100%',
+    padding: '12px 16px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '12px',
+    fontSize: '1rem',
+    background: 'white',
+    transition: 'all 0.2s',
+    outline: 'none',
+    boxSizing: 'border-box'
+  },
+  bulkModalActions: {
+    background: '#f8fafc',
+    padding: '20px 30px',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '15px',
+    borderTop: '1px solid #e2e8f0'
+  },
+  cancelButton: {
+    padding: '12px 24px',
+    border: '2px solid #e2e8f0',
+    borderRadius: '10px',
+    background: '#ffffff',
+    color: '#4a5568',
+    fontSize: '1rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  confirmButton: {
+    padding: '12px 28px',
+    border: 'none',
+    borderRadius: '10px',
+    background: 'linear-gradient(135deg, #38a169, #2f855a)',
+    color: 'white',
+    fontSize: '1rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    boxShadow: '0 4px 12px rgba(56, 161, 105, 0.3)'
+  },
+
+  // Estilos para modal individual
+  individualModal: {
+    background: '#ffffff',
+    borderRadius: '16px',
+    maxWidth: '500px',
+    width: '90vw',
+    maxHeight: '80vh',
+    overflow: 'hidden',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+    position: 'relative',
+    animation: 'modalSlideIn 0.3s ease-out'
+  },
+  individualModalHeader: {
+    background: 'linear-gradient(135deg, #2c5aa0, #3182ce)',
+    color: 'white',
+    padding: '25px 30px',
+    position: 'relative'
+  },
+  individualModalTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '1.4rem',
+    fontWeight: '700'
+  },
+  individualModalSubtitle: {
+    margin: 0,
+    fontSize: '0.95rem',
+    opacity: 0.9
+  },
+  individualModalContent: {
+    padding: '25px',
+    maxHeight: 'calc(80vh - 160px)',
+    overflowY: 'auto'
+  },
+  individualModalActions: {
+    background: '#f8fafc',
+    padding: '20px 25px',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '15px',
+    borderTop: '1px solid #e2e8f0'
+  }
 
 };
 
@@ -2135,6 +2736,75 @@ if (typeof document !== 'undefined') {
       }
 
       .nav-tab {
+        width: 100% !important;
+      }
+    }
+
+    /* Modal animations */
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Hover effects */
+    .bulk-modal .close-button:hover {
+      background: rgba(255,255,255,0.3) !important;
+      transform: rotate(90deg);
+    }
+
+    .bulk-modal .cancel-button:hover {
+      background: #f1f5f9 !important;
+      border-color: #cbd5e1 !important;
+    }
+
+    .bulk-modal .confirm-button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(56, 161, 105, 0.4) !important;
+    }
+
+    .bulk-modal .confirm-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .bulk-modal .time-input:focus,
+    .bulk-modal .obra-select:focus {
+      border-color: #3182ce !important;
+      box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+    }
+
+    .bulk-modal .periodo-container:hover {
+      border-color: #cbd5e1 !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    /* Responsive modal */
+    @media (max-width: 768px) {
+      .bulk-modal {
+        width: 95vw !important;
+        margin: 20px !important;
+      }
+
+      .bulk-modal .horarios-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      .bulk-modal .horario-row {
+        flex-direction: column !important;
+        gap: 10px !important;
+      }
+
+      .bulk-modal-actions {
+        flex-direction: column !important;
+      }
+
+      .bulk-modal-actions button {
         width: 100% !important;
       }
     }

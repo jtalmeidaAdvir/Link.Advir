@@ -66,6 +66,33 @@ const [equipaSelecionada, setEquipaSelecionada] = useState(null);
 const [itensSubmetidos, setItensSubmetidos] = useState([]);
 
 
+const selecionarOpcaoEspecialidade = (index, valor) => {
+  const eq = equipamentosList.find(o => o.codigo === valor);
+  const mao = especialidadesList.find(o => o.codigo === valor);
+
+  setEditData(prev => {
+    const novas = [...(prev.especialidadesDia || [])];
+    const linha = { ...novas[index] };
+
+    if (eq) {
+      // veio da lista de Equipamentos
+      linha.categoria = 'Equipamentos';
+      linha.especialidade = eq.codigo;
+      linha.subEmpId = eq.subEmpId ?? null;
+    } else if (mao) {
+      // veio da lista de Mão de Obra
+      linha.categoria = 'MaoObra';
+      linha.especialidade = mao.codigo;
+      linha.subEmpId = mao.subEmpId ?? null;
+    } else {
+      // fallback (não encontrou em nenhuma lista)
+      linha.especialidade = valor;
+    }
+
+    novas[index] = linha;
+    return { ...prev, especialidadesDia: novas };
+  });
+};
 
 
 const carregarItensSubmetidos = async () => {
@@ -176,6 +203,13 @@ useEffect(() => {
   carregarEspecialidades();
   carregarEquipamentos();
 }, [carregarEspecialidades, carregarEquipamentos]);
+
+ // 👉 quando o codMap for preenchido, refaz a grelha para injetar o codFuncionario
+ useEffect(() => {
+   if (registosPonto.length && equipas.length) {
+     processarDadosPartes(registosPonto, equipas);
+   }
+ }, [codMap, registosPonto, equipas]);
 
 useEffect(() => {
   const init = async () => {
@@ -338,7 +372,18 @@ useEffect(() => {
                 setEquipas(cachedData.equipas);
                 setObras(cachedData.obras);
                 setRegistosPonto(cachedData.registos);
-                processarDadosPartes(cachedData.registos, cachedData.equipas);
+                 // constrói o codMap a partir dos membros do cache
+                const membrosIds = [];
+                cachedData.equipas.forEach(eq => {
+                (eq.membros || []).forEach(m => m?.id && membrosIds.push(m.id));
+                });
+                const uniqueUserIds = [...new Set(membrosIds)];
+                const novoCodMap = {};
+                await Promise.all(uniqueUserIds.map(async uid => {
+                const cod = await obterCodFuncionario(uid);
+                if (cod != null) novoCodMap[uid] = String(cod).padStart(3, '0');
+                }));
+                setCodMap(novoCodMap); // isto dispara o useEffect acima e refaz a grelha
              
                    return {
     equipas: cachedData.equipas,
@@ -715,7 +760,8 @@ const adicionarEspecialidade = useCallback(() => {
     categoria: 'MaoObra',
     especialidade: '',
     subEmpId: null,
-    dia: selectedDia
+    dia: selectedDia,
+    horaExtra: false
   });
 
   setEditData({
@@ -746,6 +792,11 @@ const adicionarEspecialidade = useCallback(() => {
      novas[index].subEmpId = subEmpId;
    }
 
+     if (campo === 'categoria') {
+    novas[index].especialidade = '';
+    novas[index].subEmpId = null;
+  }
+
    setEditData({ ...editData, especialidadesDia: novas });
  };
 
@@ -770,7 +821,13 @@ const itemJaSubmetido = (codFuncionario, obraId, dia) => {
   const diaStr = String(dia).padStart(2, '0');
   const mesStr = String(mesAno.mes).padStart(2, '0');
   const anoStr = String(mesAno.ano);
-  return submittedSet.has(`${codFuncionario}-${obraId}-${anoStr}-${mesStr}-${diaStr}`);
+const codRaw = String(codFuncionario ?? '');
+ const codTrim = codRaw.replace(/^0+/, '');      // sem zeros à esquerda
+ const codPad3 = codTrim.padStart(3, '0');       // com 3 dígitos
+ const keyBase = (c) => `${c}-${obraId}-${anoStr}-${mesStr}-${diaStr}`;
+ return submittedSet.has(keyBase(codRaw))
+     || submittedSet.has(keyBase(codTrim))
+     || submittedSet.has(keyBase(codPad3));
 };
 
 
@@ -844,7 +901,8 @@ const itemJaSubmetido = (codFuncionario, obraId, dia) => {
                                 especialidade: esp.especialidade,
                                 categoria: esp.categoria,
                                 horas: Math.round((parseFloat(esp.horas) || 0) * 100) / 100,  // <- aqui
-                                subEmpId: esp.subEmpId   
+                                subEmpId: esp.subEmpId,
+                                horaExtra: !!esp.horaExtra    
                             });
                         }
                     });
@@ -873,7 +931,7 @@ setDiasEditadosManualmente(prev => new Set(prev).add(chaveDiaEditado));
     
 
 const obterCodFuncionario = async (userId) => {
-  const painelToken = localStorage.getItem("painelAdminToken");
+  const painelToken = await AsyncStorage.getItem("painelAdminToken");
 
   const resposta = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${userId}`, {
     headers: {
@@ -997,18 +1055,25 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
     ? especialidadesList
     : equipamentosList;
 
+    const mapCategoria = (c) => (c === 'Equipamentos' ? 'Equipamentos' : 'MaoObra');
+
   // Declara 'linhas' antes de usar
   let linhas = [];
   if (item.especialidades.length > 0) {
     linhas = item.especialidades
-      .filter(esp => diasValidos.includes(esp.dia))
-      .map(esp => ({
-        dia:           esp.dia,
-        especialidade: esp.especialidade,
-        categoria:     esp.categoria,
-        horas:         esp.horas,
-        subEmpId:      esp.subEmpId
-      }));
+  .filter(esp => diasValidos.includes(esp.dia))
+  .map(esp => {
+   const list = (esp.categoria === 'Equipamentos') ? equipamentosList : especialidadesList;
+   const match = list.find(opt => opt.codigo === esp.especialidade) || list.find(opt => opt.descricao === esp.especialidade);
+    return {
+      dia: esp.dia,
+      especialidade: esp.especialidade,
+      categoria: mapCategoria(esp.categoria),
+      horas: esp.horas,
+     subEmpId: esp.subEmpId ?? match?.subEmpId ?? null,
+      horaExtra: esp.horaExtra === true
+    };
+  });
   } else {
     linhas = diasValidos.map(dia => {
       const match = 
@@ -1018,9 +1083,10 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
       return {
         dia,
         especialidade: item.especialidade,
-        categoria:     item.categoria,
+        categoria:     mapCategoria(item.categoria),
         horas:         (item.horasPorDia[dia] || 0) / 60,
-        subEmpId:      match?.subEmpId ?? null
+        subEmpId:      match?.subEmpId ?? null,
+        horaExtra:     false  
       };
     });
   }
@@ -1029,6 +1095,12 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
 
   for (let i = 0; i < linhas.length; i++) {
     const esp = linhas[i];
+
+     if (esp.categoria === 'Equipamentos' && !esp.subEmpId) {
+   console.warn(`⛔ Equipamento sem SubEmpID (ComponenteID) no dia ${esp.dia}. Linha ignorada.`);
+   continue; // ou faz Alert e aborta tudo, como preferires
+ }
+
     const minutosTotal = Math.round((esp.horas || 0) * 60);
     const payloadItem = {
       DocumentoID:   documentoID,
@@ -1041,7 +1113,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
       SubEmpID:      esp.subEmpId,    // agora corretamente preenchido
       NumHoras:      minutosTotal,
       PrecoUnit:     esp.precoUnit || 0,
-      Categoria:     esp.categoria,
+      categoria:     mapCategoria(esp.categoria),
       TipoHoraID: esp.horaExtra === true ? "H01" : null
 
 
@@ -1763,34 +1835,21 @@ if (modoVisualizacao === 'obra') {
                                     <View style={styles.inputGroup}>
                                         
                                         <Picker
-                                            selectedValue={espItem.especialidade}
-                                            onValueChange={(valor) => {
-                                                // encontra o objecto completo para extrair o subEmpId
-                                                const match = especialidades.find(opt => opt.codigo === valor);
-                                                atualizarEspecialidade(index, "especialidade", valor, match?.subEmpId);
-                                            }}
-                                            style={{
-                                                backgroundColor: "#f0f0f0",
-                                                borderRadius: 8,
-                                                height: 44,
-                                                marginTop: 4,
-                                                marginBottom: 10,
-                                            }}
-                                            >
-                                            <Picker.Item
-                                                label="— Selecione a categoria —"
-                                                value=""
-                                                enabled={false}
-                                                color="#999"
-                                            />
-                                            {(espItem.categoria === "MaoObra" ? especialidadesList : equipamentosList).map((opt) => (
-                                                <Picker.Item
-                                                key={opt.codigo}
-                                                label={opt.descricao}
-                                                value={opt.codigo}
-                                                />
-                                            ))}
-                                            </Picker>
+  selectedValue={espItem.especialidade}
+  onValueChange={(valor) => selecionarOpcaoEspecialidade(index, valor)}
+  style={{
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+    height: 44,
+    marginTop: 4,
+    marginBottom: 10,
+  }}
+>
+  <Picker.Item label="— Selecione a categoria —" value="" enabled={false} color="#999" />
+  {(espItem.categoria === "MaoObra" ? especialidadesList : equipamentosList).map((opt) => (
+    <Picker.Item key={opt.codigo} label={opt.descricao} value={opt.codigo} />
+  ))}
+</Picker>
 
 
 

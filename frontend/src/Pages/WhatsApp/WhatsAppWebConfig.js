@@ -1798,52 +1798,176 @@ const WhatsAppWebConfig = () => {
     );
 
     return (
-        <div style={{
-            ...styles.container,
-            // Custom scrollbar styles
-            scrollbarWidth: 'thin',
-            scrollbarColor: '#c1c1c1 #f1f1f1'
-        }}
-            className="custom-scroll"
-        >
-            {/* Header */}
-            <div style={styles.header}>
-                <h1 style={styles.title}>WhatsApp Web API</h1>
-                <p style={styles.subtitle}>
-                    Sistema completo de gestão de mensagens WhatsApp
-                </p>
-            </div>
+    <div style={styles.container} className="custom-scroll">
+      <h1>WhatsApp Web API</h1>
+      <p>Timezone do navegador: <b>{BROWSER_TZ}</b></p>
 
-            {/* Navigation Tabs */}
-            <div style={styles.navTabs}>
-                {[
-                    { id: 'connection', icon: '🔗', label: 'Conexão' },
-                    { id: 'contacts', icon: '👥', label: 'Contactos' },
-                    { id: 'schedule', icon: '⏰', label: 'Agendamento' },
-                    { id: 'logs', icon: '📋', label: 'Logs' }
-                ].map(tab => (
-                    <button
-                        key={tab.id}
-                        style={{
-                            ...styles.tab,
-                            ...(activeTab === tab.id ? styles.activeTab : {})
-                        }}
-                        onClick={() => setActiveTab(tab.id)}
-                    >
-                        {tab.icon} {tab.label}
-                    </button>
-                ))}
-            </div>
+      <div>
+        <button onClick={() => setActiveTab("connection")}>Conexão</button>
+        <button onClick={() => setActiveTab("contacts")}>Contactos</button>
+        <button onClick={() => setActiveTab("schedule")}>Agendamento</button>
+        <button onClick={() => setActiveTab("logs")}>Logs</button>
+      </div>
 
-            {/* Content */}
-            <div style={styles.content}>
-                {activeTab === "connection" && renderConnectionTab()}
-                {activeTab === "contacts" && renderContactsTab()}
-                {activeTab === "schedule" && renderScheduleTab()}
-                {activeTab === "logs" && renderLogsTab()}
+      {activeTab === "connection" && (
+        <div>
+          <p>Status: {status.status}</p>
+          {!status.isReady ? (
+            <>
+              <button onClick={handleConnect} disabled={loading}>{loading ? "Conectando..." : "Conectar"}</button>
+              <button onClick={handleChangeAccount} disabled={loading}>Limpar Sessão / Trocar Conta</button>
+            </>
+          ) : (
+            <button onClick={handleDisconnect} disabled={loading}>{loading ? "Desconectando..." : "Desconectar"}</button>
+          )}
+          {status.qrCode && (
+            <div>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(status.qrCode)}`}
+                alt="QR"
+                style={{ maxWidth: 280 }}
+              />
             </div>
+          )}
+          {status.isReady && userInfo && (
+            <div>
+              <p><b>Conta:</b> {userInfo.pushname} ({userInfo.formattedNumber})</p>
+            </div>
+          )}
+          {status.isReady && (
+            <form onSubmit={handleTestMessage}>
+              <input type="tel" placeholder="351912345678" value={testMessage.to} onChange={(e) => setTestMessage({ ...testMessage, to: e.target.value })} required />
+              <textarea placeholder="Mensagem..." value={testMessage.message} onChange={(e) => setTestMessage({ ...testMessage, message: e.target.value })} required />
+              <select value={testMessage.priority} onChange={(e) => setTestMessage({ ...testMessage, priority: e.target.value })}>
+                <option value="normal">Normal</option>
+                <option value="info">Info</option>
+                <option value="warning">Aviso</option>
+                <option value="urgent">Urgente</option>
+              </select>
+              <button type="submit" disabled={loading}>Enviar</button>
+            </form>
+          )}
         </div>
-    );
+      )}
+
+      {activeTab === "contacts" && (
+        <div>
+          <form onSubmit={handleCreateContactList}>
+            <input placeholder="Nome da lista" value={newContactList.name} onChange={(e) => setNewContactList({ ...newContactList, name: e.target.value })} required />
+            <textarea placeholder={"351912345678\n351923456789"} value={newContactList.contacts} onChange={(e) => setNewContactList({ ...newContactList, contacts: e.target.value })} required />
+            <button type="submit">Criar Lista</button>
+          </form>
+          <ul>
+            {contactLists.map((l) => (
+              <li key={l.id}>
+                {l.name} — {l.contacts.length} contactos
+                <button onClick={() => alert(l.contacts.join("\n"))}>Ver</button>
+                <button onClick={() => deleteContactList(l.id)}>Eliminar</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {activeTab === "schedule" && (
+        <div>
+          <form onSubmit={handleCreateSchedule}>
+            <textarea placeholder="Mensagem" value={newSchedule.message} onChange={(e) => setNewSchedule({ ...newSchedule, message: e.target.value })} required />
+            <div>
+              <label>Lista:</label>
+              <select
+                value={selectedContactList}
+                onChange={(e) => {
+                  setSelectedContactList(e.target.value);
+                  const list = contactLists.find((l) => String(l.id) === e.target.value);
+                  const formatted = list ? list.contacts.map((p) => ({ name: `Contacto ${p.slice(-4)}`, phone: p })) : [];
+                  setNewSchedule((s) => ({ ...s, contactList: formatted }));
+                }}
+                required
+              >
+                <option value="">Selecione...</option>
+                {contactLists.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name} ({l.contacts.length})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label>Frequência:</label>
+              <select value={newSchedule.frequency} onChange={(e) => setNewSchedule({ ...newSchedule, frequency: e.target.value, days: [] })}>
+                <option value="daily">Diariamente</option>
+                <option value="custom">Dias Específicos</option>
+                <option value="weekly">Semanalmente</option>
+                <option value="monthly">Mensalmente</option>
+              </select>
+            </div>
+            <div>
+              <label>Hora (TZ: {BROWSER_TZ})</label>
+              <input type="time" value={newSchedule.time} onChange={(e) => setNewSchedule({ ...newSchedule, time: e.target.value })} />
+            </div>
+            <button type="submit">Agendar</button>
+          </form>
+
+          <hr />
+          <h3>Agendados</h3>
+          <button onClick={testScheduleNow}>Testar 1º</button>
+          <button onClick={simulateTimeExecution}>Simular hora</button>
+          <button onClick={loadScheduledMessages}>Atualizar</button>
+          <ul>
+            {scheduledMessages.map((s) => (
+              <li key={s.id}>
+                <b>{s.time}</b> ({s.timeZone}) — {s.frequency} — {s.contactList.length} contactos — {s.enabled ? "Ativo" : "Pausado"}
+                <button onClick={() => fetch(`${API_BASE_URL}/schedule/${s.id}/execute`, { method: "POST" }).then(() => alert("Executado. Ver logs."))}>
+                  Executar
+                </button>
+                <button onClick={() => toggleSchedule(s.id)}>{s.enabled ? "Pausar" : "Ativar"}</button>
+                <button onClick={() => deleteSchedule(s.id)}>Eliminar</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {activeTab === "logs" && (
+        <div>
+          <div>
+            <select value={logFilter.scheduleId} onChange={(e) => setLogFilter({ ...logFilter, scheduleId: e.target.value })}>
+              <option value="">Todos</option>
+              {scheduledMessages.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {String(s.message).substring(0, 30)}...
+                </option>
+              ))}
+            </select>
+            <select value={logFilter.type} onChange={(e) => setLogFilter({ ...logFilter, type: e.target.value })}>
+              <option value="">Todos</option>
+              <option value="info">Info</option>
+              <option value="success">Sucesso</option>
+              <option value="warning">Aviso</option>
+              <option value="error">Erro</option>
+            </select>
+            <select value={logFilter.limit} onChange={(e) => setLogFilter({ ...logFilter, limit: parseInt(e.target.value) })}>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
+              <option value={500}>500</option>
+            </select>
+            <button onClick={loadLogs}>Atualizar</button>
+            <button onClick={() => clearLogs()}>Limpar Todos</button>
+          </div>
+          <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(stats, null, 2)}</pre>
+          <ul>
+            {logs.map((l) => (
+              <li key={l.id}>
+                [{new Date(l.timestamp).toLocaleString("pt-PT")}] {l.type.toUpperCase()} — {l.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default WhatsAppWebConfig;

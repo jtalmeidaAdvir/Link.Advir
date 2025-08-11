@@ -15,24 +15,30 @@ exports.obter = async (req, res) => {
 };
 
 exports.criar = async (req, res) => {
-  console.log('🔎 Dados recebidos:', req.body);
+  const body = { ...req.body };
+  if (body.categoria && !body.Categoria) body.Categoria = body.categoria;
 
-  if (!req.body.ObraID || !req.body.Data) {
-    return res.status(400).json({ erro: 'Campos obrigatórios em falta.', recebido: req.body });
+  // validação leve
+  if (!body.ObraID || !body.Data) {
+    return res.status(400).json({ erro: 'Campos obrigatórios em falta.', recebido: body });
   }
 
   try {
-    const novo = await ParteDiariaItem.create(req.body);
+    const novo = await ParteDiariaItem.create(body, {
+      // força erro se algum campo não existir no modelo
+      fields: [
+        'DocumentoID','Funcionario','ClasseID','SubEmpID','NumHoras','PrecoUnit',
+        'TipoEntidade','ColaboradorID','Data','ObraID','TipoHoraID','Categoria','Numero'
+      ],
+      returning: true
+    });
     return res.status(201).json(novo);
   } catch (err) {
-  console.error('🔥 Erro Sequelize completo:', JSON.stringify(err, null, 2));
-  return res.status(400).json({
-    erro: err.message || 'Erro inesperado',
-    detalhe: err.errors || err
-  });
-}
-
+    console.error('🔥 Erro Sequelize completo:', JSON.stringify(err, null, 2));
+    return res.status(400).json({ erro: err.message || 'Erro inesperado', detalhe: err.errors || err });
+  }
 };
+
 
 
 
