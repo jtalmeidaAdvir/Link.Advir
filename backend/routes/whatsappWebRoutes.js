@@ -2,9 +2,8 @@ const express = require("express");
 const router = express.Router();
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
-//const { Schedule } = require('../models'); // Importar modelos de Schedule e Contact
 const fetch = require('node-fetch');
-
+//const { Schedule } = require('../models'); // Importar modelos de Schedule e Contact
 let scheduleLogs = [];
 const activeSchedules = new Map();
 let client = null;
@@ -799,6 +798,8 @@ router.post("/contact-lists", async (req, res) => {
                 name: newContactList.name,
                 contacts: JSON.parse(newContactList.contacts),
                 canCreateTickets: newContactList.can_create_tickets,
+                numeroTecnico: newContactList.numero_tecnico,
+                numeroCliente: newContactList.numero_cliente,
                 createdAt: newContactList.created_at,
             },
         });
@@ -831,6 +832,8 @@ router.get("/contacts", async (req, res) => {
             name: contact.name,
             contacts: JSON.parse(contact.contacts),
             canCreateTickets: contact.can_create_tickets,
+            numeroTecnico: contact.numero_tecnico,
+            numeroCliente: contact.numero_cliente,
             createdAt: contact.created_at,
         }));
 
@@ -848,7 +851,7 @@ router.get("/contacts", async (req, res) => {
 router.put("/contact-lists/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, contacts, canCreateTickets } = req.body;
+        const { name, contacts, canCreateTickets, numeroTecnico, numeroCliente } = req.body;
 
         if (!name || !contacts || contacts.length === 0) {
             return res.status(400).json({
@@ -861,6 +864,8 @@ router.put("/contact-lists/:id", async (req, res) => {
                 name,
                 contacts: JSON.stringify(contacts),
                 can_create_tickets: canCreateTickets !== undefined ? canCreateTickets : false,
+                numero_tecnico: numeroTecnico || null,
+                numero_cliente: numeroCliente || null,
             },
             {
                 where: { id },
@@ -876,6 +881,8 @@ router.put("/contact-lists/:id", async (req, res) => {
                     name: updatedContactList.name,
                     contacts: JSON.parse(updatedContactList.contacts),
                     canCreateTickets: updatedContactList.can_create_tickets,
+                    numeroTecnico: updatedContactList.numero_tecnico,
+                    numeroCliente: updatedContactList.numero_cliente,
                     createdAt: updatedContactList.created_at,
                 },
             });
@@ -947,6 +954,7 @@ const activeConversations = new Map();
 const CONVERSATION_STATES = {
     INITIAL: "initial",
     WAITING_CLIENT: "waiting_client",
+    WAITING_CONTRACT: "waiting_contract",
     WAITING_PROBLEM: "waiting_problem",
     WAITING_REPRODUCE: "waiting_reproduce",
     WAITING_PRIORITY: "waiting_priority",
@@ -954,7 +962,7 @@ const CONVERSATION_STATES = {
     WAITING_CONFIRMATION: "waiting_confirmation",
 };
 
-// Função para verificar se o contacto tem autorização para criar pedidos
+// Função para verificar se o contacto tem autorização para criar pedidos e obter dados do contacto
 async function checkContactAuthorization(phoneNumber) {
     try {
         // Remover formatação do número
@@ -970,14 +978,21 @@ async function checkContactAuthorization(phoneNumber) {
             const normalizedContacts = contacts.map(contact => contact.replace(/\D/g, ""));
 
             if (normalizedContacts.some(contact => contact.includes(cleanPhoneNumber) || cleanPhoneNumber.includes(contact))) {
-                return true;
+                return {
+                    authorized: true,
+                    contactData: {
+                        numeroCliente: list.numero_cliente,
+                        numeroTecnico: list.numero_tecnico,
+                        listName: list.name
+                    }
+                };
             }
         }
 
-        return false;
+        return { authorized: false, contactData: null };
     } catch (error) {
         console.error("Erro ao verificar autorização do contacto:", error);
-        return false;
+        return { authorized: false, contactData: null };
     }
 }
 
@@ -999,9 +1014,9 @@ async function handleIncomingMessage(message) {
     // Se não existe conversa e a mensagem contém palavras-chave para iniciar pedido
     if (!conversation && isRequestKeyword(messageText)) {
         // Verificar autorização antes de iniciar o pedido
-        const hasAuthorization = await checkContactAuthorization(phoneNumber);
+        const authResult = await checkContactAuthorization(phoneNumber);
 
-        if (!hasAuthorization) {
+        if (!authResult.authorized) {
             await client.sendMessage(
                 phoneNumber,
                 "❌ *Acesso Restrito*\n\nLamentamos, mas o seu contacto não tem autorização para criar pedidos de assistência técnica através deste sistema.\n\nPara obter acesso, entre em contacto com a nossa equipa através dos canais habituais.\n\n📞 Obrigado pela compreensão."
@@ -1009,7 +1024,7 @@ async function handleIncomingMessage(message) {
             return;
         }
 
-        await startNewRequest(phoneNumber, messageText);
+        await startNewRequest(phoneNumber, messageText, authResult.contactData);
         return;
     }
 
@@ -1044,32 +1059,93 @@ function isRequestKeyword(message) {
 }
 
 // Iniciar novo pedido de assistência
-async function startNewRequest(phoneNumber, initialMessage) {
+async function startNewRequest(phoneNumber, initialMessage, contactData = null) {
+    let conversationState = CONVERSATION_STATES.WAITING_CLIENT;
+    let conversationData = {
+        initialProblem: initialMessage,
+        datahoraabertura: new Date()
+            .toISOString()
+            .replace("T", " ")
+            .slice(0, 19),
+    };
+
+    // Pré-preencher dados do contacto se disponível
+    if (contactData && contactData.numeroTecnico) {
+        conversationData.tecnico = contactData.numeroTecnico;
+    }
+
+    let welcomeMessage = `🤖 *Sistema de Pedidos de Assistência Técnica*
+
+Bem-vindo ao sistema automático de criação de pedidos de assistência técnica da Advir.`;
+
+    if (contactData && contactData.numeroCliente) {
+        // Cliente já está definido - buscar contratos
+        conversationData.cliente = contactData.numeroCliente;
+        conversationData.nomeCliente = contactData.numeroCliente;
+
+        // Buscar contratos do cliente
+        const resultadoContratos = await buscarContratosCliente(contactData.numeroCliente);
+
+        if (resultadoContratos.contratosAtivos.length === 0) {
+            // Sem contratos ativos - ir direto para o problema
+            conversationState = CONVERSATION_STATES.WAITING_PROBLEM;
+            welcomeMessage += `\n\n✅ Cliente identificado: *${contactData.numeroCliente}*
+⚠️ *Atenção:* Não foram encontrados contratos ativos para este cliente.
+
+*1. Descrição do Problema*
+Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
+
+        } else if (resultadoContratos.contratosAtivos.length === 1) {
+            // Apenas um contrato ativo - selecionar automaticamente
+            const contrato = resultadoContratos.contratosAtivos[0];
+            conversationData.contratoID = contrato.ID;
+            conversationState = CONVERSATION_STATES.WAITING_PROBLEM;
+
+            const horasDisponiveis = (contrato.HorasTotais - contrato.HorasGastas).toFixed(2);
+            welcomeMessage += `\n\n✅ Cliente identificado: *${contactData.numeroCliente}*
+✅ Contrato selecionado automaticamente: *${contrato.Descricao}*
+📊 Horas disponíveis: *${horasDisponiveis}h*
+
+*1. Descrição do Problema*
+Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
+
+        } else {
+            // Múltiplos contratos ativos - pedir para escolher
+            conversationData.contratosDisponiveis = resultadoContratos.contratosAtivos;
+            conversationState = CONVERSATION_STATES.WAITING_CONTRACT;
+
+            welcomeMessage += `\n\n✅ Cliente identificado: *${contactData.numeroCliente}*
+
+🔍 Foram encontrados múltiplos contratos ativos. Por favor, escolha um dos contratos abaixo digitando o número correspondente:
+
+`;
+
+            resultadoContratos.contratosAtivos.forEach((contrato, index) => {
+                const horasDisponiveis = (contrato.HorasTotais - contrato.HorasGastas).toFixed(2);
+                welcomeMessage += `*${index + 1}.* ${contrato.Descricao}\n`;
+                welcomeMessage += `   📊 Horas disponíveis: ${horasDisponiveis}h\n`;
+                welcomeMessage += `   📅 Válido até: ${new Date(contrato.PeriodoFim).toLocaleDateString('pt-PT')}\n\n`;
+            });
+
+            welcomeMessage += `Digite o número do contrato pretendido (1-${resultadoContratos.contratosAtivos.length}):`;
+        }
+    } else {
+        // Se não tem cliente definido, pedir código do cliente
+        welcomeMessage += `\n\nPara iniciarmos o processo de registo do seu pedido, necessitamos das seguintes informações:
+
+*1. Código do Cliente*
+Indique o código do cliente para podermos proceder com o registo.`;
+    }
+
+    welcomeMessage += `\n\n💡 _Pode digitar "cancelar" a qualquer momento para interromper o processo_`;
+
     const conversation = {
-        state: CONVERSATION_STATES.WAITING_CLIENT,
-        data: {
-            initialProblem: initialMessage,
-            datahoraabertura: new Date()
-                .toISOString()
-                .replace("T", " ")
-                .slice(0, 19),
-        },
+        state: conversationState,
+        data: conversationData,
         lastActivity: Date.now(),
     };
 
     activeConversations.set(phoneNumber, conversation);
-
-    const welcomeMessage = `🤖 *Sistema de Pedidos de Assistência Técnica*
-
-Bem-vindo ao sistema automático de criação de pedidos de assistência técnica da Advir.
-
-Para iniciarmos o processo de registo do seu pedido, necessitamos das seguintes informações:
-
- *1. Código do Cliente*
- Indique o código do cliente para podermos proceder com o registo.
-
-💡 _Pode digitar "cancelar" a qualquer momento para interromper o processo_`;
-
     await client.sendMessage(phoneNumber, welcomeMessage);
 }
 
@@ -1088,9 +1164,9 @@ async function continueConversation(phoneNumber, message, conversation) {
         case CONVERSATION_STATES.WAITING_CLIENT:
             await handleClientInput(phoneNumber, message, conversation);
             break;
-        /*  case CONVERSATION_STATES.WAITING_CONTACT:
-              await handleContactInput(phoneNumber, message, conversation);
-              break;*/
+        case CONVERSATION_STATES.WAITING_CONTRACT:
+            await handleContractInput(phoneNumber, message, conversation);
+            break;
         case CONVERSATION_STATES.WAITING_PROBLEM:
             await handleProblemInput(phoneNumber, message, conversation);
             break;
@@ -1169,6 +1245,53 @@ const validarCliente = async (nomeCliente) => {
     }
 };
 
+// Função para buscar contratos do cliente
+const buscarContratosCliente = async (clienteId) => {
+    try {
+        const token = await getAuthToken({
+            username: "AdvirWeb",
+            password: "Advir2506##",
+            company: "Advir",
+            instance: "DEFAULT",
+            line: "Evolution",
+        }, "151.80.149.159:2018");
+
+        const response = await fetch(`http://151.80.149.159:2018/WebApi/ServicosTecnicos/ObterInfoContrato/${clienteId}`, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        const responseData = await response.json();
+        console.log("📡 Resposta contratos da API:", responseData);
+
+        const contratos = responseData.DataSet ? responseData.DataSet.Table : [];
+
+        if (!Array.isArray(contratos) || contratos.length === 0) {
+            console.log("⚠️ Nenhum contrato encontrado para o cliente:", clienteId);
+            return { contratos: [], contratosAtivos: [] };
+        }
+
+        // Filtrar apenas contratos ativos (Estado === 3 e Cancelado === false)
+        const contratosAtivos = contratos.filter(contrato =>
+            contrato.Estado === 3 && contrato.Cancelado === false
+        );
+
+        console.log(`✅ Encontrados ${contratos.length} contratos, ${contratosAtivos.length} ativos para cliente ${clienteId}`);
+
+        return {
+            contratos: contratos,
+            contratosAtivos: contratosAtivos
+        };
+
+    } catch (error) {
+        console.error("❌ Erro ao buscar contratos:", error);
+        return { contratos: [], contratosAtivos: [] };
+    }
+};
+
 // Após chamar a função, exiba as sugestões
 async function handleClientInput(phoneNumber, message, conversation) {
     const resultadoValidacao = await validarCliente(message.trim());
@@ -1191,18 +1314,66 @@ async function handleClientInput(phoneNumber, message, conversation) {
     const validacao = await validarCliente(nomeCliente);
 
     if (validacao.existe) {
-        // Cliente encontrado - prosseguir
+        // Cliente encontrado - buscar contratos
         conversation.data.cliente = validacao.cliente.Cliente;
         conversation.data.nomeCliente = validacao.cliente.Nome;
         conversation.data.contacto = null; // por defeito
-        conversation.state = CONVERSATION_STATES.WAITING_PROBLEM;
 
-        const response = `✅ Cliente encontrado: *${validacao.cliente.Cliente} - ${validacao.cliente.Nome}*
+        // Buscar contratos do cliente
+        const resultadoContratos = await buscarContratosCliente(validacao.cliente.Cliente);
+
+        if (resultadoContratos.contratosAtivos.length === 0) {
+            // Sem contratos ativos - continuar sem contrato
+            conversation.state = CONVERSATION_STATES.WAITING_PROBLEM;
+            const response = `✅ Cliente encontrado: *${validacao.cliente.Cliente} - ${validacao.cliente.Nome}*
+
+⚠️ *Atenção:* Não foram encontrados contratos ativos para este cliente.
 
 *2. Descrição do Problema*
 Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
 
-        await client.sendMessage(phoneNumber, response);
+            await client.sendMessage(phoneNumber, response);
+
+        } else if (resultadoContratos.contratosAtivos.length === 1) {
+            // Apenas um contrato ativo - selecionar automaticamente
+            const contrato = resultadoContratos.contratosAtivos[0];
+            conversation.data.contratoID = contrato.ID;
+            conversation.state = CONVERSATION_STATES.WAITING_PROBLEM;
+
+            const horasDisponiveis = (contrato.HorasTotais - contrato.HorasGastas).toFixed(2);
+
+            const response = `✅ Cliente encontrado: *${validacao.cliente.Cliente} - ${validacao.cliente.Nome}*
+✅ Contrato selecionado automaticamente: *${contrato.Descricao}*
+📊 Horas disponíveis: *${horasDisponiveis}h*
+
+*2. Descrição do Problema*
+Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
+
+            await client.sendMessage(phoneNumber, response);
+
+        } else {
+            // Múltiplos contratos ativos - pedir para escolher
+            conversation.data.contratosDisponiveis = resultadoContratos.contratosAtivos;
+            conversation.state = CONVERSATION_STATES.WAITING_CONTRACT;
+
+            let response = `✅ Cliente encontrado: *${validacao.cliente.Cliente} - ${validacao.cliente.Nome}*
+
+🔍 Foram encontrados múltiplos contratos ativos. Por favor, escolha um dos contratos abaixo digitando o número correspondente:
+
+`;
+
+            resultadoContratos.contratosAtivos.forEach((contrato, index) => {
+                const horasDisponiveis = (contrato.HorasTotais - contrato.HorasGastas).toFixed(2);
+                response += `*${index + 1}.* ${contrato.Descricao}\n`;
+                response += `   📊 Horas disponíveis: ${horasDisponiveis}h\n`;
+                response += `   📅 Válido até: ${new Date(contrato.PeriodoFim).toLocaleDateString('pt-PT')}\n\n`;
+            });
+
+            response += `Digite o número do contrato pretendido (1-${resultadoContratos.contratosAtivos.length}):`;
+
+            await client.sendMessage(phoneNumber, response);
+        }
+
     } else {
         // Cliente não encontrado - pedir para tentar novamente
         let response = `❌ Cliente "${nomeCliente}" não foi encontrado no sistema.
@@ -1223,6 +1394,38 @@ Por favor, verifique o nome do cliente e tente novamente.`;
     }
 }
 
+// Handler para seleção de contrato
+async function handleContractInput(phoneNumber, message, conversation) {
+    const escolha = parseInt(message.trim());
+    const contratos = conversation.data.contratosDisponiveis;
+
+    if (isNaN(escolha) || escolha < 1 || escolha > contratos.length) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Escolha inválida. Por favor, digite um número entre 1 e ${contratos.length}:`
+        );
+        return;
+    }
+
+    // Contrato selecionado
+    const contratoSelecionado = contratos[escolha - 1];
+    conversation.data.contratoID = contratoSelecionado.ID;
+    conversation.state = CONVERSATION_STATES.WAITING_PROBLEM;
+
+    const horasDisponiveis = (contratoSelecionado.HorasTotais - contratoSelecionado.HorasGastas).toFixed(2);
+
+    const response = `✅ Contrato selecionado: *${contratoSelecionado.Descricao}*
+📊 Horas disponíveis: *${horasDisponiveis}h*
+
+*2. Descrição do Problema*
+Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
+
+    await client.sendMessage(phoneNumber, response);
+
+    // Limpar lista de contratos para economizar memória
+    delete conversation.data.contratosDisponiveis;
+}
+
 // Handler para input do contacto
 async function handleContactInput(phoneNumber, message, conversation) {
     if (message.toLowerCase() !== "pular") {
@@ -1240,8 +1443,10 @@ Por favor, descreva detalhadamente o problema ou situação que necessita de ass
 async function handleProblemInput(phoneNumber, message, conversation) {
     conversation.data.problema = message.trim();
 
-    // Definir valores por defeito
-    conversation.data.tecnico = "000";
+    // Definir valores por defeito (usar técnico pré-definido se disponível)
+    if (!conversation.data.tecnico) {
+        conversation.data.tecnico = "000";
+    }
     conversation.data.origem = "TEL";
     conversation.data.objeto = "ASS\\SUP";
     conversation.data.secao = "SD";
@@ -1249,9 +1454,13 @@ async function handleProblemInput(phoneNumber, message, conversation) {
 
     conversation.state = CONVERSATION_STATES.WAITING_PRIORITY;
 
-    const response = `✅ Descrição do problema registada com sucesso.
+    let response = `✅ Descrição do problema registada com sucesso.`;
 
-*4. Prioridade do Pedido*
+    if (conversation.data.tecnico && conversation.data.tecnico !== "000") {
+        response += `\n✅ Técnico atribuído: *${conversation.data.tecnico}*`;
+    }
+
+    response += `\n\n*2. Prioridade do Pedido*
 Por favor, seleccione a prioridade do seu pedido:
 • BAIXA (1) - Não urgente
 • MÉDIA (2) - Prioridade normal
@@ -1328,10 +1537,12 @@ async function handlePriorityInput(phoneNumber, message, conversation) {
     const prioridadeDescricao = prioridadeNumero === '1' ? 'Baixa' :
         prioridadeNumero === '2' ? 'Média' : 'Alta';
 
-    const summary = `📋 *RESUMO DO PEDIDO DE ASSISTÊNCIA TÉCNICA*
+    let summary = `📋 *RESUMO DO PEDIDO DE ASSISTÊNCIA TÉCNICA*
 
 **Cliente:** ${conversation.data.cliente}
-${conversation.data.contacto ? `**Contacto:** ${conversation.data.contacto}\n` : ""}**Prioridade:** ${prioridadeDescricao}
+${conversation.data.contacto ? `**Contacto:** ${conversation.data.contacto}\n` : ""}**Técnico:** ${conversation.data.tecnico}
+**Prioridade:** ${prioridadeDescricao}
+${conversation.data.contratoID ? `**Contrato:** Associado\n` : "**Contrato:** Não associado\n"}
 
 **Descrição:**
 ${conversation.data.problema}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 
 const WhatsAppWebConfig = () => {
@@ -35,6 +34,8 @@ const WhatsAppWebConfig = () => {
         name: "",
         contacts: "",
         canCreateTickets: false,
+        numeroTecnico: "",
+        numeroCliente: "",
     });
     const [selectedContactList, setSelectedContactList] = useState("");
     const [editingContactList, setEditingContactList] = useState(null);
@@ -371,11 +372,19 @@ const WhatsAppWebConfig = () => {
                     name: newContactList.name,
                     contacts: contacts,
                     canCreateTickets: newContactList.canCreateTickets,
+                    numeroTecnico: newContactList.numeroTecnico,
+                    numeroCliente: newContactList.numeroCliente,
                 }),
             });
 
             if (response.ok) {
-                setNewContactList({ name: "", contacts: "", canCreateTickets: false });
+                setNewContactList({
+                    name: "",
+                    contacts: "",
+                    canCreateTickets: false,
+                    numeroTecnico: "",
+                    numeroCliente: "",
+                });
                 loadContactLists();
                 alert("Lista de contactos criada com sucesso!");
             } else {
@@ -388,18 +397,24 @@ const WhatsAppWebConfig = () => {
         }
     };
 
-    const handleEditContactList = async (list) => {
+    const handleEditContactList = async (listToUpdate) => {
+        // Ensure listToUpdate has all necessary fields, especially for PUT request
+        const formattedList = {
+            id: listToUpdate.id,
+            name: listToUpdate.name,
+            contacts: listToUpdate.contacts.split("\n").map(c => c.trim()).filter(c => c.length > 0).map(phone => phone.replace(/\D/g, "")),
+            canCreateTickets: listToUpdate.canCreateTickets,
+            numeroTecnico: listToUpdate.numeroTecnico,
+            numeroCliente: listToUpdate.numeroCliente,
+        };
+
         try {
-            const response = await fetch(`${API_BASE_URL}/contact-lists/${list.id}`, {
+            const response = await fetch(`${API_BASE_URL}/contact-lists/${formattedList.id}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                    name: list.name,
-                    contacts: list.contacts,
-                    canCreateTickets: list.canCreateTickets,
-                }),
+                body: JSON.stringify(formattedList),
             });
 
             if (response.ok) {
@@ -415,6 +430,18 @@ const WhatsAppWebConfig = () => {
             alert("Erro ao atualizar lista");
         }
     };
+
+    const cancelEditingContactList = () => {
+        setEditingContactList(null);
+    };
+
+    const startEditingContactList = (list) => {
+        setEditingContactList({
+            ...list,
+            contacts: list.contacts.join('\n'), // Format contacts for textarea
+        });
+    };
+
 
     const handleCreateSchedule = async (e) => {
         e.preventDefault();
@@ -1294,6 +1321,44 @@ const WhatsAppWebConfig = () => {
                     </div>
 
                     <div style={styles.formGroup}>
+                        <label style={styles.label}>Número do Técnico (opcional)</label>
+                        <input
+                            type="tel"
+                            style={styles.input}
+                            value={newContactList.numeroTecnico}
+                            onChange={(e) =>
+                                setNewContactList({
+                                    ...newContactList,
+                                    numeroTecnico: e.target.value,
+                                })
+                            }
+                            placeholder="351912345678"
+                        />
+                        <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
+                            Número do técnico responsável por esta lista
+                        </small>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                        <label style={styles.label}>Número do Cliente (opcional)</label>
+                        <input
+                            type="tel"
+                            style={styles.input}
+                            value={newContactList.numeroCliente}
+                            onChange={(e) =>
+                                setNewContactList({
+                                    ...newContactList,
+                                    numeroCliente: e.target.value,
+                                })
+                            }
+                            placeholder="351912345678"
+                        />
+                        <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
+                            Número do cliente principal desta lista
+                        </small>
+                    </div>
+
+                    <div style={styles.formGroup}>
                         <label style={{
                             ...styles.label,
                             display: 'flex',
@@ -1367,6 +1432,16 @@ const WhatsAppWebConfig = () => {
                                     <div style={styles.listMeta}>
                                         👥 {list.contacts.length} contactos
                                     </div>
+                                    {list.numeroTecnico && (
+                                        <div style={styles.listMeta}>
+                                            🔧 Técnico: {list.numeroTecnico}
+                                        </div>
+                                    )}
+                                    {list.numeroCliente && (
+                                        <div style={styles.listMeta}>
+                                            👤 Cliente: {list.numeroCliente}
+                                        </div>
+                                    )}
                                     <div style={styles.listMeta}>
                                         📅 {new Date(list.createdAt).toLocaleDateString('pt-PT')}
                                     </div>
@@ -1392,21 +1467,15 @@ const WhatsAppWebConfig = () => {
                                         👁️ Ver
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            const updatedList = {
-                                                ...list,
-                                                canCreateTickets: !list.canCreateTickets
-                                            };
-                                            handleEditContactList(updatedList);
-                                        }}
+                                        onClick={() => startEditingContactList(list)}
                                         style={{
                                             ...styles.button,
-                                            ...(list.canCreateTickets ? styles.buttonWarning : styles.buttonSuccess),
+                                            ...styles.buttonWarning,
                                             padding: '8px 12px',
                                             fontSize: '0.85rem'
                                         }}
                                     >
-                                        {list.canCreateTickets ? '🔒 Remover Autorização' : '🔓 Dar Autorização'}
+                                        ✏️ Editar
                                     </button>
                                     <button
                                         onClick={() => deleteContactList(list.id)}
@@ -1425,6 +1494,170 @@ const WhatsAppWebConfig = () => {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Edição */}
+            {editingContactList && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        backgroundColor: '#fff',
+                        borderRadius: '12px',
+                        padding: '30px',
+                        maxWidth: '600px',
+                        width: '90%',
+                        maxHeight: '80vh',
+                        overflowY: 'auto',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+                    }}>
+                        <h3 style={styles.cardTitle}>✏️ Editar Lista de Contactos</h3>
+
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            handleEditContactList(editingContactList);
+                        }}>
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Nome da Lista *</label>
+                                <input
+                                    type="text"
+                                    style={styles.input}
+                                    value={editingContactList.name}
+                                    onChange={(e) =>
+                                        setEditingContactList({
+                                            ...editingContactList,
+                                            name: e.target.value,
+                                        })
+                                    }
+                                    required
+                                />
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Contactos (um por linha) *</label>
+                                <textarea
+                                    style={styles.textarea}
+                                    value={editingContactList.contacts}
+                                    onChange={(e) =>
+                                        setEditingContactList({
+                                            ...editingContactList,
+                                            contacts: e.target.value,
+                                        })
+                                    }
+                                    required
+                                />
+                                <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
+                                    Insira um número por linha, com código do país (ex: 351912345678)
+                                </small>
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Número do Técnico (opcional)</label>
+                                <input
+                                    type="tel"
+                                    style={styles.input}
+                                    value={editingContactList.numeroTecnico}
+                                    onChange={(e) =>
+                                        setEditingContactList({
+                                            ...editingContactList,
+                                            numeroTecnico: e.target.value,
+                                        })
+                                    }
+                                    placeholder="351912345678"
+                                />
+                                <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
+                                    Número do técnico responsável por esta lista
+                                </small>
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Número do Cliente (opcional)</label>
+                                <input
+                                    type="tel"
+                                    style={styles.input}
+                                    value={editingContactList.numeroCliente}
+                                    onChange={(e) =>
+                                        setEditingContactList({
+                                            ...editingContactList,
+                                            numeroCliente: e.target.value,
+                                        })
+                                    }
+                                    placeholder="351912345678"
+                                />
+                                <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
+                                    Número do cliente principal desta lista
+                                </small>
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={{
+                                    ...styles.label,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    cursor: 'pointer',
+                                    padding: '12px 16px',
+                                    backgroundColor: editingContactList.canCreateTickets ? '#e3f2fd' : '#f8f9fa',
+                                    borderRadius: '8px',
+                                    border: `2px solid ${editingContactList.canCreateTickets ? '#007bff' : '#e9ecef'}`,
+                                    transition: 'all 0.3s ease'
+                                }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={editingContactList.canCreateTickets}
+                                        onChange={(e) =>
+                                            setEditingContactList({
+                                                ...editingContactList,
+                                                canCreateTickets: e.target.checked,
+                                            })
+                                        }
+                                        style={{ marginRight: '12px', transform: 'scale(1.2)' }}
+                                    />
+                                    <div>
+                                        <span style={{ fontWeight: '600', color: '#343a40' }}>
+                                            🎫 Autorizar criação de pedidos de assistência
+                                        </span>
+                                        <div style={{ fontSize: '0.85rem', color: '#6c757d', marginTop: '4px' }}>
+                                            Os contactos desta lista poderão criar pedidos via WhatsApp
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div style={styles.buttonGroup}>
+                                <button
+                                    type="submit"
+                                    style={{
+                                        ...styles.button,
+                                        ...styles.buttonSuccess,
+                                        flex: 1
+                                    }}
+                                >
+                                    ✅ Salvar Alterações
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={cancelEditingContactList}
+                                    style={{
+                                        ...styles.button,
+                                        ...styles.buttonSecondary,
+                                        flex: 1
+                                    }}
+                                >
+                                    ❌ Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 
