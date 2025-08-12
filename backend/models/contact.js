@@ -15,6 +15,11 @@ const Contact = sequelize.define('Contact', {
         type: DataTypes.TEXT,
         allowNull: false
     },
+    can_create_tickets: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW

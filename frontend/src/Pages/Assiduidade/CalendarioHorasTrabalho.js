@@ -73,6 +73,16 @@ const [diasPendentes, setDiasPendentes] = useState([]);
 const [faltasPendentes, setFaltasPendentes] = useState([]);
 
 
+// --- helper: data no passado (comparando a 00:00) ---
+const isBeforeToday = (dateLike) => {
+  if (!dateLike) return false;
+  const d = new Date(dateLike);
+  d.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return d < today;
+};
+
  // Helper genérico para fetch com erro legível
  const fetchJSON = async (url, options = {}) => {
    const res = await fetch(url, options);
@@ -1768,7 +1778,11 @@ const isPendente = diasPendentes.includes(dataFormatada);
     )}
 
   
-{f.Falta === 'F50' && (
+{f.Falta === 'F50' && (() => {
+          const data = (f.Data || '').split('T')[0];
+          const podeCancelar = !isBeforeToday(data);
+          if (!podeCancelar) return null;
+          return (
   <div className="mt-1 text-end">
     <button
       className="btn btn-sm btn-outline-danger"
@@ -1780,10 +1794,11 @@ const isPendente = diasPendentes.includes(dataFormatada);
         }
       }}
     >
-      🗑️ Eliminar Férias
+      Cancelar
     </button>
   </div>
-)}
+          );
+        })()}
 
 
 
@@ -1804,17 +1819,28 @@ const isPendente = diasPendentes.includes(dataFormatada);
     <h6 className="fw-bold text-warning mb-3">Pedidos Pendentes</h6>
     {pedidosPendentesDoDia.map((p, idx) => (
       <div key={idx} className="border-start border-warning border-3 ps-3 mb-2">
-        {p.estadoAprovacao === 'Pendente' && (
+        {(() => {
+          if (p.estadoAprovacao !== 'Pendente') return null;
+          // FALTA: controla por dataPedido; FERIAS: controla por dataFim
+          let podeCancelar = true;
+          if (p.tipoPedido === 'FALTA' && p.dataPedido) {
+            podeCancelar = !isBeforeToday(p.dataPedido);
+          } else if (p.tipoPedido === 'FERIAS' && p.dataFim) {
+            podeCancelar = !isBeforeToday(p.dataFim);
+          }
+          if (!podeCancelar) return null;
+          return (
   <div className="mt-1 text-end">
     <button
       className="btn btn-sm btn-outline-danger"
       onClick={() => cancelarPedido(p)}
 
     >
-      ❌
+      Cancelar
     </button>
   </div>
-)}
+          );
+        })()}
 
         <div className="d-flex justify-content-between small">
           <span className="fw-semibold">📌 Código:</span>
@@ -2221,7 +2247,7 @@ const isPendente = diasPendentes.includes(dataFormatada);
     title="Cancelar ponto pendente"
     onClick={() => cancelarPonto(submission.id)}
   >
-    ❌
+    Cancelar
   </button>
 )}
 { (
@@ -2231,7 +2257,7 @@ const isPendente = diasPendentes.includes(dataFormatada);
       title="Editar ponto"
       onClick={() => iniciarEdicaoRegisto(submission)}
     >
-      ✏️
+      Editar
     </button>
   </>
 )}

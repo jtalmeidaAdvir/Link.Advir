@@ -30,11 +30,14 @@ const WhatsAppWebConfig = () => {
 
     // Estados para gestão de contactos
     const [contactLists, setContactLists] = useState([]);
+    const [contactListsLoaded, setContactListsLoaded] = useState(false);
     const [newContactList, setNewContactList] = useState({
         name: "",
         contacts: "",
+        canCreateTickets: false,
     });
     const [selectedContactList, setSelectedContactList] = useState("");
+    const [editingContactList, setEditingContactList] = useState(null);
 
     // Estados para visualização
     const [activeTab, setActiveTab] = useState("connection");
@@ -121,9 +124,19 @@ const WhatsAppWebConfig = () => {
         try {
             const response = await fetch(`${API_BASE_URL}/contacts`);
             const data = await response.json();
-            setContactLists(data);
+
+            // Verificar se a resposta é um array válido
+            if (Array.isArray(data)) {
+                setContactLists(data);
+            } else {
+                console.warn("Resposta da API não é um array:", data);
+                setContactLists([]);
+            }
+            setContactListsLoaded(true);
         } catch (error) {
             console.error("Erro ao carregar listas de contactos:", error);
+            setContactLists([]);
+            setContactListsLoaded(true);
         }
     };
 
@@ -357,11 +370,12 @@ const WhatsAppWebConfig = () => {
                 body: JSON.stringify({
                     name: newContactList.name,
                     contacts: contacts,
+                    canCreateTickets: newContactList.canCreateTickets,
                 }),
             });
 
             if (response.ok) {
-                setNewContactList({ name: "", contacts: "" });
+                setNewContactList({ name: "", contacts: "", canCreateTickets: false });
                 loadContactLists();
                 alert("Lista de contactos criada com sucesso!");
             } else {
@@ -371,6 +385,34 @@ const WhatsAppWebConfig = () => {
         } catch (error) {
             console.error("Erro ao criar lista de contactos:", error);
             alert("Erro ao criar lista de contactos");
+        }
+    };
+
+    const handleEditContactList = async (list) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/contact-lists/${list.id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    name: list.name,
+                    contacts: list.contacts,
+                    canCreateTickets: list.canCreateTickets,
+                }),
+            });
+
+            if (response.ok) {
+                loadContactLists();
+                setEditingContactList(null);
+                alert("Lista atualizada com sucesso!");
+            } else {
+                const error = await response.json();
+                alert(`Erro ao atualizar lista: ${error.error}`);
+            }
+        } catch (error) {
+            console.error("Erro ao atualizar lista:", error);
+            alert("Erro ao atualizar lista");
         }
     };
 
@@ -1251,6 +1293,40 @@ const WhatsAppWebConfig = () => {
                         </small>
                     </div>
 
+                    <div style={styles.formGroup}>
+                        <label style={{
+                            ...styles.label,
+                            display: 'flex',
+                            alignItems: 'center',
+                            cursor: 'pointer',
+                            padding: '12px 16px',
+                            backgroundColor: newContactList.canCreateTickets ? '#e3f2fd' : '#f8f9fa',
+                            borderRadius: '8px',
+                            border: `2px solid ${newContactList.canCreateTickets ? '#007bff' : '#e9ecef'}`,
+                            transition: 'all 0.3s ease'
+                        }}>
+                            <input
+                                type="checkbox"
+                                checked={newContactList.canCreateTickets}
+                                onChange={(e) =>
+                                    setNewContactList({
+                                        ...newContactList,
+                                        canCreateTickets: e.target.checked,
+                                    })
+                                }
+                                style={{ marginRight: '12px', transform: 'scale(1.2)' }}
+                            />
+                            <div>
+                                <span style={{ fontWeight: '600', color: '#343a40' }}>
+                                    🎫 Autorizar criação de pedidos de assistência
+                                </span>
+                                <div style={{ fontSize: '0.85rem', color: '#6c757d', marginTop: '4px' }}>
+                                    Os contactos desta lista poderão criar pedidos via WhatsApp
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+
                     <button
                         type="submit"
                         style={{
@@ -1266,22 +1342,40 @@ const WhatsAppWebConfig = () => {
 
             {/* Contact Lists */}
             <div style={styles.card}>
-                <h3 style={styles.cardTitle}>📋 Listas de Contactos ({contactLists.length})</h3>
-                {contactLists.length === 0 ? (
+                <h3 style={styles.cardTitle}>📋 Listas de Contactos ({Array.isArray(contactLists) ? contactLists.length : 0})</h3>
+                {!contactListsLoaded ? (
+                    <p style={{ textAlign: 'center', color: '#6c757d', padding: '20px' }}>
+                        Carregando listas de contactos...
+                    </p>
+                ) : !Array.isArray(contactLists) || contactLists.length === 0 ? (
                     <p style={{ textAlign: 'center', color: '#6c757d', padding: '20px' }}>
                         Nenhuma lista de contactos criada ainda.
                     </p>
                 ) : (
                     <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                        {contactLists.map((list) => (
-                            <div key={list.id} style={styles.listItem}>
+                        {Array.isArray(contactLists) && contactLists.map((list) => (
+                            <div key={list.id} style={{
+                                ...styles.listItem,
+                                border: `2px solid ${list.canCreateTickets ? '#28a745' : '#e9ecef'}`,
+                                backgroundColor: list.canCreateTickets ? '#f8fff8' : styles.listItem.backgroundColor
+                            }}>
                                 <div style={styles.listContent}>
-                                    <div style={styles.listTitle}>{list.name}</div>
+                                    <div style={styles.listTitle}>
+                                        {list.canCreateTickets && <span style={{ color: '#28a745', marginRight: '8px' }}>🎫</span>}
+                                        {list.name}
+                                    </div>
                                     <div style={styles.listMeta}>
                                         👥 {list.contacts.length} contactos
                                     </div>
                                     <div style={styles.listMeta}>
                                         📅 {new Date(list.createdAt).toLocaleDateString('pt-PT')}
+                                    </div>
+                                    <div style={{
+                                        ...styles.listMeta,
+                                        color: list.canCreateTickets ? '#28a745' : '#dc3545',
+                                        fontWeight: '600'
+                                    }}>
+                                        {list.canCreateTickets ? '✅ Pode criar pedidos' : '❌ Sem autorização para pedidos'}
                                     </div>
                                 </div>
                                 <div style={styles.buttonGroup}>
@@ -1296,6 +1390,23 @@ const WhatsAppWebConfig = () => {
                                         }}
                                     >
                                         👁️ Ver
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const updatedList = {
+                                                ...list,
+                                                canCreateTickets: !list.canCreateTickets
+                                            };
+                                            handleEditContactList(updatedList);
+                                        }}
+                                        style={{
+                                            ...styles.button,
+                                            ...(list.canCreateTickets ? styles.buttonWarning : styles.buttonSuccess),
+                                            padding: '8px 12px',
+                                            fontSize: '0.85rem'
+                                        }}
+                                    >
+                                        {list.canCreateTickets ? '🔒 Remover Autorização' : '🔓 Dar Autorização'}
                                     </button>
                                     <button
                                         onClick={() => deleteContactList(list.id)}
@@ -1363,7 +1474,7 @@ const WhatsAppWebConfig = () => {
                             required
                         >
                             <option value="">Selecione uma lista...</option>
-                            {contactLists.map((list) => (
+                            {Array.isArray(contactLists) && contactLists.map((list) => (
                                 <option key={list.id} value={list.id}>
                                     {list.name} ({list.contacts.length} contactos)
                                 </option>
@@ -1654,7 +1765,7 @@ const WhatsAppWebConfig = () => {
                             }
                         >
                             <option value="">Todos os agendamentos</option>
-                            {scheduledMessages.map((schedule) => (
+                            {Array.isArray(scheduledMessages) && scheduledMessages.map((schedule) => (
                                 <option key={schedule.id} value={schedule.id}>
                                     {schedule.message.substring(0, 30)}...
                                 </option>

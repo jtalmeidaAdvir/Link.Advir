@@ -776,7 +776,7 @@ const Schedule = require("../models/schedule");
 // Endpoint para criar lista de contactos
 router.post("/contact-lists", async (req, res) => {
     try {
-        const { name, contacts } = req.body;
+        const { name, contacts, canCreateTickets = false } = req.body;
 
         if (!name || !contacts || contacts.length === 0) {
             return res.status(400).json({
@@ -787,6 +787,7 @@ router.post("/contact-lists", async (req, res) => {
         const newContactList = await Contact.create({
             name,
             contacts: JSON.stringify(contacts),
+            can_create_tickets: canCreateTickets,
         });
 
         res.json({
@@ -795,6 +796,7 @@ router.post("/contact-lists", async (req, res) => {
                 id: newContactList.id,
                 name: newContactList.name,
                 contacts: JSON.parse(newContactList.contacts),
+                canCreateTickets: newContactList.can_create_tickets,
                 createdAt: newContactList.created_at,
             },
         });
@@ -826,6 +828,7 @@ router.get("/contacts", async (req, res) => {
             id: contact.id,
             name: contact.name,
             contacts: JSON.parse(contact.contacts),
+            canCreateTickets: contact.can_create_tickets,
             createdAt: contact.created_at,
         }));
 
@@ -843,7 +846,7 @@ router.get("/contacts", async (req, res) => {
 router.put("/contact-lists/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, contacts } = req.body;
+        const { name, contacts, canCreateTickets } = req.body;
 
         if (!name || !contacts || contacts.length === 0) {
             return res.status(400).json({
@@ -855,6 +858,7 @@ router.put("/contact-lists/:id", async (req, res) => {
             {
                 name,
                 contacts: JSON.stringify(contacts),
+                can_create_tickets: canCreateTickets !== undefined ? canCreateTickets : false,
             },
             {
                 where: { id },
@@ -869,6 +873,7 @@ router.put("/contact-lists/:id", async (req, res) => {
                     id: updatedContactList.id,
                     name: updatedContactList.name,
                     contacts: JSON.parse(updatedContactList.contacts),
+                    canCreateTickets: updatedContactList.can_create_tickets,
                     createdAt: updatedContactList.created_at,
                 },
             });
@@ -947,6 +952,33 @@ const CONVERSATION_STATES = {
     WAITING_CONFIRMATION: "waiting_confirmation",
 };
 
+// Função para verificar se o contacto tem autorização para criar pedidos
+async function checkContactAuthorization(phoneNumber) {
+    try {
+        // Remover formatação do número
+        const cleanPhoneNumber = phoneNumber.replace("@c.us", "").replace(/\D/g, "");
+
+        // Buscar em todas as listas de contactos
+        const contactLists = await Contact.findAll({
+            where: { can_create_tickets: true }
+        });
+
+        for (const list of contactLists) {
+            const contacts = JSON.parse(list.contacts);
+            const normalizedContacts = contacts.map(contact => contact.replace(/\D/g, ""));
+
+            if (normalizedContacts.some(contact => contact.includes(cleanPhoneNumber) || cleanPhoneNumber.includes(contact))) {
+                return true;
+            }
+        }
+
+        return false;
+    } catch (error) {
+        console.error("Erro ao verificar autorização do contacto:", error);
+        return false;
+    }
+}
+
 // Função para lidar com mensagens recebidas
 async function handleIncomingMessage(message) {
     // Ignorar mensagens de grupos e mensagens enviadas por nós
@@ -964,6 +996,17 @@ async function handleIncomingMessage(message) {
 
     // Se não existe conversa e a mensagem contém palavras-chave para iniciar pedido
     if (!conversation && isRequestKeyword(messageText)) {
+        // Verificar autorização antes de iniciar o pedido
+        const hasAuthorization = await checkContactAuthorization(phoneNumber);
+
+        if (!hasAuthorization) {
+            await client.sendMessage(
+                phoneNumber,
+                "❌ *Acesso Restrito*\n\nLamentamos, mas o seu contacto não tem autorização para criar pedidos de assistência técnica através deste sistema.\n\nPara obter acesso, entre em contacto com a nossa equipa através dos canais habituais.\n\n📞 Obrigado pela compreensão."
+            );
+            return;
+        }
+
         await startNewRequest(phoneNumber, messageText);
         return;
     }
@@ -1043,9 +1086,9 @@ async function continueConversation(phoneNumber, message, conversation) {
         case CONVERSATION_STATES.WAITING_CLIENT:
             await handleClientInput(phoneNumber, message, conversation);
             break;
-      /*  case CONVERSATION_STATES.WAITING_CONTACT:
-            await handleContactInput(phoneNumber, message, conversation);
-            break;*/
+        /*  case CONVERSATION_STATES.WAITING_CONTACT:
+              await handleContactInput(phoneNumber, message, conversation);
+              break;*/
         case CONVERSATION_STATES.WAITING_PROBLEM:
             await handleProblemInput(phoneNumber, message, conversation);
             break;
@@ -1063,25 +1106,25 @@ async function continueConversation(phoneNumber, message, conversation) {
 
 // Handler para input do cliente
 async function handleClientInput(phoneNumber, message, conversation) {
- /*   conversation.data.cliente = message.trim();
-    conversation.state = CONVERSATION_STATES.WAITING_CONTACT;
+    /*   conversation.data.cliente = message.trim();
+       conversation.state = CONVERSATION_STATES.WAITING_CONTACT;
+   
+       const response = `✅ Cliente registado: ${message}
+   
+   *2. Contacto (opcional)*
+   Por favor, indique um contacto do cliente ou digite "pular" para avançar para a próxima etapa:`;
+   
+       await client.sendMessage(phoneNumber, response);*/
+    conversation.data.cliente = message.trim();
+    conversation.data.contacto = null; // por defeito
+    conversation.state = CONVERSATION_STATES.WAITING_PROBLEM;
 
     const response = `✅ Cliente registado: ${message}
 
-*2. Contacto (opcional)*
-Por favor, indique um contacto do cliente ou digite "pular" para avançar para a próxima etapa:`;
-
-    await client.sendMessage(phoneNumber, response);*/
-      conversation.data.cliente = message.trim();
-      conversation.data.contacto = null; // por defeito
-      conversation.state = CONVERSATION_STATES.WAITING_PROBLEM;
-    
-      const response = `✅ Cliente registado: ${message}
-
 *2. Descrição do Problema*
 Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
-    
-          await client.sendMessage(phoneNumber, response);
+
+    await client.sendMessage(phoneNumber, response);
 
 
 

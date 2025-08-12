@@ -65,6 +65,13 @@ const [equipaSelecionada, setEquipaSelecionada] = useState(null);
 const [itensSubmetidos, setItensSubmetidos] = useState([]);
 
 
+const isFimDeSemana = (ano, mes, dia) => {
+  const dt = new Date(ano, mes - 1, dia); // getDay(): 0=Dom, 6=Sáb
+  const dow = dt.getDay();
+  return dow === 0 || dow === 6;
+};
+
+
 const selecionarOpcaoEspecialidade = (index, valor) => {
   const eq = equipamentosList.find(o => o.codigo === valor);
   const mao = especialidadesList.find(o => o.codigo === valor);
@@ -1039,6 +1046,13 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
  }
 
     const minutosTotal = Math.round((esp.horas || 0) * 60);
+
+      // ✅ H01 nos dias úteis, H06 ao fim-de-semana (se for hora extra)
+  const tipoHoraId = esp.horaExtra === true
+    ? (isFimDeSemana(mesAno.ano, mesAno.mes, esp.dia) ? 'H06' : 'H01')
+    : null;
+
+
     const payloadItem = {
       DocumentoID:   documentoID,
       ObraID:        item.obraId,
@@ -1051,7 +1065,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
       NumHoras:      minutosTotal,
       PrecoUnit:     esp.precoUnit || 0,
       categoria:     mapCategoria(esp.categoria),
-      TipoHoraID: esp.horaExtra === true ? "H01" : null
+      TipoHoraID:    tipoHoraId      
 
 
     };
