@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
-const fetch = require('node-fetch');
+const fetch = require("node-fetch");
 //const { Schedule } = require('../models'); // Importar modelos de Schedule e Contact
 let scheduleLogs = [];
 const activeSchedules = new Map();
@@ -851,7 +851,13 @@ router.get("/contacts", async (req, res) => {
 router.put("/contact-lists/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, contacts, canCreateTickets, numeroTecnico, numeroCliente } = req.body;
+        const {
+            name,
+            contacts,
+            canCreateTickets,
+            numeroTecnico,
+            numeroCliente,
+        } = req.body;
 
         if (!name || !contacts || contacts.length === 0) {
             return res.status(400).json({
@@ -863,7 +869,8 @@ router.put("/contact-lists/:id", async (req, res) => {
             {
                 name,
                 contacts: JSON.stringify(contacts),
-                can_create_tickets: canCreateTickets !== undefined ? canCreateTickets : false,
+                can_create_tickets:
+                    canCreateTickets !== undefined ? canCreateTickets : false,
                 numero_tecnico: numeroTecnico || null,
                 numero_cliente: numeroCliente || null,
             },
@@ -966,25 +973,35 @@ const CONVERSATION_STATES = {
 async function checkContactAuthorization(phoneNumber) {
     try {
         // Remover formatação do número
-        const cleanPhoneNumber = phoneNumber.replace("@c.us", "").replace(/\D/g, "");
+        const cleanPhoneNumber = phoneNumber
+            .replace("@c.us", "")
+            .replace(/\D/g, "");
 
         // Buscar em todas as listas de contactos
         const contactLists = await Contact.findAll({
-            where: { can_create_tickets: true }
+            where: { can_create_tickets: true },
         });
 
         for (const list of contactLists) {
             const contacts = JSON.parse(list.contacts);
-            const normalizedContacts = contacts.map(contact => contact.replace(/\D/g, ""));
+            const normalizedContacts = contacts.map((contact) =>
+                contact.replace(/\D/g, ""),
+            );
 
-            if (normalizedContacts.some(contact => contact.includes(cleanPhoneNumber) || cleanPhoneNumber.includes(contact))) {
+            if (
+                normalizedContacts.some(
+                    (contact) =>
+                        contact.includes(cleanPhoneNumber) ||
+                        cleanPhoneNumber.includes(contact),
+                )
+            ) {
                 return {
                     authorized: true,
                     contactData: {
                         numeroCliente: list.numero_cliente,
                         numeroTecnico: list.numero_tecnico,
-                        listName: list.name
-                    }
+                        listName: list.name,
+                    },
                 };
             }
         }
@@ -1011,15 +1028,21 @@ async function handleIncomingMessage(message) {
     // Verificar se existe uma conversa ativa
     let conversation = activeConversations.get(phoneNumber);
 
-    // Se não existe conversa e a mensagem contém palavras-chave para iniciar pedido
-    if (!conversation && isRequestKeyword(messageText)) {
+    // Se a mensagem contém palavras-chave para iniciar pedido (mesmo com conversa ativa)
+    if (isRequestKeyword(messageText)) {
+        // Se já existe uma conversa, cancela-la primeiro
+        if (conversation) {
+            activeConversations.delete(phoneNumber);
+            console.log(`🔄 Conversa anterior cancelada para ${phoneNumber} - iniciando novo pedido`);
+        }
+
         // Verificar autorização antes de iniciar o pedido
         const authResult = await checkContactAuthorization(phoneNumber);
 
         if (!authResult.authorized) {
             await client.sendMessage(
                 phoneNumber,
-                "❌ *Acesso Restrito*\n\nLamentamos, mas o seu contacto não tem autorização para criar pedidos de assistência técnica através deste sistema.\n\nPara obter acesso, entre em contacto com a nossa equipa através dos canais habituais.\n\n📞 Obrigado pela compreensão."
+                "❌ *Acesso Restrito*\n\nLamentamos, mas o seu contacto não tem autorização para criar pedidos de assistência técnica através deste sistema.\n\nPara obter acesso, entre em contacto com a nossa equipa através dos canais habituais.\n\n📞 Obrigado pela compreensão.",
             );
             return;
         }
@@ -1059,7 +1082,11 @@ function isRequestKeyword(message) {
 }
 
 // Iniciar novo pedido de assistência
-async function startNewRequest(phoneNumber, initialMessage, contactData = null) {
+async function startNewRequest(
+    phoneNumber,
+    initialMessage,
+    contactData = null,
+) {
     let conversationState = CONVERSATION_STATES.WAITING_CLIENT;
     let conversationData = {
         initialProblem: initialMessage,
@@ -1078,13 +1105,21 @@ async function startNewRequest(phoneNumber, initialMessage, contactData = null) 
 
 Bem-vindo ao sistema automático de criação de pedidos de assistência técnica da Advir.`;
 
+    // Verificar se havia uma conversa anterior (para informar que foi cancelada)
+    const hadPreviousConversation = activeConversations.has(phoneNumber);
+    if (hadPreviousConversation) {
+        welcomeMessage += `\n\n🔄 *Conversa anterior cancelada* - Iniciando novo pedido.`;
+    }
+
     if (contactData && contactData.numeroCliente) {
         // Cliente já está definido - buscar contratos
         conversationData.cliente = contactData.numeroCliente;
         conversationData.nomeCliente = contactData.numeroCliente;
 
         // Buscar contratos do cliente
-        const resultadoContratos = await buscarContratosCliente(contactData.numeroCliente);
+        const resultadoContratos = await buscarContratosCliente(
+            contactData.numeroCliente,
+        );
 
         if (resultadoContratos.contratosAtivos.length === 0) {
             // Sem contratos ativos - ir direto para o problema
@@ -1094,37 +1129,40 @@ Bem-vindo ao sistema automático de criação de pedidos de assistência técnic
 
 *1. Descrição do Problema*
 Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
-
         } else if (resultadoContratos.contratosAtivos.length === 1) {
             // Apenas um contrato ativo - selecionar automaticamente
             const contrato = resultadoContratos.contratosAtivos[0];
             conversationData.contratoID = contrato.ID;
             conversationState = CONVERSATION_STATES.WAITING_PROBLEM;
 
-            const horasDisponiveis = (contrato.HorasTotais - contrato.HorasGastas).toFixed(2);
+            const horasDisponiveis = (
+                contrato.HorasTotais - contrato.HorasGastas
+            ).toFixed(2);
             welcomeMessage += `\n\n✅ Cliente identificado: *${contactData.numeroCliente}*
 ✅ Contrato selecionado automaticamente: *${contrato.Descricao}*
 📊 Horas disponíveis: *${horasDisponiveis}h*
 
 *1. Descrição do Problema*
 Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
-
         } else {
             // Múltiplos contratos ativos - pedir para escolher
-            conversationData.contratosDisponiveis = resultadoContratos.contratosAtivos;
+            conversationData.contratosDisponiveis =
+                resultadoContratos.contratosAtivos;
             conversationState = CONVERSATION_STATES.WAITING_CONTRACT;
 
             welcomeMessage += `\n\n✅ Cliente identificado: *${contactData.numeroCliente}*
 
-🔍 Foram encontrados múltiplos contratos ativos. Por favor, escolha um dos contratos abaixo digitando o número correspondente:
+e��� Foram encontrados múltiplos contratos ativos. Por favor, escolha um dos contratos abaixo digitando o número correspondente:
 
 `;
 
             resultadoContratos.contratosAtivos.forEach((contrato, index) => {
-                const horasDisponiveis = (contrato.HorasTotais - contrato.HorasGastas).toFixed(2);
+                const horasDisponiveis = (
+                    contrato.HorasTotais - contrato.HorasGastas
+                ).toFixed(2);
                 welcomeMessage += `*${index + 1}.* ${contrato.Descricao}\n`;
                 welcomeMessage += `   📊 Horas disponíveis: ${horasDisponiveis}h\n`;
-                welcomeMessage += `   📅 Válido até: ${new Date(contrato.PeriodoFim).toLocaleDateString('pt-PT')}\n\n`;
+                welcomeMessage += `   📅 Válido até: ${new Date(contrato.PeriodoFim).toLocaleDateString("pt-PT")}\n\n`;
             });
 
             welcomeMessage += `Digite o número do contrato pretendido (1-${resultadoContratos.contratosAtivos.length}):`;
@@ -1185,21 +1223,27 @@ async function continueConversation(phoneNumber, message, conversation) {
 // Função para validar se o cliente existe no sistema Primavera
 const validarCliente = async (nomeCliente) => {
     try {
-        const token = await getAuthToken({
-            username: "AdvirWeb",
-            password: "Advir2506##",
-            company: "Advir",
-            instance: "DEFAULT",
-            line: "Evolution",
-        }, "151.80.149.159:2018");
-
-        const response = await fetch("http://151.80.149.159:2018/WebApi/Base/LstClientes", {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
+        const token = await getAuthToken(
+            {
+                username: "AdvirWeb",
+                password: "Advir2506##",
+                company: "Advir",
+                instance: "DEFAULT",
+                line: "Evolution",
             },
-        });
+            "151.80.149.159:2018",
+        );
+
+        const response = await fetch(
+            "http://151.80.149.159:2018/WebApi/Base/LstClientes",
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+            },
+        );
 
         const responseData = await response.json();
         console.log("📡 Resposta da API:", responseData);
@@ -1207,14 +1251,20 @@ const validarCliente = async (nomeCliente) => {
         const clientes = responseData.DataSet ? responseData.DataSet.Table : [];
 
         if (!Array.isArray(clientes) || clientes.length === 0) {
-            console.error("❌ Não foram encontrados clientes na resposta da API");
+            console.error(
+                "❌ Não foram encontrados clientes na resposta da API",
+            );
             return { existe: false, cliente: null, sugestoes: [] };
         }
 
         // Procurar cliente pelo nome ou código
-        const clienteEncontrado = clientes.find(cliente =>
-            cliente && (cliente.Nome.toLowerCase().includes(nomeCliente.toLowerCase()) ||
-                cliente.Cliente === nomeCliente)
+        const clienteEncontrado = clientes.find(
+            (cliente) =>
+                cliente &&
+                (cliente.Nome.toLowerCase().includes(
+                    nomeCliente.toLowerCase(),
+                ) ||
+                    cliente.Cliente === nomeCliente),
         );
 
         if (clienteEncontrado) {
@@ -1224,21 +1274,25 @@ const validarCliente = async (nomeCliente) => {
 
         // Sugestões
         const sugestoes = clientes
-            .filter(cliente => cliente && cliente.Nome)
-            .filter(cliente =>
-                cliente.Nome.toLowerCase().includes(nomeCliente.toLowerCase().substring(0, 3)) ||
-                cliente.Cliente === nomeCliente
+            .filter((cliente) => cliente && cliente.Nome)
+            .filter(
+                (cliente) =>
+                    cliente.Nome.toLowerCase().includes(
+                        nomeCliente.toLowerCase().substring(0, 3),
+                    ) || cliente.Cliente === nomeCliente,
             )
             .slice(0, 5)
-            .map(cliente => `${cliente.Cliente || 'N/A'} - ${cliente.Nome || 'N/A'}`);
+            .map(
+                (cliente) =>
+                    `${cliente.Cliente || "N/A"} - ${cliente.Nome || "N/A"}`,
+            );
 
         console.log("⚠️ Cliente não encontrado. Sugestões:", sugestoes);
         return {
             existe: false,
             cliente: null,
-            sugestoes: sugestoes
+            sugestoes: sugestoes,
         };
-
     } catch (error) {
         console.error("❌ Erro ao validar cliente:", error);
         return { existe: false, cliente: null, sugestoes: [] };
@@ -1248,44 +1302,56 @@ const validarCliente = async (nomeCliente) => {
 // Função para buscar contratos do cliente
 const buscarContratosCliente = async (clienteId) => {
     try {
-        const token = await getAuthToken({
-            username: "AdvirWeb",
-            password: "Advir2506##",
-            company: "Advir",
-            instance: "DEFAULT",
-            line: "Evolution",
-        }, "151.80.149.159:2018");
-
-        const response = await fetch(`http://151.80.149.159:2018/WebApi/ServicosTecnicos/ObterInfoContrato/${clienteId}`, {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
+        const token = await getAuthToken(
+            {
+                username: "AdvirWeb",
+                password: "Advir2506##",
+                company: "Advir",
+                instance: "DEFAULT",
+                line: "Evolution",
             },
-        });
+            "151.80.149.159:2018",
+        );
+
+        const response = await fetch(
+            `http://151.80.149.159:2018/WebApi/ServicosTecnicos/ObterInfoContrato/${clienteId}`,
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+            },
+        );
 
         const responseData = await response.json();
         console.log("📡 Resposta contratos da API:", responseData);
 
-        const contratos = responseData.DataSet ? responseData.DataSet.Table : [];
+        const contratos = responseData.DataSet
+            ? responseData.DataSet.Table
+            : [];
 
         if (!Array.isArray(contratos) || contratos.length === 0) {
-            console.log("⚠️ Nenhum contrato encontrado para o cliente:", clienteId);
+            console.log(
+                "⚠️ Nenhum contrato encontrado para o cliente:",
+                clienteId,
+            );
             return { contratos: [], contratosAtivos: [] };
         }
 
         // Filtrar apenas contratos ativos (Estado === 3 e Cancelado === false)
-        const contratosAtivos = contratos.filter(contrato =>
-            contrato.Estado === 3 && contrato.Cancelado === false
+        const contratosAtivos = contratos.filter(
+            (contrato) => contrato.Estado === 3 && contrato.Cancelado === false,
         );
 
-        console.log(`✅ Encontrados ${contratos.length} contratos, ${contratosAtivos.length} ativos para cliente ${clienteId}`);
+        console.log(
+            `✅ Encontrados ${contratos.length} contratos, ${contratosAtivos.length} ativos para cliente ${clienteId}`,
+        );
 
         return {
             contratos: contratos,
-            contratosAtivos: contratosAtivos
+            contratosAtivos: contratosAtivos,
         };
-
     } catch (error) {
         console.error("❌ Erro ao buscar contratos:", error);
         return { contratos: [], contratosAtivos: [] };
@@ -1296,9 +1362,10 @@ const buscarContratosCliente = async (clienteId) => {
 async function handleClientInput(phoneNumber, message, conversation) {
     const resultadoValidacao = await validarCliente(message.trim());
     if (!resultadoValidacao.existe) {
-        const sugestoesMensagem = resultadoValidacao.sugestoes.length > 0
-            ? `⚠️ Cliente não encontrado. Sugestões:\n${resultadoValidacao.sugestoes.join('\n')}`
-            : "⚠️ Cliente não encontrado. Nenhuma sugestão disponível.";
+        const sugestoesMensagem =
+            resultadoValidacao.sugestoes.length > 0
+                ? `⚠️ Cliente não encontrado. Sugestões:\n${resultadoValidacao.sugestoes.join("\n")}`
+                : "⚠️ Cliente não encontrado. Nenhuma sugestão disponível.";
         await client.sendMessage(phoneNumber, sugestoesMensagem);
         conversation.state = CONVERSATION_STATES.WAITING_CLIENT_NAME; // ou o estado apropriado
     } else {
@@ -1320,7 +1387,9 @@ async function handleClientInput(phoneNumber, message, conversation) {
         conversation.data.contacto = null; // por defeito
 
         // Buscar contratos do cliente
-        const resultadoContratos = await buscarContratosCliente(validacao.cliente.Cliente);
+        const resultadoContratos = await buscarContratosCliente(
+            validacao.cliente.Cliente,
+        );
 
         if (resultadoContratos.contratosAtivos.length === 0) {
             // Sem contratos ativos - continuar sem contrato
@@ -1333,14 +1402,15 @@ async function handleClientInput(phoneNumber, message, conversation) {
 Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
 
             await client.sendMessage(phoneNumber, response);
-
         } else if (resultadoContratos.contratosAtivos.length === 1) {
             // Apenas um contrato ativo - selecionar automaticamente
             const contrato = resultadoContratos.contratosAtivos[0];
             conversation.data.contratoID = contrato.ID;
             conversation.state = CONVERSATION_STATES.WAITING_PROBLEM;
 
-            const horasDisponiveis = (contrato.HorasTotais - contrato.HorasGastas).toFixed(2);
+            const horasDisponiveis = (
+                contrato.HorasTotais - contrato.HorasGastas
+            ).toFixed(2);
 
             const response = `✅ Cliente encontrado: *${validacao.cliente.Cliente} - ${validacao.cliente.Nome}*
 ✅ Contrato selecionado automaticamente: *${contrato.Descricao}*
@@ -1350,10 +1420,10 @@ Por favor, descreva detalhadamente o problema ou situação que necessita de ass
 Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
 
             await client.sendMessage(phoneNumber, response);
-
         } else {
             // Múltiplos contratos ativos - pedir para escolher
-            conversation.data.contratosDisponiveis = resultadoContratos.contratosAtivos;
+            conversation.data.contratosDisponiveis =
+                resultadoContratos.contratosAtivos;
             conversation.state = CONVERSATION_STATES.WAITING_CONTRACT;
 
             let response = `✅ Cliente encontrado: *${validacao.cliente.Cliente} - ${validacao.cliente.Nome}*
@@ -1363,17 +1433,18 @@ Por favor, descreva detalhadamente o problema ou situação que necessita de ass
 `;
 
             resultadoContratos.contratosAtivos.forEach((contrato, index) => {
-                const horasDisponiveis = (contrato.HorasTotais - contrato.HorasGastas).toFixed(2);
+                const horasDisponiveis = (
+                    contrato.HorasTotais - contrato.HorasGastas
+                ).toFixed(2);
                 response += `*${index + 1}.* ${contrato.Descricao}\n`;
                 response += `   📊 Horas disponíveis: ${horasDisponiveis}h\n`;
-                response += `   📅 Válido até: ${new Date(contrato.PeriodoFim).toLocaleDateString('pt-PT')}\n\n`;
+                response += `   📅 Válido até: ${new Date(contrato.PeriodoFim).toLocaleDateString("pt-PT")}\n\n`;
             });
 
             response += `Digite o número do contrato pretendido (1-${resultadoContratos.contratosAtivos.length}):`;
 
             await client.sendMessage(phoneNumber, response);
         }
-
     } else {
         // Cliente não encontrado - pedir para tentar novamente
         let response = `❌ Cliente "${nomeCliente}" não foi encontrado no sistema.
@@ -1382,7 +1453,7 @@ Por favor, verifique o nome do cliente e tente novamente.`;
 
         if (validacao.sugestoes.length > 0) {
             response += `\n\n💡 *Sugestões de clientes disponíveis:*\n`;
-            validacao.sugestoes.forEach(sugestao => {
+            validacao.sugestoes.forEach((sugestao) => {
                 response += `• ${sugestao}\n`;
             });
         }
@@ -1402,7 +1473,7 @@ async function handleContractInput(phoneNumber, message, conversation) {
     if (isNaN(escolha) || escolha < 1 || escolha > contratos.length) {
         await client.sendMessage(
             phoneNumber,
-            `❌ Escolha inválida. Por favor, digite um número entre 1 e ${contratos.length}:`
+            `❌ Escolha inválida. Por favor, digite um número entre 1 e ${contratos.length}:`,
         );
         return;
     }
@@ -1412,7 +1483,9 @@ async function handleContractInput(phoneNumber, message, conversation) {
     conversation.data.contratoID = contratoSelecionado.ID;
     conversation.state = CONVERSATION_STATES.WAITING_PROBLEM;
 
-    const horasDisponiveis = (contratoSelecionado.HorasTotais - contratoSelecionado.HorasGastas).toFixed(2);
+    const horasDisponiveis = (
+        contratoSelecionado.HorasTotais - contratoSelecionado.HorasGastas
+    ).toFixed(2);
 
     const response = `✅ Contrato selecionado: *${contratoSelecionado.Descricao}*
 📊 Horas disponíveis: *${horasDisponiveis}h*
@@ -1504,25 +1577,25 @@ async function handlePriorityInput(phoneNumber, message, conversation) {
     // Mapear texto para número
     let prioridadeNumero;
     switch (prioridadeTexto) {
-        case 'BAIXA':
-        case 'BAIXO':
-        case '1':
-            prioridadeNumero = '1';
+        case "BAIXA":
+        case "BAIXO":
+        case "1":
+            prioridadeNumero = "1";
             break;
-        case 'MÉDIA':
-        case 'MEDIA':
-        case 'NORMAL':
-        case '2':
-            prioridadeNumero = '2';
+        case "MÉDIA":
+        case "MEDIA":
+        case "NORMAL":
+        case "2":
+            prioridadeNumero = "2";
             break;
-        case 'ALTA':
-        case 'ALTO':
-        case 'URGENTE':
-        case '3':
-            prioridadeNumero = '3';
+        case "ALTA":
+        case "ALTO":
+        case "URGENTE":
+        case "3":
+            prioridadeNumero = "3";
             break;
         default:
-            prioridadeNumero = '2'; // Padrão: Média
+            prioridadeNumero = "2"; // Padrão: Média
             break;
     }
 
@@ -1534,8 +1607,12 @@ async function handlePriorityInput(phoneNumber, message, conversation) {
 
     conversation.state = CONVERSATION_STATES.WAITING_CONFIRMATION;
 
-    const prioridadeDescricao = prioridadeNumero === '1' ? 'Baixa' :
-        prioridadeNumero === '2' ? 'Média' : 'Alta';
+    const prioridadeDescricao =
+        prioridadeNumero === "1"
+            ? "Baixa"
+            : prioridadeNumero === "2"
+                ? "Média"
+                : "Alta";
 
     let summary = `📋 *RESUMO DO PEDIDO DE ASSISTÊNCIA TÉCNICA*
 
@@ -1576,7 +1653,7 @@ async function handleConfirmationInput(phoneNumber, message, conversation) {
 // Criar o pedido de assistência via API e responder ao utilizador no WhatsApp
 async function createAssistenceRequest(phoneNumber, conversation) {
     let sent = false;
-    let pedidoID = 'N/A';
+    let pedidoID = "N/A";
     let payload = null;
 
     try {
@@ -1591,7 +1668,7 @@ async function createAssistenceRequest(phoneNumber, conversation) {
                 instance: "DEFAULT",
                 line: "Evolution",
             },
-            urlempresa
+            urlempresa,
         );
 
         console.log("✅ Token obtido com sucesso");
@@ -1604,8 +1681,10 @@ async function createAssistenceRequest(phoneNumber, conversation) {
         const dadosConversacao = conversation?.data || {};
         payload = {
             cliente: dadosConversacao.cliente || "VD",
-            descricaoObjecto: dadosConversacao.objeto || "Pedido criado via WhatsApp",
-            descricaoProblema: dadosConversacao.problema || "Problema reportado via WhatsApp",
+            descricaoObjecto:
+                dadosConversacao.objeto || "Pedido criado via WhatsApp",
+            descricaoProblema:
+                dadosConversacao.problema || "Problema reportado via WhatsApp",
             origem: dadosConversacao.origem || "TEL",
             tipoProcesso: dadosConversacao.tipoProcesso || "PASI",
             prioridade: dadosConversacao.prioridade || "2",
@@ -1618,28 +1697,45 @@ async function createAssistenceRequest(phoneNumber, conversation) {
             comoReproduzir: dadosConversacao.comoReproduzir || null,
             contacto: dadosConversacao.contacto || null,
             contratoID: dadosConversacao.contratoID || null,
-            datahoraabertura: dadosConversacao.datahoraabertura || dataAtual.toISOString().replace("T", " ").slice(0, 19),
-            datahorafimprevista: dadosConversacao.datahorafimprevista || dataFimPrevista.toISOString().replace("T", " ").slice(0, 19),
+            datahoraabertura:
+                dadosConversacao.datahoraabertura ||
+                dataAtual.toISOString().replace("T", " ").slice(0, 19),
+            datahorafimprevista:
+                dadosConversacao.datahorafimprevista ||
+                dataFimPrevista.toISOString().replace("T", " ").slice(0, 19),
         };
 
-        console.log("🛠 Payload para criação do pedido:", JSON.stringify(payload, null, 2));
+        console.log(
+            "🛠 Payload para criação do pedido:",
+            JSON.stringify(payload, null, 2),
+        );
 
-        const resp = await fetch("http://151.80.149.159:2018/WebApi/ServicosTecnicos/CriarPedido", {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
+        const resp = await fetch(
+            "http://151.80.149.159:2018/WebApi/ServicosTecnicos/CriarPedido",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
             },
-            body: JSON.stringify(payload),
-        });
+        );
 
         // tenta ler o corpo SEMPRE (mesmo quando não é ok)
         const raw = await resp.text().catch(() => "");
         let data = null;
-        try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+        try {
+            data = raw ? JSON.parse(raw) : null;
+        } catch {
+            data = null;
+        }
 
         if (resp.ok) {
-            pedidoID = (data && (data.PedidoID || data.Id)) ? (data.PedidoID || data.Id) : 'N/A';
+            pedidoID =
+                data && (data.PedidoID || data.Id)
+                    ? data.PedidoID || data.Id
+                    : "N/A";
             console.log("✅ Pedido criado com sucesso:", data);
         } else {
             console.error("❌ Erro da API:", resp.status, raw);
@@ -1647,10 +1743,17 @@ async function createAssistenceRequest(phoneNumber, conversation) {
             // muitos endpoints dão 500/409 mas já criaram; tenta sacar o ID do JSON ou do texto
             if (data && (data.PedidoID || data.Id)) {
                 pedidoID = data.PedidoID || data.Id;
-                console.log("ℹ️ API respondeu erro mas conseguimos extrair PedidoID:", pedidoID);
+                console.log(
+                    "ℹ️ API respondeu erro mas conseguimos extrair PedidoID:",
+                    pedidoID,
+                );
             } else {
                 // tentativa tosca: procurar GUID/número no texto
-                const guidMatch = raw && raw.match(/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/);
+                const guidMatch =
+                    raw &&
+                    raw.match(
+                        /[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/,
+                    );
                 if (guidMatch) {
                     pedidoID = guidMatch[0];
                     console.log("ℹ️ Extraí GUID do erro:", pedidoID);
@@ -1671,13 +1774,21 @@ async function createAssistenceRequest(phoneNumber, conversation) {
                     pedido_id: pedidoID,
                 }),
             });
-            console.log("✅ Notificação criada para o técnico:", payload.tecnico);
+            console.log(
+                "✅ Notificação criada para o técnico:",
+                payload.tecnico,
+            );
         } catch (notifError) {
             console.warn("⚠️ Erro ao criar notificação:", notifError.message);
         }
 
         // envia SEMPRE a mensagem de sucesso aqui
-        const prioridadeTxt = payload.prioridade === '1' ? 'Baixa' : payload.prioridade === '2' ? 'Média' : 'Alta';
+        const prioridadeTxt =
+            payload.prioridade === "1"
+                ? "Baixa"
+                : payload.prioridade === "2"
+                    ? "Média"
+                    : "Alta";
         const successMessage = `✅ *PEDIDO DE ASSISTÊNCIA CRIADO COM SUCESSO*
 
 **Cliente:** ${payload.cliente}
@@ -1697,34 +1808,43 @@ Obrigado por contactar a Advir.`;
         sent = true;
 
         return { success: true, pedidoId: pedidoID, data: data || null };
-
     } catch (error) {
         console.error("❌ Erro inesperado ao criar pedido:", error.message);
 
         // mesmo em erro, tenta enviar a mensagem de sucesso com o que tivermos
         if (!sent) {
-            const prioridadeTxt = payload && (payload.prioridade === '1' ? 'Baixa' : payload?.prioridade === '2' ? 'Média' : 'Alta');
+            const prioridadeTxt =
+                payload &&
+                (payload.prioridade === "1"
+                    ? "Baixa"
+                    : payload?.prioridade === "2"
+                        ? "Média"
+                        : "Alta");
             const successMessage = `✅ *PEDIDO DE ASSISTÊNCIA CRIADO COM SUCESSO*
 
 **Número do Pedido:** ${pedidoID}
-**Cliente:** ${payload?.cliente ?? 'N/A'}
-**Prioridade:** ${prioridadeTxt ?? 'Média'}
+**Cliente:** ${payload?.cliente ?? "N/A"}
+**Prioridade:** ${prioridadeTxt ?? "Média"}
 **Estado:** Em curso
 
 **Problema Reportado:**
-${payload?.descricaoProblema ?? 'N/A'}
+${payload?.descricaoProblema ?? "N/A"}
 
 **Data de Abertura:** ${payload?.datahoraabertura ? new Date(payload.datahoraabertura).toLocaleString("pt-PT") : new Date().toLocaleString("pt-PT")}
 
 O seu pedido foi registado no nosso sistema e será processado pela nossa equipa técnica.
 
 Obrigado por contactar a Advir.`;
-            try { await client.sendMessage(phoneNumber, successMessage); } catch (_) { }
+            try {
+                await client.sendMessage(phoneNumber, successMessage);
+            } catch (_) { }
         }
 
         return { success: true, pedidoId: pedidoID, data: null }; // força sucesso
     } finally {
-        try { activeConversations.delete(phoneNumber); } catch (_) { }
+        try {
+            activeConversations.delete(phoneNumber);
+        } catch (_) { }
     }
 }
 
