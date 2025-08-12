@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { FaCheckCircle, FaTimesCircle, FaClock, FaUser, FaCalendarAlt, FaFilter, FaSync, FaPlus } from 'react-icons/fa';
+ import { FaCheckCircle, FaTimesCircle, FaClock, FaUser, FaCalendarAlt, FaFilter, FaSync, FaPlus, FaCalendarPlus, FaTrashAlt, FaEdit } from 'react-icons/fa';
 
 const AprovacaoFaltaFerias = () => {
   const [pedidos, setPedidos] = useState([]);
@@ -22,6 +22,17 @@ const AprovacaoFaltaFerias = () => {
   const [tiposFalta, setTiposFalta] = useState([]);
   const [mapaFaltas, setMapaFaltas] = useState({});
   const [minhasEquipas, setMinhasEquipas] = useState([]);
+
+const [operacaoFiltro, setOperacaoFiltro] = useState('');
+
+
+ const getOperacaoInfo = (op) => {
+   const o = (op || 'CRIAR').toUpperCase();
+   if (o === 'CANCELAR') return { key: 'cancelar', label: 'Cancelar', className: 'badge-op-cancelar', Icon: FaTrashAlt };
+   if (o === 'EDITAR')   return { key: 'editar',   label: 'Editar',   className: 'badge-op-editar',   Icon: FaEdit };
+   return { key: 'agendar', label: 'Agendar', className: 'badge-op-agendar', Icon: FaCalendarPlus };
+ };
+
 
   const [novaFaltaEquipa, setNovaFaltaEquipa] = useState({
     funcionario: '',
@@ -78,6 +89,30 @@ const eliminarFeriasEFaltasDoDia = async (funcionario, dataISO) => {
     }
   }
 };
+
+const toISODate = (d) => {
+  const x = new Date(d);
+  const y = x.getFullYear();
+  const m = String(x.getMonth() + 1).padStart(2, '0');
+  const day = String(x.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`; // formato que o endpoint espera
+};
+
+const eliminarFaltaDoDia = async (funcionario, dataISO, codigoFalta) => {
+  const url = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionario}/${dataISO}/${codigoFalta}`;
+  try {
+    const r = await fetch(url, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${painelToken}`, urlempresa, 'Content-Type': 'application/json' }
+    });
+    if (!r.ok) {
+      console.warn('Falha ao eliminar falta:', codigoFalta, dataISO, await r.text());
+    }
+  } catch (e) {
+    console.error('Erro ao eliminar falta', codigoFalta, dataISO, e);
+  }
+};
+
 
 const inserirFeriasEFaltasDoDia = async (funcionario, dataISO, horasFlag, tempo, observ) => {
   // Faltas associadas às férias: F50 (gozo) e F40 (subs.alim) salvo se for por horas
@@ -175,32 +210,69 @@ const aprovarPedido = async (pedido) => {
         }
       }
     }
+    
+    
 
     // FALTA (sem alterações): já tens o fluxo de inserção
-    if (pedido.tipoPedido === 'FALTA' && (!pedido.operacao || pedido.operacao === 'CRIAR')) {
-      const dadosFalta = {
-        Funcionario: pedido.funcionario,
-        Data: new Date(pedido.dataPedido).toISOString(),
-        Falta: pedido.falta,
-        Horas: pedido.horas,
-        Tempo: pedido.tempo,
-        DescontaVenc: 0, DescontaRem: 0, ExcluiProc: 0, ExcluiEstat: 0,
-        Observacoes: pedido.justificacao,
-        CalculoFalta: 1, DescontaSubsAlim: 0, DataProc: null, NumPeriodoProcessado: 0,
-        JaProcessado: 0, InseridoBloco: 0, ValorDescontado: 0, AnoProcessado: 0, NumProc: 0,
-        Origem: "2", PlanoCurso: null, IdGDOC: null, CambioMBase: 0, CambioMAlt: 0,
-        CotizaPeloMinimo: 0, Acerto: 0, MotivoAcerto: null, NumLinhaDespesa: null,
-        NumRelatorioDespesa: null, FuncComplementosBaixaId: null,
-        DescontaSubsTurno: 0, SubTurnoProporcional: 0, SubAlimProporcional: 0
-      };
+    if (pedido.tipoPedido === 'FALTA') {
+      const dataISO = toISODate(pedido.dataPedido);
 
-      await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${painelToken}`, urlempresa },
-        body: JSON.stringify(dadosFalta)
-      });
+      if (!pedido.operacao || pedido.operacao === 'CRIAR') {
+        // Inserção (igual tinhas)
+        const dadosFalta = {
+          Funcionario: pedido.funcionario,
+          Data: new Date(pedido.dataPedido).toISOString(),
+          Falta: pedido.falta,
+          Horas: pedido.horas,
+          Tempo: pedido.tempo,
+          DescontaVenc: 0, DescontaRem: 0, ExcluiProc: 0, ExcluiEstat: 0,
+          Observacoes: pedido.justificacao,
+          CalculoFalta: 1, DescontaSubsAlim: 0, DataProc: null, NumPeriodoProcessado: 0,
+          JaProcessado: 0, InseridoBloco: 0, ValorDescontado: 0, AnoProcessado: 0, NumProc: 0,
+          Origem: "2", PlanoCurso: null, IdGDOC: null, CambioMBase: 0, CambioMAlt: 0,
+          CotizaPeloMinimo: 0, Acerto: 0, MotivoAcerto: null, NumLinhaDespesa: null,
+          NumRelatorioDespesa: null, FuncComplementosBaixaId: null,
+          DescontaSubsTurno: 0, SubTurnoProporcional: 0, SubAlimProporcional: 0
+        };
+        await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${painelToken}`, urlempresa },
+          body: JSON.stringify(dadosFalta)
+        });
+      }
+
+      if (pedido.operacao === 'CANCELAR') {
+        // Apaga exatamente a falta pedida (ex.: F01, F10, F40, …)
+        await eliminarFaltaDoDia(pedido.funcionario, dataISO, pedido.falta);
+      }
+
+      if (pedido.operacao === 'EDITAR') {
+        // Opcional: remove a original e volta a inserir com os novos dados
+        const dataOrigISO = toISODate(pedido.dataPedidoOriginal || pedido.dataPedido);
+        await eliminarFaltaDoDia(pedido.funcionario, dataOrigISO, pedido.faltaOriginal || pedido.falta);
+        // …depois chama a mesma lógica de CRIAR com os novos campos do pedido
+        const dadosFalta = {
+          Funcionario: pedido.funcionario,
+          Data: new Date(pedido.dataPedido).toISOString(),
+          Falta: pedido.falta,
+          Horas: pedido.horas,
+          Tempo: pedido.tempo,
+          DescontaVenc: 0, DescontaRem: 0, ExcluiProc: 0, ExcluiEstat: 0,
+          Observacoes: pedido.justificacao,
+          CalculoFalta: 1, DescontaSubsAlim: 0, DataProc: null, NumPeriodoProcessado: 0,
+          JaProcessado: 0, InseridoBloco: 0, ValorDescontado: 0, AnoProcessado: 0, NumProc: 0,
+          Origem: "2", PlanoCurso: null, IdGDOC: null, CambioMBase: 0, CambioMAlt: 0,
+          CotizaPeloMinimo: 0, Acerto: 0, MotivoAcerto: null, NumLinhaDespesa: null,
+          NumRelatorioDespesa: null, FuncComplementosBaixaId: null,
+          DescontaSubsTurno: 0, SubTurnoProporcional: 0, SubAlimProporcional: 0
+        };
+        await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${painelToken}`, urlempresa },
+          body: JSON.stringify(dadosFalta)
+        });
+      }
     }
-
     alert('Pedido aprovado e registado com sucesso.');
     await carregarPedidos(estadoFiltro);
     await carregarTodosPedidos();
@@ -640,6 +712,13 @@ const aprovarPedido = async (pedido) => {
           .kpi-icon { font-size: 1.5rem; }
           .kpi-number { font-size: 1.5rem; }
         }
+                  /* Op badges e destaque do card por operação */
+        .badge-op-agendar { background: #0dcaf0; color: #052c3b; }
+        .badge-op-cancelar { background: #6c757d; }
+        .badge-op-editar { background: #6610f2; }
+        .card-op-agendar { border-top: 4px solid #0dcaf0; }
+        .card-op-cancelar { border-top: 4px solid #6c757d; }
+        .card-op-editar { border-top: 4px solid #6610f2; }
       `}</style>
 
       {loading && (
@@ -857,6 +936,17 @@ const aprovarPedido = async (pedido) => {
                         <option key={codigo} value={codigo}>{label}</option>
                       ))}
                   </select>
+                  <select
+                   className="form-select form-moderno"
+                   value={operacaoFiltro}
+                   onChange={(e) => setOperacaoFiltro(e.target.value)}
+                   disabled={loading}
+                 >
+                   <option value="">Todas as operações</option>
+                   <option value="CRIAR">Agendar</option>
+                   <option value="CANCELAR">Cancelar</option>
+                   <option value="EDITAR">Editar</option>
+                 </select>
 
                   <button 
                     onClick={() => carregarPedidos(estadoFiltro)} 
@@ -888,18 +978,25 @@ const aprovarPedido = async (pedido) => {
                 </div>
               </div>
             ) : (
-              pedidos
+pedidos
                 .filter(p => colaboradorFiltro === '' || p.funcionario === colaboradorFiltro)
+                .filter(p => !operacaoFiltro || ((p.operacao || 'CRIAR').toUpperCase() === operacaoFiltro))
                 .map((pedido) => {
                   const aprovado = pedido.estadoAprovacao === 'Aprovado';
                   const rejeitado = pedido.estadoAprovacao === 'Rejeitado';
                   const pendente = pedido.estadoAprovacao === 'Pendente';
+                  const opInfo = getOperacaoInfo(pedido.operacao);
+                  const cardOpClass =
+                    opInfo.key === 'cancelar' ? 'card-op-cancelar' :
+                    opInfo.key === 'editar'   ? 'card-op-editar'   :
+                                                'card-op-agendar';
 
                   const descFalta = pedido.tipoPedido === 'FALTA' ? getDescricaoFalta(pedido.falta) : '';
 
                   return (
                     <div key={pedido.id} className="col-12 col-lg-6 col-xl-4">
-                      <div className="card pedido-card card-moderno h-100">
+                      <div className={`card pedido-card card-moderno h-100 ${cardOpClass}`}>
+                        
                         <div className="card-body d-flex flex-column">
                           {/* Header do Card */}
                           <div className="d-flex justify-content-between align-items-start mb-3">
@@ -914,6 +1011,13 @@ const aprovarPedido = async (pedido) => {
                               >
                                 {pedido.tipoPedido === 'FALTA' ? '🚫 FALTA' : '🌴 FÉRIAS'}
                               </span>
+                              {/* operação (Agendar/Cancelar/Editar) */}
+                              <div className="mt-2">
+                                <span className={`badge status-badge ${opInfo.className}`}>
+                                  <opInfo.Icon className="me-1" />
+                                  {opInfo.label}
+                                </span>
+                              </div>
                               <div className="mt-2">
                                 {pendente && <span className="badge bg-warning status-badge"> Pendente</span>}
                                 {aprovado && <span className="badge bg-success status-badge"> Aprovado</span>}

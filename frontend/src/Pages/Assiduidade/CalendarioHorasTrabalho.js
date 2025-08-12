@@ -63,14 +63,16 @@ const [modoEdicaoFerias, setModoEdicaoFerias] = useState(false);
 const [faltaOriginal, setFaltaOriginal] = useState(null); // guarda Falta + Data + Funcionario
 
 const [feriasTotalizador, setFeriasTotalizador] = useState(null);
-const [novaJustificacaoEdicao, setNovaJustificacaoEdicao] = useState('');
-const [justificacaoEdicao, setJustificacaoEdicao] = useState('');
+
+const [justificacaoAlteracao, setJustificacaoAlteracao] = useState('');
 
 const [feriasOriginal, setFeriasOriginal] = useState(null);
 
 
 const [diasPendentes, setDiasPendentes] = useState([]);
 const [faltasPendentes, setFaltasPendentes] = useState([]);
+
+
 
 
 // --- helper: data no passado (comparando a 00:00) ---
@@ -94,8 +96,17 @@ const isBeforeToday = (dateLike) => {
  const safeJson = (p) =>
    p.then((v) => ({ ok: true, v })).catch((e) => ({ ok: false, e }));
 
- const formatISO = (d) => new Date(d).toISOString().split('T')[0];
+ const formatISO = (d) => toLocalISODate(d);
 
+
+// usa SEMPRE isto para datas-dia (sem horas)
+const toLocalISODate = (value) => {
+  const d = new Date(value);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 
   // --- Helpers de retry/backoff ---
@@ -360,7 +371,7 @@ const carregarTiposFalta = async () => {
 
 const carregarHorarioFuncionario = async () => {
   const token = localStorage.getItem("painelAdminToken");
-  const funcionarioId = "001";
+  const funcionarioId = "codFuncionario";
   const urlempresa = localStorage.getItem("urlempresa");
 
   try {
@@ -529,6 +540,61 @@ const dados = {
     alert("Erro inesperado.");
   }
 };
+
+const solicitarCancelamentoFalta = async (faltaObj) => {
+  const token = localStorage.getItem('loginToken');
+  const urlempresa = localStorage.getItem('urlempresa');
+  const funcionario = localStorage.getItem('codFuncionario');
+
+const dataISO = toLocalISODate(faltaObj.Data);
+
+  const codigoFalta = faltaObj.Falta; // ex: F01, F02, F40, etc.
+
+  const justificacao = window.prompt(
+    `Justificação para cancelar a falta ${codigoFalta} em ${dataISO}:`,
+    ''
+  ) || '';
+
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa
+      },
+      body: JSON.stringify({
+        tipoPedido: 'FALTA',
+        operacao: 'CANCELAR',
+        funcionario,
+        dataPedido: dataISO,
+        falta: codigoFalta,
+        horas: Number(faltaObj.Horas) ? 1 : 0,
+        tempo: Number(faltaObj.Tempo) || 1,
+        justificacao,
+        observacoes: '',
+        usuarioCriador: funcionario,
+        origem: 'LINK'
+      })
+    });
+
+    if (!res.ok) {
+      const msg = await res.text();
+      alert('Erro ao submeter cancelamento: ' + msg);
+      return;
+    }
+
+    alert('Pedido de cancelamento de falta submetido para aprovação.');
+    await carregarFaltasFuncionario();
+    await carregarFaltasPendentes();
+    await carregarDiasPendentes();
+    await carregarDetalhes(diaSelecionado);
+  } catch (err) {
+    console.error('Erro ao pedir cancelamento de falta:', err);
+    alert('Erro inesperado ao pedir cancelamento.');
+  }
+};
+
 
 
 
@@ -866,7 +932,8 @@ const solicitarCancelamentoFeria = async (dataFeria) => {
   const urlempresa = localStorage.getItem('urlempresa');
   const funcionario = localStorage.getItem('codFuncionario');
 
-  const dataISO = new Date(dataFeria).toISOString().split('T')[0];
+  const dataISO = toLocalISODate(dataFeria); 
+
   const justificacao = window.prompt(`Justificação para cancelar a férias de ${dataISO}:`, '') || '';
 
   try {
@@ -1194,16 +1261,15 @@ console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
 
 const iniciarEdicaoRegisto = (registo) => {
   const data = new Date(registo.timestamp);
-  const hora = data.toTimeString().slice(0,5);
-  setNovaHoraEdicao(hora);
-  setJustificacaoEdicao(registo.justificacao || '');
+  setNovaHoraEdicao(data.toTimeString().slice(0,5));
+  setJustificacaoAlteracao(registo.justificacao || '');
   setRegistoEmEdicao(registo);
 };
 
 
 const submeterAlteracaoHora = async () => {
   if (!registoEmEdicao || !novaHoraEdicao) return;
-  if (!novaJustificacaoEdicao.trim()) {
+  if (!justificacaoAlteracao.trim()) {
   alert('Indica uma justificação para a alteração.');
   return;
 }
@@ -1236,7 +1302,7 @@ const submeterAlteracaoHora = async () => {
       tipo: registoEmEdicao.tipo,
       obra_id: registoEmEdicao.obra_id,
       timestamp: novaData.toISOString(),
-      justificacao: justificacaoEdicao.trim(),
+      justificacao: justificacaoAlteracao.trim(),
 
     };
 
@@ -1631,7 +1697,8 @@ const isPendente = diasPendentes.includes(dataFormatada);
   onClick={() => {
     const faltaF50 = faltas.find(f =>
       f.Falta === 'F50' &&
-      new Date(f.Data).toISOString().slice(0,10) === dataFormatada
+      toLocalISODate(f.Data) === dataFormatada
+
     );
  
     carregarDetalhes(dataFormatada);
@@ -1725,7 +1792,7 @@ const isPendente = diasPendentes.includes(dataFormatada);
 
                     
                   <div className="card-body p-3 p-md-4">
-                    {detalhesHorario && (
+                    {detalhesHorario && feriasTotalizador && (
                 <div className="mb-3">
   <h6 className="fw-bold text-muted mb-2">Horário Contratual & Férias</h6>
   <div className="row g-2">
@@ -1835,28 +1902,34 @@ const isPendente = diasPendentes.includes(dataFormatada);
     )}
 
   
-{f.Falta === 'F50' && (() => {
-          const data = (f.Data || '').split('T')[0];
-          const podeCancelar = !isBeforeToday(data);
-          if (!podeCancelar) return null;
-          return (
-  <div className="mt-1 text-end">
-    <button
-  className="btn btn-sm btn-outline-danger"
-  onClick={() => {
-    const data = f.Data.split('T')[0];
-    const msg  = `Queres pedir o cancelamento das férias de ${data}?`;
-    if (window.confirm(msg)) {
-      solicitarCancelamentoFeria(data);
-    }
-  }}
->
-  Cancelar
-</button>
+{(() => {
+  const dataISO = toLocalISODate(f.Data);
+  const podeCancelar = !isBeforeToday(dataISO);
+  if (!podeCancelar) return null;
 
-  </div>
-          );
-        })()}
+  const onClick = () => {
+    const msg = f.Falta === 'F50'
+      ? `Queres pedir o cancelamento das férias de ${dataISO}?`
+      : `Queres pedir o cancelamento da falta ${f.Falta} de ${dataISO}?`;
+
+    if (!window.confirm(msg)) return;
+
+    if (f.Falta === 'F50') {
+      solicitarCancelamentoFeria(dataISO);
+    } else {
+      solicitarCancelamentoFalta(f);
+    }
+  };
+
+  return (
+    <div className="mt-1 text-end">
+      <button className="btn btn-sm btn-outline-danger" onClick={onClick}>
+        Cancelar
+      </button>
+    </div>
+  );
+})()}
+
 
 
 
@@ -2111,11 +2184,12 @@ const isPendente = diasPendentes.includes(dataFormatada);
     <div className="mb-3">
       <label className="form-label small fw-semibold">Observações</label>
       <textarea
-        className="form-control form-moderno"
-        rows="2"
-        value={novaFaltaFerias.Observacoes}
-        onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, Observacoes: e.target.value })}
-        />
+  className="form-control form-moderno"
+  rows="2"
+  value={novaFalta.Observacoes}
+  onChange={(e) => setNovaFalta({ ...novaFalta, Observacoes: e.target.value })}
+/>
+
 
     </div>
     {novaFalta.Falta && (
@@ -2201,11 +2275,13 @@ const isPendente = diasPendentes.includes(dataFormatada);
     <div className="mb-3">
       <label className="form-label small fw-semibold">Observações</label>
       <textarea
-        className="form-control form-moderno"
-        rows="2"
-        value={novaFalta.Observacoes}
-        onChange={(e) => setNovaFalta({ ...novaFalta, Observacoes: e.target.value })}
-      />
+      className="form-control form-moderno"
+      rows="2"
+      value={novaFaltaFerias.Observacoes}
+      onChange={(e) => setNovaFaltaFerias({ ...novaFaltaFerias, Observacoes: e.target.value })}
+    />
+
+
     </div>
 
     <button
@@ -2250,12 +2326,12 @@ const isPendente = diasPendentes.includes(dataFormatada);
     <div className="mb-2">
   <label className="form-label small fw-semibold">Justificação da alteração</label>
   <textarea
-    className="form-control"
-    rows="2"
-    value={novaJustificacaoEdicao}
-    onChange={(e) => setNovaJustificacaoEdicao(e.target.value)}
-    required
-  />
+  className="form-control"
+  rows="2"
+  value={justificacaoAlteracao}
+  onChange={(e) => setJustificacaoAlteracao(e.target.value)}
+  required
+/>
 </div>
 
     <button

@@ -1065,16 +1065,6 @@ async function handleIncomingMessage(message) {
 function isRequestKeyword(message) {
     const keywords = [
         "pedido",
-        "assistencia",
-        "assistência",
-        "problema",
-        "erro",
-        "bug",
-        "help",
-        "ajuda",
-        "suporte",
-        "novo pedido",
-        "criar pedido",
     ];
 
     const lowerMessage = message.toLowerCase();
