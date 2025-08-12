@@ -13,27 +13,44 @@ const ContratosList = () => {
   const [carregandoClientes, setCarregandoClientes] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState('ativo'); // ativo, caducado, cancelado
 
-  const fetchClientes = async () => {
-    if (clientes.length > 0 || carregandoClientes) return;
-
+  const fetchClientes = async (force = false) => {
+    if ((clientes.length > 0 && !force) || carregandoClientes) return;
+    setErro('');
     setCarregandoClientes(true);
-
     try {
-      const token = await localStorage.getItem('painelAdminTokenAdvir');
-      const urlempresa = await localStorage.getItem('urlempresaAdvir');
+      const [token, urlempresa] = await Promise.all([
+        localStorage.getItem('painelAdminToken'),
+        localStorage.getItem('urlempresa'),
+      ]);
+      if (!token || !urlempresa) {
+        throw new Error('Token/empresa em falta no storage.');
+      }
 
-      const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/LstClientes`, {
+      const url = 'https://webapiprimavera.advir.pt/routePedidos_STP/LstClientes';
+      const resp = await fetch(url, {
+        method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
           urlempresa,
+          Accept: 'application/json',
         },
       });
 
-      const data = await response.json();
-      setClientes(data?.DataSet?.Table || []);
+      const raw = await resp.text(); // lê SEMPRE o corpo
+      if (!resp.ok) {
+        throw new Error(`Falha ${resp.status} em LstClientes: ${raw || 'sem detalhes'}`);
+      }
+      let data;
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        throw new Error(`Resposta inválida do backend: ${raw?.slice(0, 500)}`);
+      }
+      const tabela = Array.isArray(data?.DataSet?.Table) ? data.DataSet.Table : [];
+      setClientes(tabela);
     } catch (error) {
-      console.error("Erro ao carregar clientes:", error);
+      console.error('Erro ao carregar clientes:', error);
+      setErro(error.message);
     } finally {
       setCarregandoClientes(false);
     }
@@ -49,8 +66,8 @@ const ContratosList = () => {
     setLoading(true);
 
     try {
-      const token = await localStorage.getItem('painelAdminTokenAdvir');
-      const urlempresa = await localStorage.getItem('urlempresaAdvir');
+      const token = await localStorage.getItem('painelAdminToken');
+      const urlempresa = await localStorage.getItem('urlempresa');
 
       if (!token || !urlempresa) {
         throw new Error('Credenciais em falta.');
