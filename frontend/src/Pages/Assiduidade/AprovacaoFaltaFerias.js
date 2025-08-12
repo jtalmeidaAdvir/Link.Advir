@@ -48,6 +48,168 @@ const AprovacaoFaltaFerias = () => {
     carregarTiposFaltaEquipa();
   }, []);
 
+  
+const rangeDatas = (iniISO, fimISO) => {
+  const res = [];
+  if (!iniISO || !fimISO) return res;
+  let d = new Date(iniISO);
+  const f = new Date(fimISO);
+  while (d <= f) {
+    res.push(d.toISOString().split('T')[0]);
+    d.setDate(d.getDate() + 1);
+  }
+  return res;
+};
+
+const eliminarFeriasEFaltasDoDia = async (funcionario, dataISO) => {
+  const urlFeria = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFeriasFuncionario/${funcionario}/${dataISO}`;
+  const urlF50  = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionario}/${dataISO}/F50`;
+  const urlF40  = `https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionario}/${dataISO}/F40`;
+
+  // tenta apagar todos; ignora erros individuais
+  for (const url of [urlFeria, urlF50, urlF40]) {
+    try {
+      await fetch(url, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${painelToken}`, urlempresa, 'Content-Type': 'application/json' }
+      });
+    } catch (e) {
+      console.warn('Ignorado ao eliminar:', url, e);
+    }
+  }
+};
+
+const inserirFeriasEFaltasDoDia = async (funcionario, dataISO, horasFlag, tempo, observ) => {
+  // Faltas associadas às férias: F50 (gozo) e F40 (subs.alim) salvo se for por horas
+  const faltas = horasFlag ? ['F40'] : ['F50', 'F40'];
+
+  for (const faltaCod of faltas) {
+    const dadosFalta = {
+      Funcionario: funcionario,
+      Data: dataISO,
+      Falta: faltaCod,
+      Horas: horasFlag ? 1 : 0,
+      Tempo: tempo,
+      DescontaVenc: 0, DescontaRem: 0, ExcluiProc: 0, ExcluiEstat: 0,
+      Observacoes: observ || '',
+      CalculoFalta: 1, DescontaSubsAlim: 0, DataProc: null, NumPeriodoProcessado: 0,
+      JaProcessado: 0, InseridoBloco: 0, ValorDescontado: 0, AnoProcessado: 0, NumProc: 0,
+      Origem: "2", PlanoCurso: null, IdGDOC: null, CambioMBase: 0, CambioMAlt: 0,
+      CotizaPeloMinimo: 0, Acerto: 0, MotivoAcerto: null, NumLinhaDespesa: null,
+      NumRelatorioDespesa: null, FuncComplementosBaixaId: null,
+      DescontaSubsTurno: 0, SubTurnoProporcional: 0, SubAlimProporcional: 0
+    };
+
+    try {
+      await fetch('https://webapiprimavera.advir.pt/routesFaltas/InserirFalta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${painelToken}`, urlempresa },
+        body: JSON.stringify(dadosFalta)
+      });
+    } catch (e) {
+      console.warn('Ignorado ao inserir falta', faltaCod, dataISO, e);
+    }
+  }
+
+  // Marcações de férias
+  const dadosFerias = {
+    Funcionario: funcionario,
+    DataFeria: dataISO,
+    EstadoGozo: 0,
+    OriginouFalta: 1,
+    TipoMarcacao: 1,
+    OriginouFaltaSubAlim: 1,
+    Duracao: tempo,
+    Acerto: 0,
+    NumProc: null,
+    Origem: 0
+  };
+
+  try {
+    await fetch('https://webapiprimavera.advir.pt/routesFaltas/InserirFeriasFuncionario', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${painelToken}`, urlempresa },
+      body: JSON.stringify(dadosFerias)
+    });
+  } catch (e) {
+    console.warn('Ignorado ao inserir férias', dataISO, e);
+  }
+};
+
+const aprovarPedido = async (pedido) => {
+  try {
+    // 1) marca como aprovado no backend
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${pedido.id}/aprovar`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, urlempresa },
+      body: JSON.stringify({ aprovadoPor: userNome, observacoesResposta: 'Aprovado.' })
+    });
+    if (!res.ok) { alert('Erro ao aprovar.'); return; }
+
+    // 2) executa ação no ERP conforme tipo/operacao
+    if (pedido.tipoPedido === 'FERIAS') {
+      const horasFlag = !!pedido.horas;
+      const tempo = pedido.tempo || 1;
+      const observ = pedido.justificacao || '';
+
+      if (pedido.operacao === 'CRIAR') {
+        for (const dia of rangeDatas(pedido.dataInicio, pedido.dataFim)) {
+          await inserirFeriasEFaltasDoDia(pedido.funcionario, dia, horasFlag, tempo, observ);
+        }
+      }
+
+      if (pedido.operacao === 'CANCELAR') {
+        for (const dia of rangeDatas(pedido.dataInicio, pedido.dataFim)) {
+          await eliminarFeriasEFaltasDoDia(pedido.funcionario, dia);
+        }
+      }
+
+      if (pedido.operacao === 'EDITAR') {
+        // 2.1 remove intervalo original
+        for (const dia of rangeDatas(pedido.dataInicioOriginal, pedido.dataFimOriginal)) {
+          await eliminarFeriasEFaltasDoDia(pedido.funcionario, dia);
+        }
+        // 2.2 insere novo intervalo
+        for (const dia of rangeDatas(pedido.dataInicio, pedido.dataFim)) {
+          await inserirFeriasEFaltasDoDia(pedido.funcionario, dia, horasFlag, tempo, observ);
+        }
+      }
+    }
+
+    // FALTA (sem alterações): já tens o fluxo de inserção
+    if (pedido.tipoPedido === 'FALTA' && (!pedido.operacao || pedido.operacao === 'CRIAR')) {
+      const dadosFalta = {
+        Funcionario: pedido.funcionario,
+        Data: new Date(pedido.dataPedido).toISOString(),
+        Falta: pedido.falta,
+        Horas: pedido.horas,
+        Tempo: pedido.tempo,
+        DescontaVenc: 0, DescontaRem: 0, ExcluiProc: 0, ExcluiEstat: 0,
+        Observacoes: pedido.justificacao,
+        CalculoFalta: 1, DescontaSubsAlim: 0, DataProc: null, NumPeriodoProcessado: 0,
+        JaProcessado: 0, InseridoBloco: 0, ValorDescontado: 0, AnoProcessado: 0, NumProc: 0,
+        Origem: "2", PlanoCurso: null, IdGDOC: null, CambioMBase: 0, CambioMAlt: 0,
+        CotizaPeloMinimo: 0, Acerto: 0, MotivoAcerto: null, NumLinhaDespesa: null,
+        NumRelatorioDespesa: null, FuncComplementosBaixaId: null,
+        DescontaSubsTurno: 0, SubTurnoProporcional: 0, SubAlimProporcional: 0
+      };
+
+      await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${painelToken}`, urlempresa },
+        body: JSON.stringify(dadosFalta)
+      });
+    }
+
+    alert('Pedido aprovado e registado com sucesso.');
+    await carregarPedidos(estadoFiltro);
+    await carregarTodosPedidos();
+  } catch (err) {
+    console.error('Erro ao aprovar:', err);
+    alert('Erro inesperado.');
+  }
+};
+
   const carregarColaboradoresEquipa = async () => {
     try {
       let membros = [];
@@ -401,168 +563,6 @@ const AprovacaoFaltaFerias = () => {
     }
   };
 
-  const aprovarPedido = async (pedido) => {
-    try {
-      const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${pedido.id}/aprovar`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          urlempresa
-        },
-        body: JSON.stringify({ aprovadoPor: userNome, observacoesResposta: 'Aprovado.' })
-      });
-
-      if (!res.ok) {
-        alert('Erro ao aprovar.');
-        return;
-      }
-
-      if (pedido.tipoPedido === 'FALTA') {
-        const dadosFalta = {
-          Funcionario: pedido.funcionario,
-          Data: new Date(pedido.dataPedido).toISOString(),
-          Falta: pedido.falta,
-          Horas: pedido.horas,
-          Tempo: pedido.tempo,
-          DescontaVenc: 0,
-          DescontaRem: 0,
-          ExcluiProc: 0,
-          ExcluiEstat: 0,
-          Observacoes: pedido.justificacao,
-          CalculoFalta: 1,
-          DescontaSubsAlim: 0,
-          DataProc: null,
-          NumPeriodoProcessado: 0,
-          JaProcessado: 0,
-          InseridoBloco: 0,
-          ValorDescontado: 0,
-          AnoProcessado: 0,
-          NumProc: 0,
-          Origem: "2",
-          PlanoCurso: null,
-          IdGDOC: null,
-          CambioMBase: 0,
-          CambioMAlt: 0,
-          CotizaPeloMinimo: 0,
-          Acerto: 0,
-          MotivoAcerto: null,
-          NumLinhaDespesa: null,
-          NumRelatorioDespesa: null,
-          FuncComplementosBaixaId: null,
-          DescontaSubsTurno: 0,
-          SubTurnoProporcional: 0,
-          SubAlimProporcional: 0
-        };
-
-        await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${painelToken}`,
-            urlempresa
-          },
-          body: JSON.stringify(dadosFalta)
-        });
-      }
-
-      if (pedido.tipoPedido === 'FERIAS') {
-        const inicio = new Date(pedido.dataInicio);
-        const fim = new Date(pedido.dataFim);
-        const faltasParaCriar = pedido.horas ? ["F40"] : ["F50", "F40"];
-
-        for (let dia = new Date(inicio); dia <= fim; dia.setDate(dia.getDate() + 1)) {
-          const dataStr = dia.toISOString().split("T")[0];
-
-          for (const faltaCod of faltasParaCriar) {
-            const dadosFalta = {
-              Funcionario: pedido.funcionario,
-              Data: dataStr,
-              Falta: faltaCod,
-              Horas: pedido.horas ? 1 : 0,
-              Tempo: pedido.tempo,
-              DescontaVenc: 0,
-              DescontaRem: 0,
-              ExcluiProc: 0,
-              ExcluiEstat: 0,
-              Observacoes: pedido.justificacao,
-              CalculoFalta: 1,
-              DescontaSubsAlim: 0,
-              DataProc: null,
-              NumPeriodoProcessado: 0,
-              JaProcessado: 0,
-              InseridoBloco: 0,
-              ValorDescontado: 0,
-              AnoProcessado: 0,
-              NumProc: 0,
-              Origem: "2",
-              PlanoCurso: null,
-              IdGDOC: null,
-              CambioMBase: 0,
-              CambioMAlt: 0,
-              CotizaPeloMinimo: 0,
-              Acerto: 0,
-              MotivoAcerto: null,
-              NumLinhaDespesa: null,
-              NumRelatorioDespesa: null,
-              FuncComplementosBaixaId: null,
-              DescontaSubsTurno: 0,
-              SubTurnoProporcional: 0,
-              SubAlimProporcional: 0
-            };
-
-            try {
-              await fetch('https://webapiprimavera.advir.pt/routesFaltas/InserirFalta', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${painelToken}`,
-                  urlempresa
-                },
-                body: JSON.stringify(dadosFalta)
-              });
-            } catch (error) {
-              console.warn(`Falta já existente ou erro ignorado: ${faltaCod} em ${dataStr}`, error);
-            }
-          }
-
-          const dadosFerias = {
-            Funcionario: pedido.funcionario,
-            DataFeria: dataStr,
-            EstadoGozo: 0,
-            OriginouFalta: 1,
-            TipoMarcacao: 1,
-            OriginouFaltaSubAlim: 1,
-            Duracao: pedido.tempo,
-            Acerto: 0,
-            NumProc: null,
-            Origem: 0
-          };
-
-          try {
-            await fetch('https://webapiprimavera.advir.pt/routesFaltas/InserirFeriasFuncionario', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${painelToken}`,
-                urlempresa
-              },
-              body: JSON.stringify(dadosFerias)
-            });
-          } catch (error) {
-            console.warn('Férias já existentes ou erro ignorado:', error);
-          }
-        }
-      }
-
-      alert('Pedido aprovado e registado com sucesso.');
-      await carregarPedidos(estadoFiltro);
-      await carregarTodosPedidos();
-    } catch (err) {
-      console.error('Erro ao aprovar:', err);
-      alert('Erro inesperado.');
-    }
-  };
 
   const rejeitarPedido = async (id) => {
     setLoading(true);
@@ -668,28 +668,28 @@ const AprovacaoFaltaFerias = () => {
           <div className="row g-3 mb-4">
             <div className="col-6 col-md-3">
               <div className="kpi-card">
-                <div className="kpi-icon text-warning">
+                <div className="kpi-icon text-primary">
                   <FaClock />
                 </div>
-                <h3 className="kpi-number text-warning">{contarPorEstado('Pendente')}</h3>
+                <h3 className="kpi-number text-primary">{contarPorEstado('Pendente')}</h3>
                 <p className="kpi-label">Pendentes</p>
               </div>
             </div>
             <div className="col-6 col-md-3">
               <div className="kpi-card">
-                <div className="kpi-icon text-success">
+                <div className="kpi-icon text-primary">
                   <FaCheckCircle />
                 </div>
-                <h3 className="kpi-number text-success">{contarPorEstado('Aprovado')}</h3>
+                <h3 className="kpi-number text-primary">{contarPorEstado('Aprovado')}</h3>
                 <p className="kpi-label">Aprovados</p>
               </div>
             </div>
             <div className="col-6 col-md-3">
               <div className="kpi-card">
-                <div className="kpi-icon text-danger">
+                <div className="kpi-icon text-primary">
                   <FaTimesCircle />
                 </div>
-                <h3 className="kpi-number text-danger">{contarPorEstado('Rejeitado')}</h3>
+                <h3 className="kpi-number text-primary">{contarPorEstado('Rejeitado')}</h3>
                 <p className="kpi-label">Rejeitados</p>
               </div>
             </div>
@@ -841,9 +841,9 @@ const AprovacaoFaltaFerias = () => {
                     onChange={(e) => setEstadoFiltro(e.target.value)}
                     disabled={loading}
                   >
-                    <option value="pendentes">🕒 Pendentes</option>
-                    <option value="aprovados">✅ Aprovados</option>
-                    <option value="rejeitados">❌ Rejeitados</option>
+                    <option value="pendentes"> Pendentes</option>
+                    <option value="aprovados"> Aprovados</option>
+                    <option value="rejeitados"> Rejeitados</option>
                   </select>
                   <select
                     className="form-select form-moderno"
@@ -915,9 +915,9 @@ const AprovacaoFaltaFerias = () => {
                                 {pedido.tipoPedido === 'FALTA' ? '🚫 FALTA' : '🌴 FÉRIAS'}
                               </span>
                               <div className="mt-2">
-                                {pendente && <span className="badge bg-warning status-badge">🕒 Pendente</span>}
-                                {aprovado && <span className="badge bg-success status-badge">✅ Aprovado</span>}
-                                {rejeitado && <span className="badge bg-danger status-badge">❌ Rejeitado</span>}
+                                {pendente && <span className="badge bg-warning status-badge"> Pendente</span>}
+                                {aprovado && <span className="badge bg-success status-badge"> Aprovado</span>}
+                                {rejeitado && <span className="badge bg-danger status-badge"> Rejeitado</span>}
                               </div>
                             </div>
                           </div>

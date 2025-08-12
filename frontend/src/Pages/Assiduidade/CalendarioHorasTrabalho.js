@@ -451,18 +451,26 @@ const submeterFerias = async (e) => {
     return;
   }
 
+  const operacao = modoEdicaoFerias ? 'EDITAR' : 'CRIAR';
+
 const dados = {
   tipoPedido: 'FERIAS',
+  operacao,                           // CRIAR | EDITAR
   funcionario: funcionarioId,
   dataInicio,
   dataFim,
-  dataPedido: dataInicio, // ← este campo é obrigatório!
+  dataPedido: dataInicio,             // obrigatório
   horas: Horas ? 1 : 0,
   tempo: Tempo,
   justificacao: Observacoes,
   observacoes: '',
   usuarioCriador: funcionarioId,
-  origem: 'LINK'
+  origem: 'LINK',
+  // só para EDITAR: envia intervalo original a substituir
+  ...(modoEdicaoFerias && feriasOriginal ? {
+    dataInicioOriginal: feriasOriginal.dataInicio || feriasOriginal.DataInicio || feriasOriginal.dataPedido,
+    dataFimOriginal:    feriasOriginal.dataFim    || feriasOriginal.DataFim    || feriasOriginal.dataPedido
+  } : {})
 };
 
 
@@ -852,6 +860,55 @@ const eliminarFeria = async (dataFeria) => {
  };
 
 
+
+const solicitarCancelamentoFeria = async (dataFeria) => {
+  const token = localStorage.getItem('loginToken');
+  const urlempresa = localStorage.getItem('urlempresa');
+  const funcionario = localStorage.getItem('codFuncionario');
+
+  const dataISO = new Date(dataFeria).toISOString().split('T')[0];
+  const justificacao = window.prompt(`Justificação para cancelar a férias de ${dataISO}:`, '') || '';
+
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa
+      },
+      body: JSON.stringify({
+        tipoPedido: 'FERIAS',
+        operacao: 'CANCELAR',
+        funcionario,
+        dataPedido: dataISO,
+        dataInicio: dataISO,
+        dataFim: dataISO,
+        horas: 0,
+        tempo: 1,
+        justificacao,
+        observacoes: '',
+        usuarioCriador: funcionario,
+        origem: 'LINK'
+      })
+    });
+
+    if (!res.ok) {
+      const msg = await res.text();
+      alert('Erro ao submeter cancelamento: ' + msg);
+      return;
+    }
+
+    alert('Pedido de cancelamento de férias submetido para aprovação.');
+    await carregarFaltasFuncionario();
+    await carregarFaltasPendentes();
+    await carregarDiasPendentes();
+    await carregarDetalhes(diaSelecionado);
+  } catch (err) {
+    console.error('Erro ao pedir cancelamento de férias:', err);
+    alert('Erro inesperado ao pedir cancelamento.');
+  }
+};
 
 
 
@@ -1785,17 +1842,18 @@ const isPendente = diasPendentes.includes(dataFormatada);
           return (
   <div className="mt-1 text-end">
     <button
-      className="btn btn-sm btn-outline-danger"
-      onClick={() => {
-        const data = f.Data.split('T')[0];
-        const msg  = `Eliminar férias de ${data}? Terás de submeter novo pedido para esse dia.`;
-        if (window.confirm(msg)) {
-          eliminarFeria(data);
-        }
-      }}
-    >
-      Cancelar
-    </button>
+  className="btn btn-sm btn-outline-danger"
+  onClick={() => {
+    const data = f.Data.split('T')[0];
+    const msg  = `Queres pedir o cancelamento das férias de ${data}?`;
+    if (window.confirm(msg)) {
+      solicitarCancelamentoFeria(data);
+    }
+  }}
+>
+  Cancelar
+</button>
+
   </div>
           );
         })()}

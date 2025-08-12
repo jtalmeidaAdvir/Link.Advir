@@ -344,10 +344,10 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
           <div className="row g-3 mb-4">
             <div className="col-6 col-md-6">
               <div className="kpi-card">
-                <div className="kpi-icon text-warning">
+                <div className="kpi-icon text-primary">
                   <FaClock />
                 </div>
-                <h3 className="kpi-number text-warning">{registos.length}</h3>
+                <h3 className="kpi-number text-primary">{registos.length}</h3>
                 <p className="kpi-label">Registos Pendentes</p>
               </div>
             </div>
