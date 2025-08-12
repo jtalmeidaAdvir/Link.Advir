@@ -92,6 +92,7 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
   const [cacheColaboradorID, setCacheColaboradorID] = useState({});
   const [filtroEstado, setFiltroEstado] = useState('pendentes');
   const [integrandoIds, setIntegrandoIds] = useState(new Set());
+const [equipamentosMap, setEquipamentosMap] = useState({});
 
   const cabecalhosFiltrados = useMemo(() => {
     if (filtroEstado === 'pendentes') return cabecalhos.filter(c => !c.IntegradoERP);
@@ -102,6 +103,7 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
   useEffect(() => {
     (async () => {
       await fetchEspecialidades();
+      await fetchEquipamentos(); 
       await fetchObras();
       await fetchCabecalhos();
     })();
@@ -139,6 +141,61 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
       console.warn('Erro especialidades:', err.message);
     }
   };
+
+const fetchEquipamentos = async () => {
+  try {
+    const token = await AsyncStorage.getItem('painelAdminToken');
+    const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+    const res = await fetch(
+      'https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          urlempresa,
+          'Content-Type': 'application/json',
+        }
+      }
+    );
+    if (!res.ok) throw new Error('Falha ao obter equipamentos');
+    const data = await res.json();
+
+    const table = data?.DataSet?.Table || [];
+    const map = {};
+    table.forEach(item => {
+      // ID correto = ComponenteID; Nome = Desig (podes juntar o Código se quiseres)
+      const id = String(item.ComponenteID ?? '');
+      const nome = item.Desig ?? '';
+      if (id) map[id] = nome || id;
+      // Se quiseres mostrar "Codigo — Desig", usa:
+      // if (id) map[id] = [item.Codigo, item.Desig].filter(Boolean).join(' — ') || id;
+    });
+    setEquipamentosMap(map);
+  } catch (err) {
+    console.warn('Erro equipamentos:', err.message);
+  }
+};
+
+
+const getCategoriaChip = (categoria) => {
+  const cat = String(categoria || '').toLowerCase();
+  if (cat === 'equipamentos') {
+    return { label: 'Equipamento', bg: '#6f42c1', icon: 'construct' };
+    // roxo
+  }
+  return { label: 'Pessoal', bg: '#17a2b8', icon: 'people' };
+  // azul-petróleo
+};
+
+const contarPorCategoria = (itens = []) => {
+  let pes = 0, eq = 0;
+  itens.forEach(it => {
+    if (String(it.Categoria || '').toLowerCase() === 'equipamentos') eq++;
+    else pes++;
+  });
+  return { pes, eq };
+};
+
 
   const obterNomeFuncionario = useCallback(async (codFuncionario) => {
     if (cacheNomes[codFuncionario]) return cacheNomes[codFuncionario];
@@ -460,6 +517,8 @@ const handleIntegrar = async (cab) => {
 
   const renderItem = ({ item }) => {
     const isIntegrando = integrandoIds.has(item.DocumentoID);
+    const { pes, eq } = contarPorCategoria(item?.ParteDiariaItems);
+
     
     return (
           
@@ -512,6 +571,21 @@ const handleIntegrar = async (cab) => {
               <Text style={styles.cardText}>
                 Itens: {item.ParteDiariaItems?.length || 0}
               </Text>
+              <View style={[styles.infoRow, { flexWrap: 'wrap' }]}>
+  {pes > 0 && (
+    <View style={[styles.categoriaChip, { backgroundColor: getCategoriaChip('pessoal').bg }]}>
+      <Ionicons name="people" size={12} color="#fff" style={{ marginRight: 4 }} />
+      <Text style={styles.categoriaChipText}>Pessoal: {pes}</Text>
+    </View>
+  )}
+  {eq > 0 && (
+    <View style={[styles.categoriaChip, { backgroundColor: getCategoriaChip('equipamentos').bg }]}>
+      <Ionicons name="construct" size={12} color="#fff" style={{ marginRight: 4 }} />
+      <Text style={styles.categoriaChipText}>Equipamentos: {eq}</Text>
+    </View>
+  )}
+</View>
+
             </View>
           </View>
 
@@ -713,11 +787,18 @@ const handleIntegrar = async (cab) => {
                             </Text>
                           </View>
                           <View style={styles.itemRow}>
-                            <Ionicons name="construct" size={14} color="#666" />
+                          <Ionicons name="pricetag" size={14} color="#666" />
+                          {String(item.Categoria || '').toLowerCase() === 'equipamentos' ? (
                             <Text style={styles.itemText}>
-                              Especialidade: {especialidadesMap[item.SubEmpID] || item.SubEmpID}
+                              Equipamento: {equipamentosMap[String(item.ComponenteID)] || equipamentosMap[String(item.SubEmpID)] || item.ComponenteID || item.SubEmpID}
                             </Text>
-                          </View>
+                          ) : (
+                            <Text style={styles.itemText}>
+                              Especialidade: {especialidadesMap[String(item.SubEmpID)] || item.SubEmpID}
+                            </Text>
+                          )}
+                        </View>
+
                           <View style={styles.itemRow}>
                             <Ionicons name="time" size={14} color="#666" />
                             <Text style={styles.itemText}>
@@ -1072,7 +1153,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     paddingVertical: 20
-  }
+  },
+  categoriaChip: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingHorizontal: 10,
+  paddingVertical: 4,
+  borderRadius: 12,
+  marginRight: 8,
+  marginTop: 6
+},
+categoriaChipText: {
+  color: '#fff',
+  fontSize: 12,
+  fontWeight: '600'
+},
+
 });
 
 export default GestaoPartesDiarias;

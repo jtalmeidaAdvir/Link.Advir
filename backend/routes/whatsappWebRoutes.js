@@ -1104,32 +1104,121 @@ async function continueConversation(phoneNumber, message, conversation) {
     activeConversations.set(phoneNumber, conversation);
 }
 
+// Função para validar se o cliente existe no sistema Primavera
+const validarCliente = async (nomeCliente) => {
+    try {
+        const token = await getAuthToken({
+            username: "AdvirWeb",
+            password: "Advir2506##",
+            company: "Advir",
+            instance: "DEFAULT",
+            line: "Evolution",
+        }, "151.80.149.159:2018");
+
+        const response = await fetch("http://151.80.149.159:2018/WebApi/Base/LstClientes", {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+        });
+
+        const responseData = await response.json();
+        console.log("📡 Resposta da API:", responseData);
+
+        const clientes = responseData.DataSet ? responseData.DataSet.Table : [];
+
+        if (!Array.isArray(clientes) || clientes.length === 0) {
+            console.error("❌ Não foram encontrados clientes na resposta da API");
+            return { existe: false, cliente: null, sugestoes: [] };
+        }
+
+        // Procurar cliente pelo nome ou código
+        const clienteEncontrado = clientes.find(cliente =>
+            cliente && (cliente.Nome.toLowerCase().includes(nomeCliente.toLowerCase()) ||
+                cliente.Cliente === nomeCliente)
+        );
+
+        if (clienteEncontrado) {
+            console.log("✅ Cliente encontrado:", clienteEncontrado);
+            return { existe: true, cliente: clienteEncontrado, sugestoes: [] };
+        }
+
+        // Sugestões
+        const sugestoes = clientes
+            .filter(cliente => cliente && cliente.Nome)
+            .filter(cliente =>
+                cliente.Nome.toLowerCase().includes(nomeCliente.toLowerCase().substring(0, 3)) ||
+                cliente.Cliente === nomeCliente
+            )
+            .slice(0, 5)
+            .map(cliente => `${cliente.Cliente || 'N/A'} - ${cliente.Nome || 'N/A'}`);
+
+        console.log("⚠️ Cliente não encontrado. Sugestões:", sugestoes);
+        return {
+            existe: false,
+            cliente: null,
+            sugestoes: sugestoes
+        };
+
+    } catch (error) {
+        console.error("❌ Erro ao validar cliente:", error);
+        return { existe: false, cliente: null, sugestoes: [] };
+    }
+};
+
+// Após chamar a função, exiba as sugestões
+async function handleClientInput(phoneNumber, message, conversation) {
+    const resultadoValidacao = await validarCliente(message.trim());
+    if (!resultadoValidacao.existe) {
+        const sugestoesMensagem = resultadoValidacao.sugestoes.length > 0
+            ? `⚠️ Cliente não encontrado. Sugestões:\n${resultadoValidacao.sugestoes.join('\n')}`
+            : "⚠️ Cliente não encontrado. Nenhuma sugestão disponível.";
+        await client.sendMessage(phoneNumber, sugestoesMensagem);
+        conversation.state = CONVERSATION_STATES.WAITING_CLIENT_NAME; // ou o estado apropriado
+    } else {
+        // Continue com o fluxo normal
+    }
+}
+
 // Handler para input do cliente
 async function handleClientInput(phoneNumber, message, conversation) {
-    /*   conversation.data.cliente = message.trim();
-       conversation.state = CONVERSATION_STATES.WAITING_CONTACT;
-   
-       const response = `✅ Cliente registado: ${message}
-   
-   *2. Contacto (opcional)*
-   Por favor, indique um contacto do cliente ou digite "pular" para avançar para a próxima etapa:`;
-   
-       await client.sendMessage(phoneNumber, response);*/
-    conversation.data.cliente = message.trim();
-    conversation.data.contacto = null; // por defeito
-    conversation.state = CONVERSATION_STATES.WAITING_PROBLEM;
+    const nomeCliente = message.trim();
 
-    const response = `✅ Cliente registado: ${message}
+    // Validar se o cliente existe
+    const validacao = await validarCliente(nomeCliente);
+
+    if (validacao.existe) {
+        // Cliente encontrado - prosseguir
+        conversation.data.cliente = validacao.cliente.Cliente;
+        conversation.data.nomeCliente = validacao.cliente.Nome;
+        conversation.data.contacto = null; // por defeito
+        conversation.state = CONVERSATION_STATES.WAITING_PROBLEM;
+
+        const response = `✅ Cliente encontrado: *${validacao.cliente.Cliente} - ${validacao.cliente.Nome}*
 
 *2. Descrição do Problema*
 Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
 
-    await client.sendMessage(phoneNumber, response);
+        await client.sendMessage(phoneNumber, response);
+    } else {
+        // Cliente não encontrado - pedir para tentar novamente
+        let response = `❌ Cliente "${nomeCliente}" não foi encontrado no sistema.
 
+Por favor, verifique o nome do cliente e tente novamente.`;
 
+        if (validacao.sugestoes.length > 0) {
+            response += `\n\n💡 *Sugestões de clientes disponíveis:*\n`;
+            validacao.sugestoes.forEach(sugestao => {
+                response += `• ${sugestao}\n`;
+            });
+        }
 
+        response += `\n🔄 Digite novamente o nome ou código do cliente:`;
 
-
+        await client.sendMessage(phoneNumber, response);
+        // Manter o estado atual para tentar novamente
+    }
 }
 
 // Handler para input do contacto
@@ -1261,7 +1350,7 @@ async function handleConfirmationInput(phoneNumber, message, conversation) {
     const response = message.toLowerCase();
 
     if (response === "sim" || response === "s") {
-        await createAssistanceRequest(phoneNumber, conversation);
+        await createAssistenceRequest(phoneNumber, conversation);
     } else {
         activeConversations.delete(phoneNumber);
         await client.sendMessage(
@@ -1377,18 +1466,18 @@ async function createAssistenceRequest(phoneNumber, conversation) {
         // envia SEMPRE a mensagem de sucesso aqui
         const prioridadeTxt = payload.prioridade === '1' ? 'Baixa' : payload.prioridade === '2' ? 'Média' : 'Alta';
         const successMessage = `✅ *PEDIDO DE ASSISTÊNCIA CRIADO COM SUCESSO*
- 
+
 **Cliente:** ${payload.cliente}
 **Prioridade:** ${prioridadeTxt}
 **Estado:** Em curso
- 
+
 **Problema Reportado:**
 ${payload.descricaoProblema}
- 
+
 **Data de Abertura:** ${new Date(payload.datahoraabertura).toLocaleString("pt-PT")}
- 
+
 O seu pedido foi registado no nosso sistema e será processado pela nossa equipa técnica.
- 
+
 Obrigado por contactar a Advir.`;
 
         await client.sendMessage(phoneNumber, successMessage);
@@ -1403,19 +1492,19 @@ Obrigado por contactar a Advir.`;
         if (!sent) {
             const prioridadeTxt = payload && (payload.prioridade === '1' ? 'Baixa' : payload?.prioridade === '2' ? 'Média' : 'Alta');
             const successMessage = `✅ *PEDIDO DE ASSISTÊNCIA CRIADO COM SUCESSO*
- 
+
 **Número do Pedido:** ${pedidoID}
 **Cliente:** ${payload?.cliente ?? 'N/A'}
 **Prioridade:** ${prioridadeTxt ?? 'Média'}
 **Estado:** Em curso
- 
+
 **Problema Reportado:**
 ${payload?.descricaoProblema ?? 'N/A'}
- 
+
 **Data de Abertura:** ${payload?.datahoraabertura ? new Date(payload.datahoraabertura).toLocaleString("pt-PT") : new Date().toLocaleString("pt-PT")}
- 
+
 O seu pedido foi registado no nosso sistema e será processado pela nossa equipa técnica.
- 
+
 Obrigado por contactar a Advir.`;
             try { await client.sendMessage(phoneNumber, successMessage); } catch (_) { }
         }
