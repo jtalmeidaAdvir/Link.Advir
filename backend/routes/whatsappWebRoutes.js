@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
+const fetch = require('node-fetch');
 //const { Schedule } = require('../models'); // Importar modelos de Schedule e Contact
 let scheduleLogs = [];
 const activeSchedules = new Map();
