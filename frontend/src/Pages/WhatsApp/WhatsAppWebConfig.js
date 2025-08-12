@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 
 const WhatsAppWebConfig = () => {
@@ -27,15 +28,19 @@ const WhatsAppWebConfig = () => {
         priority: "normal",
     });
 
-    // Estados para gestão de contactos
+    // Estados para gestão de contactos individuais
     const [contactLists, setContactLists] = useState([]);
     const [contactListsLoaded, setContactListsLoaded] = useState(false);
     const [newContactList, setNewContactList] = useState({
         name: "",
-        contacts: "",
-        canCreateTickets: false,
-        numeroTecnico: "",
-        numeroCliente: "",
+        contacts: [
+            {
+                phone: "",
+                numeroTecnico: "",
+                numeroCliente: "",
+                canCreateTickets: false
+            }
+        ]
     });
     const [selectedContactList, setSelectedContactList] = useState("");
     const [editingContactList, setEditingContactList] = useState(null);
@@ -126,9 +131,28 @@ const WhatsAppWebConfig = () => {
             const response = await fetch(`${API_BASE_URL}/contacts`);
             const data = await response.json();
 
-            // Verificar se a resposta é um array válido
+            // Verificar se a resposta é um array válido e converter para o novo formato
             if (Array.isArray(data)) {
-                setContactLists(data);
+                const convertedLists = data.map(list => {
+                    // Se os contactos já estão no novo formato, usar assim
+                    if (Array.isArray(list.contacts) && list.contacts.length > 0 && typeof list.contacts[0] === 'object') {
+                        return list;
+                    }
+                    // Converter do formato antigo para o novo
+                    const contacts = Array.isArray(list.contacts) ? list.contacts :
+                        (typeof list.contacts === 'string' ? JSON.parse(list.contacts) : []);
+
+                    return {
+                        ...list,
+                        contacts: contacts.map(phone => ({
+                            phone: phone,
+                            numeroTecnico: list.numeroTecnico || "",
+                            numeroCliente: list.numeroCliente || "",
+                            canCreateTickets: list.canCreateTickets || false
+                        }))
+                    };
+                });
+                setContactLists(convertedLists);
             } else {
                 console.warn("Resposta da API não é um array:", data);
                 setContactLists([]);
@@ -344,25 +368,69 @@ const WhatsAppWebConfig = () => {
         }
     };
 
+    // Adicionar novo contacto à lista
+    const addNewContact = () => {
+        setNewContactList(prev => ({
+            ...prev,
+            contacts: [
+                ...prev.contacts,
+                {
+                    phone: "",
+                    numeroTecnico: "",
+                    numeroCliente: "",
+                    canCreateTickets: false
+                }
+            ]
+        }));
+    };
+
+    // Remover contacto da lista
+    const removeContact = (index) => {
+        if (newContactList.contacts.length > 1) {
+            setNewContactList(prev => ({
+                ...prev,
+                contacts: prev.contacts.filter((_, i) => i !== index)
+            }));
+        }
+    };
+
+    // Atualizar dados de um contacto específico
+    const updateContact = (index, field, value) => {
+        setNewContactList(prev => ({
+            ...prev,
+            contacts: prev.contacts.map((contact, i) =>
+                i === index ? { ...contact, [field]: value } : contact
+            )
+        }));
+    };
+
     const handleCreateContactList = async (e) => {
         e.preventDefault();
-        if (!newContactList.name || !newContactList.contacts) {
-            alert("Nome da lista e contactos são obrigatórios");
+        if (!newContactList.name || newContactList.contacts.length === 0) {
+            alert("Nome da lista e pelo menos um contacto são obrigatórios");
             return;
         }
 
-        const contacts = newContactList.contacts
-            .split("\n")
-            .map((contact) => contact.trim())
-            .filter((contact) => contact.length > 0)
-            .map((phone) => phone.replace(/\D/g, ""));
+        // Validar se pelo menos um contacto tem número de telefone
+        const validContacts = newContactList.contacts.filter(contact =>
+            contact.phone && contact.phone.trim().length > 0
+        );
 
-        if (contacts.length === 0) {
-            alert("Adicione pelo menos um contacto válido");
+        if (validContacts.length === 0) {
+            alert("Adicione pelo menos um contacto com número válido");
             return;
         }
+
+        // Processar contactos para o formato necessário
+        const processedContacts = validContacts.map(contact => ({
+            phone: contact.phone.replace(/\D/g, ""),
+            numeroTecnico: contact.numeroTecnico,
+            numeroCliente: contact.numeroCliente,
+            canCreateTickets: contact.canCreateTickets
+        }));
 
         try {
+            // Por enquanto, enviar no formato antigo para compatibilidade com backend
             const response = await fetch(`${API_BASE_URL}/contact-lists`, {
                 method: "POST",
                 headers: {
@@ -370,20 +438,27 @@ const WhatsAppWebConfig = () => {
                 },
                 body: JSON.stringify({
                     name: newContactList.name,
-                    contacts: contacts,
-                    canCreateTickets: newContactList.canCreateTickets,
-                    numeroTecnico: newContactList.numeroTecnico,
-                    numeroCliente: newContactList.numeroCliente,
+                    contacts: processedContacts.map(c => c.phone),
+                    // Manter campos antigos por compatibilidade
+                    canCreateTickets: processedContacts.some(c => c.canCreateTickets),
+                    numeroTecnico: processedContacts.find(c => c.numeroTecnico)?.numeroTecnico || "",
+                    numeroCliente: processedContacts.find(c => c.numeroCliente)?.numeroCliente || "",
+                    // Adicionar dados individuais para futura implementação
+                    individualContacts: processedContacts
                 }),
             });
 
             if (response.ok) {
                 setNewContactList({
                     name: "",
-                    contacts: "",
-                    canCreateTickets: false,
-                    numeroTecnico: "",
-                    numeroCliente: "",
+                    contacts: [
+                        {
+                            phone: "",
+                            numeroTecnico: "",
+                            numeroCliente: "",
+                            canCreateTickets: false
+                        }
+                    ]
                 });
                 loadContactLists();
                 alert("Lista de contactos criada com sucesso!");
@@ -398,14 +473,32 @@ const WhatsAppWebConfig = () => {
     };
 
     const handleEditContactList = async (listToUpdate) => {
-        // Ensure listToUpdate has all necessary fields, especially for PUT request
+        // Converter contactos para formato individual
+        const processedContacts = listToUpdate.contacts.map(contact => {
+            if (typeof contact === 'string') {
+                return {
+                    phone: contact.replace(/\D/g, ""),
+                    numeroTecnico: "",
+                    numeroCliente: "",
+                    canCreateTickets: false
+                };
+            }
+            return {
+                phone: contact.phone.replace(/\D/g, ""),
+                numeroTecnico: contact.numeroTecnico || "",
+                numeroCliente: contact.numeroCliente || "",
+                canCreateTickets: contact.canCreateTickets || false
+            };
+        });
+
         const formattedList = {
             id: listToUpdate.id,
             name: listToUpdate.name,
-            contacts: listToUpdate.contacts.split("\n").map(c => c.trim()).filter(c => c.length > 0).map(phone => phone.replace(/\D/g, "")),
-            canCreateTickets: listToUpdate.canCreateTickets,
-            numeroTecnico: listToUpdate.numeroTecnico,
-            numeroCliente: listToUpdate.numeroCliente,
+            contacts: processedContacts.map(c => c.phone),
+            canCreateTickets: processedContacts.some(c => c.canCreateTickets),
+            numeroTecnico: processedContacts.find(c => c.numeroTecnico)?.numeroTecnico || "",
+            numeroCliente: processedContacts.find(c => c.numeroCliente)?.numeroCliente || "",
+            individualContacts: processedContacts
         };
 
         try {
@@ -436,12 +529,63 @@ const WhatsAppWebConfig = () => {
     };
 
     const startEditingContactList = (list) => {
+        // Converter para o formato de edição
+        let editContacts;
+        if (Array.isArray(list.contacts) && list.contacts.length > 0 && typeof list.contacts[0] === 'object') {
+            editContacts = list.contacts;
+        } else {
+            // Converter do formato antigo
+            const phones = Array.isArray(list.contacts) ? list.contacts :
+                (typeof list.contacts === 'string' ? JSON.parse(list.contacts) : []);
+            editContacts = phones.map(phone => ({
+                phone: phone,
+                numeroTecnico: list.numeroTecnico || "",
+                numeroCliente: list.numeroCliente || "",
+                canCreateTickets: list.canCreateTickets || false
+            }));
+        }
+
         setEditingContactList({
             ...list,
-            contacts: list.contacts.join('\n'), // Format contacts for textarea
+            contacts: editContacts
         });
     };
 
+    // Função para adicionar contacto durante edição
+    const addEditContact = () => {
+        setEditingContactList(prev => ({
+            ...prev,
+            contacts: [
+                ...prev.contacts,
+                {
+                    phone: "",
+                    numeroTecnico: "",
+                    numeroCliente: "",
+                    canCreateTickets: false
+                }
+            ]
+        }));
+    };
+
+    // Função para remover contacto durante edição
+    const removeEditContact = (index) => {
+        if (editingContactList.contacts.length > 1) {
+            setEditingContactList(prev => ({
+                ...prev,
+                contacts: prev.contacts.filter((_, i) => i !== index)
+            }));
+        }
+    };
+
+    // Função para atualizar contacto durante edição
+    const updateEditContact = (index, field, value) => {
+        setEditingContactList(prev => ({
+            ...prev,
+            contacts: prev.contacts.map((contact, i) =>
+                i === index ? { ...contact, [field]: value } : contact
+            )
+        }));
+    };
 
     const handleCreateSchedule = async (e) => {
         e.preventDefault();
@@ -1056,6 +1200,33 @@ const WhatsAppWebConfig = () => {
         helpList: {
             color: '#424242',
             lineHeight: '1.6'
+        },
+        contactItem: {
+            backgroundColor: '#f8f9fa',
+            padding: '15px',
+            marginBottom: '15px',
+            borderRadius: '8px',
+            border: '1px solid #e9ecef'
+        },
+        contactItemHeader: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '10px'
+        },
+        contactPhone: {
+            fontWeight: '600',
+            color: '#343a40'
+        },
+        contactDetails: {
+            fontSize: '0.85rem',
+            color: '#6c757d',
+            marginBottom: '5px'
+        },
+        smallButton: {
+            padding: '4px 8px',
+            fontSize: '0.8rem',
+            minWidth: 'auto'
         }
     };
 
@@ -1302,94 +1473,103 @@ const WhatsAppWebConfig = () => {
                     </div>
 
                     <div style={styles.formGroup}>
-                        <label style={styles.label}>Contactos (um por linha) *</label>
-                        <textarea
-                            style={styles.textarea}
-                            value={newContactList.contacts}
-                            onChange={(e) =>
-                                setNewContactList({
-                                    ...newContactList,
-                                    contacts: e.target.value,
-                                })
-                            }
-                            placeholder="351912345678&#10;351923456789&#10;351934567890"
-                            required
-                        />
-                        <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
-                            Insira um número por linha, com código do país (ex: 351912345678)
-                        </small>
-                    </div>
+                        <label style={styles.label}>Contactos</label>
+                        {newContactList.contacts.map((contact, index) => (
+                            <div key={index} style={styles.contactItem}>
+                                <div style={styles.contactItemHeader}>
+                                    <span style={{ fontWeight: '600' }}>Contacto #{index + 1}</span>
+                                    {newContactList.contacts.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeContact(index)}
+                                            style={{
+                                                ...styles.button,
+                                                ...styles.buttonDanger,
+                                                ...styles.smallButton
+                                            }}
+                                        >
+                                            🗑️ Remover
+                                        </button>
+                                    )}
+                                </div>
 
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Número do Técnico (opcional)</label>
-                        <input
-                            type="tel"
-                            style={styles.input}
-                            value={newContactList.numeroTecnico}
-                            onChange={(e) =>
-                                setNewContactList({
-                                    ...newContactList,
-                                    numeroTecnico: e.target.value,
-                                })
-                            }
-                            placeholder="351912345678"
-                        />
-                        <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
-                            Número do técnico responsável por esta lista
-                        </small>
-                    </div>
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>Número de Telefone *</label>
+                                    <input
+                                        type="tel"
+                                        style={styles.input}
+                                        value={contact.phone}
+                                        onChange={(e) => updateContact(index, 'phone', e.target.value)}
+                                        placeholder="351912345678"
+                                        required
+                                    />
+                                </div>
 
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Número do Cliente (opcional)</label>
-                        <input
-                            type="tel"
-                            style={styles.input}
-                            value={newContactList.numeroCliente}
-                            onChange={(e) =>
-                                setNewContactList({
-                                    ...newContactList,
-                                    numeroCliente: e.target.value,
-                                })
-                            }
-                            placeholder="351912345678"
-                        />
-                        <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
-                            Número do cliente principal desta lista
-                        </small>
-                    </div>
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>Número do Técnico (opcional)</label>
+                                    <input
+                                        type="tel"
+                                        style={styles.input}
+                                        value={contact.numeroTecnico}
+                                        onChange={(e) => updateContact(index, 'numeroTecnico', e.target.value)}
+                                        placeholder="351912345678"
+                                    />
+                                </div>
 
-                    <div style={styles.formGroup}>
-                        <label style={{
-                            ...styles.label,
-                            display: 'flex',
-                            alignItems: 'center',
-                            cursor: 'pointer',
-                            padding: '12px 16px',
-                            backgroundColor: newContactList.canCreateTickets ? '#e3f2fd' : '#f8f9fa',
-                            borderRadius: '8px',
-                            border: `2px solid ${newContactList.canCreateTickets ? '#007bff' : '#e9ecef'}`,
-                            transition: 'all 0.3s ease'
-                        }}>
-                            <input
-                                type="checkbox"
-                                checked={newContactList.canCreateTickets}
-                                onChange={(e) =>
-                                    setNewContactList({
-                                        ...newContactList,
-                                        canCreateTickets: e.target.checked,
-                                    })
-                                }
-                                style={{ marginRight: '12px', transform: 'scale(1.2)' }}
-                            />
-                            <div>
-                                <span style={{ fontWeight: '600', color: '#343a40' }}>
-                                    🎫 Autorizar criação de pedidos de assistência
-                                </span>
-                                <div style={{ fontSize: '0.85rem', color: '#6c757d', marginTop: '4px' }}>
-                                    Os contactos desta lista poderão criar pedidos via WhatsApp
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>Número do Cliente (opcional)</label>
+                                    <input
+                                        type="tel"
+                                        style={styles.input}
+                                        value={contact.numeroCliente}
+                                        onChange={(e) => updateContact(index, 'numeroCliente', e.target.value)}
+                                        placeholder="351912345678"
+                                    />
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={{
+                                        ...styles.label,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        padding: '12px 16px',
+                                        backgroundColor: contact.canCreateTickets ? '#e3f2fd' : '#f8f9fa',
+                                        borderRadius: '8px',
+                                        border: `2px solid ${contact.canCreateTickets ? '#007bff' : '#e9ecef'}`,
+                                        transition: 'all 0.3s ease'
+                                    }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={contact.canCreateTickets}
+                                            onChange={(e) => updateContact(index, 'canCreateTickets', e.target.checked)}
+                                            style={{ marginRight: '12px', transform: 'scale(1.2)' }}
+                                        />
+                                        <div>
+                                            <span style={{ fontWeight: '600', color: '#343a40' }}>
+                                                🎫 Autorizar criação de pedidos
+                                            </span>
+                                            <div style={{ fontSize: '0.85rem', color: '#6c757d', marginTop: '4px' }}>
+                                                Este contacto pode criar pedidos via WhatsApp
+                                            </div>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
-                        </label>
+                        ))}
+
+                        <button
+                            type="button"
+                            onClick={addNewContact}
+                            style={{
+                                ...styles.button,
+                                ...styles.buttonSecondary,
+                                width: '100%',
+                                marginTop: '10px'
+                            }}
+                        >
+                            ➕ Adicionar Contacto
+                        </button>
                     </div>
 
                     <button
@@ -1418,79 +1598,100 @@ const WhatsAppWebConfig = () => {
                     </p>
                 ) : (
                     <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                        {Array.isArray(contactLists) && contactLists.map((list) => (
-                            <div key={list.id} style={{
-                                ...styles.listItem,
-                                border: `2px solid ${list.canCreateTickets ? '#28a745' : '#e9ecef'}`,
-                                backgroundColor: list.canCreateTickets ? '#f8fff8' : styles.listItem.backgroundColor
-                            }}>
-                                <div style={styles.listContent}>
-                                    <div style={styles.listTitle}>
-                                        {list.canCreateTickets && <span style={{ color: '#28a745', marginRight: '8px' }}>🎫</span>}
-                                        {list.name}
-                                    </div>
-                                    <div style={styles.listMeta}>
-                                        👥 {list.contacts.length} contactos
-                                    </div>
-                                    {list.numeroTecnico && (
-                                        <div style={styles.listMeta}>
-                                            🔧 Técnico: {list.numeroTecnico}
+                        {Array.isArray(contactLists) && contactLists.map((list) => {
+                            const hasAuthorizedContacts = list.contacts &&
+                                (Array.isArray(list.contacts) ?
+                                    list.contacts.some(c => typeof c === 'object' ? c.canCreateTickets : false)
+                                    : list.canCreateTickets);
+
+                            const contactCount = Array.isArray(list.contacts) ? list.contacts.length :
+                                (typeof list.contacts === 'string' ? JSON.parse(list.contacts).length : 0);
+
+                            return (
+                                <div key={list.id} style={{
+                                    ...styles.listItem,
+                                    border: `2px solid ${hasAuthorizedContacts ? '#28a745' : '#e9ecef'}`,
+                                    backgroundColor: hasAuthorizedContacts ? '#f8fff8' : styles.listItem.backgroundColor
+                                }}>
+                                    <div style={styles.listContent}>
+                                        <div style={styles.listTitle}>
+                                            {hasAuthorizedContacts && <span style={{ color: '#28a745', marginRight: '8px' }}>🎫</span>}
+                                            {list.name}
                                         </div>
-                                    )}
-                                    {list.numeroCliente && (
                                         <div style={styles.listMeta}>
-                                            👤 Cliente: {list.numeroCliente}
+                                            👥 {contactCount} contactos
                                         </div>
-                                    )}
-                                    <div style={styles.listMeta}>
-                                        📅 {new Date(list.createdAt).toLocaleDateString('pt-PT')}
+                                        <div style={styles.listMeta}>
+                                            📅 {new Date(list.createdAt).toLocaleDateString('pt-PT')}
+                                        </div>
+                                        <div style={{
+                                            ...styles.listMeta,
+                                            color: hasAuthorizedContacts ? '#28a745' : '#dc3545',
+                                            fontWeight: '600'
+                                        }}>
+                                            {hasAuthorizedContacts ? '✅ Alguns contactos podem criar pedidos' : '❌ Sem contactos autorizados'}
+                                        </div>
                                     </div>
-                                    <div style={{
-                                        ...styles.listMeta,
-                                        color: list.canCreateTickets ? '#28a745' : '#dc3545',
-                                        fontWeight: '600'
-                                    }}>
-                                        {list.canCreateTickets ? '✅ Pode criar pedidos' : '❌ Sem autorização para pedidos'}
+                                    <div style={styles.buttonGroup}>
+                                        <button
+                                            onClick={() => {
+                                                let displayText = `Lista: ${list.name}\n\nContactos:\n`;
+                                                if (Array.isArray(list.contacts) && list.contacts.length > 0 && typeof list.contacts[0] === 'object') {
+                                                    // Novo formato
+                                                    list.contacts.forEach((contact, index) => {
+                                                        displayText += `\n${index + 1}. ${contact.phone}`;
+                                                        if (contact.numeroTecnico) displayText += `\n   Técnico: ${contact.numeroTecnico}`;
+                                                        if (contact.numeroCliente) displayText += `\n   Cliente: ${contact.numeroCliente}`;
+                                                        displayText += `\n   Pode criar pedidos: ${contact.canCreateTickets ? 'Sim' : 'Não'}`;
+                                                        displayText += '\n';
+                                                    });
+                                                } else {
+                                                    // Formato antigo
+                                                    const phones = Array.isArray(list.contacts) ? list.contacts :
+                                                        (typeof list.contacts === 'string' ? JSON.parse(list.contacts) : []);
+                                                    phones.forEach((phone, index) => {
+                                                        displayText += `${index + 1}. ${phone}\n`;
+                                                    });
+                                                    if (list.numeroTecnico) displayText += `\nTécnico geral: ${list.numeroTecnico}`;
+                                                    if (list.numeroCliente) displayText += `\nCliente geral: ${list.numeroCliente}`;
+                                                    displayText += `\nTodos podem criar pedidos: ${list.canCreateTickets ? 'Sim' : 'Não'}`;
+                                                }
+                                                alert(displayText);
+                                            }}
+                                            style={{
+                                                ...styles.button,
+                                                padding: '8px 12px',
+                                                fontSize: '0.85rem'
+                                            }}
+                                        >
+                                            👁️ Ver
+                                        </button>
+                                        <button
+                                            onClick={() => startEditingContactList(list)}
+                                            style={{
+                                                ...styles.button,
+                                                ...styles.buttonWarning,
+                                                padding: '8px 12px',
+                                                fontSize: '0.85rem'
+                                            }}
+                                        >
+                                            ✏️ Editar
+                                        </button>
+                                        <button
+                                            onClick={() => deleteContactList(list.id)}
+                                            style={{
+                                                ...styles.button,
+                                                ...styles.buttonDanger,
+                                                padding: '8px 12px',
+                                                fontSize: '0.85rem'
+                                            }}
+                                        >
+                                            🗑️ Eliminar
+                                        </button>
                                     </div>
                                 </div>
-                                <div style={styles.buttonGroup}>
-                                    <button
-                                        onClick={() =>
-                                            alert(`Contactos:\n${list.contacts.join("\n")}`)
-                                        }
-                                        style={{
-                                            ...styles.button,
-                                            padding: '8px 12px',
-                                            fontSize: '0.85rem'
-                                        }}
-                                    >
-                                        👁️ Ver
-                                    </button>
-                                    <button
-                                        onClick={() => startEditingContactList(list)}
-                                        style={{
-                                            ...styles.button,
-                                            ...styles.buttonWarning,
-                                            padding: '8px 12px',
-                                            fontSize: '0.85rem'
-                                        }}
-                                    >
-                                        ✏️ Editar
-                                    </button>
-                                    <button
-                                        onClick={() => deleteContactList(list.id)}
-                                        style={{
-                                            ...styles.button,
-                                            ...styles.buttonDanger,
-                                            padding: '8px 12px',
-                                            fontSize: '0.85rem'
-                                        }}
-                                    >
-                                        🗑️ Eliminar
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -1513,7 +1714,7 @@ const WhatsAppWebConfig = () => {
                         backgroundColor: '#fff',
                         borderRadius: '12px',
                         padding: '30px',
-                        maxWidth: '600px',
+                        maxWidth: '800px',
                         width: '90%',
                         maxHeight: '80vh',
                         overflowY: 'auto',
@@ -1542,93 +1743,103 @@ const WhatsAppWebConfig = () => {
                             </div>
 
                             <div style={styles.formGroup}>
-                                <label style={styles.label}>Contactos (um por linha) *</label>
-                                <textarea
-                                    style={styles.textarea}
-                                    value={editingContactList.contacts}
-                                    onChange={(e) =>
-                                        setEditingContactList({
-                                            ...editingContactList,
-                                            contacts: e.target.value,
-                                        })
-                                    }
-                                    required
-                                />
-                                <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
-                                    Insira um número por linha, com código do país (ex: 351912345678)
-                                </small>
-                            </div>
+                                <label style={styles.label}>Contactos</label>
+                                {editingContactList.contacts.map((contact, index) => (
+                                    <div key={index} style={styles.contactItem}>
+                                        <div style={styles.contactItemHeader}>
+                                            <span style={{ fontWeight: '600' }}>Contacto #{index + 1}</span>
+                                            {editingContactList.contacts.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeEditContact(index)}
+                                                    style={{
+                                                        ...styles.button,
+                                                        ...styles.buttonDanger,
+                                                        ...styles.smallButton
+                                                    }}
+                                                >
+                                                    🗑️ Remover
+                                                </button>
+                                            )}
+                                        </div>
 
-                            <div style={styles.formGroup}>
-                                <label style={styles.label}>Número do Técnico (opcional)</label>
-                                <input
-                                    type="tel"
-                                    style={styles.input}
-                                    value={editingContactList.numeroTecnico}
-                                    onChange={(e) =>
-                                        setEditingContactList({
-                                            ...editingContactList,
-                                            numeroTecnico: e.target.value,
-                                        })
-                                    }
-                                    placeholder="351912345678"
-                                />
-                                <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
-                                    Número do técnico responsável por esta lista
-                                </small>
-                            </div>
+                                        <div style={styles.formGroup}>
+                                            <label style={styles.label}>Número de Telefone *</label>
+                                            <input
+                                                type="tel"
+                                                style={styles.input}
+                                                value={contact.phone || contact}
+                                                onChange={(e) => updateEditContact(index, 'phone', e.target.value)}
+                                                placeholder="351912345678"
+                                                required
+                                            />
+                                        </div>
 
-                            <div style={styles.formGroup}>
-                                <label style={styles.label}>Número do Cliente (opcional)</label>
-                                <input
-                                    type="tel"
-                                    style={styles.input}
-                                    value={editingContactList.numeroCliente}
-                                    onChange={(e) =>
-                                        setEditingContactList({
-                                            ...editingContactList,
-                                            numeroCliente: e.target.value,
-                                        })
-                                    }
-                                    placeholder="351912345678"
-                                />
-                                <small style={{ color: '#6c757d', fontSize: '0.85rem' }}>
-                                    Número do cliente principal desta lista
-                                </small>
-                            </div>
+                                        <div style={styles.formGroup}>
+                                            <label style={styles.label}>Número do Técnico (opcional)</label>
+                                            <input
+                                                type="tel"
+                                                style={styles.input}
+                                                value={contact.numeroTecnico || ""}
+                                                onChange={(e) => updateEditContact(index, 'numeroTecnico', e.target.value)}
+                                                placeholder="351912345678"
+                                            />
+                                        </div>
 
-                            <div style={styles.formGroup}>
-                                <label style={{
-                                    ...styles.label,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    cursor: 'pointer',
-                                    padding: '12px 16px',
-                                    backgroundColor: editingContactList.canCreateTickets ? '#e3f2fd' : '#f8f9fa',
-                                    borderRadius: '8px',
-                                    border: `2px solid ${editingContactList.canCreateTickets ? '#007bff' : '#e9ecef'}`,
-                                    transition: 'all 0.3s ease'
-                                }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={editingContactList.canCreateTickets}
-                                        onChange={(e) =>
-                                            setEditingContactList({
-                                                ...editingContactList,
-                                                canCreateTickets: e.target.checked,
-                                            })
-                                        }
-                                        style={{ marginRight: '12px', transform: 'scale(1.2)' }}
-                                    />
-                                    <div>
-                                        <span style={{ fontWeight: '600', color: '#343a40' }}>
-                                            🎫 Autorizar criação de pedidos de assistência
-                                        </span>
-                                        <div style={{ fontSize: '0.85rem', color: '#6c757d', marginTop: '4px' }}>
-                                            Os contactos desta lista poderão criar pedidos via WhatsApp
+                                        <div style={styles.formGroup}>
+                                            <label style={styles.label}>Número do Cliente (opcional)</label>
+                                            <input
+                                                type="tel"
+                                                style={styles.input}
+                                                value={contact.numeroCliente || ""}
+                                                onChange={(e) => updateEditContact(index, 'numeroCliente', e.target.value)}
+                                                placeholder="351912345678"
+                                            />
+                                        </div>
+
+                                        <div style={styles.formGroup}>
+                                            <label style={{
+                                                ...styles.label,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                cursor: 'pointer',
+                                                padding: '12px 16px',
+                                                backgroundColor: contact.canCreateTickets ? '#e3f2fd' : '#f8f9fa',
+                                                borderRadius: '8px',
+                                                border: `2px solid ${contact.canCreateTickets ? '#007bff' : '#e9ecef'}`,
+                                                transition: 'all 0.3s ease'
+                                            }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={contact.canCreateTickets || false}
+                                                    onChange={(e) => updateEditContact(index, 'canCreateTickets', e.target.checked)}
+                                                    style={{ marginRight: '12px', transform: 'scale(1.2)' }}
+                                                />
+                                                <div>
+                                                    <span style={{ fontWeight: '600', color: '#343a40' }}>
+                                                        🎫 Autorizar criação de pedidos
+                                                    </span>
+                                                    <div style={{ fontSize: '0.85rem', color: '#6c757d', marginTop: '4px' }}>
+                                                        Este contacto pode criar pedidos via WhatsApp
+                                                    </div>
+                                                </div>
+                                            </label>
                                         </div>
                                     </div>
-                                </label>
+                                ))}
+
+                                <button
+                                    type="button"
+                                    onClick={addEditContact}
+                                    style={{
+                                        ...styles.button,
+                                        ...styles.buttonSecondary,
+                                        width: '100%',
+                                        marginTop: '10px'
+                                    }}
+                                >
+                                    ➕ Adicionar Contacto
+                                </button>
                             </div>
 
                             <div style={styles.buttonGroup}>
@@ -1693,25 +1904,48 @@ const WhatsAppWebConfig = () => {
                                 const list = contactLists.find(
                                     (l) => l.id.toString() === e.target.value
                                 );
-                                const formattedContacts = list
-                                    ? list.contacts.map((phone) => ({
-                                        name: `Contacto ${phone.slice(-4)}`,
-                                        phone: phone,
-                                    }))
-                                    : [];
-                                setNewSchedule({
-                                    ...newSchedule,
-                                    contactList: formattedContacts,
-                                });
+
+                                if (list) {
+                                    let formattedContacts;
+                                    if (Array.isArray(list.contacts) && list.contacts.length > 0 && typeof list.contacts[0] === 'object') {
+                                        // Novo formato
+                                        formattedContacts = list.contacts.map((contact) => ({
+                                            name: `Contacto ${contact.phone.slice(-4)}`,
+                                            phone: contact.phone,
+                                        }));
+                                    } else {
+                                        // Formato antigo
+                                        const phones = Array.isArray(list.contacts) ? list.contacts :
+                                            (typeof list.contacts === 'string' ? JSON.parse(list.contacts) : []);
+                                        formattedContacts = phones.map((phone) => ({
+                                            name: `Contacto ${phone.slice(-4)}`,
+                                            phone: phone,
+                                        }));
+                                    }
+
+                                    setNewSchedule({
+                                        ...newSchedule,
+                                        contactList: formattedContacts,
+                                    });
+                                } else {
+                                    setNewSchedule({
+                                        ...newSchedule,
+                                        contactList: [],
+                                    });
+                                }
                             }}
                             required
                         >
                             <option value="">Selecione uma lista...</option>
-                            {Array.isArray(contactLists) && contactLists.map((list) => (
-                                <option key={list.id} value={list.id}>
-                                    {list.name} ({list.contacts.length} contactos)
-                                </option>
-                            ))}
+                            {Array.isArray(contactLists) && contactLists.map((list) => {
+                                const contactCount = Array.isArray(list.contacts) ? list.contacts.length :
+                                    (typeof list.contacts === 'string' ? JSON.parse(list.contacts).length : 0);
+                                return (
+                                    <option key={list.id} value={list.id}>
+                                        {list.name} ({contactCount} contactos)
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
 
