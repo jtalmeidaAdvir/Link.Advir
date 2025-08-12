@@ -1990,15 +1990,10 @@ router.post("/schedule", async (req, res) => {
 async function sendWelcomeMessage(phoneNumber) {
     const welcomeMessage = `👋 Bem-vindo! 
 
-Este é o assistente automático de suporte técnico da Advir.
+Este é o assistente automático de suporte técnico da Advir Plan Consultoria.
 
-Para iniciar um *pedido de assistência técnica*, envie uma mensagem contendo uma destas palavras:
+Para iniciar um pedido de assistência, envie uma mensagem com uma destas palavras:
 • pedido
-• assistência  
-• problema
-• erro
-• ajuda
-• suporte
 
 Como podemos ajudá-lo hoje?`;
 
