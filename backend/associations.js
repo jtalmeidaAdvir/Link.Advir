@@ -19,6 +19,7 @@ const ParteDiariaCabecalho = require('./models/parteDiariaCabecalho');
 const ParteDiariaItem = require('./models/parteDiariaItem');
 const Contact = require('./models/contact');
 const Schedule = require('./models/schedule');
+const BiometricCredential = require('./models/biometricCredential'); // Assumindo que este modelo existe
 
 // Nota: Contact e Schedule são tabelas independentes para o WhatsApp Web
 // sem relações diretas com outras tabelas
@@ -74,7 +75,11 @@ Obra.belongsTo(Empresa, { foreignKey: 'empresa_id' });
 ParteDiariaCabecalho.hasMany(ParteDiariaItem, { foreignKey: 'DocumentoID' });
 ParteDiariaItem.belongsTo(ParteDiariaCabecalho, { foreignKey: 'DocumentoID' });
 
+// Relação User -> BiometricCredential (1:N)
+User.hasMany(BiometricCredential, { foreignKey: 'userId' });
+BiometricCredential.belongsTo(User, { foreignKey: 'userId' });
 
+// Exportar os modelos para que as associações sejam aplicadas
 module.exports = {
     User,
     Empresa,
@@ -83,11 +88,19 @@ module.exports = {
     UserModulo,
     Submodulo,
     UserSubmodulo,
-    Obra,
-    PartesDiarias,
-    EquipaObra,
+    EmpresaModulo,
     RegistoPonto,
+    Intervalo,
+    FaltasFerias,
+    PedidoAlteracao,
+    Obra,
+    EquipaObra,
+    RegistoPontoObra,
+    PartesDiarias,
     Notificacao,
+    ParteDiariaCabecalho,
+    ParteDiariaItem,
     Contact,
-    Schedule
+    Schedule,
+    BiometricCredential,
 };

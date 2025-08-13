@@ -18,6 +18,7 @@ const faltasFeriasRoutes = require('./routes/faltasFeriasRoutes');
 const notificacaoRoutes = require('./routes/notificacaoRoutes');
 const parteRoutes = require('./routes/parteDiariaRoutes');
 const whatsappWebRoutes = require('./routes/whatsappWebRoutes');
+const biometricRoutes = require('./routes/biometricRoutes');
 
 
 
@@ -130,7 +131,48 @@ app.use('/api/faltas-ferias', faltasFeriasRoutes);
 app.use('/api', notificacaoRoutes);
 app.use('/api/parte-diaria', parteRoutes);
 app.use('/api/whatsapp-web', whatsappWebRoutes);
+// Verificar se biometricRoutes está a ser carregado corretamente
+try {
+    app.use('/api/auth/biometric', biometricRoutes);
+    console.log('✅ Rotas biométricas registadas com sucesso');
+} catch (error) {
+    console.error('❌ Erro ao registar rotas biométricas:', error);
+}
 
+// Endpoint de teste para listar todas as rotas disponíveis
+app.get('/api/routes', (req, res) => {
+    const routes = {
+        biometric: {
+            base: '/api/auth/biometric',
+            endpoints: [
+                'POST /api/auth/biometric/register-challenge - Gerar challenge para registo biométrico',
+                'POST /api/auth/biometric/register - Registar credencial biométrica',
+                'POST /api/auth/biometric/login-challenge - Gerar challenge para login biométrico',
+                'POST /api/auth/biometric/login - Autenticar com biometria',
+                'POST /api/auth/biometric/check - Verificar se utilizador tem biometria registada'
+            ]
+        },
+        other: {
+            endpoints: [
+                'GET /api/routes - Listar todas as rotas disponíveis',
+                'POST /api/users/* - Rotas de utilizadores',
+                'POST /api/auth/* - Rotas de autenticação',
+                'GET /api/empresas/* - Rotas de empresas',
+                'GET /api/modulos/* - Rotas de módulos',
+                'GET /api/registoPonto/* - Rotas de registo de ponto',
+                'GET /api/analytics/* - Rotas de analytics',
+                'GET /api/obra/* - Rotas de obras',
+                'GET /api/whatsapp-web/* - Rotas WhatsApp Web'
+            ]
+        }
+    };
+
+    res.json({
+        message: 'Rotas disponíveis no AdvirLink Backend',
+        server: `http://localhost:3000`,
+        routes: routes
+    });
+});
 
 
 
@@ -237,9 +279,17 @@ app.post('/api/fix-whatsapp-tables', async (req, res) => {
 
 
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const PORT = 3000;
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor iniciado na porta ${PORT}`);
+    console.log(`Acesso disponível em: http://localhost:${PORT}`);
+    console.log('\n--- Rotas Biométricas Disponíveis ---');
+    console.log('POST /api/auth/biometric/register-challenge - Gerar challenge para registo');
+    console.log('POST /api/auth/biometric/register - Registar credencial biométrica');
+    console.log('POST /api/auth/biometric/login-challenge - Gerar challenge para login');
+    console.log('POST /api/auth/biometric/login - Autenticar com biometria');
+    console.log('POST /api/auth/biometric/check - Verificar se utilizador tem biometria');
+    console.log('-----------------------------------\n');
 });
 
 startApp();
