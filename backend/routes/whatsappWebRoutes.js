@@ -60,7 +60,7 @@ const initializeWhatsAppWeb = async () => {
                                 2000,
                             ),
                         ),
-                    ]).catch(() => { });
+                    ]).catch(() => {});
                 }
                 if (
                     client &&
@@ -77,7 +77,7 @@ const initializeWhatsAppWeb = async () => {
                                 2000,
                             ),
                         ),
-                    ]).catch(() => { });
+                    ]).catch(() => {});
                 }
             } catch (forceError) {
                 console.log(
@@ -126,16 +126,16 @@ const initializeWhatsAppWeb = async () => {
                 "--disable-renderer-backgrounding",
                 ...(isProduction
                     ? [
-                        "--disable-blink-features=AutomationControlled",
-                        "--disable-software-rasterizer",
-                        "--disable-background-networking",
-                        "--disable-default-apps",
-                        "--disable-sync",
-                        "--metrics-recording-only",
-                        "--no-first-run",
-                        "--safebrowsing-disable-auto-update",
-                        "--disable-crash-reporter",
-                    ]
+                          "--disable-blink-features=AutomationControlled",
+                          "--disable-software-rasterizer",
+                          "--disable-background-networking",
+                          "--disable-default-apps",
+                          "--disable-sync",
+                          "--metrics-recording-only",
+                          "--no-first-run",
+                          "--safebrowsing-disable-auto-update",
+                          "--disable-crash-reporter",
+                      ]
                     : []),
             ],
         },
@@ -330,7 +330,7 @@ router.post("/disconnect", async (req, res) => {
                                         1000,
                                     ),
                                 ),
-                            ]).catch(() => { });
+                            ]).catch(() => {});
                         }
                         if (
                             client &&
@@ -346,7 +346,7 @@ router.post("/disconnect", async (req, res) => {
                                         1000,
                                     ),
                                 ),
-                            ]).catch(() => { });
+                            ]).catch(() => {});
                         }
                     } catch (forceError) {
                         console.log(
@@ -431,7 +431,7 @@ router.post("/clear-session", async (req, res) => {
                                         1000,
                                     ),
                                 ),
-                            ]).catch(() => { });
+                            ]).catch(() => {});
                         }
                         if (
                             client &&
@@ -452,7 +452,7 @@ router.post("/clear-session", async (req, res) => {
                                         1000,
                                     ),
                                 ),
-                            ]).catch(() => { });
+                            ]).catch(() => {});
                         }
                     } catch (forceError) {
                         console.log(
@@ -559,7 +559,7 @@ router.post("/clear-session", async (req, res) => {
         // Mesmo com erro, tentar resetar as variáveis
         try {
             if (client) {
-                await client.destroy().catch(() => { });
+                await client.destroy().catch(() => {});
             }
         } catch (finalError) {
             console.error("Erro final:", finalError);
@@ -777,7 +777,14 @@ const Schedule = require("../models/schedule");
 // Endpoint para criar lista de contactos
 router.post("/contact-lists", async (req, res) => {
     try {
-        const { name, contacts, canCreateTickets = false } = req.body;
+        const {
+            name,
+            contacts,
+            canCreateTickets = false,
+            numeroTecnico,
+            numeroCliente,
+            individualContacts,
+        } = req.body;
 
         if (!name || !contacts || contacts.length === 0) {
             return res.status(400).json({
@@ -785,10 +792,31 @@ router.post("/contact-lists", async (req, res) => {
             });
         }
 
+        // Se individualContacts está presente, usar esse formato (novo sistema)
+        let contactsToStore;
+        if (individualContacts && Array.isArray(individualContacts)) {
+            contactsToStore = individualContacts;
+        } else {
+            // Formato antigo - converter strings para objetos
+            contactsToStore = contacts.map((contact) => {
+                if (typeof contact === "string") {
+                    return {
+                        phone: contact,
+                        numeroTecnico: numeroTecnico || "",
+                        numeroCliente: numeroCliente || "",
+                        canCreateTickets: canCreateTickets,
+                    };
+                }
+                return contact;
+            });
+        }
+
         const newContactList = await Contact.create({
             name,
-            contacts: JSON.stringify(contacts),
+            contacts: JSON.stringify(contactsToStore),
             can_create_tickets: canCreateTickets,
+            numero_tecnico: numeroTecnico || null,
+            numero_cliente: numeroCliente || null,
         });
 
         res.json({
@@ -857,6 +885,7 @@ router.put("/contact-lists/:id", async (req, res) => {
             canCreateTickets,
             numeroTecnico,
             numeroCliente,
+            individualContacts,
         } = req.body;
 
         if (!name || !contacts || contacts.length === 0) {
@@ -865,10 +894,29 @@ router.put("/contact-lists/:id", async (req, res) => {
             });
         }
 
+        // Se individualContacts está presente, usar esse formato (novo sistema)
+        let contactsToStore;
+        if (individualContacts && Array.isArray(individualContacts)) {
+            contactsToStore = individualContacts;
+        } else {
+            // Formato antigo - converter strings para objetos
+            contactsToStore = contacts.map((contact) => {
+                if (typeof contact === "string") {
+                    return {
+                        phone: contact,
+                        numeroTecnico: numeroTecnico || "",
+                        numeroCliente: numeroCliente || "",
+                        canCreateTickets: canCreateTickets || false,
+                    };
+                }
+                return contact;
+            });
+        }
+
         const [updated] = await Contact.update(
             {
                 name,
-                contacts: JSON.stringify(contacts),
+                contacts: JSON.stringify(contactsToStore),
                 can_create_tickets:
                     canCreateTickets !== undefined ? canCreateTickets : false,
                 numero_tecnico: numeroTecnico || null,
@@ -977,32 +1025,49 @@ async function checkContactAuthorization(phoneNumber) {
             .replace("@c.us", "")
             .replace(/\D/g, "");
 
-        // Buscar em todas as listas de contactos
-        const contactLists = await Contact.findAll({
-            where: { can_create_tickets: true },
-        });
+        // Buscar em todas as listas de contactos que permitem criação de tickets
+        const contactLists = await Contact.findAll();
 
         for (const list of contactLists) {
             const contacts = JSON.parse(list.contacts);
-            const normalizedContacts = contacts.map((contact) =>
-                contact.replace(/\D/g, ""),
-            );
 
-            if (
-                normalizedContacts.some(
-                    (contact) =>
-                        contact.includes(cleanPhoneNumber) ||
-                        cleanPhoneNumber.includes(contact),
-                )
-            ) {
-                return {
-                    authorized: true,
-                    contactData: {
+            // Verificar se é formato novo (objetos) ou antigo (strings)
+            for (const contact of contacts) {
+                let contactPhone, contactData;
+
+                if (typeof contact === "object") {
+                    // Formato novo - cada contacto tem dados individuais
+                    contactPhone = contact.phone?.replace(/\D/g, "");
+                    contactData = {
+                        numeroCliente:
+                            contact.numeroCliente || list.numero_cliente,
+                        numeroTecnico:
+                            contact.numeroTecnico || list.numero_tecnico,
+                        listName: list.name,
+                        canCreateTickets: contact.canCreateTickets,
+                    };
+                } else {
+                    // Formato antigo - dados globais da lista
+                    contactPhone = contact.replace(/\D/g, "");
+                    contactData = {
                         numeroCliente: list.numero_cliente,
                         numeroTecnico: list.numero_tecnico,
                         listName: list.name,
-                    },
-                };
+                        canCreateTickets: list.can_create_tickets,
+                    };
+                }
+
+                // Verificar se o número coincide e se tem autorização
+                if (
+                    (contactPhone?.includes(cleanPhoneNumber) ||
+                        cleanPhoneNumber.includes(contactPhone)) &&
+                    contactData.canCreateTickets
+                ) {
+                    return {
+                        authorized: true,
+                        contactData: contactData,
+                    };
+                }
             }
         }
 
@@ -1033,7 +1098,9 @@ async function handleIncomingMessage(message) {
         // Se já existe uma conversa, cancela-la primeiro
         if (conversation) {
             activeConversations.delete(phoneNumber);
-            console.log(`🔄 Conversa anterior cancelada para ${phoneNumber} - iniciando novo pedido`);
+            console.log(
+                `🔄 Conversa anterior cancelada para ${phoneNumber} - iniciando novo pedido`,
+            );
         }
 
         // Verificar autorização antes de iniciar o pedido
@@ -1063,9 +1130,7 @@ async function handleIncomingMessage(message) {
 
 // Verificar se a mensagem contém palavras-chave para iniciar um pedido
 function isRequestKeyword(message) {
-    const keywords = [
-        "pedido",
-    ];
+    const keywords = ["pedido"];
 
     const lowerMessage = message.toLowerCase();
     return keywords.some((keyword) => lowerMessage.includes(keyword));
@@ -1601,8 +1666,8 @@ async function handlePriorityInput(phoneNumber, message, conversation) {
         prioridadeNumero === "1"
             ? "Baixa"
             : prioridadeNumero === "2"
-                ? "Média"
-                : "Alta";
+              ? "Média"
+              : "Alta";
 
     let summary = `📋 *RESUMO DO PEDIDO DE ASSISTÊNCIA TÉCNICA*
 
@@ -1777,8 +1842,8 @@ async function createAssistenceRequest(phoneNumber, conversation) {
             payload.prioridade === "1"
                 ? "Baixa"
                 : payload.prioridade === "2"
-                    ? "Média"
-                    : "Alta";
+                  ? "Média"
+                  : "Alta";
         const successMessage = `✅ *PEDIDO DE ASSISTÊNCIA CRIADO COM SUCESSO*
 
 **Cliente:** ${payload.cliente}
@@ -1808,8 +1873,8 @@ Obrigado por contactar a Advir.`;
                 (payload.prioridade === "1"
                     ? "Baixa"
                     : payload?.prioridade === "2"
-                        ? "Média"
-                        : "Alta");
+                      ? "Média"
+                      : "Alta");
             const successMessage = `✅ *PEDIDO DE ASSISTÊNCIA CRIADO COM SUCESSO*
 
 **Número do Pedido:** ${pedidoID}
@@ -1827,14 +1892,14 @@ O seu pedido foi registado no nosso sistema e será processado pela nossa equipa
 Obrigado por contactar a Advir.`;
             try {
                 await client.sendMessage(phoneNumber, successMessage);
-            } catch (_) { }
+            } catch (_) {}
         }
 
         return { success: true, pedidoId: pedidoID, data: null }; // força sucesso
     } finally {
         try {
             activeConversations.delete(phoneNumber);
-        } catch (_) { }
+        } catch (_) {}
     }
 }
 
@@ -2781,9 +2846,9 @@ function initializeSchedules() {
                     frequency: schedule.frequency,
                     time: schedule.time
                         ? new Date(schedule.time).toLocaleTimeString("pt-PT", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                        })
+                              hour: "2-digit",
+                              minute: "2-digit",
+                          })
                         : "09:00", // Default time if not set
                     days: schedule.days
                         ? JSON.parse(schedule.days)
