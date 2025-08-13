@@ -42,6 +42,53 @@ const tiposPermitidos = ['administrador', 'encarregado', 'diretor'];
 
 
 
+  // Usa timestamp || createdAt para ser robusto
+const dataRegisto = (r) => new Date(r.timestamp || r.createdAt);
+
+const temSaidaPosterior = (entrada, lista) =>
+  lista.some(s =>
+    s.tipo === 'saida' &&
+    String(s.obra_id) == String(entrada.obra_id) &&
+    dataRegisto(s) > dataRegisto(entrada)
+  );
+
+const getEntradaAtivaPorObra = (obraId, lista) =>
+  lista
+    .filter(r => r.tipo === 'entrada' && String(r.obra_id) == String(obraId))
+    .sort((a, b) => dataRegisto(b) - dataRegisto(a))
+    .find(e => !temSaidaPosterior(e, lista));
+
+const getUltimaEntradaAtiva = (lista) =>
+  lista
+    .filter(r => r.tipo === 'entrada')
+    .sort((a, b) => dataRegisto(b) - dataRegisto(a))
+    .find(e => !temSaidaPosterior(e, lista));
+
+
+
+    const processarPorQR = async (obraId, nomeObra) => {
+  // 1) Se já houver entrada ativa na MESMA obra → fazer SAÍDA
+  const ativaMesmaObra = getEntradaAtivaPorObra(obraId, registos);
+  if (ativaMesmaObra) {
+    alert(`A sair da obra ${nomeObra}`);
+    await registarPonto('saida', obraId, nomeObra);
+    return;
+  }
+
+  // 2) Se houver entrada ativa noutra obra → fechar essa e abrir ENTRADA nesta
+  const ultimaAtiva = getUltimaEntradaAtiva(registos);
+  if (ultimaAtiva && String(ultimaAtiva.obra_id) != String(obraId)) {
+    const nomeAnterior = ultimaAtiva.Obra?.nome || 'Obra anterior';
+    alert(`A sair automaticamente de ${nomeAnterior}`);
+    await registarPonto('saida', ultimaAtiva.obra_id, nomeAnterior);
+  }
+
+  // 3) Sem ativa → ENTRADA nesta obra
+  alert(`A entrar na obra ${nomeObra}`);
+  await registarPonto('entrada', obraId, nomeObra);
+};
+
+
   // Função para navegar para aprovação de registos
   const handleNavigateToApproval = () => {
     // Use navigation.navigate para navegar para a página de aprovação
@@ -277,7 +324,7 @@ useEffect(() => {
       const novaObraId = qrData.obraId;
       const nomeObraNova = qrData.nome;
 
-      await processarEntradaComValidacao(novaObraId, nomeObraNova);
+      await processarPorQR(novaObraId, nomeObraNova);
     } catch (err) {
       console.error('Erro ao processar o QR Code:', err);
       alert('Erro ao processar o QR Code');
