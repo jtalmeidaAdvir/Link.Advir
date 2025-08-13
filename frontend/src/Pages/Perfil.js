@@ -180,8 +180,260 @@ const Perfil = ({ user }) => {
         }
     };
 
+    // Placeholder for BiometricSetup component
+    // In a real scenario, this would be imported and used.
+    const BiometricSetup = ({ userId, userEmail, t, onRegistered }) => {
+        const [isBiometricRegistered, setIsBiometricRegistered] =
+            useState(false);
+        const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
+        const [isLoading, setIsLoading] = useState(false);
+
+        useEffect(() => {
+            // Check for WebAuthn API support
+            if (window.PublicKeyCredential) {
+                setIsBiometricAvailable(true);
+                // Check if user already has biometrics registered
+                checkBiometricStatus(userId);
+            }
+        }, [userId]);
+
+        const checkBiometricStatus = async (userId) => {
+            try {
+                const userEmail = localStorage.getItem("userEmail");
+                const response = await fetch(
+                    `https://backend.advir.pt/api/auth/biometric/check`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ email: userEmail }),
+                    },
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setIsBiometricRegistered(data.hasBiometric || false);
+                } else {
+                    console.error("Failed to check biometric status");
+                }
+            } catch (error) {
+                console.error("Error checking biometric status:", error);
+            }
+        };
+
+        const registerBiometric = async () => {
+            setIsLoading(true);
+            try {
+                const userId = parseInt(localStorage.getItem("userId"));
+                const userEmail = localStorage.getItem("userEmail");
+
+                // Importar função do módulo de biometria
+                const { registerBiometric: registerBio } = await import(
+                    "./Autenticacao/utils/biometricAuth"
+                );
+
+                await registerBio(userId, userEmail);
+
+                setIsBiometricRegistered(true);
+                if (onRegistered) onRegistered();
+                showMessage("Biometria registada com sucesso!");
+            } catch (error) {
+                console.error("Error during biometric registration:", error);
+                showMessage(
+                    "Ocorreu um erro ao registar a biometria: " + error.message,
+                    true,
+                );
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        const unregisterBiometric = async () => {
+            setIsLoading(true);
+            try {
+                const userEmail = localStorage.getItem("userEmail");
+                if (!userEmail) {
+                    throw new Error("Email do utilizador não encontrado");
+                }
+
+                // Importar a função removeBiometric dinamicamente
+                const { removeBiometric } = await import('./Autenticacao/utils/biometricAuth');
+
+                await removeBiometric(userEmail);
+                setIsBiometricRegistered(false);
+                showMessage("Biometria removida com sucesso!");
+            } catch (error) {
+                console.error("Error during biometric unregistration:", error);
+                showMessage("Ocorreu um erro ao remover a biometria: " + error.message, true);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        if (!isBiometricAvailable) {
+            return null;
+        }
+
+        return (
+            <View style={styles.biometricSection}>
+                <View
+                    style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginBottom: 15,
+                    }}
+                >
+                    <Text style={{ fontSize: 24, marginRight: 8 }}>🔐</Text>
+                    <Text
+                        style={[
+                            styles.sectionTitle,
+                            { marginBottom: 0, fontSize: 20 },
+                        ]}
+                    >
+                        Autenticação Biométrica
+                    </Text>
+                </View>
+
+                <Text style={styles.biometricDescription}>
+                    {isBiometricRegistered
+                        ? "A sua biometria está configurada e pode ser usada para fazer login de forma rápida e segura."
+                        : "Configure a sua biometria para fazer login de forma mais rápida e segura usando a impressão digital ou reconhecimento facial."}
+                </Text>
+
+                <View style={styles.biometricStatusContainer}>
+                    <View
+                        style={[
+                            styles.biometricStatusBadge,
+                            isBiometricRegistered
+                                ? styles.statusActive
+                                : styles.statusInactive,
+                        ]}
+                    >
+                        <Text
+                            style={[
+                                styles.biometricStatusText,
+                                isBiometricRegistered
+                                    ? styles.statusActive
+                                    : styles.statusInactive,
+                            ]}
+                        >
+                            {isBiometricRegistered ? (
+                                <Text>
+                                    <Text style={{ fontSize: 16, marginRight: 8 }}>✅</Text>
+                                    Biometria Ativa
+                                </Text>
+                            ) : (
+                                <Text>
+                                    <Text style={{ fontSize: 16, marginRight: 8 }}>⚪</Text>
+                                    Biometria Inativa
+                                </Text>
+                            )}
+                        </Text>
+                    </View>
+                </View>
+
+                {!isBiometricRegistered ? (
+                    <TouchableOpacity
+                        style={[styles.biometricButton, styles.registerButton]}
+                        onPress={registerBiometric}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <>
+                                <Text style={styles.biometricButtonIcon}>
+                                    ⏳
+                                </Text>
+                                <Text style={styles.biometricButtonText}>
+                                    A configurar...
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={styles.biometricButtonIcon}>
+                                    🔧
+                                </Text>
+                                <Text style={styles.biometricButtonText}>
+                                    Configurar Biometria
+                                </Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                ) : (
+                    <View style={styles.biometricActions}>
+                        <TouchableOpacity
+                            style={[styles.biometricButton, styles.testButton]}
+                            onPress={() =>
+                                showMessage(
+                                    "Funcionalidade de teste em desenvolvimento",
+                                )
+                            }
+                        >
+                            <Text style={styles.biometricButtonIcon}>🧪</Text>
+                            <Text style={styles.biometricButtonText}>
+                                Testar
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[
+                                styles.biometricButton,
+                                styles.removeButton,
+                            ]}
+                            onPress={unregisterBiometric}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Text style={styles.biometricButtonIcon}>
+                                        ⏳
+                                    </Text>
+                                    <Text style={styles.biometricButtonText}>
+                                        A remover...
+                                    </Text>
+                                </>
+                            ) : (
+                                <>
+                                    <Text style={styles.biometricButtonIcon}>
+                                        🗑️
+                                    </Text>
+                                    <Text style={styles.biometricButtonText}>
+                                        Remover
+                                    </Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                <View
+                    style={{
+                        marginTop: 20,
+                        padding: 15,
+                        backgroundColor: "rgba(23, 146, 254, 0.05)",
+                        borderRadius: 12,
+                        borderLeftWidth: 4,
+                        borderLeftColor: "#1792FE",
+                    }}
+                >
+                    <Text
+                        style={{
+                            fontSize: 13,
+                            color: "#666",
+                            textAlign: "center",
+                            fontStyle: "italic",
+                        }}
+                    >
+                        💡 A biometria utiliza a segurança do seu dispositivo
+                        para autenticação rápida e segura
+                    </Text>
+                </View>
+            </View>
+        );
+    };
+
     return (
-        
         <View style={styles.container}>
             {showSuccessMessage && (
                 <View style={styles.messageContainer}>
@@ -320,6 +572,16 @@ const Perfil = ({ user }) => {
                     </View>
                 </View>
             </Modal>
+
+            <BiometricSetup
+                userId={localStorage.getItem("userId")}
+                userEmail={localStorage.getItem("userEmail")}
+                t={t}
+                onRegistered={() => {
+                    // Opcional: atualizar estado ou mostrar mensagem
+                    console.log("Biometria configurada com sucesso");
+                }}
+            />
         </View>
     );
 };
@@ -328,7 +590,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         alignItems: "center",
-        backgroundColor: '#d4e4ff',
+        backgroundColor: "#d4e4ff",
         padding: 20,
         position: "relative",
     },
@@ -443,7 +705,7 @@ const styles = StyleSheet.create({
         fontWeight: "500",
     },
     input: {
-        backgroundColor: "#f5f9ff",
+        backgroundColor: "#f5f5ff",
         padding: 15,
         borderRadius: 12,
         borderWidth: 1,
@@ -528,13 +790,114 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         fontSize: 16,
     },
-     scrollViewStyle : {
-        backgroundColor: '#d4e4ff',
+    scrollViewStyle: {
+        backgroundColor: "#d4e4ff",
         overflowY: "auto", // Ativa scroll vertical quando necessário
         width: "100%",
         padding: "10px",
-    
-    }
+    },
+    biometricSection: {
+        backgroundColor: "white",
+        marginTop: 20,
+        borderRadius: 20,
+        padding: 25,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 8,
+        borderWidth: 1,
+        borderColor: "rgba(23, 146, 254, 0.1)",
+    },
+    biometricDescription: {
+        fontSize: 15,
+        color: "#555",
+        lineHeight: 22,
+        marginBottom: 20,
+        textAlign: "center",
+        fontWeight: "400",
+    },
+    biometricStatusContainer: {
+        alignItems: "center",
+        marginBottom: 25,
+        padding: 15,
+        backgroundColor: "#f8f9ff",
+        borderRadius: 15,
+        borderWidth: 2,
+        borderColor: "rgba(23, 146, 254, 0.1)",
+    },
+    biometricStatusBadge: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 25,
+        backgroundColor: "white",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 4,
+        borderWidth: 2,
+    },
+    biometricStatusText: {
+        fontSize: 16,
+        fontWeight: "700",
+        letterSpacing: 0.5,
+    },
+    statusActive: {
+        color: "#4CAF50",
+        borderColor: "rgba(76, 175, 80, 0.3)",
+    },
+    statusInactive: {
+        color: "#FF6B35",
+        borderColor: "rgba(255, 107, 53, 0.3)",
+    },
+    biometricButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 18,
+        borderRadius: 15,
+        marginBottom: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 6,
+        borderWidth: 0,
+        transform: [{ scale: 1 }],
+        transition: "all 0.2s ease-in-out",
+    },
+    biometricButtonIcon: {
+        fontSize: 20,
+        marginRight: 12,
+    },
+    biometricButtonText: {
+        color: "white",
+        fontWeight: "700",
+        fontSize: 16,
+        letterSpacing: 0.5,
+    },
+    registerButton: {
+        backgroundColor: "#4CAF50",
+        background: "linear-gradient(135deg, #4CAF50 0%, #45a049 100%)",
+    },
+    testButton: {
+        backgroundColor: "#1792FE",
+        background: "linear-gradient(135deg, #1792FE 0%, #0d7ce8 100%)",
+        flex: 1,
+        marginRight: 8,
+    },
+    removeButton: {
+        backgroundColor: "#FF4757",
+        background: "linear-gradient(135deg, #FF4757 0%, #ff3742 100%)",
+        flex: 1,
+        marginLeft: 8,
+    },
+    biometricActions: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        gap: 8,
+    },
 });
 
 export default Perfil;

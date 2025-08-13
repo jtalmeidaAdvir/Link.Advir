@@ -13,62 +13,78 @@ import { handleSubmitLogin } from '../handlers/loginHandlers'; // Lógica de sub
 
 // Estilos extraídos para ficheiro externo para manter código limpo
 import {
-  containerStyle,
-  cardStyle,
-  logoContainerStyle,
-  logoStyle,
-  backgroundStyle,
+    containerStyle,
+    cardStyle,
+    logoContainerStyle,
+    logoStyle,
+    backgroundStyle,
 } from '../styles/LoginFormStyles';
 
 
 // Componente principal de Login
 const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
-  // Estados para armazenar os dados introduzidos pelo utilizador e mensagens de erro
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+    // Estados para armazenar os dados introduzidos pelo utilizador e mensagens de erro
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
 
-  // Hooks para navegação e tradução
-  const navigation = useNavigation();
-  const { t } = useTranslation();
+    // Hooks para navegação e tradução
+    const navigation = useNavigation();
+    const { t } = useTranslation();
 
-  // Função que trata o submit, utilizando a lógica separada em loginHandlers
-  const handleSubmit = handleSubmitLogin({
-    email,
-    password,
-    username: '', // username não está a ser usado, mas mantido para compatibilidade
-    setEmail,
-    setUsername,
-    setIsAdmin,
-    setIsLoggedIn,
-    onLoginComplete,
-    setErrorMessage,
-    navigation,
-    t,
-  });
+    // Função para lidar com sucesso da autenticação biométrica
+    const handleBiometricSuccess = (result) => {
+        setUsername(result.userNome || result.username);
+        setIsAdmin(result.isAdmin);
+        setIsLoggedIn(true);
 
-  return (
-    // Container de fundo com imagem de background definida via estilo dinâmico
-    <div style={backgroundStyle(backgroundImage)}>
-      <div style={cardStyle}>
-        {/* Área do logotipo no topo do formulário */}
-        <div style={logoContainerStyle}>
-          <img src={logo} alt="Logo" style={logoStyle} />
+        if (onLoginComplete) {
+            onLoginComplete();
+        }
+
+        navigation.navigate('Home');
+    };
+
+    // Disponibilizar função globalmente para o componente BiometricLoginButton
+    window.handleBiometricSuccess = handleBiometricSuccess;
+
+    // Função que trata o submit, utilizando a lógica separada em loginHandlers
+    const handleSubmit = handleSubmitLogin({
+        email,
+        password,
+        username: '', // username não está a ser usado, mas mantido para compatibilidade
+        setEmail,
+        setUsername,
+        setIsAdmin,
+        setIsLoggedIn,
+        onLoginComplete,
+        setErrorMessage,
+        navigation,
+        t,
+    });
+
+    return (
+        // Container de fundo com imagem de background definida via estilo dinâmico
+        <div style={backgroundStyle(backgroundImage)}>
+            <div style={cardStyle}>
+                {/* Área do logotipo no topo do formulário */}
+                <div style={logoContainerStyle}>
+                    <img src={logo} alt="Logo" style={logoStyle} />
+                </div>
+
+                {/* Componente de formulário que recebe os estados e a função de submit */}
+                <LoginForm
+                    email={email}
+                    setEmail={setEmail}
+                    password={password}
+                    setPassword={setPassword}
+                    errorMessage={errorMessage}
+                    handleLogin={handleSubmit}
+                    t={t}
+                />
+            </div>
         </div>
-
-        {/* Componente de formulário que recebe os estados e a função de submit */}
-        <LoginForm
-          email={email}
-          setEmail={setEmail}
-          password={password}
-          setPassword={setPassword}
-          errorMessage={errorMessage}
-          handleLogin={handleSubmit}
-          t={t}
-        />
-      </div>
-    </div>
-  );
+    );
 };
 
 export default Login;
