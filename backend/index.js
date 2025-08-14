@@ -19,6 +19,7 @@ const notificacaoRoutes = require('./routes/notificacaoRoutes');
 const parteRoutes = require('./routes/parteDiariaRoutes');
 const whatsappWebRoutes = require('./routes/whatsappWebRoutes');
 const biometricRoutes = require('./routes/biometricRoutes');
+const trabalhadoresExternosRoutes = require('./routes/trabalhadoresExternosRoutes');
 
 
 
@@ -131,6 +132,8 @@ app.use('/api/faltas-ferias', faltasFeriasRoutes);
 app.use('/api', notificacaoRoutes);
 app.use('/api/parte-diaria', parteRoutes);
 app.use('/api/whatsapp-web', whatsappWebRoutes);
+app.use('/api/trabalhadores-externos', trabalhadoresExternosRoutes);
+
 // Verificar se biometricRoutes está a ser carregado corretamente
 try {
     app.use('/api/auth/biometric', biometricRoutes);
