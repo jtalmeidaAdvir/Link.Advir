@@ -48,12 +48,7 @@ Modulo.belongsToMany(Empresa, { through: 'EmpresaModulo', foreignKey: 'modulo_id
 
 
 
-// Relacionamentos para Obra
-User.hasMany(PartesDiarias, { foreignKey: 'user_id' });
-PartesDiarias.belongsTo(User, { foreignKey: 'user_id' });
 
-Obra.hasMany(PartesDiarias, { foreignKey: 'obra_id' });
-PartesDiarias.belongsTo(Obra, { foreignKey: 'obra_id' });
 
 // Relacionamentos para EquipaObra
 User.hasMany(EquipaObra, { foreignKey: 'user_id', as: 'equipasMembro' });
