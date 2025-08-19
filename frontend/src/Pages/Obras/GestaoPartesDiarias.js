@@ -89,6 +89,14 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
   const [integrandoIds, setIntegrandoIds] = useState(new Set());
   const [equipamentosMap, setEquipamentosMap] = useState({});
 
+
+
+// helper perto do topo do componente
+const getItemId = (x) => String(x?.ID ?? x?.ItemID ?? x?.ItemId ?? x?.id ?? '');
+
+
+
+
   const cabecalhosFiltrados = useMemo(() => {
     if (filtroEstado === 'pendentes') return cabecalhos.filter(c => !c.IntegradoERP);
     if (filtroEstado === 'integrados') return cabecalhos.filter(c => c.IntegradoERP);
@@ -258,13 +266,10 @@ const guardarItemEditado = async () => {
     const painelToken = await AsyncStorage.getItem('painelAdminToken');
     const minutos = parseHorasToMinutos(editItem.horasStr);
     const categoriaBD = editItem.categoria === 'Equipamentos' ? 'equipamentos' : 'MaoObra';
-
-    // TipoHoraID só quando hora extra
     const tipoHoraId = editItem.horaExtra
       ? (isFimDeSemana(editItem.dataISO) ? 'H06' : 'H01')
       : null;
 
-    // Para equipamentos garante também ComponenteID
     const payload = {
       DocumentoID: editItem.documentoID,
       ObraID: Number(editItem.obraId) || null,
@@ -274,7 +279,6 @@ const guardarItemEditado = async () => {
       ComponenteID: (editItem.categoria === 'Equipamentos') ? (editItem.subEmpId ?? null) : null,
       NumHoras: minutos,
       TipoHoraID: tipoHoraId,
-      // Mantém os restantes campos se precisares (PrecoUnit, ClasseID, ColaboradorID, etc.)
     };
 
     const url = `https://backend.advir.pt/api/parte-diaria/itens/${editItem.id}`;
@@ -283,13 +287,11 @@ const guardarItemEditado = async () => {
       headers: { Authorization: `Bearer ${painelToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       throw new Error(err?.message || 'Falha ao atualizar item.');
     }
 
-    // Atualiza no estado local (selectedCabecalho e na lista geral)
     const itemAtualizado = {
       ...itemEmEdicao,
       ObraID: payload.ObraID,
@@ -301,18 +303,21 @@ const guardarItemEditado = async () => {
       TipoHoraID: payload.TipoHoraID,
     };
 
+    // ✅ FAZ AQUI as atualizações de estado
+    const eid = getItemId({ id: editItem.id });
+
     setSelectedCabecalho(prev => {
       if (!prev) return prev;
       const novos = (prev.ParteDiariaItems || []).map(i =>
-        ( (i.ID ?? i.ItemID ?? i.ItemId) === editItem.id ? itemAtualizado : i)
+        getItemId(i) === eid ? itemAtualizado : i
       );
       return { ...prev, ParteDiariaItems: novos };
     });
 
     setCabecalhos(prev => prev.map(c => {
-      if (c.DocumentoID !== (itemEmEdicao._cabDocId || editItem.documentoID)) return c;
+      if (String(c.DocumentoID) !== String(itemEmEdicao._cabDocId || editItem.documentoID)) return c;
       const novos = (c.ParteDiariaItems || []).map(i =>
-        ( (i.ID ?? i.ItemID ?? i.ItemId) === editItem.id ? itemAtualizado : i)
+        getItemId(i) === eid ? itemAtualizado : i
       );
       return { ...c, ParteDiariaItems: novos };
     }));
@@ -1034,7 +1039,14 @@ const guardarItemEditado = async () => {
                       <Text style={styles.emptyItemsText}>Sem itens registados.</Text>
                     )}
                   </View>
-                  <Modal visible={editItemModalVisible} animationType="slide" onRequestClose={() => setEditItemModalVisible(false)} transparent>
+                  
+
+                </>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+        <Modal visible={editItemModalVisible} animationType="slide" onRequestClose={() => setEditItemModalVisible(false)} transparent>
   <View style={styles.modalContainer}>
     <View style={styles.modalContent}>
       <View style={styles.modalHeader}>
@@ -1148,12 +1160,6 @@ const guardarItemEditado = async () => {
     </View>
   </View>
 </Modal>
-
-                </>
-              )}
-            </ScrollView>
-          </SafeAreaView>
-        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
