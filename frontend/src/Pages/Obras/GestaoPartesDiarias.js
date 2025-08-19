@@ -638,6 +638,7 @@ console.log('ID usado:', editItem.id);
 
   // === INTEGRAR: exclui EXTERNOS (envia só internos)
   const handleIntegrar = async (cab) => {
+    
     setIntegrandoIds(prev => new Set(prev).add(cab.DocumentoID));
 
     try {
@@ -778,50 +779,44 @@ console.log('ID usado:', editItem.id);
   };
 
 const handleRejeitar = async (cab) => {
-  Alert.alert(
-    'Rejeitar Parte',
-    'Tens a certeza que queres rejeitar esta parte diária? Esta ação não pode ser anulada.',
-    [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Rejeitar',
-        style: 'destructive',
-        onPress: async () => {
-         try {
-           // podes reaproveitar o set de “integrando” só para desativar o UI
-           setIntegrandoIds(prev => new Set(prev).add(cab.DocumentoID));
-           const loginToken = await AsyncStorage.getItem('loginToken');
-           if (!loginToken) throw new Error('Sem sessão válida.');
+  if (cab?.IntegradoERP) { Alert.alert('Não permitido', 'Já integrado.'); return; }
 
-           const resp = await fetch(
-             `https://backend.advir.pt/api/parte-diaria/cabecalhos/${encodeURIComponent(cab.DocumentoID)}`,
-             { method: 'DELETE', headers: { Authorization: `Bearer ${loginToken}` } }
-           );
+  Alert.alert('Rejeitar Parte', 'Tens a certeza?', [
+    { text: 'Cancelar', style: 'cancel' },
+    {
+      text: 'Rejeitar',
+      style: 'destructive',
+      onPress: async () => {
+        try {
+          const loginToken = await AsyncStorage.getItem('loginToken');
+          if (!loginToken) throw new Error('Sem sessão válida.');
 
-          if (!resp.ok) {
-             const msg = await resp.text().catch(() => '');
-             // exemplo: 409 se já estiver integrado
-             throw new Error(msg || `Falha ao rejeitar (HTTP ${resp.status})`);
-           }
+          const url = `https://backend.advir.pt/api/parte-diaria/cabecalhos/${encodeURIComponent(String(cab.DocumentoID))}`;
+          console.log('DELETE ->', url);
 
-           // tira da lista local e fecha modal
-           setCabecalhos(prev => prev.filter(c => String(c.DocumentoID) !== String(cab.DocumentoID)));
-           if (selectedCabecalho?.DocumentoID === cab.DocumentoID) {
-             setModalVisible(false);
-             setSelectedCabecalho(null);
-           }
-           Alert.alert('Sucesso', 'Parte rejeitada e removida.');
-         } catch (e) {
-           console.error('Erro a rejeitar:', e);
-           Alert.alert('Erro', e.message || 'Não foi possível rejeitar.');
-         } finally {
-           setIntegrandoIds(prev => { const s = new Set(prev); s.delete(cab.DocumentoID); return s; });
-         }
+          const resp = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${loginToken}` } });
+          const txt = await resp.text().catch(() => '');
+          console.log('DELETE status', resp.status, 'body:', txt);
+
+          if (!resp.ok) throw new Error(txt || `Falha ao rejeitar (HTTP ${resp.status})`);
+
+          setCabecalhos(prev => prev.filter(c => String(c.DocumentoID) !== String(cab.DocumentoID)));
+          if (selectedCabecalho?.DocumentoID === cab.DocumentoID) {
+            setModalVisible(false);
+            setSelectedCabecalho(null);
+          }
+          Alert.alert('Sucesso', 'Parte rejeitada.');
+        } catch (e) {
+          Alert.alert('Erro', e.message || 'Não foi possível rejeitar.');
         }
       }
-    ]
-  );
+    }
+  ]);
 };
+
+
+
+
 
 
   const abrirDetalhes = async (cab) => {

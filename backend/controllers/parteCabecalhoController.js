@@ -87,21 +87,22 @@ exports.atualizar = async (req, res) => {
   res.sendStatus(204);
 };
 
+
+
 exports.remover = async (req, res) => {
   const { id } = req.params;
+  try {
+    const cab = await ParteDiariaCabecalho.findOne({ where: { DocumentoID: id } });
+    if (!cab) return res.status(404).json({ erro: 'Não encontrado' });
+    if (cab.IntegradoERP) {
+      return res.status(409).json({ erro: 'Já integrado — não pode ser rejeitado.' });
+    }
 
- try {
-   const cab = await ParteDiariaCabecalho.findByPk(id);
-   if (!cab) return res.status(404).json({ erro: 'Não encontrado' });
-   if (cab.IntegradoERP) {
-     return res.status(409).json({ erro: 'Já integrado — não pode ser rejeitado.' });
-   }
-   // apaga primeiro os itens deste documento
-   await ParteDiariaItem.destroy({ where: { DocumentoID: id } });
-   await ParteDiariaCabecalho.destroy({ where: { DocumentoID: id } });
-   return res.sendStatus(204);
- } catch (err) {
-   console.error('Erro ao remover parte:', err);
-   return res.status(500).json({ erro: 'Erro ao remover.' });
- }
+    await ParteDiariaItem.destroy({ where: { DocumentoID: id } });
+    await ParteDiariaCabecalho.destroy({ where: { DocumentoID: id } });
+    return res.sendStatus(204);
+  } catch (err) {
+    console.error('Erro ao remover parte:', err);
+    return res.status(500).json({ erro: 'Erro ao remover.' });
+  }
 };
