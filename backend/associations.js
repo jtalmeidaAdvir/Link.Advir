@@ -18,7 +18,6 @@ const BiometricCredential = require('./models/biometricCredential');
 const Notificacao = require('./models/notificacao');
 const ParteDiariaCabecalho = require('./models/parteDiariaCabecalho');
 const ParteDiariaItem = require('./models/parteDiariaItem');
-const PartesDiarias = require('./models/partesDiarias');
 const AnexoPedido = require('./models/anexoPedido');
 
 // Nota: Contact e Schedule são tabelas independentes para o WhatsApp Web
@@ -100,7 +99,6 @@ module.exports = {
     Notificacao,
     ParteDiariaCabecalho,
     ParteDiariaItem,
-    PartesDiarias,
     AnexoPedido,
     BiometricCredential,
 };
