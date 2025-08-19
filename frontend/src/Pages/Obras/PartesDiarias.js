@@ -43,6 +43,17 @@ const PartesDiarias = ({ navigation }) => {
         categoria: 'MaoObra'
     });
 
+    const [obrasTodas, setObrasTodas] = useState([]);
+
+        // Memoizar dias do mês para evitar recálculos
+    const diasDoMes = useMemo(() => {
+        const diasNoMes = new Date(mesAno.ano, mesAno.mes, 0).getDate();
+        return Array.from({ length: diasNoMes }, (_, i) => i + 1);
+    }, [mesAno.mes, mesAno.ano]);
+
+
+
+
 
 
 const [codMap, setCodMap] = useState({});
@@ -63,6 +74,299 @@ const [membrosSelecionados, setMembrosSelecionados] = useState([]);
 const [equipaSelecionada, setEquipaSelecionada] = useState(null);
 
 const [itensSubmetidos, setItensSubmetidos] = useState([]);
+
+
+// === EXTERNOS ===
+const [modalExternosVisible, setModalExternosVisible] = useState(false);
+const [externosLista, setExternosLista] = useState([]);           // da tabela trabalhadores_externos
+const [linhasExternos, setLinhasExternos] = useState([]);         // linhas que vais submeter
+const [linhaAtual, setLinhaAtual] = useState({
+  obraId: '',
+  dia: '',
+  trabalhadorId: '',
+  horas: '',
+  horaExtra: false,
+  categoria: 'MaoObra',
+  especialidadeCodigo: '',
+  subEmpId: null,
+});
+
+
+
+const carregarObrasTodas = useCallback(async () => {
+  try {
+    const token = await AsyncStorage.getItem('loginToken');
+
+    // 👇 AJUSTA este endpoint/params conforme a tua API
+    const res = await fetch('https://backend.advir.pt/api/obra', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!res.ok) throw new Error('Falha ao obter lista de obras');
+    const data = await res.json();
+
+    // Lida com {data: [...]} ou array direto
+    const lista = Array.isArray(data) ? data : (data?.data || []);
+    const formatadas = lista.map(o => ({
+      id: o.id,
+      nome: o.nome || o.Descricao || `Obra ${o.id}`,
+      codigo: o.codigo || o.Codigo || `OBR${String(o.id).padStart(3,'0')}`
+    }));
+
+    setObrasTodas(formatadas);
+  } catch (e) {
+    console.warn('Erro ao carregar TODAS as obras:', e.message);
+    // fallback: fica só com as obras já detetadas pelos registos
+  }
+}, []);
+
+
+
+// 🔹 EXTERNOS SUBMETIDOS por Obra × Pessoa (persistentes, vindos da API)
+const externosSubmetidosPorObraPessoa = useMemo(() => {
+  const baseHoras = Object.fromEntries(diasDoMes.map(d => [d, 0]));
+  const porObra = new Map(); // obraId -> Map(nome -> row)
+
+  (itensSubmetidos || []).forEach(it => {
+    // Externo: ColaboradorID == null (pelos teus dados) e costuma vir " (Externo)" no campo Funcionario
+    if (it.ColaboradorID != null) return;
+    if (!it.Data || !it.ObraID) return;
+
+    const iso = typeof it.Data === 'string' ? it.Data : String(it.Data);
+    const [yyyy, mm, dd] = iso.split('T')[0].split('-');
+    if (Number(yyyy) !== mesAno.ano || Number(mm) !== mesAno.mes) return;
+
+    const obraId = Number(it.ObraID);
+    const diaNum = Number(dd);
+    const nome = (it.Funcionario || '')
+      .replace(/\s*\(Externo\)\s*$/i, '')
+      .trim() || 'Externo';
+
+    if (!porObra.has(obraId)) porObra.set(obraId, new Map());
+    const byPessoa = porObra.get(obraId);
+
+    if (!byPessoa.has(nome)) {
+      byPessoa.set(nome, {
+        obraId,
+        funcionario: nome,
+        horasPorDia: { ...baseHoras },
+        totalMin: 0,
+      });
+    }
+
+    const row = byPessoa.get(nome);
+    const mins = Number(it.NumHoras || 0); // já vens a gravar em minutos
+    row.horasPorDia[diaNum] = (row.horasPorDia[diaNum] || 0) + mins;
+    row.totalMin += mins;
+  });
+
+  return porObra;
+}, [itensSubmetidos, diasDoMes, mesAno]);
+
+
+
+// Converte "H:MM" ou "H.MM" para minutos (número inteiro)
+const parseHorasToMinutos = (str) => {
+  if (!str) return 0;
+  const s = String(str).trim().replace(',', '.');
+  if (s.includes(':')) {
+    const [h, m] = s.split(':');
+    return Math.max(0, (parseInt(h,10)||0) * 60 + (parseInt(m,10)||0));
+  }
+  const dec = parseFloat(s);
+  if (Number.isNaN(dec) || dec < 0) return 0;
+  return Math.round(dec * 60);
+};
+
+// Busca os trabalhadores externos ativos
+const carregarExternos = useCallback(async () => {
+  try {
+    const token = await AsyncStorage.getItem('loginToken');
+    const res = await fetch('https://backend.advir.pt/api/trabalhadores-externos?ativo=true&anulado=false&pageSize=500', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Falha ao obter externos');
+    const data = await res.json();
+    // o controlador devolve {data: [...]} ou array direto; lida com ambos
+    const lista = Array.isArray(data) ? data : (data?.data || []);
+    setExternosLista(lista);
+  } catch (e) {
+    console.warn('Erro externos:', e.message);
+    Alert.alert('Erro', 'Não foi possível carregar a lista de externos.');
+  }
+}, []);
+
+
+
+    const abrirModalExternos = async () => {
+      await carregarExternos();
+      setLinhaAtual({
+        obraId: '',
+        dia: '',
+        trabalhadorId: '',
+        horas: '',
+        horaExtra: false,
+        categoria: 'MaoObra',
+        especialidadeCodigo: '',
+        subEmpId: null,
+      });
+      setLinhasExternos([]);
+      setModalExternosVisible(true);
+    };
+
+    const adicionarLinhaExterno = () => {
+      const { obraId, dia, trabalhadorId, horas, categoria, especialidadeCodigo, subEmpId } = linhaAtual;
+
+      if (!obraId || !dia || !trabalhadorId || !horas) {
+        Alert.alert('Validação', 'Seleciona Obra, Dia, Externo e Horas.');
+        return;
+      }
+      if (!especialidadeCodigo || !subEmpId) {
+        Alert.alert('Validação', 'Seleciona a especialidade/equipamento.');
+        return;
+      }
+
+      const trab = externosLista.find(e => String(e.id) === String(trabalhadorId));
+      if (!trab) { Alert.alert('Validação', 'Trabalhador externo inválido.'); return; }
+
+      const minutos = parseHorasToMinutos(horas);
+      if (minutos <= 0) { Alert.alert('Validação', 'Horas inválidas.'); return; }
+
+      const lista = categoria === 'Equipamentos' ? equipamentosList : especialidadesList;
+      const sel   = lista.find(x => x.codigo === especialidadeCodigo);
+
+      setLinhasExternos(prev => ([
+        ...prev,
+        {
+          key: `${obraId}-${dia}-${trabalhadorId}-${Date.now()}`,
+          obraId: Number(obraId),
+          dia: Number(dia),
+          trabalhadorId: trab.id,
+          funcionario: trab.funcionario,
+          empresa: trab.empresa,
+          valor: Number(trab.valor || 0),
+          moeda: trab.moeda || 'EUR',
+          horasMin: minutos,
+          horaExtra: !!linhaAtual.horaExtra,
+
+          // novos campos
+          categoria,
+          especialidadeCodigo,
+          especialidadeDesc: sel?.descricao ?? '',
+          subEmpId: subEmpId ?? null,
+        }
+      ]));
+
+      setLinhaAtual(prev => ({
+        ...prev,
+        trabalhadorId: '',
+        horas: '',
+        horaExtra: false,
+        especialidadeCodigo: '',
+        subEmpId: null,
+      }));
+    };
+
+    const removerLinhaExterno = (key) => {
+      setLinhasExternos(prev => prev.filter(l => l.key !== key));
+    };
+
+    const submeterExternos = async () => {
+      if (linhasExternos.length === 0) {
+        Alert.alert('Aviso', 'Não há linhas para submeter.');
+        return;
+      }
+
+      try {
+        const painelToken = await AsyncStorage.getItem('painelAdminToken');
+        const loginToken  = await AsyncStorage.getItem('loginToken');
+        const userLogado  = (await AsyncStorage.getItem('userNome')) || '';
+
+        // Agrupa por (obraId, dia)
+        const grupos = new Map();
+        for (const l of linhasExternos) {
+          const dataISO = `${mesAno.ano}-${String(mesAno.mes).padStart(2,'0')}-${String(l.dia).padStart(2,'0')}`;
+          const key = `${l.obraId}|${dataISO}`;
+          if (!grupos.has(key)) grupos.set(key, { obraId: l.obraId, dataISO, linhas: [] });
+          grupos.get(key).linhas.push(l);
+        }
+
+        for (const [, grp] of grupos.entries()) {
+          // 1) cabeçalho
+          const cabecalho = {
+            ObraID: grp.obraId,
+            Data: grp.dataISO,
+            Notas: 'Parte diária de EXTERNOS',
+            CriadoPor: userLogado,
+            Utilizador: userLogado,
+            TipoEntidade: 'O',
+            ColaboradorID: null,
+          };
+
+          const respCab = await fetch('https://backend.advir.pt/api/parte-diaria/cabecalhos', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${painelToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(cabecalho),
+          });
+
+          if (!respCab.ok) {
+            const err = await respCab.json().catch(() => ({}));
+            throw new Error(err?.message || 'Falha ao criar cabeçalho para externos.');
+          }
+          const cab = await respCab.json();
+
+          // 2) itens
+          for (let i = 0; i < grp.linhas.length; i++) {
+            const l = grp.linhas[i];
+
+            const tipoHoraId = l.horaExtra
+              ? (isFimDeSemana(mesAno.ano, mesAno.mes, l.dia) ? 'H06' : 'H01')
+              : null;
+
+            const item = {
+              DocumentoID: cab.DocumentoID,
+              ObraID: grp.obraId,
+              Data: grp.dataISO,
+              Numero: i + 1,
+              ColaboradorID: null,
+              Funcionario: `${l.funcionario} (Externo)`,
+              ClasseID: 1,
+              SubEmpID: l.subEmpId ?? null,
+              NumHoras: l.horasMin,
+              PrecoUnit: l.valor || 0,
+              categoria: l.categoria || 'MaoObra',
+              TipoHoraID: tipoHoraId,
+            };
+
+            const respItem = await fetch('https://backend.advir.pt/api/parte-diaria/itens', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${painelToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(item),
+            });
+
+            if (!respItem.ok) {
+              const err = await respItem.json().catch(() => ({}));
+              throw new Error(err?.message || `Falha ao criar item externo (${l.funcionario}).`);
+            }
+          }
+        }
+
+        setModalExternosVisible(false);
+        setLinhasExternos([]);
+        Alert.alert('Sucesso', 'Partes diárias de externos submetidas.');
+        await carregarItensSubmetidos();
+        await carregarDados();
+      } catch (e) {
+        console.error('Erro ao submeter externos:', e);
+        Alert.alert('Erro', e.message || 'Ocorreu um erro ao submeter externos.');
+      }
+    };
 
 
 const isFimDeSemana = (ano, mes, dia) => {
@@ -243,6 +547,136 @@ const { equipas: eq, registos } = resultado;
 
 
 useEffect(() => {
+  carregarObrasTodas();
+}, [carregarObrasTodas]);
+
+const obrasParaPickers = useMemo(
+  () => (obrasTodas.length > 0 ? obrasTodas : obras),
+  [obrasTodas, obras]
+);
+
+
+
+   // 🔹 AGREGADOR: Externos por Obra × Dia (para render na grelha)
+    const externosPorObra = useMemo(() => {
+      const baseHoras = Object.fromEntries(diasDoMes.map(d => [d, 0]));
+      const map = new Map();
+      linhasExternos.forEach(l => {
+        const obraId = Number(l.obraId);
+        if (!map.has(obraId)) {
+          const meta = obrasParaPickers.find(o => Number(o.id) === obraId);
+          map.set(obraId, {
+            obraId,
+            obraNome: meta?.nome || `Obra ${obraId}`,
+            horasPorDia: { ...baseHoras },
+            totalMin: 0,
+          });
+        }
+        const row = map.get(obraId);
+        const dia = Number(l.dia);
+        const mins = Number(l.horasMin || 0);
+        row.horasPorDia[dia] = (row.horasPorDia[dia] || 0) + mins;
+        row.totalMin += mins;
+      });
+      return map;
+    }, [linhasExternos, diasDoMes, obrasParaPickers]);
+
+
+    // 🔹 EXTERNOS por Obra × Pessoa (cada linha é um externo)
+const externosPorObraPessoa = useMemo(() => {
+  const baseHoras = Object.fromEntries(diasDoMes.map(d => [d, 0]));
+  const map = new Map(); // obraId -> Map(trabalhadorId -> rowAccum)
+
+  for (const l of linhasExternos) {
+    const obraId = Number(l.obraId);
+    const trabId = Number(l.trabalhadorId);
+
+    if (!map.has(obraId)) map.set(obraId, new Map());
+    const inner = map.get(obraId);
+
+    if (!inner.has(trabId)) {
+      inner.set(trabId, {
+        obraId,
+        trabalhadorId: trabId,
+        funcionario: l.funcionario,            // nome do externo
+        empresa: l.empresa,                    // empresa (opcional)
+        horasPorDia: { ...baseHoras },
+        totalMin: 0,
+      });
+    }
+
+    const row = inner.get(trabId);
+    const dia = Number(l.dia);
+    const mins = Number(l.horasMin || 0);
+    row.horasPorDia[dia] = (row.horasPorDia[dia] || 0) + mins;
+    row.totalMin += mins;
+  }
+
+  return map;
+}, [linhasExternos, diasDoMes]);
+
+// 🔹 EXTERNOS para a VISTA POR UTILIZADOR (agregado por pessoa -> obras)
+const externosAgrupadosPorPessoa = useMemo(() => {
+  const baseHoras = Object.fromEntries(diasDoMes.map(d => [d, 0]));
+  const mapPessoa = new Map(); // key -> { nome, empresa, obras: Map(obraId -> { obraId, obraNome, horasPorDia, totalMin }) }
+
+  const ensurePessoa = (key, nome, empresa = '') => {
+    if (!mapPessoa.has(key)) mapPessoa.set(key, { nome, empresa, obras: new Map() });
+    return mapPessoa.get(key);
+  };
+  const ensureObra = (pessoa, obraId) => {
+    if (!pessoa.obras.has(obraId)) {
+      const meta = obrasParaPickers.find(o => Number(o.id) === Number(obraId));
+      pessoa.obras.set(obraId, {
+        obraId: Number(obraId),
+        obraNome: meta?.nome || `Obra ${obraId}`,
+        horasPorDia: { ...baseHoras },
+        totalMin: 0,
+      });
+    }
+    return pessoa.obras.get(obraId);
+  };
+
+  // ✅ Submetidos (vindos da API)
+  externosSubmetidosPorObraPessoa.forEach((byPessoa, obraId) => {
+    byPessoa.forEach(row => {
+      // usa o nome como chave (é o que temos nos submetidos)
+      const pessoa = ensurePessoa(row.funcionario, row.funcionario, '');
+      const obra = ensureObra(pessoa, obraId);
+      diasDoMes.forEach(d => {
+        const mins = row.horasPorDia[d] || 0;
+        obra.horasPorDia[d] = (obra.horasPorDia[d] || 0) + mins;
+        obra.totalMin += mins;
+      });
+    });
+  });
+
+  // 📝 Pendentes (linhas ainda no modal)
+  externosPorObraPessoa.forEach((byTrab, obraId) => {
+    byTrab.forEach(row => {
+      // aqui temos id e empresa — usamos uma chave estável baseada no id
+      const key = `id:${row.trabalhadorId}`;
+      const pessoa = ensurePessoa(key, row.funcionario, row.empresa || '');
+      const obra = ensureObra(pessoa, obraId);
+      diasDoMes.forEach(d => {
+        const mins = row.horasPorDia[d] || 0;
+        obra.horasPorDia[d] = (obra.horasPorDia[d] || 0) + mins;
+        obra.totalMin += mins;
+      });
+    });
+  });
+
+  // -> array para render
+  return [...mapPessoa.values()].map(p => ({
+    nome: p.nome,
+    empresa: p.empresa,
+    obras: [...p.obras.values()],
+  }));
+}, [externosSubmetidosPorObraPessoa, externosPorObraPessoa, diasDoMes, obrasParaPickers]);
+
+
+
+useEffect(() => {
   if (!editData?.categoria) return;
 
   const carregarCategoriaDinamicamente = async () => {
@@ -311,6 +745,8 @@ useEffect(() => {
     ];
     
 
+
+
     const [modoVisualizacao, setModoVisualizacao] = useState('obra');
 
 
@@ -333,11 +769,6 @@ useEffect(() => {
     // State para armazenar horas originais (do ponto)
     const [horasOriginais, setHorasOriginais] = useState(new Map());
 
-    // Memoizar dias do mês para evitar recálculos
-    const diasDoMes = useMemo(() => {
-        const diasNoMes = new Date(mesAno.ano, mesAno.mes, 0).getDate();
-        return Array.from({ length: diasNoMes }, (_, i) => i + 1);
-    }, [mesAno.mes, mesAno.ano]);
 
 
     // Cache key baseado no mês/ano
@@ -739,7 +1170,8 @@ return { equipas: equipasFormatadas, registos: todosRegistos };
               categoria: trabalhador.categoria || 'MaoObra',
               especialidade: trabalhador.especialidade || '',
               horas: (trabalhador.horasPorDia[dia] || 0) / 60,
-              subEmpId: trabalhador.subEmpId || null
+              subEmpId: trabalhador.subEmpId || null,
+              obraId: trabalhador.obraId, 
             }
          ]
     });
@@ -757,7 +1189,8 @@ const adicionarEspecialidade = useCallback(() => {
     especialidade: '',
     subEmpId: null,
     dia: selectedDia,
-    horaExtra: false
+    horaExtra: false,
+    obraId: selectedTrabalhador?.obraId,
   });
 
   setEditData({
@@ -797,9 +1230,6 @@ const adicionarEspecialidade = useCallback(() => {
  };
 
 
-
-
-
 const itemJaSubmetido = (codFuncionario, obraId, dia) => {
   const diaStr = String(dia).padStart(2, '0');
   const mesStr = String(mesAno.mes).padStart(2, '0');
@@ -814,66 +1244,125 @@ const codRaw = String(codFuncionario ?? '');
 };
 
 
-
-
-
     
-    const salvarEdicao = useCallback(() => {
-        if (selectedTrabalhador && selectedDia) {
-                    // totalMinutosDia (em minutos) que veio do servidor ou de edição inline
-                const somaMinutosEspecialidades = editData.especialidadesDia
-            .reduce((sum, esp) => sum + Math.round((parseFloat(esp.horas) || 0) * 60), 0);
-        const totalMinutosDiaAnterior = selectedTrabalhador.horasPorDia[selectedDia] || 0;
-        if (somaMinutosEspecialidades !== totalMinutosDiaAnterior) {
-          console.log(`ℹ️ Divergência de horas no dia ${selectedDia}: antes=${totalMinutosDiaAnterior}m, agora=${somaMinutosEspecialidades}m`);
-        }
-            
-            const novoDados = dadosProcessados.map(item => {
-                if (item.userId === selectedTrabalhador.userId && 
-                    item.obraId === selectedTrabalhador.obraId) {
-                    
-                    const novasHorasDia = somaMinutosEspecialidades;
+  const salvarEdicao = useCallback(() => {
+  if (!selectedTrabalhador || !selectedDia) return;
 
-                    
-                    const especialidadesAtualizadas = item.especialidades || [];
-                    const especialidadesFiltradas = especialidadesAtualizadas.filter(esp => esp.dia !== selectedDia);
-                    
-                    editData.especialidadesDia.forEach(esp => {
-                        if (esp.horas > 0) {
-                            especialidadesFiltradas.push({
-                                dia: selectedDia,
-                                especialidade: esp.especialidade,
-                                categoria: esp.categoria,
-                                horas: Math.round((parseFloat(esp.horas) || 0) * 100) / 100,  // <- aqui
-                                subEmpId: esp.subEmpId,
-                                horaExtra: !!esp.horaExtra    
-                            });
-                        }
-                    });
-                    
-                    return {
-                        ...item,
-                         horasPorDia: {
-                            ...item.horasPorDia,
-                            [selectedDia]: novasHorasDia    // agora em minutos
-                        },
-                        especialidades: especialidadesFiltradas,
-                        especialidade: editData.especialidadesDia.length > 0 ? editData.especialidadesDia[0].especialidade : item.especialidade,
-                        categoria: editData.especialidadesDia.length > 0 ? editData.especialidadesDia[0].categoria : item.categoria
-                    };
-                }
-                return item;
+  // Garante obra em cada linha + calcula minutos
+  const linhas = (editData.especialidadesDia || []).map(esp => ({
+    ...esp,
+    obraId: esp.obraId || selectedTrabalhador.obraId,
+    minutos: Math.round((parseFloat(esp.horas) || 0) * 60)
+  }));
+
+  // Mapa de minutos por obra
+  const minutosPorObra = linhas.reduce((acc, l) => {
+    if (l.minutos > 0) acc[l.obraId] = (acc[l.obraId] || 0) + l.minutos;
+    return acc;
+  }, {});
+
+  setDadosProcessados(prev => {
+    let novo = [...prev];
+
+    // 1) Atualiza o item da obra atual
+    novo = novo.map(it => {
+      if (it.userId === selectedTrabalhador.userId && it.obraId === selectedTrabalhador.obraId) {
+        const minutosAtual = minutosPorObra[selectedTrabalhador.obraId] || 0;
+        const especRest = (it.especialidades || []).filter(e => e.dia !== selectedDia);
+
+        linhas
+          .filter(l => l.obraId === it.obraId && l.minutos > 0)
+          .forEach(l => {
+            especRest.push({
+              dia: selectedDia,
+              especialidade: l.especialidade,
+              categoria: l.categoria,
+              horas: Math.round((l.minutos / 60) * 100) / 100, // guarda em horas decimais
+              subEmpId: l.subEmpId,
+              horaExtra: !!l.horaExtra,
+              obraId: it.obraId,
             });
-            const chaveDiaEditado = `${selectedTrabalhador.userId}-${selectedTrabalhador.obraId}-${selectedDia}`;
-setDiasEditadosManualmente(prev => new Set(prev).add(chaveDiaEditado));
+          });
 
-            setDadosProcessados(novoDados);
-            setEditModalVisible(false);
-            Alert.alert('Sucesso', 'Especialidades atualizadas com sucesso!');
-        }
-    }, [selectedTrabalhador, selectedDia, editData, dadosProcessados]);
+        return {
+          ...it,
+          horasPorDia: { ...it.horasPorDia, [selectedDia]: minutosAtual },
+          especialidades: especRest,
+          categoria: linhas[0]?.categoria ?? it.categoria,
+          especialidade: linhas[0]?.especialidade ?? it.especialidade
+        };
+      }
+      return it;
+    });
+
+    // 2) Para cada outra obra, cria/atualiza o item desse utilizador
+    Object.keys(minutosPorObra).forEach(obraIdStr => {
+      const obraId = Number(obraIdStr);
+      if (obraId === selectedTrabalhador.obraId) return;
+
+      let idx = novo.findIndex(it => it.userId === selectedTrabalhador.userId && it.obraId === obraId);
+      if (idx === -1) {
+        const obraMeta = obras.find(o => o.id === obraId) || { nome: `Obra ${obraId}`, codigo: `OBR${String(obraId).padStart(3, '0')}` };
+        const baseHoras = {};
+        diasDoMes.forEach(d => (baseHoras[d] = 0));
+
+        novo.push({
+          id: `${selectedTrabalhador.userId}-${obraId}`,
+          userId: selectedTrabalhador.userId,
+          userName: selectedTrabalhador.userName,
+          codFuncionario: selectedTrabalhador.codFuncionario || codMap[selectedTrabalhador.userId] || null,
+          obraId,
+          obraNome: obraMeta.nome,
+          obraCodigo: obraMeta.codigo,
+          horasPorDia: baseHoras,
+          horasOriginais: {},      // sem ponto (manual)
+          especialidades: [],
+          isOriginal: false
+        });
+        idx = novo.length - 1;
+      }
+
+      const it = novo[idx];
+      const especRest = (it.especialidades || []).filter(e => e.dia !== selectedDia);
+
+      linhas
+        .filter(l => l.obraId === obraId && l.minutos > 0)
+        .forEach(l => {
+          especRest.push({
+            dia: selectedDia,
+            especialidade: l.especialidade,
+            categoria: l.categoria,
+            horas: Math.round((l.minutos / 60) * 100) / 100,
+            subEmpId: l.subEmpId,
+            horaExtra: !!l.horaExtra,
+            obraId
+          });
+        });
+
+      novo[idx] = {
+        ...it,
+        horasPorDia: { ...it.horasPorDia, [selectedDia]: minutosPorObra[obraId] },
+        especialidades: especRest,
+      };
+    });
+
+    return novo;
+  });
+
+  // Marca o(s) dia(s) editado(s) por obra
+  setDiasEditadosManualmente(prev => {
+    const s = new Set(prev);
+    Object.keys(minutosPorObra).forEach(obraIdStr => {
+      s.add(`${selectedTrabalhador.userId}-${Number(obraIdStr)}-${selectedDia}`);
+    });
+    return s;
+  });
+
+  setEditModalVisible(false);
+  Alert.alert('Sucesso', 'Horas distribuídas pelas obras selecionadas.');
+}, [selectedTrabalhador, selectedDia, editData, obras, diasDoMes, codMap]);
+
     
-
 const obterCodFuncionario = async (userId) => {
   const painelToken = await AsyncStorage.getItem("painelAdminToken");
 
@@ -981,6 +1470,30 @@ await criarItensParaMembro(
     }
   }
 
+  // ... dentro de criarParteDiaria, depois do for (const item of dadosProcessados) { ... }
+
+const haviaExternos = linhasExternos.length > 0;
+let submeteuExternos = false;
+if (haviaExternos) {
+  // envia os externos que estão na lista temporária, sem duplicar alerts/refresh
+  submeteuExternos = await submeterExternosSilencioso();
+}
+
+setModalVisible(false);
+
+const msg = submeteuExternos
+  ? 'Partes diárias e externos submetidos com sucesso.'
+  : 'Partes diárias submetidas com sucesso.';
+
+Alert.alert('Sucesso', msg);
+
+// limpa estados e faz refresh APENAS uma vez (cobre internos + externos)
+setDiasEditadosManualmente(new Set());
+await carregarDados();
+await carregarItensSubmetidos();
+console.log('🔍 submittedSet contém:', Array.from(submittedSet).slice(0, 10));
+
+
 setModalVisible(false);                            // Fecha o modal
 Alert.alert("Sucesso", "Partes diárias submetidas para o diretor de obra com sucesso.");
 setDiasEditadosManualmente(new Set());             // Limpa estados locais
@@ -991,6 +1504,96 @@ console.log('🔍 submittedSet contém:', Array.from(submittedSet).slice(0, 10))
 
 };
 
+
+// ——— ENVIAR EXTERNOS "SILENCIOSO" (sem fechar modal nem alerts de sucesso) ———
+const submeterExternosSilencioso = async () => {
+  if (linhasExternos.length === 0) return false;
+
+  try {
+    const painelToken = await AsyncStorage.getItem('painelAdminToken');
+    const userLogado  = (await AsyncStorage.getItem('userNome')) || '';
+
+    // Agrupar por (obraId, dia)
+    const grupos = new Map();
+    for (const l of linhasExternos) {
+      const dataISO = `${mesAno.ano}-${String(mesAno.mes).padStart(2,'0')}-${String(l.dia).padStart(2,'0')}`;
+      const key = `${l.obraId}|${dataISO}`;
+      if (!grupos.has(key)) grupos.set(key, { obraId: l.obraId, dataISO, linhas: [] });
+      grupos.get(key).linhas.push(l);
+    }
+
+    for (const [, grp] of grupos.entries()) {
+      // 1) cabeçalho
+      const cabecalho = {
+        ObraID: grp.obraId,
+        Data: grp.dataISO,
+        Notas: 'Parte diária de EXTERNOS',
+        CriadoPor: userLogado,
+        Utilizador: userLogado,
+        TipoEntidade: 'O',
+        ColaboradorID: null,
+      };
+
+      const respCab = await fetch('https://backend.advir.pt/api/parte-diaria/cabecalhos', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${painelToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(cabecalho),
+      });
+      if (!respCab.ok) {
+        const err = await respCab.json().catch(() => ({}));
+        throw new Error(err?.message || 'Falha ao criar cabeçalho para externos.');
+      }
+      const cab = await respCab.json();
+
+      // 2) itens
+      for (let i = 0; i < grp.linhas.length; i++) {
+        const l = grp.linhas[i];
+        const tipoHoraId = l.horaExtra
+          ? (isFimDeSemana(mesAno.ano, mesAno.mes, l.dia) ? 'H06' : 'H01')
+          : null;
+
+        const item = {
+          DocumentoID: cab.DocumentoID,
+          ObraID: grp.obraId,
+          Data: grp.dataISO,
+          Numero: i + 1,
+          ColaboradorID: null,
+          Funcionario: `${l.funcionario} (Externo)`,
+          ClasseID: 1,
+          SubEmpID: l.subEmpId ?? null,
+          NumHoras: l.horasMin,
+          PrecoUnit: l.valor || 0,
+          categoria: l.categoria || 'MaoObra',
+          TipoHoraID: tipoHoraId,
+        };
+
+        const respItem = await fetch('https://backend.advir.pt/api/parte-diaria/itens', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${painelToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(item),
+        });
+        if (!respItem.ok) {
+          const err = await respItem.json().catch(() => ({}));
+          throw new Error(err?.message || `Falha ao criar item externo (${l.funcionario}).`);
+        }
+      }
+    }
+
+    // sucesso: limpa a lista local para não submeter de novo
+    setLinhasExternos([]);
+    return true;
+  } catch (e) {
+    console.error('Erro ao submeter externos (silencioso):', e);
+    Alert.alert('Erro', e.message || 'Ocorreu um erro ao submeter externos.');
+    return false;
+  }
+};
 
 
 const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, diasValidos) => {
@@ -1004,6 +1607,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
   // Declara 'linhas' antes de usar
   let linhas = [];
   if (item.especialidades.length > 0) {
+
     linhas = item.especialidades
   .filter(esp => diasValidos.includes(esp.dia))
   .map(esp => {
@@ -1011,6 +1615,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
    const match = list.find(opt => opt.codigo === esp.especialidade) || list.find(opt => opt.descricao === esp.especialidade);
     return {
       dia: esp.dia,
+      obraId: esp.obraId || item.obraId, 
       especialidade: esp.especialidade,
       categoria: mapCategoria(esp.categoria),
       horas: esp.horas,
@@ -1055,7 +1660,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
 
     const payloadItem = {
       DocumentoID:   documentoID,
-      ObraID:        item.obraId,
+      ObraID:        esp.obraId ?? item.obraId,
       Data:          `${mesAno.ano}-${String(mesAno.mes).padStart(2,'0')}-${String(esp.dia).padStart(2,'0')}`,
       Numero:        i + 1,
       ColaboradorID: codFuncionario,
@@ -1091,7 +1696,6 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
     }
   }
 };
-
 
 
 
@@ -1192,6 +1796,17 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
   </LinearGradient>
 </TouchableOpacity>
 
+<TouchableOpacity
+  style={styles.actionButton}
+  onPress={abrirModalExternos}
+>
+  <LinearGradient colors={['#6f42c1', '#5b32a3']} style={styles.buttonGradient}>
+    <Ionicons name="people" size={16} color="#fff" />
+    <Text style={styles.buttonText}>Adicionar Externos</Text>
+  </LinearGradient>
+</TouchableOpacity>
+
+
 
 
             </View>
@@ -1235,7 +1850,210 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
 }, [dadosProcessados]);
 
 
-    const renderDataSheet = () => {
+    const renderExternosModal = () => (
+      <Modal
+        animationType="slide"
+        transparent
+        visible={modalExternosVisible}
+        onRequestClose={() => setModalExternosVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View className="modalHeader" style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Adicionar Externos</Text>
+              <TouchableOpacity onPress={() => setModalExternosVisible(false)} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {/* Obra */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.inputLabel}>Obra</Text>
+                <View style={{ backgroundColor: '#f0f0f0', borderRadius: 8 }}>
+                  <Picker
+                    selectedValue={linhaAtual.obraId}
+                    onValueChange={(v) => setLinhaAtual(p => ({ ...p, obraId: v }))}
+                  >
+                    <Picker.Item label="— Selecione —" value="" />
+                    {obrasParaPickers.map(o => (
+                      <Picker.Item key={o.id} label={o.nome} value={o.id} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+
+              {/* Dia */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.inputLabel}>Dia</Text>
+                <View style={{ backgroundColor: '#f0f0f0', borderRadius: 8 }}>
+                  <Picker
+                    selectedValue={linhaAtual.dia}
+                    onValueChange={(v) => setLinhaAtual(p => ({ ...p, dia: v }))}
+                  >
+                    <Picker.Item label="— Selecione —" value="" />
+                    {diasDoMes.map(d => (
+                      <Picker.Item key={d} label={String(d)} value={d} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+
+              {/* Trabalhador Externo */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.inputLabel}>Trabalhador Externo</Text>
+                <View style={{ backgroundColor: '#f0f0f0', borderRadius: 8 }}>
+                  <Picker
+                    selectedValue={linhaAtual.trabalhadorId}
+                    onValueChange={(v) => setLinhaAtual(p => ({ ...p, trabalhadorId: v }))}
+                  >
+                    <Picker.Item label="— Selecione —" value="" />
+                    {externosLista.map(t => (
+                      <Picker.Item
+                        key={t.id}
+                        label={`${t.funcionario} — ${t.empresa} (${t.categoria || '—'})`}
+                        value={t.id}
+                      />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+
+              {/* Categoria */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.inputLabel}>Categoria</Text>
+                <View style={styles.pickerContainer}>
+                  {[
+                    { label: 'Mão de Obra', value: 'MaoObra' },
+                    { label: 'Equipamentos', value: 'Equipamentos' },
+                  ].map(opt => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[
+                        styles.pickerOptionSmall,
+                        linhaAtual.categoria === opt.value && styles.pickerOptionSelected
+                      ]}
+                      onPress={() => setLinhaAtual(p => ({
+                        ...p,
+                        categoria: opt.value,
+                        especialidadeCodigo: '',
+                        subEmpId: null
+                      }))}
+                    >
+                      <Text style={[
+                        styles.pickerOptionTextSmall,
+                        linhaAtual.categoria === opt.value && styles.pickerOptionTextSelected
+                      ]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Especialidade/Equipamento */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.inputLabel}>
+                  {linhaAtual.categoria === 'Equipamentos' ? 'Equipamento' : 'Especialidade'}
+                </Text>
+                <View style={{ backgroundColor: '#f0f0f0', borderRadius: 8 }}>
+                  <Picker
+                    selectedValue={linhaAtual.especialidadeCodigo}
+                    onValueChange={(cod) => {
+                      const lista = linhaAtual.categoria === 'Equipamentos' ? equipamentosList : especialidadesList;
+                      const sel   = lista.find(x => x.codigo === cod);
+                      setLinhaAtual(p => ({
+                        ...p,
+                        especialidadeCodigo: cod,
+                        subEmpId: sel?.subEmpId ?? null
+                      }));
+                    }}
+                  >
+                    <Picker.Item label="— Selecione —" value="" />
+                    {(linhaAtual.categoria === 'Equipamentos' ? equipamentosList : especialidadesList)
+                      .map(opt => (
+                        <Picker.Item key={opt.codigo} label={opt.descricao} value={opt.codigo} />
+                      ))
+                    }
+                  </Picker>
+                </View>
+              </View>
+
+              {/* Horas */}
+              <View style={{ marginBottom: 12 }}>
+                <Text style={styles.inputLabel}>Horas (H:MM ou decimal)</Text>
+                <TextInput
+                  style={styles.horasInput}
+                  value={linhaAtual.horas}
+                  onChangeText={(v) => setLinhaAtual(p => ({ ...p, horas: v }))}
+                  placeholder="ex.: 8:00 ou 8.0"
+                  keyboardType="default"
+                />
+              </View>
+
+              {/* Hora extra */}
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}
+                onPress={() => setLinhaAtual(p => ({ ...p, horaExtra: !p.horaExtra }))}
+              >
+                <Ionicons
+                  name={linhaAtual.horaExtra ? 'checkbox' : 'square-outline'}
+                  size={20}
+                  color={linhaAtual.horaExtra ? '#28a745' : '#666'}
+                />
+                <Text style={{ marginLeft: 8, color: '#333' }}>Hora extra</Text>
+              </TouchableOpacity>
+
+              {/* Adicionar à lista */}
+              <TouchableOpacity onPress={adicionarLinhaExterno} style={{ borderRadius: 8, overflow: 'hidden' }}>
+                <LinearGradient colors={['#17a2b8', '#0ea5a3']} style={styles.buttonGradient}>
+                  <Ionicons name="add-circle" size={16} color="#fff" />
+                  <Text style={styles.buttonText}>Adicionar à lista</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Lista temporária */}
+              {linhasExternos.length > 0 && (
+                <>
+                  <View style={{ height: 12 }} />
+                  <Text style={[styles.inputLabel, { marginBottom: 8 }]}>Linhas para submeter</Text>
+                  {linhasExternos.map(l => (
+                    <View key={l.key} style={styles.externoLinha}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontWeight: '700', color: '#333' }}>{l.funcionario} — {l.empresa}</Text>
+                        <Text style={{ color: '#666', fontSize: 12 }}>
+                          Obra #{l.obraId} · Dia {l.dia} · {Math.round(l.horasMin/60*100)/100}h · {l.valor?.toFixed(2)} {l.moeda}
+                          {l.horaExtra ? ' · Hora extra' : ''}
+                        </Text>
+                        <Text style={{ color: '#666', fontSize: 12 }}>
+                          {(l.categoria === 'Equipamentos' ? 'Equipamento' : 'Especialidade') + ': '}
+                          {l.especialidadeDesc || l.especialidadeCodigo}
+                        </Text>
+                      </View>
+                      <TouchableOpacity onPress={() => removerLinhaExterno(l.key)}>
+                        <Ionicons name="trash" size={20} color="#dc3545" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </>
+              )}
+
+              <View style={{ height: 12 }} />
+              <TouchableOpacity onPress={submeterExternos} disabled={linhasExternos.length === 0} style={{ borderRadius: 8, overflow: 'hidden', opacity: linhasExternos.length === 0 ? 0.6 : 1 }}>
+                <LinearGradient colors={['#6f42c1', '#5b32a3']} style={styles.buttonGradient}>
+                  <Ionicons name="cloud-upload" size={16} color="#fff" />
+                  <Text style={styles.buttonText}>Submeter Externos</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+
+
+
+const renderDataSheet = () => {
         if (dadosProcessados.length === 0) {
             return (
                 <View style={styles.emptyContainer}>
@@ -1245,265 +2063,423 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                 </View>
             );
         }
-if (modoVisualizacao === 'obra') {
-        return (
-            <View style={styles.tableWrapper}>
-                <Text style={styles.tableInstructions}>
-                    Toque para definir as especialidades
-                </Text>
-                <ScrollView 
-                    style={styles.tableContainer}
-                    nestedScrollEnabled={true}
-                    showsVerticalScrollIndicator={true}
-                    showsHorizontalScrollIndicator={true}
-                >
-                    <ScrollView 
-                        horizontal 
-                        style={styles.horizontalScroll}
-                        showsHorizontalScrollIndicator={true}
-                        nestedScrollEnabled={true}
-                    >
-                        <View style={styles.tableContent}>
-                            {/* Renderizar dados agrupados por obra */}
-                            {Object.values(dadosAgrupadosPorObra).map((obraGroup, obraIndex) => (
-                                <View key={obraGroup.obraInfo.id}>
-                                    {/* Cabeçalho da obra */}
-                                    <View style={styles.obraHeader}>
-                                        <View style={styles.obraHeaderContent}>
-                                            <MaterialCommunityIcons 
-                                                name="office-building" 
-                                                size={20} 
-                                                color="#1792FE" 
-                                                style={{ marginRight: 8 }}
-                                            />
-                                            <Text style={styles.obraHeaderText}>
-                                                {obraGroup.obraInfo.nome}
-                                            </Text>
-                                            <Text style={styles.obraHeaderCode}>
-                                                ({obraGroup.obraInfo.codigo})
-                                            </Text>
-                                        </View>
-                                        <View style={styles.obraStats}>
-                                            <Text style={styles.obraStatsText}>
-                                                {obraGroup.trabalhadores.length} trabalhador{obraGroup.trabalhadores.length !== 1 ? 'es' : ''}
-                                            </Text>
-                                            <Text style={styles.obraStatsText}>
-                                                Total: {formatarHorasMinutos(obraGroup.trabalhadores.reduce((total, trab) => {
-                                                    return total + diasDoMes.reduce((trabTotal, dia) => 
-                                                        trabTotal + (trab.horasPorDia[dia] || 0), 0
-                                                    );
-                                                }, 0))}
-                                            </Text>
-                                           
-                                                
-                                      
-                                        </View>
-                                    </View>
+        if (modoVisualizacao === 'obra') {
+          return (
+              <View style={styles.tableWrapper}>
+                  <Text style={styles.tableInstructions}>
+                      Toque para definir as especialidades
+                  </Text>
+                  <ScrollView
+                      style={styles.tableContainer}
+                      nestedScrollEnabled={true}
+                      showsVerticalScrollIndicator={true}
+                      showsHorizontalScrollIndicator={true}
+                  >
+                      <ScrollView
+                          horizontal
+                          style={styles.horizontalScroll}
+                          showsHorizontalScrollIndicator={true}
+                          nestedScrollEnabled={true}
+                      >
+                          <View style={styles.tableContent}>
+                              {/* Renderizar dados agrupados por obra */}
+                              {Object.values(dadosAgrupadosPorObra).map((obraGroup, obraIndex) => (
+                                  <View key={obraGroup.obraInfo.id}>
+                                      {/* Cabeçalho da obra */}
+                                      <View style={styles.obraHeader}>
+                                          <View style={styles.obraHeaderContent}>
+                                              <MaterialCommunityIcons
+                                                  name="office-building"
+                                                  size={20}
+                                                  color="#1792FE"
+                                                  style={{ marginRight: 8 }}
+                                              />
+                                              <Text style={styles.obraHeaderText}>
+                                                  {obraGroup.obraInfo.nome}
+                                              </Text>
+                                              <Text style={styles.obraHeaderCode}>
+                                                  ({obraGroup.obraInfo.codigo})
+                                              </Text>
+                                          </View>
+                                          <View style={styles.obraStats}>
+                                              <Text style={styles.obraStatsText}>
+                                                  {obraGroup.trabalhadores.length} trabalhador{obraGroup.trabalhadores.length !== 1 ? 'es' : ''}
+                                              </Text>
+                                              <Text style={styles.obraStatsText}>
+                                                  Total: {formatarHorasMinutos(obraGroup.trabalhadores.reduce((total, trab) => {
+                                                      return total + diasDoMes.reduce((trabTotal, dia) =>
+                                                          trabTotal + (trab.horasPorDia[dia] || 0), 0
+                                                      );
+                                                  }, 0))}
+                                              </Text>
+                                          </View>
+                                      </View>
 
-                                    {/* Cabeçalho dos dias para esta obra */}
-                                    <View style={styles.obraDaysHeader}>
-                                        <View style={[styles.tableCell, { width: 120 }]}>
-                                            <Text style={styles.obraDaysHeaderText}>Trabalhador</Text>
-                                        </View>
-                                        
-                                        {diasDoMes.map(dia => (
-                                            <View key={dia} style={[styles.tableCell, { width: 50 }]}>
-                                                <Text style={styles.obraDaysHeaderText}>{dia}</Text>
-                                            </View>
-                                        ))}
-                                        <View style={[styles.tableCell, { width: 70 }]}>
-                                            <Text style={styles.obraDaysHeaderText}>Total</Text>
-                                        </View>
-                                        
-                                    </View>
+                                      {/* Cabeçalho dos dias para esta obra */}
+                                      <View style={styles.obraDaysHeader}>
+                                          <View style={[styles.tableCell, { width: 120 }]}>
+                                              <Text style={styles.obraDaysHeaderText}>Trabalhador</Text>
+                                          </View>
 
-                                    {/* Trabalhadores da obra */}
-                                    {obraGroup.trabalhadores.map((item, trabIndex) => (
-                                        <View key={`${item.userId}-${item.obraId}`} style={[
-                                            styles.tableRow,
-                                            trabIndex % 2 === 0 ? styles.evenRow : styles.oddRow,
-                                            styles.trabalhadoresRow
-                                        ]}>
-                                            <View style={[styles.tableCell, { width: 120 }]}>
-                                                <Text style={styles.cellText} numberOfLines={1}>
-                                                    {item.userName}
-                                                </Text>
-                                            </View>
-                                       
-                                            {diasDoMes.map(dia => {
-                                                const cellKey = `${item.userId}-${item.obraId}-${dia}`;
-                                                const editadoManual = diasEditadosManualmente.has(cellKey);
+                                          {diasDoMes.map(dia => (
+                                              <View key={dia} style={[styles.tableCell, { width: 50 }]}>
+                                                  <Text style={styles.obraDaysHeaderText}>{dia}</Text>
+                                              </View>
+                                          ))}
+                                          <View style={[styles.tableCell, { width: 70 }]}>
+                                              <Text style={styles.obraDaysHeaderText}>Total</Text>
+                                          </View>
+                                      </View>
 
-                                                const submetido = itemJaSubmetido(item.codFuncionario, item.obraId, dia);
+                                      {/* Trabalhadores da obra */}
+                                      {obraGroup.trabalhadores.map((item, trabIndex) => (
+                                          <View key={`${item.userId}-${item.obraId}`} style={[
+                                              styles.tableRow,
+                                              trabIndex % 2 === 0 ? styles.evenRow : styles.oddRow,
+                                              styles.trabalhadoresRow
+                                          ]}>
+                                              <View style={[styles.tableCell, { width: 120 }]}>
+                                                  <Text style={styles.cellText} numberOfLines={1}>
+                                                      {item.userName}
+                                                  </Text>
+                                              </View>
 
-return (
-   <View style={[styles.tableCell, { width: 50 }, submetido && styles.cellSubmetido, editadoManual && styles.cellEditado]}>
-     <TouchableOpacity
-       style={[styles.cellTouchable, submetido && styles.cellSubmetido, submetido && { opacity: 0.6 }]}
-       disabled={submetido}
-       onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
-     >
-       <Text style={[styles.cellText, { textAlign: 'center' }, item.horasPorDia[dia] > 0 && styles.hoursText, styles.clickableHours]}>
-         { item.horasOriginais[dia] > 0
-           ? `${formatarHorasMinutos(480)}`
-           : '-' }
-       </Text>
-       {submetido && (
-         <Ionicons
-           name="checkmark-circle"
-           size={16}
-           color="#28a745"
-           style={styles.iconSubmetido}
-         />
-       )}
-     </TouchableOpacity>
-   </View>
- );
-})}
-                                            <View style={[styles.tableCell, { width: 70 }]}>
-                                                <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
-                                                    {formatarHorasMinutos(diasDoMes.reduce((total, dia) => 
-                                                        total + (item.horasPorDia[dia] || 0), 0
-                                                    ))}
-                                                </Text>
-                                            </View>
-                                          
-                                        </View>
-                                    ))}
+                                              {diasDoMes.map(dia => {
+                                                  const cellKey = `${item.userId}-${item.obraId}-${dia}`;
+                                                  const editadoManual = diasEditadosManualmente.has(cellKey);
+                                                  const submetido = itemJaSubmetido(item.codFuncionario, item.obraId, dia);
 
-                                    {/* Separador entre obras */}
-                                    {obraIndex < Object.values(dadosAgrupadosPorObra).length - 1 && (
-                                        <View style={styles.obraSeparator} />
-                                    )}
-                                </View>
-                            ))}
-                        </View>
-                    </ScrollView>
-                </ScrollView>
-            </View>
-        );
+                                                  return (
+                                                     <View key={`${cellKey}`} style={[styles.tableCell, { width: 50 }, submetido && styles.cellSubmetido, editadoManual && styles.cellEditado]}>
+                                                       <TouchableOpacity
+                                                         style={[styles.cellTouchable, submetido && styles.cellSubmetido, submetido && { opacity: 0.6 }]}
+                                                         disabled={submetido}
+                                                         onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
+                                                       >
+                                                         <Text style={[styles.cellText, { textAlign: 'center' }, item.horasPorDia[dia] > 0 && styles.hoursText, styles.clickableHours]}>
+                                                           { item.horasOriginais[dia] > 0
+                                                             ? `${formatarHorasMinutos(480)}`
+                                                             : '-' }
+                                                         </Text>
+                                                         {submetido && (
+                                                           <Ionicons
+                                                             name="checkmark-circle"
+                                                             size={16}
+                                                             color="#28a745"
+                                                             style={styles.iconSubmetido}
+                                                           />
+                                                         )}
+                                                       </TouchableOpacity>
+                                                     </View>
+                                                   );
+                                              })}
+                                              <View style={[styles.tableCell, { width: 70 }]}>
+                                                  <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
+                                                      {formatarHorasMinutos(diasDoMes.reduce((total, dia) =>
+                                                          total + (item.horasPorDia[dia] || 0), 0
+                                                      ))}
+                                                  </Text>
+                                              </View>
+                                          </View>
+                                      ))}
+                                        {/* 🔹 EXTERNOS (SUBMETIDOS) – vindos do servidor */}
+{(() => {
+  const extMapSub = externosSubmetidosPorObraPessoa.get(obraGroup.obraInfo.id);
+  if (!extMapSub || extMapSub.size === 0) return null;
 
-    }else {
-    return (
-        // Vista por utilizador
-        <ScrollView style={styles.tableContainer}>
-            <ScrollView horizontal style={styles.horizontalScroll}>
-                <View style={styles.tableContent}>
-                    {Object.values(dadosAgrupadosPorUser).map((userGroup, userIndex) => (
-                        <View key={userGroup.userInfo.id}>
-                            <View style={styles.obraHeader}>
-                                <Text style={styles.obraHeaderText}>
-                                    {userGroup.userInfo.nome}
-                                </Text>
-                            </View>
+  return [...extMapSub.values()].map((row) => (
+    <View
+      key={`ext-sub-${obraGroup.obraInfo.id}-${row.funcionario}`}
+      style={[styles.tableRow, styles.externoSubmetidoRow]}
+    >
+      {/* Coluna do nome */}
+      <View style={[styles.tableCell, { width: 120 }]}>
+        <Text style={[styles.cellText, { fontWeight: '700' }]}>
+          {row.funcionario} <Text style={{ fontWeight: '400' }}>(Externo)</Text>
+        </Text>
+        <Text style={styles.cellSubText}>✓ submetido</Text>
+      </View>
 
-                            <View style={styles.obraDaysHeader}>
-                                <View style={[styles.tableCell, { width: 120 }]}>
-                                    <Text style={styles.obraDaysHeaderText}>Obra</Text>
-                                </View>
-                                {diasDoMes.map(dia => (
-                                    
-                                    <View key={dia} style={[styles.tableCell, { width: 50 }]}>
-                                        <Text style={styles.obraDaysHeaderText}>{dia}</Text>
-                                    </View>
-                                ))}
-                                <View style={[styles.tableCell, { width: 70 }]}>
-                                    <Text style={styles.obraDaysHeaderText}>Total</Text>
-                                </View>
-                            </View>
+      {/* Colunas dos dias */}
+      {diasDoMes.map((dia) => (
+        <View
+          key={`ext-sub-${obraGroup.obraInfo.id}-${row.funcionario}-${dia}`}
+          style={[styles.tableCell, { width: 50 }]}
+        >
+          <Text
+            style={[
+              styles.cellText,
+              { textAlign: 'center' },
+              row.horasPorDia[dia] > 0 && styles.hoursText,
+            ]}
+          >
+            {row.horasPorDia[dia] > 0 ? formatarHorasMinutos(row.horasPorDia[dia]) : '-'}
+          </Text>
+        </View>
+      ))}
 
-                            {userGroup.obras.map((item, obraIndex) => (
-                                <View key={`${item.userId}-${item.obraId}`} style={[
-                                    styles.tableRow,
-                                    obraIndex % 2 === 0 ? styles.evenRow : styles.oddRow,
-                                    styles.trabalhadoresRow
-                                ]}>
-                                    <View style={[styles.tableCell, { width: 120 }]}>
-                                        <Text style={styles.cellText}>
-                                            {item.obraNome}
-                                        </Text>
-                                    </View>
-                                    {diasDoMes.map(dia => {
-  const cellKey = `${item.userId}-${item.obraId}-${dia}`;
-
-  // 👉 Aqui você precisa chamar itemJaSubmetido com o codFuncionario:
-  const submetido = itemJaSubmetido(item.codFuncionario, item.obraId, dia);
-  const editadoManual = diasEditadosManualmente.has(cellKey); // <- ADICIONA ISTO
-
-return (
-   <View style={[styles.tableCell, { width: 50 }, submetido && styles.cellSubmetido, editadoManual && styles.cellEditado]}>
-     <TouchableOpacity
-       style={[styles.cellTouchable, submetido && styles.cellSubmetido, submetido && { opacity: 0.6 }]}
-       disabled={submetido}
-       onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
-     >
-       <Text style={[styles.cellText, { textAlign: 'center' }, item.horasPorDia[dia] > 0 && styles.hoursText, styles.clickableHours]}>
-         { item.horasPorDia[dia] > 0 ? `${formatarHorasMinutos(item.horasPorDia[dia])}` : '-' }
-       </Text>
-       {submetido && (
-         <Ionicons
-           name="checkmark-circle"
-           size={16}
-           color="#28a745"
-           style={styles.iconSubmetido}
-         />
-       )}
-     </TouchableOpacity>
-   </View>
- );
-})}
-
-                                    <View style={[styles.tableCell, { width: 70 }]}>
-                                        <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
-                                            {formatarHorasMinutos(diasDoMes.reduce((total, dia) =>
-                                                total + (item.horasPorDia[dia] || 0), 0
-                                            ))}
-                                        </Text>
-                                    </View>
-                                    
-                                </View>
-                            ))}
-                            {/* Linha de total por dia para este utilizador */}
-<View style={[styles.tableRow, { backgroundColor: '#f0f0f0' }]}>
-  <View style={[styles.tableCell, { width: 120 }]}>
-    <Text style={[styles.cellText, { fontWeight: 'bold', color: '#000' }]}>
-      Total
-    </Text>
-  </View>
-
-  {diasDoMes.map(dia => {
-    const totalMinutosDia = userGroup.obras.reduce((acc, obraItem) => {
-      return acc + (obraItem.horasPorDia[dia] || 0);
-    }, 0);
-
-    return (
-      <View key={`total-${userGroup.userInfo.id}-${dia}`} style={[styles.tableCell, { width: 50 }]}>
-        <Text style={[styles.cellText, { fontWeight: '600', color: '#333', textAlign: 'center' }]}>
-          {formatarHorasMinutos(totalMinutosDia)}
+      {/* Total */}
+      <View style={[styles.tableCell, { width: 70 }]}>
+        <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
+          {formatarHorasMinutos(row.totalMin)}
         </Text>
       </View>
-    );
-  })}
+    </View>
+  ));
+})()}
 
-  <View style={[styles.tableCell, { width: 70 }]}>
-    <Text style={[styles.cellText, { fontWeight: '700', textAlign: 'center', color: '#1792FE' }]}>
-      {formatarHorasMinutos(
-        diasDoMes.reduce((acc, dia) => {
-          return acc + userGroup.obras.reduce((accObra, item) => accObra + (item.horasPorDia[dia] || 0), 0);
-        }, 0)
-      )}
-    </Text>
-  </View>
-</View>
+                                      {/* 🔹 LINHA AGREGADA DE EXTERNOS POR OBRA (se existir) */}
+                                      {(() => {
+  const extMap = externosPorObraPessoa.get(obraGroup.obraInfo.id);
+  if (!extMap || extMap.size === 0) return null;
 
-                        </View>
-                    ))}
-                </View>
-            </ScrollView>
-        </ScrollView>
-    );
-};
-}
+  return [...extMap.values()].map((row) => (
+    <View
+      key={`ext-${obraGroup.obraInfo.id}-${row.trabalhadorId}`}
+      style={[styles.tableRow, styles.externoResumoRow]}
+    >
+      {/* Coluna do nome */}
+      <View style={[styles.tableCell, { width: 120 }]}>
+        <Text style={[styles.cellText, { fontWeight: '700' }]}>
+          {row.funcionario} <Text style={{ fontWeight: '400' }}>(Externo)</Text>
+        </Text>
+        {!!row.empresa && (
+          <Text style={styles.cellSubText}>{row.empresa}</Text>
+        )}
+      </View>
+
+      {/* Colunas dos dias */}
+      {diasDoMes.map((dia) => (
+        <View
+          key={`ext-${obraGroup.obraInfo.id}-${row.trabalhadorId}-${dia}`}
+          style={[styles.tableCell, { width: 50 }]}
+        >
+          <Text
+            style={[
+              styles.cellText,
+              { textAlign: 'center' },
+              row.horasPorDia[dia] > 0 && styles.hoursText,
+            ]}
+          >
+            {row.horasPorDia[dia] > 0 ? formatarHorasMinutos(row.horasPorDia[dia]) : '-'}
+          </Text>
+        </View>
+      ))}
+
+      {/* Total */}
+      <View style={[styles.tableCell, { width: 70 }]}>
+        <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
+          {formatarHorasMinutos(row.totalMin)}
+        </Text>
+      </View>
+    </View>
+  ));
+})()}
+
+
+                                      {/* Separador entre obras */}
+                                      {obraIndex < Object.values(dadosAgrupadosPorObra).length - 1 && (
+                                          <View style={styles.obraSeparator} />
+                                      )}
+                                  </View>
+                              ))}
+                          </View>
+                      </ScrollView>
+                  </ScrollView>
+              </View>
+          );
+        } else {
+          return (
+              // Vista por utilizador
+              <ScrollView style={styles.tableContainer}>
+                  <ScrollView horizontal style={styles.horizontalScroll}>
+                      <View style={styles.tableContent}>
+                          {Object.values(dadosAgrupadosPorUser).map((userGroup, userIndex) => (
+                              <View key={userGroup.userInfo.id}>
+                                  <View style={styles.obraHeader}>
+                                      <Text style={styles.obraHeaderText}>
+                                          {userGroup.userInfo.nome}
+                                      </Text>
+                                  </View>
+
+                                  <View style={styles.obraDaysHeader}>
+                                      <View style={[styles.tableCell, { width: 120 }]}>
+                                          <Text style={styles.obraDaysHeaderText}>Obra</Text>
+                                      </View>
+                                      {diasDoMes.map(dia => (
+                                          <View key={dia} style={[styles.tableCell, { width: 50 }]}>
+                                              <Text style={styles.obraDaysHeaderText}>{dia}</Text>
+                                          </View>
+                                      ))}
+                                      <View style={[styles.tableCell, { width: 70 }]}>
+                                          <Text style={styles.obraDaysHeaderText}>Total</Text>
+                                      </View>
+                                  </View>
+
+                                  {userGroup.obras.map((item, obraIndex) => (
+                                      <View key={`${item.userId}-${item.obraId}`} style={[
+                                          styles.tableRow,
+                                          obraIndex % 2 === 0 ? styles.evenRow : styles.oddRow,
+                                          styles.trabalhadoresRow
+                                      ]}>
+                                          <View style={[styles.tableCell, { width: 120 }]}>
+                                              <Text style={styles.cellText}>
+                                                  {item.obraNome}
+                                              </Text>
+                                          </View>
+                                          {diasDoMes.map(dia => {
+                                            const cellKey = `${item.userId}-${item.obraId}-${dia}`;
+                                            const submetido = itemJaSubmetido(item.codFuncionario, item.obraId, dia);
+                                            const editadoManual = diasEditadosManualmente.has(cellKey);
+
+                                            return (
+                                               <View key={`${cellKey}`} style={[styles.tableCell, { width: 50 }, submetido && styles.cellSubmetido, editadoManual && styles.cellEditado]}>
+                                                 <TouchableOpacity
+                                                   style={[styles.cellTouchable, submetido && styles.cellSubmetido, submetido && { opacity: 0.6 }]}
+                                                   disabled={submetido}
+                                                   onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
+                                                 >
+                                                   <Text style={[styles.cellText, { textAlign: 'center' }, item.horasPorDia[dia] > 0 && styles.hoursText, styles.clickableHours]}>
+                                                     { item.horasPorDia[dia] > 0 ? `${formatarHorasMinutos(item.horasPorDia[dia])}` : '-' }
+                                                   </Text>
+                                                   {submetido && (
+                                                     <Ionicons
+                                                       name="checkmark-circle"
+                                                       size={16}
+                                                       color="#28a745"
+                                                       style={styles.iconSubmetido}
+                                                     />
+                                                   )}
+                                                 </TouchableOpacity>
+                                               </View>
+                                             );
+                                          })}
+
+                                          <View style={[styles.tableCell, { width: 70 }]}>
+                                              <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
+                                                  {formatarHorasMinutos(diasDoMes.reduce((total, dia) =>
+                                                      total + (item.horasPorDia[dia] || 0), 0
+                                                  ))}
+                                              </Text>
+                                          </View>
+                                      </View>
+                                  ))}
+
+                                  {/* Linha de total por dia para este utilizador */}
+                                  <View style={[styles.tableRow, { backgroundColor: '#f0f0f0' }]}>
+                                    <View style={[styles.tableCell, { width: 120 }]}>
+                                      <Text style={[styles.cellText, { fontWeight: 'bold', color: '#000' }]}>
+                                        Total
+                                      </Text>
+                                    </View>
+
+                                    {diasDoMes.map(dia => {
+                                      const totalMinutosDia = userGroup.obras.reduce((acc, obraItem) => {
+                                        return acc + (obraItem.horasPorDia[dia] || 0);
+                                      }, 0);
+
+                                      return (
+                                        <View key={`total-${userGroup.userInfo.id}-${dia}`} style={[styles.tableCell, { width: 50 }]}>
+                                          <Text style={[styles.cellText, { fontWeight: '600', color: '#333', textAlign: 'center' }]}>
+                                            {formatarHorasMinutos(totalMinutosDia)}
+                                          </Text>
+                                        </View>
+                                      );
+                                    })}
+
+                                    <View style={[styles.tableCell, { width: 70 }]}>
+                                      <Text style={[styles.cellText, { fontWeight: '700', textAlign: 'center', color: '#1792FE' }]}>
+                                        {formatarHorasMinutos(
+                                          diasDoMes.reduce((acc, dia) => {
+                                            return acc + userGroup.obras.reduce((accObra, item) => accObra + (item.horasPorDia[dia] || 0), 0);
+                                          }, 0)
+                                        )}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                  
+                              </View>
+                          ))}
+                            {/* === EXTERNOS na vista por UTILIZADOR === */}
+{externosAgrupadosPorPessoa.length > 0 && (
+  <>
+    <View style={[styles.obraHeader, { marginTop: 10 }]}>
+    </View>
+
+    {externosAgrupadosPorPessoa.map((ext, idx) => (
+      <View key={`extuser-${idx}`}>
+        {/* Cabeçalho do "utilizador externo" */}
+        <View style={styles.obraHeader}>
+          <View style={styles.obraHeaderContent}>
+            <Text style={styles.obraHeaderText}>
+              {ext.nome} <Text style={{ fontWeight: 'normal' }}>(Externo)</Text>
+            </Text>
+            {!!ext.empresa && (
+              <Text style={styles.obraHeaderCode}> · {ext.empresa}</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Cabeçalho dos dias */}
+        <View style={styles.obraDaysHeader}>
+          <View style={[styles.tableCell, { width: 120 }]}>
+            <Text style={styles.obraDaysHeaderText}>Obra</Text>
+          </View>
+          {diasDoMes.map(dia => (
+            <View key={dia} style={[styles.tableCell, { width: 50 }]}>
+              <Text style={styles.obraDaysHeaderText}>{dia}</Text>
+            </View>
+          ))}
+          <View style={[styles.tableCell, { width: 70 }]}>
+            <Text style={styles.obraDaysHeaderText}>Total</Text>
+          </View>
+        </View>
+
+        {/* Linhas (obras) para este externo */}
+        {ext.obras.map((obraItem, obraIndex) => (
+          <View
+            key={`extuser-${idx}-${obraItem.obraId}`}
+            style={[
+              styles.tableRow,
+              obraIndex % 2 === 0 ? styles.evenRow : styles.oddRow,
+              styles.trabalhadoresRow,
+            ]}
+          >
+            <View style={[styles.tableCell, { width: 120 }]}>
+              <Text style={styles.cellText}>{obraItem.obraNome}</Text>
+            </View>
+
+            {diasDoMes.map(dia => (
+              <View key={`extuser-${idx}-${obraItem.obraId}-${dia}`} style={[styles.tableCell, { width: 50 }]}>
+                <Text style={[
+                  styles.cellText,
+                  { textAlign: 'center' },
+                  obraItem.horasPorDia[dia] > 0 && styles.hoursText,
+                ]}>
+                  {obraItem.horasPorDia[dia] > 0 ? formatarHorasMinutos(obraItem.horasPorDia[dia]) : '-'}
+                </Text>
+              </View>
+            ))}
+
+            <View style={[styles.tableCell, { width: 70 }]}>
+              <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
+                {formatarHorasMinutos(obraItem.totalMin)}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    ))}
+  </>
+)}
+                      </View>
+                    
+
+                  </ScrollView>
+              </ScrollView>
+          );
+        }
+    };
 
     const renderConfirmModal = () => (
         <Modal
@@ -1569,6 +2545,8 @@ return (
             
             <View style={styles.modalContainer}>
                 <View style={styles.modalContent}>
+                  
+
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Editar Especialidade</Text>
                         <TouchableOpacity
@@ -1618,6 +2596,19 @@ return (
 
                             {editData.especialidadesDia?.map((espItem, index) => (
                                 <View key={index} style={styles.especialidadeItem}>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabelSmall}>Obra destino</Text>
+                                        <View style={{ backgroundColor: '#f0f0f0', borderRadius: 8 }}>
+                                            <Picker
+                                            selectedValue={espItem.obraId ?? selectedTrabalhador.obraId}
+                                            onValueChange={(v) => atualizarEspecialidade(index, 'obraId', v)}>
+                                            {obrasParaPickers.map(o => (
+                                                <Picker.Item key={o.id} label={o.nome} value={o.id} />
+                                            ))}
+                                            </Picker>
+                                        </View>
+                                        </View>
+
                                     <View style={styles.especialidadeHeader}><View style={{ flexDirection: 'row', alignItems: 'center' }}>
   <Text style={styles.especialidadeTitle}>Especialidade {index + 1}</Text>
   <TouchableOpacity
@@ -1800,6 +2791,8 @@ return (
         {renderDataSheet()}
         {renderConfirmModal()}
         {renderEditModal()}
+        {renderExternosModal()}
+
       </ScrollView>
     </SafeAreaView>
   </LinearGradient>
@@ -1814,6 +2807,20 @@ const styles = StyleSheet.create({
     },
     cellEditado: {
   backgroundColor: '#fff3cd', // amarelo claro
+},
+externoSubmetidoRow: {
+  backgroundColor: '#eefaf0', // verde muito claro
+},
+externoLinha: {
+  backgroundColor: '#f8f9fa',
+  borderWidth: 1,
+  borderColor: '#e0e0e0',
+  paddingVertical: 10,
+  paddingHorizontal: 12,
+  borderRadius: 10,
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 8,
 },
 
     header: {

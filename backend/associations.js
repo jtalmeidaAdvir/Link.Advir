@@ -6,20 +6,20 @@ const Submodulo = require('./models/submodulo');
 const UserModulo = require('./models/user_modulo');
 const UserSubmodulo = require('./models/user_submodulo');
 const EmpresaModulo = require('./models/empresa_modulo');
+const Obra = require('./models/obra');
 const RegistoPonto = require('./models/registoPonto');
 const Intervalo = require('./models/intervalo');
-const FaltasFerias = require('./models/faltas_ferias');
 const PedidoAlteracao = require('./models/pedidoalteracao');
-const Obra = require('./models/obra');
-const EquipaObra = require('./models/equipaObra');
+const FaltasFerias = require('./models/faltas_ferias');
 const RegistoPontoObra = require('./models/registoPontoObra');
-const PartesDiarias = require('./models/partesDiarias');
+const TrabalhadorExterno = require('./models/trabalhadorExterno');
+const EquipaObra = require('./models/equipaObra');
+const BiometricCredential = require('./models/biometricCredential');
 const Notificacao = require('./models/notificacao');
 const ParteDiariaCabecalho = require('./models/parteDiariaCabecalho');
 const ParteDiariaItem = require('./models/parteDiariaItem');
-const Contact = require('./models/contact');
-const Schedule = require('./models/schedule');
-const BiometricCredential = require('./models/biometricCredential'); // Assumindo que este modelo existe
+const PartesDiarias = require('./models/partesDiarias');
+const AnexoPedido = require('./models/anexoPedido');
 
 // Nota: Contact e Schedule são tabelas independentes para o WhatsApp Web
 // sem relações diretas com outras tabelas
@@ -96,11 +96,11 @@ module.exports = {
     Obra,
     EquipaObra,
     RegistoPontoObra,
-    PartesDiarias,
+    TrabalhadorExterno,
     Notificacao,
     ParteDiariaCabecalho,
     ParteDiariaItem,
-    Contact,
-    Schedule,
+    PartesDiarias,
+    AnexoPedido,
     BiometricCredential,
 };

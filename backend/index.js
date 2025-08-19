@@ -18,6 +18,7 @@ const faltasFeriasRoutes = require('./routes/faltasFeriasRoutes');
 const notificacaoRoutes = require('./routes/notificacaoRoutes');
 const parteRoutes = require('./routes/parteDiariaRoutes');
 const whatsappWebRoutes = require('./routes/whatsappWebRoutes');
+const anexoPedidoRoutes = require('./routes/anexoPedidoRoutes');
 const biometricRoutes = require('./routes/biometricRoutes');
 const trabalhadoresExternosRoutes = require('./routes/trabalhadoresExternosRoutes');
 
@@ -34,7 +35,9 @@ require('./associations');  // Importa o ficheiro onde as associações estão d
 
 const app = express();
 app.use(cors());
+app.use('/api/anexo-pedido', anexoPedidoRoutes);
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload());
 
 async function startApp() {
@@ -132,6 +135,7 @@ app.use('/api/faltas-ferias', faltasFeriasRoutes);
 app.use('/api', notificacaoRoutes);
 app.use('/api/parte-diaria', parteRoutes);
 app.use('/api/whatsapp-web', whatsappWebRoutes);
+
 app.use('/api/trabalhadores-externos', trabalhadoresExternosRoutes);
 
 // Verificar se biometricRoutes está a ser carregado corretamente
@@ -282,7 +286,7 @@ app.post('/api/fix-whatsapp-tables', async (req, res) => {
 
 
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor iniciado na porta ${PORT}`);
     console.log(`Acesso disponível em: http://localhost:${PORT}`);

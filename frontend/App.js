@@ -52,6 +52,8 @@ import RegistoPontoObra from './src/Pages/Assiduidade/RegistoPontoObra';
 import CalendarioHorasTrabalho from './src/Pages/Assiduidade/CalendarioHorasTrabalho';
 
 import AprovacaoFaltaFerias from './src/Pages/Assiduidade/AprovacaoFaltaFerias';
+
+import GestaoTrabalhadoresExternos from './src/Pages/Obras/Externos/GestaoTrabalhadoresExternos';
 import GestaoPartesDiarias from './src/Pages/Obras/GestaoPartesDiarias';
 
 import AprovacaoPontoPendentes from './src/Pages/Assiduidade/AprovacaoPontoPendentes';
@@ -291,6 +293,19 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
 
 
                            
+
+                        </>
+
+                    )}
+                    {(tipoUser === "Administrador") && (
+                        <>
+                            <DrawerItem
+                                label={t("Gestão Externos")}
+                                onPress={() => props.navigation.navigate('GestaoTrabalhadoresExternos')}
+                                icon={() => <FontAwesome name="check-square" size={20} color="#1792FE" />}
+                                options={{ drawerItemStyle: (tipoUser === "Administrador") ? {} : { display: 'none' } }}
+
+                            />
 
                         </>
 
@@ -753,6 +768,7 @@ const AppNavigator = () => {
             <Drawer.Screen name="CalendarioHorasTrabalho" component={CalendarioHorasTrabalho} />
 
             <Drawer.Screen name="AprovacaoFaltaFerias" component={AprovacaoFaltaFerias} />
+            <Drawer.Screen name="GestaoTrabalhadoresExternos" component={GestaoTrabalhadoresExternos} />
             <Drawer.Screen name="AprovacaoPontoPendentes" component={AprovacaoPontoPendentes} />
             <Drawer.Screen name="GestaoPartesDiarias" component={GestaoPartesDiarias} />
             

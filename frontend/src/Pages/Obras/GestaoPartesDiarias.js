@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -11,7 +10,6 @@ import {
   ScrollView,
   SafeAreaView,
   RefreshControl,
-  Animated,
   Alert
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const GestaoPartesDiarias = () => {
-// === NO TOPO DO FICHEIRO (fora do componente) ===
 // === NO TOPO DO FICHEIRO (fora do componente) ===
 const DOC_ID_DEFAULT = '1747FEA9-5D2F-45B4-A89B-9EA30B1E0DCB'; // mão-de-obra/outros
 const DOC_ID_EQUIP   = '11C77189-1046-4CDE-96F9-503B8EB25B08'; // equipamentos
@@ -52,7 +49,6 @@ const buildPayloadPessoal = ({ docId, cab, itens, idObra, colaboradorIdCab, cola
 });
 
 // Equipamentos (usa InsertParteDiariaEquipamento)
-// ATENÇÃO: schema diferente (NumHorasTrabalho / PrecoUnit / etc.) e sem TipoEntidade/ColaboradorID/TIpoHoraID
 const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
   Cabecalho: {
     DocumentoID: docId,
@@ -64,8 +60,7 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
     Encarregado: null,
   },
   Itens: itens.map(it => ({
-    // aqui o ComponenteID recebe o que vinha no SubEmpID
-    ComponenteID: it.SubEmpID ?? 0,
+    ComponenteID: it.SubEmpID ?? 0, // aqui o ComponenteID recebe o que vinha no SubEmpID
     Funcionario: '',
     ClasseID: it.ClasseID ?? -1,
     Fornecedor: null,
@@ -77,8 +72,6 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
     ItemId: null,
   })),
 });
-
-
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -92,7 +85,7 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
   const [cacheColaboradorID, setCacheColaboradorID] = useState({});
   const [filtroEstado, setFiltroEstado] = useState('pendentes');
   const [integrandoIds, setIntegrandoIds] = useState(new Set());
-const [equipamentosMap, setEquipamentosMap] = useState({});
+  const [equipamentosMap, setEquipamentosMap] = useState({});
 
   const cabecalhosFiltrados = useMemo(() => {
     if (filtroEstado === 'pendentes') return cabecalhos.filter(c => !c.IntegradoERP);
@@ -103,7 +96,7 @@ const [equipamentosMap, setEquipamentosMap] = useState({});
   useEffect(() => {
     (async () => {
       await fetchEspecialidades();
-      await fetchEquipamentos(); 
+      await fetchEquipamentos();
       await fetchObras();
       await fetchCabecalhos();
     })();
@@ -142,62 +135,72 @@ const [equipamentosMap, setEquipamentosMap] = useState({});
     }
   };
 
-const fetchEquipamentos = async () => {
-  try {
-    const token = await AsyncStorage.getItem('painelAdminToken');
-    const urlempresa = await AsyncStorage.getItem('urlempresa');
+  const fetchEquipamentos = async () => {
+    try {
+      const token = await AsyncStorage.getItem('painelAdminToken');
+      const urlempresa = await AsyncStorage.getItem('urlempresa');
 
-    const res = await fetch(
-      'https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos',
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          urlempresa,
-          'Content-Type': 'application/json',
+      const res = await fetch(
+        'https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            urlempresa,
+            'Content-Type': 'application/json',
+          }
         }
-      }
-    );
-    if (!res.ok) throw new Error('Falha ao obter equipamentos');
-    const data = await res.json();
+      );
+      if (!res.ok) throw new Error('Falha ao obter equipamentos');
+      const data = await res.json();
 
-    const table = data?.DataSet?.Table || [];
-    const map = {};
-    table.forEach(item => {
-      // ID correto = ComponenteID; Nome = Desig (podes juntar o Código se quiseres)
-      const id = String(item.ComponenteID ?? '');
-      const nome = item.Desig ?? '';
-      if (id) map[id] = nome || id;
-      // Se quiseres mostrar "Codigo — Desig", usa:
-      // if (id) map[id] = [item.Codigo, item.Desig].filter(Boolean).join(' — ') || id;
+      const table = data?.DataSet?.Table || [];
+      const map = {};
+      table.forEach(item => {
+        const id = String(item.ComponenteID ?? '');
+        const nome = item.Desig ?? '';
+        if (id) map[id] = nome || id;
+      });
+      setEquipamentosMap(map);
+    } catch (err) {
+      console.warn('Erro equipamentos:', err.message);
+    }
+  };
+
+  const getCategoriaChip = (categoria) => {
+    const cat = String(categoria || '').toLowerCase();
+    if (cat === 'equipamentos') {
+      return { label: 'Equipamento', bg: '#6f42c1', icon: 'construct' };
+    }
+    return { label: 'Pessoal', bg: '#17a2b8', icon: 'people' };
+  };
+
+  // === EXTERNOS: helpers ===
+  const isExternoItem = (it) => {
+    const semColab =
+      it.ColaboradorID === null ||
+      it.ColaboradorID === undefined ||
+      String(it.ColaboradorID).trim() === '';
+    const marca = String(it.Funcionario || '').toLowerCase().includes('(externo)');
+    return semColab || marca;
+  };
+
+  const hasOnlyExternos = (cab) => {
+    const itens = cab?.ParteDiariaItems || [];
+    return itens.length > 0 && itens.every(isExternoItem);
+  };
+
+  const contarPorCategoria = (itens = []) => {
+    let pes = 0, eq = 0, ext = 0;
+    itens.forEach(it => {
+      if (isExternoItem(it)) { ext++; return; }
+      if (String(it.Categoria || '').toLowerCase() === 'equipamentos') eq++;
+      else pes++;
     });
-    setEquipamentosMap(map);
-  } catch (err) {
-    console.warn('Erro equipamentos:', err.message);
-  }
-};
-
-
-const getCategoriaChip = (categoria) => {
-  const cat = String(categoria || '').toLowerCase();
-  if (cat === 'equipamentos') {
-    return { label: 'Equipamento', bg: '#6f42c1', icon: 'construct' };
-    // roxo
-  }
-  return { label: 'Pessoal', bg: '#17a2b8', icon: 'people' };
-  // azul-petróleo
-};
-
-const contarPorCategoria = (itens = []) => {
-  let pes = 0, eq = 0;
-  itens.forEach(it => {
-    if (String(it.Categoria || '').toLowerCase() === 'equipamentos') eq++;
-    else pes++;
-  });
-  return { pes, eq };
-};
-
+    return { pes, eq, ext };
+  };
 
   const obterNomeFuncionario = useCallback(async (codFuncionario) => {
+    if (!codFuncionario) return ''; // externos não têm ColaboradorID
     if (cacheNomes[codFuncionario]) return cacheNomes[codFuncionario];
 
     try {
@@ -232,6 +235,7 @@ const contarPorCategoria = (itens = []) => {
   }, [cacheNomes]);
 
   const obterColaboradorID = useCallback(async (codFuncionario) => {
+    if (!codFuncionario) return null;
     if (cacheColaboradorID[codFuncionario]) return cacheColaboradorID[codFuncionario];
 
     try {
@@ -371,114 +375,146 @@ const contarPorCategoria = (itens = []) => {
     return `${h > 0 ? `${h}h ` : ''}${m}m`;
   };
 
-// === DENTRO DO COMPONENTE, SUBSTITUI TOTALMENTE O TEU handleIntegrar POR ESTE ===
-const handleIntegrar = async (cab) => {
-  setIntegrandoIds(prev => new Set(prev).add(cab.DocumentoID));
+  // === INTEGRAR: exclui EXTERNOS (envia só internos)
+  const handleIntegrar = async (cab) => {
+    setIntegrandoIds(prev => new Set(prev).add(cab.DocumentoID));
 
-  try {
-    const token = await AsyncStorage.getItem('painelAdminToken');
-    const urlempresa = await AsyncStorage.getItem('urlempresa');
-    const loginToken = await AsyncStorage.getItem('loginToken');
-    if (!token || !urlempresa) {
-      Alert.alert('Erro', 'Token ou empresa em falta.');
-      return;
-    }
-
-    const apiUrlPessoal = 'https://webapiprimavera.advir.pt/routesFaltas/InsertParteDiariaItem';
-    const apiUrlEquip   = 'https://webapiprimavera.advir.pt/routesFaltas/InsertParteDiariaEquipamento';
-
-    // Obra (converter para ID do ERP)
-    const dadosObra = await obterCodObra(cab.ObraID);
-    const codigoObra = dadosObra?.codigo;
-    const idObra = await obterIDObra(codigoObra);
-
-    // Colaborador no cabeçalho (se existir em storage)
-    const codFuncLocal = await AsyncStorage.getItem('codFuncionario');
-    const colaboradorIdCab = codFuncLocal ? (await obterColaboradorID(codFuncLocal)) : null;
-
-    // Colaborador para os itens (se precisares)
-    const primeiroItemColab = cab?.ParteDiariaItems?.[0]?.ColaboradorID;
-    const colaboradorIdItens = primeiroItemColab ? (await obterColaboradorID(primeiroItemColab)) : null;
-
-    // dividir itens por categoria
-    const itens = cab.ParteDiariaItems || [];
-    const itensEquip   = itens.filter(it => String(it.Categoria || '').toLowerCase() === 'equipamentos');
-    const itensOutros  = itens.filter(it => String(it.Categoria || '').toLowerCase() !== 'equipamentos');
-
-    // construir pedidos com URL por tipo
-    const pedidos = [];
-    if (itensEquip.length > 0) {
-      pedidos.push({
-        nome: 'equipamentos',
-        url: apiUrlEquip,
-        payload: buildPayloadEquip({
-          docId: DOC_ID_EQUIP,
-          cab,
-          itens: itensEquip,
-          idObra,
-        }),
-      });
-    }
-    if (itensOutros.length > 0) {
-      pedidos.push({
-        nome: 'pessoal',
-        url: apiUrlPessoal,
-        payload: buildPayloadPessoal({
-          docId: DOC_ID_DEFAULT,
-          cab,
-          itens: itensOutros,
-          idObra,
-          colaboradorIdCab,
-          colaboradorIdItens,
-        }),
-      });
-    }
-
-    // enviar em sequência (erro pára tudo)
-    for (const p of pedidos) {
-      const resp = await fetch(p.url, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          urlempresa,
-        },
-        body: JSON.stringify(p.payload),
-      });
-      const result = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        console.error(`❌ Falha ao integrar (${p.nome}):`, result);
-        Alert.alert('Erro', `Falha ao integrar (${p.nome}): ${result?.detalhes || result?.error || 'erro desconhecido'}`);
+    try {
+      const token = await AsyncStorage.getItem('painelAdminToken');
+      const urlempresa = await AsyncStorage.getItem('urlempresa');
+      const loginToken = await AsyncStorage.getItem('loginToken');
+      if (!token || !urlempresa) {
+        Alert.alert('Erro', 'Token ou empresa em falta.');
         return;
       }
+
+      const apiUrlPessoal = 'https://webapiprimavera.advir.pt/routesFaltas/InsertParteDiariaItem';
+      const apiUrlEquip   = 'https://webapiprimavera.advir.pt/routesFaltas/InsertParteDiariaEquipamento';
+
+      // Obra (converter para ID do ERP)
+      const dadosObra = await obterCodObra(cab.ObraID);
+      const codigoObra = dadosObra?.codigo;
+      const idObra = await obterIDObra(codigoObra);
+
+      // Colaborador no cabeçalho (se existir em storage)
+      const codFuncLocal = await AsyncStorage.getItem('codFuncionario');
+      const colaboradorIdCab = codFuncLocal ? (await obterColaboradorID(codFuncLocal)) : null;
+
+      // Colaborador para os itens (primeiro NÃO externo)
+      const primeiroItemColab = cab?.ParteDiariaItems?.find(i => !isExternoItem(i))?.ColaboradorID;
+      const colaboradorIdItens = primeiroItemColab ? (await obterColaboradorID(primeiroItemColab)) : null;
+
+      // === FILTRAR EXTERNOS (não enviar) ===
+      const itens = cab.ParteDiariaItems || [];
+      const itensNaoExterno = itens.filter(it => !isExternoItem(it));
+
+      if (itensNaoExterno.length === 0) {
+        Alert.alert('Informação', 'Este documento só contém EXTERNOS. Usa o botão "Aceitar".');
+        return;
+      }
+
+      // dividir itens não externos por categoria
+      const itensEquip   = itensNaoExterno.filter(it => String(it.Categoria || '').toLowerCase() === 'equipamentos');
+      const itensOutros  = itensNaoExterno.filter(it => String(it.Categoria || '').toLowerCase() !== 'equipamentos');
+
+      // construir pedidos com URL por tipo
+      const pedidos = [];
+      if (itensEquip.length > 0) {
+        pedidos.push({
+          nome: 'equipamentos',
+          url: apiUrlEquip,
+          payload: buildPayloadEquip({ docId: DOC_ID_EQUIP, cab, itens: itensEquip, idObra }),
+        });
+      }
+      if (itensOutros.length > 0) {
+        pedidos.push({
+          nome: 'pessoal',
+          url: apiUrlPessoal,
+          payload: buildPayloadPessoal({
+            docId: DOC_ID_DEFAULT,
+            cab,
+            itens: itensOutros,
+            idObra,
+            colaboradorIdCab,
+            colaboradorIdItens,
+          }),
+        });
+      }
+
+      // enviar em sequência
+      for (const p of pedidos) {
+        const resp = await fetch(p.url, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            urlempresa,
+          },
+          body: JSON.stringify(p.payload),
+        });
+        const result = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          console.error(`❌ Falha ao integrar (${p.nome}):`, result);
+          Alert.alert('Erro', `Falha ao integrar (${p.nome}): ${result?.detalhes || result?.error || 'erro desconhecido'}`);
+          return;
+        }
+      }
+
+      // marcar como integrado no teu backend
+      const marcarRes = await fetch(`https://backend.advir.pt/api/parte-diaria/cabecalhos/${cab.DocumentoID}/integrar`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${loginToken}`, 'Content-Type': 'application/json' },
+      });
+
+      if (marcarRes.ok) {
+        Alert.alert('Sucesso', 'Parte integrada com sucesso (apenas não externos).');
+        fetchCabecalhos();
+      } else {
+        Alert.alert('Aviso', 'Parte enviada mas falhou ao marcar como integrada.');
+      }
+
+    } catch (err) {
+      console.error('Erro na integração:', err);
+      Alert.alert('Erro', 'Erro inesperado ao integrar parte.');
+    } finally {
+      setIntegrandoIds(prev => {
+        const s = new Set(prev);
+        s.delete(cab.DocumentoID);
+        return s;
+      });
     }
+  };
 
-    // marcar como integrado no teu backend
-    const marcarRes = await fetch(`https://backend.advir.pt/api/parte-diaria/cabecalhos/${cab.DocumentoID}/integrar`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${loginToken}`, 'Content-Type': 'application/json' },
-    });
-
-    if (marcarRes.ok) {
-      Alert.alert('Sucesso', 'Parte integrada com sucesso!');
-      fetchCabecalhos();
-    } else {
-      Alert.alert('Aviso', 'Parte enviada mas falhou ao marcar como integrada.');
+  // === ACEITAR (só externos): marca como integrado sem enviar ao Primavera ===
+  const handleAceitarSomenteExternos = async (cab) => {
+    setIntegrandoIds(prev => new Set(prev).add(cab.DocumentoID));
+    try {
+      if (!hasOnlyExternos(cab)) {
+        Alert.alert('Aviso', 'Este documento não é exclusivo de externos.');
+        return;
+      }
+      const loginToken = await AsyncStorage.getItem('loginToken');
+      const marcarRes = await fetch(`https://backend.advir.pt/api/parte-diaria/cabecalhos/${cab.DocumentoID}/integrar`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${loginToken}`, 'Content-Type': 'application/json' },
+      });
+      if (marcarRes.ok) {
+        Alert.alert('Sucesso', 'Parte aceite (só externos) — marcado como integrado.');
+        fetchCabecalhos();
+      } else {
+        Alert.alert('Erro', 'Não foi possível marcar como integrado.');
+      }
+    } catch (err) {
+      console.error('Erro ao aceitar só externos:', err);
+      Alert.alert('Erro', 'Erro inesperado ao aceitar (só externos).');
+    } finally {
+      setIntegrandoIds(prev => {
+        const s = new Set(prev);
+        s.delete(cab.DocumentoID);
+        return s;
+      });
     }
-
-  } catch (err) {
-    console.error('Erro na integração:', err);
-    Alert.alert('Erro', 'Erro inesperado ao integrar parte.');
-  } finally {
-    setIntegrandoIds(prev => {
-      const s = new Set(prev);
-      s.delete(cab.DocumentoID);
-      return s;
-    });
-  }
-};
-
-
+  };
 
   const handleRejeitar = async (item) => {
     Alert.alert(
@@ -496,7 +532,11 @@ const handleIntegrar = async (cab) => {
 
   const abrirDetalhes = async (cab) => {
     if (cab?.ParteDiariaItems?.length > 0) {
-      for (const item of cab.ParteDiariaItems) await obterNomeFuncionario(item.ColaboradorID);
+      for (const item of cab.ParteDiariaItems) {
+        if (!isExternoItem(item) && item.ColaboradorID) {
+          await obterNomeFuncionario(item.ColaboradorID);
+        }
+      }
     }
     setSelectedCabecalho(cab);
     setModalVisible(true);
@@ -507,21 +547,15 @@ const handleIntegrar = async (cab) => {
     setSelectedCabecalho(null);
   };
 
-  const getStatusColor = (integrado) => {
-    return integrado ? '#28a745' : '#ffc107';
-  };
-
-  const getStatusIcon = (integrado) => {
-    return integrado ? 'checkmark-circle' : 'time';
-  };
+  const getStatusColor = (integrado) => (integrado ? '#28a745' : '#ffc107');
+  const getStatusIcon  = (integrado) => (integrado ? 'checkmark-circle' : 'time');
 
   const renderItem = ({ item }) => {
     const isIntegrando = integrandoIds.has(item.DocumentoID);
-    const { pes, eq } = contarPorCategoria(item?.ParteDiariaItems);
+    const { pes, eq, ext } = contarPorCategoria(item?.ParteDiariaItems);
+    const onlyExternos = hasOnlyExternos(item);
 
-    
     return (
-          
       <View style={styles.card} >
         <TouchableOpacity onPress={() => abrirDetalhes(item)} style={styles.cardContent}>
           <View style={styles.cardHeader}>
@@ -530,12 +564,7 @@ const handleIntegrar = async (cab) => {
               <Text style={styles.cardTitle}>Parte Diária</Text>
             </View>
             <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.IntegradoERP) }]}>
-              <Ionicons 
-                name={getStatusIcon(item.IntegradoERP)} 
-                size={12} 
-                color="#fff" 
-                style={styles.statusIcon}
-              />
+              <Ionicons name={getStatusIcon(item.IntegradoERP)} size={12} color="#fff" style={styles.statusIcon}/>
               <Text style={styles.statusText}>
                 {item.IntegradoERP ? 'Integrado' : 'Pendente'}
               </Text>
@@ -553,9 +582,9 @@ const handleIntegrar = async (cab) => {
             <View style={styles.infoRow}>
               <Ionicons name="business" size={16} color="#666" />
               <Text style={styles.cardText}>
-                {obrasMap[String(item.ObraID)] ?
-                  `${obrasMap[String(item.ObraID)].codigo} — ${obrasMap[String(item.ObraID)].descricao}` :
-                  item.ObraID || 'Obra não definida'}
+                {obrasMap[String(item.ObraID)]
+                  ? `${obrasMap[String(item.ObraID)].codigo} — ${obrasMap[String(item.ObraID)].descricao}`
+                  : item.ObraID || 'Obra não definida'}
               </Text>
             </View>
 
@@ -572,63 +601,88 @@ const handleIntegrar = async (cab) => {
                 Itens: {item.ParteDiariaItems?.length || 0}
               </Text>
               <View style={[styles.infoRow, { flexWrap: 'wrap' }]}>
-  {pes > 0 && (
-    <View style={[styles.categoriaChip, { backgroundColor: getCategoriaChip('pessoal').bg }]}>
-      <Ionicons name="people" size={12} color="#fff" style={{ marginRight: 4 }} />
-      <Text style={styles.categoriaChipText}>Pessoal: {pes}</Text>
-    </View>
-  )}
-  {eq > 0 && (
-    <View style={[styles.categoriaChip, { backgroundColor: getCategoriaChip('equipamentos').bg }]}>
-      <Ionicons name="construct" size={12} color="#fff" style={{ marginRight: 4 }} />
-      <Text style={styles.categoriaChipText}>Equipamentos: {eq}</Text>
-    </View>
-  )}
-</View>
-
+                {pes > 0 && (
+                  <View style={[styles.categoriaChip, { backgroundColor: getCategoriaChip('pessoal').bg }]}>
+                    <Ionicons name="people" size={12} color="#fff" style={{ marginRight: 4 }} />
+                    <Text style={styles.categoriaChipText}>Pessoal: {pes}</Text>
+                  </View>
+                )}
+                {eq > 0 && (
+                  <View style={[styles.categoriaChip, { backgroundColor: getCategoriaChip('equipamentos').bg }]}>
+                    <Ionicons name="construct" size={12} color="#fff" style={{ marginRight: 4 }} />
+                    <Text style={styles.categoriaChipText}>Equipamentos: {eq}</Text>
+                  </View>
+                )}
+                {ext > 0 && (
+                  <View style={[styles.categoriaChip, { backgroundColor: '#fd7e14' }]}>
+                    <Ionicons name="warning" size={12} color="#fff" style={{ marginRight: 4 }} />
+                    <Text style={styles.categoriaChipText}>Externos: {ext}</Text>
+                  </View>
+                )}
+              </View>
             </View>
+
+            {onlyExternos && (
+              <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="information-circle" size={16} color="#fd7e14" style={{ marginRight: 6 }} />
+                <Text style={{ color: '#fd7e14', fontWeight: '600' }}>
+                  Apenas EXTERNOS — não será enviado para o Primavera.
+                </Text>
+              </View>
+            )}
           </View>
 
-          <TouchableOpacity 
-  style={styles.viewDetailsButton}
-  onPress={() => abrirDetalhes(item)}
->
-  <Text style={styles.viewDetailsText}>Ver Detalhes</Text>
-  <Ionicons name="chevron-forward" size={16} color="#1792FE" />
-</TouchableOpacity>
-
+          <TouchableOpacity style={styles.viewDetailsButton} onPress={() => abrirDetalhes(item)}>
+            <Text style={styles.viewDetailsText}>Ver Detalhes</Text>
+            <Ionicons name="chevron-forward" size={16} color="#1792FE" />
+          </TouchableOpacity>
         </TouchableOpacity>
 
         {!item.IntegradoERP && (
           <View style={styles.buttonContainer}>
-            <TouchableOpacity 
-              style={[styles.integrarButton, isIntegrando && styles.buttonDisabled]} 
-              onPress={() => handleIntegrar(item)}
-              disabled={isIntegrando}
-            >
-              <LinearGradient
-               colors={isIntegrando ?['#ccc', '#999'] :['#1792FE', '#0B5ED7']}
-                style={styles.buttonGradient}
+            {onlyExternos ? (
+              // BOTÃO ACEITAR (só externos)
+              <TouchableOpacity
+                style={[styles.integrarButton, isIntegrando && styles.buttonDisabled]}
+                onPress={() => handleAceitarSomenteExternos(item)}
+                disabled={isIntegrando}
               >
-                {isIntegrando ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                )}
-                <Text style={styles.buttonText}>
-                  {isIntegrando ? 'Integrando...' : 'Integrar'}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient colors={['#28a745', '#20c997']} style={styles.buttonGradient}>
+                  {isIntegrando ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="checkmark-done" size={16} color="#fff" />
+                  )}
+                  <Text style={styles.buttonText}>
+                    {isIntegrando ? 'A aceitar...' : 'Aceitar'}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              // BOTÃO INTEGRAR (envia internos, ignora externos)
+              <TouchableOpacity
+                style={[styles.integrarButton, isIntegrando && styles.buttonDisabled]}
+                onPress={() => handleIntegrar(item)}
+                disabled={isIntegrando}
+              >
+                <LinearGradient
+                  colors={isIntegrando ? ['#ccc', '#999'] : ['#1792FE', '#0B5ED7']}
+                  style={styles.buttonGradient}
+                >
+                  {isIntegrando ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                  )}
+                  <Text style={styles.buttonText}>
+                    {isIntegrando ? 'Integrando...' : 'Integrar'}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
 
-            <TouchableOpacity 
-              style={styles.rejeitarButton} 
-              onPress={() => handleRejeitar(item)}
-            >
-              <LinearGradient
-                colors={['#1792FE', '#0B5ED7']}
-                style={styles.buttonGradient}
-              >
+            <TouchableOpacity style={styles.rejeitarButton} onPress={() => handleRejeitar(item)}>
+              <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.buttonGradient}>
                 <Ionicons name="close-circle" size={16} color="#fff" />
                 <Text style={styles.buttonText}>Rejeitar</Text>
               </LinearGradient>
@@ -636,7 +690,6 @@ const handleIntegrar = async (cab) => {
           </View>
         )}
       </View>
-      
     );
   };
 
@@ -661,514 +714,217 @@ const handleIntegrar = async (cab) => {
   );
 
   return (
-      <LinearGradient
-    colors={['#e3f2fd', '#bbdefb', '#90caf9']}
-    style={{ flex: 1 }}
-  >
-    <SafeAreaView style={styles.container}>
-      <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.header}>
-        <Text style={styles.headerTitle}>Gestão de Partes Diárias</Text>
-        <Text style={styles.headerSubtitle}>
-          {cabecalhosFiltrados.length} {cabecalhosFiltrados.length === 1 ? 'parte' : 'partes'}
-        </Text>
-      </LinearGradient>
-  
-      <View style={styles.filtroContainer}>
-        {['todos', 'pendentes', 'integrados'].map(opcao => (
-          <TouchableOpacity
-            key={opcao}
-            style={[
-              styles.filtroBotao,
-              filtroEstado === opcao && styles.filtroBotaoAtivo
-            ]}
-            onPress={() => setFiltroEstado(opcao)}
-          >
-            <Text style={filtroEstado === opcao ? styles.filtroTextoAtivo : styles.filtroTexto}>
-              {opcao === 'todos' ? 'Todos' : 
-               opcao === 'pendentes' ? 'Pendentes' : 'Integrados'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+    <LinearGradient colors={['#e3f2fd', '#bbdefb', '#90caf9']} style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.header}>
+          <Text style={styles.headerTitle}>Gestão de Partes Diárias</Text>
+          <Text style={styles.headerSubtitle}>
+            {cabecalhosFiltrados.length} {cabecalhosFiltrados.length === 1 ? 'parte' : 'partes'}
+          </Text>
+        </LinearGradient>
 
-        
-      <FlatList
-        data={cabecalhosFiltrados}
-        keyExtractor={item => String(item.DocumentoID)}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#1792FE']}
-          />
-        }
-        ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-clear" size={80} color="#ccc" />
-            <Text style={styles.emptyTitle}>Nenhuma parte diária encontrada</Text>
-            <Text style={styles.emptyText}>
-              {filtroEstado === 'pendentes' 
-                ? 'Não há partes pendentes no momento.'
-                : filtroEstado === 'integrados'
-                ? 'Não há partes integradas ainda.'
-                : 'Não há partes diárias registadas.'}
-            </Text>
-          </View>
-        )}
-      />
-      <Modal visible={modalVisible} animationType="slide" onRequestClose={fecharModal}>
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Detalhes da Parte Diária</Text>
-            <TouchableOpacity onPress={fecharModal} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#333" />
+        <View style={styles.filtroContainer}>
+          {['todos', 'pendentes', 'integrados'].map(opcao => (
+            <TouchableOpacity
+              key={opcao}
+              style={[styles.filtroBotao, filtroEstado === opcao && styles.filtroBotaoAtivo]}
+              onPress={() => setFiltroEstado(opcao)}
+            >
+              <Text style={filtroEstado === opcao ? styles.filtroTextoAtivo : styles.filtroTexto}>
+                {opcao === 'todos' ? 'Todos' : opcao === 'pendentes' ? 'Pendentes' : 'Integrados'}
+              </Text>
             </TouchableOpacity>
-          </View>
-          
-          <ScrollView contentContainerStyle={styles.modalBody}>
-            {selectedCabecalho && (
-              <>
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalLabel}>Registado por</Text>
-                  <Text style={styles.modalValue}>
-                    {selectedCabecalho.CriadoPor || selectedCabecalho.Utilizador}
-                  </Text>
-                </View>
+          ))}
+        </View>
 
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalLabel}>Data do registo</Text>
-                  <Text style={styles.modalValue}>
-                    {new Date(selectedCabecalho.Data).toLocaleDateString('pt-PT')}
-                  </Text>
-                </View>
+        <FlatList
+          data={cabecalhosFiltrados}
+          keyExtractor={item => String(item.DocumentoID)}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1792FE']} />
+          }
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="calendar-clear" size={80} color="#ccc" />
+              <Text style={styles.emptyTitle}>Nenhuma parte diária encontrada</Text>
+              <Text style={styles.emptyText}>
+                {filtroEstado === 'pendentes'
+                  ? 'Não há partes pendentes no momento.'
+                  : filtroEstado === 'integrados'
+                  ? 'Não há partes integradas ainda.'
+                  : 'Não há partes diárias registadas.'}
+              </Text>
+            </View>
+          )}
+        />
 
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalLabel}>Estado</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedCabecalho.IntegradoERP) }]}>
-                    <Ionicons 
-                      name={getStatusIcon(selectedCabecalho.IntegradoERP)} 
-                      size={12} 
-                      color="#fff" 
-                      style={styles.statusIcon}
-                    />
-                    <Text style={styles.statusText}>
-                      {selectedCabecalho.IntegradoERP ? 'Integrado' : 'Pendente'}
+        <Modal visible={modalVisible} animationType="slide" onRequestClose={fecharModal}>
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Detalhes da Parte Diária</Text>
+              <TouchableOpacity onPress={fecharModal} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.modalBody}>
+              {selectedCabecalho && (
+                <>
+                  <View style={styles.modalSection}>
+                    <Text style={styles.modalLabel}>Registado por</Text>
+                    <Text style={styles.modalValue}>
+                      {selectedCabecalho.CriadoPor || selectedCabecalho.Utilizador}
                     </Text>
                   </View>
-                </View>
 
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalLabel}>Itens da Parte Diária</Text>
-                  {selectedCabecalho.ParteDiariaItems?.length > 0 ? (
-                    selectedCabecalho.ParteDiariaItems.map((item, index) => (
-                      <View key={String(item.ComponenteID)} style={styles.itemCard}>
-                        <View style={styles.itemHeader}>
-                          <Text style={styles.itemNumber}>Item {index + 1}</Text>
-                        </View>
-                        <View style={styles.itemContent}>
-                          <View style={styles.itemRow}>
-                            <Ionicons name="calendar" size={14} color="#666" />
-                            <Text style={styles.itemText}>Data: {item.Data}</Text>
-                          </View>
-                          <View style={styles.itemRow}>
-                            <Ionicons name="person" size={14} color="#666" />
-                            <Text style={styles.itemText}>
-                              Colaborador: {cacheNomes[item.ColaboradorID] || item.ColaboradorID}
-                            </Text>
-                          </View>
-                          <View style={styles.itemRow}>
-                            <Ionicons name="business" size={14} color="#666" />
-                            <Text style={styles.itemText}>
-                              Obra: {obrasMap[String(item.ObraID)]
-                                ? `${obrasMap[String(item.ObraID)].codigo} — ${obrasMap[String(item.ObraID)].descricao}`
-                                : item.ObraID}
-                            </Text>
-                          </View>
-                          <View style={styles.itemRow}>
-                          <Ionicons name="pricetag" size={14} color="#666" />
-                          {String(item.Categoria || '').toLowerCase() === 'equipamentos' ? (
-                            <Text style={styles.itemText}>
-                              Equipamento: {equipamentosMap[String(item.ComponenteID)] || equipamentosMap[String(item.SubEmpID)] || item.ComponenteID || item.SubEmpID}
-                            </Text>
-                          ) : (
-                            <Text style={styles.itemText}>
-                              Especialidade: {especialidadesMap[String(item.SubEmpID)] || item.SubEmpID}
-                            </Text>
-                          )}
-                        </View>
+                  <View style={styles.modalSection}>
+                    <Text style={styles.modalLabel}>Data do registo</Text>
+                    <Text style={styles.modalValue}>
+                      {new Date(selectedCabecalho.Data).toLocaleDateString('pt-PT')}
+                    </Text>
+                  </View>
 
-                          <View style={styles.itemRow}>
-                            <Ionicons name="time" size={14} color="#666" />
-                            <Text style={styles.itemText}>
-                              Horas: {formatarHoras(item.NumHoras)}
-                            </Text>
+                  <View style={styles.modalSection}>
+                    <Text style={styles.modalLabel}>Estado</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedCabecalho.IntegradoERP) }]}>
+                      <Ionicons name={getStatusIcon(selectedCabecalho.IntegradoERP)} size={12} color="#fff" style={styles.statusIcon}/>
+                      <Text style={styles.statusText}>
+                        {selectedCabecalho.IntegradoERP ? 'Integrado' : 'Pendente'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.modalSection}>
+                    <Text style={styles.modalLabel}>Itens da Parte Diária</Text>
+                    {selectedCabecalho.ParteDiariaItems?.length > 0 ? (
+                      selectedCabecalho.ParteDiariaItems.map((item, index) => {
+                        const externo = isExternoItem(item);
+                        return (
+                          <View key={`${String(item.ComponenteID)}-${index}`} style={styles.itemCard}>
+                            <View style={styles.itemHeader}>
+                              <Text style={styles.itemNumber}>Item {index + 1}</Text>
+                            </View>
+                            <View style={styles.itemContent}>
+                              <View style={styles.itemRow}>
+                                <Ionicons name="calendar" size={14} color="#666" />
+                                <Text style={styles.itemText}>Data: {item.Data}</Text>
+                              </View>
+                              <View style={styles.itemRow}>
+                                <Ionicons name="person" size={14} color="#666" />
+                                <Text style={styles.itemText}>
+                                  {externo
+                                    ? 'Colaborador: (Externo)'
+                                    : `Colaborador: ${cacheNomes[item.ColaboradorID] || item.ColaboradorID}`}
+                                </Text>
+                              </View>
+                              <View style={styles.itemRow}>
+                                <Ionicons name="business" size={14} color="#666" />
+                                <Text style={styles.itemText}>
+                                  Obra: {obrasMap[String(item.ObraID)]
+                                    ? `${obrasMap[String(item.ObraID)].codigo} — ${obrasMap[String(item.ObraID)].descricao}`
+                                    : item.ObraID}
+                                </Text>
+                              </View>
+                              <View style={styles.itemRow}>
+                                <Ionicons name="pricetag" size={14} color="#666" />
+                                {String(item.Categoria || '').toLowerCase() === 'equipamentos' ? (
+                                  <Text style={styles.itemText}>
+                                    Equipamento: {equipamentosMap[String(item.ComponenteID)] || equipamentosMap[String(item.SubEmpID)] || item.ComponenteID || item.SubEmpID}
+                                  </Text>
+                                ) : (
+                                  <Text style={styles.itemText}>
+                                    Especialidade: {especialidadesMap[String(item.SubEmpID)] || item.SubEmpID}
+                                  </Text>
+                                )}
+                              </View>
+
+                              <View style={styles.itemRow}>
+                                <Ionicons name="time" size={14} color="#666" />
+                                <Text style={styles.itemText}>Horas: {formatarHoras(item.NumHoras)}</Text>
+                              </View>
+
+                              <View style={styles.itemRow}>
+                                <Ionicons name={externo ? 'warning' : 'checkmark'} size={14} color={externo ? '#fd7e14' : '#28a745'} />
+                                <Text style={[styles.itemText, { color: externo ? '#fd7e14' : '#28a745' }]}>
+                                  {externo ? 'Externo' : 'Interno'}
+                                </Text>
+                              </View>
+                            </View>
                           </View>
-                        </View>
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={styles.emptyItemsText}>Sem itens registados.</Text>
-                  )}
-                </View>
-              </>
-            )}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-    </SafeAreaView>
+                        );
+                      })
+                    ) : (
+                      <Text style={styles.emptyItemsText}>Sem itens registados.</Text>
+                    )}
+                  </View>
+                </>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
     </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 25,
-    paddingTop: 40,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#e3f2fd',
-    opacity: 0.9
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 30
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f8f9fa'
-  },
-  loadingText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: '#1792FE',
-    fontWeight: '500'
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
-    backgroundColor: '#f8f9fa'
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#dc3545',
-    textAlign: 'center',
-    marginVertical: 20,
-    lineHeight: 22
-  },
-  retryButton: {
-    borderRadius: 25,
-    overflow: 'hidden',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84
-  },
-  retryText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    overflow: 'hidden'
-  },
-  cardContent: {
-    padding: 20
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginLeft: 8
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginLeft: 10
-  },
-  statusIcon: {
-    marginRight: 4
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600'
-  },
-  cardBody: {
-    marginBottom: 16
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8
-  },
-  cardText: {
-    fontSize: 14,
-    color: '#555',
-    marginLeft: 8,
-    flex: 1,
-    lineHeight: 20
-  },
-  viewDetailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    marginTop: 8
-  },
-  viewDetailsText: {
-    color: '#1792FE',
-    fontSize: 14,
-    fontWeight: '600',
-    marginRight: 4
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 12
-  },
-  integrarButton: {
-    flex: 1,
-    borderRadius: 25,
-    overflow: 'hidden',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84
-  },
-  rejeitarButton: {
-    flex: 1,
-    borderRadius: 25,
-    overflow: 'hidden',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84
-  },
-  buttonDisabled: {
-    opacity: 0.7
-  },
-  buttonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
-    marginLeft: 6
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#666',
-    marginTop: 20,
-    marginBottom: 10,
-    textAlign: 'center'
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#999',
-    textAlign: 'center',
-    lineHeight: 22
-  },
-  filtroContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    backgroundColor: '#fff',
-    borderRadius: 25,
-    padding: 6,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3
-  },
-  filtroBotao: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    alignItems: 'center'
-  },
-  filtroBotaoAtivo: {
-    backgroundColor: '#1792FE',
-    elevation: 2,
-    shadowColor: '#1792FE',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4
-  },
-  filtroTexto: {
-    color: '#1792FE',
-    fontWeight: '500',
-    fontSize: 14
-  },
-  filtroTextoAtivo: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#f8f9fa' 
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-    elevation: 2
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333'
-  },
-  closeButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#f8f9fa'
-  },
-  modalBody: {
-    padding: 20
-  },
-  modalSection: {
-    marginBottom: 24
-  },
-  modalLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8
-  },
-  modalValue: {
-    fontSize: 15,
-    color: '#555',
-    lineHeight: 22
-  },
-  itemCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    overflow: 'hidden'
-  },
-  itemHeader: {
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef'
-  },
-  itemNumber: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1792FE'
-  },
-  itemContent: {
-    padding: 16
-  },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8
-  },
-  itemText: {
-    fontSize: 14,
-    color: '#555',
-    marginLeft: 8,
-    flex: 1,
-    lineHeight: 20
-  },
-  emptyItemsText: {
-    fontSize: 15,
-    color: '#999',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    paddingVertical: 20
-  },
-  categoriaChip: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  paddingHorizontal: 10,
-  paddingVertical: 4,
-  borderRadius: 12,
-  marginRight: 8,
-  marginTop: 6
-},
-categoriaChipText: {
-  color: '#fff',
-  fontSize: 12,
-  fontWeight: '600'
-},
-
+  container: { flex: 1 },
+  header: { paddingHorizontal: 20, paddingVertical: 25, paddingTop: 40 },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 5 },
+  headerSubtitle: { fontSize: 16, color: '#e3f2fd', opacity: 0.9 },
+  listContent: { padding: 16, paddingBottom: 30 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#f8f9fa' },
+  loadingText: { marginTop: 15, fontSize: 16, color: '#1792FE', fontWeight: '500' },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30, backgroundColor: '#f8f9fa' },
+  errorText: { fontSize: 16, color: '#dc3545', textAlign: 'center', marginVertical: 20, lineHeight: 22 },
+  retryButton: { borderRadius: 25, overflow: 'hidden', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84 },
+  retryText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  card: { backgroundColor: '#fff', borderRadius: 16, marginBottom: 16, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, overflow: 'hidden' },
+  cardContent: { padding: 20 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  titleContainer: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginLeft: 8 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginLeft: 10 },
+  statusIcon: { marginRight: 4 },
+  statusText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  cardBody: { marginBottom: 16 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  cardText: { fontSize: 14, color: '#555', marginLeft: 8, flex: 1, lineHeight: 20 },
+  viewDetailsButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', marginTop: 8 },
+  viewDetailsText: { color: '#1792FE', fontSize: 14, fontWeight: '600', marginRight: 4 },
+  buttonContainer: { flexDirection: 'row', paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
+  integrarButton: { flex: 1, borderRadius: 25, overflow: 'hidden', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84 },
+  rejeitarButton: { flex: 1, borderRadius: 25, overflow: 'hidden', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84 },
+  buttonDisabled: { opacity: 0.7 },
+  buttonGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 20 },
+  buttonText: { color: '#fff', fontWeight: '600', fontSize: 14, marginLeft: 6 },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 },
+  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#666', marginTop: 20, marginBottom: 10, textAlign: 'center' },
+  emptyText: { fontSize: 16, color: '#999', textAlign: 'center', lineHeight: 22 },
+  filtroContainer: { flexDirection: 'row', justifyContent: 'space-around', marginHorizontal: 16, marginTop: 16, marginBottom: 8, backgroundColor: '#fff', borderRadius: 25, padding: 6, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3 },
+  filtroBotao: { flex: 1, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, alignItems: 'center' },
+  filtroBotaoAtivo: { backgroundColor: '#1792FE', elevation: 2, shadowColor: '#1792FE', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 },
+  filtroTexto: { color: '#1792FE', fontWeight: '500', fontSize: 14 },
+  filtroTextoAtivo: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  modalContainer: { flex: 1, backgroundColor: '#f8f9fa' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e9ecef', elevation: 2 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+  closeButton: { padding: 8, borderRadius: 20, backgroundColor: '#f8f9fa' },
+  modalBody: { padding: 20 },
+  modalSection: { marginBottom: 24 },
+  modalLabel: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 8 },
+  modalValue: { fontSize: 15, color: '#555', lineHeight: 22 },
+  itemCard: { backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, overflow: 'hidden' },
+  itemHeader: { backgroundColor: '#f8f9fa', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e9ecef' },
+  itemNumber: { fontSize: 14, fontWeight: '600', color: '#1792FE' },
+  itemContent: { padding: 16 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  itemText: { fontSize: 14, color: '#555', marginLeft: 8, flex: 1, lineHeight: 20 },
+  emptyItemsText: { fontSize: 15, color: '#999', textAlign: 'center', fontStyle: 'italic', paddingVertical: 20 },
+  categoriaChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 8, marginTop: 6 },
+  categoriaChipText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 });
 
 export default GestaoPartesDiarias;
