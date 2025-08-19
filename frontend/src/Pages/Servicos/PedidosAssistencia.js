@@ -51,6 +51,12 @@ const PedidosAssistencia = ({ navigation }) => {
     const [errorMessage, setErrorMessage] = useState("");
     const [modalCloseVisible, setModalCloseVisible] = useState(false);
     const [processoParaFechar, setProcessoParaFechar] = useState(null);
+    const [modalAnexosVisible, setModalAnexosVisible] = useState(false);
+    const [anexosPedido, setAnexosPedido] = useState([]);
+    const [pedidoAnexos, setPedidoAnexos] = useState(null);
+    const [modalUploadVisible, setModalUploadVisible] = useState(false);
+    const [uploadingFile, setUploadingFile] = useState(false);
+    const [pedidoParaUpload, setPedidoParaUpload] = useState(null);
 
     const [isAdmin, setIsAdmin] = useState(false);
     const [userTecnicoID, setUserTecnicoID] = useState("");
@@ -284,6 +290,151 @@ const PedidosAssistencia = ({ navigation }) => {
     // Handle search input change
     const handleSearch = (Nome) => {
         setSearchTerm(Nome);
+    };
+
+    // Função para carregar anexos de um pedido
+    const carregarAnexos = async (pedidoId) => {
+        try {
+            const response = await fetch(`https://backend.advir.pt/api/anexo-pedido/pedido/${pedidoId}`);
+            if (response.ok) {
+                const data = await response.json();
+                setAnexosPedido(data.anexos || []);
+                setModalAnexosVisible(true);
+            } else {
+                throw new Error('Erro ao carregar anexos');
+            }
+        } catch (error) {
+            console.error('Erro ao carregar anexos:', error);
+            setErrorMessage("Erro ao carregar anexos do pedido.");
+        }
+    };
+
+    // Função para fazer download de anexo
+    const downloadAnexo = async (anexoId, nomeArquivo) => {
+        try {
+            const response = await fetch(`https://backend.advir.pt/api/anexo-pedido/download/${anexoId}`);
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = nomeArquivo;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } else {
+                throw new Error('Erro ao fazer download');
+            }
+        } catch (error) {
+            console.error('Erro ao fazer download:', error);
+            alert("Erro ao fazer download do anexo.");
+        }
+    };
+
+    // Função para fazer upload de anexo
+    const uploadAnexo = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (!pedidoParaUpload) {
+            alert("Erro: ID do pedido não encontrado.");
+            return;
+        }
+
+        // Validar tamanho do arquivo (máximo 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            alert("Arquivo muito grande. O tamanho máximo é de 10MB.");
+            return;
+        }
+
+        // Validar tipo de arquivo
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+        if (!allowedTypes.includes(file.type)) {
+            alert("Tipo de arquivo não permitido. Permitidos: JPEG, PNG, GIF, PDF, DOC, DOCX, TXT");
+            return;
+        }
+
+        console.log('=== PREPARANDO UPLOAD ===');
+        console.log('Arquivo:', file.name, 'Tamanho:', file.size, 'Tipo:', file.type);
+        console.log('Pedido ID:', pedidoParaUpload);
+
+        setUploadingFile(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('arquivo', file, file.name);
+            formData.append('pedido_id', String(pedidoParaUpload));
+
+            console.log('FormData criado com sucesso');
+            console.log('Enviando para:', 'https://backend.advir.pt/api/anexo-pedido/upload');
+
+            const response = await fetch('https://backend.advir.pt/api/anexo-pedido/upload', {
+                method: 'POST',
+                body: formData,
+                // Não definir headers - deixar o browser gerenciar Content-Type automaticamente
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                alert(`Anexo "${file.name}" enviado com sucesso!`);
+
+                // Recarregar anexos se o modal estiver aberto
+                if (modalAnexosVisible) {
+                    await carregarAnexos(pedidoParaUpload);
+                }
+
+                setModalUploadVisible(false);
+                // Limpar o input
+                event.target.value = '';
+            } else {
+                // Ler a resposta apenas uma vez
+                const responseText = await response.text();
+                let errorMessage = 'Erro ao enviar anexo';
+
+                try {
+                    const errorData = JSON.parse(responseText);
+                    errorMessage = errorData.error || errorMessage;
+                } catch {
+                    console.error('Resposta do servidor:', responseText);
+                    errorMessage = `Erro do servidor: ${response.status}`;
+                }
+                throw new Error(errorMessage);
+            }
+        } catch (error) {
+            console.error('Erro ao enviar anexo:', error);
+            alert(`Erro ao enviar anexo: ${error.message}`);
+        } finally {
+            setUploadingFile(false);
+        }
+    };
+
+    // Função para deletar anexo
+    const deletarAnexo = async (anexoId) => {
+        if (!confirm('Tem certeza que deseja deletar este anexo?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`https://backend.advir.pt/api/anexo-pedido/${anexoId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                alert('Anexo deletado com sucesso!');
+                // Recarregar anexos
+                if (pedidoAnexos) {
+                    await carregarAnexos(pedidoAnexos.ID);
+                }
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erro ao deletar anexo');
+            }
+        } catch (error) {
+            console.error('Erro ao deletar anexo:', error);
+            alert(`Erro ao deletar anexo: ${error.message}`);
+        }
     };
 
     // Get estado based on the input
@@ -670,6 +821,35 @@ const PedidosAssistencia = ({ navigation }) => {
                                 size={16}
                             />
                         </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={() => {
+                                setPedidoAnexos(item[0]);
+                                carregarAnexos(item[0].ID);
+                            }}
+                        >
+                            <FontAwesomeIcon
+                                icon={faSearch}
+                                style={styles.icon}
+                                size={16}
+                            />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionButton, styles.uploadButton]}
+                            onPress={() => {
+                                setPedidoParaUpload(item[0].ID);
+                                setModalUploadVisible(true);
+                            }}
+                        >
+                            <FontAwesomeIcon
+                                icon={faPlus}
+                                style={styles.icon}
+                                size={16}
+                            />
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                             style={styles.actionButton}
                             onPress={() => {
@@ -933,431 +1113,679 @@ const PedidosAssistencia = ({ navigation }) => {
                         </View>
                     </View>
                 </Modal>
+
+                {/* Modal para visualizar anexos */}
+                <Modal
+                    animationType="fade"
+                    transparent={true}
+                    visible={modalAnexosVisible}
+                    onRequestClose={() => setModalAnexosVisible(false)}
+                >
+                    <View style={styles.modalBackground}>
+                        <View style={[styles.modalView, styles.anexosModalView]}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>
+                                    Anexos do Pedido {pedidoAnexos?.NumProcesso}
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.closeButton}
+                                    onPress={() => setModalAnexosVisible(false)}
+                                >
+                                    <FontAwesomeIcon
+                                        icon={faClose}
+                                        style={styles.closeIcon}
+                                        size={20}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView style={styles.anexosScrollView}>
+                                {anexosPedido.length === 0 ? (
+                                    <Text style={styles.noAnexosText}>
+                                        Nenhum anexo encontrado para este pedido.
+                                    </Text>
+                                ) : (
+                                    anexosPedido.map((anexo) => (
+                                        <View key={anexo.id} style={styles.anexoCard}>
+                                            <View style={styles.anexoInfo}>
+                                                <Text style={styles.anexoNome}>
+                                                    {anexo.nome_arquivo}
+                                                </Text>
+                                                <Text style={styles.anexoDetalhes}>
+                                                    Tamanho: {Math.round(anexo.tamanho / 1024)} KB
+                                                </Text>
+                                                <Text style={styles.anexoDetalhes}>
+                                                    Enviado em: {new Date(anexo.data_upload).toLocaleString('pt-PT')}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.anexoButtonsContainer}>
+                                                <TouchableOpacity
+                                                    style={styles.downloadButton}
+                                                    onPress={() => downloadAnexo(anexo.id, anexo.nome_arquivo)}
+                                                >
+                                                    <Text style={styles.downloadButtonText}>
+                                                        Download
+                                                    </Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={styles.deleteAnexoButton}
+                                                    onPress={() => deletarAnexo(anexo.id)}
+                                                >
+                                                    <FontAwesomeIcon
+                                                        icon={faTrash}
+                                                        style={styles.deleteAnexoIcon}
+                                                        size={12}
+                                                    />
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    ))
+                                )}
+                            </ScrollView>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Modal para upload de anexos */}
+                <Modal
+                    animationType="fade"
+                    transparent={true}
+                    visible={modalUploadVisible}
+                    onRequestClose={() => setModalUploadVisible(false)}
+                >
+                    <View style={styles.modalBackground}>
+                        <View style={[styles.modalView, styles.uploadModalView]}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>
+                                    Adicionar Anexo
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.closeButton}
+                                    onPress={() => setModalUploadVisible(false)}
+                                >
+                                    <FontAwesomeIcon
+                                        icon={faClose}
+                                        style={styles.closeIcon}
+                                        size={20}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.uploadContent}>
+                                <Text style={styles.uploadInstructions}>
+                                    Selecione um arquivo para anexar ao pedido:
+                                </Text>
+
+                                <input
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt"
+                                    onChange={uploadAnexo}
+                                    disabled={uploadingFile}
+                                    style={styles.fileInput}
+                                />
+
+                                {uploadingFile && (
+                                    <View style={styles.uploadingContainer}>
+                                        <ActivityIndicator size="small" color="#1792FE" />
+                                        <Text style={styles.uploadingText}>
+                                            Enviando anexo...
+                                        </Text>
+                                    </View>
+                                )}
+
+                                <Text style={styles.fileTypesText}>
+                                    Tipos permitidos: JPG, PNG, GIF, PDF, DOC, DOCX, TXT
+                                </Text>
+                                <Text style={styles.fileSizeText}>
+                                    Tamanho máximo: 10MB
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
             </div>
         </div>
     );
 };
 
-            // Define styles
-            const styles = StyleSheet.create({
-                container: {
+// Define styles
+const styles = StyleSheet.create({
+    container: {
         flex: 1,
         backgroundColor: "#d4e4ff",
         overflow: "auto",
         maxHeight: "100vh",
     },
-            header: {
-                backgroundColor: "#1792FE",
-            paddingVertical: 20,
-            paddingHorizontal: 20,
-            borderBottomLeftRadius: 15,
-            borderBottomRightRadius: 15,
-            shadowColor: "#000",
-            shadowOffset: {width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
+    header: {
+        backgroundColor: "#1792FE",
+        paddingVertical: 20,
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 15,
+        borderBottomRightRadius: 15,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
-            title: {
-                fontSize: 22,
-            color: "#fff",
-            fontWeight: "700",
+    title: {
+        fontSize: 22,
+        color: "#fff",
+        fontWeight: "700",
     },
-            searchContainer: {
-                flexDirection: "row",
-            alignItems: "center",
-            paddingHorizontal: 20,
-            paddingVertical: 15,
+    searchContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 20,
+        paddingVertical: 15,
     },
-            searchInputContainer: {
-                flex: 1,
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: "#fff",
-            borderRadius: 10,
-            paddingHorizontal: 15,
-            marginRight: 10,
-            shadowColor: "#000",
-            shadowOffset: {width: 0, height: 1 },
-            shadowOpacity: 0.05,
-            shadowRadius: 2,
-            elevation: 2,
+    searchInputContainer: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#fff",
+        borderRadius: 10,
+        paddingHorizontal: 15,
+        marginRight: 10,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 2,
     },
-            searchIcon: {
-                color: "#1792FE",
-            marginRight: 8,
+    searchIcon: {
+        color: "#1792FE",
+        marginRight: 8,
     },
-            searchInput: {
-                flex: 1,
-            height: 44,
-            fontSize: 16,
+    searchInput: {
+        flex: 1,
+        height: 44,
+        fontSize: 16,
     },
-            addButton: {
-                flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: "#1792FE",
-            paddingVertical: 12,
-            paddingHorizontal: 16,
-            borderRadius: 10,
-            shadowColor: "#1792FE",
-            shadowOffset: {width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 3,
-            elevation: 3,
+    addButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#1792FE",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        shadowColor: "#1792FE",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 3,
     },
-            addButtonIcon: {
-                color: "#fff",
-            marginRight: 6,
+    addButtonIcon: {
+        color: "#fff",
+        marginRight: 6,
     },
-            addButtonText: {
-                color: "#fff",
-            fontWeight: "600",
-            fontSize: 15,
+    addButtonText: {
+        color: "#fff",
+        fontWeight: "600",
+        fontSize: 15,
     },
-            filterToggleButton: {
-                flexDirection: "row",
-            alignItems: "center",
-            marginHorizontal: 20,
-            marginBottom: 8,
+    filterToggleButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginHorizontal: 20,
+        marginBottom: 8,
     },
-            filterToggleIcon: {
-                color: "#1792FE",
-            marginRight: 6,
+    filterToggleIcon: {
+        color: "#1792FE",
+        marginRight: 6,
     },
-            filterToggleText: {
-                color: "#1792FE",
-            fontWeight: "500",
-            fontSize: 14,
+    filterToggleText: {
+        color: "#1792FE",
+        fontWeight: "500",
+        fontSize: 14,
     },
-            filterMenu: {
-                marginHorizontal: 20,
-            marginBottom: 15,
-            backgroundColor: "#fff",
-            borderRadius: 12,
-            shadowColor: "#000",
-            shadowOffset: {width: 0, height: 1 },
-            shadowOpacity: 0.1,
-            shadowRadius: 3,
-            elevation: 2,
-            overflow: "hidden",
+    filterMenu: {
+        marginHorizontal: 20,
+        marginBottom: 15,
+        backgroundColor: "#fff",
+        borderRadius: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
+        overflow: "hidden",
     },
-            filterMenuClosed: {
-                marginBottom: 10,
+    filterMenuClosed: {
+        marginBottom: 10,
     },
-            filterHeader: {
-                flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingHorizontal: 16,
-            paddingVertical: 14,
-            borderBottomWidth: 1,
+    filterHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
         borderBottomColor: (showFilters) =>
             showFilters ? "#eee" : "transparent",
     },
-            filterTitle: {
-                fontSize: 16,
-            fontWeight: "600",
-            color: "#444",
+    filterTitle: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#444",
     },
-            toggleFiltersButton: {
-                padding: 5,
+    toggleFiltersButton: {
+        padding: 5,
     },
-            filterIcon: {
-                color: "#666",
+    filterIcon: {
+        color: "#666",
     },
-            filterContent: {
-                padding: 15,
-            paddingTop: 5,
+    filterContent: {
+        padding: 15,
+        paddingTop: 5,
     },
-            filterLabel: {
-                fontWeight: "600",
-            marginVertical: 8,
-            color: "#555",
-            fontSize: 14,
+    filterLabel: {
+        fontWeight: "600",
+        marginVertical: 8,
+        color: "#555",
+        fontSize: 14,
     },
-            filterGroup: {
-                flexDirection: "row",
-            marginBottom: 15,
+    filterGroup: {
+        flexDirection: "row",
+        marginBottom: 15,
     },
-            filterButton: {
-                flex: 1,
-            marginHorizontal: 4,
-            paddingVertical: 10,
-            borderWidth: 1,
-            borderColor: "#e0e0e0",
-            borderRadius: 8,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#f8f9fa",
+    filterButton: {
+        flex: 1,
+        marginHorizontal: 4,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+        borderRadius: 8,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f8f9fa",
     },
-            filterButtonSelected: {
-                backgroundColor: "#1792FE",
-            borderColor: "#1792FE",
+    filterButtonSelected: {
+        backgroundColor: "#1792FE",
+        borderColor: "#1792FE",
     },
-            filterButtonText: {
-                color: "#555",
-            fontWeight: "500",
-            fontSize: 13,
+    filterButtonText: {
+        color: "#555",
+        fontWeight: "500",
+        fontSize: 13,
     },
-            filterButtonTextSelected: {
-                color: "#fff",
+    filterButtonTextSelected: {
+        color: "#fff",
     },
-            errorContainer: {
-                margin: 20,
-            padding: 12,
-            backgroundColor: "#ffebee",
-            borderRadius: 8,
-            borderLeftWidth: 4,
-            borderLeftColor: "#f44336",
+    errorContainer: {
+        margin: 20,
+        padding: 12,
+        backgroundColor: "#ffebee",
+        borderRadius: 8,
+        borderLeftWidth: 4,
+        borderLeftColor: "#f44336",
     },
-            errorText: {
-                color: "#d32f2f",
-            fontSize: 14,
+    errorText: {
+        color: "#d32f2f",
+        fontSize: 14,
     },
-            tableContainer: {
+    tableContainer: {
         flex: 1,
         paddingHorizontal: 20,
         maxHeight: "calc(100vh - 300px)",
         overflow: "auto",
     },
-            loadingContainer: {
-                flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            paddingVertical: 40,
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingVertical: 40,
     },
-            loadingIndicator: {
-                marginBottom: 15,
+    loadingIndicator: {
+        marginBottom: 15,
     },
-            loadingText: {fontSize: 16,
-            color: "#666",
+    loadingText: {
+        fontSize: 16,
+        color: "#666",
     },
-            flatListContent: {
-                paddingBottom: 20,
+    flatListContent: {
+        paddingBottom: 20,
     },
-            sectionContainer: {
-                marginBottom: 15,
-            backgroundColor: "#fff",
-            borderRadius: 12,
-            shadowColor: "#000",
-            shadowOffset: {width: 0, height: 1 },
-            shadowOpacity: 0.1,
-            shadowRadius: 3,
-            elevation: 2,
-            borderLeftWidth: 4,
+    sectionContainer: {
+        marginBottom: 15,
+        backgroundColor: "#fff",
+        borderRadius: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
+        borderLeftWidth: 4,
     },
-            sectionHeaderContainer: {
-                flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: 15,
+    sectionHeaderContainer: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: 15,
     },
-            sectionHeader: {
-                flex: 1,
+    sectionHeader: {
+        flex: 1,
     },
-            headerTitleContainer: {
-                flexDirection: "row",
-            alignItems: "center",
+    headerTitleContainer: {
+        flexDirection: "row",
+        alignItems: "center",
     },
-            expandIcon: {
-                color: "#666",
-            marginRight: 8,
+    expandIcon: {
+        color: "#666",
+        marginRight: 8,
     },
-            sectionHeaderText: {
-                fontWeight: "600",
-            fontSize: 15,
-            color: "#333",
+    sectionHeaderText: {
+        fontWeight: "600",
+        fontSize: 15,
+        color: "#333",
     },
-            actionButtonsContainer: {
-                flexDirection: "row",
+    actionButtonsContainer: {
+        flexDirection: "row",
     },
-            actionButton: {
-                padding: 8,
-            borderRadius: 6,
-            marginLeft: 5,
-            backgroundColor: "#f0f7ff",
+    actionButton: {
+        padding: 8,
+        borderRadius: 6,
+        marginLeft: 5,
+        backgroundColor: "#f0f7ff",
     },
-            deleteButton: {
-                backgroundColor: "#ffebee",
+    deleteButton: {
+        backgroundColor: "#ffebee",
     },
-            icon: {
-                color: "#1792FE",
+    uploadButton: {
+        backgroundColor: "#e8f5e8",
     },
-            iconDelete: {
-                color: "#f44336",
+    icon: {
+        color: "#1792FE",
     },
-            pedidosContainer: {
-                padding: 15,
-            paddingTop: 0,
+    iconDelete: {
+        color: "#f44336",
     },
-            pedidoContainer: {
-                borderTopWidth: 1,
-            borderTopColor: "#f0f0f0",
-            paddingTop: 15,
+    pedidosContainer: {
+        padding: 15,
+        paddingTop: 0,
     },
-            pedidoDetailContainer: {
-                marginVertical: 5,
+    pedidoContainer: {
+        borderTopWidth: 1,
+        borderTopColor: "#f0f0f0",
+        paddingTop: 15,
     },
-            pedidoInfoRow: {
-                flexDirection: "row",
-            justifyContent: "space-between",
-            marginBottom: 12,
+    pedidoDetailContainer: {
+        marginVertical: 5,
     },
-            pedidoInfoColumn: {
-                flex: 1,
+    pedidoInfoRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: 12,
     },
-            infoGroup: {
-                marginBottom: 8,
+    pedidoInfoColumn: {
+        flex: 1,
     },
-            pedidoDetailLabel: {
-                fontWeight: "600",
-            fontSize: 13,
-            color: "#666",
-            marginBottom: 3,
+    infoGroup: {
+        marginBottom: 8,
     },
-            pedidoDetailValue: {
-                fontSize: 14,
-            color: "#333",
+    pedidoDetailLabel: {
+        fontWeight: "600",
+        fontSize: 13,
+        color: "#666",
+        marginBottom: 3,
     },
-            badgeRow: {
-                flexDirection: "row",
-            flexWrap: "wrap",
-            justifyContent: "flex-end",
+    pedidoDetailValue: {
+        fontSize: 14,
+        color: "#333",
+    },
+    badgeRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        justifyContent: "flex-end",
     },
 
-            badge: {
-                paddingHorizontal: 10,
-            paddingVertical: 5,
-            backgroundColor: "#f0f0f0",
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: "#e0e0e0",
-            marginLeft: 6,
-            marginBottom: 6,
+    badge: {
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        backgroundColor: "#f0f0f0",
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+        marginLeft: 6,
+        marginBottom: 6,
     },
-            badgeText: {
-                fontSize: 12,
-            fontWeight: "500",
-            color: "#555",
+    badgeText: {
+        fontSize: 12,
+        fontWeight: "500",
+        color: "#555",
     },
-            descriptionContainer: {
-                backgroundColor: "#f9f9f9",
-            padding: 12,
-            borderRadius: 8,
-            marginTop: 5,
+    descriptionContainer: {
+        backgroundColor: "#f9f9f9",
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 5,
     },
-            descriptionText: {
-                fontSize: 14,
-            color: "#444",
-            lineHeight: 20,
+    descriptionText: {
+        fontSize: 14,
+        color: "#444",
+        lineHeight: 20,
     },
-            emptyListContainer: {
-                alignItems: "center",
-            justifyContent: "center",
-            padding: 40,
+    emptyListContainer: {
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 40,
     },
-            emptyListText: {
-                fontSize: 16,
-            color: "#666",
-            textAlign: "center",
-            marginBottom: 20,
+    emptyListText: {
+        fontSize: 16,
+        color: "#666",
+        textAlign: "center",
+        marginBottom: 20,
     },
-            emptyListButton: {
-                backgroundColor: "#1792FE",
-            paddingVertical: 12,
-            paddingHorizontal: 20,
-            borderRadius: 10,
+    emptyListButton: {
+        backgroundColor: "#1792FE",
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 10,
     },
-            emptyListButtonText: {
-                color: "#fff",
-            fontWeight: "600",
-            fontSize: 15,
+    emptyListButtonText: {
+        color: "#fff",
+        fontWeight: "600",
+        fontSize: 15,
     },
-            modalBackground: {
-                flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
+    modalBackground: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
     },
-            modalView: {
-                width: "85%",
-            maxWidth: 400,
-            backgroundColor: "white",
-            borderRadius: 20,
-            overflow: "hidden",
-            shadowColor: "#000",
-            shadowOffset: {width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 10,
-            elevation: 8,
+    modalView: {
+        width: "85%",
+        maxWidth: 400,
+        backgroundColor: "white",
+        borderRadius: 20,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 8,
     },
-            modalHeader: {
-                backgroundColor: "#f44336",
-            padding: 16,
+    modalHeader: {
+        backgroundColor: "#f44336",
+        padding: 16,
     },
-            modalTitle: {
-                color: "white",
-            fontSize: 18,
-            fontWeight: "600",
-            textAlign: "center",
+    modalTitle: {
+        color: "white",
+        fontSize: 18,
+        fontWeight: "600",
+        textAlign: "center",
     },
-            modalText: {
-                marginVertical: 25,
-            textAlign: "center",
-            fontSize: 15,
-            paddingHorizontal: 20,
-            color: "#444",
+    modalText: {
+        marginVertical: 25,
+        textAlign: "center",
+        fontSize: 15,
+        paddingHorizontal: 20,
+        color: "#444",
     },
-            modalButtons: {
-                flexDirection: "row",
-            borderTopWidth: 1,
-            borderTopColor: "#eee",
+    modalButtons: {
+        flexDirection: "row",
+        borderTopWidth: 1,
+        borderTopColor: "#eee",
     },
-            modalButton: {
-                flex: 1,
-            padding: 15,
-            alignItems: "center",
+    modalButton: {
+        flex: 1,
+        padding: 15,
+        alignItems: "center",
     },
-            cancelButton: {
-                borderRightWidth: 1,
-            borderRightColor: "#eee",
+    cancelButton: {
+        borderRightWidth: 1,
+        borderRightColor: "#eee",
     },
-            deleteConfirmButton: {
-                backgroundColor: "#f44336",
+    deleteConfirmButton: {
+        backgroundColor: "#f44336",
     },
-            cancelButtonText: {
-                color: "#666",
-            fontWeight: "600",
-            fontSize: 15,
+    cancelButtonText: {
+        color: "#666",
+        fontWeight: "600",
+        fontSize: 15,
     },
-            deleteConfirmButtonText: {
-                color: "white",
-            fontWeight: "600",
-            fontSize: 15,
+    deleteConfirmButtonText: {
+        color: "white",
+        fontWeight: "600",
+        fontSize: 15,
     },
-            analyticsButton: {
-                flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: "#28a745",
-            paddingVertical: 12,
-            paddingHorizontal: 16,
-            borderRadius: 10,
-            shadowColor: "#28a745",
-            shadowOffset: {width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 3,
-            elevation: 3,
-            marginLeft: 10,
+    analyticsButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#28a745",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        shadowColor: "#28a745",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 3,
+        marginLeft: 10,
     },
-            analyticsButtonIcon: {
-                color: "#fff",
-            marginRight: 6,
+    analyticsButtonIcon: {
+        color: "#fff",
+        marginRight: 6,
     },
-            analyticsButtonText: {
-                color: "#fff",
-            fontWeight: "600",
-            fontSize: 15,
+    analyticsButtonText: {
+        color: "#fff",
+        fontWeight: "600",
+        fontSize: 15,
+    },
+    anexosModalView: {
+        width: "90%",
+        maxWidth: 600,
+        maxHeight: "80%",
+    },
+    closeButton: {
+        padding: 5,
+    },
+    closeIcon: {
+        color: "white",
+    },
+    anexosScrollView: {
+        maxHeight: 400,
+        padding: 10,
+    },
+    noAnexosText: {
+        textAlign: "center",
+        color: "#666",
+        fontSize: 16,
+        padding: 20,
+    },
+    anexoCard: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: "#f8f9fa",
+        padding: 12,
+        marginBottom: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: "#e9ecef",
+    },
+    anexoInfo: {
+        flex: 1,
+    },
+    anexoNome: {
+        fontWeight: "600",
+        fontSize: 14,
+        color: "#333",
+        marginBottom: 4,
+    },
+    anexoDetalhes: {
+        fontSize: 12,
+        color: "#666",
+        marginBottom: 2,
+    },
+    downloadButton: {
+        backgroundColor: "#1792FE",
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+    },
+    downloadButtonText: {
+        color: "white",
+        fontSize: 12,
+        fontWeight: "600",
+    },
+    uploadModalView: {
+        width: "85%",
+        maxWidth: 500,
+    },
+    uploadContent: {
+        padding: 20,
+    },
+    uploadInstructions: {
+        fontSize: 14,
+        color: "#333",
+        marginBottom: 15,
+        textAlign: "center",
+    },
+    fileInput: {
+        width: "100%",
+        padding: 10,
+        border: "2px dashed #1792FE",
+        borderRadius: 8,
+        marginBottom: 15,
+        backgroundColor: "#f8f9ff",
+    },
+    uploadingContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 10,
+    },
+    uploadingText: {
+        marginLeft: 10,
+        color: "#1792FE",
+        fontSize: 14,
+    },
+    fileTypesText: {
+        fontSize: 12,
+        color: "#666",
+        textAlign: "center",
+        marginBottom: 5,
+    },
+    fileSizeText: {
+        fontSize: 12,
+        color: "#666",
+        textAlign: "center",
+    },
+    anexoButtonsContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    deleteAnexoButton: {
+        backgroundColor: "#f44336",
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+        borderRadius: 4,
+        marginLeft: 8,
+    },
+    deleteAnexoIcon: {
+        color: "white",
     },
 });
 
-            export default PedidosAssistencia;
+export default PedidosAssistencia;
