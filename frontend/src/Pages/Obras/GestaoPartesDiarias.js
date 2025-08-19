@@ -10,7 +10,9 @@ import {
   ScrollView,
   SafeAreaView,
   RefreshControl,
-  Alert
+  Alert,
+  Picker,
+  TextInput,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -93,6 +95,50 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
     return cabecalhos;
   }, [cabecalhos, filtroEstado]);
 
+
+  // === ESTADOS DE EDIÇÃO ===
+const [editItemModalVisible, setEditItemModalVisible] = useState(false);
+const [itemEmEdicao, setItemEmEdicao] = useState(null);
+const [editItem, setEditItem] = useState({
+  id: null, // ID do item no teu backend
+  documentoID: null,
+  obraId: null,
+  dataISO: '',
+  categoria: 'MaoObra', // 'MaoObra' | 'Equipamentos'
+  especialidadeCodigo: '',
+  subEmpId: null,       // SubEmpId (Mão de obra) ou ComponenteID (Equip)
+  horasStr: '',         // input do utilizador (H:MM ou decimal)
+  horaExtra: false,
+});
+
+const [especialidadesList, setEspecialidadesList] = useState([]);
+const [equipamentosList, setEquipamentosList] = useState([]);
+
+// === HELPERS DE HORAS/DIAS ===
+const parseHorasToMinutos = (s) => {
+  if (!s) return 0;
+  const t = String(s).trim().replace(',', '.');
+  if (t.includes(':')) {
+    const [h, m] = t.split(':');
+    return Math.max(0, (parseInt(h)||0) * 60 + (parseInt(m)||0));
+  }
+  const dec = parseFloat(t);
+  if (Number.isNaN(dec) || dec < 0) return 0;
+  return Math.round(dec * 60);
+};
+const formatMinutos = (min) => {
+  const h = Math.floor((min||0) / 60);
+  const m = Math.abs((min||0) % 60);
+  return min > 0 ? `${h}:${String(m).padStart(2, '0')}` : '';
+};
+const isFimDeSemana = (isoDate) => {
+  const d = new Date(isoDate);
+  const w = d.getDay(); // 0=Dom, 6=Sáb
+  return w === 0 || w === 6;
+};
+
+
+
   useEffect(() => {
     (async () => {
       await fetchEspecialidades();
@@ -108,63 +154,180 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
     setRefreshing(false);
   }, []);
 
-  const fetchEspecialidades = async () => {
-    try {
-      const token = await AsyncStorage.getItem('painelAdminToken');
-      const urlempresa = await AsyncStorage.getItem('urlempresa');
-      const res = await fetch(
-        'https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            urlempresa,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      if (!res.ok) throw new Error('Falha ao obter especialidades');
-      const data = await res.json();
-      const table = data?.DataSet?.Table || [];
-      const map = {};
-      table.forEach(item => {
-        map[String(item.SubEmpId)] = item.Descricao;
-      });
-      setEspecialidadesMap(map);
-    } catch (err) {
-      console.warn('Erro especialidades:', err.message);
+const fetchEspecialidades = async () => {
+  try {
+    const token = await AsyncStorage.getItem('painelAdminToken');
+    const urlempresa = await AsyncStorage.getItem('urlempresa');
+    const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades', {
+      headers: { Authorization: `Bearer ${token}`, urlempresa, 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error('Falha ao obter especialidades');
+    const data = await res.json();
+    const table = data?.DataSet?.Table || [];
+
+    const map = {};
+    const list = [];
+
+    table.forEach(item => {
+      const subEmpId = item.SubEmpId ?? item.SubEmpID ?? item.SubEmpid;
+      const codigo   = item.SubEmp ?? String(subEmpId ?? '');
+      const desc     = item.Descricao ?? item.Desig ?? codigo;
+      if (subEmpId != null) map[String(subEmpId)] = desc;
+      list.push({ codigo, descricao: desc, subEmpId });
+    });
+
+    setEspecialidadesMap(map);
+    setEspecialidadesList(list);
+  } catch (err) {
+    console.warn('Erro especialidades:', err.message);
+  }
+};
+
+
+ const fetchEquipamentos = async () => {
+  try {
+    const token = await AsyncStorage.getItem('painelAdminToken');
+    const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+    const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos', {
+      headers: { Authorization: `Bearer ${token}`, urlempresa, 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error('Falha ao obter equipamentos');
+    const data = await res.json();
+
+    const table = data?.DataSet?.Table || [];
+    const map = {};
+    const list = [];
+
+    table.forEach(item => {
+      const componenteID = item.ComponenteID ?? item.ID ?? null;
+      const codigo       = item.Codigo ?? String(componenteID ?? '');
+      const nome         = item.Desig ?? codigo;
+      if (componenteID != null) map[String(componenteID)] = nome;
+      list.push({ codigo, descricao: nome, subEmpId: componenteID });
+    });
+
+    setEquipamentosMap(map);
+    setEquipamentosList(list);
+  } catch (err) {
+    console.warn('Erro equipamentos:', err.message);
+  }
+};
+
+
+const abrirEdicaoItem = (item, cab, idx) => {
+  // Detecta categoria
+  const cat = String(item.Categoria || '').toLowerCase() === 'equipamentos' ? 'Equipamentos' : 'MaoObra';
+
+  // Descobre subEmpId inicial
+  const subId = cat === 'Equipamentos'
+    ? (item.ComponenteID ?? item.SubEmpID ?? null)
+    : (item.SubEmpID ?? null);
+
+  // Tenta achar "código" a partir do subEmpId (para pré-seleção do Picker)
+  const lista = (cat === 'Equipamentos') ? equipamentosList : especialidadesList;
+  const found = lista.find(x => String(x.subEmpId) === String(subId));
+
+  const dataISO = (item.Data || '').split('T')[0] || item.Data;
+  const horasStr = formatMinutos(item.NumHoras || 0);
+  const horaExtra = !!item.TipoHoraID; // se já vinha marcado
+
+  setItemEmEdicao({ ...item, _cabDocId: cab.DocumentoID, _idx: idx });
+  setEditItem({
+    id: item.ID ?? item.ItemID ?? item.ItemId ?? item.id ?? null,
+    documentoID: cab.DocumentoID,
+    obraId: item.ObraID ?? cab.ObraID ?? null,
+    dataISO,
+    categoria: cat,
+    especialidadeCodigo: found?.codigo || '',
+    subEmpId: found?.subEmpId ?? subId ?? null,
+    horasStr,
+    horaExtra,
+  });
+  setEditItemModalVisible(true);
+};
+
+
+const guardarItemEditado = async () => {
+  try {
+    if (!itemEmEdicao || !editItem.id) {
+      Alert.alert('Erro', 'Item inválido.');
+      return;
     }
-  };
 
-  const fetchEquipamentos = async () => {
-    try {
-      const token = await AsyncStorage.getItem('painelAdminToken');
-      const urlempresa = await AsyncStorage.getItem('urlempresa');
+    const painelToken = await AsyncStorage.getItem('painelAdminToken');
+    const minutos = parseHorasToMinutos(editItem.horasStr);
+    const categoriaBD = editItem.categoria === 'Equipamentos' ? 'equipamentos' : 'MaoObra';
 
-      const res = await fetch(
-        'https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            urlempresa,
-            'Content-Type': 'application/json',
-          }
-        }
-      );
-      if (!res.ok) throw new Error('Falha ao obter equipamentos');
-      const data = await res.json();
+    // TipoHoraID só quando hora extra
+    const tipoHoraId = editItem.horaExtra
+      ? (isFimDeSemana(editItem.dataISO) ? 'H06' : 'H01')
+      : null;
 
-      const table = data?.DataSet?.Table || [];
-      const map = {};
-      table.forEach(item => {
-        const id = String(item.ComponenteID ?? '');
-        const nome = item.Desig ?? '';
-        if (id) map[id] = nome || id;
-      });
-      setEquipamentosMap(map);
-    } catch (err) {
-      console.warn('Erro equipamentos:', err.message);
+    // Para equipamentos garante também ComponenteID
+    const payload = {
+      DocumentoID: editItem.documentoID,
+      ObraID: Number(editItem.obraId) || null,
+      Data: editItem.dataISO,
+      Categoria: categoriaBD,
+      SubEmpID: editItem.subEmpId ?? null,
+      ComponenteID: (editItem.categoria === 'Equipamentos') ? (editItem.subEmpId ?? null) : null,
+      NumHoras: minutos,
+      TipoHoraID: tipoHoraId,
+      // Mantém os restantes campos se precisares (PrecoUnit, ClasseID, ColaboradorID, etc.)
+    };
+
+    const url = `https://backend.advir.pt/api/parte-diaria/itens/${editItem.id}`;
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${painelToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err?.message || 'Falha ao atualizar item.');
     }
-  };
+
+    // Atualiza no estado local (selectedCabecalho e na lista geral)
+    const itemAtualizado = {
+      ...itemEmEdicao,
+      ObraID: payload.ObraID,
+      Data: payload.Data,
+      Categoria: payload.Categoria,
+      SubEmpID: payload.SubEmpID,
+      ComponenteID: payload.ComponenteID,
+      NumHoras: payload.NumHoras,
+      TipoHoraID: payload.TipoHoraID,
+    };
+
+    setSelectedCabecalho(prev => {
+      if (!prev) return prev;
+      const novos = (prev.ParteDiariaItems || []).map(i =>
+        ( (i.ID ?? i.ItemID ?? i.ItemId) === editItem.id ? itemAtualizado : i)
+      );
+      return { ...prev, ParteDiariaItems: novos };
+    });
+
+    setCabecalhos(prev => prev.map(c => {
+      if (c.DocumentoID !== (itemEmEdicao._cabDocId || editItem.documentoID)) return c;
+      const novos = (c.ParteDiariaItems || []).map(i =>
+        ( (i.ID ?? i.ItemID ?? i.ItemId) === editItem.id ? itemAtualizado : i)
+      );
+      return { ...c, ParteDiariaItems: novos };
+    }));
+
+    setEditItemModalVisible(false);
+    setItemEmEdicao(null);
+    Alert.alert('Sucesso', 'Item atualizado.');
+  } catch (e) {
+    console.error('Erro a guardar item:', e);
+    Alert.alert('Erro', e.message || 'Não foi possível guardar.');
+  }
+};
+
+
+
 
   const getCategoriaChip = (categoria) => {
     const cat = String(categoria || '').toLowerCase();
@@ -852,6 +1015,18 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
                                 </Text>
                               </View>
                             </View>
+                            <View style={styles.itemHeader}>
+                              <Text style={styles.itemNumber}>Item {index + 1}</Text>
+                              <TouchableOpacity
+                                onPress={() => abrirEdicaoItem(item, selectedCabecalho, index)}
+                                style={{ flexDirection:'row', alignItems:'center' }}
+                              >
+                                <Ionicons name="create" size={16} color="#1792FE" style={{ marginRight: 6 }} />
+                                <Text style={{ color:'#1792FE', fontWeight:'600' }}>Editar</Text>
+                              </TouchableOpacity>
+
+                            </View>
+
                           </View>
                         );
                       })
@@ -859,6 +1034,121 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
                       <Text style={styles.emptyItemsText}>Sem itens registados.</Text>
                     )}
                   </View>
+                  <Modal visible={editItemModalVisible} animationType="slide" onRequestClose={() => setEditItemModalVisible(false)} transparent>
+  <View style={styles.modalContainer}>
+    <View style={styles.modalContent}>
+      <View style={styles.modalHeader}>
+        <Text style={styles.modalTitle}>Editar Item</Text>
+        <TouchableOpacity onPress={() => setEditItemModalVisible(false)} style={styles.closeButton}>
+          <Ionicons name="close" size={24} color="#666" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.modalBody}>
+        {/* Data (só leitura, mas podes transformar em Picker de data) */}
+        <View style={styles.modalSection}>
+          <Text style={styles.modalLabel}>Data</Text>
+          <Text style={styles.modalValue}>{editItem.dataISO}</Text>
+        </View>
+
+        {/* Obra */}
+        <View style={styles.modalSection}>
+          <Text style={styles.modalLabel}>Obra</Text>
+          <View style={{ backgroundColor:'#f0f0f0', borderRadius:8 }}>
+            <Picker
+              selectedValue={editItem.obraId}
+              onValueChange={(v) => setEditItem(s => ({ ...s, obraId: v }))}
+            >
+              {Object.entries(obrasMap).map(([id, meta]) => (
+                <Picker.Item
+                  key={id}
+                  label={`${meta.codigo} — ${meta.descricao}`}
+                  value={Number(id)}
+                />
+              ))}
+            </Picker>
+          </View>
+        </View>
+
+        {/* Categoria */}
+        <View style={styles.modalSection}>
+          <Text style={styles.modalLabel}>Categoria</Text>
+          <View style={styles.pickerContainer}>
+            {[
+              { label:'Mão de Obra', value:'MaoObra' },
+              { label:'Equipamentos', value:'Equipamentos' }
+            ].map(opt => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.pickerOptionSmall, editItem.categoria === opt.value && styles.pickerOptionSelected]}
+                onPress={() => setEditItem(s => ({ ...s, categoria: opt.value, especialidadeCodigo:'', subEmpId:null }))}
+              >
+                <Text style={[styles.pickerOptionTextSmall, editItem.categoria === opt.value && styles.pickerOptionTextSelected]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Especialidade/Equipamento */}
+        <View style={styles.modalSection}>
+          <Text style={styles.modalLabel}>
+            {editItem.categoria === 'Equipamentos' ? 'Equipamento' : 'Especialidade'}
+          </Text>
+          <View style={{ backgroundColor:'#f0f0f0', borderRadius:8 }}>
+            <Picker
+              selectedValue={editItem.especialidadeCodigo}
+              onValueChange={(cod) => {
+                const lista = editItem.categoria === 'Equipamentos' ? equipamentosList : especialidadesList;
+                const sel = lista.find(x => x.codigo === cod);
+                setEditItem(s => ({ ...s, especialidadeCodigo: cod, subEmpId: sel?.subEmpId ?? null }));
+              }}
+            >
+              <Picker.Item label="— Selecione —" value="" />
+              {(editItem.categoria === 'Equipamentos' ? equipamentosList : especialidadesList)
+                .map(opt => <Picker.Item key={opt.codigo} label={opt.descricao} value={opt.codigo} />)}
+            </Picker>
+          </View>
+        </View>
+
+        {/* Horas */}
+        <View style={styles.modalSection}>
+          <Text style={styles.modalLabel}>Horas (H:MM ou decimal)</Text>
+          <TextInput
+            style={styles.horasInput}
+            value={editItem.horasStr}
+            onChangeText={(v) => setEditItem(s => ({ ...s, horasStr: v }))}
+            placeholder="ex.: 8:00 ou 8.0"
+            keyboardType="default"
+          />
+        </View>
+
+        {/* Hora extra */}
+        <TouchableOpacity
+          style={{ flexDirection:'row', alignItems:'center', marginBottom: 18, marginLeft: 20 }}
+          onPress={() => setEditItem(s => ({ ...s, horaExtra: !s.horaExtra }))}
+        >
+          <Ionicons
+            name={editItem.horaExtra ? 'checkbox' : 'square-outline'}
+            size={20}
+            color={editItem.horaExtra ? '#28a745' : '#666'}
+          />
+          <Text style={{ marginLeft: 8, color:'#333' }}>Hora extra</Text>
+        </TouchableOpacity>
+
+        {/* Guardar */}
+        <TouchableOpacity onPress={guardarItemEditado} style={{ borderRadius:8, overflow:'hidden', marginHorizontal: 20 }}>
+          <LinearGradient colors={['#28a745', '#20c997']} style={styles.buttonGradient}>
+            <Ionicons name="save" size={16} color="#fff" />
+            <Text style={styles.buttonText}>Guardar</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  </View>
+</Modal>
+
                 </>
               )}
             </ScrollView>
@@ -871,6 +1161,14 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  // adiciona/ajusta conforme o teu StyleSheet
+pickerContainer: { flexDirection:'row', gap:8, flexWrap:'wrap', marginTop:6 },
+pickerOptionSmall: { paddingVertical:8, paddingHorizontal:12, borderRadius:12, backgroundColor:'#eef2f7' },
+pickerOptionSelected: { backgroundColor:'#1792FE' },
+pickerOptionTextSmall: { color:'#1792FE', fontWeight:'600' },
+pickerOptionTextSelected: { color:'#fff' },
+horasInput: { backgroundColor:'#fff', borderWidth:1, borderColor:'#e0e0e0', borderRadius:8, paddingHorizontal:12, height:44 },
+
   header: { paddingHorizontal: 20, paddingVertical: 25, paddingTop: 40 },
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 5 },
   headerSubtitle: { fontSize: 16, color: '#e3f2fd', opacity: 0.9 },

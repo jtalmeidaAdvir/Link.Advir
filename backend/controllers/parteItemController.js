@@ -43,17 +43,45 @@ exports.criar = async (req, res) => {
 
 
 
-
 exports.atualizar = async (req, res) => {
   const { id } = req.params;
-  const [updated] = await ParteDiariaItem.update(req.body, { where: { ComponenteID: id } });
-  if (!updated) return res.status(404).json({ erro: 'Não encontrado' });
-  res.sendStatus(204);
+  const body = { ...req.body };
+  if (body.categoria && !body.Categoria) body.Categoria = body.categoria;
+
+  try {
+    const [updated] = await ParteDiariaItem.update(body, {
+      where: {
+        // ajuste se a tua PK se chama "ID" em vez de "id"
+        id: isNaN(Number(id)) ? id : Number(id),
+      },
+    });
+
+    if (!updated) return res.status(404).json({ erro: 'Não encontrado' });
+
+    // Opcional: devolver o item atualizado (melhor DX)
+    const item = await ParteDiariaItem.findByPk(id);
+    return res.json(item);
+    // Se preferires 204:
+    // return res.sendStatus(204);
+  } catch (err) {
+    console.error('Erro ao atualizar item:', err);
+    return res.status(400).json({ erro: err.message || 'Erro inesperado' });
+  }
 };
 
 exports.remover = async (req, res) => {
   const { id } = req.params;
-  const deleted = await ParteDiariaItem.destroy({ where: { ComponenteID: id } });
-  if (!deleted) return res.status(404).json({ erro: 'Não encontrado' });
-  res.sendStatus(204);
+  try {
+    const deleted = await ParteDiariaItem.destroy({
+      where: {
+        // ajuste se a tua PK se chama "ID"
+        id: isNaN(Number(id)) ? id : Number(id),
+      },
+    });
+    if (!deleted) return res.status(404).json({ erro: 'Não encontrado' });
+    return res.sendStatus(204);
+  } catch (err) {
+    console.error('Erro ao remover item:', err);
+    return res.status(400).json({ erro: err.message || 'Erro inesperado' });
+  }
 };
