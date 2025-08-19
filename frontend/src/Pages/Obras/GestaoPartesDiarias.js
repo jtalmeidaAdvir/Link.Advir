@@ -11,9 +11,9 @@ import {
   SafeAreaView,
   RefreshControl,
   Alert,
-  Picker,
   TextInput,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -92,7 +92,7 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
 
 
 // helper perto do topo do componente
-const getItemId = (x) => String(x?.ID ?? x?.ItemID ?? x?.ItemId ?? x?.id ?? '');
+ const getItemId = (x) => String(x?.ComponenteID ?? x?.ID ?? x?.ItemID ?? x?.ItemId ?? x?.id ?? '');
 
 
 
@@ -240,9 +240,15 @@ const abrirEdicaoItem = (item, cab, idx) => {
   const horasStr = formatMinutos(item.NumHoras || 0);
   const horaExtra = !!item.TipoHoraID; // se já vinha marcado
 
-  setItemEmEdicao({ ...item, _cabDocId: cab.DocumentoID, _idx: idx });
+ setItemEmEdicao({
+   ...item,
+   _cabDocId: cab.DocumentoID,
+   _idx: idx,
+   // guarda o Numero real se existir; senão usa o índice (1-based)
+   Numero: item.Numero ?? item.numero ?? (idx + 1),
+ });
   setEditItem({
-    id: item.ID ?? item.ItemID ?? item.ItemId ?? item.id ?? null,
+    id: item.ComponenteID ?? item.ID ?? item.ItemID ?? item.ItemId ?? item.id ?? null,
     documentoID: cab.DocumentoID,
     obraId: item.ObraID ?? cab.ObraID ?? null,
     dataISO,
@@ -258,17 +264,40 @@ const abrirEdicaoItem = (item, cab, idx) => {
 
 const guardarItemEditado = async () => {
   try {
-    if (!itemEmEdicao || !editItem.id) {
+    console.log('💾 Guardar clicado', editItem);
+
+    if (!itemEmEdicao) {
       Alert.alert('Erro', 'Item inválido.');
       return;
     }
+    if (!editItem.obraId || !editItem.dataISO) {
+      Alert.alert('Erro', 'Obra e Data são obrigatórias.');
+      return;
+    }
 
-    const painelToken = await AsyncStorage.getItem('painelAdminToken');
+    const loginToken = await AsyncStorage.getItem('loginToken');
+    if (!loginToken) {
+      Alert.alert('Sessão', 'Sem sessão válida. Entre novamente.');
+      return;
+    }
+
     const minutos = parseHorasToMinutos(editItem.horasStr);
-    const categoriaBD = editItem.categoria === 'Equipamentos' ? 'equipamentos' : 'MaoObra';
+    const categoriaBD = editItem.categoria === 'Equipamentos' ? 'Equipamentos' : 'MaoObra';
     const tipoHoraId = editItem.horaExtra
       ? (isFimDeSemana(editItem.dataISO) ? 'H06' : 'H01')
       : null;
+
+    // Valores anteriores do item (se existirem)
+    const prev = itemEmEdicao || {};
+
+    // Campos obrigatórios no create (e inofensivos no update)
+    const obrigatorios = {
+      Funcionario: prev.Funcionario ?? '',
+      ClasseID: prev.ClasseID ?? -1,
+      PrecoUnit: prev.PrecoUnit ?? 0,
+      TipoEntidade: prev.TipoEntidade ?? 'O',
+      ColaboradorID: prev.ColaboradorID ?? null,
+    };
 
     const payload = {
       DocumentoID: editItem.documentoID,
@@ -279,57 +308,121 @@ const guardarItemEditado = async () => {
       ComponenteID: (editItem.categoria === 'Equipamentos') ? (editItem.subEmpId ?? null) : null,
       NumHoras: minutos,
       TipoHoraID: tipoHoraId,
+      ...obrigatorios,
     };
 
-    const url = `https://backend.advir.pt/api/parte-diaria/itens/${editItem.id}`;
-    const resp = await fetch(url, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${painelToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err?.message || 'Falha ao atualizar item.');
+    // Decide URL e método
+    let url = '';
+    let method = 'PUT';
+
+    if (editItem.id) {
+      // Atualizar por PK
+      url = `https://backend.advir.pt/api/parte-diaria/itens/${encodeURIComponent(editItem.id)}`;
+    } else if (prev?.Numero != null) {
+      // Fallback: atualizar por DocumentoID + Número (linha) — precisa da rota no backend
+      url = `https://backend.advir.pt/api/parte-diaria/itens/doc/${encodeURIComponent(editItem.documentoID)}/linha/${Number(prev.Numero)}`;
+    } else {
+      // Último recurso: criar
+      method = 'POST';
+      payload.Numero = (prev?._idx != null) ? prev._idx + 1 : (prev.Numero ?? undefined);
+      url = `https://backend.advir.pt/api/parte-diaria/itens`;
     }
 
-    const itemAtualizado = {
-      ...itemEmEdicao,
-      ObraID: payload.ObraID,
-      Data: payload.Data,
-      Categoria: payload.Categoria,
-      SubEmpID: payload.SubEmpID,
-      ComponenteID: payload.ComponenteID,
-      NumHoras: payload.NumHoras,
-      TipoHoraID: payload.TipoHoraID,
-    };
+    console.log('URL UPDATE:', method, url);
+console.log('ID usado:', editItem.id);
 
-    // ✅ FAZ AQUI as atualizações de estado
-    const eid = getItemId({ id: editItem.id });
-
-    setSelectedCabecalho(prev => {
-      if (!prev) return prev;
-      const novos = (prev.ParteDiariaItems || []).map(i =>
-        getItemId(i) === eid ? itemAtualizado : i
-      );
-      return { ...prev, ParteDiariaItems: novos };
+    const resp = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${loginToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     });
 
-    setCabecalhos(prev => prev.map(c => {
+    const raw = await resp.text();
+    let saved = null;
+    try { saved = raw ? JSON.parse(raw) : null; } catch { /* 204, etc. */ }
+
+    if (!resp.ok) {
+      const msg = saved?.erro || saved?.message || `Falha ao guardar (HTTP ${resp.status})`;
+      throw new Error(msg);
+    }
+
+    // Construir item atualizado (prioriza o que veio do servidor)
+    const itemAtualizado = {
+      ...itemEmEdicao,
+      ...(saved || {}),
+      ObraID: (saved?.ObraID ?? payload.ObraID),
+      Data:    (saved?.Data   ?? payload.Data),
+      Categoria: (saved?.Categoria ?? payload.Categoria),
+      SubEmpID:  (saved?.SubEmpID  ?? payload.SubEmpID),
+      ComponenteID: (saved?.ComponenteID ?? payload.ComponenteID),
+      NumHoras: (saved?.NumHoras ?? payload.NumHoras),
+      TipoHoraID: (saved?.TipoHoraID ?? payload.TipoHoraID),
+      Funcionario: (saved?.Funcionario ?? payload.Funcionario),
+      ClasseID: (saved?.ClasseID ?? payload.ClasseID),
+      PrecoUnit: (saved?.PrecoUnit ?? payload.PrecoUnit),
+      TipoEntidade: (saved?.TipoEntidade ?? payload.TipoEntidade),
+      ColaboradorID: (saved?.ColaboradorID ?? payload.ColaboradorID),
+      Numero: (saved?.Numero ?? prev.Numero ?? payload.Numero),
+    };
+
+    // Obter id devolvido pelo servidor (em caso de criação)
+    const newId = String(saved?.ComponenteID ?? saved?.id ?? saved?.ID ?? '').trim();
+    const eid = String(editItem.id ?? newId ?? '').trim();
+    const linhaNumero = Number(itemEmEdicao?.Numero ?? saved?.Numero ?? saved?.numero ?? NaN);
+
+    const isSame = (i) => {
+      const iid = getItemId(i);
+      if (eid) return String(iid) === String(eid);
+      if (!Number.isNaN(linhaNumero)) return Number(i.Numero ?? i.numero) === linhaNumero;
+      return false;
+    };
+
+    // Atualiza selectedCabecalho
+    setSelectedCabecalho(prevCab => {
+      if (!prevCab) return prevCab;
+      const arr = prevCab.ParteDiariaItems || [];
+      let encontrou = false;
+      const novos = arr.map(i => {
+        if (isSame(i)) { encontrou = true; return itemAtualizado; }
+        return i;
+      });
+      const lista = encontrou ? novos : [...novos, itemAtualizado];
+      return { ...prevCab, ParteDiariaItems: lista };
+    });
+
+    // Atualiza lista total de cabeçalhos
+    setCabecalhos(prevList => prevList.map(c => {
       if (String(c.DocumentoID) !== String(itemEmEdicao._cabDocId || editItem.documentoID)) return c;
-      const novos = (c.ParteDiariaItems || []).map(i =>
-        getItemId(i) === eid ? itemAtualizado : i
-      );
-      return { ...c, ParteDiariaItems: novos };
+      const arr = c.ParteDiariaItems || [];
+      let encontrou = false;
+      const novos = arr.map(i => {
+        if (isSame(i)) { encontrou = true; return itemAtualizado; }
+        return i;
+      });
+      const lista = encontrou ? novos : [...novos, itemAtualizado];
+      return { ...c, ParteDiariaItems: lista };
     }));
 
+    // Fecha modal e limpa estado
     setEditItemModalVisible(false);
     setItemEmEdicao(null);
+
+    // Se criou, guarda o id novo no estado de edição (se quiseres)
+    if (!editItem.id && newId) {
+      setEditItem(s => ({ ...s, id: newId }));
+    }
+
     Alert.alert('Sucesso', 'Item atualizado.');
   } catch (e) {
     console.error('Erro a guardar item:', e);
     Alert.alert('Erro', e.message || 'Não foi possível guardar.');
   }
 };
+
+
 
 
 
@@ -684,19 +777,52 @@ const guardarItemEditado = async () => {
     }
   };
 
-  const handleRejeitar = async (item) => {
-    Alert.alert(
-      'Rejeitar Parte',
-      'Tem certeza que deseja rejeitar esta parte diária?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Rejeitar', style: 'destructive', onPress: () => {
-          console.log('Rejeitar parte:', item.DocumentoID);
-          // TODO: implementar rejeição de parte
-        }}
-      ]
-    );
-  };
+const handleRejeitar = async (cab) => {
+  Alert.alert(
+    'Rejeitar Parte',
+    'Tens a certeza que queres rejeitar esta parte diária? Esta ação não pode ser anulada.',
+    [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Rejeitar',
+        style: 'destructive',
+        onPress: async () => {
+         try {
+           // podes reaproveitar o set de “integrando” só para desativar o UI
+           setIntegrandoIds(prev => new Set(prev).add(cab.DocumentoID));
+           const loginToken = await AsyncStorage.getItem('loginToken');
+           if (!loginToken) throw new Error('Sem sessão válida.');
+
+           const resp = await fetch(
+             `https://backend.advir.pt/api/parte-diaria/cabecalhos/${encodeURIComponent(cab.DocumentoID)}`,
+             { method: 'DELETE', headers: { Authorization: `Bearer ${loginToken}` } }
+           );
+
+          if (!resp.ok) {
+             const msg = await resp.text().catch(() => '');
+             // exemplo: 409 se já estiver integrado
+             throw new Error(msg || `Falha ao rejeitar (HTTP ${resp.status})`);
+           }
+
+           // tira da lista local e fecha modal
+           setCabecalhos(prev => prev.filter(c => String(c.DocumentoID) !== String(cab.DocumentoID)));
+           if (selectedCabecalho?.DocumentoID === cab.DocumentoID) {
+             setModalVisible(false);
+             setSelectedCabecalho(null);
+           }
+           Alert.alert('Sucesso', 'Parte rejeitada e removida.');
+         } catch (e) {
+           console.error('Erro a rejeitar:', e);
+           Alert.alert('Erro', e.message || 'Não foi possível rejeitar.');
+         } finally {
+           setIntegrandoIds(prev => { const s = new Set(prev); s.delete(cab.DocumentoID); return s; });
+         }
+        }
+      }
+    ]
+  );
+};
+
 
   const abrirDetalhes = async (cab) => {
     if (cab?.ParteDiariaItems?.length > 0) {
