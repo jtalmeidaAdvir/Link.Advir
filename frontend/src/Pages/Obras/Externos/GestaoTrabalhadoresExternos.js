@@ -9,6 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
 
 const API_BASE = 'https://backend.advir.pt/api/trabalhadores-externos';
+const API_PARTE_DIARIA = 'https://backend.advir.pt/api/parte-diaria/cabecalhos';
+const API_OBRAS = 'https://backend.advir.pt/api/obra';
 
 const statusBadge = (ativo, anulado) => {
   if (anulado) return { label: 'Anulado', color: '#dc3545', icon: 'close-circle' };
@@ -28,6 +30,63 @@ const emptyForm = {
   observacoes: '',
   ativo: true,
   anulado: false,
+};
+
+// ===== Helpers comuns
+const formatarHoras = (minutos = 0) => {
+  const h = Math.floor(minutos / 60);
+  const m = minutos % 60;
+  return `${h > 0 ? `${h}h ` : ''}${m}m`;
+};
+
+// considera “trabalhador externo” apenas nos itens de PESSOAL (ignora equipamentos)
+// considera “trabalhador externo” apenas nos itens de PESSOAL (ignora equipamentos)
+const isExternoItem = (it) => {
+  const isEquip = String(it.Categoria || '').toLowerCase() === 'equipamentos';
+  if (isEquip) return false;
+
+  const semColab =
+    it.ColaboradorID === null ||
+    it.ColaboradorID === undefined ||
+    String(it.ColaboradorID).trim() === '';
+
+  // aceita qualquer “externo” no texto, com/sem parênteses
+  const marca = /\bexterno\b/i.test(String(it.Funcionario || ''));
+
+  return semColab || marca;
+};
+
+// normaliza nomes: remove acentos, "(...)", a palavra "externo", pontuação e espaços extra
+const normalizeName = (s = '') =>
+  s.toString()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\(.*?\)/g, ' ')         // remove qualquer "(...)"
+    .replace(/\bexterno\b/gi, ' ')    // remove a palavra externo
+    .replace(/[^a-z0-9\s]/gi, ' ')    // remove pontuação
+    .replace(/\s+/g, ' ')             // espaços múltiplos
+    .trim()
+    .toLowerCase();
+
+
+// devolve a especialidade a partir do item da Parte Diária (vários nomes possíveis)
+const getEspecialidade = (it = {}) =>
+  it.Especialidade ||
+  it.EspecialidadeNome ||
+  it.Funcao ||
+  it.FuncaoNome ||
+  it.SubCategoria ||
+  it.Subcategoria ||
+  (String(it.Categoria || '').toLowerCase() !== 'equipamentos' ? it.Categoria : '') ||
+  '—';
+
+const formatarValor = (n = 0) =>
+  Number(n).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+
+// tem ALGUM item externo de pessoal?
+const hasAnyExternosPessoal = (cab) => {
+  const itens = cab?.ParteDiariaItems || [];
+  return itens.some(it => String(it.Categoria || '').toLowerCase() !== 'equipamentos' && isExternoItem(it));
 };
 
 const GestaoTrabalhadoresExternos = () => {
@@ -54,6 +113,28 @@ const GestaoTrabalhadoresExternos = () => {
   const [modalDetalheVisible, setModalDetalheVisible] = useState(false);
   const [detalhe, setDetalhe] = useState(null);
 
+  // === RESUMO EXTERNOS (NOVO) ===
+  const [modalResumoVisible, setModalResumoVisible] = useState(false);
+  const [resumoLoading, setResumoLoading] = useState(false);
+  const [resumoDocs, setResumoDocs] = useState([]);
+  const [obrasMap, setObrasMap] = useState({});
+
+  // Controlo do resumo
+  const [granularidade, setGranularidade] = useState('diario'); // 'diario' | 'mensal' | 'anual'
+const [agruparPor, setAgruparPor] = useState('geral');        // 'geral' | 'obra' | 'empresa' | 'externo'
+const [dataInicio, setDataInicio] = useState('');
+const [dataFim, setDataFim] = useState('');
+
+
+// Mostrar € e filtros de resumo
+const [mostrarValores, setMostrarValores] = useState(true);
+
+const [empresaResumoFiltro, setEmpresaResumoFiltro] = useState('');
+const [externoResumoFiltro, setExternoResumoFiltro] = useState('');
+const [especialidadeResumoFiltro, setEspecialidadeResumoFiltro] = useState('');
+
+
+
   const carregarCombos = useCallback(async () => {
     try {
       const loginToken = await AsyncStorage.getItem('loginToken');
@@ -69,9 +150,7 @@ const GestaoTrabalhadoresExternos = () => {
 
       setEmpresasCombo(['', ...empData]);      // '' = Todos
       setCategoriasCombo(['', ...catData]);    // '' = Todos
-    } catch {
-      // combos não críticos; silencioso
-    }
+    } catch { /* silencioso */ }
   }, []);
 
   const buildQuery = () => {
@@ -246,7 +325,227 @@ const GestaoTrabalhadoresExternos = () => {
 
   const listaFiltrada = useMemo(() => registos, [registos]);
 
-  // Render
+  // === RESUMO EXTERNOS: data sources
+  const fetchObrasResumo = useCallback(async () => {
+    try {
+      const loginToken = await AsyncStorage.getItem('loginToken');
+      const res = await fetch(API_OBRAS, { headers: { Authorization: `Bearer ${loginToken}` } });
+      if (!res.ok) return;
+      const obras = await res.json();
+      const map = {};
+      obras.forEach(o => {
+        const key = String(o.id || o.ID);
+        map[key] = { codigo: o.codigo, nome: o.nome };
+      });
+      setObrasMap(map);
+    } catch { /* silencioso */ }
+  }, []);
+
+  const fetchResumoExternos = useCallback(async () => {
+    setResumoLoading(true);
+    try {
+      const painelToken = await AsyncStorage.getItem('painelAdminToken');
+      const res = await fetch(API_PARTE_DIARIA, { headers: { Authorization: `Bearer ${painelToken}` } });
+      const all = await res.json();
+      // integrados + com algum externo de pessoal
+      const aprovados = (all || [])
+        .filter(c => c.IntegradoERP)
+        .filter(c => hasAnyExternosPessoal(c))
+        .sort((a, b) => new Date(b.Data) - new Date(a.Data));
+      setResumoDocs(aprovados);
+    } catch (e) {
+      Alert.alert('Erro', e.message || 'Falha a carregar resumo dos externos.');
+    } finally {
+      setResumoLoading(false);
+    }
+  }, []);
+
+  const openResumoExternos = async () => {
+    setModalResumoVisible(true);
+    await Promise.all([fetchObrasResumo(), fetchResumoExternos()]);
+  };
+  const closeResumoExternos = () => { setModalResumoVisible(false); setResumoDocs([]); };
+
+ // Mapa (NOME NORMALIZADO) -> empresa do externo
+ const nomeToEmpresa = useMemo(() => {
+   const m = {};
+   (registos || []).forEach(r => {
+     const key = normalizeName(r?.funcionario || '');
+     if (key) m[key] = r?.empresa || '—';
+   });
+   return m;
+ }, [registos]);
+
+ // Info por externo (valor hora / moeda / empresa), indexado por nome normalizado
+const nomeToInfo = useMemo(() => {
+  const m = {};
+  (registos || []).forEach(r => {
+    const key = normalizeName(r?.funcionario || '');
+    if (!key) return;
+    m[key] = {
+      empresa: r?.empresa || '—',
+      valorHora: Number(r?.valor) || 0,
+      moeda: (r?.moeda || 'EUR').toUpperCase(),
+    };
+  });
+  return m;
+}, [registos]);
+
+
+  // Helpers resumo
+  const getPeriodParts = (iso) => {
+    const d = new Date(iso);
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1; // 1..12
+    const dd = d.getDate();
+    return { y, m, dd, ts: d.getTime() };
+  };
+
+
+  // Opções dos pickers no Resumo, geradas a partir dos docs carregados
+const resumoOptions = useMemo(() => {
+  const empresas = new Set(['']);
+  const externos = new Set(['']);
+  const especialidades = new Set(['']);
+
+  (resumoDocs || []).forEach(cab => {
+    (cab.ParteDiariaItems || []).forEach(it => {
+      if (String(it.Categoria || '').toLowerCase() === 'equipamentos') return;
+      if (!isExternoItem(it)) return;
+
+      const key = normalizeName(it.Funcionario || '');
+      const emp = nomeToInfo[key]?.empresa || '—';
+      if (emp) empresas.add(emp);
+      if (it.Funcionario) externos.add(it.Funcionario);
+      const esp = getEspecialidade(it);
+      if (esp) especialidades.add(esp);
+    });
+  });
+
+  return {
+    empresas: Array.from(empresas),
+    externos: Array.from(externos),
+    especialidades: Array.from(especialidades),
+  };
+}, [resumoDocs, nomeToInfo]);
+
+const passaFiltrosResumo = (it) => {
+  const nome = it.Funcionario || '';
+  const esp = getEspecialidade(it);
+  const emp = nomeToInfo[normalizeName(nome)]?.empresa || '—';
+
+  if (empresaResumoFiltro && emp !== empresaResumoFiltro) return false;
+  if (externoResumoFiltro && nome !== externoResumoFiltro) return false;
+  if (especialidadeResumoFiltro && esp !== especialidadeResumoFiltro) return false;
+
+  return true;
+};
+
+
+
+
+
+
+
+  const periodKeyAndLabel = (iso, gran) => {
+    const { y, m, ts } = getPeriodParts(iso);
+    if (gran === 'anual') return { key: String(y), label: String(y), sort: y * 10000 };
+    if (gran === 'mensal') {
+      const k = `${y}-${String(m).padStart(2, '0')}`;
+      return { key: k, label: k, sort: y * 100 + m };
+    }
+    // diário
+    const d = new Date(iso);
+    const key = iso.slice(0, 10);
+    return { key, label: d.toLocaleDateString('pt-PT'), sort: ts };
+  };
+
+  const dentroIntervalo = (iso) => {
+    if (!dataInicio && !dataFim) return true;
+    const d = iso.slice(0, 10);
+    if (dataInicio && d < dataInicio) return false;
+    if (dataFim && d > dataFim) return false;
+    return true;
+  };
+
+  const resumoAgrupado = useMemo(() => {
+  // árvore: Map(periodKey => { label, sort, groups: Map(label => {minutos, valores{EUR: n, CHF: n}}), totalMin, totalVals{...} })
+  const tree = new Map();
+
+  (resumoDocs || []).forEach(cab => {
+    if (!dentroIntervalo(cab.Data)) return;
+
+    const itensExternos = (cab.ParteDiariaItems || [])
+      .filter(it => String(it.Categoria || '').toLowerCase() !== 'equipamentos')
+      .filter(isExternoItem)
+      .filter(passaFiltrosResumo);
+
+    if (itensExternos.length === 0) return;
+
+    const { key: pKey, label: pLabel, sort } = periodKeyAndLabel(cab.Data, granularidade);
+    if (!tree.has(pKey)) tree.set(pKey, { label: pLabel, sort, groups: new Map(), totalMin: 0, totalVals: {} });
+
+    itensExternos.forEach(it => {
+      // label do grupo
+      const nome = it.Funcionario || 'Externo';
+      const nomeKey = normalizeName(nome);
+      const emp = nomeToEmpresa[nomeKey] || nomeToInfo[nomeKey]?.empresa || '—';
+      const esp = getEspecialidade(it);
+
+      let gLabel = 'Total';
+      switch (agruparPor) {
+        case 'obra': {
+          const ob = obrasMap[String(cab.ObraID)];
+          gLabel = ob ? `${ob.codigo} — ${ob.nome}` : `Obra ${cab.ObraID}`;
+          break;
+        }
+        case 'empresa': gLabel = emp; break;
+        case 'externo': gLabel = nome; break;
+        case 'especialidade': gLabel = esp; break;
+        case 'empresa_externo': gLabel = `${emp} — ${nome}`; break;
+        case 'especialidade_externo': gLabel = `${esp} — ${nome}`; break;
+        case 'especialidade_empresa': gLabel = `${esp} — ${emp}`; break;
+        // 'geral' fica 'Total'
+      }
+
+      // minutos + € do item
+      const minutos = Number(it.NumHoras || 0);
+      const info = nomeToInfo[nomeKey]; // pode não existir
+      const moeda = info?.moeda || 'EUR';
+      const valorMin = info ? (info.valorHora * (minutos / 60)) : 0;
+
+      const node = tree.get(pKey);
+      const bucket = node.groups;
+
+      const current = bucket.get(gLabel) || { minutos: 0, valores: {} };
+      current.minutos += minutos;
+      current.valores[moeda] = (current.valores[moeda] || 0) + valorMin;
+      bucket.set(gLabel, current);
+
+      node.totalMin += minutos;
+      node.totalVals[moeda] = (node.totalVals[moeda] || 0) + valorMin;
+    });
+  });
+
+  // para array ordenado
+  const arr = Array.from(tree.entries())
+    .map(([k, v]) => ({
+      periodKey: k,
+      label: v.label,
+      sort: v.sort,
+      groups: Array.from(v.groups.entries())
+        .map(([g, { minutos, valores }]) => ({ label: g, minutos, valores }))
+        .sort((a, b) => b.minutos - a.minutos),
+      total: v.totalMin,
+      totais: v.totalVals,
+    }))
+    .sort((a, b) => b.sort - a.sort);
+
+  return arr;
+}, [resumoDocs, granularidade, agruparPor, obrasMap, nomeToEmpresa, nomeToInfo, dataInicio, dataFim, empresaResumoFiltro, externoResumoFiltro, especialidadeResumoFiltro]);
+
+
+  // Render cards
   const renderItem = ({ item }) => {
     const s = statusBadge(item.ativo, item.anulado);
     return (
@@ -421,6 +720,14 @@ const GestaoTrabalhadoresExternos = () => {
               <LinearGradient colors={['#34c759', '#2aa94f']} style={styles.applyFiltersGrad}>
                 <Ionicons name="add-circle" size={16} color="#fff" />
                 <Text style={styles.applyFiltersText}>Novo</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Botão Resumo */}
+            <TouchableOpacity onPress={openResumoExternos} style={styles.resumoBtn}>
+              <LinearGradient colors={['#fd7e14', '#f39c12']} style={styles.applyFiltersGrad}>
+                <Ionicons name="analytics" size={16} color="#fff" />
+                <Text style={styles.applyFiltersText}>Resumo Externos</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -622,6 +929,217 @@ const GestaoTrabalhadoresExternos = () => {
             </ScrollView>
           </SafeAreaView>
         </Modal>
+
+        {/* === MODAL RESUMO EXTERNOS (NOVO) === */}
+        <Modal visible={modalResumoVisible} animationType="slide" onRequestClose={closeResumoExternos}>
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Resumo — Externos Aprovados</Text>
+              <TouchableOpacity onPress={closeResumoExternos} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Controlo de resumo */}
+            <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
+              <View style={styles.segmentRow}>
+                {[
+                  { k: 'diario', label: 'Diário' },
+                  { k: 'mensal', label: 'Mensal' },
+                  { k: 'anual', label: 'Anual' },
+                ].map(op => (
+                  <TouchableOpacity
+                    key={op.k}
+                    onPress={() => setGranularidade(op.k)}
+                    style={[styles.segmentBtn, granularidade === op.k && styles.segmentBtnActive]}
+                  >
+                    <Text style={granularidade === op.k ? styles.segmentTextActive : styles.segmentText}>
+                      {op.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* 1ª linha: básicos */}
+<View style={[styles.segmentRow, { marginTop: 8 }]}>
+  {[
+    { k: 'geral', label: 'Geral' },
+    { k: 'obra', label: 'Obra' },
+    { k: 'empresa', label: 'Empresa' },
+    { k: 'externo', label: 'Externo' },
+    { k: 'especialidade', label: 'Especialidade' },
+  ].map(op => (
+    <TouchableOpacity
+      key={op.k}
+      onPress={() => setAgruparPor(op.k)}
+      style={[styles.segmentBtn, agruparPor === op.k && styles.segmentBtnActive]}
+    >
+      <Text style={agruparPor === op.k ? styles.segmentTextActive : styles.segmentText}>
+        {op.label}
+      </Text>
+    </TouchableOpacity>
+  ))}
+</View>
+
+{/* 2ª linha: combos */}
+<View style={[styles.segmentRow, { marginTop: 8 }]}>
+  {[
+    { k: 'empresa_externo', label: 'Empresa/Colaborador' },
+    { k: 'especialidade_externo', label: 'Especialidade/Colaborador' },
+    { k: 'especialidade_empresa', label: 'Especialidade/Empresa' },
+  ].map(op => (
+    <TouchableOpacity
+      key={op.k}
+      onPress={() => setAgruparPor(op.k)}
+      style={[styles.segmentBtn, agruparPor === op.k && styles.segmentBtnActive]}
+    >
+      <Text style={agruparPor === op.k ? styles.segmentTextActive : styles.segmentText}>
+        {op.label}
+      </Text>
+    </TouchableOpacity>
+  ))}
+</View>
+<View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 12 }}>
+  <Text style={{ color: '#333', fontWeight: '600' }}>Mostrar valores (€)</Text>
+  <Switch value={mostrarValores} onValueChange={setMostrarValores} />
+</View>
+
+
+
+
+              <View style={styles.rangeRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rangeLabel}>Data início</Text>
+                  <TextInput
+                    placeholder="YYYY-MM-DD"
+                    value={dataInicio}
+                    onChangeText={setDataInicio}
+                    style={styles.rangeInput}
+                  />
+                </View>
+                <View style={{ width: 12 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rangeLabel}>Data fim</Text>
+                  <TextInput
+                    placeholder="YYYY-MM-DD"
+                    value={dataFim}
+                    onChangeText={setDataFim}
+                    style={styles.rangeInput}
+                  />
+                </View>
+                {/* Filtros do resumo */}
+<View style={{ marginTop: 10 }}>
+  <View style={styles.pickersRow}>
+    <View style={styles.pickerWrap}>
+      <Text style={styles.pickerLabel}>Empresa</Text>
+      <Picker
+        selectedValue={empresaResumoFiltro}
+        onValueChange={setEmpresaResumoFiltro}
+        style={styles.picker}
+      >
+        {resumoOptions.empresas.map((e, idx) => (
+          <Picker.Item key={`emp-${idx}`} label={e || 'Todas'} value={e} />
+        ))}
+      </Picker>
+    </View>
+
+    <View style={styles.pickerWrap}>
+      <Text style={styles.pickerLabel}>Externo</Text>
+      <Picker
+        selectedValue={externoResumoFiltro}
+        onValueChange={setExternoResumoFiltro}
+        style={styles.picker}
+      >
+        {resumoOptions.externos.map((e, idx) => (
+          <Picker.Item key={`ext-${idx}`} label={e || 'Todos'} value={e} />
+        ))}
+      </Picker>
+    </View>
+  </View>
+
+  <View style={[styles.pickersRow, { marginTop: 10 }]}>
+    <View style={[styles.pickerWrap, { flex: 1 }]}>
+      <Text style={styles.pickerLabel}>Especialidade</Text>
+      <Picker
+        selectedValue={especialidadeResumoFiltro}
+        onValueChange={setEspecialidadeResumoFiltro}
+        style={styles.picker}
+      >
+        {resumoOptions.especialidades.map((e, idx) => (
+          <Picker.Item key={`esp-${idx}`} label={e || 'Todas'} value={e} />
+        ))}
+      </Picker>
+    </View>
+  </View>
+</View>
+
+              </View>
+            </View>
+
+            {resumoLoading ? (
+              <View style={[styles.loadingContainer, { backgroundColor: '#fff' }]}>
+                <ActivityIndicator size="large" color="#1792FE" />
+                <Text style={styles.loadingText}>A carregar resumo…</Text>
+              </View>
+            ) : (
+              <ScrollView contentContainerStyle={styles.modalBody}>
+                {resumoAgrupado.length === 0 ? (
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="document-text" size={64} color="#ccc" />
+                    <Text style={styles.emptyTitle}>Sem dados para o filtro</Text>
+                    <Text style={styles.emptyText}>Ajuste a granularidade, agrupamento ou intervalo.</Text>
+                  </View>
+                ) : (
+                  resumoAgrupado.map(period => (
+                    <View key={period.periodKey} style={styles.resumoCard}>
+                      <View style={styles.resumoHeader}>
+                        <Ionicons name="calendar" size={16} color="#1792FE" />
+                        <Text style={styles.resumoTitle}>{period.label}</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: '#17a2b8', marginLeft: 'auto' }]}>
+                          <Ionicons name="timer" size={12} color="#fff" style={styles.statusIcon} />
+                          <Text style={styles.statusText}>{formatarHoras(period.total)}</Text>
+                        </View>
+                      </View>
+
+                    {period.groups.map(g => (
+  <View key={`${period.periodKey}-${g.label}`} style={{ marginBottom: 4 }}>
+    <View style={styles.resumoRow}>
+      <Ionicons
+        name={
+          agruparPor === 'obra' ? 'business'
+          : agruparPor === 'externo' ? 'person'
+          : agruparPor.includes('empresa') ? 'storefront'
+          : agruparPor.includes('especialidade') ? 'construct'
+          : 'analytics'
+        }
+        size={14}
+        color="#666"
+      />
+      <Text style={styles.resumoText}>{g.label}</Text>
+
+      <Ionicons name="time" size={14} color="#666" />
+      <Text style={[styles.resumoText, { fontWeight: '700', flexGrow: 0 }]}>
+        {formatarHoras(g.minutos)}
+      </Text>
+
+      {mostrarValores && (
+        <Text style={[styles.resumoText, { flexGrow: 0, fontWeight: '700', marginLeft: 8 }]}>
+          {Object.entries(g.valores || {})
+            .map(([moeda, v]) => `${formatarValor(v)} ${moeda}`)
+            .join('  •  ')}
+        </Text>
+      )}
+    </View>
+  </View>
+))}
+
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            )}
+          </SafeAreaView>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -652,9 +1170,11 @@ const styles = StyleSheet.create({
   statusBtnText: { color: '#1792FE', fontWeight: '600' },
   statusBtnTextActive: { color: '#fff', fontWeight: '700' },
 
-  bottomFilterRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  bottomFilterRow: { flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' },
   applyFiltersBtn: { flex: 1, borderRadius: 25, overflow: 'hidden' },
   newBtn: { width: 140, borderRadius: 25, overflow: 'hidden' },
+  resumoBtn: { width: 200, borderRadius: 25, overflow: 'hidden' },
+
   applyFiltersGrad: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, gap: 6 },
   applyFiltersText: { color: '#fff', fontWeight: '700' },
 
@@ -704,14 +1224,31 @@ const styles = StyleSheet.create({
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 12, gap: 8 },
   saveBtnText: { color: '#fff', fontWeight: '700' },
 
-  modalBody: { padding: 20 },
-  modalSection: { marginBottom: 18 },
-  modalLabel: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 6 },
-  modalValue: { fontSize: 15, color: '#555', lineHeight: 22 },
+  modalBody: { padding: 16, paddingBottom: 24 },
 
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 },
   emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#666', marginTop: 20, marginBottom: 10, textAlign: 'center' },
   emptyText: { fontSize: 16, color: '#999', textAlign: 'center', lineHeight: 22 },
+
+  // RESUMO
+  segmentRow: { flexDirection: 'row', gap: 8 },
+  segmentBtn: { flex: 1, paddingVertical: 8, borderRadius: 12, backgroundColor: '#e9f3ff', alignItems: 'center' },
+  segmentBtnActive: { backgroundColor: '#1792FE' },
+  segmentText: { color: '#1792FE', fontWeight: '700' },
+  segmentTextActive: { color: '#fff', fontWeight: '800' },
+
+  rangeRow: { flexDirection: 'row', marginTop: 10 },
+  rangeLabel: { fontSize: 12, color: '#666', marginBottom: 4, marginLeft: 2 },
+  rangeInput: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#e5e7eb' },
+
+  resumoCard: {
+    backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12,
+    elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2
+  },
+  resumoHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+  resumoTitle: { fontWeight: '800', color: '#333', flexShrink: 1 },
+  resumoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 },
+  resumoText: { color: '#555', flex: 1 },
 });
 
 export default GestaoTrabalhadoresExternos;
