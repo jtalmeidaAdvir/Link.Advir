@@ -482,21 +482,21 @@ const aprovarPedido = async (pedido) => {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
-            urlempresa
+            urlempresa: empresaId
           }
         }),
         fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/aprovados`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
-            urlempresa
+            urlempresa: empresaId
           }
         }),
         fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/rejeitados`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
-            urlempresa
+            urlempresa: empresaId
           }
         }),
       ]);
