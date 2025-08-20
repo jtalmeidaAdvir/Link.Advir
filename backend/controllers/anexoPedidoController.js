@@ -258,12 +258,19 @@ const deletarAnexo = async (req, res) => {
 // Associar anexos temporários a um pedido
 const associarAnexosTemp = async (req, res) => {
     try {
-        const { pedido_id, anexos_temp } = req.body;
+           const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+           const { pedido_id, anexos_temp } = body;
 
         if (!pedido_id || !anexos_temp || !Array.isArray(anexos_temp)) {
             return res.status(400).json({ error: 'Dados inválidos' });
         }
-
+           console.log('Associar anexos TEMP -> pedido_id:', pedido_id, 'qtde:', anexos_temp.length);
+           // valida cada item para evitar undefined
+               for (const [i, ax] of anexos_temp.entries()) {
+                    if (!ax?.nome_arquivo || !ax?.nome_arquivo_sistema || !ax?.tipo_arquivo || !ax?.tamanho || !ax?.caminho) {
+                           return res.status(400).json({ error: `Anexo inválido no índice ${i}` });
+                         }
+                   }
         const anexosCriados = [];
 
         for (const anexoTemp of anexos_temp) {
@@ -298,11 +305,12 @@ const associarAnexosTemp = async (req, res) => {
 };
 
 module.exports = {
-    upload,
+    
     uploadAnexo,
     uploadAnexoTemp,
     associarAnexosTemp,
     listarAnexosPedido,
     downloadAnexo,
-    deletarAnexo
+    deletarAnexo,
+    upload
 };

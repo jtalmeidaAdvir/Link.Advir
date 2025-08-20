@@ -34,10 +34,11 @@ require('./associations');  // Importa o ficheiro onde as associações estão d
 
 const app = express();
 app.use(cors());
-app.use('/api/anexo-pedido', anexoPedidoRoutes);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(fileUpload());
+//app.use(express.json({ limit: '11mb' }));
+app.use(express.json({ type: ['application/json', 'application/*+json'] }));
+app.use(express.urlencoded({ extended: true })); // idem
+ app.use(fileUpload()); // se precisares para outras rotas
+ app.use('/api/anexo-pedido', anexoPedidoRoutes);
 
 async function startApp() {
     await initializeSequelize();

@@ -34,6 +34,10 @@ import HeaderWithNotifications from "../Components/HeaderWithNotifications";
 
 const { width } = Dimensions.get("window");
 
+// >>>>>> ALTERA AQUI PARA PRODUÇÃO SE PRECISARES
+//const ANEXOS_BASE = "http://localhost:3000/api/anexo-pedido";
+ const ANEXOS_BASE = "https://backend.advir.pt/api/anexo-pedido";
+
 const PedidosAssistencia = ({ navigation }) => {
     // State variables
     const [searchTerm, setSearchTerm] = useState("");
@@ -51,12 +55,18 @@ const PedidosAssistencia = ({ navigation }) => {
     const [errorMessage, setErrorMessage] = useState("");
     const [modalCloseVisible, setModalCloseVisible] = useState(false);
     const [processoParaFechar, setProcessoParaFechar] = useState(null);
+
+    // ====== NOVO: gestão de anexos ======
     const [modalAnexosVisible, setModalAnexosVisible] = useState(false);
     const [anexosPedido, setAnexosPedido] = useState([]);
     const [pedidoAnexos, setPedidoAnexos] = useState(null);
+
     const [modalUploadVisible, setModalUploadVisible] = useState(false);
-    const [uploadingFile, setUploadingFile] = useState(false);
     const [pedidoParaUpload, setPedidoParaUpload] = useState(null);
+
+    // temporários (igual ao RegistoAssistencia)
+    const [anexosTemp, setAnexosTemp] = useState([]);
+    const [uploadingTemp, setUploadingTemp] = useState(false);
 
     const [isAdmin, setIsAdmin] = useState(false);
     const [userTecnicoID, setUserTecnicoID] = useState("");
@@ -73,7 +83,6 @@ const PedidosAssistencia = ({ navigation }) => {
             }, {}),
         );
 
-        // Ordenar por NumProcesso descendente
         const sortedData = groupedData.sort((a, b) => {
             return b[0].NumProcesso - a[0].NumProcesso;
         });
@@ -137,15 +146,10 @@ const PedidosAssistencia = ({ navigation }) => {
     const applyFilters = () => {
         let filteredPedidos = [...pedidos];
 
-        // Filtrar pedidos válidos
         filteredPedidos = filteredPedidos.filter(
             (pedido) => pedido && pedido.Cliente,
         );
-        console.log("userTecnicoID:", userTecnicoID);
-        console.log("Exemplo de pedido.Tecnico:", pedidos[0]?.Tecnico);
-        console.log("Pedido completo:", pedidos[0]);
 
-        // Se não for admin, filtrar apenas os do seu técnico
         if (!isAdmin && userTecnicoID) {
             filteredPedidos = filteredPedidos.filter(
                 (pedido) =>
@@ -154,7 +158,6 @@ const PedidosAssistencia = ({ navigation }) => {
             );
         }
 
-        // Filtros existentes...
         if (searchTerm && searchTerm.trim()) {
             const lowerSearchTerm = searchTerm.toLowerCase();
             filteredPedidos = filteredPedidos.filter(
@@ -228,7 +231,6 @@ const PedidosAssistencia = ({ navigation }) => {
                 throw new Error(`Error: ${response.statusText}`);
             }
 
-            // Remove o pedido eliminado do estado local
             setPedidos((prevPedidos) =>
                 prevPedidos.filter((pedido) => pedido.ID !== id),
             );
@@ -241,7 +243,7 @@ const PedidosAssistencia = ({ navigation }) => {
         }
     };
 
-    // Delete pedido
+    // Fecha pedido
     const FechaPedido = async (id) => {
         try {
             const token = localStorage.getItem("painelAdminToken");
@@ -267,7 +269,6 @@ const PedidosAssistencia = ({ navigation }) => {
                 throw new Error(`Error: ${response.statusText}`);
             }
 
-            // Remove o pedido eliminado do estado local
             setPedidos((prevPedidos) =>
                 prevPedidos.filter((pedido) => pedido.ID !== id),
             );
@@ -280,44 +281,41 @@ const PedidosAssistencia = ({ navigation }) => {
         }
     };
 
-    // Handle delete confirmation
     const handleDeleteConfirmation = () => {
         if (pedidoToDelete) {
             deletePedido(pedidoToDelete);
         }
     };
 
-    // Handle search input change
     const handleSearch = (Nome) => {
         setSearchTerm(Nome);
     };
 
-    // Função para carregar anexos de um pedido
+    // ====== ANEXOS: listar / download / delete ======
     const carregarAnexos = async (pedidoId) => {
         try {
-            const response = await fetch(`https://backend.advir.pt/api/anexo-pedido/pedido/${pedidoId}`);
+            const response = await fetch(`${ANEXOS_BASE}/pedido/${pedidoId}`);
             if (response.ok) {
                 const data = await response.json();
                 setAnexosPedido(data.anexos || []);
                 setModalAnexosVisible(true);
             } else {
-                throw new Error('Erro ao carregar anexos');
+                throw new Error("Erro ao carregar anexos");
             }
         } catch (error) {
-            console.error('Erro ao carregar anexos:', error);
+            console.error("Erro ao carregar anexos:", error);
             setErrorMessage("Erro ao carregar anexos do pedido.");
         }
     };
 
-    // Função para fazer download de anexo
     const downloadAnexo = async (anexoId, nomeArquivo) => {
         try {
-            const response = await fetch(`https://backend.advir.pt/api/anexo-pedido/download/${anexoId}`);
+            const response = await fetch(`${ANEXOS_BASE}/download/${anexoId}`);
             if (response.ok) {
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
+                const a = document.createElement("a");
+                a.style.display = "none";
                 a.href = url;
                 a.download = nomeArquivo;
                 document.body.appendChild(a);
@@ -325,119 +323,146 @@ const PedidosAssistencia = ({ navigation }) => {
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
             } else {
-                throw new Error('Erro ao fazer download');
+                throw new Error("Erro ao fazer download");
             }
         } catch (error) {
-            console.error('Erro ao fazer download:', error);
+            console.error("Erro ao fazer download:", error);
             alert("Erro ao fazer download do anexo.");
         }
     };
 
-    // Função para fazer upload de anexo
-    const uploadAnexo = async (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        if (!pedidoParaUpload) {
-            alert("Erro: ID do pedido não encontrado.");
-            return;
-        }
-
-        // Validar tamanho do arquivo (máximo 10MB)
-        if (file.size > 10 * 1024 * 1024) {
-            alert("Arquivo muito grande. O tamanho máximo é de 10MB.");
-            return;
-        }
-
-        // Validar tipo de arquivo
-        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
-        if (!allowedTypes.includes(file.type)) {
-            alert("Tipo de arquivo não permitido. Permitidos: JPEG, PNG, GIF, PDF, DOC, DOCX, TXT");
-            return;
-        }
-
-        console.log('=== PREPARANDO UPLOAD ===');
-        console.log('Arquivo:', file.name, 'Tamanho:', file.size, 'Tipo:', file.type);
-        console.log('Pedido ID:', pedidoParaUpload);
-
-        setUploadingFile(true);
-
-        try {
-            const formData = new FormData();
-            formData.append('arquivo', file, file.name);
-            formData.append('pedido_id', String(pedidoParaUpload));
-
-            console.log('FormData criado com sucesso');
-            console.log('Enviando para:', 'https://backend.advir.pt/api/anexo-pedido/upload');
-
-            const response = await fetch('https://backend.advir.pt/api/anexo-pedido/upload', {
-                method: 'POST',
-                body: formData,
-                // Não definir headers - deixar o browser gerenciar Content-Type automaticamente
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                alert(`Anexo "${file.name}" enviado com sucesso!`);
-
-                // Recarregar anexos se o modal estiver aberto
-                if (modalAnexosVisible) {
-                    await carregarAnexos(pedidoParaUpload);
-                }
-
-                setModalUploadVisible(false);
-                // Limpar o input
-                event.target.value = '';
-            } else {
-                // Ler a resposta apenas uma vez
-                const responseText = await response.text();
-                let errorMessage = 'Erro ao enviar anexo';
-
-                try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.error || errorMessage;
-                } catch {
-                    console.error('Resposta do servidor:', responseText);
-                    errorMessage = `Erro do servidor: ${response.status}`;
-                }
-                throw new Error(errorMessage);
-            }
-        } catch (error) {
-            console.error('Erro ao enviar anexo:', error);
-            alert(`Erro ao enviar anexo: ${error.message}`);
-        } finally {
-            setUploadingFile(false);
-        }
-    };
-
-    // Função para deletar anexo
     const deletarAnexo = async (anexoId) => {
-        if (!confirm('Tem certeza que deseja deletar este anexo?')) {
+        if (!confirm("Tem certeza que deseja deletar este anexo?")) {
             return;
         }
 
         try {
-            const response = await fetch(`https://backend.advir.pt/api/anexo-pedido/${anexoId}`, {
-                method: 'DELETE'
+            const response = await fetch(`${ANEXOS_BASE}/${anexoId}`, {
+                method: "DELETE",
             });
 
             if (response.ok) {
-                alert('Anexo deletado com sucesso!');
-                // Recarregar anexos
+                alert("Anexo deletado com sucesso!");
                 if (pedidoAnexos) {
                     await carregarAnexos(pedidoAnexos.ID);
                 }
             } else {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Erro ao deletar anexo');
+                throw new Error(errorData.error || "Erro ao deletar anexo");
             }
         } catch (error) {
-            console.error('Erro ao deletar anexo:', error);
+            console.error("Erro ao deletar anexo:", error);
             alert(`Erro ao deletar anexo: ${error.message}`);
         }
     };
 
-    // Get estado based on the input
+    // ====== NOVO: fluxo com ANEXOS TEMPORÁRIOS (igual ao RegistoAssistencia) ======
+    const handleUploadTemp = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!pedidoParaUpload) {
+            alert("Erro: selecione um pedido para anexar.");
+            return;
+        }
+
+        // validações iguais às do backend
+        if (file.size > 10 * 1024 * 1024) {
+            alert("Ficheiro demasiado grande. Máx. 10MB.");
+            return;
+        }
+        const allowed = [
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/gif",
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain",
+        ];
+        if (!allowed.includes(file.type)) {
+            alert(
+                "Tipo de ficheiro não permitido (JPG, PNG, GIF, PDF, DOC, DOCX, TXT).",
+            );
+            return;
+        }
+
+        setUploadingTemp(true);
+        try {
+            const formData = new FormData();
+            formData.append("arquivo", file, file.name);
+
+            const resp = await fetch(`${ANEXOS_BASE}/upload-temp`, {
+                method: "POST",
+                body: formData, // não definir headers!
+            });
+
+            if (!resp.ok) {
+                const txt = await resp.text();
+                throw new Error(txt || "Falha no upload temporário");
+            }
+
+            const { arquivo_temp } = await resp.json();
+
+            setAnexosTemp((prev) => [...prev, arquivo_temp]);
+
+            // limpa o input
+            event.target.value = "";
+        } catch (e) {
+            console.error("Erro no upload temp:", e);
+            alert(`Erro no upload temporário: ${e.message}`);
+        } finally {
+            setUploadingTemp(false);
+        }
+    };
+
+    const removerAnexoTemp = (idx) => {
+        setAnexosTemp((prev) => prev.filter((_, i) => i !== idx));
+    };
+
+    const associarAnexosTempAoPedido = async () => {
+        if (!pedidoParaUpload) {
+            alert("Erro: ID do pedido não encontrado.");
+            return;
+        }
+        if (anexosTemp.length === 0) {
+            alert("Adicione pelo menos um anexo temporário.");
+            return;
+        }
+
+        try {
+            const r = await fetch(`${ANEXOS_BASE}/associar-temp`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    pedido_id: String(pedidoParaUpload),
+                    anexos_temp: anexosTemp,
+                }),
+            });
+
+            if (!r.ok) {
+                const txt = await r.text();
+                throw new Error(txt || `Falha ao associar anexos (${r.status})`);
+            }
+
+            alert("Anexos associados com sucesso!");
+            setAnexosTemp([]);
+            setModalUploadVisible(false);
+
+            // Se estiveres com o modal de listagem de anexos aberto, recarrega
+            if (modalAnexosVisible && pedidoAnexos?.ID === pedidoParaUpload) {
+                await carregarAnexos(pedidoParaUpload);
+            }
+        } catch (e) {
+            console.error("Erro a associar anexos temporários:", e);
+            alert(
+                "Falhou a associação dos anexos. Tenta novamente ou adiciona-os na página de anexos do pedido.",
+            );
+        }
+    };
+
+    // Get estado
     const getEstado = (estado) => {
         switch (estado) {
             case "3":
@@ -455,25 +480,23 @@ const PedidosAssistencia = ({ navigation }) => {
         }
     };
 
-    // Get estado color baseado no input
     const getEstadoColor = (estado) => {
         switch (estado) {
             case "3":
-                return "#ff9800"; // Laranja
+                return "#ff9800";
             case "2":
-                return "#2196F3"; // Azul
+                return "#2196F3";
             case "4":
-                return "#9C27B0"; // Roxo
+                return "#9C27B0";
             case "1":
-                return "#f44336"; // Vermelho
+                return "#f44336";
             case "0":
-                return "#4CAF50"; // Verde
+                return "#4CAF50";
             default:
-                return "#757575"; // Cinza
+                return "#757575";
         }
     };
 
-    // Get prioridade based on the input
     const getPrioridade = (prioridade) => {
         switch (prioridade) {
             case "AL":
@@ -490,24 +513,22 @@ const PedidosAssistencia = ({ navigation }) => {
         }
     };
 
-    // Get prioridade color
     const getPrioridadeColor = (prioridade) => {
         switch (prioridade) {
             case "AL":
             case "3":
-                return "#f44336"; // Vermelho
+                return "#f44336";
             case "MD":
             case "2":
-                return "#ff9800"; // Laranja
+                return "#ff9800";
             case "BX":
             case "1":
-                return "#4CAF50"; // Verde
+                return "#4CAF50";
             default:
-                return "#757575"; // Cinza
+                return "#757575";
         }
     };
 
-    // Get serie based on the input
     const getSerie = (serie) => {
         switch (serie) {
             case "2024":
@@ -519,7 +540,6 @@ const PedidosAssistencia = ({ navigation }) => {
         }
     };
 
-    // Toggle section expansion
     const toggleSection = (numProcesso) => {
         setExpandedSections((prevState) => ({
             ...prevState,
@@ -527,7 +547,6 @@ const PedidosAssistencia = ({ navigation }) => {
         }));
     };
 
-    // Render individual pedido item
     const renderPedidoDetails = (pedido) => (
         <View style={styles.pedidoDetailContainer}>
             <View style={styles.pedidoInfoRow}>
@@ -761,9 +780,8 @@ const PedidosAssistencia = ({ navigation }) => {
         </View>
     );
 
-    // Render section for each NumProcesso
     const renderSection = ({ item }) => {
-        if (!item || !item[0]) return null; // Evita erros com grupos inválidos
+        if (!item || !item[0]) return null;
 
         const numProcesso = item[0].NumProcesso || "Desconhecido";
         const cliente = item[0].Nome || "Cliente Desconhecido";
@@ -840,6 +858,7 @@ const PedidosAssistencia = ({ navigation }) => {
                             style={[styles.actionButton, styles.uploadButton]}
                             onPress={() => {
                                 setPedidoParaUpload(item[0].ID);
+                                setAnexosTemp([]);
                                 setModalUploadVisible(true);
                             }}
                         >
@@ -1065,6 +1084,8 @@ const PedidosAssistencia = ({ navigation }) => {
                         </View>
                     </View>
                 </Modal>
+
+                {/* Fechar processo */}
                 <Modal
                     animationType="fade"
                     transparent={true}
@@ -1122,14 +1143,18 @@ const PedidosAssistencia = ({ navigation }) => {
                     onRequestClose={() => setModalAnexosVisible(false)}
                 >
                     <View style={styles.modalBackground}>
-                        <View style={[styles.modalView, styles.anexosModalView]}>
+                        <View
+                            style={[styles.modalView, styles.anexosModalView]}
+                        >
                             <View style={styles.modalHeader}>
                                 <Text style={styles.modalTitle}>
                                     Anexos do Pedido {pedidoAnexos?.NumProcesso}
                                 </Text>
                                 <TouchableOpacity
                                     style={styles.closeButton}
-                                    onPress={() => setModalAnexosVisible(false)}
+                                    onPress={() =>
+                                        setModalAnexosVisible(false)
+                                    }
                                 >
                                     <FontAwesomeIcon
                                         icon={faClose}
@@ -1142,38 +1167,72 @@ const PedidosAssistencia = ({ navigation }) => {
                             <ScrollView style={styles.anexosScrollView}>
                                 {anexosPedido.length === 0 ? (
                                     <Text style={styles.noAnexosText}>
-                                        Nenhum anexo encontrado para este pedido.
+                                        Nenhum anexo encontrado para este
+                                        pedido.
                                     </Text>
                                 ) : (
                                     anexosPedido.map((anexo) => (
-                                        <View key={anexo.id} style={styles.anexoCard}>
+                                        <View
+                                            key={anexo.id}
+                                            style={styles.anexoCard}
+                                        >
                                             <View style={styles.anexoInfo}>
                                                 <Text style={styles.anexoNome}>
                                                     {anexo.nome_arquivo}
                                                 </Text>
-                                                <Text style={styles.anexoDetalhes}>
-                                                    Tamanho: {Math.round(anexo.tamanho / 1024)} KB
+                                                <Text
+                                                    style={styles.anexoDetalhes}
+                                                >
+                                                    Tamanho:{" "}
+                                                    {Math.round(
+                                                        anexo.tamanho / 1024,
+                                                    )}{" "}
+                                                    KB
                                                 </Text>
-                                                <Text style={styles.anexoDetalhes}>
-                                                    Enviado em: {new Date(anexo.data_upload).toLocaleString('pt-PT')}
+                                                <Text
+                                                    style={styles.anexoDetalhes}
+                                                >
+                                                    Enviado em:{" "}
+                                                    {new Date(
+                                                        anexo.data_upload,
+                                                    ).toLocaleString("pt-PT")}
                                                 </Text>
                                             </View>
-                                            <View style={styles.anexoButtonsContainer}>
+                                            <View
+                                                style={
+                                                    styles.anexoButtonsContainer
+                                                }
+                                            >
                                                 <TouchableOpacity
                                                     style={styles.downloadButton}
-                                                    onPress={() => downloadAnexo(anexo.id, anexo.nome_arquivo)}
+                                                    onPress={() =>
+                                                        downloadAnexo(
+                                                            anexo.id,
+                                                            anexo.nome_arquivo,
+                                                        )
+                                                    }
                                                 >
-                                                    <Text style={styles.downloadButtonText}>
+                                                    <Text
+                                                        style={
+                                                            styles.downloadButtonText
+                                                        }
+                                                    >
                                                         Download
                                                     </Text>
                                                 </TouchableOpacity>
                                                 <TouchableOpacity
-                                                    style={styles.deleteAnexoButton}
-                                                    onPress={() => deletarAnexo(anexo.id)}
+                                                    style={
+                                                        styles.deleteAnexoButton
+                                                    }
+                                                    onPress={() =>
+                                                        deletarAnexo(anexo.id)
+                                                    }
                                                 >
                                                     <FontAwesomeIcon
                                                         icon={faTrash}
-                                                        style={styles.deleteAnexoIcon}
+                                                        style={
+                                                            styles.deleteAnexoIcon
+                                                        }
                                                         size={12}
                                                     />
                                                 </TouchableOpacity>
@@ -1186,22 +1245,35 @@ const PedidosAssistencia = ({ navigation }) => {
                     </View>
                 </Modal>
 
-                {/* Modal para upload de anexos */}
+                {/* Modal para upload (TEMPORÁRIO -> depois associa) */}
                 <Modal
                     animationType="fade"
                     transparent={true}
                     visible={modalUploadVisible}
-                    onRequestClose={() => setModalUploadVisible(false)}
+                    onRequestClose={() => {
+                        setAnexosTemp([]);
+                        setModalUploadVisible(false);
+                    }}
                 >
                     <View style={styles.modalBackground}>
-                        <View style={[styles.modalView, styles.uploadModalView]}>
-                            <View style={styles.modalHeader}>
+                        <View
+                            style={[styles.modalView, styles.uploadModalView]}
+                        >
+                            <View
+                                style={[
+                                    styles.modalHeader,
+                                    { backgroundColor: "#1792FE" },
+                                ]}
+                            >
                                 <Text style={styles.modalTitle}>
-                                    Adicionar Anexo
+                                    Adicionar Anexo (temporário)
                                 </Text>
                                 <TouchableOpacity
                                     style={styles.closeButton}
-                                    onPress={() => setModalUploadVisible(false)}
+                                    onPress={() => {
+                                        setAnexosTemp([]);
+                                        setModalUploadVisible(false);
+                                    }}
                                 >
                                     <FontAwesomeIcon
                                         icon={faClose}
@@ -1213,32 +1285,147 @@ const PedidosAssistencia = ({ navigation }) => {
 
                             <View style={styles.uploadContent}>
                                 <Text style={styles.uploadInstructions}>
-                                    Selecione um arquivo para anexar ao pedido:
+                                    1) Carrega anexos temporários • 2) Associa
+                                    ao pedido
                                 </Text>
 
                                 <input
                                     type="file"
                                     accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt"
-                                    onChange={uploadAnexo}
-                                    disabled={uploadingFile}
+                                    onChange={handleUploadTemp}
+                                    disabled={uploadingTemp}
                                     style={styles.fileInput}
                                 />
 
-                                {uploadingFile && (
+                                {uploadingTemp && (
                                     <View style={styles.uploadingContainer}>
-                                        <ActivityIndicator size="small" color="#1792FE" />
+                                        <ActivityIndicator
+                                            size="small"
+                                            color="#1792FE"
+                                        />
                                         <Text style={styles.uploadingText}>
-                                            Enviando anexo...
+                                            A enviar anexo...
                                         </Text>
                                     </View>
                                 )}
 
-                                <Text style={styles.fileTypesText}>
-                                    Tipos permitidos: JPG, PNG, GIF, PDF, DOC, DOCX, TXT
-                                </Text>
-                                <Text style={styles.fileSizeText}>
-                                    Tamanho máximo: 10MB
-                                </Text>
+                                {/* lista de temporários */}
+                                <View style={styles.tempListBox}>
+                                    <View
+                                        style={{
+                                            flexDirection: "row",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            marginBottom: 6,
+                                        }}
+                                    >
+                                        <Text style={styles.tempListTitle}>
+                                            Anexos temporários
+                                        </Text>
+                                        <Text style={styles.tempListHint}>
+                                            Tipos: JPG, PNG, GIF, PDF, DOC,
+                                            DOCX, TXT • Máx. 10MB
+                                        </Text>
+                                    </View>
+
+                                    {anexosTemp.length === 0 ? (
+                                        <Text style={styles.noAnexosText}>
+                                            Ainda não adicionou anexos.
+                                        </Text>
+                                    ) : (
+                                        anexosTemp.map((ax, idx) => (
+                                            <View
+                                                key={`${ax.nome_arquivo_sistema}-${idx}`}
+                                                style={styles.tempItemRow}
+                                            >
+                                                <View style={{ flex: 1 }}>
+                                                    <Text
+                                                        style={
+                                                            styles.tempItemName
+                                                        }
+                                                    >
+                                                        {ax.nome_arquivo}
+                                                    </Text>
+                                                    <Text
+                                                        style={
+                                                            styles.tempItemMeta
+                                                        }
+                                                    >
+                                                        {Math.round(
+                                                            ax.tamanho / 1024,
+                                                        )}{" "}
+                                                        KB • {ax.tipo_arquivo}
+                                                    </Text>
+                                                </View>
+                                                <TouchableOpacity
+                                                    onPress={() =>
+                                                        removerAnexoTemp(idx)
+                                                    }
+                                                    style={
+                                                        styles.tempRemoveBtn
+                                                    }
+                                                >
+                                                    <Text
+                                                        style={
+                                                            styles.tempRemoveBtnText
+                                                        }
+                                                    >
+                                                        Remover
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))
+                                    )}
+                                </View>
+
+                                <View
+                                    style={{
+                                        flexDirection: "row",
+                                        justifyContent: "space-between",
+                                        marginTop: 10,
+                                    }}
+                                >
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.modalButton,
+                                            styles.cancelButton,
+                                            {
+                                                borderTopWidth: 1,
+                                                borderTopColor: "#eee",
+                                                borderRightWidth: 1,
+                                                borderRightColor: "#eee",
+                                            },
+                                        ]}
+                                        onPress={() => {
+                                            setAnexosTemp([]);
+                                            setModalUploadVisible(false);
+                                        }}
+                                    >
+                                        <Text style={styles.cancelButtonText}>
+                                            Cancelar
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.modalButton,
+                                            styles.associarBtn,
+                                        ]}
+                                        onPress={associarAnexosTempAoPedido}
+                                        disabled={
+                                            anexosTemp.length === 0 ||
+                                            uploadingTemp
+                                        }
+                                    >
+                                        <Text
+                                            style={
+                                                styles.associarBtnText
+                                            }
+                                        >
+                                            Associar anexos ao pedido
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         </View>
                     </View>
@@ -1248,7 +1435,7 @@ const PedidosAssistencia = ({ navigation }) => {
     );
 };
 
-// Define styles
+// Styles
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -1361,8 +1548,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 14,
         borderBottomWidth: 1,
-        borderBottomColor: (showFilters) =>
-            showFilters ? "#eee" : "transparent",
+        borderBottomColor: "#eee",
     },
     filterTitle: {
         fontSize: 16,
@@ -1608,12 +1794,16 @@ const styles = StyleSheet.create({
     modalHeader: {
         backgroundColor: "#f44336",
         padding: 16,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
     },
     modalTitle: {
         color: "white",
         fontSize: 18,
         fontWeight: "600",
         textAlign: "center",
+        flex: 1,
     },
     modalText: {
         marginVertical: 25,
@@ -1679,6 +1869,7 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         padding: 5,
+        marginLeft: 10,
     },
     closeIcon: {
         color: "white",
@@ -1785,6 +1976,67 @@ const styles = StyleSheet.create({
     },
     deleteAnexoIcon: {
         color: "white",
+    },
+
+    // ===== estilos para temporários no modal de upload =====
+    tempListBox: {
+        marginTop: 10,
+        padding: 12,
+        backgroundColor: "#f8f9fa",
+        borderWidth: 1,
+        borderColor: "#e9ecef",
+        borderRadius: 8,
+    },
+    tempListTitle: {
+        margin: 0,
+        color: "#1792FE",
+        fontSize: 14,
+        fontWeight: "600",
+    },
+    tempListHint: {
+        color: "#666",
+        fontSize: 12,
+    },
+    tempItemRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        padding: 8,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: "#e9ecef",
+        backgroundColor: "#fff",
+        marginTop: 8,
+    },
+    tempItemName: {
+        fontWeight: "600",
+        fontSize: 14,
+        color: "#333",
+    },
+    tempItemMeta: {
+        fontSize: 12,
+        color: "#666",
+    },
+    tempRemoveBtn: {
+        backgroundColor: "#f44336",
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 6,
+    },
+    tempRemoveBtnText: {
+        color: "#fff",
+        fontWeight: "600",
+        fontSize: 12,
+    },
+    associarBtn: {
+        backgroundColor: "#4CAF50",
+        borderTopWidth: 1,
+        borderTopColor: "#eee",
+    },
+    associarBtnText: {
+        color: "white",
+        fontWeight: "600",
+        fontSize: 15,
     },
 });
 

@@ -11,12 +11,15 @@ import {
   SafeAreaView,
   RefreshControl,
   Alert,
+  Platform, 
   TextInput,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+
+
 
 const GestaoPartesDiarias = () => {
 // === NO TOPO DO FICHEIRO (fora do componente) ===
@@ -89,6 +92,25 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
   const [integrandoIds, setIntegrandoIds] = useState(new Set());
   const [equipamentosMap, setEquipamentosMap] = useState({});
 
+
+
+  const confirm = (title, message) =>
+  new Promise((resolve) => {
+    if (Platform.OS === 'web') {
+      // RN Web: usa window.confirm para garantir que aparece
+      resolve(window.confirm(`${title}\n\n${message}`));
+      return;
+    }
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Rejeitar', style: 'destructive', onPress: () => resolve(true) },
+      ],
+      { cancelable: true }
+    );
+  });
 
 
 // helper perto do topo do componente
@@ -779,40 +801,48 @@ console.log('ID usado:', editItem.id);
   };
 
 const handleRejeitar = async (cab) => {
-  if (cab?.IntegradoERP) { Alert.alert('Não permitido', 'Já integrado.'); return; }
+  try {
+    console.log('⚠️ Rejeitar clicado para', cab?.DocumentoID);
 
-  Alert.alert('Rejeitar Parte', 'Tens a certeza?', [
-    { text: 'Cancelar', style: 'cancel' },
-    {
-      text: 'Rejeitar',
-      style: 'destructive',
-      onPress: async () => {
-        try {
-          const loginToken = await AsyncStorage.getItem('loginToken');
-          if (!loginToken) throw new Error('Sem sessão válida.');
-
-          const url = `https://backend.advir.pt/api/parte-diaria/cabecalhos/${encodeURIComponent(String(cab.DocumentoID))}`;
-          console.log('DELETE ->', url);
-
-          const resp = await fetch(url, { method: 'DELETE', headers: { Authorization: `Bearer ${loginToken}` } });
-          const txt = await resp.text().catch(() => '');
-          console.log('DELETE status', resp.status, 'body:', txt);
-
-          if (!resp.ok) throw new Error(txt || `Falha ao rejeitar (HTTP ${resp.status})`);
-
-          setCabecalhos(prev => prev.filter(c => String(c.DocumentoID) !== String(cab.DocumentoID)));
-          if (selectedCabecalho?.DocumentoID === cab.DocumentoID) {
-            setModalVisible(false);
-            setSelectedCabecalho(null);
-          }
-          Alert.alert('Sucesso', 'Parte rejeitada.');
-        } catch (e) {
-          Alert.alert('Erro', e.message || 'Não foi possível rejeitar.');
-        }
-      }
+    if (cab?.IntegradoERP) {
+      Alert.alert('Não permitido', 'Esta parte já foi integrada e não pode ser rejeitada.');
+      return;
     }
-  ]);
+
+    const ok = await confirm(
+      'Rejeitar Parte',
+      'Tens a certeza que queres rejeitar esta parte diária? Esta ação não pode ser anulada.'
+    );
+    if (!ok) return;
+
+    const loginToken = await AsyncStorage.getItem('loginToken');
+    if (!loginToken) throw new Error('Sem sessão válida.');
+
+    const url = `https://backend.advir.pt/api/parte-diaria/cabecalhos/${encodeURIComponent(String(cab.DocumentoID))}`;
+    console.log('DELETE ->', url);
+
+    const resp = await fetch(url, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${loginToken}` },
+    });
+    const txt = await resp.text().catch(() => '');
+    console.log('DELETE status', resp.status, 'body:', txt);
+
+    if (!resp.ok) throw new Error(txt || `Falha ao rejeitar (HTTP ${resp.status})`);
+
+    setCabecalhos(prev => prev.filter(c => String(c.DocumentoID) !== String(cab.DocumentoID)));
+    if (selectedCabecalho?.DocumentoID === cab.DocumentoID) {
+      setModalVisible(false);
+      setSelectedCabecalho(null);
+    }
+    Alert.alert('Sucesso', 'Parte rejeitada e removida.');
+  } catch (e) {
+    console.error('Erro a rejeitar:', e);
+    Alert.alert('Erro', e.message || 'Não foi possível rejeitar.');
+  }
 };
+
+
 
 
 
@@ -1013,14 +1043,14 @@ const handleRejeitar = async (cab) => {
         </LinearGradient>
 
         <View style={styles.filtroContainer}>
-          {['todos', 'pendentes', 'integrados'].map(opcao => (
+          {['pendentes', 'integrados'].map(opcao => (
             <TouchableOpacity
               key={opcao}
               style={[styles.filtroBotao, filtroEstado === opcao && styles.filtroBotaoAtivo]}
               onPress={() => setFiltroEstado(opcao)}
             >
               <Text style={filtroEstado === opcao ? styles.filtroTextoAtivo : styles.filtroTexto}>
-                {opcao === 'todos' ? 'Todos' : opcao === 'pendentes' ? 'Pendentes' : 'Integrados'}
+                {opcao === 'pendentes' ? 'Pendentes' : 'Integrados'}
               </Text>
             </TouchableOpacity>
           ))}

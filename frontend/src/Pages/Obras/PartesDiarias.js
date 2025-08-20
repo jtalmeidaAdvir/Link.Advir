@@ -26,6 +26,9 @@ const { width } = Dimensions.get('window');
 const dataCache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
+const OBRA_SEM_ASSOC = -1;
+
+
 const PartesDiarias = ({ navigation }) => {
     const [loading, setLoading] = useState(true);
     const [loadingProgress, setLoadingProgress] = useState(0);
@@ -74,6 +77,47 @@ const [membrosSelecionados, setMembrosSelecionados] = useState([]);
 const [equipaSelecionada, setEquipaSelecionada] = useState(null);
 
 const [itensSubmetidos, setItensSubmetidos] = useState([]);
+
+// Normaliza códigos (ex.: "1" -> "001")
+const normalizaCod = (c) => String(c ?? '').replace(/^0+/, '').padStart(3, '0');
+
+// Itens submetidos agregados por ColaboradorID × ObraID no mês selecionado
+const submetidosPorUserObra = useMemo(() => {
+  const map = new Map(); // key: "cod-obraId" -> { cod, obraId, horasPorDia, totalMin }
+  (itensSubmetidos || []).forEach(it => {
+    if (it.ColaboradorID == null || !it.ObraID || !it.Data) return; // ignora EXTERNOS
+    const [yyyy, mm, dd] = it.Data.split('T')[0].split('-').map(Number);
+    if (yyyy !== mesAno.ano || mm !== mesAno.mes) return;
+
+    const cod = normalizaCod(it.ColaboradorID);
+    const obraId = Number(it.ObraID);
+    const key = `${cod}-${obraId}`;
+
+    if (!map.has(key)) {
+      map.set(key, {
+        cod,
+        obraId,
+        horasPorDia: Object.fromEntries(diasDoMes.map(d => [d, 0])),
+        totalMin: 0,
+      });
+    }
+    const row = map.get(key);
+    const dia = dd;
+    const mins = Number(it.NumHoras || 0);
+    row.horasPorDia[dia] = (row.horasPorDia[dia] || 0) + mins;
+    row.totalMin += mins;
+  });
+  return map;
+}, [itensSubmetidos, mesAno, diasDoMes]);
+
+const codToUser = useMemo(() => {
+  const m = new Map();
+  equipas.forEach(eq => (eq.membros || []).forEach(mb => {
+    const cod = codMap[mb.id];
+    if (cod) m.set(normalizaCod(cod), { userId: mb.id, userName: mb.nome });
+  }));
+  return m;
+}, [equipas, codMap]);
 
 
 // === EXTERNOS ===
@@ -514,12 +558,7 @@ useEffect(() => {
   carregarEquipamentos();
 }, [carregarEspecialidades, carregarEquipamentos]);
 
- // 👉 quando o codMap for preenchido, refaz a grelha para injetar o codFuncionario
- useEffect(() => {
-   if (registosPonto.length && equipas.length) {
-     processarDadosPartes(registosPonto, equipas);
-   }
- }, [codMap, registosPonto, equipas]);
+
 
 useEffect(() => {
   const init = async () => {
@@ -736,6 +775,17 @@ useEffect(() => {
   carregarCategoriaDinamicamente();
 }, [editData?.categoria]);
 
+// Minutos a mostrar numa célula: ParteDiária > editado/manual > default 480 se houve ponto
+const getMinutosCell = useCallback((item, dia) => {
+  const mPD = item?.horasSubmetidasPorDia?.[dia] || 0;
+  if (mPD > 0) return mPD;
+
+  const mMan = item?.horasPorDia?.[dia] || 0;
+  if (mMan > 0) return mMan;
+
+  const mPonto = item?.horasOriginais?.[dia] || 0;
+  return mPonto > 0 ? 480 : 0;
+}, []);
 
 
 
@@ -745,6 +795,100 @@ useEffect(() => {
     ];
     
 
+    // === HELPER: extrai as linhas (uma só data + uma só obra) ===
+const montarLinhasDoDia = (item, dia, obraIdDia) => {
+  const linhas = [];
+
+  // primeiro tenta usar as especialidades lançadas nesse dia para essa obra
+  const espDoDia = (item.especialidades || []).filter(
+    e => e.dia === dia && Number((e.obraId ?? item.obraId)) === Number(obraIdDia)
+  );
+
+  if (espDoDia.length > 0) {
+    espDoDia.forEach(esp => {
+      const lista = esp.categoria === 'Equipamentos' ? equipamentosList : especialidadesList;
+      const match = lista.find(opt => opt.codigo === esp.especialidade) ||
+                    lista.find(opt => opt.descricao === esp.especialidade);
+
+      const minutos = Math.round((parseFloat(esp.horas) || 0) * 60);
+      if (minutos > 0) {
+        linhas.push({
+          obraId: obraIdDia,
+          minutos,
+          categoria: esp.categoria === 'Equipamentos' ? 'Equipamentos' : 'MaoObra',
+          subEmpId: esp.subEmpId ?? match?.subEmpId ?? null,
+          horaExtra: !!esp.horaExtra,
+        });
+      }
+    });
+    return linhas;
+  }
+
+  // se não havia especialidades, usa o default do item (categoria+especialidade) para esse dia
+  const minutos = item?.horasPorDia?.[dia] || 0;
+  if (minutos > 0) {
+    const listaDefault = item.categoria === 'Equipamentos' ? equipamentosList : especialidadesList;
+    const match = listaDefault.find(opt => opt.codigo === item.especialidade) ||
+                  listaDefault.find(opt => opt.descricao === item.especialidade);
+
+    linhas.push({
+      obraId: obraIdDia,
+      minutos,
+      categoria: item.categoria === 'Equipamentos' ? 'Equipamentos' : 'MaoObra',
+      subEmpId: match?.subEmpId ?? null,
+      horaExtra: false,
+    });
+  }
+
+  return linhas;
+};
+
+// === HELPER: cria os itens no documento para uma obra/dia ===
+const postarItensGrupo = async (documentoID, obraId, dataISO, codFuncionario, linhas) => {
+  const painelToken = await AsyncStorage.getItem('painelAdminToken');
+
+  for (let i = 0; i < linhas.length; i++) {
+    const l = linhas[i];
+
+    // para equipamentos, é obrigatório o SubEmpID/ComponenteID
+    if (l.categoria === 'Equipamentos' && !l.subEmpId) {
+      console.warn(`⛔ Equipamento sem SubEmpID em ${dataISO} (obra ${obraId}). Linha ignorada.`);
+      continue;
+    }
+
+    const [yyyy, mm, dd] = dataISO.split('-').map(Number);
+    const tipoHoraId = l.horaExtra ? (isFimDeSemana(yyyy, mm, dd) ? 'H06' : 'H01') : null;
+
+    const payloadItem = {
+      DocumentoID: documentoID,
+      ObraID: obraId,
+      Data: dataISO,
+      Numero: i + 1,
+      ColaboradorID: codFuncionario,
+      Funcionario: String(codFuncionario),
+      ClasseID: 1,
+      SubEmpID: l.subEmpId ?? null,
+      NumHoras: l.minutos,
+      PrecoUnit: 0,
+      categoria: l.categoria, // 'MaoObra' | 'Equipamentos'
+      TipoHoraID: tipoHoraId,
+    };
+
+    const resp = await fetch('https://backend.advir.pt/api/parte-diaria/itens', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${painelToken}`,
+      },
+      body: JSON.stringify(payloadItem),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      console.warn(`Erro a criar item (${i + 1}) em ${dataISO} obra ${obraId}`, err);
+    }
+  }
+};
 
 
     const [modoVisualizacao, setModoVisualizacao] = useState('obra');
@@ -821,11 +965,9 @@ useEffect(() => {
                 if (cod != null) novoCodMap[uid] = String(cod).padStart(3, '0');
                 }));
                 setCodMap(novoCodMap); // isto dispara o useEffect acima e refaz a grelha
-             
-                   return {
-    equipas: cachedData.equipas,
-    registos: cachedData.registos
-  };
+                processarDadosPartes(cachedData.registos || [], cachedData.equipas || []);
+return { equipas: cachedData.equipas, registos: cachedData.registos };
+
  
             }
  const resultado = await carregarDadosReais();
@@ -864,12 +1006,23 @@ useEffect(() => {
             setLoadingProgress(20);
             
             // Transformar dados para o formato esperado
-            const equipasFormatadas = equipasData.map((equipa, index) => ({
-                id: index + 1,
-                nome: equipa.nome,
-                encarregado_id: 1,
-                membros: equipa.membros || []
-            }));
+            
+            const getEquipaObraId = (equipa) =>
+   // tenta várias formas comuns que a API pode devolver
+   equipa.obraId ??
+   equipa.obra_id ??
+   equipa.ObraID ??
+   equipa.ObraId ??
+   (equipa.obra && (equipa.obra.id ?? equipa.obra.ObraID)) ??
+   null;
+
+ const equipasFormatadas = equipasData.map((equipa, index) => ({
+   id: index + 1,
+   nome: equipa.nome || equipa.obraNome || `Equipa ${index + 1}`,
+   encarregado_id: 1,
+   obraId: getEquipaObraId(equipa),     // <<— guardar a obra associada
+   membros: equipa.membros || []
+ }));
 
             setEquipas(equipasFormatadas);
             setLoadingProgress(30);
@@ -1009,82 +1162,177 @@ return { equipas: equipasFormatadas, registos: todosRegistos };
         }
     };
 
-
+const agruparRegistosPorUserObra = useCallback((registos) => {
+  const map = new Map();
+  for (const r of registos) {
+    if (!r?.User || !r?.Obra || !r?.timestamp) continue;
+    const dt = new Date(r.timestamp);
+    if (dt.getFullYear() !== mesAno.ano || (dt.getMonth()+1) !== mesAno.mes) continue;
+    const key = `${r.User.id}-${r.Obra.id}`;
+    if (!map.has(key)) map.set(key, { user: r.User, obra: r.Obra, registos: [] });
+    map.get(key).registos.push(r);
+  }
+  return [...map.values()];
+}, [mesAno.ano, mesAno.mes]);
 
     // Memoizar processamento de dados para evitar recálculos desnecessários
-    const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
-        const dadosProcessados = [];
-        const novasHorasOriginais = new Map();
+const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
+  const linhas = [];
 
-        
-        // Filtrar apenas registos dos membros das minhas equipas
-        const membrosEquipas = equipasData.flatMap(equipa => 
-            equipa.membros ? equipa.membros.map(m => m.id) : []
-        );
+    // ✅ ADICIONA ISTO:
+  const registosPorUsuarioObra = agruparRegistosPorUserObra(registos);
+  // --- (1) filtra, agrupa e calcula horas do PONTO (igual ao que já tens) ---
+  // ... mantém teu código até aqui ...
+  registosPorUsuarioObra.forEach(grupo => {
+    const horasPorDia = calcularHorasPorDia(grupo.registos, diasDoMes);
 
-        const registosFiltrados = registos.filter(registo => 
-            registo && registo.User && registo.Obra && membrosEquipas.includes(registo.User.id)
-        );
+    const horasOriginaisPorDia = { ...horasPorDia };
+    const horasPorDefeito = {};
+    diasDoMes.forEach(d => (horasPorDefeito[d] = horasOriginaisPorDia[d] > 0 ? 480 : 0));
 
-        // Agrupar registos por usuário e obra usando Map para melhor performance
-        const registosPorUsuarioObra = new Map();
-        
-        registosFiltrados.forEach(registo => {
-            if (!registo || !registo.User || !registo.Obra) {
-                console.warn('Registo inválido encontrado:', registo);
-                return;
-            }
+    const cod = codMap[grupo.user.id] || null;
 
-            const key = `${registo.User.id}-${registo.Obra.id}`;
-            if (!registosPorUsuarioObra.has(key)) {
-                registosPorUsuarioObra.set(key, {
-                    user: registo.User,
-                    obra: {
-                        id: registo.Obra.id,
-                        nome: registo.Obra.nome || 'Obra sem nome',
-                        codigo: `OBR${String(registo.Obra.id).padStart(3, '0')}`
-                    },
-                    registos: []
-                });
-            }
-            registosPorUsuarioObra.get(key).registos.push(registo);
+    linhas.push({
+      id: `${grupo.user.id}-${grupo.obra.id}`,
+      userId: grupo.user.id,
+      userName: grupo.user.nome,
+      codFuncionario: cod,
+      obraId: grupo.obra.id,
+      obraNome: grupo.obra.nome,
+      obraCodigo: grupo.obra.codigo,
+      horasPorDia: horasPorDefeito,
+      horasOriginais: horasOriginaisPorDia,
+      // NEW: se quiseres guardar para UI, mas sem misturar com o ponto
+      horasSubmetidasPorDia: null,
+      totalMinSubmetido: 0,
+      isOriginal: true,
+    });
+  });
+
+  // --- (2) injeta APENAS pares que têm parte diária mas NÃO têm ponto ---
+  const paresComPonto = new Set(
+    linhas.map(r => `${normalizaCod(r.codFuncionario || codMap[r.userId] || '')}-${r.obraId}`)
+  );
+
+  submetidosPorUserObra.forEach((row, key) => {
+    if (paresComPonto.has(key)) return; // já há linha do ponto → não duplica
+
+    const metaUser = codToUser.get(row.cod) || {};
+    const obraMeta = (obrasParaPickers || obras || []).find(o => Number(o.id) === Number(row.obraId));
+
+    linhas.push({
+      id: `${metaUser.userId ?? `COD${row.cod}`}-${row.obraId}`,
+      userId: metaUser.userId ?? null,
+      userName: metaUser.userName ?? `Colab ${row.cod}`,
+      codFuncionario: row.cod,
+      obraId: row.obraId,
+      obraNome: obraMeta?.nome || `Obra ${row.obraId}`,
+      obraCodigo: obraMeta?.codigo || `OBR${String(row.obraId).padStart(3,'0')}`,
+      horasPorDia: Object.fromEntries(diasDoMes.map(d => [d, 0])), // nada de ponto
+      horasOriginais: {},
+      // NEW: aqui mostramos as horas do "parte diária"
+      horasSubmetidasPorDia: row.horasPorDia,
+      totalMinSubmetido: row.totalMin,
+      isOriginal: false,
+      fromSubmittedOnly: true, // marca que esta linha vem só da PD
+    });
+  });
+
+  // === ADICIONA MEMBROS SEM PONTO (linhas vazias)
+  // -> "Sem obra" SÓ para quem NÃO tem ponto no mês ===
+  const existentes = new Set(linhas.map(r => `${r.userId}-${r.obraId}`));
+  const userIdsComLinha = new Set(linhas.map(r => r.userId).filter(Boolean));
+  const usersComPonto = new Set();
+  (registos || []).forEach(r => {
+    if (!r?.User?.id || !r?.timestamp) return;
+    const dt = new Date(r.timestamp);
+    if (dt.getFullYear() === mesAno.ano && (dt.getMonth() + 1) === mesAno.mes) {
+      usersComPonto.add(r.User.id);
+    }
+  });
+
+  // função auxiliar para tentar obter o obraId da equipa
+ const guessEquipaObraId = (eq) => {
+     const direto =
+       eq.obraId ?? eq.obra_id ?? eq.ObraID ?? eq.ObraId ??
+       (eq.obra && (eq.obra.id ?? eq.obra.ObraID));
+     if (direto) return Number(direto);
+     const nomeEq = (eq.nome || '').trim().toLowerCase();
+     if (!nomeEq) return null;
+     const match = (obrasParaPickers || []).find(
+       o => (o.nome || '').trim().toLowerCase() === nomeEq
+     );
+     return match ? Number(match.id) : null;
+   };
+
+   equipasData.forEach(eq => {
+
+    const obraIdDetected = guessEquipaObraId(eq);
+
+     (eq.membros || []).forEach(mb => {
+       if (!mb?.id) return;
+
+      // se a equipa tem obra reconhecida → cria linha vazia dessa obra (se ainda não existir)
+      if (obraIdDetected) {
+        const obraId = Number(obraIdDetected);
+        const key = `${mb.id}-${obraId}`;
+        if (existentes.has(key)) return;
+        const obraMeta =
+          (obrasParaPickers || []).find(o => Number(o.id) === obraId) ||
+          { id: obraId, nome: eq.nome || `Obra ${obraId}`, codigo: `OBR${String(obraId).padStart(3,'0')}` };
+        const baseHoras = Object.fromEntries(diasDoMes.map(d => [d, 0]));
+        linhas.push({
+          id: `${mb.id}-${obraId}`,
+          userId: mb.id,
+          userName: mb.nome,
+          codFuncionario: codMap[mb.id] ?? null,
+          obraId,
+          obraNome: obraMeta.nome,
+          obraCodigo: obraMeta.codigo,
+          horasPorDia: baseHoras,
+          horasOriginais: {},
+          especialidades: [],
+          isOriginal: false
         });
+        existentes.add(key);
+        return;
+      }
 
-        // Para cada usuário-obra, calcular horas por dia
-        registosPorUsuarioObra.forEach(grupo => {
-            const horasPorDia = calcularHorasPorDia(grupo.registos, diasDoMes);
-            
-            // Armazenar horas originais para comparação
-             // Vamos guardar também as horas originais e criar o mapa de horas por defeito
- const horasOriginaisPorDia = {...horasPorDia};
- const horasPorDefeito = {};
- diasDoMes.forEach(dia => {
-   horasPorDefeito[dia] = horasOriginaisPorDia[dia] > 0 ? 480 : 0;
- });
-            
-            // Criar entrada base para cada usuário-obra
-            dadosProcessados.push({
-                id: `${grupo.user.id}-${grupo.obra.id}`,
-                userId: grupo.user.id,
-                userName: grupo.user.nome,
-                codFuncionario: codMap[grupo.user.id] || null,
-                obraId: grupo.obra.id,
-                obraNome: grupo.obra.nome,
-                obraCodigo: grupo.obra.codigo,
-                horasPorDia: horasPorDefeito,       // usar 8h por defeito
-                horasOriginais: horasOriginaisPorDia, // guardar o real
+      // sem obra reconhecida → só criar "Sem obra" se:
+      //  (a) NÃO tem ponto no mês e
+      //  (b) ainda não existe nenhuma linha deste utilizador (ex.: vinda de parte diária submetida)
+      if (usersComPonto.has(mb.id) || userIdsComLinha.has(mb.id)) return;
+      const keySemObra = `${mb.id}-${OBRA_SEM_ASSOC}`;
+      if (existentes.has(keySemObra)) return;
+      const baseHoras = Object.fromEntries(diasDoMes.map(d => [d, 0]));
+      linhas.push({
+        id: `${mb.id}-${OBRA_SEM_ASSOC}`,
+        userId: mb.id,
+        userName: mb.nome,
+        codFuncionario: codMap[mb.id] ?? null,
+        obraId: OBRA_SEM_ASSOC,
+        obraNome: 'Sem obra',
+        obraCodigo: '—',
+        horasPorDia: baseHoras,
+        horasOriginais: {},
+        especialidades: [],
+        isOriginal: false
+      });
+      existentes.add(keySemObra);
+     });
+   });
 
+  
+  setDadosProcessados(linhas);
+}, [diasDoMes, equipas, codMap, submetidosPorUserObra, obrasParaPickers, obras, codToUser]);
 
-                especialidades: [],
-                isOriginal: true
-            });
-        });
-
-        setHorasOriginais(novasHorasOriginais);
-        setDadosProcessados(dadosProcessados);
-        
-    }, [diasDoMes, equipas, codMap]);
-
+ // 👉 quando o codMap for preenchido, refaz a grelha para injetar o codFuncionario
+useEffect(() => {
+  if (equipas.length) {
+    // mesmo que registosPonto esteja vazio, gera linhas a partir das equipas
+    processarDadosPartes(registosPonto || [], equipas);
+  }
+}, [codMap, registosPonto, equipas, processarDadosPartes]);
 
 
 
@@ -1383,125 +1631,114 @@ const obterCodFuncionario = async (userId) => {
 
 
 const criarParteDiaria = async () => {
-  const painelToken = localStorage.getItem("painelAdminToken");
-  const userLogado = localStorage.getItem("userNome");
+  const painelToken = await AsyncStorage.getItem('painelAdminToken');
+  const userLogado  = (await AsyncStorage.getItem('userNome')) || '';
 
   if (!dadosProcessados || dadosProcessados.length === 0) {
-    Alert.alert("Erro", "Não existem dados para submeter.");
+    Alert.alert('Erro', 'Não existem dados para submeter.');
     return;
   }
 
-  for (const item of dadosProcessados) {
-    try {
-      const codFuncionario = await obterCodFuncionario(item.userId);
+  try {
+    for (const item of dadosProcessados) {
+      try {
+        const codFuncionario = await obterCodFuncionario(item.userId);
+        if (!codFuncionario) {
+          console.warn(`codFuncionario não encontrado para ${item.userName}`);
+          continue;
+        }
 
-      if (!codFuncionario) {
-        console.warn(`codFuncionario não encontrado para ${item.userName}`);
-        continue;
-      }
+        // dias que este item (utilizador × obra) realmente precisa submeter
+        const diasValidos = diasDoMes.filter(dia => {
+          const chave = `${item.userId}-${item.obraId}-${dia}`;
+          const cod = item.codFuncionario ?? codMap[item.userId];
+          return (
+            diasEditadosManualmente.has(chave) &&
+            !itemJaSubmetido(cod, item.obraId, dia)
+          );
+        });
 
+        if (diasValidos.length === 0) continue;
 
-            const diasValidos = diasDoMes.filter(dia => {
-  const chave = `${item.userId}-${item.obraId}-${dia}`;
-  return diasEditadosManualmente.has(chave) && !itemJaSubmetido(item.userId, item.obraId, dia);
-});
+        // === Cabeçalho por (obra, dia) ===
+        for (const dia of diasValidos) {
+          // obra correta para este dia:
+          let obraIdDia = item.obraId;
+          const espDoDia = (item.especialidades || []).filter(e => e.dia === dia);
+          const espComObra = espDoDia.find(e => e.obraId && Number(e.obraId) !== OBRA_SEM_ASSOC);
 
+          if (espComObra) {
+            obraIdDia = Number(espComObra.obraId);
+          }
 
-
-            // só continua se houver dias ainda por submeter
-            if (diasValidos.length === 0) {
-            console.log(`🔒 Todos os dias do trabalhador ${item.userName} já têm partes submetidas`);
+          // se ainda está “Sem obra” (-1) e não encontramos destino, não submetemos esse dia
+          if (Number(obraIdDia) === OBRA_SEM_ASSOC) {
+            console.warn(`Dia ${dia} ignorado em ${item.userName}: sem obra destino definida.`);
             continue;
-            }
+          }
 
+          const dataISO = `${mesAno.ano}-${String(mesAno.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 
-      const dataHoje = new Date();
-      const dataSelecionada = `${dataHoje.getFullYear()}-${String(dataHoje.getMonth() + 1).padStart(2, '0')}-${String(dataHoje.getDate()).padStart(2, '0')}`;
-      const dataFormatada = new Date(dataSelecionada).toISOString().split('T')[0];
-// dá "2025-07-31"
+          // cria o cabeçalho certo para esta (obra, dia)
+          const payloadCab = {
+            ObraID: obraIdDia,
+            Data: dataISO,
+            Notas: '',
+            CriadoPor: userLogado,
+            Utilizador: userLogado,
+            TipoEntidade: 'O',
+            ColaboradorID: codFuncionario,
+          };
 
-      const numeroUnico = Date.now(); // podes gerar outro número se necessário
-      const observacoes = ""; // ou algum campo editável no modal
+          const respCab = await fetch('https://backend.advir.pt/api/parte-diaria/cabecalhos', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${painelToken}`,
+            },
+            body: JSON.stringify(payloadCab),
+          });
 
-      const payloadCab = {
-        ObraID: item.obraId,
-        Data: dataFormatada,
-        Notas: observacoes ,
-        CriadoPor: userLogado,
-        Utilizador: userLogado,
-        TipoEntidade: 'O',
-        ColaboradorID: codFuncionario
-      };
-      console.log(">>> CABEÇALHO JSON:", payloadCab);
+          if (!respCab.ok) {
+            const err = await respCab.json().catch(() => ({}));
+            console.error(`Erro ao criar cabeçalho (${item.userName}) dia ${dataISO} obra ${obraIdDia}:`, err);
+            continue;
+          }
 
+          const cab = await respCab.json();
 
-      const resposta = await fetch("https://backend.advir.pt/api/parte-diaria/cabecalhos", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${painelToken}`
-        },
-        body: JSON.stringify(payloadCab)
-      });
+          // linhas (especialidades/equipamentos) apenas para este dia e esta obra
+          const linhasDoDia = montarLinhasDoDia(item, dia, obraIdDia);
+          if (linhasDoDia.length === 0) {
+            console.warn(`Sem linhas para ${item.userName} em ${dataISO} (obra ${obraIdDia}).`);
+            continue;
+          }
 
-      if (!resposta.ok) {
-        const erro = await resposta.json();
-        console.error(`Erro ao criar cabeçalho para ${item.userName}:`, erro);
-        continue;
+          await postarItensGrupo(cab.DocumentoID, obraIdDia, dataISO, codFuncionario, linhasDoDia);
+        }
+      } catch (e) {
+        console.error(`Erro geral com o item ${item.userName}:`, e);
       }
-
-      const cabecalhoCriado = await resposta.json();
-      console.log(`✅ Parte criada para ${item.userName}:`, cabecalhoCriado);
-
-
-
-      // Se quiseres, podes agora também gerar os itens com base nas especialidades
-await criarItensParaMembro(
-  cabecalhoCriado.DocumentoID,
-  item,
-  codFuncionario,
-  mesAno,
-  diasValidos
-);
-
-
-    } catch (erro) {
-      console.error(`Erro geral com o item ${item.userName}:`, erro);
     }
+
+    // ——— externos (como já fazias), mas silencioso para não duplicar alerts ———
+    const haviaExternos = linhasExternos.length > 0;
+    const submeteuExternos = haviaExternos ? await submeterExternosSilencioso() : false;
+
+    setModalVisible(false);
+    setDiasEditadosManualmente(new Set());
+
+    await carregarDados();
+    await carregarItensSubmetidos();
+
+    Alert.alert('Sucesso', submeteuExternos
+      ? 'Partes diárias e externos submetidos com sucesso.'
+      : 'Partes diárias submetidas com sucesso.'
+    );
+  } catch (e) {
+    console.error('Erro ao submeter partes diárias:', e);
+    Alert.alert('Erro', e.message || 'Ocorreu um erro ao submeter as partes diárias.');
   }
-
-  // ... dentro de criarParteDiaria, depois do for (const item of dadosProcessados) { ... }
-
-const haviaExternos = linhasExternos.length > 0;
-let submeteuExternos = false;
-if (haviaExternos) {
-  // envia os externos que estão na lista temporária, sem duplicar alerts/refresh
-  submeteuExternos = await submeterExternosSilencioso();
-}
-
-setModalVisible(false);
-
-const msg = submeteuExternos
-  ? 'Partes diárias e externos submetidos com sucesso.'
-  : 'Partes diárias submetidas com sucesso.';
-
-Alert.alert('Sucesso', msg);
-
-// limpa estados e faz refresh APENAS uma vez (cobre internos + externos)
-setDiasEditadosManualmente(new Set());
-await carregarDados();
-await carregarItensSubmetidos();
-console.log('🔍 submittedSet contém:', Array.from(submittedSet).slice(0, 10));
-
-
-setModalVisible(false);                            // Fecha o modal
-Alert.alert("Sucesso", "Partes diárias submetidas para o diretor de obra com sucesso.");
-setDiasEditadosManualmente(new Set());             // Limpa estados locais
-carregarDados();                                   // Faz refresh aos dados da página
-carregarItensSubmetidos();
-console.log('🔍 submittedSet contém:', Array.from(submittedSet).slice(0, 10));
-
-
 };
 
 
@@ -2106,11 +2343,11 @@ const renderDataSheet = () => {
                                                   {obraGroup.trabalhadores.length} trabalhador{obraGroup.trabalhadores.length !== 1 ? 'es' : ''}
                                               </Text>
                                               <Text style={styles.obraStatsText}>
-                                                  Total: {formatarHorasMinutos(obraGroup.trabalhadores.reduce((total, trab) => {
-                                                      return total + diasDoMes.reduce((trabTotal, dia) =>
-                                                          trabTotal + (trab.horasPorDia[dia] || 0), 0
-                                                      );
-                                                  }, 0))}
+                                                   Total: {formatarHorasMinutos(obraGroup.trabalhadores.reduce((total, trab) => {
+   return total + diasDoMes.reduce((trabTotal, dia) =>
+     trabTotal + getMinutosCell(trab, dia), 0
+   );
+ }, 0))}
                                               </Text>
                                           </View>
                                       </View>
@@ -2156,11 +2393,19 @@ const renderDataSheet = () => {
                                                          disabled={submetido}
                                                          onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
                                                        >
-                                                         <Text style={[styles.cellText, { textAlign: 'center' }, item.horasPorDia[dia] > 0 && styles.hoursText, styles.clickableHours]}>
-                                                           { item.horasOriginais[dia] > 0
-                                                             ? `${formatarHorasMinutos(480)}`
-                                                             : '-' }
-                                                         </Text>
+                                                          {(() => {
+                                                               const mins = getMinutosCell(item, dia);
+                                                               return (
+                                                                 <Text style={[
+                                                                   styles.cellText,
+                                                                   { textAlign: 'center' },
+                                                                   mins > 0 && styles.hoursText,
+                                                                   styles.clickableHours
+                                                                 ]}>
+                                                                   { mins > 0 ? formatarHorasMinutos(mins) : '-' }
+                                                                 </Text>
+                                                               );
+                                                             })()}
                                                          {submetido && (
                                                            <Ionicons
                                                              name="checkmark-circle"
@@ -2175,9 +2420,8 @@ const renderDataSheet = () => {
                                               })}
                                               <View style={[styles.tableCell, { width: 70 }]}>
                                                   <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
-                                                      {formatarHorasMinutos(diasDoMes.reduce((total, dia) =>
-                                                          total + (item.horasPorDia[dia] || 0), 0
-                                                      ))}
+                                                       {formatarHorasMinutos(diasDoMes.reduce((total, dia) =>
+   total + getMinutosCell(item, dia), 0))}
                                                   </Text>
                                               </View>
                                           </View>
@@ -2339,9 +2583,19 @@ const renderDataSheet = () => {
                                                    disabled={submetido}
                                                    onPress={submetido ? undefined : () => abrirEdicao(item, dia)}
                                                  >
-                                                   <Text style={[styles.cellText, { textAlign: 'center' }, item.horasPorDia[dia] > 0 && styles.hoursText, styles.clickableHours]}>
-                                                     { item.horasPorDia[dia] > 0 ? `${formatarHorasMinutos(item.horasPorDia[dia])}` : '-' }
-                                                   </Text>
+                                                    {(() => {
+   const mins = getMinutosCell(item, dia);
+   return (
+     <Text style={[
+       styles.cellText,
+       { textAlign: 'center' },
+       mins > 0 && styles.hoursText,
+       styles.clickableHours
+     ]}>
+       { mins > 0 ? formatarHorasMinutos(mins) : '-' }
+     </Text>
+   );
+ })()}
                                                    {submetido && (
                                                      <Ionicons
                                                        name="checkmark-circle"
@@ -2357,46 +2611,68 @@ const renderDataSheet = () => {
 
                                           <View style={[styles.tableCell, { width: 70 }]}>
                                               <Text style={[styles.cellText, styles.totalText, { textAlign: 'center' }]}>
-                                                  {formatarHorasMinutos(diasDoMes.reduce((total, dia) =>
-                                                      total + (item.horasPorDia[dia] || 0), 0
-                                                  ))}
+                                                  {formatarHorasMinutos(
+                                                        diasDoMes.reduce((acc, dia) => {
+                                                            return acc + userGroup.obras.reduce((accObra, item) => accObra + getMinutosCell(item, dia), 0);
+                                                        }, 0)
+                                                        )}
                                               </Text>
                                           </View>
                                       </View>
                                   ))}
 
                                   {/* Linha de total por dia para este utilizador */}
-                                  <View style={[styles.tableRow, { backgroundColor: '#f0f0f0' }]}>
-                                    <View style={[styles.tableCell, { width: 120 }]}>
-                                      <Text style={[styles.cellText, { fontWeight: 'bold', color: '#000' }]}>
-                                        Total
-                                      </Text>
-                                    </View>
+<View style={[styles.tableRow, { backgroundColor: '#f0f0f0' }]}>
+  <View style={[styles.tableCell, { width: 120 }]}>
+    <Text style={[styles.cellText, { fontWeight: 'bold', color: '#000' }]}>
+      Total
+    </Text>
+  </View>
 
-                                    {diasDoMes.map(dia => {
-                                      const totalMinutosDia = userGroup.obras.reduce((acc, obraItem) => {
-                                        return acc + (obraItem.horasPorDia[dia] || 0);
-                                      }, 0);
+  {diasDoMes.map((dia) => {
+    const totalMinutosDia = userGroup.obras.reduce((acc, obraItem) => {
+      return acc + getMinutosCell(obraItem, dia);
+    }, 0);
 
-                                      return (
-                                        <View key={`total-${userGroup.userInfo.id}-${dia}`} style={[styles.tableCell, { width: 50 }]}>
-                                          <Text style={[styles.cellText, { fontWeight: '600', color: '#333', textAlign: 'center' }]}>
-                                            {formatarHorasMinutos(totalMinutosDia)}
-                                          </Text>
-                                        </View>
-                                      );
-                                    })}
+    return (
+      <View
+        key={`total-${userGroup.userInfo.id}-${dia}`}
+        style={[styles.tableCell, { width: 50 }]}
+      >
+        <Text
+          style={[
+            styles.cellText,
+            { fontWeight: '600', color: '#333', textAlign: 'center' },
+          ]}
+        >
+          {formatarHorasMinutos(totalMinutosDia)}
+        </Text>
+      </View>
+    );
+  })}
 
-                                    <View style={[styles.tableCell, { width: 70 }]}>
-                                      <Text style={[styles.cellText, { fontWeight: '700', textAlign: 'center', color: '#1792FE' }]}>
-                                        {formatarHorasMinutos(
-                                          diasDoMes.reduce((acc, dia) => {
-                                            return acc + userGroup.obras.reduce((accObra, item) => accObra + (item.horasPorDia[dia] || 0), 0);
-                                          }, 0)
-                                        )}
-                                      </Text>
-                                    </View>
-                                  </View>
+  <View style={[styles.tableCell, { width: 70 }]}>
+    <Text
+      style={[
+        styles.cellText,
+        { fontWeight: '700', textAlign: 'center', color: '#1792FE' },
+      ]}
+    >
+      {formatarHorasMinutos(
+        diasDoMes.reduce((acc, dia) => {
+          return (
+            acc +
+            userGroup.obras.reduce(
+              (accObra, item) => accObra + getMinutosCell(item, dia),
+              0
+            )
+          );
+        }, 0)
+      )}
+    </Text>
+  </View>
+</View>
+
                                   
                               </View>
                           ))}

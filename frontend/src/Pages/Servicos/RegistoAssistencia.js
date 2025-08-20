@@ -2,6 +2,12 @@ import React, { useState, useEffect } from "react";
 import i18n from "../i18n";
 import { useTranslation } from "react-i18next";
 
+
+// ——— estado para anexos temporários ———
+
+
+
+
 const getCurrentDateTime = () => {
     const now = new Date();
     const offset = now.getTimezoneOffset();
@@ -10,10 +16,65 @@ const getCurrentDateTime = () => {
 };
 
 const RegistoAssistencia = (props) => {
+
+    const [anexosTemp, setAnexosTemp] = useState([]);
+    const [uploadingTemp, setUploadingTemp] = useState(false);
     const [selectedObjeto, setSelectedObjeto] = useState(null);
     const token = localStorage.getItem("painelAdminToken");
     const urlempresa = localStorage.getItem("urlempresa");
     const { t } = useTranslation();
+    const handleUploadTemp = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        // validações iguais às do backend
+        if (file.size > 10 * 1024 * 1024) {
+            alert("Ficheiro demasiado grande. Máx. 10MB.");
+            return;
+        }
+        const allowed = [
+            "image/jpeg", "image/jpg", "image/png", "image/gif",
+            "application/pdf", "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain"
+        ];
+        if (!allowed.includes(file.type)) {
+            alert("Tipo de ficheiro não permitido (JPG, PNG, GIF, PDF, DOC, DOCX, TXT).");
+            return;
+        }
+
+        setUploadingTemp(true);
+        try {
+            const formData = new FormData();
+            formData.append("arquivo", file, file.name);
+
+            const resp = await fetch("https://backend.advir.pt/api/anexo-pedido/upload-temp", {
+                method: "POST",
+                body: formData, // NÃO definir headers -> o browser trata do boundary
+            });
+
+            if (!resp.ok) {
+                const txt = await resp.text();
+                throw new Error(txt || "Falha no upload temporário");
+            }
+
+            const { arquivo_temp } = await resp.json();
+            // guarda os metadados devolvidos pelo backend (nome_arquivo, nome_arquivo_sistema, tipo_arquivo, tamanho, caminho)
+            setAnexosTemp((prev) => [...prev, arquivo_temp]);
+
+            // limpa o input
+            event.target.value = "";
+        } catch (e) {
+            console.error("Erro no upload temp:", e);
+            alert(`Erro no upload temporário: ${e.message}`);
+        } finally {
+            setUploadingTemp(false);
+        }
+    };
+
+    const removerAnexoTemp = (idx) => {
+        setAnexosTemp((prev) => prev.filter((_, i) => i !== idx));
+    };
 
     // Variáveis de estado
     const [formData, setFormData] = useState({
@@ -148,7 +209,7 @@ const RegistoAssistencia = (props) => {
             setMessage(t("RegistoAssistencia.Aviso.1"));
             return;
         }
-
+        
         setIsSubmitting(true);
         setMessage("");
 
@@ -205,9 +266,47 @@ const RegistoAssistencia = (props) => {
                     body: JSON.stringify(payload),
                 },
             );
+            
+          //  const data = await response.json();
 
-            const data = await response.json();
+       
+            const responseData = await fetch("https://webapiprimavera.advir.pt/routePedidos_STP/LstUltimoPedido", {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`, // passa o token pro proxy
+                    urlempresa: urlempresa,
+                },
+            });
 
+            if (!responseData.ok) {
+                throw new Error(`Erro na requisição: ${responseData.status}`);
+            }
+
+            const dataPedido = await responseData.json(); // ✅ agora é objeto de verdade
+            console.log("ID do pedido:", dataPedido.DataSet.Table[0].ID);
+
+            const pedidoID = dataPedido.DataSet.Table[0].ID;
+            if (pedidoID && anexosTemp.length > 0) {
+                try {
+                    const r2 = await fetch("https://backend.advir.pt/api/anexo-pedido/associar-temp", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ pedido_id: String(pedidoID), anexos_temp: anexosTemp }),
+                    });
+
+                    if (!r2.ok) {
+                        const txt = await r2.text();
+                        console.error('associar-temp falhou:', r2.status, txt);
+                        throw new Error(txt || `Falha ao associar anexos (${r2.status})`);
+                    }
+                } catch (e) {
+                    console.error("Erro a associar anexos temporários:", e);
+                    alert("Pedido criado, mas falhou a associação dos anexos. Pode anexá-los na página de Pedidos.");
+                } finally {
+                    // limpa temporários da UI
+                    setAnexosTemp([]);
+                }
+            }
             // Criar notificação para o técnico
             try {
                 await fetch("https://backend.advir.pt/api/notificacoes", {
@@ -220,7 +319,7 @@ const RegistoAssistencia = (props) => {
                         titulo: "Novo Pedido de Assistência",
                         mensagem: `Foi-lhe atribuído um novo pedido de assistência do cliente ${formData.cliente}. Problema: ${formData.problema.substring(0, 100)}${formData.problema.length > 100 ? "..." : ""}`,
                         tipo: "pedido_atribuido",
-                        pedido_id: data.PedidoID || "N/A",
+                        pedido_id: pedidoID || "N/A",
                     }),
                 });
 
@@ -1252,6 +1351,56 @@ const RegistoAssistencia = (props) => {
                                         style={textareaStyle}
                                         rows={5}
                                     />
+                                    {/* === Anexos temporários antes de gravar o pedido === */}
+                                    <div style={anexosBoxStyle}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <h3 style={{ margin: 0, color: "#1792FE", fontSize: "1rem" }}>Anexos</h3>
+                                            <small style={smallMutedTextStyle}>Tipos: JPG, PNG, GIF, PDF, DOC, DOCX, TXT • Máx. 10MB</small>
+                                        </div>
+
+                                        <div style={{ marginTop: 10 }}>
+                                            <input
+                                                type="file"
+                                                accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt"
+                                                onChange={handleUploadTemp}
+                                                disabled={uploadingTemp}
+                                                style={fileInputInlineStyle}
+                                            />
+                                            {uploadingTemp && (
+                                                <div style={{ marginTop: 8, fontSize: 13, color: "#1792FE" }}>
+                                                    A enviar anexo...
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ marginTop: 12 }}>
+                                            {anexosTemp.length === 0 ? (
+                                                <div style={{ fontSize: 14, color: "#666" }}>
+                                                    Ainda não adicionou anexos.
+                                                </div>
+                                            ) : (
+                                                anexosTemp.map((ax, idx) => (
+                                                    <div key={`${ax.nome_arquivo_sistema}-${idx}`} style={anexoLinhaStyle}>
+                                                        <div style={{ flex: 1 }}>
+                                                            <div style={{ fontWeight: 600, fontSize: 14, color: "#333" }}>{ax.nome_arquivo}</div>
+                                                            <div style={{ fontSize: 12, color: "#666" }}>
+                                                                {Math.round(ax.tamanho / 1024)} KB • {ax.tipo_arquivo}
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removerAnexoTemp(idx)}
+                                                            style={removeTempBtnStyle}
+                                                            title="Remover antes de gravar"
+                                                        >
+                                                            Remover
+                                                        </button>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+
                                 </div>
 
                                 <div style={navigationButtonsStyle}>
@@ -1309,6 +1458,48 @@ const RegistoAssistencia = (props) => {
             </div>
         </div>
     );
+};
+
+const anexosBoxStyle = {
+    marginTop: "10px",
+    padding: "12px",
+    backgroundColor: "#f8f9fa",
+    border: "1px solid #e9ecef",
+    borderRadius: "8px",
+};
+
+const anexoLinhaStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "8px",
+    borderRadius: "6px",
+    border: "1px solid #e9ecef",
+    background: "#fff",
+    marginBottom: "8px",
+};
+
+const removeTempBtnStyle = {
+    background: "#f44336",
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    padding: "6px 10px",
+    cursor: "pointer",
+    fontWeight: 600,
+};
+
+const fileInputInlineStyle = {
+    width: "100%",
+    padding: "10px",
+    border: "2px dashed #1792FE",
+    borderRadius: "8px",
+    backgroundColor: "#f8f9ff",
+};
+
+const smallMutedTextStyle = {
+    color: "#666",
+    fontSize: "12px",
 };
 
 // Estilos modernos

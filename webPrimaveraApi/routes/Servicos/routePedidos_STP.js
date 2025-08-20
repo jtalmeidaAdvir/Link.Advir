@@ -121,6 +121,50 @@ router.get('/LstClientes', async (req, res) => {
     }
 });
 
+router.get('/LstUltimoPedido', async (req, res) => {
+    try {
+        const painelAdminToken = req.headers['authorization']?.split(' ')[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: 'Token de administrador não encontrado. Faça login novamente.' });
+        }
+
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+        }
+
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/LstUltimoPedido`;
+        console.log('Enviando solicitação para a URL:', apiUrl);
+
+        const response = await axios.get(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${painelAdminToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            }
+        });
+
+        console.log('Resposta da API:', response.status, response.data);
+
+        if (response.status === 200) {
+            return res.status(200).json(response.data);
+        } else if (response.status === 404) {
+            return res.status(404).json({ error: 'Nenhum UltimoPedido encontrado.' });
+        } else {
+            return res.status(response.status).json({
+                error: 'Falha ao UltimoPedido UltimoPedido.',
+                details: response.data.ErrorMessage
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao listar UltimoPedido:', error.response ? error.response.data : error.message);
+        return res.status(500).json({
+            error: 'Erro inesperado ao listar UltimoPedido',
+            details: error.message
+        });
+    }
+});
+
 // Rota para listar contactos
 router.get('/ListarContactos/:IDCliente', async (req, res) => {
     try {
