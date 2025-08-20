@@ -161,7 +161,7 @@ const carregarFaltasPendentes = async () => {
     const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        urlempresa,
+        urlempresa: localStorage.getItem('empresa_id'),
         'Content-Type': 'application/json'
       }
     });
@@ -186,7 +186,7 @@ const carregarDiasPendentes = async () => {
     const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        urlempresa,
+        urlempresa: localStorage.getItem('empresa_id'),
         'Content-Type': 'application/json'
       }
     });
@@ -231,11 +231,13 @@ const submeterFalta = async (e) => {
   const token = localStorage.getItem('loginToken');
   const funcionarioId = localStorage.getItem('codFuncionario');
   const urlempresa = localStorage.getItem('urlempresa');
+  const empresaId = localStorage.getItem('empresa_id');
   const dataFalta = diaSelecionado;
 
   const dadosPrincipal = {
     tipoPedido: 'FALTA',
     funcionario: funcionarioId,
+    empresaId: empresaId,
     dataPedido: dataFalta,
     falta: novaFalta.Falta,
     horas: novaFalta.Horas ? 1 : 0,
@@ -259,7 +261,7 @@ const submeterFalta = async (e) => {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        urlempresa
+        urlempresa: localStorage.getItem('empresa_id')
       },
       body: JSON.stringify(dadosPrincipal)
     });
@@ -281,7 +283,7 @@ const submeterFalta = async (e) => {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
-            urlempresa
+            urlempresa : localStorage.getItem('empresa_id')
           },
           body: JSON.stringify(dadosF40)
         });
@@ -454,6 +456,7 @@ const submeterFerias = async (e) => {
   const token = localStorage.getItem("loginToken");
   const urlempresa = localStorage.getItem("urlempresa");
   const funcionarioId = localStorage.getItem("codFuncionario");
+  const empresaId = localStorage.getItem('empresa_id');
 
   const { dataInicio, dataFim, Horas, Tempo, Observacoes } = novaFaltaFerias;
 
@@ -468,6 +471,7 @@ const dados = {
   tipoPedido: 'FERIAS',
   operacao,                           // CRIAR | EDITAR
   funcionario: funcionarioId,
+  empresaId: empresaId,
   dataInicio,
   dataFim,
   dataPedido: dataInicio,             // obrigatório
@@ -493,7 +497,7 @@ const dados = {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
-          urlempresa
+          urlempresa : localStorage.getItem('empresa_id')
         }
       });
 
@@ -510,7 +514,7 @@ const dados = {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        urlempresa
+        urlempresa : localStorage.getItem('empresa_id')
       },
       body: JSON.stringify(dados)
     });
@@ -545,6 +549,7 @@ const solicitarCancelamentoFalta = async (faltaObj) => {
   const token = localStorage.getItem('loginToken');
   const urlempresa = localStorage.getItem('urlempresa');
   const funcionario = localStorage.getItem('codFuncionario');
+  const empresaId = localStorage.getItem('empresa_id');
 
 const dataISO = toLocalISODate(faltaObj.Data);
 
@@ -561,12 +566,13 @@ const dataISO = toLocalISODate(faltaObj.Data);
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        urlempresa
+        urlempresa : localStorage.getItem('empresa_id')
       },
       body: JSON.stringify({
         tipoPedido: 'FALTA',
         operacao: 'CANCELAR',
         funcionario,
+        empresaId: empresaId,
         dataPedido: dataISO,
         falta: codigoFalta,
         horas: Number(faltaObj.Horas) ? 1 : 0,
@@ -617,7 +623,7 @@ const cancelarPedido = async (pedido) => {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        urlempresa
+        urlempresa : localStorage.getItem('empresa_id')
       }
     });
 
@@ -651,7 +657,7 @@ const cancelarPonto = async (registoId) => {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        urlempresa
+        urlempresa : localStorage.getItem('empresa_id')
       }
     });
 
@@ -769,7 +775,7 @@ const eliminarFeria = async (dataFeria) => {
       headers: { Authorization: `Bearer ${painelAdminToken}`, urlempresa, 'Content-Type': 'application/json' },
    })),
    safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
-      headers: { Authorization: `Bearer ${loginToken}`, urlempresa, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${loginToken}`, urlempresa : localStorage.getItem('empresa_id'), 'Content-Type': 'application/json' },
    })),
    safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${diaISO}`, {
       headers: { Authorization: `Bearer ${loginToken}` },
@@ -931,6 +937,7 @@ const solicitarCancelamentoFeria = async (dataFeria) => {
   const token = localStorage.getItem('loginToken');
   const urlempresa = localStorage.getItem('urlempresa');
   const funcionario = localStorage.getItem('codFuncionario');
+  const empresaId = localStorage.getItem('empresa_id');
 
   const dataISO = toLocalISODate(dataFeria); 
 
@@ -942,12 +949,13 @@ const solicitarCancelamentoFeria = async (dataFeria) => {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        urlempresa
+        urlempresa : localStorage.getItem('empresa_id')
       },
       body: JSON.stringify({
         tipoPedido: 'FERIAS',
         operacao: 'CANCELAR',
         funcionario,
+        empresaId: empresaId,
         dataPedido: dataISO,
         dataInicio: dataISO,
         dataFim: dataISO,
