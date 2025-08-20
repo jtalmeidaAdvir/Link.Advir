@@ -233,12 +233,12 @@ const listarMinhasEquipasAgrupadas = async (req, res) => {
 // Editar equipa (Adicionar/Remover Membros, Renomear Equipa)
 const editarEquipa = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { nome, membrosParaAdicionar, membrosParaRemover } = req.body;
+        const { equipa_id } = req.params;
+        const { nomeAnterior, novoNome, novosMembros } = req.body;
         const encarregado_id = req.user.id;
 
         const equipa = await EquipaObra.findOne({
-            where: { id },
+            where: { nome: equipa_id },
             include: [{ model: User, as: 'membro' }]
         });
 
@@ -251,30 +251,20 @@ const editarEquipa = async (req, res) => {
             return res.status(403).json({ message: 'Apenas o encarregado ou administrador pode editar a equipa.' });
         }
 
-        // Renomear equipa se o nome foi fornecido
-        if (nome && equipa.nome !== nome) {
-            await EquipaObra.update({ nome }, { where: { nome: equipa.nome } });
-        }
+        // Remover todos os membros existentes da equipa
+        await EquipaObra.destroy({
+            where: { nome: equipa.nome }
+        });
 
-        // Remover membros
-        if (membrosParaRemover && membrosParaRemover.length > 0) {
-            await EquipaObra.destroy({
-                where: {
-                    nome: equipa.nome,
-                    user_id: membrosParaRemover
-                }
-            });
-        }
-
-        // Adicionar novos membros
-        if (membrosParaAdicionar && membrosParaAdicionar.length > 0) {
-            const novasEntradas = membrosParaAdicionar.map(user_id => ({
-                nome: equipa.nome,
-                encarregado_id: equipa.encarregado_id,
-                user_id
-            }));
-            await EquipaObra.bulkCreate(novasEntradas);
-        }
+        // Adicionar os novos membros com o nome atualizado
+        const nomeEquipa = novoNome || equipa.nome;
+        const novasEntradas = novosMembros.map(user_id => ({
+            nome: nomeEquipa,
+            encarregado_id: equipa.encarregado_id,
+            user_id
+        }));
+        
+        await EquipaObra.bulkCreate(novasEntradas);
 
         res.status(200).json({ message: 'Equipa editada com sucesso.' });
 

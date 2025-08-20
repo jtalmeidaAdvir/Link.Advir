@@ -262,7 +262,7 @@ const CriarEquipa = () => {
 
         try {
             const token = await AsyncStorage.getItem('loginToken');
-            const res = await fetch('https://backend.advir.pt/api/equipa-obra/editar', {
+            const res = await fetch(`https://backend.advir.pt/api/equipa-obra/editar-equipa/${equipaSelecionadaEditar.nome}`, {
                 method: 'PUT',
                 headers: {
                     Authorization: `Bearer ${token}`,
