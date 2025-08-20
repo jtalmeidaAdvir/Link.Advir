@@ -19,6 +19,11 @@ export const useFaltasPendentes = (tipoUser) => {
         const token = localStorage.getItem('loginToken');
         const urlempresa = localStorage.getItem('urlempresa');
         
+        if (!urlempresa) {
+          setFaltasPendentes(0);
+          return;
+        }
+        
         const res = await fetch('https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes', {
           headers: {
             'Content-Type': 'application/json',

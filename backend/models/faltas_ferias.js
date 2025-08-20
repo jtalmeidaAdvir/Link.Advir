@@ -7,6 +7,7 @@ const AprovacaoFaltaFerias = sequelize.define('AprovacaoFaltaFerias', {
   operacao:   { type: DataTypes.STRING, allowNull: false, defaultValue: 'CRIAR' }, // 'CRIAR' | 'CANCELAR' | 'EDITAR'
 
   funcionario: { type: DataTypes.STRING, allowNull: false },
+  empresaId: { type: DataTypes.STRING, allowNull: false }, // ID da empresa
 
   // para FALTA: usa dataPedido (1 dia). Para FÉRIAS: usa intervalo [dataInicio..dataFim]
   dataPedido: { type: DataTypes.DATE, allowNull: false },
