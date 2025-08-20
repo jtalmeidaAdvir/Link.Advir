@@ -247,6 +247,51 @@ const CriarEquipa = () => {
         setModalConfirmDelete(true);
     };
 
+    const iniciarEdicao = (equipa) => {
+        setEquipaSelecionadaEditar(equipa);
+        setNovoNomeEquipa(equipa.nome);
+        setMembrosSelecionados(equipa.membros.map(m => m.id));
+        setModalEditar(true);
+    };
+
+    const salvarEdicaoEquipa = async () => {
+        if (!novoNomeEquipa.trim() || membrosSelecionados.length === 0) {
+            Alert.alert('Erro', 'Preenche todos os campos.');
+            return;
+        }
+
+        try {
+            const token = await AsyncStorage.getItem('loginToken');
+            const res = await fetch('https://backend.advir.pt/api/equipa-obra/editar', {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    nomeAnterior: equipaSelecionadaEditar.nome,
+                    novoNome: novoNomeEquipa,
+                    novosMembros: membrosSelecionados,
+                }),
+            });
+
+            if (res.ok) {
+                Alert.alert('Sucesso', 'Equipa editada com sucesso!');
+                setModalEditar(false);
+                setEquipaSelecionadaEditar(null);
+                setNovoNomeEquipa('');
+                setMembrosSelecionados([]);
+                fetchEquipasCriadas();
+            } else {
+                const data = await res.json();
+                Alert.alert('Erro', data.message || 'Erro ao editar equipa.');
+            }
+        } catch (err) {
+            console.error('Erro ao editar equipa:', err);
+            Alert.alert('Erro', 'Erro ao editar equipa.');
+        }
+    };
+
     const renderHeader = () => (
         <View style={styles.headerContainer}>
             <LinearGradient
@@ -448,6 +493,12 @@ const CriarEquipa = () => {
                                     </View>
                                     <View style={styles.teamHeaderRight}>
                                         <TouchableOpacity
+                                            onPress={() => iniciarEdicao(equipa)}
+                                            style={styles.editButton}
+                                        >
+                                            <FontAwesome name="edit" size={16} color="#28a745" />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
                                             onPress={() => confirmarRemocaoEquipa(equipa.nome)}
                                             style={styles.deleteButton}
                                         >
@@ -518,41 +569,85 @@ const CriarEquipa = () => {
                             colors={['#1792FE', '#0B5ED7']}
                             style={styles.modalHeader}
                         >
-                            <Text style={styles.modalTitle}>Editar Nome da Equipa</Text>
+                            <FontAwesome name="edit" size={24} color="#FFFFFF" />
+                            <Text style={[styles.modalTitle, { marginLeft: 10 }]}>Editar Equipa</Text>
                         </LinearGradient>
                         
-                        <View style={styles.modalBody}>
-                            <TextInput
-                                value={novoNomeEquipa}
-                                onChangeText={setNovoNomeEquipa}
-                                style={styles.modalInput}
-                                placeholder="Novo nome da equipa"
-                                placeholderTextColor="#999"
-                            />
-                            
-                            <View style={styles.modalButtons}>
-                                <TouchableOpacity 
-                                    onPress={() => setModalEditar(false)} 
-                                    style={styles.cancelButton}
-                                >
-                                    <Text style={styles.cancelButtonText}>Cancelar</Text>
-                                </TouchableOpacity>
-                                
-                                <TouchableOpacity 
-                                    onPress={() => {
-                                        // editarNomeEquipa(); // Função a implementar
-                                        setModalEditar(false);
-                                    }}
-                                    style={styles.saveButton}
-                                >
-                                    <LinearGradient
-                                        colors={['#28a745', '#20c997']}
-                                        style={styles.saveButtonGradient}
-                                    >
-                                        <Text style={styles.saveButtonText}>Guardar</Text>
-                                    </LinearGradient>
-                                </TouchableOpacity>
+                        <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.label}>
+                                    <FontAwesome name="tag" size={16} color="#1792FE" /> Nome da Equipa
+                                </Text>
+                                <TextInput
+                                    value={novoNomeEquipa}
+                                    onChangeText={setNovoNomeEquipa}
+                                    style={styles.modalInput}
+                                    placeholder="Nome da equipa"
+                                    placeholderTextColor="#999"
+                                />
                             </View>
+
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.label}>
+                                    <FontAwesome name="users" size={16} color="#1792FE" /> Membros da Equipa
+                                </Text>
+                                <Text style={styles.selectedCount}>
+                                    {membrosSelecionados.length} de {utilizadores.length} selecionados
+                                </Text>
+                                
+                                <ScrollView style={styles.modalMembersContainer} nestedScrollEnabled={true}>
+                                    {utilizadores.map((user) => (
+                                        <TouchableOpacity
+                                            key={`modal-user-${user.id}`}
+                                            style={[
+                                                styles.modalMemberItem,
+                                                membrosSelecionados.includes(user.id) && styles.modalMemberSelected
+                                            ]}
+                                            onPress={() => toggleMembro(user.id)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View style={styles.memberContent}>
+                                                <View style={[
+                                                    styles.checkbox,
+                                                    membrosSelecionados.includes(user.id) && styles.checkedBox
+                                                ]}>
+                                                    {membrosSelecionados.includes(user.id) && (
+                                                        <FontAwesome name="check" size={12} color="#FFFFFF" />
+                                                    )}
+                                                </View>
+                                                <FontAwesome name="user" size={16} color="#1792FE" style={styles.userIcon} />
+                                                <Text style={styles.memberText}>{user.email}</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        </ScrollView>
+                        
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity 
+                                onPress={() => {
+                                    setModalEditar(false);
+                                    setEquipaSelecionadaEditar(null);
+                                    setNovoNomeEquipa('');
+                                    setMembrosSelecionados([]);
+                                }} 
+                                style={styles.cancelButton}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                onPress={salvarEdicaoEquipa}
+                                style={styles.saveButton}
+                            >
+                                <LinearGradient
+                                    colors={['#28a745', '#20c997']}
+                                    style={styles.saveButtonGradient}
+                                >
+                                    <Text style={styles.saveButtonText}>Guardar</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
                         </View>
                     </View>
                 </View>
@@ -898,6 +993,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
+    editButton: {
+        padding: 8,
+        marginRight: 8,
+    },
     deleteButton: {
         padding: 8,
         marginRight: 8,
@@ -983,7 +1082,24 @@ const styles = StyleSheet.create({
         padding: 15,
         fontSize: 16,
         backgroundColor: '#f8f9fa',
-        marginBottom: 20,
+        marginBottom: 10,
+    },
+    modalMembersContainer: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 12,
+        backgroundColor: '#f8f9fa',
+        maxHeight: 200,
+        marginTop: 10,
+    },
+    modalMemberItem: {
+        paddingHorizontal: 15,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    modalMemberSelected: {
+        backgroundColor: 'rgba(23, 146, 254, 0.1)',
     },
     modalButtons: {
         flexDirection: 'row',

@@ -368,7 +368,7 @@ const CustomDrawerContent = ({ isAdmin, isSuperAdmin, isLoggedIn, modules, tipoU
                             onPress={() => props.navigation.navigate('PainelAdmin')}
                         />
                         <List.Item
-                            title={t("WhatsAppWebConfig")}
+                            title={t("> Whatsapp Configs")}
                             onPress={() => props.navigation.navigate('WhatsAppWebConfig')}
                         />
                         <List.Item

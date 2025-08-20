@@ -31,8 +31,10 @@ const RegistoPontoObra = (props) => {
 }));
 
   const tipoUser = localStorage.getItem('tipoUser');
-const tipoUserNormalizado = (tipoUser || '').trim().toLowerCase();
-const tiposPermitidos = ['administrador', 'encarregado', 'diretor'];
+  const tipoUserNormalizado = (tipoUser || '').trim();
+  
+  // Normalizar para capitalização consistente
+  const tipoUserCapitalizado = tipoUserNormalizado.charAt(0).toUpperCase() + tipoUserNormalizado.slice(1).toLowerCase();
   // Estado para equipas e membros
   const [minhasEquipas, setMinhasEquipas] = useState([]);
   const [membrosSelecionados, setMembrosSelecionados] = useState([]);
@@ -563,10 +565,10 @@ console.log('tipoUser:', tipoUser);
                 </div>
                 
          {/* Notification Bell for Specific User Types */}
-{['Administrador', 'Encarregado', 'Diretor'].includes(tipoUser) && (
+{['Administrador', 'Encarregado', 'Diretor'].includes(tipoUserCapitalizado) && (
   <div className="d-flex align-items-center">
     <NotificacaoCombinada 
-      tipoUser={tipoUser}
+      tipoUser={tipoUserCapitalizado}
       onNavigateRegistos={handleNavigateToApproval}
       onNavigateFaltas={handleNavigateToFaltasApproval}
     />
@@ -667,7 +669,7 @@ console.log('tipoUser:', tipoUser);
 </div>
 
                     {/* Team Registration */}
-                    {tipoUser !== 'Trabalhador' && (
+                    {tipoUserCapitalizado !== 'Trabalhador' && (
 <div className="mt-4 border border-info rounded bg-white mb-3">
   <div 
     className="bg-info text-white px-3 py-2 d-flex justify-content-between align-items-center rounded-top"

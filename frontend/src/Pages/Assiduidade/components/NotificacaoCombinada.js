@@ -10,7 +10,11 @@ const NotificacaoCombinada = ({ tipoUser, onNavigateRegistos, onNavigateFaltas }
 
   const totalPendentes = registosPendentes + faltasPendentes;
 
-  if (tipoUser !== 'Administrador' && tipoUser !== 'Encarregado' && tipoUser !== 'Diretor' ) return null;
+  // Normalizar tipoUser para garantir comparação correta
+  const tipoUserNormalizado = (tipoUser || '').trim();
+  const tipoUserCapitalizado = tipoUserNormalizado.charAt(0).toUpperCase() + tipoUserNormalizado.slice(1).toLowerCase();
+
+  if (tipoUserCapitalizado !== 'Administrador' && tipoUserCapitalizado !== 'Encarregado' && tipoUserCapitalizado !== 'Diretor' ) return null;
 
   const handleClick = () => {
     setMostrarDropdown(!mostrarDropdown);

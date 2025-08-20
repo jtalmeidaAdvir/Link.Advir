@@ -93,7 +93,10 @@ const removerMembroEquipa = async (req, res) => {
         await equipa.destroy();
         res.status(200).json({ message: 'Membro removido da equipa com sucesso.' });
     } catch (error) {
-}};
+        console.error('Erro ao remover membro da equipa:', error);
+        res.status(500).json({ message: 'Erro interno do servidor.' });
+    }
+};
 
 // Listar todas as equipas com os seus membros agrupadas
 const listarTodasEquipasAgrupadas = async (req, res) => {
@@ -227,6 +230,60 @@ const listarMinhasEquipasAgrupadas = async (req, res) => {
     }
 };
 
+// Editar equipa (Adicionar/Remover Membros, Renomear Equipa)
+const editarEquipa = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nome, membrosParaAdicionar, membrosParaRemover } = req.body;
+        const encarregado_id = req.user.id;
+
+        const equipa = await EquipaObra.findOne({
+            where: { id },
+            include: [{ model: User, as: 'membro' }]
+        });
+
+        if (!equipa) {
+            return res.status(404).json({ message: 'Equipa não encontrada.' });
+        }
+
+        // Verificar se o utilizador é o encarregado ou administrador
+        if (equipa.encarregado_id !== encarregado_id && req.user.tipoUser !== 'Administrador') {
+            return res.status(403).json({ message: 'Apenas o encarregado ou administrador pode editar a equipa.' });
+        }
+
+        // Renomear equipa se o nome foi fornecido
+        if (nome && equipa.nome !== nome) {
+            await EquipaObra.update({ nome }, { where: { nome: equipa.nome } });
+        }
+
+        // Remover membros
+        if (membrosParaRemover && membrosParaRemover.length > 0) {
+            await EquipaObra.destroy({
+                where: {
+                    nome: equipa.nome,
+                    user_id: membrosParaRemover
+                }
+            });
+        }
+
+        // Adicionar novos membros
+        if (membrosParaAdicionar && membrosParaAdicionar.length > 0) {
+            const novasEntradas = membrosParaAdicionar.map(user_id => ({
+                nome: equipa.nome,
+                encarregado_id: equipa.encarregado_id,
+                user_id
+            }));
+            await EquipaObra.bulkCreate(novasEntradas);
+        }
+
+        res.status(200).json({ message: 'Equipa editada com sucesso.' });
+
+    } catch (error) {
+        console.error('Erro ao editar equipa:', error);
+        res.status(500).json({ message: 'Erro interno do servidor.' });
+    }
+};
+
 module.exports = {
     criarEquipa,
     listarMinhasEquipas,
@@ -235,5 +292,6 @@ module.exports = {
     atualizarNomeEquipa,
     listarEquipasPorEmpresa,
     removerEquipaInteira,
-    listarMinhasEquipasAgrupadas
+    listarMinhasEquipasAgrupadas,
+    editarEquipa
 };
