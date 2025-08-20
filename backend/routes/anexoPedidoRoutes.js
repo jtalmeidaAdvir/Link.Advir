@@ -1,8 +1,6 @@
 
 const express = require('express');
 const router = express.Router();
- router.use(express.json());
- router.use(express.urlencoded({ extended: true }));
 const {
     upload,
     uploadAnexo,
@@ -14,6 +12,8 @@ const {
 } = require('../controllers/anexoPedidoController');
 // Upload de anexo
 // Função para tratar erros de upload
+router.use(express.json());
+router.use(express.urlencoded({ extended: true }));
 const handleUploadError = (err, res) => {
     console.error('Erro no upload:', err);
 

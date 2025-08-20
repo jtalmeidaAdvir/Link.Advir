@@ -1497,11 +1497,14 @@ const codRaw = String(codFuncionario ?? '');
   if (!selectedTrabalhador || !selectedDia) return;
 
   // Garante obra em cada linha + calcula minutos
-  const linhas = (editData.especialidadesDia || []).map(esp => ({
-    ...esp,
-    obraId: esp.obraId || selectedTrabalhador.obraId,
-    minutos: Math.round((parseFloat(esp.horas) || 0) * 60)
-  }));
+ const linhas = (editData.especialidadesDia || []).map(esp => {
+   const obraIdNormalizada = resolveObraId(esp.obraId, selectedTrabalhador.obraId);
+   return {
+     ...esp,
+     obraId: obraIdNormalizada,
+     minutos: Math.round((parseFloat(esp.horas) || 0) * 60),
+   };
+ });
 
   // Mapa de minutos por obra
   const minutosPorObra = linhas.reduce((acc, l) => {
@@ -1739,6 +1742,20 @@ const criarParteDiaria = async () => {
     console.error('Erro ao submeter partes diárias:', e);
     Alert.alert('Erro', e.message || 'Ocorreu um erro ao submeter as partes diárias.');
   }
+};
+
+// coloca isto no componente (fora de salvarEdicao)
+const resolveObraId = (espObraId, trabObraId) => {
+  const toNum = v => v == null ? null : Number(v);
+  const cand1 = toNum(espObraId);
+  if (cand1 && cand1 !== OBRA_SEM_ASSOC) return cand1;
+
+  const cand2 = toNum(trabObraId);
+  if (cand2 && cand2 !== OBRA_SEM_ASSOC) return cand2;
+
+  // último recurso: 1ª obra da lista (se existir)
+  const cand3 = obrasParaPickers?.[0]?.id;
+  return cand3 != null ? Number(cand3) : null;
 };
 
 

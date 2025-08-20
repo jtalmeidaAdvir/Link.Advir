@@ -70,7 +70,6 @@ const getUltimaEntradaAtiva = (lista) =>
   // 1) Se já houver entrada ativa na MESMA obra → fazer SAÍDA
   const ativaMesmaObra = getEntradaAtivaPorObra(obraId, registos);
   if (ativaMesmaObra) {
-    alert(`A sair da obra ${nomeObra}`);
     await registarPonto('saida', obraId, nomeObra);
     return;
   }
@@ -79,12 +78,10 @@ const getUltimaEntradaAtiva = (lista) =>
   const ultimaAtiva = getUltimaEntradaAtiva(registos);
   if (ultimaAtiva && String(ultimaAtiva.obra_id) != String(obraId)) {
     const nomeAnterior = ultimaAtiva.Obra?.nome || 'Obra anterior';
-    alert(`A sair automaticamente de ${nomeAnterior}`);
     await registarPonto('saida', ultimaAtiva.obra_id, nomeAnterior);
   }
 
   // 3) Sem ativa → ENTRADA nesta obra
-  alert(`A entrar na obra ${nomeObra}`);
   await registarPonto('entrada', obraId, nomeObra);
 };
 
@@ -258,7 +255,6 @@ useEffect(() => {
         const data = await res.json();
         const morada = await obterMoradaPorCoordenadas(data.latitude, data.longitude);
         setRegistos(prev => [...prev, { ...data, Obra: { nome: nomeObra }, morada }]);
-        alert(`${tipo} registada na obra ${nomeObra}`);
       } else {
         alert('Erro ao registar ponto');
       }
@@ -304,12 +300,10 @@ useEffect(() => {
 
     if (ultimaEntradaSemSaida && ultimaEntradaSemSaida.obra_id !== novaObraId) {
       const nomeObraAnterior = ultimaEntradaSemSaida.Obra?.nome || 'Obra anterior';
-      alert(`A sair automaticamente de ${nomeObraAnterior}`);
       await registarPonto('saida', ultimaEntradaSemSaida.obra_id, nomeObraAnterior);
     }
 
     // Registar entrada nova
-    alert(`A entrar na obra ${nomeObraNova}`);
     await registarPonto('entrada', novaObraId, nomeObraNova);
   };
 

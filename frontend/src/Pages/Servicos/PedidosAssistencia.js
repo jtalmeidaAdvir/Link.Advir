@@ -36,7 +36,7 @@ const { width } = Dimensions.get("window");
 
 // >>>>>> ALTERA AQUI PARA PRODUÇÃO SE PRECISARES
 //const ANEXOS_BASE = "http://localhost:3000/api/anexo-pedido";
- const ANEXOS_BASE = "https://backend.advir.pt/api/anexo-pedido";
+const ANEXOS_BASE = "https://backend.advir.pt/api/anexo-pedido";
 
 const PedidosAssistencia = ({ navigation }) => {
     // State variables
@@ -2041,3 +2041,5 @@ const styles = StyleSheet.create({
 });
 
 export default PedidosAssistencia;
+
+
