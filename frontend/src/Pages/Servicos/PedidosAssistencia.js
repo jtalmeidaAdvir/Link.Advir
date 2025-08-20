@@ -25,6 +25,7 @@ import {
     faChevronUp,
     faFilter,
     faChartLine,
+    faPaperclip,
 } from "@fortawesome/free-solid-svg-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -96,19 +97,6 @@ const PedidosAssistencia = ({ navigation }) => {
             const fetchPedidos = async () => {
                 const token = localStorage.getItem("painelAdminToken");
                 const urlempresa = localStorage.getItem("urlempresa");
-                const storedIsAdmin =
-                    localStorage.getItem("isAdmin") === "true";
-                const storedTecnicoID =
-                    localStorage.getItem("id_tecnico") || "";
-
-                setIsAdmin(storedIsAdmin);
-                setUserTecnicoID(storedTecnicoID);
-
-                if (!urlempresa) {
-                    setErrorMessage("URL da empresa não encontrada.");
-                    setLoading(false);
-                    return;
-                }
 
                 try {
                     const response = await fetch(
@@ -120,20 +108,33 @@ const PedidosAssistencia = ({ navigation }) => {
                                 urlempresa: urlempresa,
                                 "Content-Type": "application/json",
                             },
-                        },
+                        }
                     );
 
-                    if (!response.ok) {
-                        throw new Error(`Error: ${response.statusText}`);
-                    }
+                    if (!response.ok) throw new Error(`Error: ${response.statusText}`);
 
                     const data = await response.json();
-                    setPedidos(data.DataSet.Table);
+
+                    // carregar pedidos
+                    let pedidosComAnexos = await Promise.all(
+                        data.DataSet.Table.map(async (p) => {
+                            try {
+                                const resp = await fetch(`${ANEXOS_BASE}/pedido/${p.ID}`);
+                                if (resp.ok) {
+                                    const anexos = await resp.json();
+                                    return { ...p, TotalAnexos: (anexos.anexos || []).length };
+                                }
+                            } catch (e) {
+                                console.error("Erro ao contar anexos", e);
+                            }
+                            return { ...p, TotalAnexos: 0 }; // fallback
+                        })
+                    );
+
+                    setPedidos(pedidosComAnexos);
                 } catch (error) {
                     console.error("Error fetching pedidos:", error);
-                    setErrorMessage(
-                        "Não foi possível carregar os pedidos. Tente novamente.",
-                    );
+                    setErrorMessage("Não foi possível carregar os pedidos. Tente novamente.");
                 } finally {
                     setLoading(false);
                 }
@@ -291,14 +292,21 @@ const PedidosAssistencia = ({ navigation }) => {
         setSearchTerm(Nome);
     };
 
-    // ====== ANEXOS: listar / download / delete ======
     const carregarAnexos = async (pedidoId) => {
         try {
             const response = await fetch(`${ANEXOS_BASE}/pedido/${pedidoId}`);
             if (response.ok) {
                 const data = await response.json();
-                setAnexosPedido(data.anexos || []);
+                const anexos = data.anexos || [];
+                setAnexosPedido(anexos);
                 setModalAnexosVisible(true);
+
+                // Atualizar contador no pedido
+                setPedidos((prev) =>
+                    prev.map((p) =>
+                        p.ID === pedidoId ? { ...p, TotalAnexos: anexos.length } : p
+                    )
+                );
             } else {
                 throw new Error("Erro ao carregar anexos");
             }
@@ -307,6 +315,7 @@ const PedidosAssistencia = ({ navigation }) => {
             setErrorMessage("Erro ao carregar anexos do pedido.");
         }
     };
+
 
     const downloadAnexo = async (anexoId, nomeArquivo) => {
         try {
@@ -450,7 +459,16 @@ const PedidosAssistencia = ({ navigation }) => {
             setAnexosTemp([]);
             setModalUploadVisible(false);
 
-            // Se estiveres com o modal de listagem de anexos aberto, recarrega
+            // 👉 Atualiza logo o contador no estado local
+            setPedidos((prev) =>
+                prev.map((p) =>
+                    p.ID === pedidoParaUpload
+                        ? { ...p, TotalAnexos: (p.TotalAnexos || 0) + anexosTemp.length }
+                        : p
+                )
+            );
+
+            // 👉 Se tiveres o modal de anexos aberto, recarrega lista completa
             if (modalAnexosVisible && pedidoAnexos?.ID === pedidoParaUpload) {
                 await carregarAnexos(pedidoParaUpload);
             }
@@ -461,6 +479,7 @@ const PedidosAssistencia = ({ navigation }) => {
             );
         }
     };
+
 
     // Get estado
     const getEstado = (estado) => {
@@ -847,11 +866,14 @@ const PedidosAssistencia = ({ navigation }) => {
                                 carregarAnexos(item[0].ID);
                             }}
                         >
-                            <FontAwesomeIcon
-                                icon={faSearch}
-                                style={styles.icon}
-                                size={16}
-                            />
+                            <View style={{ flexDirection: "row", alignItems: "center" }}>
+                                <FontAwesomeIcon icon={faPaperclip} style={styles.icon} size={16} />
+                                {item[0].TotalAnexos > 0 && (
+                                    <View style={styles.badgeCount}>
+                                        <Text style={styles.badgeCountText}>{item[0].TotalAnexos}</Text>
+                                    </View>
+                                )}
+                            </View>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -1443,6 +1465,22 @@ const styles = StyleSheet.create({
         overflow: "auto",
         maxHeight: "100vh",
     },
+    badgeCount: {
+        backgroundColor: "#1792FE",
+        borderRadius: 10,
+        paddingHorizontal: 5,
+        paddingVertical: 2,
+        marginLeft: 4,
+        minWidth: 18,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    badgeCountText: {
+        color: "#fff",
+        fontSize: 12,
+        fontWeight: "700",
+    },
+
     header: {
         backgroundColor: "#1792FE",
         paddingVertical: 20,
@@ -2041,5 +2079,3 @@ const styles = StyleSheet.create({
 });
 
 export default PedidosAssistencia;
-
-
