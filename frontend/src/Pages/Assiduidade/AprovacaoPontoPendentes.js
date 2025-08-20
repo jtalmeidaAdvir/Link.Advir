@@ -50,7 +50,8 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
   const carregarRegistos = async () => {
     setLoading(true);
     try {
-      const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra/pendentes', {
+      const empresaId = localStorage.getItem('empresa_id');
+      const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/pendentes?empresa_id=${empresaId}`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,

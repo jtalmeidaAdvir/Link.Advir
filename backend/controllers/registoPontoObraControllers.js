@@ -280,11 +280,21 @@ const cancelarPonto = async (req, res) => {
 
 const listarPendentes = async (req, res) => {
   try {
+    const { empresa_id } = req.query;
+    
+    let whereClause = { is_confirmed: false };
+    let includeObra = { model: Obra, attributes: ['id', 'nome', 'localizacao'] };
+    
+    // Se foi especificado empresa_id, filtrar pelas obras dessa empresa
+    if (empresa_id) {
+      includeObra.where = { empresa_id: empresa_id };
+    }
+    
     const pendentes = await RegistoPontoObra.findAll({
-      where: { is_confirmed: false },
+      where: whereClause,
       include: [
         { model: User, attributes: ['id', 'nome', 'email'] },
-        { model: Obra, attributes: ['id', 'nome', 'localizacao'] }
+        includeObra
       ],
       order: [['timestamp', 'ASC']]
     });
