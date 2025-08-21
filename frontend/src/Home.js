@@ -1907,103 +1907,138 @@ const Home = () => {
                                             <div style={{ fontSize: '48px', marginBottom: '15px' }}>⚠️</div>
                                             <p style={{ fontSize: '18px', fontWeight: '500' }}>{noticiasError}</p>
                                         </div>
-                                    ) : noticias.length > 0 ? (
-                                        <div style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '20px'
-                                        }}>
-                                            {noticias.map((noticia, index) => (
-                                                <motion.div
-                                                    key={index}
-                                                    initial={{ opacity: 0, x: -20 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                                                    style={{
-                                                        backgroundColor: '#f8f9fa',
-                                                        borderRadius: '12px',
-                                                        padding: '20px',
-                                                        border: '1px solid #e9ecef',
-                                                        transition: 'all 0.3s ease',
-                                                        cursor: 'pointer'
-                                                    }}
-                                                    onMouseEnter={(e) => {
-                                                        e.currentTarget.style.backgroundColor = '#e3f2fd';
-                                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
-                                                    }}
-                                                    onMouseLeave={(e) => {
-                                                        e.currentTarget.style.backgroundColor = '#f8f9fa';
-                                                        e.currentTarget.style.transform = 'translateY(0)';
-                                                        e.currentTarget.style.boxShadow = 'none';
-                                                    }}
-                                                    onClick={() => window.open(noticia.link, '_blank')}
-                                                >
-                                                    <div style={{
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'flex-start',
-                                                        marginBottom: '10px'
-                                                    }}>
-                                                        <span style={{
-                                                            backgroundColor: '#1976D2',
-                                                            color: 'white',
-                                                            padding: '4px 12px',
-                                                            borderRadius: '20px',
-                                                            fontSize: '12px',
-                                                            fontWeight: '600'
-                                                        }}>
-                                                            {noticia.source}
-                                                        </span>
-                                                        <span style={{
-                                                            fontSize: '12px',
-                                                            color: '#757575'
-                                                        }}>
-                                                            {new Date(noticia.date).toLocaleDateString('pt-PT')}
-                                                        </span>
-                                                    </div>
-                                                    
-                                                    <h3 style={{
-                                                        fontSize: '18px',
-                                                        fontWeight: '600',
-                                                        color: '#1976D2',
-                                                        margin: '0 0 10px 0',
-                                                        lineHeight: '1.4'
-                                                    }}>
-                                                        {noticia.title}
-                                                    </h3>
-                                                    
-                                                    <div style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'flex-end',
-                                                        fontSize: '14px',
-                                                        color: '#1976D2',
-                                                        fontWeight: '500'
-                                                    }}>
-                                                        <span>Ler mais</span>
-                                                        <span style={{ marginLeft: '5px' }}>→</span>
-                                                    </div>
-                                                </motion.div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div style={{
-                                            textAlign: 'center',
-                                            padding: '40px 20px',
-                                            backgroundColor: '#f8f9fa',
-                                            borderRadius: '12px',
-                                            color: '#6c757d'
-                                        }}>
-                                            <div style={{ fontSize: '48px', marginBottom: '15px' }}>📰</div>
-                                            <p style={{ fontSize: '18px', fontWeight: '500', margin: 0 }}>
-                                                {t('Nenhuma notícia encontrada')}
-                                            </p>
-                                            <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
-                                                {t('Não foram encontradas notícias relevantes no momento')}
-                                            </p>
-                                        </div>
-                                    )}
+                                    ) : {noticias.length > 0 ? (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    {noticias.map((noticia, index) => (
+      <motion.div
+        key={index}
+        initial={{ opacity: 0, x: -12 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.25, delay: index * 0.05 }}
+        onClick={() => window.open(noticia.link, '_blank')}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '120px 1fr',
+          gap: '16px',
+          padding: '14px',
+          backgroundColor: '#ffffff',
+          borderRadius: '12px',
+          border: '1px solid #e9ecef',
+          cursor: 'pointer',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+          alignItems: 'stretch',
+          transition: 'all .2s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.08)';
+          e.currentTarget.style.backgroundColor = '#fafdff';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.05)';
+          e.currentTarget.style.backgroundColor = '#ffffff';
+        }}
+      >
+        {/* Thumbnail */}
+        <div style={{
+          width: '100%',
+          height: '100%',
+          minHeight:  '90px',
+          maxHeight: '120px',
+          borderRadius: '10px',
+          overflow: 'hidden',
+          background: 'linear-gradient(135deg,#e3f2fd,#f5f9ff)'
+        }}>
+          {noticia.image ? (
+            <img
+              src={noticia.image}
+              alt={noticia.title}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              onError={(e)=>{ e.currentTarget.style.display='none'; }}
+            />
+          ) : null}
+        </div>
+
+        {/* Conteúdo */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+            <span style={{
+              backgroundColor: '#1976D2',
+              color: '#fff',
+              padding: '4px 10px',
+              borderRadius: '999px',
+              fontSize: '12px',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              maxWidth: '50%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {noticia.source}
+            </span>
+            <span style={{ fontSize: '12px', color: '#667085', whiteSpace: 'nowrap' }}>
+              {new Date(noticia.date).toLocaleDateString('pt-PT')}
+            </span>
+          </div>
+
+          <h3 style={{
+            fontSize: '17px',
+            fontWeight: 700,
+            color: '#0f3d74',
+            margin: '2px 0 0',
+            lineHeight: 1.35
+          }}>
+            {noticia.title}
+          </h3>
+
+          {noticia.description ? (
+            <p style={{
+              margin: '4px 0 0',
+              color: '#475569',
+              fontSize: '14px',
+              lineHeight: 1.5
+            }}>
+              {noticia.description}
+            </p>
+          ) : null}
+
+          <div style={{
+            marginTop: 'auto',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            gap: '6px',
+            color: '#1976D2',
+            fontWeight: 600,
+            fontSize: '14px'
+          }}>
+            <span>Ler mais</span>
+            <span>→</span>
+          </div>
+        </div>
+      </motion.div>
+    ))}
+  </div>
+) : (
+  /* ... o teu vazio mantém-se ... */
+  <div style={{
+    textAlign: 'center',
+    padding: '40px 20px',
+    backgroundColor: '#f8f9fa',
+    borderRadius: '12px',
+    color: '#6c757d'
+  }}>
+    <div style={{ fontSize: '48px', marginBottom: '15px' }}>📰</div>
+    <p style={{ fontSize: '18px', fontWeight: '500', margin: 0 }}>
+      {t('Nenhuma notícia encontrada')}
+    </p>
+    <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
+      {t('Não foram encontradas notícias relevantes no momento')}
+    </p>
+  </div>
+)}
+
                                     
                                     <div style={{
                                         marginTop: '30px',
