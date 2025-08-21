@@ -51,6 +51,17 @@ const [faltaDialogOpen, setFaltaDialogOpen] = useState(false);
 const [tipoFaltaSelecionado, setTipoFaltaSelecionado] = useState('');
 const [duracaoFalta, setDuracaoFalta] = useState(''); // 'd' for day, 'h' for hour
 
+// State for auto-fill modal
+const [autoFillDialogOpen, setAutoFillDialogOpen] = useState(false);
+const [funcionarioSelecionadoAutoFill, setFuncionarioSelecionadoAutoFill] = useState('');
+const [loadingAutoFill, setLoadingAutoFill] = useState(false);
+
+// State for clear points modal
+const [clearPointsDialogOpen, setClearPointsDialogOpen] = useState(false);
+const [funcionarioSelecionadoClear, setFuncionarioSelecionadoClear] = useState('');
+const [diaSelecionadoClear, setDiaSelecionadoClear] = useState('');
+const [loadingClear, setLoadingClear] = useState(false);
+
 
 const handleBulkConfirm = async () => {
   if (!obraNoDialog) {
@@ -935,12 +946,266 @@ const handleBulkConfirm = async () => {
     }
   };
 
+  const limparPontosDoDia = async () => {
+    if (!funcionarioSelecionadoClear || !diaSelecionadoClear) {
+      return alert('Por favor, selecione um funcionário e um dia.');
+    }
+
+    if (!anoSelecionado || !mesSelecionado) {
+      return alert('Por favor, selecione o ano e mês.');
+    }
+
+    setLoadingClear(true);
+
+    try {
+      // 1. Obter o funcionário selecionado
+      const funcionarioData = dadosGrade.find(item => item.utilizador.id.toString() === funcionarioSelecionadoClear.toString());
+      
+      if (!funcionarioData) {
+        throw new Error('Funcionário não encontrado nos dados da grade');
+      }
+
+      // 2. Verificar se existem registos no dia selecionado
+      const dia = parseInt(diaSelecionadoClear);
+      const estatisticas = funcionarioData.estatisticasDias[dia];
+
+      if (!estatisticas || estatisticas.totalRegistos === 0) {
+        alert(`O funcionário ${funcionarioData.utilizador.nome} não tem registos no dia ${dia}.`);
+        return;
+      }
+
+      // 3. Confirmar com o utilizador
+      const confirmacao = confirm(`⚠️ ATENÇÃO: Esta ação irá eliminar TODOS os ${estatisticas.totalRegistos} registos de ponto do dia ${dia} para o funcionário ${funcionarioData.utilizador.nome}.\n\nEsta ação NÃO pode ser desfeita!\n\nTem certeza que pretende continuar?`);
+      
+      if (!confirmacao) {
+        return;
+      }
+
+      // 4. Segunda confirmação para segurança
+      const segundaConfirmacao = confirm(`🔥 ÚLTIMA CONFIRMAÇÃO:\n\nVai eliminar ${estatisticas.totalRegistos} registos de ponto do dia ${dia}/${mesSelecionado}/${anoSelecionado} para ${funcionarioData.utilizador.nome}.\n\nEscreva "CONFIRMAR" na próxima caixa de diálogo para prosseguir.`);
+      
+      if (!segundaConfirmacao) {
+        return;
+      }
+
+      const textoConfirmacao = prompt('Digite "CONFIRMAR" (sem aspas) para eliminar os registos:');
+      if (textoConfirmacao !== 'CONFIRMAR') {
+        alert('Operação cancelada. Texto de confirmação incorreto.');
+        return;
+      }
+
+      // 5. Buscar todos os registos do dia específico
+      const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+      
+      let query = `user_id=${funcionarioSelecionadoClear}&data=${dataFormatada}`;
+      if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
+
+      const resListar = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!resListar.ok) {
+        throw new Error('Erro ao obter registos para eliminação');
+      }
+
+      const registosParaEliminar = await resListar.json();
+      
+      if (registosParaEliminar.length === 0) {
+        alert('Não foram encontrados registos para eliminar.');
+        return;
+      }
+
+      // 6. Eliminar cada registo individualmente
+      let registosEliminados = 0;
+      let erros = 0;
+
+      for (const registo of registosParaEliminar) {
+        try {
+          const resEliminar = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/eliminar/${registo.id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          if (resEliminar.ok) {
+            registosEliminados++;
+            console.log(`Registo ${registo.id} eliminado com sucesso`);
+          } else {
+            console.error(`Erro ao eliminar registo ${registo.id}:`, await resEliminar.text());
+            erros++;
+          }
+          
+          // Pequena pausa para não sobrecarregar o servidor
+          if (registosParaEliminar.length > 5) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
+        } catch (registoErr) {
+          console.error(`Erro ao eliminar registo ${registo.id}:`, registoErr);
+          erros++;
+        }
+      }
+
+      // 7. Mostrar resultado da operação
+      let mensagem = `✅ Limpeza concluída!\n\n`;
+      mensagem += `• Registos eliminados: ${registosEliminados}\n`;
+      if (erros > 0) {
+        mensagem += `• Erros encontrados: ${erros}\n`;
+        mensagem += `• Verifique o console para detalhes dos erros\n`;
+      }
+      mensagem += `\nTodos os registos de ponto do dia ${dia}/${mesSelecionado}/${anoSelecionado} foram eliminados para ${funcionarioData.utilizador.nome}.`;
+
+      alert(mensagem);
+
+      // 8. Recarregar dados da grade para mostrar as alterações
+      if (viewMode === 'grade') {
+        carregarDadosGrade();
+      }
+
+      // 9. Fechar modal
+      setClearPointsDialogOpen(false);
+      setFuncionarioSelecionadoClear('');
+      setDiaSelecionadoClear('');
+
+    } catch (err) {
+      console.error('Erro ao limpar pontos do dia:', err);
+      alert(`Erro ao limpar pontos: ${err.message}`);
+    } finally {
+      setLoadingClear(false);
+    }
+  };
+
+  const preencherPontosEmFalta = async () => {
+    if (!funcionarioSelecionadoAutoFill || !obraSelecionada) {
+      return alert('Por favor, selecione um funcionário e uma obra.');
+    }
+
+    if (!anoSelecionado || !mesSelecionado) {
+      return alert('Por favor, selecione o ano e mês.');
+    }
+
+    setLoadingAutoFill(true);
+
+    try {
+      // 1. Obter os dados atuais do funcionário para identificar dias vazios
+      const funcionarioData = dadosGrade.find(item => item.utilizador.id.toString() === funcionarioSelecionadoAutoFill.toString());
+      
+      if (!funcionarioData) {
+        throw new Error('Funcionário não encontrado nos dados da grade');
+      }
+
+      // 2. Identificar dias vazios (sem registos e sem faltas)
+      const diasVazios = [];
+      diasDoMes.forEach(dia => {
+        const estatisticas = funcionarioData.estatisticasDias[dia];
+        const dataObj = new Date(parseInt(anoSelecionado), parseInt(mesSelecionado) - 1, dia);
+        const isWeekend = dataObj.getDay() === 0 || dataObj.getDay() === 6; // Domingo ou Sábado
+        
+        // Só adicionar dias úteis que estão completamente vazios (sem registos nem faltas)
+        if (!isWeekend && (!estatisticas || (estatisticas.totalRegistos === 0 && (!estatisticas.faltas || estatisticas.faltas.length === 0)))) {
+          diasVazios.push(dia);
+        }
+      });
+
+      if (diasVazios.length === 0) {
+        alert('Não há dias vazios para preencher. O funcionário já tem registos ou faltas em todos os dias úteis.');
+        return;
+      }
+
+      // 3. Confirmar com o utilizador
+      const confirmacao = confirm(`Pretende preencher ${diasVazios.length} dias vazios (${diasVazios.join(', ')}) com pontos automáticos para ${funcionarioData.utilizador.nome}?`);
+      
+      if (!confirmacao) {
+        return;
+      }
+
+      // 4. Preencher cada dia vazio com os 4 pontos (entrada manhã, saída manhã, entrada tarde, saída tarde)
+      let diasPreenchidos = 0;
+      
+      for (const dia of diasVazios) {
+        try {
+          const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+          const tipos = ['entrada', 'saida', 'entrada', 'saida'];
+          const horas = [
+            horarios.entradaManha,
+            horarios.saidaManha,
+            horarios.entradaTarde,
+            horarios.saidaTarde
+          ];
+
+          // Registar os 4 pontos para este dia
+          for (let i = 0; i < 4; i++) {
+            const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                tipo: tipos[i],
+                obra_id: Number(obraSelecionada),
+                user_id: Number(funcionarioSelecionadoAutoFill),
+                timestamp: `${dataFormatada}T${horas[i]}:00`
+              })
+            });
+
+            if (!res.ok) {
+              throw new Error(`Falha ao criar ponto ${tipos[i]} para o dia ${dia}`);
+            }
+
+            const json = await res.json();
+            
+            // Confirmar cada ponto
+            const resConfirm = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`, {
+              method: 'PATCH',
+              headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!resConfirm.ok) {
+              console.warn(`Aviso: Não foi possível confirmar automaticamente o ponto ${tipos[i]} do dia ${dia}`);
+            }
+          }
+
+          diasPreenchidos++;
+          
+          // Pequena pausa entre dias para não sobrecarregar o servidor
+          if (diasVazios.length > 5) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
+        } catch (diaErr) {
+          console.error(`Erro ao preencher dia ${dia}:`, diaErr);
+          // Continuar com os outros dias mesmo se um falhar
+        }
+      }
+
+      alert(`✅ Preenchimento concluído!\n\n${diasPreenchidos} de ${diasVazios.length} dias foram preenchidos com sucesso.\n\nCada dia foi preenchido com 4 pontos:\n- Entrada manhã: ${horarios.entradaManha}\n- Saída manhã: ${horarios.saidaManha}\n- Entrada tarde: ${horarios.entradaTarde}\n- Saída tarde: ${horarios.saidaTarde}`);
+
+      // 5. Recarregar dados da grade para mostrar as alterações
+      if (viewMode === 'grade') {
+        carregarDadosGrade();
+      }
+
+      // 6. Fechar modal
+      setAutoFillDialogOpen(false);
+      setFuncionarioSelecionadoAutoFill('');
+
+    } catch (err) {
+      console.error('Erro ao preencher pontos em falta:', err);
+      alert(`Erro ao preencher pontos: ${err.message}`);
+    } finally {
+      setLoadingAutoFill(false);
+    }
+  };
+
   const registarFalta = async () => {
     if (!userToRegistar || !diaToRegistar || !tipoFaltaSelecionado || !duracaoFalta) {
       return alert('Por favor, preencha todos os campos para registar a falta.');
     }
 
     const token = localStorage.getItem('loginToken');
+    const painelToken = localStorage.getItem('painelAdminToken');
+    const urlempresa = localStorage.getItem('urlempresa');
+    const userNome = localStorage.getItem('userNome');
     const empresaId = localStorage.getItem('empresa_id');
     const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(diaToRegistar).padStart(2,'0')}`;
 
@@ -978,6 +1243,7 @@ const handleBulkConfirm = async () => {
     try {
       setCarregando(true);
 
+      // 1. Submeter o pedido de falta
       const res = await fetch('https://backend.advir.pt/api/faltas-ferias/aprovacao', {
         method: 'POST',
         headers: {
@@ -989,7 +1255,81 @@ const handleBulkConfirm = async () => {
       });
 
       if (res.ok) {
-        alert('Pedido de falta submetido com sucesso para aprovação.');
+        const pedidoData = await res.json();
+        console.log('Pedido de falta criado:', pedidoData);
+
+        // 2. Aprovar automaticamente o pedido (como administrador)
+        const resAprovar = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${pedidoData.id}/aprovar`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            urlempresa: empresaId
+          },
+          body: JSON.stringify({
+            aprovadoPor: userNome || 'Administrador',
+            observacoesResposta: 'Aprovado automaticamente via interface de administração.'
+          })
+        });
+
+        if (!resAprovar.ok) {
+          throw new Error('Erro ao aprovar pedido automaticamente');
+        }
+
+        // 3. Integrar diretamente no ERP (mesma lógica do AprovacaoFaltaFerias.js)
+        if (painelToken && urlempresa) {
+          const dadosERP = {
+            Funcionario: funcionarioId,
+            Data: new Date(dataFormatada).toISOString(),
+            Falta: tipoFaltaSelecionado,
+            Horas: isHoras ? 1 : 0,
+            Tempo: tempoNumerico,
+            DescontaVenc: 0,
+            DescontaRem: 0,
+            ExcluiProc: 0,
+            ExcluiEstat: 0,
+            Observacoes: 'Registado via interface de administração',
+            CalculoFalta: 1,
+            DescontaSubsAlim: 0,
+            DataProc: null,
+            NumPeriodoProcessado: 0,
+            JaProcessado: 0,
+            InseridoBloco: 0,
+            ValorDescontado: 0,
+            AnoProcessado: 0,
+            NumProc: 0,
+            Origem: "2",
+            PlanoCurso: null,
+            IdGDOC: null,
+            CambioMBase: 0,
+            CambioMAlt: 0,
+            CotizaPeloMinimo: 0,
+            Acerto: 0,
+            MotivoAcerto: null,
+            NumLinhaDespesa: null,
+            NumRelatorioDespesa: null,
+            FuncComplementosBaixaId: null,
+            DescontaSubsTurno: 0,
+            SubTurnoProporcional: 0,
+            SubAlimProporcional: 0
+          };
+
+          const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${painelToken}`,
+              urlempresa
+            },
+            body: JSON.stringify(dadosERP)
+          });
+
+          if (resERP.ok) {
+            console.log('Falta integrada no ERP com sucesso');
+          } else {
+            console.warn('Erro ao integrar no ERP:', await resERP.text());
+          }
+        }
 
         // Submeter F40 automático se aplicável
         if (descontaAlimentacao) {
@@ -1011,11 +1351,29 @@ const handleBulkConfirm = async () => {
           });
 
           if (resF40.ok) {
-            console.log('Falta F40 submetida automaticamente.');
+            const f40Data = await resF40.json();
+            
+            // Aprovar F40 automaticamente também
+            await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${f40Data.id}/aprovar`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+                urlempresa: empresaId
+              },
+              body: JSON.stringify({
+                aprovadoPor: userNome || 'Administrador',
+                observacoesResposta: 'F40 aprovado automaticamente.'
+              })
+            });
+
+            console.log('Falta F40 submetida e aprovada automaticamente.');
           } else {
             console.warn('Erro ao submeter falta F40:', await resF40.text());
           }
         }
+
+        alert('Falta registada e integrada automaticamente no ERP com sucesso!');
 
         // Resetar formulários
         setFaltaDialogOpen(false);
@@ -1242,6 +1600,24 @@ const handleBulkConfirm = async () => {
               >
                 🗓️ Registar em bloco ({selectedCells.length} dias)
               </button>
+            )}
+
+            {viewMode === 'grade' && dadosGrade.length > 0 && (
+              <>
+                <button
+                  style={{...styles.primaryButton, backgroundColor: '#805ad5'}}
+                  onClick={() => setAutoFillDialogOpen(true)}
+                >
+                  🤖 Preencher Pontos em Falta
+                </button>
+
+                <button
+                  style={{...styles.primaryButton, backgroundColor: '#e53e3e'}}
+                  onClick={() => setClearPointsDialogOpen(true)}
+                >
+                  🗑️ Limpar Pontos de um Dia
+                </button>
+              </>
             )}
 
             {bulkDialogOpen && (
@@ -1651,6 +2027,352 @@ const handleBulkConfirm = async () => {
                         </>
                       ) : (
                         '📅 Confirmar Falta'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal para limpar pontos de um dia */}
+            {clearPointsDialogOpen && (
+              <div style={styles.modalOverlay}>
+                <div style={styles.bulkModal}>
+                  <div style={styles.bulkModalHeader}>
+                    <h3 style={styles.bulkModalTitle}>
+                      🗑️ Limpar Pontos de um Dia
+                    </h3>
+                    <p style={styles.bulkModalSubtitle}>
+                      Eliminar todos os registos de ponto de um dia específico
+                    </p>
+                    <button
+                      style={styles.closeButton}
+                      onClick={() => setClearPointsDialogOpen(false)}
+                      aria-label="Fechar"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div style={styles.bulkModalContent}>
+                    <div style={{
+                      ...styles.selectedCellsContainer,
+                      backgroundColor: '#fed7d7',
+                      border: '1px solid #fc8181'
+                    }}>
+                      <div style={{ fontSize: '0.9rem', color: '#742a2a' }}>
+                        <div style={{ marginBottom: '10px' }}>
+                          <strong>⚠️ ATENÇÃO:</strong>
+                        </div>
+                        <div>
+                          Esta operação irá <strong>eliminar permanentemente</strong> todos os registos de ponto do dia selecionado para o funcionário escolhido.
+                        </div>
+                        <div style={{ marginTop: '10px', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                          Esta ação <strong>NÃO pode ser desfeita</strong>!
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={styles.filterGroup}>
+                      <label style={styles.label}>Funcionário</label>
+                      <select
+                        style={styles.select}
+                        value={funcionarioSelecionadoClear}
+                        onChange={e => setFuncionarioSelecionadoClear(e.target.value)}
+                      >
+                        <option value="">-- Selecione um funcionário --</option>
+                        {dadosGrade.map(item => (
+                          <option key={item.utilizador.id} value={item.utilizador.id}>
+                            {item.utilizador.nome} ({item.utilizador.email})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={styles.filterGroup}>
+                      <label style={styles.label}>Dia do Mês</label>
+                      <select
+                        style={styles.select}
+                        value={diaSelecionadoClear}
+                        onChange={e => setDiaSelecionadoClear(e.target.value)}
+                      >
+                        <option value="">-- Selecione um dia --</option>
+                        {diasDoMes.map(dia => (
+                          <option key={dia} value={dia}>
+                            Dia {dia} ({mesSelecionado}/{anoSelecionado})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {funcionarioSelecionadoClear && diaSelecionadoClear && (
+                      <div style={{
+                        ...styles.selectedCellsContainer,
+                        backgroundColor: '#fef5e7',
+                        border: '1px solid #f6e05e'
+                      }}>
+                        <div style={{ fontSize: '0.9rem', color: '#744210' }}>
+                          <div style={{ marginBottom: '10px' }}>
+                            <strong>📊 Pré-visualização da Limpeza:</strong>
+                          </div>
+                          {(() => {
+                            const funcionarioData = dadosGrade.find(item => item.utilizador.id.toString() === funcionarioSelecionadoClear.toString());
+                            const dia = parseInt(diaSelecionadoClear);
+                            if (funcionarioData) {
+                              const estatisticas = funcionarioData.estatisticasDias[dia];
+                              
+                              return (
+                                <div>
+                                  <div>• <strong>Funcionário:</strong> {funcionarioData.utilizador.nome}</div>
+                                  <div>• <strong>Dia:</strong> {dia}/{mesSelecionado}/{anoSelecionado}</div>
+                                  <div>• <strong>Registos a eliminar:</strong> {estatisticas?.totalRegistos || 0}</div>
+                                  <div>• <strong>Horas a perder:</strong> {estatisticas?.horasEstimadas || '0.0'}h</div>
+                                  {estatisticas?.obras && estatisticas.obras.length > 0 && (
+                                    <div>• <strong>Obras afetadas:</strong> {estatisticas.obras.join(', ')}</div>
+                                  )}
+                                  {(!estatisticas || estatisticas.totalRegistos === 0) && (
+                                    <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#e2e8f0', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                                      <div style={{ color: '#2d3748', fontSize: '0.85rem' }}>
+                                        <strong>ℹ️ Informação:</strong> Não existem registos neste dia para eliminar.
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+                            return <div>Selecione um funcionário e dia para ver a pré-visualização.</div>;
+                          })()}
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={styles.obraContainer}>
+                      <label style={styles.obraLabel}>
+                        <span style={styles.obraIcon}>🏗️</span>
+                        Obra Selecionada (Filtro)
+                      </label>
+                      <div style={{
+                        padding: '12px 16px',
+                        border: '2px solid #e2e8f0',
+                        borderRadius: '12px',
+                        backgroundColor: '#f8f9fa',
+                        fontSize: '1rem',
+                        color: obraSelecionada ? '#2d3748' : '#718096'
+                      }}>
+                        {obraSelecionada 
+                          ? `${obras.find(o => o.id.toString() === obraSelecionada.toString())?.nome || `Obra ${obraSelecionada}`} - Apenas registos desta obra serão eliminados`
+                          : 'Todas as obras - Todos os registos do dia serão eliminados'
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={styles.bulkModalActions}>
+                    <button
+                      style={styles.cancelButton}
+                      onClick={() => setClearPointsDialogOpen(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      style={{...styles.confirmButton, backgroundColor: '#e53e3e'}}
+                      onClick={limparPontosDoDia}
+                      disabled={!funcionarioSelecionadoClear || !diaSelecionadoClear || loadingClear}
+                    >
+                      {loadingClear ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                          A eliminar...
+                        </>
+                      ) : (
+                        '🗑️ Eliminar Registos'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal para preencher pontos em falta */}
+            {autoFillDialogOpen && (
+              <div style={styles.modalOverlay}>
+                <div style={styles.bulkModal}>
+                  <div style={styles.bulkModalHeader}>
+                    <h3 style={styles.bulkModalTitle}>
+                      🤖 Preencher Pontos em Falta
+                    </h3>
+                    <p style={styles.bulkModalSubtitle}>
+                      Preencher automaticamente os dias vazios de um funcionário
+                    </p>
+                    <button
+                      style={styles.closeButton}
+                      onClick={() => setAutoFillDialogOpen(false)}
+                      aria-label="Fechar"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div style={styles.bulkModalContent}>
+                    <div style={styles.filterGroup}>
+                      <label style={styles.label}>Funcionário</label>
+                      <select
+                        style={styles.select}
+                        value={funcionarioSelecionadoAutoFill}
+                        onChange={e => setFuncionarioSelecionadoAutoFill(e.target.value)}
+                      >
+                        <option value="">-- Selecione um funcionário --</option>
+                        {dadosGrade.map(item => (
+                          <option key={item.utilizador.id} value={item.utilizador.id}>
+                            {item.utilizador.nome} ({item.utilizador.email})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {funcionarioSelecionadoAutoFill && (
+                      <div style={{
+                        ...styles.selectedCellsContainer,
+                        backgroundColor: '#fff3cd',
+                        border: '1px solid #ffeaa7'
+                      }}>
+                        <div style={{ fontSize: '0.9rem', color: '#856404' }}>
+                          <div style={{ marginBottom: '10px' }}>
+                            <strong>📊 Análise do Funcionário:</strong>
+                          </div>
+                          {(() => {
+                            const funcionarioData = dadosGrade.find(item => item.utilizador.id.toString() === funcionarioSelecionadoAutoFill.toString());
+                            if (funcionarioData) {
+                              const diasVazios = diasDoMes.filter(dia => {
+                                const estatisticas = funcionarioData.estatisticasDias[dia];
+                                const dataObj = new Date(parseInt(anoSelecionado), parseInt(mesSelecionado) - 1, dia);
+                                const isWeekend = dataObj.getDay() === 0 || dataObj.getDay() === 6;
+                                return !isWeekend && (!estatisticas || (estatisticas.totalRegistos === 0 && (!estatisticas.faltas || estatisticas.faltas.length === 0)));
+                              });
+
+                              return (
+                                <div>
+                                  <div>• <strong>Nome:</strong> {funcionarioData.utilizador.nome}</div>
+                                  <div>• <strong>Total dias com registos:</strong> {funcionarioData.totalDias}</div>
+                                  <div>• <strong>Total horas trabalhadas:</strong> {funcionarioData.totalHorasEstimadas}h</div>
+                                  <div>• <strong>Dias vazios encontrados:</strong> {diasVazios.length} dias ({diasVazios.length > 0 ? diasVazios.join(', ') : 'nenhum'})</div>
+                                  {diasVazios.length > 0 && (
+                                    <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#d1ecf1', borderRadius: '6px', border: '1px solid #bee5eb' }}>
+                                      <div style={{ color: '#0c5460', fontSize: '0.85rem' }}>
+                                        <strong>⚡ Ação a realizar:</strong> Serão criados {diasVazios.length * 4} registos de ponto 
+                                        ({diasVazios.length} dias × 4 pontos por dia) nos dias vazios listados acima.
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+                            return <div>Selecione um funcionário para ver a análise.</div>;
+                          })()}
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={styles.horariosContainer}>
+                      <h4 style={styles.horariosTitle}>⏰ Horários a Aplicar</h4>
+
+                      <div style={styles.horariosGrid}>
+                        <div style={styles.periodoContainer}>
+                          <div style={styles.periodoHeader}>
+                            <span style={styles.periodoIcon}>🌅</span>
+                            <span style={styles.periodoTitle}>Manhã</span>
+                          </div>
+                          <div style={styles.horarioRow}>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.timeLabel}>Entrada</label>
+                              <input
+                                type="time"
+                                style={styles.timeInput}
+                                value={horarios.entradaManha}
+                                onChange={e => setHorarios(h => ({ ...h, entradaManha: e.target.value }))}
+                              />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.timeLabel}>Saída</label>
+                              <input
+                                type="time"
+                                style={styles.timeInput}
+                                value={horarios.saidaManha}
+                                onChange={e => setHorarios(h => ({ ...h, saidaManha: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={styles.periodoContainer}>
+                          <div style={styles.periodoHeader}>
+                            <span style={styles.periodoIcon}>🌇</span>
+                            <span style={styles.periodoTitle}>Tarde</span>
+                          </div>
+                          <div style={styles.horarioRow}>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.timeLabel}>Entrada</label>
+                              <input
+                                type="time"
+                                style={styles.timeInput}
+                                value={horarios.entradaTarde}
+                                onChange={e => setHorarios(h => ({ ...h, entradaTarde: e.target.value }))}
+                              />
+                            </div>
+                            <div style={styles.inputGroup}>
+                              <label style={styles.timeLabel}>Saída</label>
+                              <input
+                                type="time"
+                                style={styles.timeInput}
+                                value={horarios.saidaTarde}
+                                onChange={e => setHorarios(h => ({ ...h, saidaTarde: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={styles.obraContainer}>
+                      <label style={styles.obraLabel}>
+                        <span style={styles.obraIcon}>🏗️</span>
+                        Obra Selecionada
+                      </label>
+                      <div style={{
+                        padding: '12px 16px',
+                        border: '2px solid #e2e8f0',
+                        borderRadius: '12px',
+                        backgroundColor: '#f8f9fa',
+                        fontSize: '1rem',
+                        color: obraSelecionada ? '#2d3748' : '#718096'
+                      }}>
+                        {obraSelecionada 
+                          ? obras.find(o => o.id.toString() === obraSelecionada.toString())?.nome || `Obra ${obraSelecionada}`
+                          : 'Nenhuma obra selecionada - por favor, selecione uma obra nos filtros acima'
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={styles.bulkModalActions}>
+                    <button
+                      style={styles.cancelButton}
+                      onClick={() => setAutoFillDialogOpen(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      style={{...styles.confirmButton, backgroundColor: '#805ad5'}}
+                      onClick={preencherPontosEmFalta}
+                      disabled={!funcionarioSelecionadoAutoFill || !obraSelecionada || loadingAutoFill}
+                    >
+                      {loadingAutoFill ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                          A preencher...
+                        </>
+                      ) : (
+                        '🤖 Preencher Automaticamente'
                       )}
                     </button>
                   </div>

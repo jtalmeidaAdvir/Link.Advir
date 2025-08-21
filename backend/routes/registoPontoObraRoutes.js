@@ -14,8 +14,8 @@ const {
   listarPendentes,
   listarPorUserEDia,
   listarPorUserPeriodo,
-  registarPontoEsquecidoPorOutro
-
+  registarPontoEsquecidoPorOutro,
+  eliminarRegisto
 } = require('../controllers/registoPontoObraControllers');
 
 router.post('/', authMiddleware, registarPonto);
@@ -42,5 +42,7 @@ router.get('/listar-por-user-e-dia', authMiddleware, listarPorUserEDia);
 
 router.get('/listar-por-user-periodo', authMiddleware, listarPorUserPeriodo);
 
+// Eliminar registo de ponto (apenas admin)
+router.delete('/eliminar/:id', authMiddleware, eliminarRegisto);
 
 module.exports = router;

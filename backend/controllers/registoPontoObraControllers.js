@@ -453,6 +453,34 @@ const registarPontoEsquecidoPorOutro = async (req, res) => {
 
 
 
+const eliminarRegisto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.user.role;
+
+    // Verificar se o utilizador tem permissão (deve ser admin)
+    if (userRole !== 'admin') {
+      return res.status(403).json({ message: 'Acesso negado. Apenas administradores podem eliminar registos.' });
+    }
+
+    // Verificar se o registo existe
+    const registo = await RegistoPontoObra.findByPk(id);
+    if (!registo) {
+      return res.status(404).json({ message: 'Registo não encontrado.' });
+    }
+
+    // Eliminar o registo
+    await registo.destroy();
+
+    console.log(`Registo de ponto ${id} eliminado por admin (${req.user.id})`);
+    return res.status(200).json({ message: 'Registo eliminado com sucesso.' });
+
+  } catch (err) {
+    console.error('Erro ao eliminar registo de ponto:', err);
+    return res.status(500).json({ message: 'Erro interno ao eliminar registo.' });
+  }
+};
+
 module.exports = {
   registarPonto,
   listarRegistosPorDia,
@@ -466,7 +494,8 @@ module.exports = {
   listarPendentes,
   listarPorUserEDia,
   listarPorUserPeriodo,
-  registarPontoEsquecidoPorOutro
+  registarPontoEsquecidoPorOutro,
+  eliminarRegisto
 };
 
 
