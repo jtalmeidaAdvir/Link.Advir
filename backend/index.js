@@ -20,6 +20,7 @@ const whatsappWebRoutes = require('./routes/whatsappWebRoutes');
 const anexoPedidoRoutes = require('./routes/anexoPedidoRoutes');
 const biometricRoutes = require('./routes/biometricRoutes');
 const trabalhadoresExternosRoutes = require('./routes/trabalhadoresExternosRoutes');
+const mapaRegistosRoutes = require('./routes/mapaRegistosRoutes');
 
 
 
@@ -285,6 +286,8 @@ app.post('/api/fix-whatsapp-tables', async (req, res) => {
 
 
 
+
+app.use('/api/mapa-registos', mapaRegistosRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {

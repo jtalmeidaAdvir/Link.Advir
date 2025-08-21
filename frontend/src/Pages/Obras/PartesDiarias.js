@@ -2111,194 +2111,302 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
         visible={modalExternosVisible}
         onRequestClose={() => setModalExternosVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View className="modalHeader" style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Adicionar Externos</Text>
-              <TouchableOpacity onPress={() => setModalExternosVisible(false)} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalBody}>
-              {/* Obra */}
-              <View style={{ marginBottom: 16 }}>
-                <Text style={styles.inputLabel}>Obra</Text>
-                <View style={{ backgroundColor: '#f0f0f0', borderRadius: 8 }}>
-                  <Picker
-                    selectedValue={linhaAtual.obraId}
-                    onValueChange={(v) => setLinhaAtual(p => ({ ...p, obraId: v }))}
-                  >
-                    <Picker.Item label="— Selecione —" value="" />
-                    {obrasParaPickers.map(o => (
-                      <Picker.Item key={o.id} label={o.nome} value={o.id} />
-                    ))}
-                  </Picker>
+        <View style={styles.externosModalContainer}>
+          <View style={styles.externosModalContent}>
+            {/* Header melhorado */}
+            <LinearGradient 
+              colors={['#6f42c1', '#5b32a3']} 
+              style={styles.externosModalHeader}
+            >
+              <View style={styles.externosModalHeaderContent}>
+                <View style={styles.externosModalTitleContainer}>
+                  <Ionicons name="people" size={24} color="#fff" />
+                  <Text style={styles.externosModalTitle}>Trabalhadores Externos</Text>
                 </View>
+                <TouchableOpacity 
+                  onPress={() => setModalExternosVisible(false)} 
+                  style={styles.externosCloseButton}
+                >
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
               </View>
+              <Text style={styles.externosModalSubtitle}>
+                Adicionar registos de trabalhadores externos
+              </Text>
+            </LinearGradient>
 
-              {/* Dia */}
-              <View style={{ marginBottom: 16 }}>
-                <Text style={styles.inputLabel}>Dia</Text>
-                <View style={{ backgroundColor: '#f0f0f0', borderRadius: 8 }}>
-                  <Picker
-                    selectedValue={linhaAtual.dia}
-                    onValueChange={(v) => setLinhaAtual(p => ({ ...p, dia: v }))}
-                  >
-                    <Picker.Item label="— Selecione —" value="" />
-                    {diasDoMes.map(d => (
-                      <Picker.Item key={d} label={String(d)} value={d} />
-                    ))}
-                  </Picker>
+            <ScrollView 
+              style={styles.externosModalBody}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              {/* Card do formulário */}
+              <View style={styles.externosFormCard}>
+                <Text style={styles.externosFormTitle}>
+                  <Ionicons name="document-text" size={16} color="#6f42c1" /> Novo Registo
+                </Text>
+                
+                {/* Grid responsivo para campos */}
+                <View style={styles.externosFormGrid}>
+                  {/* Obra */}
+                  <View style={styles.externosInputGroup}>
+                    <Text style={styles.externosInputLabel}>
+                      <Ionicons name="business" size={14} color="#666" /> Obra *
+                    </Text>
+                    <View style={styles.externosPickerWrapper}>
+                      <Picker
+                        selectedValue={linhaAtual.obraId}
+                        onValueChange={(v) => setLinhaAtual(p => ({ ...p, obraId: v }))}
+                        style={styles.externosPicker}
+                      >
+                        <Picker.Item label="— Selecionar obra —" value="" />
+                        {obrasParaPickers.map(o => (
+                          <Picker.Item key={o.id} label={o.nome} value={o.id} />
+                        ))}
+                      </Picker>
+                    </View>
+                  </View>
+
+                  {/* Dia */}
+                  <View style={styles.externosInputGroup}>
+                    <Text style={styles.externosInputLabel}>
+                      <Ionicons name="calendar" size={14} color="#666" /> Dia *
+                    </Text>
+                    <View style={styles.externosPickerWrapper}>
+                      <Picker
+                        selectedValue={linhaAtual.dia}
+                        onValueChange={(v) => setLinhaAtual(p => ({ ...p, dia: v }))}
+                        style={styles.externosPicker}
+                      >
+                        <Picker.Item label="— Selecionar dia —" value="" />
+                        {diasDoMes.map(d => (
+                          <Picker.Item key={d} label={`Dia ${d}`} value={d} />
+                        ))}
+                      </Picker>
+                    </View>
+                  </View>
                 </View>
-              </View>
 
-              {/* Trabalhador Externo */}
-              <View style={{ marginBottom: 16 }}>
-                <Text style={styles.inputLabel}>Trabalhador Externo</Text>
-                <View style={{ backgroundColor: '#f0f0f0', borderRadius: 8 }}>
-                  <Picker
-                    selectedValue={linhaAtual.trabalhadorId}
-                    onValueChange={(v) => setLinhaAtual(p => ({ ...p, trabalhadorId: v }))}
-                  >
-                    <Picker.Item label="— Selecione —" value="" />
-                    {externosLista.map(t => (
-                      <Picker.Item
-                        key={t.id}
-                        label={`${t.funcionario} — ${t.empresa} (${t.categoria || '—'})`}
-                        value={t.id}
-                      />
-                    ))}
-                  </Picker>
-                </View>
-              </View>
-
-              {/* Categoria */}
-              <View style={{ marginBottom: 16 }}>
-                <Text style={styles.inputLabel}>Categoria</Text>
-                <View style={styles.pickerContainer}>
-                  {[
-                    { label: 'Mão de Obra', value: 'MaoObra' },
-                    { label: 'Equipamentos', value: 'Equipamentos' },
-                  ].map(opt => (
-                    <TouchableOpacity
-                      key={opt.value}
-                      style={[
-                        styles.pickerOptionSmall,
-                        linhaAtual.categoria === opt.value && styles.pickerOptionSelected
-                      ]}
-                      onPress={() => setLinhaAtual(p => ({
-                        ...p,
-                        categoria: opt.value,
-                        especialidadeCodigo: '',
-                        subEmpId: null
-                      }))}
+                {/* Trabalhador Externo - campo largo */}
+                <View style={styles.externosInputGroup}>
+                  <Text style={styles.externosInputLabel}>
+                    <Ionicons name="person" size={14} color="#666" /> Trabalhador Externo *
+                  </Text>
+                  <View style={styles.externosPickerWrapper}>
+                    <Picker
+                      selectedValue={linhaAtual.trabalhadorId}
+                      onValueChange={(v) => setLinhaAtual(p => ({ ...p, trabalhadorId: v }))}
+                      style={styles.externosPicker}
                     >
+                      <Picker.Item label="— Selecionar trabalhador —" value="" />
+                      {externosLista.map(t => (
+                        <Picker.Item
+                          key={t.id}
+                          label={`${t.funcionario} (${t.empresa})`}
+                          value={t.id}
+                        />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* Categoria com botões melhorados */}
+                <View style={styles.externosInputGroup}>
+                  <Text style={styles.externosInputLabel}>
+                    <Ionicons name="layers" size={14} color="#666" /> Categoria *
+                  </Text>
+                  <View style={styles.externosCategoryButtons}>
+                    {[
+                      { label: 'Mão de Obra', value: 'MaoObra', icon: 'people' },
+                      { label: 'Equipamentos', value: 'Equipamentos', icon: 'construct' },
+                    ].map(opt => (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[
+                          styles.externosCategoryButton,
+                          linhaAtual.categoria === opt.value && styles.externosCategoryButtonActive
+                        ]}
+                        onPress={() => setLinhaAtual(p => ({
+                          ...p,
+                          categoria: opt.value,
+                          especialidadeCodigo: '',
+                          subEmpId: null
+                        }))}
+                      >
+                        <Ionicons 
+                          name={opt.icon} 
+                          size={16} 
+                          color={linhaAtual.categoria === opt.value ? '#fff' : '#6f42c1'} 
+                        />
+                        <Text style={[
+                          styles.externosCategoryButtonText,
+                          linhaAtual.categoria === opt.value && styles.externosCategoryButtonTextActive
+                        ]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Especialidade/Equipamento */}
+                <View style={styles.externosInputGroup}>
+                  <Text style={styles.externosInputLabel}>
+                    <Ionicons 
+                      name={linhaAtual.categoria === 'Equipamentos' ? 'construct' : 'hammer'} 
+                      size={14} 
+                      color="#666" 
+                    /> {linhaAtual.categoria === 'Equipamentos' ? 'Equipamento' : 'Especialidade'} *
+                  </Text>
+                  <View style={styles.externosPickerWrapper}>
+                    <Picker
+                      selectedValue={linhaAtual.especialidadeCodigo}
+                      onValueChange={(cod) => {
+                        const lista = linhaAtual.categoria === 'Equipamentos' ? equipamentosList : especialidadesList;
+                        const sel   = lista.find(x => x.codigo === cod);
+                        setLinhaAtual(p => ({
+                          ...p,
+                          especialidadeCodigo: cod,
+                          subEmpId: sel?.subEmpId ?? null
+                        }));
+                      }}
+                      style={styles.externosPicker}
+                    >
+                      <Picker.Item 
+                        label={`— Selecionar ${linhaAtual.categoria === 'Equipamentos' ? 'equipamento' : 'especialidade'} —`} 
+                        value="" 
+                      />
+                      {(linhaAtual.categoria === 'Equipamentos' ? equipamentosList : especialidadesList)
+                        .map(opt => (
+                          <Picker.Item key={opt.codigo} label={opt.descricao} value={opt.codigo} />
+                        ))
+                      }
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* Grid para Horas e Hora Extra */}
+                <View style={styles.externosFormGrid}>
+                  <View style={[styles.externosInputGroup, { flex: 2 }]}>
+                    <Text style={styles.externosInputLabel}>
+                      <Ionicons name="time" size={14} color="#666" /> Horas *
+                    </Text>
+                    <TextInput
+                      style={styles.externosTextInput}
+                      value={linhaAtual.horas}
+                      onChangeText={(v) => setLinhaAtual(p => ({ ...p, horas: v }))}
+                      placeholder="ex.: 8:00 ou 8.0"
+                      keyboardType="default"
+                    />
+                  </View>
+
+                  <View style={[styles.externosInputGroup, { flex: 1 }]}>
+                    <Text style={styles.externosInputLabel}>
+                      <Ionicons name="flash" size={14} color="#666" /> Extra
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.externosCheckboxContainer,
+                        linhaAtual.horaExtra && styles.externosCheckboxContainerActive
+                      ]}
+                      onPress={() => setLinhaAtual(p => ({ ...p, horaExtra: !p.horaExtra }))}
+                    >
+                      <Ionicons
+                        name={linhaAtual.horaExtra ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={20}
+                        color={linhaAtual.horaExtra ? '#fff' : '#6f42c1'}
+                      />
                       <Text style={[
-                        styles.pickerOptionTextSmall,
-                        linhaAtual.categoria === opt.value && styles.pickerOptionTextSelected
+                        styles.externosCheckboxText,
+                        linhaAtual.horaExtra && styles.externosCheckboxTextActive
                       ]}>
-                        {opt.label}
+                        Sim
                       </Text>
                     </TouchableOpacity>
-                  ))}
+                  </View>
                 </View>
-              </View>
 
-              {/* Especialidade/Equipamento */}
-              <View style={{ marginBottom: 16 }}>
-                <Text style={styles.inputLabel}>
-                  {linhaAtual.categoria === 'Equipamentos' ? 'Equipamento' : 'Especialidade'}
-                </Text>
-                <View style={{ backgroundColor: '#f0f0f0', borderRadius: 8 }}>
-                  <Picker
-                    selectedValue={linhaAtual.especialidadeCodigo}
-                    onValueChange={(cod) => {
-                      const lista = linhaAtual.categoria === 'Equipamentos' ? equipamentosList : especialidadesList;
-                      const sel   = lista.find(x => x.codigo === cod);
-                      setLinhaAtual(p => ({
-                        ...p,
-                        especialidadeCodigo: cod,
-                        subEmpId: sel?.subEmpId ?? null
-                      }));
-                    }}
+                {/* Botão de adicionar */}
+                <TouchableOpacity 
+                  onPress={adicionarLinhaExterno} 
+                  style={styles.externosAddButton}
+                >
+                  <LinearGradient 
+                    colors={['#17a2b8', '#0ea5a3']} 
+                    style={styles.externosAddButtonGradient}
                   >
-                    <Picker.Item label="— Selecione —" value="" />
-                    {(linhaAtual.categoria === 'Equipamentos' ? equipamentosList : especialidadesList)
-                      .map(opt => (
-                        <Picker.Item key={opt.codigo} label={opt.descricao} value={opt.codigo} />
-                      ))
-                    }
-                  </Picker>
-                </View>
+                    <Ionicons name="add-circle" size={18} color="#fff" />
+                    <Text style={styles.externosAddButtonText}>Adicionar à Lista</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
               </View>
 
-              {/* Horas */}
-              <View style={{ marginBottom: 12 }}>
-                <Text style={styles.inputLabel}>Horas (H:MM ou decimal)</Text>
-                <TextInput
-                  style={styles.horasInput}
-                  value={linhaAtual.horas}
-                  onChangeText={(v) => setLinhaAtual(p => ({ ...p, horas: v }))}
-                  placeholder="ex.: 8:00 ou 8.0"
-                  keyboardType="default"
-                />
-              </View>
-
-              {/* Hora extra */}
-              <TouchableOpacity
-                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}
-                onPress={() => setLinhaAtual(p => ({ ...p, horaExtra: !p.horaExtra }))}
-              >
-                <Ionicons
-                  name={linhaAtual.horaExtra ? 'checkbox' : 'square-outline'}
-                  size={20}
-                  color={linhaAtual.horaExtra ? '#28a745' : '#666'}
-                />
-                <Text style={{ marginLeft: 8, color: '#333' }}>Hora extra</Text>
-              </TouchableOpacity>
-
-              {/* Adicionar à lista */}
-              <TouchableOpacity onPress={adicionarLinhaExterno} style={{ borderRadius: 8, overflow: 'hidden' }}>
-                <LinearGradient colors={['#17a2b8', '#0ea5a3']} style={styles.buttonGradient}>
-                  <Ionicons name="add-circle" size={16} color="#fff" />
-                  <Text style={styles.buttonText}>Adicionar à lista</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              {/* Lista temporária */}
+              {/* Lista de itens adicionados */}
               {linhasExternos.length > 0 && (
-                <>
-                  <View style={{ height: 12 }} />
-                  <Text style={[styles.inputLabel, { marginBottom: 8 }]}>Linhas para submeter</Text>
+                <View style={styles.externosListCard}>
+                  <Text style={styles.externosListTitle}>
+                    <Ionicons name="list" size={16} color="#17a2b8" /> 
+                    Itens para Submeter ({linhasExternos.length})
+                  </Text>
+                  
                   {linhasExternos.map(l => (
-                    <View key={l.key} style={styles.externoLinha}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: '700', color: '#333' }}>{l.funcionario} — {l.empresa}</Text>
-                        <Text style={{ color: '#666', fontSize: 12 }}>
-                          Obra #{l.obraId} · Dia {l.dia} · {Math.round(l.horasMin/60*100)/100}h · {l.valor?.toFixed(2)} {l.moeda}
-                          {l.horaExtra ? ' · Hora extra' : ''}
+                    <View key={l.key} style={styles.externosListItem}>
+                      <View style={styles.externosListItemContent}>
+                        <View style={styles.externosListItemHeader}>
+                          <Text style={styles.externosListItemName}>
+                            {l.funcionario}
+                          </Text>
+                          <View style={styles.externosListItemBadge}>
+                            <Text style={styles.externosListItemBadgeText}>
+                              {Math.round(l.horasMin/60*100)/100}h
+                            </Text>
+                          </View>
+                        </View>
+                        
+                        <Text style={styles.externosListItemDetails}>
+                          <Ionicons name="business" size={12} color="#666" /> {l.empresa}
+                          {' • '}
+                          <Ionicons name="calendar" size={12} color="#666" /> Dia {l.dia}
+                          {' • '}
+                          <Ionicons name="cash" size={12} color="#666" /> {l.valor?.toFixed(2)} {l.moeda}
+                          {l.horaExtra && ' • Extra'}
                         </Text>
-                        <Text style={{ color: '#666', fontSize: 12 }}>
-                          {(l.categoria === 'Equipamentos' ? 'Equipamento' : 'Especialidade') + ': '}
-                          {l.especialidadeDesc || l.especialidadeCodigo}
+                        
+                        <Text style={styles.externosListItemCategory}>
+                          {l.categoria === 'Equipamentos' ? '🔧' : '👷'} {l.especialidadeDesc || l.especialidadeCodigo}
                         </Text>
                       </View>
-                      <TouchableOpacity onPress={() => removerLinhaExterno(l.key)}>
-                        <Ionicons name="trash" size={20} color="#dc3545" />
+                      
+                      <TouchableOpacity 
+                        onPress={() => removerLinhaExterno(l.key)}
+                        style={styles.externosListItemDelete}
+                      >
+                        <Ionicons name="trash" size={18} color="#dc3545" />
                       </TouchableOpacity>
                     </View>
                   ))}
-                </>
-              )}
 
-              <View style={{ height: 12 }} />
-              <TouchableOpacity onPress={submeterExternos} disabled={linhasExternos.length === 0} style={{ borderRadius: 8, overflow: 'hidden', opacity: linhasExternos.length === 0 ? 0.6 : 1 }}>
-                <LinearGradient colors={['#6f42c1', '#5b32a3']} style={styles.buttonGradient}>
-                  <Ionicons name="cloud-upload" size={16} color="#fff" />
-                  <Text style={styles.buttonText}>Submeter Externos</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                  {/* Botão de submeter */}
+                  <TouchableOpacity 
+                    onPress={submeterExternos} 
+                    disabled={linhasExternos.length === 0} 
+                    style={[
+                      styles.externosSubmitButton,
+                      linhasExternos.length === 0 && styles.externosSubmitButtonDisabled
+                    ]}
+                  >
+                    <LinearGradient 
+                      colors={linhasExternos.length === 0 ? ['#ccc', '#999'] : ['#6f42c1', '#5b32a3']} 
+                      style={styles.externosSubmitButtonGradient}
+                    >
+                      <Ionicons name="cloud-upload" size={18} color="#fff" />
+                      <Text style={styles.externosSubmitButtonText}>
+                        Submeter {linhasExternos.length} Item{linhasExternos.length !== 1 ? 's' : ''}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -2828,114 +2936,187 @@ const renderDataSheet = () => {
     );
 
     const renderEditModal = () => (
-        
         <Modal
             animationType="slide"
             transparent={true}
             visible={editModalVisible}
             onRequestClose={() => setEditModalVisible(false)}
         >
-            
-            <View style={styles.modalContainer}>
-                <View style={styles.modalContent}>
-                  
+            <View style={styles.editModalContainer}>
+                <View style={styles.editModalContent}>
+                    {/* Header melhorado */}
+                    <LinearGradient 
+                        colors={['#1792FE', '#0B5ED7']} 
+                        style={styles.editModalHeader}
+                    >
+                        <View style={styles.editModalHeaderContent}>
+                            <View style={styles.editModalTitleContainer}>
+                                <Ionicons name="construct" size={24} color="#fff" />
+                                <Text style={styles.editModalTitle}>Editar Especialidades</Text>
+                            </View>
+                            <TouchableOpacity 
+                                onPress={() => setEditModalVisible(false)} 
+                                style={styles.editCloseButton}
+                            >
+                                <Ionicons name="close" size={24} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.editModalSubtitle}>
+                            Defina as especialidades e horas por obra
+                        </Text>
+                    </LinearGradient>
 
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Editar Especialidade</Text>
-                        <TouchableOpacity
-                            onPress={() => setEditModalVisible(false)}
-                            style={styles.closeButton}
-                        >
-                            <Ionicons name="close" size={24} color="#666" />
-                        </TouchableOpacity>
-                    </View>
-
-                    <ScrollView style={styles.modalBody}>
+                    <ScrollView 
+                        style={styles.editModalBody}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingBottom: 20 }}
+                    >
+                        {/* Card de informações do trabalhador */}
                         {selectedTrabalhador && (
-                            <View style={styles.editInfo}>
-                                <Text style={styles.editInfoText}>
-                                    Trabalhador: {selectedTrabalhador.userName}
+                            <View style={styles.editInfoCard}>
+                                <Text style={styles.editInfoTitle}>
+                                    <Ionicons name="person" size={16} color="#1792FE" /> Informações do Registo
                                 </Text>
-                                <Text style={styles.editInfoText}>
-                                    Obra: {selectedTrabalhador.obraNome}
-                                </Text>
-                                <Text style={styles.editInfoText}>
-                                Horas Reais de Ponto: {formatarHorasMinutos(selectedTrabalhador.horasOriginais[selectedDia] || 0)}
-                                </Text>
-                                <Text style={styles.editInfoText}>
-                                Horas para Parte Diária: {formatarHorasMinutos(selectedTrabalhador.horasPorDia[selectedDia] || 0)}
-                                </Text>
+                                
+                                <View style={styles.editInfoGrid}>
+                                    <View style={styles.editInfoItem}>
+                                        <Text style={styles.editInfoLabel}>
+                                            <Ionicons name="person-circle" size={14} color="#666" /> Trabalhador
+                                        </Text>
+                                        <Text style={styles.editInfoValue}>{selectedTrabalhador.userName}</Text>
+                                    </View>
+                                    
+                                    <View style={styles.editInfoItem}>
+                                        <Text style={styles.editInfoLabel}>
+                                            <Ionicons name="business" size={14} color="#666" /> Obra Principal
+                                        </Text>
+                                        <Text style={styles.editInfoValue}>{selectedTrabalhador.obraNome}</Text>
+                                    </View>
+                                </View>
 
-                                <Text style={styles.editInfoSubText}>
-                                    {selectedTrabalhador.horasPorDia[selectedDia] > 0 
-                                        ? 'Baseado em registo de ponto' 
-                                        : 'Adição manual de horas'
-                                    }
-                                </Text>
+                                <View style={styles.editInfoGrid}>
+                                    <View style={styles.editInfoItem}>
+                                        <Text style={styles.editInfoLabel}>
+                                            <Ionicons name="time" size={14} color="#666" /> Horas de Ponto
+                                        </Text>
+                                        <Text style={[styles.editInfoValue, { color: '#17a2b8' }]}>
+                                            {formatarHorasMinutos(selectedTrabalhador.horasOriginais[selectedDia] || 0)}
+                                        </Text>
+                                    </View>
+                                    
+                                    <View style={styles.editInfoItem}>
+                                        <Text style={styles.editInfoLabel}>
+                                            <Ionicons name="clipboard" size={14} color="#666" /> Para Parte Diária
+                                        </Text>
+                                        <Text style={[styles.editInfoValue, { color: '#28a745' }]}>
+                                            {formatarHorasMinutos(selectedTrabalhador.horasPorDia[selectedDia] || 0)}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.editInfoFooter}>
+                                    <Text style={styles.editInfoSubText}>
+                                        <Ionicons 
+                                            name={selectedTrabalhador.horasPorDia[selectedDia] > 0 ? 'checkmark-circle' : 'add-circle'} 
+                                            size={12} 
+                                            color={selectedTrabalhador.horasPorDia[selectedDia] > 0 ? '#28a745' : '#ffc107'} 
+                                        />
+                                        {' '}
+                                        {selectedTrabalhador.horasPorDia[selectedDia] > 0 
+                                            ? 'Baseado em registo de ponto' 
+                                            : 'Adição manual de horas'
+                                        }
+                                    </Text>
+                                </View>
                             </View>
                         )}
 
-                        <View style={styles.especialidadesContainer}>
-                            <View style={styles.especialidadesHeader}>
-                                <Text style={styles.inputLabel}>Especialidades do Dia</Text>
+                        {/* Card das especialidades */}
+                        <View style={styles.editSpecialitiesCard}>
+                            <View style={styles.editSpecialitiesHeader}>
+                                <Text style={styles.editSpecialitiesTitle}>
+                                    <Ionicons name="layers" size={16} color="#1792FE" /> Especialidades do Dia {selectedDia}
+                                </Text>
                                 <TouchableOpacity
-                                    style={styles.addButton}
+                                    style={styles.editAddButton}
                                     onPress={adicionarEspecialidade}
                                 >
-                                    <Ionicons name="add-circle" size={24} color="#28a745" />
-                                    <Text style={styles.addButtonText}>Adicionar</Text>
+                                    <LinearGradient
+                                        colors={['#28a745', '#20c997']}
+                                        style={styles.editAddButtonGradient}
+                                    >
+                                        <Ionicons name="add-circle" size={18} color="#fff" />
+                                        <Text style={styles.editAddButtonText}>Adicionar</Text>
+                                    </LinearGradient>
                                 </TouchableOpacity>
                             </View>
 
                             {editData.especialidadesDia?.map((espItem, index) => (
-                                <View key={index} style={styles.especialidadeItem}>
-                                    <View style={styles.inputGroup}>
-                                        <Text style={styles.inputLabelSmall}>Obra destino</Text>
-                                        <View style={{ backgroundColor: '#f0f0f0', borderRadius: 8 }}>
-                                            <Picker
-                                            selectedValue={espItem.obraId ?? selectedTrabalhador.obraId}
-                                            onValueChange={(v) => atualizarEspecialidade(index, 'obraId', v)}>
-                                            {obrasParaPickers.map(o => (
-                                                <Picker.Item key={o.id} label={o.nome} value={o.id} />
-                                            ))}
-                                            </Picker>
-                                        </View>
-                                        </View>
-
-                                    <View style={styles.especialidadeHeader}><View style={{ flexDirection: 'row', alignItems: 'center' }}>
-  <Text style={styles.especialidadeTitle}>Especialidade {index + 1}</Text>
-  <TouchableOpacity
-    onPress={() => {
-      atualizarEspecialidade(index, 'horaExtra', !espItem.horaExtra);
-    }}
-    style={{ marginLeft: 8 }}
-  >
-
-    <Text>Hora Extra</Text>
-    <Ionicons
-      name={espItem.horaExtra ? 'checkmark-circle' : 'ellipse-outline'}
-      size={20}
-      color={espItem.horaExtra ? '#28a745' : '#ccc'}
-    />
-
-  </TouchableOpacity>
-</View>
-
-                                        {editData.especialidadesDia.length > 1 && (
+                                <View key={index} style={styles.editSpecialityItem}>
+                                    {/* Header do item com número e botão remover */}
+                                    <View style={styles.editSpecialityHeader}>
+                                        <Text style={styles.editSpecialityNumber}>
+                                            <Ionicons name="hammer" size={14} color="#1792FE" /> Especialidade {index + 1}
+                                        </Text>
+                                        <View style={styles.editSpecialityActions}>
                                             <TouchableOpacity
-                                                style={styles.removeButton}
-                                                onPress={() => removerEspecialidade(index)}
+                                                style={[
+                                                    styles.editHoraExtraButton,
+                                                    espItem.horaExtra && styles.editHoraExtraButtonActive
+                                                ]}
+                                                onPress={() => atualizarEspecialidade(index, 'horaExtra', !espItem.horaExtra)}
                                             >
-                                                <Ionicons name="trash" size={20} color="#dc3545" />
+                                                <Ionicons
+                                                    name={espItem.horaExtra ? 'flash' : 'flash-outline'}
+                                                    size={16}
+                                                    color={espItem.horaExtra ? '#fff' : '#ffc107'}
+                                                />
+                                                <Text style={[
+                                                    styles.editHoraExtraText,
+                                                    espItem.horaExtra && styles.editHoraExtraTextActive
+                                                ]}>
+                                                    Extra
+                                                </Text>
                                             </TouchableOpacity>
-                                        )}
+                                            
+                                            {editData.especialidadesDia.length > 1 && (
+                                                <TouchableOpacity
+                                                    style={styles.editRemoveButton}
+                                                    onPress={() => removerEspecialidade(index)}
+                                                >
+                                                    <Ionicons name="trash" size={18} color="#dc3545" />
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
                                     </View>
 
-                                    <View style={styles.inputRow}>
-                                        <View style={styles.inputHalf}>
-                                            <Text style={styles.inputLabelSmall}>Horas</Text>
+                                    {/* Grid dos campos principais */}
+                                    <View style={styles.editSpecialityGrid}>
+                                        {/* Obra destino */}
+                                        <View style={styles.editInputGroup}>
+                                            <Text style={styles.editInputLabel}>
+                                                <Ionicons name="business" size={14} color="#666" /> Obra Destino
+                                            </Text>
+                                            <View style={styles.editPickerWrapper}>
+                                                <Picker
+                                                    selectedValue={espItem.obraId ?? selectedTrabalhador.obraId}
+                                                    onValueChange={(v) => atualizarEspecialidade(index, 'obraId', v)}
+                                                    style={styles.editPicker}
+                                                >
+                                                    {obrasParaPickers.map(o => (
+                                                        <Picker.Item key={o.id} label={o.nome} value={o.id} />
+                                                    ))}
+                                                </Picker>
+                                            </View>
+                                        </View>
+
+                                        {/* Horas */}
+                                        <View style={[styles.editInputGroup, { flex: 0.6 }]}>
+                                            <Text style={styles.editInputLabel}>
+                                                <Ionicons name="time" size={14} color="#666" /> Horas
+                                            </Text>
                                             <TextInput
-                                                style={styles.horasInput}
+                                                style={styles.editTextInput}
                                                 value={(() => {
                                                     const totalMinutos = Math.round((espItem.horas || 0) * 60);
                                                     const horas = Math.floor(totalMinutos / 60);
@@ -2951,43 +3132,47 @@ const renderDataSheet = () => {
                                                     let minutos = 0;
                                                     
                                                     if (value.includes(':')) {
-                                                        // Formato H:MM
                                                         const [h, m] = value.split(':');
                                                         const horas = parseInt(h) || 0;
                                                         const mins = parseInt(m) || 0;
                                                         minutos = (horas * 60) + mins;
                                                     } else {
-                                                        // Assumir que é apenas horas
                                                         const horas = parseFloat(value) || 0;
                                                         minutos = Math.round(horas * 60);
                                                     }
                                                     
-                                                    // Converter minutos de volta para horas decimais para compatibilidade
                                                     const horasDecimais = minutos / 60;
                                                     atualizarEspecialidade(index, 'horas', horasDecimais);
                                                 }}
-                                                placeholder="0:00"
+                                                placeholder="8:00"
                                                 keyboardType="default"
                                             />
                                         </View>
                                     </View>
 
-
-                                    <View style={styles.inputGroup}>
-                                        <Text style={styles.inputLabelSmall}>Categoria</Text>
-                                        <View style={styles.pickerContainer}>
-                                            {categorias.map((cat, catIndex) => (
+                                    {/* Categoria com botões melhorados */}
+                                    <View style={styles.editInputGroup}>
+                                        <Text style={styles.editInputLabel}>
+                                            <Ionicons name="layers" size={14} color="#666" /> Categoria
+                                        </Text>
+                                        <View style={styles.editCategoryButtons}>
+                                            {categorias.map((cat) => (
                                                 <TouchableOpacity
-                                                    key={catIndex}
+                                                    key={cat.value}
                                                     style={[
-                                                        styles.pickerOptionSmall,
-                                                        espItem.categoria === cat.value && styles.pickerOptionSelected
+                                                        styles.editCategoryButton,
+                                                        espItem.categoria === cat.value && styles.editCategoryButtonActive
                                                     ]}
                                                     onPress={() => atualizarEspecialidade(index, 'categoria', cat.value)}
                                                 >
+                                                    <Ionicons 
+                                                        name={cat.value === 'Equipamentos' ? 'construct' : 'people'} 
+                                                        size={16} 
+                                                        color={espItem.categoria === cat.value ? '#fff' : '#1792FE'} 
+                                                    />
                                                     <Text style={[
-                                                        styles.pickerOptionTextSmall,
-                                                        espItem.categoria === cat.value && styles.pickerOptionTextSelected
+                                                        styles.editCategoryButtonText,
+                                                        espItem.categoria === cat.value && styles.editCategoryButtonTextActive
                                                     ]}>
                                                         {cat.label}
                                                     </Text>
@@ -2996,59 +3181,74 @@ const renderDataSheet = () => {
                                         </View>
                                     </View>
 
-
-
-
-                                    <View style={styles.inputGroup}>
-                                        
-                                        <Picker
-  selectedValue={espItem.especialidade}
-  onValueChange={(valor) => selecionarOpcaoEspecialidade(index, valor)}
-  style={{
-    backgroundColor: "#f0f0f0",
-    borderRadius: 8,
-    height: 44,
-    marginTop: 4,
-    marginBottom: 10,
-  }}
->
-  <Picker.Item label="— Selecione a categoria —" value="" enabled={false} color="#999" />
-  {(espItem.categoria === "MaoObra" ? especialidadesList : equipamentosList).map((opt) => (
-    <Picker.Item key={opt.codigo} label={opt.descricao} value={opt.codigo} />
-  ))}
-</Picker>
-
-
-
-
-
+                                    {/* Especialidade/Equipamento */}
+                                    <View style={styles.editInputGroup}>
+                                        <Text style={styles.editInputLabel}>
+                                            <Ionicons 
+                                                name={espItem.categoria === 'Equipamentos' ? 'construct' : 'hammer'} 
+                                                size={14} 
+                                                color="#666" 
+                                            />
+                                            {' '}
+                                            {espItem.categoria === 'Equipamentos' ? 'Equipamento' : 'Especialidade'}
+                                        </Text>
+                                        <View style={styles.editPickerWrapper}>
+                                            <Picker
+                                                selectedValue={espItem.especialidade}
+                                                onValueChange={(valor) => selecionarOpcaoEspecialidade(index, valor)}
+                                                style={styles.editPicker}
+                                            >
+                                                <Picker.Item 
+                                                    label={`— Selecionar ${espItem.categoria === 'Equipamentos' ? 'equipamento' : 'especialidade'} —`} 
+                                                    value="" 
+                                                    enabled={false} 
+                                                    color="#999" 
+                                                />
+                                                {(espItem.categoria === "MaoObra" ? especialidadesList : equipamentosList).map((opt) => (
+                                                    <Picker.Item key={opt.codigo} label={opt.descricao} value={opt.codigo} />
+                                                ))}
+                                            </Picker>
+                                        </View>
                                     </View>
-
-                                    
                                 </View>
                             ))}
 
-                            <View style={styles.totalHoras}>
-                                <Text style={styles.totalHorasText}>
-                                    Total: {formatarHorasMinutos(editData.especialidadesDia?.reduce((sum, esp) => {
-                                        const horas = parseFloat(esp.horas) || 0;
-                                        return sum + Math.round(horas * 60);
-                                    }, 0))} 
-                                    / {formatarHorasMinutos(selectedTrabalhador?.horasPorDia[selectedDia] || 0)} trabalhadas
-                                </Text>
+                            {/* Resumo das horas */}
+                            <View style={styles.editHoursSummary}>
+                                <View style={styles.editHoursSummaryContent}>
+                                    <Text style={styles.editHoursSummaryLabel}>Resumo das Horas</Text>
+                                    <View style={styles.editHoursSummaryValues}>
+                                        <Text style={styles.editHoursSummaryText}>
+                                            <Ionicons name="calculator" size={14} color="#1792FE" /> 
+                                            Total Distribuído: <Text style={{ fontWeight: 'bold', color: '#1792FE' }}>
+                                                {formatarHorasMinutos(editData.especialidadesDia?.reduce((sum, esp) => {
+                                                    const horas = parseFloat(esp.horas) || 0;
+                                                    return sum + Math.round(horas * 60);
+                                                }, 0))}
+                                            </Text>
+                                        </Text>
+                                        <Text style={styles.editHoursSummaryText}>
+                                            <Ionicons name="time" size={14} color="#28a745" /> 
+                                            Horas Trabalhadas: <Text style={{ fontWeight: 'bold', color: '#28a745' }}>
+                                                {formatarHorasMinutos(selectedTrabalhador?.horasPorDia[selectedDia] || 0)}
+                                            </Text>
+                                        </Text>
+                                    </View>
+                                </View>
                             </View>
                         </View>
 
+                        {/* Botão de guardar */}
                         <TouchableOpacity
-                            style={styles.submitButton}
+                            style={styles.editSubmitButton}
                             onPress={salvarEdicao}
                         >
                             <LinearGradient
-                                colors={['#28a745', '#20c997']}
-                                style={styles.buttonGradient}
+                                colors={['#1792FE', '#0B5ED7']}
+                                style={styles.editSubmitButtonGradient}
                             >
-                                <FontAwesome name="save" size={16} color="#FFFFFF" />
-                                <Text style={styles.buttonText}>Guardar</Text>
+                                <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                                <Text style={styles.editSubmitButtonText}>Guardar Alterações</Text>
                             </LinearGradient>
                         </TouchableOpacity>
                     </ScrollView>
@@ -3114,6 +3314,742 @@ externoLinha: {
   flexDirection: 'row',
   alignItems: 'center',
   marginBottom: 8,
+},
+
+// Novos estilos para o modal de externos melhorado
+externosModalContainer: {
+  flex: 1,
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: 10,
+},
+
+externosModalContent: {
+  backgroundColor: '#FFFFFF',
+  width: '100%',
+  maxWidth: 500,
+  maxHeight: '90%',
+  borderRadius: 20,
+  elevation: 10,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 5 },
+  shadowOpacity: 0.3,
+  shadowRadius: 10,
+  overflow: 'hidden',
+},
+
+externosModalHeader: {
+  paddingHorizontal: 20,
+  paddingTop: 20,
+  paddingBottom: 15,
+},
+
+externosModalHeaderContent: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 8,
+},
+
+externosModalTitleContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+},
+
+externosModalTitle: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  color: '#fff',
+},
+
+externosModalSubtitle: {
+  fontSize: 14,
+  color: 'rgba(255,255,255,0.9)',
+  marginTop: 5,
+},
+
+externosCloseButton: {
+  width: 36,
+  height: 36,
+  borderRadius: 18,
+  backgroundColor: 'rgba(255,255,255,0.2)',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+
+externosModalBody: {
+  flex: 1,
+  paddingHorizontal: 20,
+  paddingTop: 15,
+},
+
+externosFormCard: {
+  backgroundColor: '#f8f9fa',
+  borderRadius: 16,
+  padding: 20,
+  marginBottom: 15,
+  borderWidth: 1,
+  borderColor: '#e9ecef',
+},
+
+externosFormTitle: {
+  fontSize: 16,
+  fontWeight: '700',
+  color: '#333',
+  marginBottom: 20,
+  textAlign: 'center',
+},
+
+externosFormGrid: {
+  flexDirection: 'row',
+  gap: 12,
+  marginBottom: 16,
+},
+
+externosInputGroup: {
+  flex: 1,
+  marginBottom: 16,
+},
+
+externosInputLabel: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#495057',
+  marginBottom: 8,
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+externosPickerWrapper: {
+  backgroundColor: '#fff',
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: '#dee2e6',
+  elevation: 1,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.1,
+  shadowRadius: 2,
+},
+
+externosPicker: {
+  height: 50,
+  paddingHorizontal: 12,
+},
+
+externosTextInput: {
+  backgroundColor: '#fff',
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: '#dee2e6',
+  paddingHorizontal: 15,
+  paddingVertical: 12,
+  fontSize: 16,
+  elevation: 1,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.1,
+  shadowRadius: 2,
+},
+
+externosCategoryButtons: {
+  flexDirection: 'row',
+  gap: 10,
+},
+
+externosCategoryButton: {
+  flex: 1,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 12,
+  paddingHorizontal: 16,
+  borderRadius: 12,
+  borderWidth: 2,
+  borderColor: '#6f42c1',
+  backgroundColor: '#fff',
+  gap: 8,
+},
+
+externosCategoryButtonActive: {
+  backgroundColor: '#6f42c1',
+  borderColor: '#6f42c1',
+},
+
+externosCategoryButtonText: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#6f42c1',
+},
+
+externosCategoryButtonTextActive: {
+  color: '#fff',
+},
+
+externosCheckboxContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 12,
+  paddingHorizontal: 16,
+  borderRadius: 12,
+  borderWidth: 2,
+  borderColor: '#6f42c1',
+  backgroundColor: '#fff',
+  gap: 8,
+},
+
+externosCheckboxContainerActive: {
+  backgroundColor: '#6f42c1',
+  borderColor: '#6f42c1',
+},
+
+externosCheckboxText: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#6f42c1',
+},
+
+externosCheckboxTextActive: {
+  color: '#fff',
+},
+
+externosAddButton: {
+  borderRadius: 12,
+  overflow: 'hidden',
+  marginTop: 10,
+  elevation: 3,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.2,
+  shadowRadius: 4,
+},
+
+externosAddButtonGradient: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 14,
+  paddingHorizontal: 20,
+  gap: 8,
+},
+
+externosAddButtonText: {
+  color: '#fff',
+  fontSize: 16,
+  fontWeight: '700',
+},
+
+externosListCard: {
+  backgroundColor: '#fff',
+  borderRadius: 16,
+  padding: 20,
+  borderWidth: 1,
+  borderColor: '#e9ecef',
+  elevation: 2,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+},
+
+externosListTitle: {
+  fontSize: 16,
+  fontWeight: '700',
+  color: '#333',
+  marginBottom: 15,
+  textAlign: 'center',
+},
+
+externosListItem: {
+  flexDirection: 'row',
+  backgroundColor: '#f8f9fa',
+  borderRadius: 12,
+  padding: 15,
+  marginBottom: 12,
+  borderWidth: 1,
+  borderColor: '#e9ecef',
+  alignItems: 'center',
+},
+
+externosListItemContent: {
+  flex: 1,
+},
+
+externosListItemHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 6,
+},
+
+externosListItemName: {
+  fontSize: 16,
+  fontWeight: '700',
+  color: '#333',
+  flex: 1,
+},
+
+externosListItemBadge: {
+  backgroundColor: '#17a2b8',
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  borderRadius: 12,
+},
+
+externosListItemBadgeText: {
+  color: '#fff',
+  fontSize: 12,
+  fontWeight: '700',
+},
+
+externosListItemDetails: {
+  fontSize: 13,
+  color: '#666',
+  marginBottom: 4,
+  lineHeight: 18,
+},
+
+externosListItemCategory: {
+  fontSize: 12,
+  color: '#495057',
+  fontStyle: 'italic',
+},
+
+externosListItemDelete: {
+  width: 40,
+  height: 40,
+  borderRadius: 20,
+  backgroundColor: '#fff',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginLeft: 10,
+  elevation: 2,
+  shadowColor: '#dc3545',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.2,
+  shadowRadius: 2,
+},
+
+externosSubmitButton: {
+  borderRadius: 12,
+  overflow: 'hidden',
+  marginTop: 15,
+  elevation: 3,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.2,
+  shadowRadius: 4,
+},
+
+externosSubmitButtonDisabled: {
+  elevation: 0,
+  shadowOpacity: 0,
+},
+
+externosSubmitButtonGradient: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 16,
+  paddingHorizontal: 20,
+  gap: 10,
+},
+
+externosSubmitButtonText: {
+  color: '#fff',
+  fontSize: 16,
+  fontWeight: '700',
+},
+
+// Estilos para o modal de editar especialidade melhorado
+editModalContainer: {
+  flex: 1,
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: 10,
+},
+
+editModalContent: {
+  backgroundColor: '#FFFFFF',
+  width: '100%',
+  maxWidth: 600,
+  maxHeight: '90%',
+  borderRadius: 20,
+  elevation: 10,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 5 },
+  shadowOpacity: 0.3,
+  shadowRadius: 10,
+  overflow: 'hidden',
+},
+
+editModalHeader: {
+  paddingHorizontal: 20,
+  paddingTop: 20,
+  paddingBottom: 15,
+},
+
+editModalHeaderContent: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 8,
+},
+
+editModalTitleContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+},
+
+editModalTitle: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  color: '#fff',
+},
+
+editModalSubtitle: {
+  fontSize: 14,
+  color: 'rgba(255,255,255,0.9)',
+  marginTop: 5,
+},
+
+editCloseButton: {
+  width: 36,
+  height: 36,
+  borderRadius: 18,
+  backgroundColor: 'rgba(255,255,255,0.2)',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+
+editModalBody: {
+  flex: 1,
+  paddingHorizontal: 20,
+  paddingTop: 15,
+},
+
+editInfoCard: {
+  backgroundColor: '#f8f9fa',
+  borderRadius: 16,
+  padding: 20,
+  marginBottom: 15,
+  borderWidth: 1,
+  borderColor: '#e9ecef',
+},
+
+editInfoTitle: {
+  fontSize: 16,
+  fontWeight: '700',
+  color: '#333',
+  marginBottom: 15,
+  textAlign: 'center',
+},
+
+editInfoGrid: {
+  flexDirection: 'row',
+  gap: 15,
+  marginBottom: 12,
+},
+
+editInfoItem: {
+  flex: 1,
+},
+
+editInfoLabel: {
+  fontSize: 12,
+  fontWeight: '600',
+  color: '#666',
+  marginBottom: 4,
+},
+
+editInfoValue: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#333',
+},
+
+editInfoFooter: {
+  marginTop: 10,
+  paddingTop: 12,
+  borderTopWidth: 1,
+  borderTopColor: '#e9ecef',
+},
+
+editInfoSubText: {
+  fontSize: 12,
+  color: '#666',
+  textAlign: 'center',
+  fontStyle: 'italic',
+},
+
+editSpecialitiesCard: {
+  backgroundColor: '#fff',
+  borderRadius: 16,
+  padding: 20,
+  borderWidth: 1,
+  borderColor: '#e9ecef',
+  elevation: 2,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+},
+
+editSpecialitiesHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 20,
+},
+
+editSpecialitiesTitle: {
+  fontSize: 16,
+  fontWeight: '700',
+  color: '#333',
+  flex: 1,
+},
+
+editAddButton: {
+  borderRadius: 12,
+  overflow: 'hidden',
+  elevation: 2,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.2,
+  shadowRadius: 2,
+},
+
+editAddButtonGradient: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 10,
+  paddingHorizontal: 16,
+  gap: 6,
+},
+
+editAddButtonText: {
+  color: '#fff',
+  fontSize: 14,
+  fontWeight: '700',
+},
+
+editSpecialityItem: {
+  backgroundColor: '#f8f9fa',
+  borderRadius: 12,
+  padding: 16,
+  marginBottom: 15,
+  borderWidth: 1,
+  borderColor: '#e9ecef',
+},
+
+editSpecialityHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 15,
+},
+
+editSpecialityNumber: {
+  fontSize: 14,
+  fontWeight: '700',
+  color: '#333',
+  flex: 1,
+},
+
+editSpecialityActions: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+},
+
+editHoraExtraButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingVertical: 6,
+  paddingHorizontal: 12,
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: '#ffc107',
+  backgroundColor: '#fff',
+  gap: 4,
+},
+
+editHoraExtraButtonActive: {
+  backgroundColor: '#ffc107',
+  borderColor: '#ffc107',
+},
+
+editHoraExtraText: {
+  fontSize: 12,
+  fontWeight: '600',
+  color: '#ffc107',
+},
+
+editHoraExtraTextActive: {
+  color: '#fff',
+},
+
+editRemoveButton: {
+  width: 32,
+  height: 32,
+  borderRadius: 16,
+  backgroundColor: '#fff',
+  alignItems: 'center',
+  justifyContent: 'center',
+  elevation: 1,
+  shadowColor: '#dc3545',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.2,
+  shadowRadius: 2,
+  borderWidth: 1,
+  borderColor: '#dc3545',
+},
+
+editSpecialityGrid: {
+  flexDirection: 'row',
+  gap: 12,
+  marginBottom: 16,
+},
+
+editInputGroup: {
+  flex: 1,
+  marginBottom: 16,
+},
+
+editInputLabel: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#495057',
+  marginBottom: 8,
+},
+
+editPickerWrapper: {
+  backgroundColor: '#fff',
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: '#dee2e6',
+  elevation: 1,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.1,
+  shadowRadius: 2,
+},
+
+editPicker: {
+  height: 50,
+  paddingHorizontal: 12,
+},
+
+editTextInput: {
+  backgroundColor: '#fff',
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: '#dee2e6',
+  paddingHorizontal: 15,
+  paddingVertical: 12,
+  fontSize: 16,
+  elevation: 1,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.1,
+  shadowRadius: 2,
+},
+
+editCategoryButtons: {
+  flexDirection: 'row',
+  gap: 10,
+},
+
+editCategoryButton: {
+  flex: 1,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 12,
+  paddingHorizontal: 16,
+  borderRadius: 12,
+  borderWidth: 2,
+  borderColor: '#1792FE',
+  backgroundColor: '#fff',
+  gap: 8,
+},
+
+editCategoryButtonActive: {
+  backgroundColor: '#1792FE',
+  borderColor: '#1792FE',
+},
+
+editCategoryButtonText: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: '#1792FE',
+},
+
+editCategoryButtonTextActive: {
+  color: '#fff',
+},
+
+editHoursSummary: {
+  backgroundColor: '#e3f2fd',
+  borderRadius: 12,
+  padding: 16,
+  marginTop: 10,
+  borderWidth: 1,
+  borderColor: '#1792FE',
+},
+
+editHoursSummaryContent: {
+  alignItems: 'center',
+},
+
+editHoursSummaryLabel: {
+  fontSize: 14,
+  fontWeight: '700',
+  color: '#1792FE',
+  marginBottom: 10,
+},
+
+editHoursSummaryValues: {
+  alignItems: 'center',
+  gap: 6,
+},
+
+editHoursSummaryText: {
+  fontSize: 13,
+  color: '#666',
+  textAlign: 'center',
+},
+
+editSubmitButton: {
+  borderRadius: 12,
+  overflow: 'hidden',
+  marginTop: 20,
+  elevation: 3,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.2,
+  shadowRadius: 4,
+},
+
+editSubmitButtonGradient: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 16,
+  paddingHorizontal: 20,
+  gap: 10,
+},
+
+editSubmitButtonText: {
+  color: '#fff',
+  fontSize: 16,
+  fontWeight: '700',
 },
 
     header: {
