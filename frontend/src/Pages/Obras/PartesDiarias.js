@@ -3019,7 +3019,7 @@ const renderDataSheet = () => {
                                         <Ionicons 
                                             name={selectedTrabalhador.horasPorDia[selectedDia] > 0 ? 'checkmark-circle' : 'add-circle'} 
                                             size={12} 
-                                            color={selectedTrabalhador.horasPorDia[selectedDia] > 0 ? '#28a745' : '#ffc107'} 
+                                            color={selectedTrabalhador.horasPorDia[selectedDia] > 0 ? '#1792FE' : '#1792FE'} 
                                         />
                                         {' '}
                                         {selectedTrabalhador.horasPorDia[selectedDia] > 0 
@@ -3042,7 +3042,7 @@ const renderDataSheet = () => {
                                     onPress={adicionarEspecialidade}
                                 >
                                     <LinearGradient
-                                        colors={['#28a745', '#20c997']}
+                                        colors={['#1792FE', '#1792FE']}
                                         style={styles.editAddButtonGradient}
                                     >
                                         <Ionicons name="add-circle" size={18} color="#fff" />
@@ -3069,7 +3069,7 @@ const renderDataSheet = () => {
                                                 <Ionicons
                                                     name={espItem.horaExtra ? 'flash' : 'flash-outline'}
                                                     size={16}
-                                                    color={espItem.horaExtra ? '#fff' : '#ffc107'}
+                                                    color={espItem.horaExtra ? '#1792FE' : '#1792FE'}
                                                 />
                                                 <Text style={[
                                                     styles.editHoraExtraText,
@@ -3084,7 +3084,7 @@ const renderDataSheet = () => {
                                                     style={styles.editRemoveButton}
                                                     onPress={() => removerEspecialidade(index)}
                                                 >
-                                                    <Ionicons name="trash" size={18} color="#dc3545" />
+                                                    <Ionicons name="trash" size={18} color="#1792FE" />
                                                 </TouchableOpacity>
                                             )}
                                         </View>
@@ -3328,7 +3328,7 @@ externosModalContainer: {
 externosModalContent: {
   backgroundColor: '#FFFFFF',
   width: '100%',
-  maxWidth: 500,
+  maxWidth: 800,
   maxHeight: '90%',
   borderRadius: 20,
   elevation: 10,
@@ -3676,7 +3676,7 @@ editModalContainer: {
 editModalContent: {
   backgroundColor: '#FFFFFF',
   width: '100%',
-  maxWidth: 600,
+  maxWidth: 900,
   maxHeight: '90%',
   borderRadius: 20,
   elevation: 10,

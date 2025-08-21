@@ -10,7 +10,7 @@ const obterRegistosParaMapa = async (req, res) => {
         console.log('Parâmetros recebidos:', req.query);
         console.log('Headers de autorização:', req.headers.authorization ? 'Presente' : 'Ausente');
 
-        const { data, obra_id, empresa_id } = req.query;
+        const { data, obra_id, empresa_id, user_id } = req.query;
 
         // Verificar se as tabelas existem
         console.log('Verificando modelos...');
@@ -72,6 +72,12 @@ const obterRegistosParaMapa = async (req, res) => {
         if (obra_id) {
             console.log('Filtrando por obra_id:', obra_id);
             whereClause.obra_id = obra_id;
+        }
+
+        // Filtrar por utilizador se fornecido
+        if (user_id) {
+            console.log('Filtrando por user_id:', user_id);
+            whereClause.user_id = user_id;
         }
 
         console.log('WhereClause final:', JSON.stringify(whereClause, null, 2));
@@ -151,7 +157,7 @@ const obterEstatisticasMapa = async (req, res) => {
     try {
         console.log('=== OBTER ESTATÍSTICAS DO MAPA ===');
         console.log('Parâmetros recebidos:', req.query);
-        const { data, empresa_id } = req.query;
+        const { data, empresa_id, user_id, obra_id } = req.query;
 
         let whereClause = {
             latitude: {
@@ -199,6 +205,17 @@ const obterEstatisticasMapa = async (req, res) => {
             whereClause.timestamp = { [Op.between]: [dataInicio, dataFim] };
         }
 
+        // Aplicar filtros adicionais nas estatísticas
+        if (obra_id) {
+            console.log('Filtrando estatísticas por obra_id:', obra_id);
+            whereClause.obra_id = obra_id;
+        }
+        
+        if (user_id) {
+            console.log('Filtrando estatísticas por user_id:', user_id);
+            whereClause.user_id = user_id;
+        }
+        
         console.log('Filtrando estatísticas por empresa_id:', empresa_id || 'Todas');
 
         console.log('Executando query de estatísticas por tipo...');
