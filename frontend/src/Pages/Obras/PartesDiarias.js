@@ -2921,7 +2921,7 @@ const renderDataSheet = () => {
                                 onPress={criarParteDiaria}
                             >
                                 <LinearGradient
-                                    colors={['#28a745', '#20c997']}
+                                    colors={['#1792FE', '#1792FE']}
                                     style={styles.buttonGradient}
                                 >
                                     <FontAwesome name="save" size={16} color="#FFFFFF" />
@@ -3875,20 +3875,20 @@ editHoraExtraButton: {
   paddingHorizontal: 12,
   borderRadius: 12,
   borderWidth: 1,
-  borderColor: '#ffc107',
+  borderColor: '#1792FE',
   backgroundColor: '#fff',
   gap: 4,
 },
 
 editHoraExtraButtonActive: {
   backgroundColor: '#ffc107',
-  borderColor: '#ffc107',
+  borderColor: '#1792FE',
 },
 
 editHoraExtraText: {
   fontSize: 12,
   fontWeight: '600',
-  color: '#ffc107',
+  color: '#1792FE',
 },
 
 editHoraExtraTextActive: {

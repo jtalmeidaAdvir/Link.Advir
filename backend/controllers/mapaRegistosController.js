@@ -82,6 +82,17 @@ const obterRegistosParaMapa = async (req, res) => {
 
         console.log('WhereClause final:', JSON.stringify(whereClause, null, 2));
 
+        // Debug: Verificar quantos registos existem antes dos filtros de coordenadas
+        const totalRegistosObra = await RegistoPontoObra.count({
+            where: obra_id ? { obra_id: obra_id } : {},
+            include: [{
+                model: Obra,
+                required: true,
+                where: empresa_id ? { empresa_id: empresa_id } : undefined
+            }]
+        });
+        console.log('Total de registos para esta obra/empresa (sem filtro de coordenadas):', totalRegistosObra);
+
         // Incluir filtro de empresa através da obra
         let includeObra = {
             model: Obra,
@@ -112,6 +123,42 @@ const obterRegistosParaMapa = async (req, res) => {
         });
 
         console.log(`Query executada com sucesso. Encontrados ${registos.length} registos`);
+
+        // Debug detalhado dos registos encontrados
+        if (registos.length === 0) {
+            console.log('NENHUM REGISTO ENCONTRADO - Possíveis causas:');
+            console.log('1. Não há registos para a data selecionada');
+            console.log('2. Não há registos com coordenadas válidas');
+            console.log('3. Filtros muito restritivos (obra_id, user_id)');
+            
+            // Verificar registos sem filtro de coordenadas para debug
+            const registosSemFiltroCoords = await RegistoPontoObra.findAll({
+                where: {
+                    timestamp: whereClause.timestamp,
+                    ...(obra_id && { obra_id: obra_id }),
+                    ...(user_id && { user_id: user_id })
+                },
+                include: [includeObra],
+                limit: 5
+            });
+            console.log('Registos encontrados sem filtro de coordenadas:', registosSemFiltroCoords.length);
+            if (registosSemFiltroCoords.length > 0) {
+                console.log('Exemplo de coordenadas encontradas:', registosSemFiltroCoords.map(r => ({
+                    id: r.id,
+                    latitude: r.latitude,
+                    longitude: r.longitude,
+                    obra_id: r.obra_id
+                })));
+            }
+        } else {
+            console.log('Registos encontrados com coordenadas válidas:', registos.map(r => ({
+                id: r.id,
+                user: r.User?.nome,
+                obra: r.Obra?.nome,
+                lat: r.latitude,
+                lng: r.longitude
+            })));
+        }
 
         // Agrupar registos por utilizador e obra
         const registosFormatados = registos.map(registo => {
