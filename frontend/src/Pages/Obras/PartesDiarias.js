@@ -3875,13 +3875,13 @@ editHoraExtraButton: {
   paddingHorizontal: 12,
   borderRadius: 12,
   borderWidth: 1,
-  borderColor: '#1792FE',
+  borderColor: '#fff',
   backgroundColor: '#fff',
   gap: 4,
 },
 
 editHoraExtraButtonActive: {
-  backgroundColor: '#ffc107',
+  backgroundColor: '#1792FE',
   borderColor: '#1792FE',
 },
 

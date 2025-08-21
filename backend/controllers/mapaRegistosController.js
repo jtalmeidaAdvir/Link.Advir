@@ -2,6 +2,7 @@
 const RegistoPontoObra = require('../models/registoPontoObra');
 const User = require('../models/user');
 const Obra = require('../models/obra');
+const User_Empresa = require('../models/user_empresa');
 const { Op } = require('sequelize');
 
 const obterRegistosParaMapa = async (req, res) => {
@@ -12,14 +13,38 @@ const obterRegistosParaMapa = async (req, res) => {
 
         const { data, obra_id, empresa_id, user_id } = req.query;
 
+        if (!empresa_id) {
+            return res.status(400).json({ message: 'empresa_id é obrigatório.' });
+        }
+
         // Verificar se as tabelas existem
         console.log('Verificando modelos...');
         console.log('RegistoPontoObra existe:', !!RegistoPontoObra);
         console.log('User existe:', !!User);
         console.log('Obra existe:', !!Obra);
 
-        // Construir filtros básicos
+        // 1. Primeiro, obter todos os utilizadores desta empresa
+        console.log('Obtendo utilizadores da empresa:', empresa_id);
+        const utilizadoresDaEmpresa = await User_Empresa.findAll({
+            where: { empresa_id: empresa_id },
+            include: [{
+                model: User,
+                attributes: ['id', 'nome', 'email', 'username']
+            }],
+            attributes: ['user_id']
+        });
+
+        const userIds = utilizadoresDaEmpresa.map(ue => ue.user_id);
+        console.log('IDs dos utilizadores da empresa:', userIds);
+
+        if (userIds.length === 0) {
+            console.log('Nenhum utilizador encontrado para esta empresa');
+            return res.status(200).json([]);
+        }
+
+        // 2. Construir filtros para registos com coordenadas válidas
         let whereClause = {
+            user_id: { [Op.in]: userIds }, // Filtrar apenas utilizadores desta empresa
             latitude: {
                 [Op.and]: [
                     { [Op.not]: null },
@@ -74,49 +99,37 @@ const obterRegistosParaMapa = async (req, res) => {
             whereClause.obra_id = obra_id;
         }
 
-        // Filtrar por utilizador se fornecido
+        // Filtrar por utilizador específico se fornecido
         if (user_id) {
-            console.log('Filtrando por user_id:', user_id);
+            console.log('Filtrando por user_id específico:', user_id);
             whereClause.user_id = user_id;
         }
 
         console.log('WhereClause final:', JSON.stringify(whereClause, null, 2));
 
-        // Debug: Verificar quantos registos existem antes dos filtros de coordenadas
-        const totalRegistosObra = await RegistoPontoObra.count({
-            where: obra_id ? { obra_id: obra_id } : {},
-            include: [{
-                model: Obra,
-                required: true,
-                where: empresa_id ? { empresa_id: empresa_id } : undefined
-            }]
+        // Debug: Verificar quantos registos existem para estes utilizadores
+        const totalRegistosUtilizadores = await RegistoPontoObra.count({
+            where: {
+                user_id: { [Op.in]: userIds },
+                ...(obra_id && { obra_id: obra_id })
+            }
         });
-        console.log('Total de registos para esta obra/empresa (sem filtro de coordenadas):', totalRegistosObra);
+        console.log('Total de registos para utilizadores desta empresa:', totalRegistosUtilizadores);
 
-        // Incluir filtro de empresa através da obra
-        let includeObra = {
-            model: Obra,
-            attributes: ['id', 'nome', 'localizacao', 'empresa_id'],
-            required: true // Força INNER JOIN
-        };
-
-        if (empresa_id) {
-            console.log('Filtrando por empresa_id:', empresa_id);
-            includeObra.where = { empresa_id: empresa_id };
-        }
-
-        console.log('Include da obra:', JSON.stringify(includeObra, null, 2));
-
-        console.log('Executando query...');
+        console.log('Executando query principal...');
         const registos = await RegistoPontoObra.findAll({
             where: whereClause,
             include: [
                 {
                     model: User,
-                    attributes: ['id', 'nome', 'email'],
-                    required: false // Mudar para false para debug
+                    attributes: ['id', 'nome', 'email', 'username'],
+                    required: true
                 },
-                includeObra
+                {
+                    model: Obra,
+                    attributes: ['id', 'nome', 'localizacao', 'empresa_id'],
+                    required: false // Permitir registos sem obra associada
+                }
             ],
             order: [['timestamp', 'DESC']],
             limit: 1000 // Limitar para performance
