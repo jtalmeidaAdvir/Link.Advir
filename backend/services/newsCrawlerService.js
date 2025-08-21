@@ -318,33 +318,103 @@ class NewsCrawlerService {
     return articles;
   }
 
-  extractMeta(html, pageUrl) {
-    const $ = cheerio.load(html);
+  // NewsCrawlerService.js
 
-    const description =
-      $('meta[property="og:description"]').attr('content') ||
-      $('meta[name="description"]').attr('content') ||
-      $('meta[name="twitter:description"]').attr('content') ||
-      '';
+ensureHttps(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol === 'http:') { u.protocol = 'https:'; return u.toString(); }
+    return url;
+  } catch { return url; }
+}
 
-    let image =
-      $('meta[property="og:image"]').attr('content') ||
-      $('meta[name="twitter:image"]').attr('content') ||
-      $('meta[name="twitter:image:src"]').attr('content') ||
-      '';
+pickBestImage(urls) {
+  if (!urls || !urls.length) return null;
+  const bad = /sprite|logo|icon|placeholder|ads?|banner|pixel/i;
+  const ok = urls
+    .filter(u => u && !bad.test(u))
+    .map(u => this.ensureHttps(u));
 
-    image = image ? this.ensureAbsoluteUrl(image, pageUrl) : '';
+  const scored = ok.map(u => {
+    let score = 0;
+    const m = u.match(/(\d{3,4})[xX](\d{3,4})/);          // .../1200x630/...
+    if (m) score += (+m[1]) * (+m[2]);
+    const w = u.match(/[^\w](?:w|width)=?(\d{3,4})/i);   // ?w=1200
+    if (w) score += (+w[1]) * 1000;
+    if (/1200|1080|1600/.test(u)) score += 5000;         // heurística simples
+    if (/\.(webp|jpg|jpeg|png)(\?|$)/i.test(u)) score += 2000;
+    return { u, score };
+  }).sort((a, b) => b.score - a.score);
 
-    // fallback brando: primeira imagem relevante
-    if (!image) {
-      const firstImg = $('img[src]').first().attr('src') || '';
-      if (firstImg && !/sprite|logo|icon|placeholder/i.test(firstImg)) {
-        image = this.ensureAbsoluteUrl(firstImg, pageUrl);
+  return (scored[0] && scored[0].u) || ok[0];
+}
+
+extractMeta(html, pageUrl) {
+  const $ = cheerio.load(html);
+
+  // Descrição
+  const description =
+    $('meta[property="og:description"]').attr('content') ||
+    $('meta[name="description"]').attr('content') ||
+    $('meta[name="twitter:description"]').attr('content') || '';
+
+  // Candidatos a imagem (OG/Twitter/rel/json-ld/img lazy/srcset)
+  const cands = new Set();
+
+  // OG/Twitter/rel/itemprop variantes
+  [
+    'meta[property="og:image"]',
+    'meta[name="og:image"]',
+    'meta[property="og:image:url"]',
+    'meta[property="og:image:secure_url"]',
+    'meta[name="twitter:image"]',
+    'meta[property="twitter:image"]',
+    'meta[name="twitter:image:src"]',
+    'link[rel="image_src"]',
+    'meta[itemprop="image"]'
+  ].forEach(sel => {
+    $(sel).each((_, el) => {
+      const v = $(el).attr('content') || $(el).attr('href');
+      if (v) cands.add(this.ensureAbsoluteUrl(v, pageUrl));
+    });
+  });
+
+  // JSON-LD
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const j = JSON.parse($(el).contents().text());
+      const push = (v) => {
+        if (!v) return;
+        if (Array.isArray(v)) v.forEach(push);
+        else if (typeof v === 'string') cands.add(this.ensureAbsoluteUrl(v, pageUrl));
+        else if (v.url) cands.add(this.ensureAbsoluteUrl(v.url, pageUrl));
+      };
+      if (j.image) push(j.image);
+      if (j?.primaryImageOfPage?.url) push(j.primaryImageOfPage.url);
+    } catch { /* ignore */ }
+  });
+
+  // Imagens da página (inclui lazy)
+  $('img').each((_, el) => {
+    const attrs = ['src','data-src','data-original','data-lazy','data-image','data-srcset','srcset'];
+    for (const a of attrs) {
+      let v = $(el).attr(a);
+      if (!v) continue;
+      if (a.endsWith('srcset')) {
+        v.split(',').map(s => s.trim().split(' ')[0]).forEach(u =>
+          cands.add(this.ensureAbsoluteUrl(u, pageUrl))
+        );
+      } else {
+        cands.add(this.ensureAbsoluteUrl(v, pageUrl));
       }
+      break;
     }
+  });
 
-    return { description, image: image || null };
-  }
+  const image = this.pickBestImage([...cands]) || null;
+  return { description, image };
+}
+
 
   prettySnippet(txt) {
     const clean = String(txt || '')

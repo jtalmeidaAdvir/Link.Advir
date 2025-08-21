@@ -23,6 +23,29 @@ router.get('/noticias', authMiddleware, async (req, res) => {
     }
 });
 
+
+router.get('/news/img', /* opcional: authMiddleware, */ async (req, res) => {
+  const u = req.query.u;
+  if (!u) return res.status(400).send('Parâmetro "u" em falta');
+  try {
+    const r = await axios.get(u, {
+      responseType: 'stream',
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'image/*,*/*;q=0.8',
+        // alguns CDNs exigem referer do próprio domínio
+        'Referer': new URL(u).origin
+      },
+      timeout: 15000
+    });
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Content-Type', r.headers['content-type'] || 'image/jpeg');
+    r.data.pipe(res);
+  } catch (e) {
+    res.status(502).send('Falha ao obter imagem');
+  }
+});
+
 // Rota para forçar atualização das notícias
 router.post('/noticias/refresh', authMiddleware, async (req, res) => {
     try {

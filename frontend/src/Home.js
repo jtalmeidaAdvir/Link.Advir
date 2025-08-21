@@ -1907,7 +1907,7 @@ const Home = () => {
                                             <div style={{ fontSize: '48px', marginBottom: '15px' }}>⚠️</div>
                                             <p style={{ fontSize: '18px', fontWeight: '500' }}>{noticiasError}</p>
                                         </div>
-                                    ) : {noticias.length > 0 ? (
+                                    ) : noticias.length > 0 ? (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
     {noticias.map((noticia, index) => (
       <motion.div
@@ -1952,7 +1952,7 @@ const Home = () => {
         }}>
           {noticia.image ? (
             <img
-              src={noticia.image}
+              src={`${BACKEND_BASE_URL}/api/news/img?u=${encodeURIComponent(noticia.image)}`}
               alt={noticia.title}
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               onError={(e)=>{ e.currentTarget.style.display='none'; }}
