@@ -22,7 +22,6 @@ const anexoPedidoRoutes = require('./routes/anexoPedidoRoutes');
 const biometricRoutes = require('./routes/biometricRoutes');
 const trabalhadoresExternosRoutes = require('./routes/trabalhadoresExternosRoutes');
 const mapaRegistosRoutes = require('./routes/mapaRegistosRoutes');
-const newsRoutes = require('./routes/newsRoutes');
 
 
 
