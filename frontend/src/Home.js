@@ -31,6 +31,9 @@ const Home = () => {
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [showEmpresaModal, setShowEmpresaModal] = useState(false);
     const [showApprovals, setShowApprovals] = useState(false);
+    const [noticias, setNoticias] = useState([]);
+    const [noticiasLoading, setNoticiasLoading] = useState(false);
+    const [noticiasError, setNoticiasError] = useState('');
 
     const currentYear = new Date().getFullYear(); // Obtém o ano atual
 
@@ -61,7 +64,7 @@ const Home = () => {
     const ordersRef = useRef(null);
     const productsRef = useRef(null);
     const faqRef = useRef(null);
-
+    const noticiasRef = useRef(null);
 
     const [showForm, setShowForm] = useState(false);
 
@@ -291,6 +294,7 @@ const Home = () => {
         { title: t('Home.menu.contract'), icon: <FaFileContract size={22} />, ref: contractRef },
         { title: t('Home.menu.orders'), icon: <FaPhone size={22} />, ref: ordersRef },
         { title: t('Home.menu.products'), icon: <FaBoxOpen size={22} />, ref: productsRef },
+        { title: t('Notícias'), icon: <FaQuestionCircle size={22} />, ref: noticiasRef },
         { title: t('Home.menu.faq'), icon: <FaQuestionCircle size={22} />, ref: faqRef },
     ];
 
@@ -328,6 +332,35 @@ const Home = () => {
 
 
 
+
+    // Função para buscar notícias
+    const fetchNoticias = async () => {
+        setNoticiasLoading(true);
+        try {
+            const token = localStorage.getItem('loginToken');
+            
+            if (!token) {
+                throw new Error('Token não encontrado');
+            }
+
+            const response = await fetch('https://backend.advir.pt/api/news/noticias', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+            });
+
+            if (!response.ok) throw new Error('Erro ao buscar notícias');
+            
+            const data = await response.json();
+            setNoticias(data.data || []);
+        } catch (error) {
+            setNoticiasError(error.message);
+            console.error('Erro ao buscar notícias:', error);
+        } finally {
+            setNoticiasLoading(false);
+        }
+    };
 
     useEffect(() => {
         const fetchPedidosInfo = async () => {
@@ -438,6 +471,12 @@ const Home = () => {
 
 
 
+
+    useEffect(() => {
+        if (activeMenu === t('Notícias')) {
+            fetchNoticias();
+        }
+    }, [activeMenu]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -1816,6 +1855,181 @@ const Home = () => {
                                     </>
                                 )}
                             </>
+                        )}
+                    </div>
+
+                    <div ref={noticiasRef}>
+                        {activeMenu === t('Notícias') && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5 }}
+                                style={{
+                                    maxWidth: '950px',
+                                    margin: '0 auto',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                    borderRadius: '16px',
+                                    overflow: 'hidden',
+                                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
+                                }}
+                            >
+                                <div style={{
+                                    backgroundColor: '#1976D2',
+                                    padding: '25px 30px',
+                                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+                                }}>
+                                    <h2 style={{
+                                        fontWeight: '700',
+                                        color: '#FFFFFF',
+                                        margin: 0,
+                                        fontSize: '28px',
+                                        textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)'
+                                    }}>
+                                        {t('Notícias Relevantes')}
+                                    </h2>
+                                </div>
+
+                                <div style={{ padding: '30px' }}>
+                                    {noticiasLoading ? (
+                                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+                                            <div className="spinner-border text-primary" role="status">
+                                                <span className="visually-hidden">{t('loading')}</span>
+                                            </div>
+                                        </div>
+                                    ) : noticiasError ? (
+                                        <div style={{
+                                            textAlign: 'center',
+                                            padding: '40px 20px',
+                                            backgroundColor: '#fff0f0',
+                                            borderRadius: '12px',
+                                            color: '#d8000c'
+                                        }}>
+                                            <div style={{ fontSize: '48px', marginBottom: '15px' }}>⚠️</div>
+                                            <p style={{ fontSize: '18px', fontWeight: '500' }}>{noticiasError}</p>
+                                        </div>
+                                    ) : noticias.length > 0 ? (
+                                        <div style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '20px'
+                                        }}>
+                                            {noticias.map((noticia, index) => (
+                                                <motion.div
+                                                    key={index}
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                                                    style={{
+                                                        backgroundColor: '#f8f9fa',
+                                                        borderRadius: '12px',
+                                                        padding: '20px',
+                                                        border: '1px solid #e9ecef',
+                                                        transition: 'all 0.3s ease',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.backgroundColor = '#e3f2fd';
+                                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.backgroundColor = '#f8f9fa';
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.boxShadow = 'none';
+                                                    }}
+                                                    onClick={() => window.open(noticia.link, '_blank')}
+                                                >
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'flex-start',
+                                                        marginBottom: '10px'
+                                                    }}>
+                                                        <span style={{
+                                                            backgroundColor: '#1976D2',
+                                                            color: 'white',
+                                                            padding: '4px 12px',
+                                                            borderRadius: '20px',
+                                                            fontSize: '12px',
+                                                            fontWeight: '600'
+                                                        }}>
+                                                            {noticia.source}
+                                                        </span>
+                                                        <span style={{
+                                                            fontSize: '12px',
+                                                            color: '#757575'
+                                                        }}>
+                                                            {new Date(noticia.date).toLocaleDateString('pt-PT')}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    <h3 style={{
+                                                        fontSize: '18px',
+                                                        fontWeight: '600',
+                                                        color: '#1976D2',
+                                                        margin: '0 0 10px 0',
+                                                        lineHeight: '1.4'
+                                                    }}>
+                                                        {noticia.title}
+                                                    </h3>
+                                                    
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'flex-end',
+                                                        fontSize: '14px',
+                                                        color: '#1976D2',
+                                                        fontWeight: '500'
+                                                    }}>
+                                                        <span>Ler mais</span>
+                                                        <span style={{ marginLeft: '5px' }}>→</span>
+                                                    </div>
+                                                </motion.div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div style={{
+                                            textAlign: 'center',
+                                            padding: '40px 20px',
+                                            backgroundColor: '#f8f9fa',
+                                            borderRadius: '12px',
+                                            color: '#6c757d'
+                                        }}>
+                                            <div style={{ fontSize: '48px', marginBottom: '15px' }}>📰</div>
+                                            <p style={{ fontSize: '18px', fontWeight: '500', margin: 0 }}>
+                                                {t('Nenhuma notícia encontrada')}
+                                            </p>
+                                            <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
+                                                {t('Não foram encontradas notícias relevantes no momento')}
+                                            </p>
+                                        </div>
+                                    )}
+                                    
+                                    <div style={{
+                                        marginTop: '30px',
+                                        textAlign: 'center'
+                                    }}>
+                                        <button
+                                            onClick={fetchNoticias}
+                                            style={{
+                                                padding: '12px 24px',
+                                                backgroundColor: '#1976D2',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '8px',
+                                                fontWeight: '600',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s ease',
+                                                boxShadow: '0 4px 6px rgba(25, 118, 210, 0.2)'
+                                            }}
+                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1565C0'}
+                                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1976D2'}
+                                        >
+                                            {t('Atualizar Notícias')}
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
                         )}
                     </div>
 
