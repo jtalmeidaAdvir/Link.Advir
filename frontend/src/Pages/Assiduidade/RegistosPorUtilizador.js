@@ -48,6 +48,24 @@ const [horarios, setHorarios] = useState({
   saidaTarde: '18:00'
 });
 
+const pad = (n) => String(n).padStart(2, '0');
+
+// Converte (ano, mes 1-12, dia, hh, mm) local → ISO UTC com 'Z'
+const makeUTCISO = (ano, mes, dia, hh, mm) => {
+  const d = new Date(ano, mes - 1, dia, hh, mm, 0); // local
+  return d.toISOString().slice(0, 19) + 'Z';        // UTC com 'Z'
+};
+
+const makeUTCISOFromStrings = (dataYmd, horaHm) => {
+  const [y, m, d] = String(dataYmd).split('-').map(Number);
+  const [hh, mm] = String(horaHm ?? '00:00').split(':').map(Number);
+  return makeUTCISO(y, m, d, hh, mm);
+};
+
+
+
+
+
 // State for falta modal
 const [faltaDialogOpen, setFaltaDialogOpen] = useState(false);
 const [tipoFaltaSelecionado, setTipoFaltaSelecionado] = useState('');
@@ -83,6 +101,11 @@ const handleBulkConfirm = async () => {
         horarios.saidaTarde
       ];
       for (let i = 0; i < 4; i++) {
+          // Criar timestamp sem timezone offset para evitar +1 hora
+           const [hh, mm] = horas[i].split(':').map(Number);
+           const timestamp = makeUTCISO(parseInt(anoSelecionado,10), parseInt(mesSelecionado,10), parseInt(diaNumber,10), hh, mm);
+
+
         const res = await fetch(
           `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`,
           {
@@ -95,7 +118,7 @@ const handleBulkConfirm = async () => {
               tipo: tipos[i],
               obra_id: Number(obraNoDialog),
               user_id: userIdNumber,
-              timestamp: `${dataFormatada}T${horas[i]}:00`
+              timestamp: timestamp
             })
           }
         );
@@ -305,8 +328,7 @@ const handleBulkConfirm = async () => {
                   'Content-Type': 'application/json',
                   Authorization: `Bearer ${painelAdminToken}`,
                   urlempresa: urlempresa,
-                'Authorization': `Bearer ${painelAdminToken}`,
-                  'urlempresa': urlempresa
+                
                 },
               });
 
@@ -862,35 +884,39 @@ const handleBulkConfirm = async () => {
   };
 
  // Registar ponto para um utilizador específico usando SEMPRE o endpoint de "esquecido" + confirmar
- const registarPontoParaUtilizador = async (userId, dia, obraId, tipo = 'entrada', hora = '09:00') => {
-   if (!userId || !dia || !anoSelecionado || !mesSelecionado || !obraId) {
-     return alert('Faltam dados para registar ponto');
-   }
-   const uid = Number(userId);
-   const oid = Number(obraId);
-   const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
-   try {
-     const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`, {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-       body: JSON.stringify({
-         tipo,
-         obra_id: oid,
-         user_id: uid,
-         timestamp: `${dataFormatada}T${hora}:00`
-       })
-     });
-     if (!res.ok) throw new Error('Falha ao criar ponto');
-     const json = await res.json();
-     await fetch(`https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`, {
-       method: 'PATCH',
-       headers: { Authorization: `Bearer ${token}` }
-     });
-     if (viewMode === 'grade') carregarDadosGrade();
-   } catch (err) {
-     alert(err.message);
-   }
- };
+const registarPontoParaUtilizador = async (
+  userId,
+  dia,
+  obraId,
+  tipo = 'entrada',
+  horaStr = '09:00' // <- usa horaStr e tem default
+) => {
+  if (!userId || !dia || !anoSelecionado || !mesSelecionado || !obraId) {
+    return alert('Faltam dados para registar ponto');
+  }
+
+  const uid = Number(userId);
+  const oid = Number(obraId);
+  const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+
+  try {
+    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ tipo, obra_id: oid, user_id: uid, timestamp })
+    });
+    if (!res.ok) throw new Error('Falha ao criar ponto');
+    const json = await res.json();
+    await fetch(`https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (viewMode === 'grade') carregarDadosGrade();
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
 
   // Function to get cell content (including absence data)
   const obterConteudoCelula = (funcionario, dia) => {
@@ -1138,6 +1164,11 @@ const handleBulkConfirm = async () => {
 
           // Registar os 4 pontos para este dia
           for (let i = 0; i < 4; i++) {
+            // Criar timestamp sem timezone offset para evitar +1 hora
+             const [hh, mm] = horas[i].split(':').map(Number);
+             const timestamp = makeUTCISO(parseInt(anoSelecionado,10), parseInt(mesSelecionado,10), parseInt(dia,10), hh, mm);
+
+
             const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`, {
               method: 'POST',
               headers: {
@@ -1148,7 +1179,7 @@ const handleBulkConfirm = async () => {
                 tipo: tipos[i],
                 obra_id: Number(obraSelecionada),
                 user_id: Number(funcionarioSelecionadoAutoFill),
-                timestamp: `${dataFormatada}T${horas[i]}:00`
+                timestamp: timestamp
               })
             });
 
@@ -2169,6 +2200,10 @@ const handleBulkConfirm = async () => {
                           ];
 
                           for (let i = 0; i < 4; i++) {
+                            // Criar timestamp com timezone correto
+                             const timestamp = makeUTCISOFromStrings(dataFormatada, horas[i]);
+
+
                             const res = await fetch(
                               `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`,
                               {
@@ -2181,7 +2216,7 @@ const handleBulkConfirm = async () => {
                                   tipo: tipos[i],
                                   obra_id: Number(obraNoDialog),
                                   user_id: Number(userToRegistar),
-                                  timestamp: `${dataFormatada}T${horas[i]}:00`
+                                  timestamp: timestamp
                                 })
                               }
                             );
