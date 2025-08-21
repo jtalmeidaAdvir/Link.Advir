@@ -964,7 +964,7 @@ const handleBulkConfirm = async () => {
     try {
       // 1. Obter o funcionário selecionado
       const funcionarioData = dadosGrade.find(item => item.utilizador.id.toString() === funcionarioSelecionadoClear.toString());
-      
+
       if (!funcionarioData) {
         throw new Error('Funcionário não encontrado nos dados da grade');
       }
@@ -980,14 +980,14 @@ const handleBulkConfirm = async () => {
 
       // 3. Confirmar com o utilizador
       const confirmacao = confirm(`⚠️ ATENÇÃO: Esta ação irá eliminar TODOS os ${estatisticas.totalRegistos} registos de ponto do dia ${dia} para o funcionário ${funcionarioData.utilizador.nome}.\n\nEsta ação NÃO pode ser desfeita!\n\nTem certeza que pretende continuar?`);
-      
+
       if (!confirmacao) {
         return;
       }
 
       // 4. Segunda confirmação para segurança
       const segundaConfirmacao = confirm(`🔥 ÚLTIMA CONFIRMAÇÃO:\n\nVai eliminar ${estatisticas.totalRegistos} registos de ponto do dia ${dia}/${mesSelecionado}/${anoSelecionado} para ${funcionarioData.utilizador.nome}.\n\nEscreva "CONFIRMAR" na próxima caixa de diálogo para prosseguir.`);
-      
+
       if (!segundaConfirmacao) {
         return;
       }
@@ -1000,7 +1000,7 @@ const handleBulkConfirm = async () => {
 
       // 5. Buscar todos os registos do dia específico
       const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-      
+
       let query = `user_id=${funcionarioSelecionadoClear}&data=${dataFormatada}`;
       if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
 
@@ -1013,7 +1013,7 @@ const handleBulkConfirm = async () => {
       }
 
       const registosParaEliminar = await resListar.json();
-      
+
       if (registosParaEliminar.length === 0) {
         alert('Não foram encontrados registos para eliminar.');
         return;
@@ -1037,12 +1037,12 @@ const handleBulkConfirm = async () => {
             console.error(`Erro ao eliminar registo ${registo.id}:`, await resEliminar.text());
             erros++;
           }
-          
+
           // Pequena pausa para não sobrecarregar o servidor
           if (registosParaEliminar.length > 5) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
-          
+
         } catch (registoErr) {
           console.error(`Erro ao eliminar registo ${registo.id}:`, registoErr);
           erros++;
@@ -1092,7 +1092,7 @@ const handleBulkConfirm = async () => {
     try {
       // 1. Obter os dados atuais do funcionário para identificar dias vazios
       const funcionarioData = dadosGrade.find(item => item.utilizador.id.toString() === funcionarioSelecionadoAutoFill.toString());
-      
+
       if (!funcionarioData) {
         throw new Error('Funcionário não encontrado nos dados da grade');
       }
@@ -1103,7 +1103,7 @@ const handleBulkConfirm = async () => {
         const estatisticas = funcionarioData.estatisticasDias[dia];
         const dataObj = new Date(parseInt(anoSelecionado), parseInt(mesSelecionado) - 1, dia);
         const isWeekend = dataObj.getDay() === 0 || dataObj.getDay() === 6; // Domingo ou Sábado
-        
+
         // Só adicionar dias úteis que estão completamente vazios (sem registos nem faltas)
         if (!isWeekend && (!estatisticas || (estatisticas.totalRegistos === 0 && (!estatisticas.faltas || estatisticas.faltas.length === 0)))) {
           diasVazios.push(dia);
@@ -1117,14 +1117,14 @@ const handleBulkConfirm = async () => {
 
       // 3. Confirmar com o utilizador
       const confirmacao = confirm(`Pretende preencher ${diasVazios.length} dias vazios (${diasVazios.join(', ')}) com pontos automáticos para ${funcionarioData.utilizador.nome}?`);
-      
+
       if (!confirmacao) {
         return;
       }
 
       // 4. Preencher cada dia vazio com os 4 pontos (entrada manhã, saída manhã, entrada tarde, saída tarde)
       let diasPreenchidos = 0;
-      
+
       for (const dia of diasVazios) {
         try {
           const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
@@ -1157,7 +1157,7 @@ const handleBulkConfirm = async () => {
             }
 
             const json = await res.json();
-            
+
             // Confirmar cada ponto
             const resConfirm = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`, {
               method: 'PATCH',
@@ -1170,12 +1170,12 @@ const handleBulkConfirm = async () => {
           }
 
           diasPreenchidos++;
-          
+
           // Pequena pausa entre dias para não sobrecarregar o servidor
           if (diasVazios.length > 5) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
-          
+
         } catch (diaErr) {
           console.error(`Erro ao preencher dia ${dia}:`, diaErr);
           // Continuar com os outros dias mesmo se um falhar
@@ -1217,7 +1217,7 @@ const handleBulkConfirm = async () => {
 
     // Criar mensagem de confirmação detalhada
     let mensagemConfirmacao = `⚠️ ATENÇÃO: Esta ação irá eliminar TODOS os registos de ponto dos dias selecionados:\n\n`;
-    
+
     Object.entries(cellsByUser).forEach(([userId, dias]) => {
       const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
       if (funcionario) {
@@ -1251,25 +1251,18 @@ const handleBulkConfirm = async () => {
           const [userId, dia] = cellKey.split('-');
           const userIdNumber = parseInt(userId, 10);
           const diaNumber = parseInt(dia, 10);
-          
-          console.log(`[DEBUG] Processando célula: ${cellKey}`);
-          console.log(`[DEBUG] userId extraído: ${userId}, userIdNumber: ${userIdNumber}`);
-          console.log(`[DEBUG] dia extraído: ${dia}, diaNumber: ${diaNumber}`);
-          
+
           if (!userIdNumber || isNaN(userIdNumber)) {
             console.error(`[ERROR] userId inválido para célula ${cellKey}: ${userId}`);
             totalErros++;
             continue;
           }
-          
+
           const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaNumber).padStart(2, '0')}`;
-          console.log(`[DEBUG] Data formatada: ${dataFormatada}`);
-          
-          // Buscar registos do dia específico
+
+          // Buscar registos do dia específico usando o user_id diretamente
           let query = `user_id=${userIdNumber}&data=${dataFormatada}`;
           if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
-          
-          console.log(`[DEBUG] Query final: ${query}`);
 
           const resListar = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -1282,7 +1275,7 @@ const handleBulkConfirm = async () => {
           }
 
           const registosParaEliminar = await resListar.json();
-          
+
           // Eliminar cada registo individualmente
           for (const registo of registosParaEliminar) {
             try {
@@ -1297,7 +1290,7 @@ const handleBulkConfirm = async () => {
                 console.error(`Erro ao eliminar registo ${registo.id}`);
                 totalErros++;
               }
-              
+
             } catch (registoErr) {
               console.error(`Erro ao eliminar registo ${registo.id}:`, registoErr);
               totalErros++;
@@ -1329,7 +1322,7 @@ const handleBulkConfirm = async () => {
       // Limpar seleções e recarregar dados
       setSelectedCells([]);
       setBulkDeleteDialogOpen(false);
-      
+
       if (viewMode === 'grade') {
         carregarDadosGrade();
       }
@@ -1356,7 +1349,7 @@ const handleBulkConfirm = async () => {
 
     // Obter o codFuncionario através do endpoint
     const funcionarioId = await obterCodFuncionario(userToRegistar);
-    
+
     if (!funcionarioId) {
       return alert('Não foi possível encontrar o código do funcionário.');
     }
@@ -1497,7 +1490,7 @@ const handleBulkConfirm = async () => {
 
           if (resF40.ok) {
             const f40Data = await resF40.json();
-            
+
             // Aprovar F40 automaticamente também
             await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${f40Data.id}/aprovar`, {
               method: 'PUT',
@@ -1547,7 +1540,7 @@ const handleBulkConfirm = async () => {
                     faltas: []
                   };
                 }
-                
+
                 // Adicionar a falta às estatísticas do dia
                 const novaFalta = {
                   Falta: tipoFaltaSelecionado,
@@ -1746,7 +1739,7 @@ const handleBulkConfirm = async () => {
                 >
                   🗓️ Registar em bloco ({selectedCells.length} dias)
                 </button>
-                
+
                 <button
                   style={{...styles.primaryButton, backgroundColor: '#e53e3e'}}
                   onClick={() => setBulkDeleteDialogOpen(true)}
@@ -1929,7 +1922,7 @@ const handleBulkConfirm = async () => {
                       border: '1px solid #fc8181'
                     }}>
                       <div style={{ fontSize: '0.9rem', color: '#742a2a' }}>
-                        <div style={{ marginBottom: '15px' }}>
+                        <div style={{ marginBottom: '10px' }}>
                           <strong>⚠️ AVISO CRÍTICO:</strong>
                         </div>
                         <div style={{ marginBottom: '10px' }}>
@@ -1943,7 +1936,7 @@ const handleBulkConfirm = async () => {
 
                     <div style={styles.selectedCellsContainer}>
                       <span style={styles.selectedCellsLabel}>Dias selecionados para eliminação:</span>
-                      
+
                       {(() => {
                         // Agrupar por utilizador para mostrar organizadamente
                         const cellsByUser = {};
@@ -1957,7 +1950,7 @@ const handleBulkConfirm = async () => {
                         return Object.entries(cellsByUser).map(([userId, dias]) => {
                           const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
                           if (!funcionario) return null;
-                          
+
                           return (
                             <div key={userId} style={{ 
                               marginBottom: '15px', 
@@ -2424,7 +2417,7 @@ const handleBulkConfirm = async () => {
                             const dia = parseInt(diaSelecionadoClear);
                             if (funcionarioData) {
                               const estatisticas = funcionarioData.estatisticasDias[dia];
-                              
+
                               return (
                                 <div>
                                   <div>• <strong>Funcionário:</strong> {funcionarioData.utilizador.nome}</div>
@@ -2869,9 +2862,18 @@ const handleBulkConfirm = async () => {
   return (
     <td
   onClick={e => {
-    const cellKey = `${item.utilizador.id}-${dia}`;
-    console.log(`[DEBUG] Clique na célula - utilizador.id: ${item.utilizador.id}, dia: ${dia}, cellKey: ${cellKey}`);
-    
+    // Garantir que os valores são números válidos antes de criar a cellKey
+    const userId = parseInt(item.utilizador.id, 10);
+    const diaNum = parseInt(dia, 10);
+
+    if (isNaN(userId) || isNaN(diaNum)) {
+      console.error(`[ERROR] IDs inválidos - utilizador.id: ${item.utilizador.id}, dia: ${dia}`);
+      return;
+    }
+
+    const cellKey = `${userId}-${diaNum}`;
+    console.log(`[DEBUG] Clique na célula - utilizador.id: ${userId}, dia: ${diaNum}, cellKey: "${cellKey}"`);
+
     if (e.ctrlKey) {
       setSelectedCells(cells => {
         const newCells = cells.includes(cellKey)
@@ -2881,8 +2883,8 @@ const handleBulkConfirm = async () => {
         return newCells;
       });
     } else {
-      setUserToRegistar(item.utilizador.id);
-      setDiaToRegistar(dia);
+      setUserToRegistar(userId);
+      setDiaToRegistar(diaNum);
       setDialogOpen(true);
     }
   }}
@@ -4036,43 +4038,6 @@ if (typeof document !== 'undefined') {
       background: #f5f7fa !important;
       overflow-y: auto !important;
       overflow-x: hidden !important;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-      .grade-table {
-        font-size: 0.7rem;
-      }
-
-      .grade-header,
-      .grade-cell {
-        padding: 4px !important;
-        min-width: 40px !important;
-        max-width: 40px !important;
-      }
-
-      .grade-cell-fixed {
-        min-width: 150px !important;
-        max-width: 150px !important;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .utilizadores-grid {
-        grid-template-columns: 1fr !important;
-      }
-
-      .filters-grid {
-        grid-template-columns: 1fr !important;
-      }
-
-      .navigation-tabs {
-        flex-direction: column !important;
-      }
-
-      .nav-tab {
-        width: 100% !important;
-      }
     }
 
     /* Modal animations */

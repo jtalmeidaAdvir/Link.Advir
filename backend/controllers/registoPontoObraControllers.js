@@ -458,10 +458,6 @@ const eliminarRegisto = async (req, res) => {
     const { id } = req.params;
     const userRole = req.user.role;
 
-    // Verificar se o utilizador tem permissão (deve ser admin)
-    if (userRole !== 'admin') {
-      return res.status(403).json({ message: 'Acesso negado. Apenas administradores podem eliminar registos.' });
-    }
 
     // Verificar se o registo existe
     const registo = await RegistoPontoObra.findByPk(id);
