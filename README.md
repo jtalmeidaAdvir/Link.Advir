@@ -130,7 +130,7 @@ EMAIL_PASS=sua_password_app
 Editar o ficheiro `frontend/config.js`:
 ```javascript
 const config = {
-  API_BASE_URL: 'http://0.0.0.0:5000',
+  API_BASE_URL: 'http://localhost:3000',
   PRIMAVERA_API_URL: 'http://0.0.0.0:3001',
   // outras configurações...
 };
@@ -147,7 +147,7 @@ const config = {
 ```bash
 cd backend
 npm start
-# Servidor disponível em http://0.0.0.0:5000
+# Servidor disponível em http://localhost:3000
 ```
 
 ### 2. Iniciar API Primavera

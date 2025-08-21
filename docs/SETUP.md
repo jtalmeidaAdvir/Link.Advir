@@ -91,7 +91,7 @@ PRIMAVERA_API_KEY=sua_chave_api
 
 # Outros
 NODE_ENV=development
-PORT=5000
+PORT=3000
 LOG_LEVEL=debug
 ```
 
@@ -117,7 +117,7 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 
 const config = {
   API_BASE_URL: isDevelopment 
-    ? 'http://0.0.0.0:5000/api' 
+    ? 'http://localhost:3000/api' 
     : 'https://seu-dominio.com/api',
   
   PRIMAVERA_API_URL: isDevelopment

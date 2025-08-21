@@ -3,7 +3,7 @@
 
 ## Base URL
 ```
-Desenvolvimento: http://0.0.0.0:5000/api
+Desenvolvimento: http://localhost:3000/api
 Produção: https://seu-dominio.com/api
 ```
 

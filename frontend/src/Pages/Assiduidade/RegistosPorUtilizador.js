@@ -37,6 +37,8 @@ const [obraNoDialog, setObraNoDialog] = useState(obraSelecionada || '');
 
 const [selectedCells, setSelectedCells] = useState([]);
 const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+const [loadingBulkDelete, setLoadingBulkDelete] = useState(false);
 
 
 const [horarios, setHorarios] = useState({
@@ -69,8 +71,10 @@ const handleBulkConfirm = async () => {
   }
   try {
     for (const cellKey of selectedCells) {
-      const [userId, dia] = cellKey.split('-').map(Number);
-      const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+      const [userId, dia] = cellKey.split('-');
+      const userIdNumber = parseInt(userId, 10);
+      const diaNumber = parseInt(dia, 10);
+      const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(diaNumber).padStart(2,'0')}`;
       const tipos = ['entrada','saida','entrada','saida'];
       const horas = [
         horarios.entradaManha,
@@ -90,7 +94,7 @@ const handleBulkConfirm = async () => {
             body: JSON.stringify({
               tipo: tipos[i],
               obra_id: Number(obraNoDialog),
-              user_id: Number(userId),
+              user_id: userIdNumber,
               timestamp: `${dataFormatada}T${horas[i]}:00`
             })
           }
@@ -1197,6 +1201,147 @@ const handleBulkConfirm = async () => {
     }
   };
 
+  const eliminarPontosEmBloco = async () => {
+    if (selectedCells.length === 0) {
+      return alert('Nenhuma célula selecionada.');
+    }
+
+    // Agrupar células por utilizador para mostrar um resumo melhor
+    const cellsByUser = {};
+    selectedCells.forEach(cellKey => {
+      const [userId, dia] = cellKey.split('-');
+      const userIdNumber = parseInt(userId, 10);
+      if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
+      cellsByUser[userIdNumber].push(parseInt(dia, 10));
+    });
+
+    // Criar mensagem de confirmação detalhada
+    let mensagemConfirmacao = `⚠️ ATENÇÃO: Esta ação irá eliminar TODOS os registos de ponto dos dias selecionados:\n\n`;
+    
+    Object.entries(cellsByUser).forEach(([userId, dias]) => {
+      const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
+      if (funcionario) {
+        mensagemConfirmacao += `• ${funcionario.utilizador.nome}: dias ${dias.join(', ')}\n`;
+      }
+    });
+
+    mensagemConfirmacao += `\nTotal de ${selectedCells.length} seleções.\n\nEsta ação NÃO pode ser desfeita!\n\nTem certeza que pretende continuar?`;
+
+    const confirmacao = confirm(mensagemConfirmacao);
+    if (!confirmacao) return;
+
+    // Segunda confirmação para segurança
+    const segundaConfirmacao = confirm(`🔥 ÚLTIMA CONFIRMAÇÃO:\n\nVai eliminar registos de ${selectedCells.length} dias selecionados.\n\nEscreva "ELIMINAR" na próxima caixa de diálogo para prosseguir.`);
+    if (!segundaConfirmacao) return;
+
+    const textoConfirmacao = prompt('Digite "ELIMINAR" (sem aspas) para confirmar a eliminação:');
+    if (textoConfirmacao !== 'ELIMINAR') {
+      alert('Operação cancelada. Texto de confirmação incorreto.');
+      return;
+    }
+
+    setLoadingBulkDelete(true);
+
+    try {
+      let totalEliminados = 0;
+      let totalErros = 0;
+
+      for (const cellKey of selectedCells) {
+        try {
+          const [userId, dia] = cellKey.split('-');
+          const userIdNumber = parseInt(userId, 10);
+          const diaNumber = parseInt(dia, 10);
+          
+          console.log(`[DEBUG] Processando célula: ${cellKey}`);
+          console.log(`[DEBUG] userId extraído: ${userId}, userIdNumber: ${userIdNumber}`);
+          console.log(`[DEBUG] dia extraído: ${dia}, diaNumber: ${diaNumber}`);
+          
+          if (!userIdNumber || isNaN(userIdNumber)) {
+            console.error(`[ERROR] userId inválido para célula ${cellKey}: ${userId}`);
+            totalErros++;
+            continue;
+          }
+          
+          const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaNumber).padStart(2, '0')}`;
+          console.log(`[DEBUG] Data formatada: ${dataFormatada}`);
+          
+          // Buscar registos do dia específico
+          let query = `user_id=${userIdNumber}&data=${dataFormatada}`;
+          if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
+          
+          console.log(`[DEBUG] Query final: ${query}`);
+
+          const resListar = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          if (!resListar.ok) {
+            console.error(`Erro ao obter registos para eliminação do dia ${dia} do utilizador ${userId}`);
+            totalErros++;
+            continue;
+          }
+
+          const registosParaEliminar = await resListar.json();
+          
+          // Eliminar cada registo individualmente
+          for (const registo of registosParaEliminar) {
+            try {
+              const resEliminar = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/eliminar/${registo.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+              });
+
+              if (resEliminar.ok) {
+                totalEliminados++;
+              } else {
+                console.error(`Erro ao eliminar registo ${registo.id}`);
+                totalErros++;
+              }
+              
+            } catch (registoErr) {
+              console.error(`Erro ao eliminar registo ${registo.id}:`, registoErr);
+              totalErros++;
+            }
+          }
+
+          // Pequena pausa para não sobrecarregar o servidor
+          if (selectedCells.length > 3) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+
+        } catch (cellErr) {
+          console.error(`Erro ao processar célula ${cellKey}:`, cellErr);
+          totalErros++;
+        }
+      }
+
+      // Mostrar resultado da operação
+      let mensagemResultado = `✅ Eliminação em bloco concluída!\n\n`;
+      mensagemResultado += `• Registos eliminados: ${totalEliminados}\n`;
+      if (totalErros > 0) {
+        mensagemResultado += `• Erros encontrados: ${totalErros}\n`;
+        mensagemResultado += `• Verifique o console para detalhes dos erros\n`;
+      }
+      mensagemResultado += `\nTodos os registos selecionados foram processados.`;
+
+      alert(mensagemResultado);
+
+      // Limpar seleções e recarregar dados
+      setSelectedCells([]);
+      setBulkDeleteDialogOpen(false);
+      
+      if (viewMode === 'grade') {
+        carregarDadosGrade();
+      }
+
+    } catch (err) {
+      console.error('Erro na eliminação em bloco:', err);
+      alert(`Erro na eliminação em bloco: ${err.message}`);
+    } finally {
+      setLoadingBulkDelete(false);
+    }
+  };
+
   const registarFalta = async () => {
     if (!userToRegistar || !diaToRegistar || !tipoFaltaSelecionado || !duracaoFalta) {
       return alert('Por favor, preencha todos os campos para registar a falta.');
@@ -1594,12 +1739,21 @@ const handleBulkConfirm = async () => {
               )}
 
               {viewMode === 'grade' && selectedCells.length > 0 && (
-              <button
-                style={styles.primaryButton}
-                onClick={() => setBulkDialogOpen(true)}
-              >
-                🗓️ Registar em bloco ({selectedCells.length} dias)
-              </button>
+              <>
+                <button
+                  style={styles.primaryButton}
+                  onClick={() => setBulkDialogOpen(true)}
+                >
+                  🗓️ Registar em bloco ({selectedCells.length} dias)
+                </button>
+                
+                <button
+                  style={{...styles.primaryButton, backgroundColor: '#e53e3e'}}
+                  onClick={() => setBulkDeleteDialogOpen(true)}
+                >
+                  🗑️ Eliminar pontos ({selectedCells.length} dias)
+                </button>
+              </>
             )}
 
             {viewMode === 'grade' && dadosGrade.length > 0 && (
@@ -1747,6 +1901,156 @@ const handleBulkConfirm = async () => {
     </div>
   </div>
 )}
+
+            {/* Modal para eliminação em bloco */}
+            {bulkDeleteDialogOpen && (
+              <div style={styles.modalOverlay}>
+                <div style={styles.bulkModal}>
+                  <div style={{...styles.bulkModalHeader, background: 'linear-gradient(135deg, #e53e3e, #c53030)'}}>
+                    <h3 style={styles.bulkModalTitle}>
+                      🗑️ Eliminar Pontos em Bloco
+                    </h3>
+                    <p style={styles.bulkModalSubtitle}>
+                      Eliminando registos de {selectedCells.length} seleções
+                    </p>
+                    <button
+                      style={styles.closeButton}
+                      onClick={() => setBulkDeleteDialogOpen(false)}
+                      aria-label="Fechar"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div style={styles.bulkModalContent}>
+                    <div style={{
+                      ...styles.selectedCellsContainer,
+                      backgroundColor: '#fed7d7',
+                      border: '1px solid #fc8181'
+                    }}>
+                      <div style={{ fontSize: '0.9rem', color: '#742a2a' }}>
+                        <div style={{ marginBottom: '15px' }}>
+                          <strong>⚠️ AVISO CRÍTICO:</strong>
+                        </div>
+                        <div style={{ marginBottom: '10px' }}>
+                          Esta operação irá <strong>eliminar permanentemente</strong> todos os registos de ponto dos dias selecionados.
+                        </div>
+                        <div style={{ marginBottom: '15px', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                          Esta ação <strong>NÃO pode ser desfeita</strong>!
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={styles.selectedCellsContainer}>
+                      <span style={styles.selectedCellsLabel}>Dias selecionados para eliminação:</span>
+                      
+                      {(() => {
+                        // Agrupar por utilizador para mostrar organizadamente
+                        const cellsByUser = {};
+                        selectedCells.forEach(cellKey => {
+                          const [userId, dia] = cellKey.split('-');
+                          const userIdNumber = parseInt(userId, 10);
+                          if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
+                          cellsByUser[userIdNumber].push(parseInt(dia, 10));
+                        });
+
+                        return Object.entries(cellsByUser).map(([userId, dias]) => {
+                          const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
+                          if (!funcionario) return null;
+                          
+                          return (
+                            <div key={userId} style={{ 
+                              marginBottom: '15px', 
+                              padding: '12px', 
+                              backgroundColor: '#f8f9fa', 
+                              borderRadius: '8px',
+                              border: '1px solid #e2e8f0'
+                            }}>
+                              <div style={{ 
+                                fontWeight: '600', 
+                                marginBottom: '8px',
+                                color: '#2d3748'
+                              }}>
+                                👤 {funcionario.utilizador.nome}
+                              </div>
+                              <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>
+                                <strong>Dias:</strong> {dias.sort((a, b) => a - b).join(', ')}
+                              </div>
+                              <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>
+                                {dias.length} dia{dias.length !== 1 ? 's' : ''} selecionado{dias.length !== 1 ? 's' : ''}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+
+                    <div style={styles.obraContainer}>
+                      <label style={styles.obraLabel}>
+                        <span style={styles.obraIcon}>🏗️</span>
+                        Obra Selecionada (Filtro Aplicado)
+                      </label>
+                      <div style={{
+                        padding: '12px 16px',
+                        border: '2px solid #e2e8f0',
+                        borderRadius: '12px',
+                        backgroundColor: '#f8f9fa',
+                        fontSize: '1rem',
+                        color: obraSelecionada ? '#2d3748' : '#718096'
+                      }}>
+                        {obraSelecionada 
+                          ? `${obras.find(o => o.id.toString() === obraSelecionada.toString())?.nome || `Obra ${obraSelecionada}`} - Apenas registos desta obra serão eliminados`
+                          : 'Todas as obras - Todos os registos dos dias serão eliminados'
+                        }
+                      </div>
+                    </div>
+
+                    <div style={{
+                      ...styles.selectedCellsContainer,
+                      backgroundColor: '#fef5e7',
+                      border: '1px solid #f6e05e',
+                      marginTop: '20px'
+                    }}>
+                      <div style={{ fontSize: '0.9rem', color: '#744210' }}>
+                        <div style={{ marginBottom: '10px' }}>
+                          <strong>📊 Resumo da Eliminação:</strong>
+                        </div>
+                        <div>• <strong>Total de seleções:</strong> {selectedCells.length}</div>
+                        <div>• <strong>Utilizadores afetados:</strong> {Object.keys(selectedCells.reduce((acc, cell) => {
+                          const userId = parseInt(cell.split('-')[0], 10);
+                          acc[userId] = true;
+                          return acc;
+                        }, {})).length}</div>
+                        <div>• <strong>Período:</strong> {mesSelecionado}/{anoSelecionado}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={styles.bulkModalActions}>
+                    <button
+                      style={styles.cancelButton}
+                      onClick={() => setBulkDeleteDialogOpen(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      style={{...styles.confirmButton, backgroundColor: '#e53e3e'}}
+                      onClick={eliminarPontosEmBloco}
+                      disabled={loadingBulkDelete}
+                    >
+                      {loadingBulkDelete ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                          A eliminar...
+                        </>
+                      ) : (
+                        '🗑️ Confirmar Eliminação'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Modal para registo individual */}
             {dialogOpen && (
@@ -2566,12 +2870,16 @@ const handleBulkConfirm = async () => {
     <td
   onClick={e => {
     const cellKey = `${item.utilizador.id}-${dia}`;
+    console.log(`[DEBUG] Clique na célula - utilizador.id: ${item.utilizador.id}, dia: ${dia}, cellKey: ${cellKey}`);
+    
     if (e.ctrlKey) {
-      setSelectedCells(cells =>
-        cells.includes(cellKey)
+      setSelectedCells(cells => {
+        const newCells = cells.includes(cellKey)
           ? cells.filter(c => c !== cellKey)
-          : [...cells, cellKey]
-      );
+          : [...cells, cellKey];
+        console.log(`[DEBUG] Células selecionadas atualizadas:`, newCells);
+        return newCells;
+      });
     } else {
       setUserToRegistar(item.utilizador.id);
       setDiaToRegistar(dia);
