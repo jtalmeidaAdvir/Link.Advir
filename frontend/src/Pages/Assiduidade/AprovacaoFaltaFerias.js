@@ -1127,7 +1127,7 @@ const AprovacaoFaltaFerias = () => {
                                                         ) : (
                                                             <div className="d-flex gap-2">
                                                                 <button
-                                                                    className="btn btn-success btn-responsive rounded-pill flex-fill"
+                                                                    className="btn btn-primary btn-responsive rounded-pill flex-fill"
                                                                     onClick={() => confirmarPedido(pedido)}
                                                                     disabled={loading}
                                                                 >
@@ -1136,7 +1136,7 @@ const AprovacaoFaltaFerias = () => {
                                                                     <span className="d-sm-none">✔</span>
                                                                 </button>
                                                                 <button
-                                                                    className="btn btn-danger btn-responsive rounded-pill flex-fill"
+                                                                    className="btn btn-primary btn-responsive rounded-pill flex-fill"
                                                                     onClick={() => rejeitarPedido(pedido.id)}
                                                                     disabled={loading}
                                                                 >

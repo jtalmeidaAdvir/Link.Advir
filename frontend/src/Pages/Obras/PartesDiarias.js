@@ -2022,7 +2022,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                     onPress={() => setModalVisible(true)}
                 >
                     <LinearGradient
-                        colors={['#28a745', '#20c997']}
+                        colors={['#1792FE', '#1792FE']}
                         style={styles.buttonGradient}
                     >
                         <FontAwesome name="save" size={16} color="#FFFFFF" />
@@ -2054,7 +2054,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
   style={styles.actionButton}
   onPress={abrirModalExternos}
 >
-  <LinearGradient colors={['#6f42c1', '#5b32a3']} style={styles.buttonGradient}>
+  <LinearGradient colors={['#1792FE', '#1792FE']} style={styles.buttonGradient}>
     <Ionicons name="people" size={16} color="#fff" />
     <Text style={styles.buttonText}>Adicionar Externos</Text>
   </LinearGradient>
@@ -2115,7 +2115,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
           <View style={styles.externosModalContent}>
             {/* Header melhorado */}
             <LinearGradient 
-              colors={['#6f42c1', '#5b32a3']} 
+              colors={['#1792FE', '#1792FE']} 
               style={styles.externosModalHeader}
             >
               <View style={styles.externosModalHeaderContent}>
@@ -2143,7 +2143,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
               {/* Card do formulário */}
               <View style={styles.externosFormCard}>
                 <Text style={styles.externosFormTitle}>
-                  <Ionicons name="document-text" size={16} color="#6f42c1" /> Novo Registo
+                  <Ionicons name="document-text" size={16} color="#1792FE" /> Novo Registo
                 </Text>
                 
                 {/* Grid responsivo para campos */}
@@ -2236,7 +2236,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                         <Ionicons 
                           name={opt.icon} 
                           size={16} 
-                          color={linhaAtual.categoria === opt.value ? '#fff' : '#6f42c1'} 
+                          color={linhaAtual.categoria === opt.value ? '#fff' : '#1792FE'} 
                         />
                         <Text style={[
                           styles.externosCategoryButtonText,
@@ -2314,7 +2314,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                       <Ionicons
                         name={linhaAtual.horaExtra ? 'checkmark-circle' : 'ellipse-outline'}
                         size={20}
-                        color={linhaAtual.horaExtra ? '#fff' : '#6f42c1'}
+                        color={linhaAtual.horaExtra ? '#fff' : '#1792FE'}
                       />
                       <Text style={[
                         styles.externosCheckboxText,
@@ -2332,7 +2332,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                   style={styles.externosAddButton}
                 >
                   <LinearGradient 
-                    colors={['#17a2b8', '#0ea5a3']} 
+                    colors={['#1792FE', '#1792FE']} 
                     style={styles.externosAddButtonGradient}
                   >
                     <Ionicons name="add-circle" size={18} color="#fff" />
@@ -2345,7 +2345,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
               {linhasExternos.length > 0 && (
                 <View style={styles.externosListCard}>
                   <Text style={styles.externosListTitle}>
-                    <Ionicons name="list" size={16} color="#17a2b8" /> 
+                    <Ionicons name="list" size={16} color="#1792FE" /> 
                     Itens para Submeter ({linhasExternos.length})
                   </Text>
                   
@@ -2396,7 +2396,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                     ]}
                   >
                     <LinearGradient 
-                      colors={linhasExternos.length === 0 ? ['#ccc', '#999'] : ['#6f42c1', '#5b32a3']} 
+                      colors={linhasExternos.length === 0 ? ['#ccc', '#999'] : ['#1792FE', '#1792FE']} 
                       style={styles.externosSubmitButtonGradient}
                     >
                       <Ionicons name="cloud-upload" size={18} color="#fff" />
@@ -2999,7 +2999,7 @@ const renderDataSheet = () => {
                                         <Text style={styles.editInfoLabel}>
                                             <Ionicons name="time" size={14} color="#666" /> Horas de Ponto
                                         </Text>
-                                        <Text style={[styles.editInfoValue, { color: '#17a2b8' }]}>
+                                        <Text style={[styles.editInfoValue, { color: '#1792FE' }]}>
                                             {formatarHorasMinutos(selectedTrabalhador.horasOriginais[selectedDia] || 0)}
                                         </Text>
                                     </View>
@@ -3008,7 +3008,7 @@ const renderDataSheet = () => {
                                         <Text style={styles.editInfoLabel}>
                                             <Ionicons name="clipboard" size={14} color="#666" /> Para Parte Diária
                                         </Text>
-                                        <Text style={[styles.editInfoValue, { color: '#28a745' }]}>
+                                        <Text style={[styles.editInfoValue, { color: '#1792FE' }]}>
                                             {formatarHorasMinutos(selectedTrabalhador.horasPorDia[selectedDia] || 0)}
                                         </Text>
                                     </View>
