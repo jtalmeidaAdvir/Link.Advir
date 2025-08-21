@@ -46,6 +46,11 @@ const [horarios, setHorarios] = useState({
   saidaTarde: '18:00'
 });
 
+// State for falta modal
+const [faltaDialogOpen, setFaltaDialogOpen] = useState(false);
+const [tipoFaltaSelecionado, setTipoFaltaSelecionado] = useState('');
+const [duracaoFalta, setDuracaoFalta] = useState(''); // 'd' for day, 'h' for hour
+
 
 const handleBulkConfirm = async () => {
   if (!obraNoDialog) {
@@ -278,7 +283,7 @@ const handleBulkConfirm = async () => {
               // Agora usar o codFuncionario para buscar as faltas
               const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
               console.log(`[DEBUG] URL chamada para faltas:`, urlFaltas);
-              
+
               const resFaltas = await fetch(urlFaltas, {
                 method: 'GET',
                 headers: {
@@ -295,7 +300,7 @@ const handleBulkConfirm = async () => {
               if (resFaltas.ok) {
                 const dataFaltas = await resFaltas.json();
                 console.log(`[DEBUG] Resposta completa das faltas para ${user.nome} (codFuncionario: ${codFuncionario}):`, dataFaltas);
-                
+
                 const listaFaltas = dataFaltas?.DataSet?.Table ?? [];
                 console.log(`[DEBUG] Lista de faltas extraída:`, listaFaltas);
                 console.log(`[DEBUG] Número total de faltas encontradas:`, listaFaltas.length);
@@ -306,12 +311,12 @@ const handleBulkConfirm = async () => {
                   const anoFalta = dataFalta.getFullYear();
                   const mesFalta = dataFalta.getMonth();
                   const filtroMatch = anoFalta === parseInt(anoSelecionado) && mesFalta === parseInt(mesSelecionado) - 1;
-                  
+
                   console.log(`[DEBUG] Falta: ${f.Data} - Ano: ${anoFalta}, Mês: ${mesFalta + 1}, Match: ${filtroMatch}`);
-                  
+
                   return filtroMatch;
                 });
-                
+
                 console.log(`[DEBUG] Faltas filtradas para ${user.nome} (${mesSelecionado}/${anoSelecionado}):`, faltasUtilizador);
               } else {
                 const errorText = await resFaltas.text();
@@ -403,10 +408,10 @@ const handleBulkConfirm = async () => {
               totalHorasEstimadas: totalHorasEstimadas.toFixed(1),
               totalFaltas: faltasUtilizador.length
             };
-            
+
             console.log(`[DEBUG] Dados finais para ${user.nome}:`, dadosUtilizador);
             console.log(`[DEBUG] Estatísticas por dia para ${user.nome}:`, estatisticasDias);
-            
+
             dadosGradeTemp.push(dadosUtilizador);
           } else {
             // Mesmo se não houver registos, adicionar o utilizador com dados vazios
@@ -913,6 +918,174 @@ const handleBulkConfirm = async () => {
     }
   };
 
+  const obterCodFuncionario = async (userId) => {
+    try {
+      const res = await fetch(`https://backend.advir.pt/api/users/${userId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        }
+      });
+      if (!res.ok) throw new Error('Erro ao obter codFuncionario');
+      const data = await res.json();
+      return data.codFuncionario;
+    } catch (err) {
+      console.error('Erro ao obter codFuncionario:', err);
+      return null;
+    }
+  };
+
+  const registarFalta = async () => {
+    if (!userToRegistar || !diaToRegistar || !tipoFaltaSelecionado || !duracaoFalta) {
+      return alert('Por favor, preencha todos os campos para registar a falta.');
+    }
+
+    const token = localStorage.getItem('loginToken');
+    const empresaId = localStorage.getItem('empresa_id');
+    const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(diaToRegistar).padStart(2,'0')}`;
+
+    // Obter o codFuncionario através do endpoint
+    const funcionarioId = await obterCodFuncionario(userToRegistar);
+    
+    if (!funcionarioId) {
+      return alert('Não foi possível encontrar o código do funcionário.');
+    }
+
+    // Determinar se é por horas baseado na duração
+    const isHoras = duracaoFalta && duracaoFalta.toString().includes('h');
+    const tempoNumerico = parseInt(duracaoFalta) || 1;
+
+    // Verificar se a falta selecionada desconta alimentação (assumindo que temos essa info nos tipos)
+    const tipoFalta = Object.keys(tiposFaltas).find(key => key === tipoFaltaSelecionado);
+    const descontaAlimentacao = false; // Pode ser configurado baseado no tipo de falta
+
+    const dadosPrincipal = {
+      tipoPedido: 'FALTA',
+      funcionario: funcionarioId,
+      empresaId: empresaId,
+      dataPedido: dataFormatada,
+      falta: tipoFaltaSelecionado,
+      horas: isHoras ? 1 : 0,
+      tempo: tempoNumerico,
+      justificacao: 'Registado via interface de administração',
+      observacoes: '',
+      usuarioCriador: localStorage.getItem('codFuncionario') || funcionarioId,
+      origem: 'ADMIN',
+      descontaAlimentacao: descontaAlimentacao ? 1 : 0,
+      descontaSubsidioTurno: 0
+    };
+
+    try {
+      setCarregando(true);
+
+      const res = await fetch('https://backend.advir.pt/api/faltas-ferias/aprovacao', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          urlempresa: empresaId
+        },
+        body: JSON.stringify(dadosPrincipal)
+      });
+
+      if (res.ok) {
+        alert('Pedido de falta submetido com sucesso para aprovação.');
+
+        // Submeter F40 automático se aplicável
+        if (descontaAlimentacao) {
+          const dadosF40 = {
+            ...dadosPrincipal,
+            falta: 'F40',
+            justificacao: 'Submetida automaticamente (desconto alimentação)',
+            observacoes: '',
+          };
+
+          const resF40 = await fetch('https://backend.advir.pt/api/faltas-ferias/aprovacao', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+              urlempresa: empresaId
+            },
+            body: JSON.stringify(dadosF40)
+          });
+
+          if (resF40.ok) {
+            console.log('Falta F40 submetida automaticamente.');
+          } else {
+            console.warn('Erro ao submeter falta F40:', await resF40.text());
+          }
+        }
+
+        // Resetar formulários
+        setFaltaDialogOpen(false);
+        setDialogOpen(false);
+        setTipoFaltaSelecionado('');
+        setDuracaoFalta('');
+
+        // Atualização optimista da UI
+        if (viewMode === 'grade') {
+          // Atualizar imediatamente a célula da grade
+          setDadosGrade(prevDados => {
+            return prevDados.map(item => {
+              if (item.utilizador.id === userToRegistar) {
+                const estatisticasAtualizadas = { ...item.estatisticasDias };
+                if (!estatisticasAtualizadas[diaToRegistar]) {
+                  estatisticasAtualizadas[diaToRegistar] = {
+                    totalRegistos: 0,
+                    entradas: 0,
+                    saidas: 0,
+                    confirmados: 0,
+                    naoConfirmados: 0,
+                    horasEstimadas: '0.0',
+                    primeiroRegisto: null,
+                    ultimoRegisto: null,
+                    obras: [],
+                    faltas: []
+                  };
+                }
+                
+                // Adicionar a falta às estatísticas do dia
+                const novaFalta = {
+                  Falta: tipoFaltaSelecionado,
+                  Data: dataFormatada,
+                  Tempo: tempoNumerico,
+                  Horas: isHoras
+                };
+                estatisticasAtualizadas[diaToRegistar].faltas = [
+                  ...(estatisticasAtualizadas[diaToRegistar].faltas || []),
+                  novaFalta
+                ];
+
+                return {
+                  ...item,
+                  estatisticasDias: estatisticasAtualizadas,
+                  totalFaltas: (item.totalFaltas || 0) + 1
+                };
+              }
+              return item;
+            });
+          });
+
+          // Recarregar dados completos em background
+          setTimeout(() => {
+            carregarDadosGrade();
+          }, 500);
+        }
+
+      } else {
+        const erro = await res.text();
+        alert('Erro ao submeter falta: ' + erro);
+      }
+
+    } catch (err) {
+      console.error('Erro ao submeter falta:', err);
+      alert('Erro inesperado ao submeter falta.');
+    } finally {
+      setCarregando(false);
+    }
+  };
+
 
   return (
     <div style={styles.container}>
@@ -1081,7 +1254,7 @@ const handleBulkConfirm = async () => {
         <p style={styles.bulkModalSubtitle}>
           Registando para {selectedCells.length} seleções
         </p>
-        <button 
+        <button
           style={styles.closeButton}
           onClick={() => setBulkDialogOpen(false)}
           aria-label="Fechar"
@@ -1104,7 +1277,7 @@ const handleBulkConfirm = async () => {
 
         <div style={styles.horariosContainer}>
           <h4 style={styles.horariosTitle}>⏰ Configurar Horários</h4>
-          
+
           <div style={styles.horariosGrid}>
             <div style={styles.periodoContainer}>
               <div style={styles.periodoHeader}>
@@ -1181,13 +1354,13 @@ const handleBulkConfirm = async () => {
       </div>
 
       <div style={styles.bulkModalActions}>
-        <button 
+        <button
           style={styles.cancelButton}
           onClick={() => setBulkDialogOpen(false)}
         >
           Cancelar
         </button>
-        <button 
+        <button
           style={styles.confirmButton}
           onClick={handleBulkConfirm}
           disabled={!obraNoDialog}
@@ -1210,7 +1383,7 @@ const handleBulkConfirm = async () => {
                     <p style={styles.individualModalSubtitle}>
                       Dia {diaToRegistar} - {utilizadores.find(u => u.id === userToRegistar)?.nome}
                     </p>
-                    <button 
+                    <button
                       style={styles.closeButton}
                       onClick={() => setDialogOpen(false)}
                       aria-label="Fechar"
@@ -1222,7 +1395,7 @@ const handleBulkConfirm = async () => {
                   <div style={styles.individualModalContent}>
                     <div style={styles.horariosContainer}>
                       <h4 style={styles.horariosTitle}>⏰ Configurar Horários</h4>
-                      
+
                       <div style={styles.horariosGrid}>
                         <div style={styles.periodoContainer}>
                           <div style={styles.periodoHeader}>
@@ -1299,19 +1472,19 @@ const handleBulkConfirm = async () => {
                   </div>
 
                   <div style={styles.individualModalActions}>
-                    <button 
+                    <button
                       style={styles.cancelButton}
                       onClick={() => setDialogOpen(false)}
                     >
                       Cancelar
                     </button>
-                    <button 
+                    <button
                       style={styles.confirmButton}
                       onClick={async () => {
                         if (!obraNoDialog) {
                           return alert('Escolhe uma obra para registar.');
                         }
-                        
+
                         try {
                           const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2,'0')}-${String(diaToRegistar).padStart(2,'0')}`;
                           const tipos = ['entrada','saida','entrada','saida'];
@@ -1321,7 +1494,7 @@ const handleBulkConfirm = async () => {
                             horarios.entradaTarde,
                             horarios.saidaTarde
                           ];
-                          
+
                           for (let i = 0; i < 4; i++) {
                             const res = await fetch(
                               `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`,
@@ -1346,7 +1519,7 @@ const handleBulkConfirm = async () => {
                               { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } }
                             );
                           }
-                          
+
                           alert('Quatro pontos registados e confirmados com sucesso!');
                           setDialogOpen(false);
                           if (viewMode === 'grade') carregarDadosGrade();
@@ -1357,6 +1530,128 @@ const handleBulkConfirm = async () => {
                       disabled={!obraNoDialog}
                     >
                       ✅ Confirmar Registo
+                    </button>
+                    <button
+                      style={{...styles.confirmButton, backgroundColor: '#dc3545', marginTop: '10px'}}
+                      onClick={() => {
+                        setDialogOpen(false);
+                        setFaltaDialogOpen(true);
+                      }}
+                    >
+                      📅 Registar Falta
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal para registo de falta */}
+            {faltaDialogOpen && (
+              <div style={styles.modalOverlay}>
+                <div style={styles.individualModal}>
+                  <div style={styles.individualModalHeader}>
+                    <h3 style={styles.individualModalTitle}>
+                      📅 Registar Falta
+                    </h3>
+                    <p style={styles.individualModalSubtitle}>
+                      Dia {diaToRegistar} - {utilizadores.find(u => u.id === userToRegistar)?.nome}
+                    </p>
+                    <button
+                      style={styles.closeButton}
+                      onClick={() => setFaltaDialogOpen(false)}
+                      aria-label="Fechar"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div style={styles.individualModalContent}>
+                    <div style={styles.filterGroup}>
+                      <label style={styles.label}>Tipo de Falta</label>
+                      <select
+                        style={styles.select}
+                        value={tipoFaltaSelecionado}
+                        onChange={e => setTipoFaltaSelecionado(e.target.value)}
+                      >
+                        <option value="">-- Selecione o tipo de falta --</option>
+                        {Object.entries(tiposFaltas).map(([key, value]) => (
+                          <option key={key} value={key}>{value} ({key})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={styles.filterGroup}>
+                      <label style={styles.label}>Duração</label>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <input
+                          type="number"
+                          style={{ ...styles.input, flex: 1 }}
+                          min="1"
+                          value={parseInt(duracaoFalta) || ''}
+                          onChange={e => {
+                            const valor = e.target.value;
+                            const unidade = duracaoFalta?.endsWith('h') ? 'h' : 'd';
+                            setDuracaoFalta(valor ? `${valor}${unidade}` : '');
+                          }}
+                          placeholder="Quantidade"
+                        />
+                        <select
+                          style={{ ...styles.select, flex: 0.5 }}
+                          value={duracaoFalta === '' ? '' : duracaoFalta?.endsWith('h') ? 'h' : 'd'}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            const quantidade = parseInt(duracaoFalta) || 1;
+                            if (value === 'd') setDuracaoFalta(`${quantidade}d`);
+                            else if (value === 'h') setDuracaoFalta(`${quantidade}h`);
+                          }}
+                        >
+                          <option value="">-- Unidade --</option>
+                          <option value="d">Dia(s)</option>
+                          <option value="h">Hora(s)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {tipoFaltaSelecionado && tiposFaltas[tipoFaltaSelecionado] && (
+                      <div style={{
+                        ...styles.filterGroup,
+                        backgroundColor: '#f8f9fa',
+                        border: '1px solid #dee2e6',
+                        borderRadius: '8px',
+                        padding: '12px'
+                      }}>
+                        <div style={{ fontSize: '0.9rem', color: '#495057' }}>
+                          <div><strong>Tipo de Falta:</strong> {tiposFaltas[tipoFaltaSelecionado]}</div>
+                          <div><strong>Código:</strong> {tipoFaltaSelecionado}</div>
+                          <div><strong>Duração:</strong> {duracaoFalta || '1d'}</div>
+                          <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#6c757d' }}>
+                            Esta falta será submetida para aprovação.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={styles.individualModalActions}>
+                    <button
+                      style={styles.cancelButton}
+                      onClick={() => setFaltaDialogOpen(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      style={styles.confirmButton}
+                      onClick={registarFalta}
+                      disabled={!tipoFaltaSelecionado || !duracaoFalta || carregando}
+                    >
+                      {carregando ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                          A registar...
+                        </>
+                      ) : (
+                        '📅 Confirmar Falta'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -2406,22 +2701,22 @@ weekendCell: {
     marginBottom: '20px'
   },
   modalOverlay: {
-    position: 'fixed', 
-    top: 0, 
-    left: 0, 
-    right: 0, 
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
     bottom: 0,
-    background: 'rgba(0,0,0,0.6)', 
+    background: 'rgba(0,0,0,0.6)',
     display: 'flex',
-    alignItems: 'center', 
-    justifyContent: 'center', 
+    alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 1000,
     backdropFilter: 'blur(3px)'
   },
   modal: {
-    background: 'white', 
+    background: 'white',
     padding: '20px',
-    borderRadius: '8px', 
+    borderRadius: '8px',
     minWidth: '320px'
   },
   bulkModal: {
