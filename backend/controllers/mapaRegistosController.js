@@ -2,7 +2,6 @@
 const RegistoPontoObra = require('../models/registoPontoObra');
 const User = require('../models/user');
 const Obra = require('../models/obra');
-const User_Empresa = require('../models/user_empresa');
 const { Op } = require('sequelize');
 
 const obterRegistosParaMapa = async (req, res) => {
@@ -11,11 +10,7 @@ const obterRegistosParaMapa = async (req, res) => {
         console.log('Parâmetros recebidos:', req.query);
         console.log('Headers de autorização:', req.headers.authorization ? 'Presente' : 'Ausente');
 
-        const { data, obra_id, empresa_id, user_id } = req.query;
-
-        if (!empresa_id) {
-            return res.status(400).json({ message: 'empresa_id é obrigatório.' });
-        }
+        const { data, obra_id, empresa_id } = req.query;
 
         // Verificar se as tabelas existem
         console.log('Verificando modelos...');
@@ -23,28 +18,8 @@ const obterRegistosParaMapa = async (req, res) => {
         console.log('User existe:', !!User);
         console.log('Obra existe:', !!Obra);
 
-        // 1. Primeiro, obter todos os utilizadores desta empresa
-        console.log('Obtendo utilizadores da empresa:', empresa_id);
-        const utilizadoresDaEmpresa = await User_Empresa.findAll({
-            where: { empresa_id: empresa_id },
-            include: [{
-                model: User,
-                attributes: ['id', 'nome', 'email', 'username']
-            }],
-            attributes: ['user_id']
-        });
-
-        const userIds = utilizadoresDaEmpresa.map(ue => ue.user_id);
-        console.log('IDs dos utilizadores da empresa:', userIds);
-
-        if (userIds.length === 0) {
-            console.log('Nenhum utilizador encontrado para esta empresa');
-            return res.status(200).json([]);
-        }
-
-        // 2. Construir filtros para registos com coordenadas válidas
+        // Construir filtros básicos
         let whereClause = {
-            user_id: { [Op.in]: userIds }, // Filtrar apenas utilizadores desta empresa
             latitude: {
                 [Op.and]: [
                     { [Op.not]: null },
@@ -99,79 +74,38 @@ const obterRegistosParaMapa = async (req, res) => {
             whereClause.obra_id = obra_id;
         }
 
-        // Filtrar por utilizador específico se fornecido
-        if (user_id) {
-            console.log('Filtrando por user_id específico:', user_id);
-            whereClause.user_id = user_id;
-        }
-
         console.log('WhereClause final:', JSON.stringify(whereClause, null, 2));
 
-        // Debug: Verificar quantos registos existem para estes utilizadores
-        const totalRegistosUtilizadores = await RegistoPontoObra.count({
-            where: {
-                user_id: { [Op.in]: userIds },
-                ...(obra_id && { obra_id: obra_id })
-            }
-        });
-        console.log('Total de registos para utilizadores desta empresa:', totalRegistosUtilizadores);
+        // Incluir filtro de empresa através da obra
+        let includeObra = {
+            model: Obra,
+            attributes: ['id', 'nome', 'localizacao', 'empresa_id'],
+            required: true // Força INNER JOIN
+        };
 
-        console.log('Executando query principal...');
+        if (empresa_id) {
+            console.log('Filtrando por empresa_id:', empresa_id);
+            includeObra.where = { empresa_id: empresa_id };
+        }
+
+        console.log('Include da obra:', JSON.stringify(includeObra, null, 2));
+
+        console.log('Executando query...');
         const registos = await RegistoPontoObra.findAll({
             where: whereClause,
             include: [
                 {
                     model: User,
-                    attributes: ['id', 'nome', 'email', 'username'],
-                    required: true
+                    attributes: ['id', 'nome', 'email'],
+                    required: false // Mudar para false para debug
                 },
-                {
-                    model: Obra,
-                    attributes: ['id', 'nome', 'localizacao', 'empresa_id'],
-                    required: false // Permitir registos sem obra associada
-                }
+                includeObra
             ],
             order: [['timestamp', 'DESC']],
             limit: 1000 // Limitar para performance
         });
 
         console.log(`Query executada com sucesso. Encontrados ${registos.length} registos`);
-
-        // Debug detalhado dos registos encontrados
-        if (registos.length === 0) {
-            console.log('NENHUM REGISTO ENCONTRADO - Possíveis causas:');
-            console.log('1. Não há registos para a data selecionada');
-            console.log('2. Não há registos com coordenadas válidas');
-            console.log('3. Filtros muito restritivos (obra_id, user_id)');
-            
-            // Verificar registos sem filtro de coordenadas para debug
-            const registosSemFiltroCoords = await RegistoPontoObra.findAll({
-                where: {
-                    timestamp: whereClause.timestamp,
-                    ...(obra_id && { obra_id: obra_id }),
-                    ...(user_id && { user_id: user_id })
-                },
-                include: [includeObra],
-                limit: 5
-            });
-            console.log('Registos encontrados sem filtro de coordenadas:', registosSemFiltroCoords.length);
-            if (registosSemFiltroCoords.length > 0) {
-                console.log('Exemplo de coordenadas encontradas:', registosSemFiltroCoords.map(r => ({
-                    id: r.id,
-                    latitude: r.latitude,
-                    longitude: r.longitude,
-                    obra_id: r.obra_id
-                })));
-            }
-        } else {
-            console.log('Registos encontrados com coordenadas válidas:', registos.map(r => ({
-                id: r.id,
-                user: r.User?.nome,
-                obra: r.Obra?.nome,
-                lat: r.latitude,
-                lng: r.longitude
-            })));
-        }
 
         // Agrupar registos por utilizador e obra
         const registosFormatados = registos.map(registo => {
@@ -217,7 +151,7 @@ const obterEstatisticasMapa = async (req, res) => {
     try {
         console.log('=== OBTER ESTATÍSTICAS DO MAPA ===');
         console.log('Parâmetros recebidos:', req.query);
-        const { data, empresa_id, user_id, obra_id } = req.query;
+        const { data, empresa_id } = req.query;
 
         let whereClause = {
             latitude: {
@@ -265,17 +199,6 @@ const obterEstatisticasMapa = async (req, res) => {
             whereClause.timestamp = { [Op.between]: [dataInicio, dataFim] };
         }
 
-        // Aplicar filtros adicionais nas estatísticas
-        if (obra_id) {
-            console.log('Filtrando estatísticas por obra_id:', obra_id);
-            whereClause.obra_id = obra_id;
-        }
-        
-        if (user_id) {
-            console.log('Filtrando estatísticas por user_id:', user_id);
-            whereClause.user_id = user_id;
-        }
-        
         console.log('Filtrando estatísticas por empresa_id:', empresa_id || 'Todas');
 
         console.log('Executando query de estatísticas por tipo...');

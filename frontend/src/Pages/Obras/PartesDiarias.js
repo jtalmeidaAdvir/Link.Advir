@@ -3069,13 +3069,13 @@ const renderDataSheet = () => {
                                                 <Ionicons
                                                     name={espItem.horaExtra ? 'flash' : 'flash-outline'}
                                                     size={16}
-                                                    color={espItem.horaExtra ? '#1792FE' : '#1792FE'}
+                                                    color={espItem.horaExtra ? '#fff' : '#1792FE'}
                                                 />
                                                 <Text style={[
                                                     styles.editHoraExtraText,
                                                     espItem.horaExtra && styles.editHoraExtraTextActive
                                                 ]}>
-                                                    Extra
+                                                    Hora Extra
                                                 </Text>
                                             </TouchableOpacity>
                                             
@@ -3468,20 +3468,20 @@ externosCategoryButton: {
   paddingHorizontal: 16,
   borderRadius: 12,
   borderWidth: 2,
-  borderColor: '#6f42c1',
+  borderColor: '#1792FE',
   backgroundColor: '#fff',
   gap: 8,
 },
 
 externosCategoryButtonActive: {
-  backgroundColor: '#6f42c1',
-  borderColor: '#6f42c1',
+  backgroundColor: '#1792FE',
+  borderColor: '#1792FE',
 },
 
 externosCategoryButtonText: {
   fontSize: 14,
   fontWeight: '600',
-  color: '#6f42c1',
+  color: '#1792FE',
 },
 
 externosCategoryButtonTextActive: {
@@ -3496,20 +3496,20 @@ externosCheckboxContainer: {
   paddingHorizontal: 16,
   borderRadius: 12,
   borderWidth: 2,
-  borderColor: '#6f42c1',
+  borderColor: '#1792FE',
   backgroundColor: '#fff',
   gap: 8,
 },
 
 externosCheckboxContainerActive: {
-  backgroundColor: '#6f42c1',
-  borderColor: '#6f42c1',
+  backgroundColor: '#1792FE',
+  borderColor: '#1792FE',
 },
 
 externosCheckboxText: {
   fontSize: 14,
   fontWeight: '600',
-  color: '#6f42c1',
+  color: '#1792FE',
 },
 
 externosCheckboxTextActive: {
@@ -3593,7 +3593,7 @@ externosListItemName: {
 },
 
 externosListItemBadge: {
-  backgroundColor: '#17a2b8',
+  backgroundColor: '#1792FE',
   paddingHorizontal: 8,
   paddingVertical: 4,
   borderRadius: 12,
@@ -3875,7 +3875,7 @@ editHoraExtraButton: {
   paddingHorizontal: 12,
   borderRadius: 12,
   borderWidth: 1,
-  borderColor: '#fff',
+  borderColor: '#1792FE',
   backgroundColor: '#fff',
   gap: 4,
 },
@@ -3908,7 +3908,7 @@ editRemoveButton: {
   shadowOpacity: 0.2,
   shadowRadius: 2,
   borderWidth: 1,
-  borderColor: '#dc3545',
+  borderColor: '#1792FE',
 },
 
 editSpecialityGrid: {
