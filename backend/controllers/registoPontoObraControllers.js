@@ -477,6 +477,7 @@ const eliminarRegisto = async (req, res) => {
   }
 };
 
+
 module.exports = {
   registarPonto,
   listarRegistosPorDia,
