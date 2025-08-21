@@ -12,6 +12,7 @@ import backgroundImage from '../images/ImagemFundo.png';
 const Home = () => {
     const { t } = useTranslation();
 
+    const BACKEND_BASE_URL = 'https://backend.advir.pt'; // URL base do backend
 
     const [isDrawerOpen, setDrawerOpen] = useState(false);
     const [activeMenu, setActiveMenu] = useState(t('Home.menu.products')); // Estado para o menu ativo
