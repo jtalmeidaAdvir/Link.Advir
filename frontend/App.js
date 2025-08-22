@@ -249,6 +249,43 @@ const CustomDrawerContent = ({
             module.submodulos.some((sub) => sub.nome === "Equipas"),
     );
 
+    // Filtros para submódulos do módulo Administrador
+    const hasContratosAtivosModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "ContratosAtivos"),
+    );
+    const hasPainelAdministracaoModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "PainelAdministracao"),
+    );
+    const hasWhatsappConfigsModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "WhatsappConfigs"),
+    );
+    const hasGestaoUtilizadoresModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "GestaoUtilizadores"),
+    );
+    const hasRegistarUtilizadorModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "RegistarUtilizador"),
+    );
+    const hasRegistoPontoAdminModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "RegistoPontoAdmin"),
+    );
+    const hasPedidosAlteracaoAdminModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "PedidosAlteracaoAdmin"),
+    );
+
     return (
         <DrawerContentScrollView
             {...props}
@@ -652,51 +689,65 @@ const CustomDrawerContent = ({
                             alignItems: "center",
                         }}
                     >
-                        <List.Item
-                            title="> Contratos Ativos"
-                            onPress={() =>
-                                props.navigation.navigate("ContratosList")
-                            }
-                        />
+                        {hasContratosAtivosModule && (
+                            <List.Item
+                                title="> Contratos Ativos"
+                                onPress={() =>
+                                    props.navigation.navigate("ContratosList")
+                                }
+                            />
+                        )}
 
-                        <List.Item
-                            title={t("Drawer.ADM.1")}
-                            onPress={() =>
-                                props.navigation.navigate("PainelAdmin")
-                            }
-                        />
-                        <List.Item
-                            title={t("> Whatsapp Configs")}
-                            onPress={() =>
-                                props.navigation.navigate("WhatsAppWebConfig")
-                            }
-                        />
-                        <List.Item
-                            title={t("Drawer.ADM.2")}
-                            onPress={() =>
-                                props.navigation.navigate("UsersEmpresa")
-                            }
-                        />
-                        <List.Item
-                            title={t("Drawer.ADM.3")}
-                            onPress={() =>
-                                props.navigation.navigate("RegistoUser")
-                            }
-                        />
-                        <List.Item
-                            title={t("Drawer.ADM.4")}
-                            onPress={() =>
-                                props.navigation.navigate("RegistoPontoAdmin")
-                            }
-                        />
-                        <List.Item
-                            title={t("Drawer.ADM.5")}
-                            onPress={() =>
-                                props.navigation.navigate(
-                                    "PedidosAlteracaoAdmin",
-                                )
-                            }
-                        />
+                        {hasPainelAdministracaoModule && (
+                            <List.Item
+                                title={t("Drawer.ADM.1")}
+                                onPress={() =>
+                                    props.navigation.navigate("PainelAdmin")
+                                }
+                            />
+                        )}
+                        {hasWhatsappConfigsModule && (
+                            <List.Item
+                                title={t("> Whatsapp Configs")}
+                                onPress={() =>
+                                    props.navigation.navigate("WhatsAppWebConfig")
+                                }
+                            />
+                        )}
+                        {hasGestaoUtilizadoresModule && (
+                            <List.Item
+                                title={t("Drawer.ADM.2")}
+                                onPress={() =>
+                                    props.navigation.navigate("UsersEmpresa")
+                                }
+                            />
+                        )}
+                        {hasRegistarUtilizadorModule && (
+                            <List.Item
+                                title={t("Drawer.ADM.3")}
+                                onPress={() =>
+                                    props.navigation.navigate("RegistoUser")
+                                }
+                            />
+                        )}
+                        {hasRegistoPontoAdminModule && (
+                            <List.Item
+                                title={t("Drawer.ADM.4")}
+                                onPress={() =>
+                                    props.navigation.navigate("RegistoPontoAdmin")
+                                }
+                            />
+                        )}
+                        {hasPedidosAlteracaoAdminModule && (
+                            <List.Item
+                                title={t("Drawer.ADM.5")}
+                                onPress={() =>
+                                    props.navigation.navigate(
+                                        "PedidosAlteracaoAdmin",
+                                    )
+                                }
+                            />
+                        )}
                     </List.Accordion>
                 )}
                 {localStorage.getItem("loginToken") && (

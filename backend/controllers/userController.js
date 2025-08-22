@@ -466,8 +466,64 @@ const recuperarPassword = async (req, res) => {
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: email,
-            subject: 'Recuperação de Senha',
-            html: `<p>Para redefinir a sua senha, clique no link abaixo:</p><a href="${recoveryLink}">Redefinir Senha</a>`,
+            subject: 'Recuperação de Password - Advir',
+            html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
+                <div style="background-color: #ffffff; border-radius: 15px; padding: 30px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <img src="https://link.advir.pt/static/media/img_logo.a2a85989c690f4bfd096.png" alt="Advir Plan" style="width: 200px; margin-bottom: 20px;" />
+                    </div>
+                    
+                    <h2 style="color: #1F2D50; text-align: center; margin-bottom: 30px; font-size: 24px;">
+                        Recuperação de Password
+                    </h2>
+                    
+                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+                        <p style="font-size: 16px; color: #333; margin: 0; line-height: 1.6;">
+                            Olá,<br><br>
+                            Recebemos um pedido para redefinir a password da sua conta associada ao email <strong>${email}</strong>.
+                        </p>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${recoveryLink}" style="background-color: #1792FE; color: white; padding: 15px 30px; text-decoration: none; font-weight: bold; border-radius: 8px; display: inline-block; font-size: 16px; transition: background-color 0.3s;">
+                            🔐 Redefinir Password
+                        </a>
+                    </div>
+                    
+                    <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 25px 0;">
+                        <p style="font-size: 14px; color: #856404; margin: 0; text-align: center;">
+                            ⚠️ <strong>Importante:</strong> Este link é válido por apenas 1 hora por motivos de segurança.
+                        </p>
+                    </div>
+                    
+                    <p style="font-size: 14px; color: #666; text-align: center; margin: 20px 0;">
+                        Se não solicitou esta alteração, pode ignorar este email. A sua password permanecerá inalterada.
+                    </p>
+                    
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                    
+                    <div style="text-align: center;">
+                        <p style="font-size: 14px; color: #333; margin-bottom: 10px;">
+                            Precisa de ajuda? Entre em contacto connosco:
+                        </p>
+                        <a href="mailto:support@advir.pt" style="color: #1792FE; text-decoration: none; font-weight: 600;">
+                            📧 support@advir.pt
+                        </a>
+                    </div>
+                    
+                    <p style="font-size: 14px; color: #333; text-align: center; margin-top: 30px;">
+                        Obrigado,<br>
+                        <strong>Equipa Advir</strong>
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <p style="font-size: 12px; color: #999;">
+                        © 2024 Advir. Todos os direitos reservados.
+                    </p>
+                </div>
+            </div>`
         };
 
         transporter.sendMail(mailOptions, (error) => {
