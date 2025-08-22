@@ -527,7 +527,20 @@ const Home = () => {
                     throw new Error(`Erro ao buscar contrato: ${contratoResponse.statusText}`);
                 }
 
-                const contratoData = await contratoResponse.json();
+                const contratoData = await
+
+
+
+
+
+
+
+
+
+
+
+
+                response.json();
                 console.log('Contrato Data:', contratoData);
 
                 // Filtrar contrato com estado === 3
@@ -1946,18 +1959,16 @@ const Home = () => {
                                                     transition={{ duration: 0.25, delay: index * 0.05 }}
                                                     onClick={() => window.open(noticia.link, '_blank')}
                                                     style={{
-                                                        display: 'grid',
-                                                        gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '120px 1fr',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
                                                         gap: '16px',
-                                                        padding: '16px',
+                                                        padding: '20px',
                                                         backgroundColor: '#ffffff',
                                                         borderRadius: '12px',
                                                         border: '1px solid #e9ecef',
                                                         cursor: 'pointer',
                                                         boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-                                                        alignItems: 'stretch',
-                                                        transition: 'all .2s ease',
-                                                        minHeight: window.innerWidth <= 768 ? 'auto' : '120px'
+                                                        transition: 'all .2s ease'
                                                     }}
                                                     onMouseEnter={(e) => {
                                                         e.currentTarget.style.transform = 'translateY(-2px)';
@@ -1970,70 +1981,13 @@ const Home = () => {
                                                         e.currentTarget.style.backgroundColor = '#ffffff';
                                                     }}
                                                 >
-                                                    {/* Thumbnail */}
-                                                    <div style={{
-                                                        width: '100%',
-                                                        height: window.innerWidth <= 768 ? '200px' : '100%',
-                                                        minHeight: window.innerWidth <= 768 ? '200px' : '90px',
-                                                        maxHeight: window.innerWidth <= 768 ? '200px' : '120px',
-                                                        borderRadius: '10px',
-                                                        overflow: 'hidden',
-                                                        background: 'linear-gradient(135deg,#e3f2fd,#f5f9ff)',
-                                                        position: 'relative',
-                                                        order: window.innerWidth <= 768 ? 1 : 0
-                                                    }}>
-                                                        {noticia.image ? (
-                                                            <img
-                                                                src={noticia.image.startsWith('http') ? noticia.image : `${BACKEND_BASE_URL}/api/news/img?u=${encodeURIComponent(noticia.image)}`}
-                                                                alt={noticia.title}
-                                                                style={{ 
-                                                                    width: '100%', 
-                                                                    height: '100%', 
-                                                                    objectFit: 'cover', 
-                                                                    display: 'block' 
-                                                                }}
-                                                                onError={(e) => { 
-                                                                    // Fallback para um placeholder
-                                                                    e.currentTarget.style.display = 'none';
-                                                                    e.currentTarget.parentNode.style.background = 'linear-gradient(135deg,#e3f2fd,#f5f9ff)';
-                                                                    const placeholder = document.createElement('div');
-                                                                    placeholder.style.cssText = `
-                                                                        width: 100%;
-                                                                        height: 100%;
-                                                                        display: flex;
-                                                                        align-items: center;
-                                                                        justify-content: center;
-                                                                        color: #1976D2;
-                                                                        font-size: 24px;
-                                                                        font-weight: bold;
-                                                                    `;
-                                                                    placeholder.innerHTML = '📰';
-                                                                    e.currentTarget.parentNode.appendChild(placeholder);
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <div style={{
-                                                                width: '100%',
-                                                                height: '100%',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                color: '#1976D2',
-                                                                fontSize: '24px',
-                                                                fontWeight: 'bold'
-                                                            }}>
-                                                                📰
-                                                            </div>
-                                                        )}
-                                                    </div>
-
                                                     {/* Conteúdo */}
                                                     <div style={{ 
                                                         display: 'flex', 
                                                         flexDirection: 'column', 
                                                         gap: '8px',
-                                                        order: window.innerWidth <= 768 ? 2 : 1,
-                                                        minHeight: '0'
+                                                        minHeight: '0',
+                                                        width: '100%'
                                                     }}>
                                                         <div style={{ 
                                                             display: 'flex', 

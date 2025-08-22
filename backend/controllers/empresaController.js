@@ -239,3 +239,72 @@ module.exports = {
     atualizarEmpresaInfo,
 
 };
+
+
+
+// Associar submódulo à empresa
+const addSubmoduloToEmpresa = async (req, res) => {
+    const { id } = req.params;
+    const { submoduloId } = req.body;
+
+    try {
+        // Verificar se a empresa existe
+        const empresa = await Empresa.findByPk(id);
+        if (!empresa) {
+            return res.status(404).json({ error: 'Empresa não encontrada.' });
+        }
+
+        // Verificar se o submódulo existe
+        const submodulo = await Submodulo.findByPk(submoduloId);
+        if (!submodulo) {
+            return res.status(404).json({ error: 'Submódulo não encontrado.' });
+        }
+
+        // Verificar se a associação já existe (assumindo que você criará uma tabela empresa_submodulo)
+        const existeAssociacao = await empresa_submodulo.findOne({
+            where: { empresa_id: id, submodulo_id: submoduloId }
+        });
+
+        if (existeAssociacao) {
+            return res.status(400).json({ error: 'Submódulo já está associado à empresa.' });
+        }
+
+        // Criar associação
+        await empresa_submodulo.create({
+            empresa_id: id,
+            submodulo_id: submoduloId
+        });
+
+        res.status(200).json({ message: 'Submódulo associado à empresa com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao associar submódulo à empresa:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
+// Remover submódulo da empresa
+const removeSubmoduloFromEmpresa = async (req, res) => {
+    const { id, submoduloId } = req.params;
+
+    try {
+        // Verificar se a empresa existe
+        const empresa = await Empresa.findByPk(id);
+        if (!empresa) {
+            return res.status(404).json({ error: 'Empresa não encontrada.' });
+        }
+
+        // Remover associação
+        const resultado = await empresa_submodulo.destroy({
+            where: { empresa_id: id, submodulo_id: submoduloId }
+        });
+
+        if (resultado === 0) {
+            return res.status(404).json({ error: 'Associação não encontrada.' });
+        }
+
+        res.status(200).json({ message: 'Submódulo removido da empresa com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao remover submódulo da empresa:', error);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
