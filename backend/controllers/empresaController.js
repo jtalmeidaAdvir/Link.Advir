@@ -112,17 +112,41 @@ const listarModulosDaEmpresa = async (req, res) => {
 
     try {
         const empresa = await Empresa.findByPk(empresaId, {
-            include: {
-                model: Modulo,
-                as: 'modulos',
-            },
+            include: [
+                {
+                    model: Modulo,
+                    as: 'modulos',
+                    include: [
+                        {
+                            model: Submodulo,
+                            as: 'submodulos'
+                        }
+                    ]
+                },
+                {
+                    model: Submodulo,
+                    as: 'submodulos'
+                }
+            ],
         });
 
         if (!empresa) {
             return res.status(404).json({ message: 'Empresa não encontrada.' });
         }
 
-        res.status(200).json({ modulos: empresa.modulos });
+        // Para cada módulo, filtrar apenas os submódulos que estão associados à empresa
+        const modulosComSubmodulos = empresa.modulos.map(modulo => {
+            const submodulosAssociados = modulo.submodulos.filter(submodulo => 
+                empresa.submodulos.some(empresaSubmodulo => empresaSubmodulo.id === submodulo.id)
+            );
+            
+            return {
+                ...modulo.toJSON(),
+                submodulos: submodulosAssociados
+            };
+        });
+
+        res.status(200).json({ modulos: modulosComSubmodulos });
     } catch (error) {
         console.error('Erro ao listar módulos da empresa:', error);
         res.status(500).json({ message: 'Erro ao listar módulos da empresa.' });
@@ -267,6 +291,45 @@ const removeSubmoduloFromEmpresa = async (req, res) => {
     }
 };
 
+// Listar submódulos disponíveis de um módulo para uma empresa
+const listarSubmodulosDisponiveisParaEmpresa = async (req, res) => {
+    const { empresaId, moduloId } = req.params;
+
+    try {
+        const empresa = await Empresa.findByPk(empresaId, {
+            include: {
+                model: Submodulo,
+                as: 'submodulos'
+            }
+        });
+
+        if (!empresa) {
+            return res.status(404).json({ message: 'Empresa não encontrada.' });
+        }
+
+        const modulo = await Modulo.findByPk(moduloId, {
+            include: {
+                model: Submodulo,
+                as: 'submodulos'
+            }
+        });
+
+        if (!modulo) {
+            return res.status(404).json({ message: 'Módulo não encontrado.' });
+        }
+
+        // Filtrar submódulos do módulo que não estão associados à empresa
+        const submodulosDisponiveis = modulo.submodulos.filter(submodulo => 
+            !empresa.submodulos.some(empresaSubmodulo => empresaSubmodulo.id === submodulo.id)
+        );
+
+        res.status(200).json({ submodulos: submodulosDisponiveis });
+    } catch (error) {
+        console.error('Erro ao listar submódulos disponíveis:', error);
+        res.status(500).json({ message: 'Erro ao listar submódulos disponíveis.' });
+    }
+};
+
 module.exports = {
     criarEmpresa,
     getEmpresaByNome,
@@ -280,4 +343,5 @@ module.exports = {
     atualizarEmpresaInfo,
     addSubmoduloToEmpresa,
     removeSubmoduloFromEmpresa,
+    listarSubmodulosDisponiveisParaEmpresa,
 };

@@ -85,7 +85,7 @@ const ADHome = () => {
 
     const fetchAllSubmodulosByModulo = async (moduloId) => {
         try {
-            const response = await fetch(`https://backend.advir.pt/api/submodulos/${moduloId}`);
+            const response = await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/modulos/${moduloId}/submodulos-disponiveis`);
             const data = await response.json();
             setAllSubmodulos(data.submodulos || []);
         } catch (error) {
