@@ -26,6 +26,7 @@ import {
     faFilter,
     faChartLine,
     faPaperclip,
+    faEye,
 } from "@fortawesome/free-solid-svg-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -68,6 +69,11 @@ const PedidosAssistencia = ({ navigation }) => {
     // temporários (igual ao RegistoAssistencia)
     const [anexosTemp, setAnexosTemp] = useState([]);
     const [uploadingTemp, setUploadingTemp] = useState(false);
+
+    // Preview de anexos
+    const [modalPreviewVisible, setModalPreviewVisible] = useState(false);
+    const [anexoPreview, setAnexoPreview] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
 
     const [isAdmin, setIsAdmin] = useState(false);
     const [userTecnicoID, setUserTecnicoID] = useState("");
@@ -338,6 +344,47 @@ const PedidosAssistencia = ({ navigation }) => {
             console.error("Erro ao fazer download:", error);
             alert("Erro ao fazer download do anexo.");
         }
+    };
+
+    const abrirPreview = async (anexo) => {
+        try {
+            const response = await fetch(`${ANEXOS_BASE}/download/${anexo.id}`);
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                setAnexoPreview(anexo);
+                setPreviewUrl(url);
+                setModalPreviewVisible(true);
+            } else {
+                throw new Error("Erro ao carregar preview");
+            }
+        } catch (error) {
+            console.error("Erro ao carregar preview:", error);
+            alert("Erro ao carregar preview do anexo.");
+        }
+    };
+
+    const fecharPreview = () => {
+        setModalPreviewVisible(false);
+        if (previewUrl) {
+            window.URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(null);
+        }
+        setAnexoPreview(null);
+    };
+
+    const isImageFile = (tipo) => {
+        return tipo && (
+            tipo.includes('image/') || 
+            tipo.includes('jpeg') || 
+            tipo.includes('jpg') || 
+            tipo.includes('png') || 
+            tipo.includes('gif')
+        );
+    };
+
+    const isPdfFile = (tipo) => {
+        return tipo && tipo.includes('pdf');
     };
 
     const deletarAnexo = async (anexoId) => {
@@ -1226,6 +1273,16 @@ const PedidosAssistencia = ({ navigation }) => {
                                                 }
                                             >
                                                 <TouchableOpacity
+                                                    style={styles.previewButton}
+                                                    onPress={() => abrirPreview(anexo)}
+                                                >
+                                                    <FontAwesomeIcon
+                                                        icon={faEye}
+                                                        style={styles.previewButtonIcon}
+                                                        size={12}
+                                                    />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
                                                     style={styles.downloadButton}
                                                     onPress={() =>
                                                         downloadAnexo(
@@ -1448,6 +1505,89 @@ const PedidosAssistencia = ({ navigation }) => {
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Modal de Preview de Anexos */}
+                <Modal
+                    animationType="fade"
+                    transparent={true}
+                    visible={modalPreviewVisible}
+                    onRequestClose={fecharPreview}
+                >
+                    <View style={styles.previewModalBackground}>
+                        <View style={styles.previewModalView}>
+                            <View style={styles.previewHeader}>
+                                <Text style={styles.previewTitle}>
+                                    {anexoPreview?.nome_arquivo}
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.closeButton}
+                                    onPress={fecharPreview}
+                                >
+                                    <FontAwesomeIcon
+                                        icon={faClose}
+                                        style={styles.closeIcon}
+                                        size={20}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.previewContent}>
+                                {anexoPreview && isImageFile(anexoPreview.tipo_arquivo) ? (
+                                    <Image
+                                        source={{ uri: previewUrl }}
+                                        style={styles.previewImage}
+                                        resizeMode="contain"
+                                    />
+                                ) : anexoPreview && isPdfFile(anexoPreview.tipo_arquivo) ? (
+                                    <iframe
+                                        src={previewUrl}
+                                        style={styles.previewPdf}
+                                        title="PDF Preview"
+                                    />
+                                ) : (
+                                    <View style={styles.previewUnsupported}>
+                                        <Text style={styles.previewUnsupportedText}>
+                                            Preview não disponível para este tipo de arquivo
+                                        </Text>
+                                        <Text style={styles.previewUnsupportedSubtext}>
+                                            Tipo: {anexoPreview?.tipo_arquivo}
+                                        </Text>
+                                        <TouchableOpacity
+                                            style={styles.downloadFromPreviewButton}
+                                            onPress={() => {
+                                                if (anexoPreview) {
+                                                    downloadAnexo(anexoPreview.id, anexoPreview.nome_arquivo);
+                                                }
+                                            }}
+                                        >
+                                            <Text style={styles.downloadFromPreviewButtonText}>
+                                                Fazer Download
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </View>
+
+                            <View style={styles.previewFooter}>
+                                <Text style={styles.previewFooterText}>
+                                    Tamanho: {Math.round((anexoPreview?.tamanho || 0) / 1024)} KB
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.downloadFromPreviewButton}
+                                    onPress={() => {
+                                        if (anexoPreview) {
+                                            downloadAnexo(anexoPreview.id, anexoPreview.nome_arquivo);
+                                        }
+                                    }}
+                                >
+                                    <Text style={styles.downloadFromPreviewButtonText}>
+                                        Download
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
                         </View>
                     </View>
@@ -2075,6 +2215,109 @@ const styles = StyleSheet.create({
         color: "white",
         fontWeight: "600",
         fontSize: 15,
+    },
+
+    // Estilos para o botão de preview
+    previewButton: {
+        backgroundColor: "#28a745",
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+        borderRadius: 4,
+        marginRight: 8,
+    },
+    previewButtonIcon: {
+        color: "white",
+    },
+
+    // Estilos para o modal de preview
+    previewModalBackground: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+    },
+    previewModalView: {
+        width: "90%",
+        maxWidth: 800,
+        height: "90%",
+        backgroundColor: "white",
+        borderRadius: 12,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 8,
+    },
+    previewHeader: {
+        backgroundColor: "#1792FE",
+        padding: 16,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    previewTitle: {
+        color: "white",
+        fontSize: 16,
+        fontWeight: "600",
+        flex: 1,
+        marginRight: 10,
+    },
+    previewContent: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 10,
+    },
+    previewImage: {
+        width: "100%",
+        height: "100%",
+        maxHeight: 600,
+    },
+    previewPdf: {
+        width: "100%",
+        height: "100%",
+        border: "none",
+    },
+    previewUnsupported: {
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 40,
+    },
+    previewUnsupportedText: {
+        fontSize: 16,
+        color: "#666",
+        textAlign: "center",
+        marginBottom: 8,
+    },
+    previewUnsupportedSubtext: {
+        fontSize: 14,
+        color: "#999",
+        textAlign: "center",
+        marginBottom: 20,
+    },
+    previewFooter: {
+        padding: 16,
+        borderTopWidth: 1,
+        borderTopColor: "#eee",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    previewFooterText: {
+        fontSize: 14,
+        color: "#666",
+    },
+    downloadFromPreviewButton: {
+        backgroundColor: "#1792FE",
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 6,
+    },
+    downloadFromPreviewButtonText: {
+        color: "white",
+        fontSize: 14,
+        fontWeight: "600",
     },
 });
 
