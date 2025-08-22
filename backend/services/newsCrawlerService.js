@@ -95,14 +95,14 @@ class NewsCrawlerService {
       allNews = this.filterRelevantNews(allNews);
 
       // Enriquecer artigos que não tenham descrição ou imagem (limite para performance)
-      allNews = await this.enrichArticles(allNews, 14); // tenta enriquecer os 14 primeiros em falta
+      allNews = await this.enrichArticles(allNews, 20); // aumentado para 20
 
       // Dedup e ordenar
       const uniqueNews = this.removeDuplicates(allNews);
       uniqueNews.sort((a, b) => new Date(b.date) - new Date(a.date));
 
       console.log(`Encontradas ${uniqueNews.length} notícias relevantes`);
-      return uniqueNews.slice(0, 10);
+      return uniqueNews.slice(0, 15); // aumentado para 15 notícias
     } catch (err) {
       console.error('Erro no crawl de notícias:', err);
       return [];
@@ -126,7 +126,7 @@ class NewsCrawlerService {
   // ================= GOOGLE NEWS (RSS) =================
 
   async crawlGoogleNewsForAllKeywords() {
-    const perKeywordLimit = 6;
+    const perKeywordLimit = 8; // aumentado de 6 para 8
     const promises = this.keywords.map((kw) =>
       this.crawlGoogleNewsKeyword(kw, perKeywordLimit)
     );
