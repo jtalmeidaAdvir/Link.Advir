@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Empresa = require('../models/empresa');
 const User_Empresa = require('../models/user_empresa');
-const { criarEmpresa,getEmpresaByNome, listarEmpresas, listarModulosDaEmpresa, adicionarModuloAEmpresa,atualizarUrlEmpresa, removerModuloDaEmpresa, atualizarEmpresaInfo   } = require('../controllers/empresaController');
+const { criarEmpresa,getEmpresaByNome, listarEmpresas, listarModulosDaEmpresa, adicionarModuloAEmpresa,atualizarUrlEmpresa, removerModuloDaEmpresa, atualizarEmpresaInfo, addSubmoduloToEmpresa, removeSubmoduloFromEmpresa   } = require('../controllers/empresaController');
 const authMiddleware = require('../middleware/authMiddleware'); // Importa o middleware
 
 // Rota para criar uma nova empresa, com o middleware de autenticação
@@ -85,8 +85,8 @@ router.get('/:empresaId', async (req, res) => {
 
 router.put('/:empresaId/updateEmpresaInfo', atualizarEmpresaInfo);
 
-
-
-
+// Rotas para gestão de submódulos
+router.post('/:empresaId/submodulos', addSubmoduloToEmpresa);
+router.delete('/:empresaId/submodulos/:submoduloId', removeSubmoduloFromEmpresa);
 
 module.exports = router;

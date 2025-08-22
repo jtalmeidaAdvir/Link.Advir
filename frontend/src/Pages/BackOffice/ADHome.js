@@ -8,10 +8,16 @@ const ADHome = () => {
     const [selectedEmpresa, setSelectedEmpresa] = useState(null);
     const [empresaModulos, setEmpresaModulos] = useState([]);
     const [allModulos, setAllModulos] = useState([]);
+    const [empresaSubmodulos, setEmpresaSubmodulos] = useState([]);
+    const [allSubmodulos, setAllSubmodulos] = useState([]);
+    const [selectedModuloForSubmodules, setSelectedModuloForSubmodules] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
+    const [submoduleModalVisible, setSubmoduleModalVisible] = useState(false);
     const [confirmationVisible, setConfirmationVisible] = useState(false); // Estado para modal de confirmação
     const [selectedModulo, setSelectedModulo] = useState(null);
+    const [selectedSubmodulo, setSelectedSubmodulo] = useState(null);
     const [isAdding, setIsAdding] = useState(true);
+    const [isAddingSubmodule, setIsAddingSubmodule] = useState(true);
     const [maxUsers, setMaxUsers] = useState('');
     const [tempoIntervaloPadrao, setTempoIntervaloPadrao] = useState('');
 
@@ -59,8 +65,31 @@ const ADHome = () => {
             const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}/modulos`);
             const data = await response.json();
             setEmpresaModulos(data.modulos);
+            
+            // Fetch submodules for each module
+            const modulosComSubmodulos = await Promise.all(
+                data.modulos.map(async (modulo) => {
+                    const submodulosResponse = await fetch(`https://backend.advir.pt/api/submodulos/${modulo.id}`);
+                    const submodulosData = await submodulosResponse.json();
+                    return {
+                        ...modulo,
+                        submodulos: submodulosData.submodulos || []
+                    };
+                })
+            );
+            setEmpresaModulos(modulosComSubmodulos);
         } catch (error) {
             console.error('Erro ao carregar módulos da empresa:', error);
+        }
+    };
+
+    const fetchAllSubmodulosByModulo = async (moduloId) => {
+        try {
+            const response = await fetch(`https://backend.advir.pt/api/submodulos/${moduloId}`);
+            const data = await response.json();
+            setAllSubmodulos(data.submodulos || []);
+        } catch (error) {
+            console.error('Erro ao carregar submódulos do módulo:', error);
         }
     };
 
@@ -140,6 +169,17 @@ const ADHome = () => {
         setModalVisible(true);
     };
 
+    const toggleSubmoduleModal = (submodulo, isAdding) => {
+        setIsAddingSubmodule(isAdding);
+        setSelectedSubmodulo(submodulo);
+        setSubmoduleModalVisible(true);
+    };
+
+    const handleModuloSelectForSubmodules = (modulo) => {
+        setSelectedModuloForSubmodules(modulo);
+        fetchAllSubmodulosByModulo(modulo.id);
+    };
+
     const confirmAction = async () => {
         if (isAdding) {
             await addModuloToEmpresa(selectedModulo.id);
@@ -147,6 +187,15 @@ const ADHome = () => {
             await removeModuloFromEmpresa(selectedModulo.id);
         }
         setModalVisible(false);
+    };
+
+    const confirmSubmoduleAction = async () => {
+        if (isAddingSubmodule) {
+            await addSubmoduloToEmpresa(selectedSubmodulo.id);
+        } else {
+            await removeSubmoduloFromEmpresa(selectedSubmodulo.id);
+        }
+        setSubmoduleModalVisible(false);
     };
 
     const addModuloToEmpresa = async (moduloId) => {
@@ -175,6 +224,41 @@ const ADHome = () => {
             fetchEmpresaModulos(selectedEmpresa.id);
         } catch (error) {
             console.error('Erro ao remover módulo:', error);
+        }
+    };
+
+    const addSubmoduloToEmpresa = async (submoduloId) => {
+        try {
+            await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/submodulos`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ submoduloId }),
+            });
+            fetchEmpresaModulos(selectedEmpresa.id);
+            if (selectedModuloForSubmodules) {
+                fetchAllSubmodulosByModulo(selectedModuloForSubmodules.id);
+            }
+        } catch (error) {
+            console.error('Erro ao associar submódulo:', error);
+        }
+    };
+
+    const removeSubmoduloFromEmpresa = async (submoduloId) => {
+        try {
+            await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/submodulos/${submoduloId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            fetchEmpresaModulos(selectedEmpresa.id);
+            if (selectedModuloForSubmodules) {
+                fetchAllSubmodulosByModulo(selectedModuloForSubmodules.id);
+            }
+        } catch (error) {
+            console.error('Erro ao remover submódulo:', error);
         }
     };
 
@@ -252,6 +336,61 @@ const ADHome = () => {
                                 </TouchableOpacity>
                             </View>
                         ))}
+
+                    <Text style={styles.subTitle}>Gestão de Submódulos</Text>
+                    <Text style={styles.subTitle2}>Selecionar Módulo para gerir submódulos:</Text>
+                    {empresaModulos.map((modulo) => (
+                        <TouchableOpacity
+                            key={modulo.id}
+                            style={[
+                                styles.moduleSelectButton,
+                                selectedModuloForSubmodules?.id === modulo.id && styles.selectedModuleButton
+                            ]}
+                            onPress={() => handleModuloSelectForSubmodules(modulo)}
+                        >
+                            <Text style={styles.moduleSelectText}>{modulo.nome}</Text>
+                        </TouchableOpacity>
+                    ))}
+
+                    {selectedModuloForSubmodules && (
+                        <View style={styles.submoduleSection}>
+                            <Text style={styles.subTitle}>Submódulos do módulo "{selectedModuloForSubmodules.nome}"</Text>
+                            
+                            <Text style={styles.subTitle2}>Submódulos Associados:</Text>
+                            {selectedModuloForSubmodules.submodulos && selectedModuloForSubmodules.submodulos.length > 0 ? (
+                                selectedModuloForSubmodules.submodulos.map((submodulo) => (
+                                    <View key={submodulo.id} style={styles.moduleContainer}>
+                                        <Text style={styles.moduleText}>{submodulo.nome}</Text>
+                                        <TouchableOpacity
+                                            style={styles.removeButton}
+                                            onPress={() => toggleSubmoduleModal(submodulo, false)}
+                                        >
+                                            <Text style={styles.buttonText}>REMOVER</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ))
+                            ) : (
+                                <Text style={styles.noSubmodulesText}>Nenhum submódulo associado</Text>
+                            )}
+
+                            <Text style={styles.subTitle2}>Adicionar Submódulo:</Text>
+                            {allSubmodulos
+                                .filter((submodulo) => 
+                                    !selectedModuloForSubmodules.submodulos?.some((es) => es.id === submodulo.id)
+                                )
+                                .map((submodulo) => (
+                                    <View key={submodulo.id} style={styles.moduleContainer}>
+                                        <Text style={styles.moduleText}>{submodulo.nome}</Text>
+                                        <TouchableOpacity
+                                            style={styles.addButton}
+                                            onPress={() => toggleSubmoduleModal(submodulo, true)}
+                                        >
+                                            <Text style={styles.buttonText}>ADICIONAR</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
+                        </View>
+                    )}
                 </View>
             )}
 
@@ -277,6 +416,36 @@ const ADHome = () => {
                             <TouchableOpacity
                                 style={[styles.modalButton, styles.confirmButton]}
                                 onPress={confirmAction}
+                            >
+                                <Text style={styles.buttonText}>Confirmar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal para confirmar ação de adicionar/remover submódulo */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={submoduleModalVisible}
+                onRequestClose={() => setSubmoduleModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                        <Text style={styles.modalText}>
+                            {isAddingSubmodule ? "Adicionar" : "Remover"} o submódulo "{selectedSubmodulo?.nome}"?
+                        </Text>
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton]}
+                                onPress={() => setSubmoduleModalVisible(false)}
+                            >
+                                <Text style={styles.buttonText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.confirmButton]}
+                                onPress={confirmSubmoduleAction}
                             >
                                 <Text style={styles.buttonText}>Confirmar</Text>
                             </TouchableOpacity>
@@ -433,6 +602,45 @@ const styles = StyleSheet.create({
     buttonText: {
         color: '#FFF',
         fontWeight: 'bold',
+    },
+    subTitle2: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#34495E',
+        marginTop: 15,
+        marginBottom: 8,
+    },
+    moduleSelectButton: {
+        padding: 12,
+        borderRadius: 8,
+        backgroundColor: '#ECF0F1',
+        marginVertical: 3,
+        borderWidth: 1,
+        borderColor: '#BDC3C7',
+    },
+    selectedModuleButton: {
+        backgroundColor: '#3498DB',
+        borderColor: '#2980B9',
+    },
+    moduleSelectText: {
+        color: '#2C3E50',
+        fontWeight: '500',
+        textAlign: 'center',
+    },
+    submoduleSection: {
+        marginTop: 20,
+        padding: 15,
+        backgroundColor: '#F8F9FA',
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#E9ECEF',
+    },
+    noSubmodulesText: {
+        fontSize: 14,
+        color: '#95A5A6',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        marginVertical: 10,
     },
 });
 
