@@ -116,18 +116,16 @@ const listarModulosDaEmpresa = async (req, res) => {
                 {
                     model: Modulo,
                     as: 'modulos',
-                    include: [
-                        {
-                            model: Submodulo,
-                            as: 'submodulos'
-                        }
-                    ]
+                    include: {
+                        model: Submodulo,
+                        as: 'submodulos'
+                    }
                 },
                 {
                     model: Submodulo,
                     as: 'submodulos'
                 }
-            ],
+            ]
         });
 
         if (!empresa) {
@@ -136,10 +134,11 @@ const listarModulosDaEmpresa = async (req, res) => {
 
         // Para cada módulo, filtrar apenas os submódulos que estão associados à empresa
         const modulosComSubmodulos = empresa.modulos.map(modulo => {
-            const submodulosAssociados = modulo.submodulos.filter(submodulo => 
+            const submodulosDoModulo = modulo.submodulos || [];
+            const submodulosAssociados = submodulosDoModulo.filter(submodulo => 
                 empresa.submodulos.some(empresaSubmodulo => empresaSubmodulo.id === submodulo.id)
             );
-            
+
             return {
                 ...modulo.toJSON(),
                 submodulos: submodulosAssociados
