@@ -6,6 +6,7 @@ const Submodulo = require('./models/submodulo');
 const UserModulo = require('./models/user_modulo');
 const UserSubmodulo = require('./models/user_submodulo');
 const EmpresaModulo = require('./models/empresa_modulo');
+const EmpresaSubmodulo = require('./models/empresa_submodulo');
 const Obra = require('./models/obra');
 const RegistoPonto = require('./models/registoPonto');
 const Intervalo = require('./models/intervalo');
@@ -43,6 +44,10 @@ Submodulo.belongsToMany(User, { through: UserSubmodulo, as: 'utilizadores', fore
 // Associação entre Empresa e Modulo
 Empresa.belongsToMany(Modulo, { through: 'EmpresaModulo', foreignKey: 'empresa_id', as: 'modulos' });
 Modulo.belongsToMany(Empresa, { through: 'EmpresaModulo', foreignKey: 'modulo_id', as: 'empresas' });
+
+// Associação entre Empresa e Submodulo
+Empresa.belongsToMany(Submodulo, { through: 'EmpresaSubmodulo', foreignKey: 'empresa_id', as: 'submodulos' });
+Submodulo.belongsToMany(Empresa, { through: 'EmpresaSubmodulo', foreignKey: 'submodulo_id', as: 'empresas' });
 
 
 
@@ -83,6 +88,7 @@ module.exports = {
     Submodulo,
     UserSubmodulo,
     EmpresaModulo,
+    EmpresaSubmodulo,
     RegistoPonto,
     Intervalo,
     FaltasFerias,
