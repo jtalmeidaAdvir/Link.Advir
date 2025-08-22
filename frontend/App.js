@@ -207,6 +207,48 @@ const CustomDrawerContent = ({
             module.submodulos.some((sub) => sub.nome === "Controlo"),
     );
 
+    // Novos filtros para submódulos do módulo Obras
+    const hasPartesDiariasModule = modules.some(
+        (module) =>
+            module.nome === "Obras" &&
+            module.submodulos.some((sub) => sub.nome === "PartesDiarias"),
+    );
+    const hasAgendaModule = modules.some(
+        (module) =>
+            module.nome === "Obras" &&
+            module.submodulos.some((sub) => sub.nome === "Agenda"),
+    );
+    const hasGestaoFaltasModule = modules.some(
+        (module) =>
+            module.nome === "Obras" &&
+            module.submodulos.some((sub) => sub.nome === "GestaoFaltas"),
+    );
+    const hasGestaoPontosModule = modules.some(
+        (module) =>
+            module.nome === "Obras" &&
+            module.submodulos.some((sub) => sub.nome === "GestaoPontos"),
+    );
+    const hasGestaoExternosModule = modules.some(
+        (module) =>
+            module.nome === "Obras" &&
+            module.submodulos.some((sub) => sub.nome === "GestaoExternos"),
+    );
+    const hasGestaoPartesModule = modules.some(
+        (module) =>
+            module.nome === "Obras" &&
+            module.submodulos.some((sub) => sub.nome === "GestaoPartes"),
+    );
+    const hasPontoModule = modules.some(
+        (module) =>
+            module.nome === "Obras" &&
+            module.submodulos.some((sub) => sub.nome === "Ponto"),
+    );
+    const hasEquipasModule = modules.some(
+        (module) =>
+            module.nome === "Obras" &&
+            module.submodulos.some((sub) => sub.nome === "Equipas"),
+    );
+
     return (
         <DrawerContentScrollView
             {...props}
@@ -261,48 +303,53 @@ const CustomDrawerContent = ({
                                     }}
                                 />
 
-                                <DrawerItem
-                                    label={t("Partes Diarias")}
-                                    onPress={() =>
-                                        props.navigation.navigate("PartesDiarias")
-                                    }
-                                    icon={() => (
-                                        <FontAwesome
-                                            name="book"
-                                            size={20}
-                                            color="#1792FE"
-                                        />
-                                    )}
-                                    options={{
-                                        drawerItemStyle:
-                                            tipoUser === "Encarregado" ||
-                                                tipoUser === "Diretor" ||
-                                                tipoUser === "Administrador"
-                                                ? {}
-                                                : { display: "none" },
-                                    }}
-                                />
-                                <DrawerItem
-                                    label={t("Equipas")}
-                                    onPress={() =>
-                                        props.navigation.navigate("CriarEquipa")
-                                    }
-                                    icon={() => (
-                                        <FontAwesome
-                                            name="users"
-                                            size={20}
-                                            color="#1792FE"
-                                        />
-                                    )}
-                                    options={{
-                                        drawerItemStyle:
-                                            tipoUser === "Encarregado" ||
-                                                tipoUser === "Diretor" ||
-                                                tipoUser === "Administrador"
-                                                ? {}
-                                                : { display: "none" },
-                                    }}
-                                />
+                                {hasPartesDiariasModule && (
+                                    <DrawerItem
+                                        label={t("Partes Diarias")}
+                                        onPress={() =>
+                                            props.navigation.navigate("PartesDiarias")
+                                        }
+                                        icon={() => (
+                                            <FontAwesome
+                                                name="book"
+                                                size={20}
+                                                color="#1792FE"
+                                            />
+                                        )}
+                                        options={{
+                                            drawerItemStyle:
+                                                tipoUser === "Encarregado" ||
+                                                    tipoUser === "Diretor" ||
+                                                    tipoUser === "Administrador"
+                                                    ? {}
+                                                    : { display: "none" },
+                                        }}
+                                    />
+                                )}
+
+                                {hasEquipasModule && (
+                                    <DrawerItem
+                                        label={t("Equipas")}
+                                        onPress={() =>
+                                            props.navigation.navigate("CriarEquipa")
+                                        }
+                                        icon={() => (
+                                            <FontAwesome
+                                                name="users"
+                                                size={20}
+                                                color="#1792FE"
+                                            />
+                                        )}
+                                        options={{
+                                            drawerItemStyle:
+                                                tipoUser === "Encarregado" ||
+                                                    tipoUser === "Diretor" ||
+                                                    tipoUser === "Administrador"
+                                                    ? {}
+                                                    : { display: "none" },
+                                        }}
+                                    />
+                                )}
 
                             </>
                         )}
@@ -398,7 +445,7 @@ const CustomDrawerContent = ({
                         />
                     )}
 
-                    {hasObrasModule && (
+                    {hasPontoModule && (
                         <DrawerItem
                             label={t("Ponto")}
                             onPress={() =>
@@ -413,7 +460,7 @@ const CustomDrawerContent = ({
                             )}
                         />
                     )}
-                    {hasObrasModule && (
+                    {hasAgendaModule && (
                         <DrawerItem
                             label={t("Agenda")}
                             onPress={() =>
@@ -435,56 +482,60 @@ const CustomDrawerContent = ({
                         tipoUser === "Diretor" ||
                         tipoUser === "Administrador") && (
                             <>
-                                <DrawerItem
-                                    label={t("Gestão Faltas")}
-                                    onPress={() =>
-                                        props.navigation.navigate(
-                                            "AprovacaoFaltaFerias",
-                                        )
-                                    }
-                                    icon={() => (
-                                        <FontAwesome
-                                            name="check-square"
-                                            size={20}
-                                            color="#1792FE"
-                                        />
-                                    )}
-                                    options={{
-                                        drawerItemStyle:
-                                            tipoUser === "Encarregado" ||
-                                                tipoUser === "Diretor" ||
-                                                tipoUser === "Administrador"
-                                                ? {}
-                                                : { display: "none" },
-                                    }}
-                                />
+                                {hasGestaoFaltasModule && (
+                                    <DrawerItem
+                                        label={t("Gestão Faltas")}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "AprovacaoFaltaFerias",
+                                            )
+                                        }
+                                        icon={() => (
+                                            <FontAwesome
+                                                name="check-square"
+                                                size={20}
+                                                color="#1792FE"
+                                            />
+                                        )}
+                                        options={{
+                                            drawerItemStyle:
+                                                tipoUser === "Encarregado" ||
+                                                    tipoUser === "Diretor" ||
+                                                    tipoUser === "Administrador"
+                                                    ? {}
+                                                    : { display: "none" },
+                                        }}
+                                    />
+                                )}
 
-                                <DrawerItem
-                                    label={t("Gestão Pontos")}
-                                    onPress={() =>
-                                        props.navigation.navigate(
-                                            "AprovacaoPontoPendentes",
-                                        )
-                                    }
-                                    icon={() => (
-                                        <FontAwesome
-                                            name="calendar-check-o"
-                                            size={20}
-                                            color="#1792FE"
-                                        />
-                                    )}
-                                    options={{
-                                        drawerItemStyle:
-                                            tipoUser === "Encarregado" ||
-                                                tipoUser === "Diretor" ||
-                                                tipoUser === "Administrador"
-                                                ? {}
-                                                : { display: "none" },
-                                    }}
-                                />
+                                {hasGestaoPontosModule && (
+                                    <DrawerItem
+                                        label={t("Gestão Pontos")}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "AprovacaoPontoPendentes",
+                                            )
+                                        }
+                                        icon={() => (
+                                            <FontAwesome
+                                                name="calendar-check-o"
+                                                size={20}
+                                                color="#1792FE"
+                                            />
+                                        )}
+                                        options={{
+                                            drawerItemStyle:
+                                                tipoUser === "Encarregado" ||
+                                                    tipoUser === "Diretor" ||
+                                                    tipoUser === "Administrador"
+                                                    ? {}
+                                                    : { display: "none" },
+                                        }}
+                                    />
+                                )}
                             </>
                         )}
-                    {tipoUser === "Administrador" && (
+                    {tipoUser === "Administrador" && hasGestaoExternosModule && (
                         <>
                             <DrawerItem
                                 label={t("Gestão Externos")}
@@ -511,7 +562,7 @@ const CustomDrawerContent = ({
                     )}
 
                     {(tipoUser === "Diretor" ||
-                        tipoUser === "Administrador") && (
+                        tipoUser === "Administrador") && hasGestaoPartesModule && (
                             <DrawerItem
                                 label={t("Gestão Partes Diárias")}
                                 onPress={() =>
