@@ -226,23 +226,6 @@ const atualizarEmpresaInfo = async (req, res) => {
 
 
 
-module.exports = {
-    criarEmpresa,
-    getEmpresaByNome,
-    atualizarUrlEmpresa,  // Exportar o novo endpoint
-    listarEmpresas,
-    listarModulosDaEmpresa,
-    adicionarModuloAEmpresa,
-    removerModuloDaEmpresa,
-    atualizarMaxUsers,
-    getEmpresaUrlByEmpresa,
-    atualizarEmpresaInfo,
-    addSubmoduloToEmpresa,
-    removeSubmoduloFromEmpresa,
-};
-
-
-
 // Associar submódulo à empresa
 const addSubmoduloToEmpresa = async (req, res) => {
     const { empresaId } = req.params;
@@ -282,4 +265,19 @@ const removeSubmoduloFromEmpresa = async (req, res) => {
         console.error('Erro ao remover submódulo da empresa:', error);
         res.status(500).json({ message: 'Erro ao remover submódulo da empresa.' });
     }
+};
+
+module.exports = {
+    criarEmpresa,
+    getEmpresaByNome,
+    atualizarUrlEmpresa,  // Exportar o novo endpoint
+    listarEmpresas,
+    listarModulosDaEmpresa,
+    adicionarModuloAEmpresa,
+    removerModuloDaEmpresa,
+    atualizarMaxUsers,
+    getEmpresaUrlByEmpresa,
+    atualizarEmpresaInfo,
+    addSubmoduloToEmpresa,
+    removeSubmoduloFromEmpresa,
 };
