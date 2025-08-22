@@ -4,17 +4,48 @@ import { View, TouchableOpacity, Text } from 'react-native';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
 const RedefinirPassword = ({ route }) => {
-    const { token } = route.params; // Obtém o token da URL
+    // Para React Web, o token vem da URL, não de route.params
+    const urlParams = new URLSearchParams(window.location.search);
+    const pathParts = window.location.pathname.split('/');
+    const tokenFromUrl = pathParts[pathParts.length - 1]; // Pega a última parte da URL
+    const token = route?.params?.token || tokenFromUrl;
+
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [loading, setLoading] = useState(false);
     const navigation = useNavigation();
     const { t } = useTranslation();
+
+    // Debug para verificar se o token está a ser obtido
+    console.log('Token obtido:', token);
+
+    // Verificar se o token existe
+    if (!token) {
+        setError('Token de recuperação inválido ou não encontrado.');
+    }
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        setError('');
+        setSuccess('');
+
+        if (!token) {
+            setError('Token de recuperação inválido.');
+            setLoading(false);
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            setError('A password deve ter pelo menos 6 caracteres.');
+            setLoading(false);
+            return;
+        }
 
         if (newPassword !== confirmPassword) {
             setError(t("RedefenirPassword.Error.1"));
+            setLoading(false);
             return;
         }
 
@@ -25,15 +56,21 @@ const RedefinirPassword = ({ route }) => {
                 body: JSON.stringify({ newPassword }),
             });
 
+            const data = await response.json();
+
             if (response.ok) {
-                navigation.navigate('Login');
+                setSuccess('Password redefinida com sucesso! Redirecionando...');
+                setTimeout(() => {
+                    navigation.navigate('Login');
+                }, 2000);
             } else {
-                const errorData = await response.json();
-                setError(errorData.error || 'Erro ao redefinir a senha.');
+                setError(data.error || 'Erro ao redefinir a password.');
             }
         } catch (error) {
             console.error('Erro de rede:', error);
             setError('Erro de rede. Tente novamente.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -103,23 +140,49 @@ const RedefinirPassword = ({ route }) => {
                         />
                     </div>
                     {error && (
-                        <div style={{ color: 'red', marginBottom: '20px', textAlign: 'center' }}>
-                            {error}
+                        <div style={{
+                            color: '#dc3545',
+                            backgroundColor: '#f8d7da',
+                            border: '1px solid #f5c6cb',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            marginBottom: '20px',
+                            textAlign: 'center',
+                            fontSize: '14px'
+                        }}>
+                            ⚠️ {error}
+                        </div>
+                    )}
+                    {success && (
+                        <div style={{
+                            color: '#155724',
+                            backgroundColor: '#d4edda',
+                            border: '1px solid #c3e6cb',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            marginBottom: '20px',
+                            textAlign: 'center',
+                            fontSize: '14px'
+                        }}>
+                            ✅ {success}
                         </div>
                     )}
                     <button
                         type="submit"
+                        disabled={loading || !token}
                         style={{
                             borderRadius: '10px',
                             padding: '12px',
                             fontSize: '1.1rem',
-                            backgroundColor: '#1792FE',
+                            backgroundColor: loading || !token ? '#ccc' : '#1792FE',
                             color: 'white',
                             width: '100%',
                             border: 'none',
+                            cursor: loading || !token ? 'not-allowed' : 'pointer',
+                            transition: 'background-color 0.3s',
                         }}
                     >
-                        {t("RedefenirPassword.BtRedefenir")}
+                        {loading ? '⏳ A redefinir...' : t("RedefenirPassword.BtRedefenir")}
                     </button>
                 </form>
             </div>

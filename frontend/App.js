@@ -102,10 +102,16 @@ const Drawer = createDrawerNavigator();
 
 // Configuração de deep linking para reconhecer URLs com parâmetros dinâmicos como o token
 const linking = {
-    prefixes: ["https://backend.advir.pt:8081"],
+    prefixes: ["https://link.advir.pt", "https://backend.advir.pt:8081", "http://localhost:19006"],
     config: {
         screens: {
-            RedefinirPassword: "redefinir-password/:token",
+            RedefinirPassword: {
+                path: "redefinir-password/:token",
+                parse: {
+                    token: (token) => token,
+                },
+            },
+            Login: "login",
         },
     },
 };
@@ -1502,16 +1508,16 @@ export default function App() {
         setTimeout(() => setAppReady(true), 100); // pequeno delay para garantir fetchUserData concluir
     }, []);
 
-    return (
-        <NavigationContainer>
-            <ImageBackground
+        return (
+<NavigationContainer linking={linking}>
+<ImageBackground
                 source={backgroundPattern}
                 style={styles.background}
-            >
-                <View style={styles.overlay}>
+>
+<View style={styles.overlay}>
                     {appReady && <AppNavigator />}
-                </View>
-            </ImageBackground>
-        </NavigationContainer>
+</View>
+</ImageBackground>
+</NavigationContainer>
     );
 }

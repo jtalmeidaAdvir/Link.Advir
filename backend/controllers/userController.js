@@ -468,62 +468,84 @@ const recuperarPassword = async (req, res) => {
             to: email,
             subject: 'Recuperação de Password - Advir',
             html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8f9fa; padding: 20px;">
-                <div style="background-color: #ffffff; border-radius: 15px; padding: 30px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-                    <div style="text-align: center; margin-bottom: 30px;">
-                        <img src="https://link.advir.pt/static/media/img_logo.a2a85989c690f4bfd096.png" alt="Advir Plan" style="width: 200px; margin-bottom: 20px;" />
+            <!DOCTYPE html>
+            <html lang="pt">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Recuperação de Password - AdvirLink</title>
+            </head>
+            <body style="margin: 0; padding: 20px; background-color: #f5f5f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); border: 1px solid #e6e6e6;">
+                        <!-- Header profissional -->
+                        <div style="background: linear-gradient(135deg, #1792FE 0%, #4481EB 100%); padding: 40px 30px; text-align: center; position: relative;">
+                            <div style="background: rgba(255,255,255,0.1); width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 20px auto; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 36px;">🔒</span>
+                            </div>
+                            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                Recuperação de Password
+                            </h1>
+                            <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 16px;">
+                                AdvirLink - Plataforma de Gestão Empresarial
+                            </p>
+                        </div>
+
+                    <!-- Content -->
+                    <div style="padding: 40px;">
+                        <h1 style="color: #333; margin: 0 0 20px 0; font-size: 24px; font-weight: 600; text-align: center;">
+                            Recuperação de Password
+                        </h1>
+
+                        <div style="background: #f8f9fa; border-left: 4px solid #1792FE; padding: 20px; margin: 25px 0; border-radius: 8px;">
+                            <p style="font-size: 16px; color: #333; margin: 0; line-height: 1.6;">
+                                Olá, <strong style="color: #1792FE;">${user.nome}</strong>! 👋
+                            </p>
+                            <p style="font-size: 16px; color: #666; margin: 15px 0 0 0; line-height: 1.6;">
+                                Recebemos um pedido para redefinir a password da sua conta AdvirLink.
+                            </p>
+                        </div>
+
+                        <div style="text-align: center; margin: 35px 0;">
+                            <a href="${recoveryLink}" style="background: linear-gradient(45deg, #1792FE, #4CAF50); color: white; padding: 16px 35px; text-decoration: none; font-weight: bold; border-radius: 50px; display: inline-block; font-size: 16px; box-shadow: 0 5px 15px rgba(23, 146, 254, 0.3); transition: all 0.3s ease;">
+                                🔐 Redefinir Password Agora
+                            </a>
+                        </div>
+
+                        <div style="background: linear-gradient(45deg, #fff3cd, #fef9e7); border: 1px solid #ffd60a; border-radius: 12px; padding: 20px; margin: 30px 0; text-align: center;">
+                            <p style="font-size: 15px; color: #856404; margin: 0; font-weight: 500;">
+                                ⚠️ <strong>Atenção:</strong> Este link expira em 1 hora por segurança
+                            </p>
+                            <p style="font-size: 13px; color: #666; margin: 8px 0 0 0;">
+                                Se não conseguir clicar no botão, copie e cole este link:<br>
+                                <span style="word-break: break-all; color: #1792FE;">${recoveryLink}</span>
+                            </p>
+                        </div>
+
+                        <div style="background: #e3f2fd; border-radius: 8px; padding: 15px; margin: 25px 0; text-align: center;">
+                            <p style="font-size: 14px; color: #1565c0; margin: 0;">
+                                💡 <strong>Não solicitou esta alteração?</strong><br>
+                                Pode ignorar este email. A sua password permanecerá inalterada.
+                            </p>
+                        </div>
                     </div>
-                    
-                    <h2 style="color: #1F2D50; text-align: center; margin-bottom: 30px; font-size: 24px;">
-                        Recuperação de Password
-                    </h2>
-                    
-                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
-                        <p style="font-size: 16px; color: #333; margin: 0; line-height: 1.6;">
-                            Olá,<br><br>
-                            Recebemos um pedido para redefinir a password da sua conta associada ao email <strong>${email}</strong>.
+
+                    <!-- Footer -->
+                    <div style="background: #f8f9fa; padding: 25px; text-align: center; border-top: 1px solid #eee;">
+                        <p style="font-size: 14px; color: #666; margin: 0 0 10px 0;">
+                            <strong>AdvirLink</strong> - Sistema de Gestão Empresarial
                         </p>
-                    </div>
-                    
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="${recoveryLink}" style="background-color: #1792FE; color: white; padding: 15px 30px; text-decoration: none; font-weight: bold; border-radius: 8px; display: inline-block; font-size: 16px; transition: background-color 0.3s;">
-                            🔐 Redefinir Password
-                        </a>
-                    </div>
-                    
-                    <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 25px 0;">
-                        <p style="font-size: 14px; color: #856404; margin: 0; text-align: center;">
-                            ⚠️ <strong>Importante:</strong> Este link é válido por apenas 1 hora por motivos de segurança.
+                        <p style="font-size: 12px; color: #999; margin: 0;">
+                            Este é um email automático, não responda a esta mensagem.
                         </p>
+                        <div style="margin-top: 15px;">
+                            <span style="color: #1792FE; font-size: 12px;">
+                                © ${new Date().getFullYear()} AdvirLink. Todos os direitos reservados.
+                            </span>
+                        </div>
                     </div>
-                    
-                    <p style="font-size: 14px; color: #666; text-align: center; margin: 20px 0;">
-                        Se não solicitou esta alteração, pode ignorar este email. A sua password permanecerá inalterada.
-                    </p>
-                    
-                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                    
-                    <div style="text-align: center;">
-                        <p style="font-size: 14px; color: #333; margin-bottom: 10px;">
-                            Precisa de ajuda? Entre em contacto connosco:
-                        </p>
-                        <a href="mailto:support@advir.pt" style="color: #1792FE; text-decoration: none; font-weight: 600;">
-                            📧 support@advir.pt
-                        </a>
-                    </div>
-                    
-                    <p style="font-size: 14px; color: #333; text-align: center; margin-top: 30px;">
-                        Obrigado,<br>
-                        <strong>Equipa Advir</strong>
-                    </p>
                 </div>
-                
-                <div style="text-align: center; margin-top: 20px;">
-                    <p style="font-size: 12px; color: #999;">
-                        © 2024 Advir. Todos os direitos reservados.
-                    </p>
-                </div>
-            </div>`
+            </body>
+            </html>`
         };
 
         transporter.sendMail(mailOptions, (error) => {
@@ -873,7 +895,7 @@ const atualizarDadosUtilizador = async (req, res) => {
         // Atualizar o utilizador
         await user.update(dadosParaAtualizar);
 
-        res.status(200).json({ 
+        res.status(200).json({
         message: 'Dados do utilizador atualizados com sucesso.',
         user: {
             id: user.id,
@@ -915,7 +937,7 @@ const getDadosUtilizador = async (req, res) => {
 const removerUtilizador = async (req, res) => {
     try {
         const { userId } = req.params;
-        
+
         // Verificar se o utilizador existe
         const user = await User.findByPk(userId);
         if (!user) {
@@ -926,7 +948,7 @@ const removerUtilizador = async (req, res) => {
         await User_Empresa.destroy({ where: { user_id: userId } });
         await User_Modulo.destroy({ where: { user_id: userId } });
         await User_Submodulo.destroy({ where: { user_id: userId } });
-        
+
         // Remover o utilizador
         await user.destroy();
 

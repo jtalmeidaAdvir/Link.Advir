@@ -527,7 +527,7 @@ const Home = () => {
                     throw new Error(`Erro ao buscar contrato: ${contratoResponse.statusText}`);
                 }
 
-                const contratoData = await კონTRactosResponse.json();
+                const contratoData = await contratoResponse.json();
                 console.log('Contrato Data:', contratoData);
 
                 // Filtrar contrato com estado === 3
@@ -749,7 +749,7 @@ const Home = () => {
                 height: '100%'
             }}>
 
-                {/* Sticky Navbar */}
+                {/* StickyNavbar */}
                 <nav className="navbar navbar-light fixed-top" style={{
                     backgroundColor: 'rgba(25, 118, 210, 0.95)',
                     backdropFilter: 'blur(10px)',
@@ -920,7 +920,7 @@ const Home = () => {
                                         : '0 6px 15px rgba(0, 0, 0, 0.08)',
                                     textAlign: 'center',
                                     transition: 'all 0.3s ease',
-                                    border: activeMenu === menu.title ? 'none' : '1px solid #e8eaf6',
+                                    border: activeMenu === menu.title ? 'none' : '1px solid #e0eaf6',
                                     position: 'relative',
                                     overflow: 'hidden'
                                 }}
@@ -1892,7 +1892,8 @@ const Home = () => {
                                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
                                     borderRadius: '16px',
                                     overflow: 'hidden',
-                                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
+                                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
+                                    width: window.innerWidth <= 768 ? '95%' : 'auto'
                                 }}
                             >
                                 <div style={{
@@ -1911,7 +1912,9 @@ const Home = () => {
                                     </h2>
                                 </div>
 
-                                <div style={{ padding: '30px' }}>
+                                <div style={{ 
+                                    padding: window.innerWidth <= 768 ? '20px 16px' : '30px' 
+                                }}>
                                     {noticiasLoading ? (
                                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
                                             <div className="spinner-border text-primary" role="status">
@@ -1930,7 +1933,11 @@ const Home = () => {
                                             <p style={{ fontSize: '18px', fontWeight: '500' }}>{noticiasError}</p>
                                         </div>
                                     ) : noticias.length > 0 ? (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                        <div style={{ 
+                                            display: 'flex', 
+                                            flexDirection: 'column', 
+                                            gap: '16px' 
+                                        }}>
                                             {noticias.map((noticia, index) => (
                                                 <motion.div
                                                     key={index}
@@ -1940,16 +1947,17 @@ const Home = () => {
                                                     onClick={() => window.open(noticia.link, '_blank')}
                                                     style={{
                                                         display: 'grid',
-                                                        gridTemplateColumns: '120px 1fr',
+                                                        gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '120px 1fr',
                                                         gap: '16px',
-                                                        padding: '14px',
+                                                        padding: '16px',
                                                         backgroundColor: '#ffffff',
                                                         borderRadius: '12px',
                                                         border: '1px solid #e9ecef',
                                                         cursor: 'pointer',
                                                         boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
                                                         alignItems: 'stretch',
-                                                        transition: 'all .2s ease'
+                                                        transition: 'all .2s ease',
+                                                        minHeight: window.innerWidth <= 768 ? 'auto' : '120px'
                                                     }}
                                                     onMouseEnter={(e) => {
                                                         e.currentTarget.style.transform = 'translateY(-2px)';
@@ -1965,26 +1973,74 @@ const Home = () => {
                                                     {/* Thumbnail */}
                                                     <div style={{
                                                         width: '100%',
-                                                        height: '100%',
-                                                        minHeight: '90px',
-                                                        maxHeight: '120px',
+                                                        height: window.innerWidth <= 768 ? '200px' : '100%',
+                                                        minHeight: window.innerWidth <= 768 ? '200px' : '90px',
+                                                        maxHeight: window.innerWidth <= 768 ? '200px' : '120px',
                                                         borderRadius: '10px',
                                                         overflow: 'hidden',
-                                                        background: 'linear-gradient(135deg,#e3f2fd,#f5f9ff)'
+                                                        background: 'linear-gradient(135deg,#e3f2fd,#f5f9ff)',
+                                                        position: 'relative',
+                                                        order: window.innerWidth <= 768 ? 1 : 0
                                                     }}>
                                                         {noticia.image ? (
                                                             <img
-                                                                src={`${BACKEND_BASE_URL}/api/news/img?u=${encodeURIComponent(noticia.image)}`}
+                                                                src={noticia.image.startsWith('http') ? noticia.image : `${BACKEND_BASE_URL}/api/news/img?u=${encodeURIComponent(noticia.image)}`}
                                                                 alt={noticia.title}
-                                                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                                style={{ 
+                                                                    width: '100%', 
+                                                                    height: '100%', 
+                                                                    objectFit: 'cover', 
+                                                                    display: 'block' 
+                                                                }}
+                                                                onError={(e) => { 
+                                                                    // Fallback para um placeholder
+                                                                    e.currentTarget.style.display = 'none';
+                                                                    e.currentTarget.parentNode.style.background = 'linear-gradient(135deg,#e3f2fd,#f5f9ff)';
+                                                                    const placeholder = document.createElement('div');
+                                                                    placeholder.style.cssText = `
+                                                                        width: 100%;
+                                                                        height: 100%;
+                                                                        display: flex;
+                                                                        align-items: center;
+                                                                        justify-content: center;
+                                                                        color: #1976D2;
+                                                                        font-size: 24px;
+                                                                        font-weight: bold;
+                                                                    `;
+                                                                    placeholder.innerHTML = '📰';
+                                                                    e.currentTarget.parentNode.appendChild(placeholder);
+                                                                }}
                                                             />
-                                                        ) : null}
+                                                        ) : (
+                                                            <div style={{
+                                                                width: '100%',
+                                                                height: '100%',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                color: '#1976D2',
+                                                                fontSize: '24px',
+                                                                fontWeight: 'bold'
+                                                            }}>
+                                                                📰
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     {/* Conteúdo */}
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                                                    <div style={{ 
+                                                        display: 'flex', 
+                                                        flexDirection: 'column', 
+                                                        gap: '8px',
+                                                        order: window.innerWidth <= 768 ? 2 : 1,
+                                                        minHeight: '0'
+                                                    }}>
+                                                        <div style={{ 
+                                                            display: 'flex', 
+                                                            justifyContent: 'space-between', 
+                                                            gap: '8px',
+                                                            flexWrap: window.innerWidth <= 768 ? 'wrap' : 'nowrap'
+                                                        }}>
                                                             <span style={{
                                                                 backgroundColor: '#1976D2',
                                                                 color: '#fff',
@@ -1993,23 +2049,29 @@ const Home = () => {
                                                                 fontSize: '12px',
                                                                 fontWeight: 600,
                                                                 whiteSpace: 'nowrap',
-                                                                maxWidth: '50%',
+                                                                maxWidth: window.innerWidth <= 768 ? '100%' : '50%',
                                                                 overflow: 'hidden',
                                                                 textOverflow: 'ellipsis'
                                                             }}>
                                                                 {noticia.source}
                                                             </span>
-                                                            <span style={{ fontSize: '12px', color: '#667085', whiteSpace: 'nowrap' }}>
+                                                            <span style={{ 
+                                                                fontSize: '12px', 
+                                                                color: '#667085', 
+                                                                whiteSpace: 'nowrap',
+                                                                marginTop: window.innerWidth <= 768 ? '4px' : '0'
+                                                            }}>
                                                                 {new Date(noticia.date).toLocaleDateString('pt-PT')}
                                                             </span>
                                                         </div>
 
                                                         <h3 style={{
-                                                            fontSize: '17px',
+                                                            fontSize: window.innerWidth <= 768 ? '16px' : '17px',
                                                             fontWeight: 700,
                                                             color: '#0f3d74',
                                                             margin: '2px 0 0',
-                                                            lineHeight: 1.35
+                                                            lineHeight: 1.35,
+                                                            wordBreak: 'break-word'
                                                         }}>
                                                             {noticia.title}
                                                         </h3>
@@ -2018,8 +2080,13 @@ const Home = () => {
                                                             <p style={{
                                                                 margin: '4px 0 0',
                                                                 color: '#475569',
-                                                                fontSize: '14px',
-                                                                lineHeight: 1.5
+                                                                fontSize: window.innerWidth <= 768 ? '13px' : '14px',
+                                                                lineHeight: 1.5,
+                                                                wordBreak: 'break-word',
+                                                                overflow: 'hidden',
+                                                                display: '-webkit-box',
+                                                                WebkitLineClamp: window.innerWidth <= 768 ? 3 : 2,
+                                                                WebkitBoxOrient: 'vertical'
                                                             }}>
                                                                 {noticia.description}
                                                             </p>
@@ -2033,7 +2100,8 @@ const Home = () => {
                                                             gap: '6px',
                                                             color: '#1976D2',
                                                             fontWeight: 600,
-                                                            fontSize: '14px'
+                                                            fontSize: window.innerWidth <= 768 ? '13px' : '14px',
+                                                            paddingTop: '8px'
                                                         }}>
                                                             <span>Ler mais</span>
                                                             <span>→</span>
