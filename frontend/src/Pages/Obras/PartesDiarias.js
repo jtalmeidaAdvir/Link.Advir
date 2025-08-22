@@ -41,10 +41,11 @@ const PartesDiarias = ({ navigation }) => {
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [selectedTrabalhador, setSelectedTrabalhador] = useState(null);
     const [selectedDia, setSelectedDia] = useState(null);
-    const [editData, setEditData] = useState({
-        especialidade: '',
-        categoria: 'MaoObra'
-    });
+     const [editData, setEditData] = useState({
+   especialidade: '',
+   categoria: 'MaoObra',
+   notaDia: ''        // <- nota do cabeçalho para o dia selecionado
+ });
 
     const [obrasTodas, setObrasTodas] = useState([]);
 
@@ -1419,7 +1420,8 @@ useEffect(() => {
               especialidade: trabalhador.especialidade || '',
               horas: (trabalhador.horasPorDia[dia] || 0) / 60,
               subEmpId: trabalhador.subEmpId || null,
-              obraId: trabalhador.obraId, 
+              obraId: trabalhador.obraId,
+              notaDia: trabalhador?.notasPorDia?.[dia] ?? ''   // <- carrega nota já existente 
             }
          ]
     });
@@ -1540,7 +1542,11 @@ const codRaw = String(codFuncionario ?? '');
           horasPorDia: { ...it.horasPorDia, [selectedDia]: minutosAtual },
           especialidades: especRest,
           categoria: linhas[0]?.categoria ?? it.categoria,
-          especialidade: linhas[0]?.especialidade ?? it.especialidade
+                   especialidade: linhas[0]?.especialidade ?? it.especialidade,
+                            notasPorDia: {
+           ...(it.notasPorDia || {}),
+           [selectedDia]: (editData.notaDia ?? '').trim()
+         }
         };
       }
       return it;
@@ -1594,6 +1600,10 @@ const codRaw = String(codFuncionario ?? '');
         ...it,
         horasPorDia: { ...it.horasPorDia, [selectedDia]: minutosPorObra[obraId] },
         especialidades: especRest,
+               notasPorDia: {
+         ...(it.notasPorDia || {}),
+         [selectedDia]: (editData.notaDia ?? '').trim()
+       }
       };
     });
 
@@ -1683,15 +1693,19 @@ const criarParteDiaria = async () => {
           const dataISO = `${mesAno.ano}-${String(mesAno.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 
           // cria o cabeçalho certo para esta (obra, dia)
-          const payloadCab = {
-            ObraID: obraIdDia,
-            Data: dataISO,
-            Notas: '',
-            CriadoPor: userLogado,
-            Utilizador: userLogado,
-            TipoEntidade: 'O',
-            ColaboradorID: codFuncionario,
-          };
+           const notaCabecalho = (item?.notasPorDia && item.notasPorDia[dia])
+   ? String(item.notasPorDia[dia]).trim()
+   : '';
+
+ const payloadCab = {
+   ObraID: obraIdDia,
+   Data: dataISO,
+   Notas: notaCabecalho,   // <- nota definida no editor para este dia
+   CriadoPor: userLogado,
+   Utilizador: userLogado,
+   TipoEntidade: 'O',
+   ColaboradorID: codFuncionario,
+ };
 
           const respCab = await fetch('https://backend.advir.pt/api/parte-diaria/cabecalhos', {
             method: 'POST',
@@ -3030,6 +3044,22 @@ const renderDataSheet = () => {
                                 </View>
                             </View>
                         )}
+
+                         {/* Nota para o cabeçalho deste dia */}
+                          <View style={styles.editNoteCard}>
+                            <Text style={styles.editNoteLabel}>
+                              <Ionicons name="document-text" size={14} color="#666" /> Nota do cabeçalho (opcional)
+                            </Text>
+                            <TextInput
+                              style={styles.editNoteInput}
+                              value={editData.notaDia ?? ''}
+                              onChangeText={(v) => setEditData(prev => ({ ...prev, notaDia: v }))}
+                              placeholder=""
+                              multiline
+                              numberOfLines={3}
+                              textAlignVertical="top"
+                            />
+                          </View>
 
                         {/* Card das especialidades */}
                         <View style={styles.editSpecialitiesCard}>
@@ -4561,6 +4591,31 @@ editSubmitButtonText: {
         color: '#1792FE',
         textAlign: 'center',
     },
+  editNoteCard: {
+   backgroundColor: '#fff',
+   borderRadius: 12,
+   padding: 14,
+   marginBottom: 15,
+   borderWidth: 1,
+   borderColor: '#e9ecef',
+ },
+ editNoteLabel: {
+   fontSize: 13,
+   fontWeight: '600',
+   color: '#495057',
+   marginBottom: 8,
+ },
+ editNoteInput: {
+   backgroundColor: '#f8f9fa',
+   borderRadius: 10,
+   borderWidth: 1,
+   borderColor: '#dee2e6',
+   paddingHorizontal: 12,
+   paddingVertical: 10,
+   fontSize: 14,
+   minHeight: 70,
+ }
+
 });
 
 export default PartesDiarias;

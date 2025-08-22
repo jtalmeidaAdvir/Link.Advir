@@ -352,7 +352,7 @@ const ADHome = () => {
                                             style={styles.removeButton}
                                             onPress={() => toggleSubmoduleModal(submodulo, false)}
                                         >
-                                            <Text style={styles.buttonText}>REMOVER</Text>
+                                            <Text style={styles.buttonText}>Adicionar</Text>
                                         </TouchableOpacity>
                                     </View>
                                 ))
@@ -372,7 +372,7 @@ const ADHome = () => {
                                             style={styles.addButton}
                                             onPress={() => toggleSubmoduleModal(submodulo, true)}
                                         >
-                                            <Text style={styles.buttonText}>ADICIONAR</Text>
+                                            <Text style={styles.buttonText}>Remover</Text>
                                         </TouchableOpacity>
                                     </View>
                                 ))}
@@ -391,7 +391,7 @@ const ADHome = () => {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContainer}>
                         <Text style={styles.modalText}>
-                            {isAdding ? "Adicionar" : "Remover"} o módulo "{selectedModulo?.nome}"?
+                            {isAdding ? "Remover" : "Adicionar"} o módulo "{selectedModulo?.nome}"?
                         </Text>
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
@@ -421,7 +421,7 @@ const ADHome = () => {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContainer}>
                         <Text style={styles.modalText}>
-                            {isAddingSubmodule ? "Adicionar" : "Remover"} o submódulo "{selectedSubmodulo?.nome}"?
+                            {isAddingSubmodule ? "Remover" : "Adicionar"} o submódulo "{selectedSubmodulo?.nome}"?
                         </Text>
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
