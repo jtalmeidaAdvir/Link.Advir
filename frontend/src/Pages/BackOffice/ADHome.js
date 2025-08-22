@@ -65,19 +65,6 @@ const ADHome = () => {
             const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}/modulos`);
             const data = await response.json();
             setEmpresaModulos(data.modulos);
-            
-            // Fetch submodules for each module
-            const modulosComSubmodulos = await Promise.all(
-                data.modulos.map(async (modulo) => {
-                    const submodulosResponse = await fetch(`https://backend.advir.pt/api/submodulos/${modulo.id}`);
-                    const submodulosData = await submodulosResponse.json();
-                    return {
-                        ...modulo,
-                        submodulos: submodulosData.submodulos || []
-                    };
-                })
-            );
-            setEmpresaModulos(modulosComSubmodulos);
         } catch (error) {
             console.error('Erro ao carregar módulos da empresa:', error);
         }
