@@ -94,6 +94,10 @@ import EditOficio from "./src/Pages/Oficios/EditOficio";
 // Importa a nova página MapaRegistos
 import MapaRegistos from "./src/Pages/Obras/MapaRegistos";
 
+// Importa o TokenManager
+import { TokenManager } from "./src/utils/TokenManager";
+import { ThemeProvider } from "./ThemeContext";
+
 const Drawer = createDrawerNavigator();
 
 // Configuração de deep linking para reconhecer URLs com parâmetros dinâmicos como o token
@@ -881,447 +885,451 @@ const AppNavigator = () => {
     }
 
     return (
-        <Drawer.Navigator
-            key={
-                tipoUser +
-                JSON.stringify(tipoUser) +
-                isLoggedIn +
-                isAdmin +
-                isSuperAdmin +
-                modules
-            } // Adiciona uma chave única para forçar a atualização do Drawer
-            initialRouteName={initialRoute}
-            drawerContent={(props) => (
-                <CustomDrawerContent
-                    {...props}
-                    isAdmin={isAdmin}
-                    isSuperAdmin={isSuperAdmin}
-                    isLoggedIn={isLoggedIn}
-                    modules={modules}
-                    tipoUser={tipoUser}
-                />
-            )}
-            screenOptions={({ navigation }) => ({
-                headerTitle: () => (
-                    <View
-                        style={{ flexDirection: "row", alignItems: "center" }}
-                    >
-                        <Image
-                            source={logo}
-                            style={{
-                                width: 40,
-                                height: 40,
-                                resizeMode: "contain",
-                                marginLeft: 10,
-                            }}
+        <ThemeProvider>
+            <TokenManager>
+                <Drawer.Navigator
+                    key={
+                        tipoUser +
+                        JSON.stringify(tipoUser) +
+                        isLoggedIn +
+                        isAdmin +
+                        isSuperAdmin +
+                        modules
+                    } // Adiciona uma chave única para forçar a atualização do Drawer
+                    initialRouteName={initialRoute}
+                    drawerContent={(props) => (
+                        <CustomDrawerContent
+                            {...props}
+                            isAdmin={isAdmin}
+                            isSuperAdmin={isSuperAdmin}
+                            isLoggedIn={isLoggedIn}
+                            modules={modules}
+                            tipoUser={tipoUser}
                         />
-                    </View>
-                ),
-                headerRight: () => (
-                    <View
-                        style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            marginRight: 15,
-                            position: "relative",
-                        }}
-                    >
-                        {/* Botão de perfil/login */}
-                        <TouchableOpacity
-                            onPress={() => {
-                                console.log(
-                                    "Clicou no botão do perfil",
-                                    isLoggedIn,
-                                );
-                                if (isLoggedIn) {
-                                    toggleProfileMenu();
-                                } else {
-                                    navigation.navigate("Login");
-                                }
-                            }}
-                            style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                position: "relative",
-                            }}
-                            activeOpacity={0.7}
-                        >
-                            <FontAwesome
-                                name="user"
-                                size={20}
-                                color="#1792FE"
-                            />
-                            <Text
+                    )}
+                    screenOptions={({ navigation }) => ({
+                        headerTitle: () => (
+                            <View
+                                style={{ flexDirection: "row", alignItems: "center" }}
+                            >
+                                <Image
+                                    source={logo}
+                                    style={{
+                                        width: 40,
+                                        height: 40,
+                                        resizeMode: "contain",
+                                        marginLeft: 10,
+                                    }}
+                                />
+                            </View>
+                        ),
+                        headerRight: () => (
+                            <View
                                 style={{
-                                    marginLeft: 8,
-                                    color: "#1792FE",
-                                    fontSize: 16,
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    marginRight: 15,
+                                    position: "relative",
                                 }}
                             >
-                                {userNome}
-                            </Text>
-                            {empresa && (
-                                <Text
-                                    style={{
-                                        marginLeft: 15,
-                                        color: "#1792FE",
-                                        fontSize: 16,
-                                    }}
-                                >
-                                    {empresa}
-                                </Text>
-                            )}
-                        </TouchableOpacity>
-
-                        {/* Modal do perfil */}
-                        {profileMenuVisible && isLoggedIn && (
-                            <View style={profileMenuStyles.dropdown}>
+                                {/* Botão de perfil/login */}
                                 <TouchableOpacity
-                                    style={[
-                                        profileMenuStyles.menuItem,
-                                        profileMenuStyles.buttonStyle,
-                                    ]}
                                     onPress={() => {
-                                        console.log("Clicou no perfil");
-                                        setProfileMenuVisible(false);
-                                        navigation.navigate("Perfil");
+                                        console.log(
+                                            "Clicou no botão do perfil",
+                                            isLoggedIn,
+                                        );
+                                        if (isLoggedIn) {
+                                            toggleProfileMenu();
+                                        } else {
+                                            navigation.navigate("Login");
+                                        }
                                     }}
-                                    activeOpacity={0.6}
+                                    style={{
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        position: "relative",
+                                    }}
+                                    activeOpacity={0.7}
                                 >
                                     <FontAwesome
                                         name="user"
-                                        size={16}
+                                        size={20}
                                         color="#1792FE"
                                     />
-                                    <Text style={profileMenuStyles.menuText}>
-                                        Perfil
+                                    <Text
+                                        style={{
+                                            marginLeft: 8,
+                                            color: "#1792FE",
+                                            fontSize: 16,
+                                        }}
+                                    >
+                                        {userNome}
+                                    </Text>
+                                    {empresa && (
+                                        <Text
+                                            style={{
+                                                marginLeft: 15,
+                                                color: "#1792FE",
+                                                fontSize: 16,
+                                            }}
+                                        >
+                                            {empresa}
+                                        </Text>
+                                    )}
+                                </TouchableOpacity>
+
+                                {/* Modal do perfil */}
+                                {profileMenuVisible && isLoggedIn && (
+                                    <View style={profileMenuStyles.dropdown}>
+                                        <TouchableOpacity
+                                            style={[
+                                                profileMenuStyles.menuItem,
+                                                profileMenuStyles.buttonStyle,
+                                            ]}
+                                            onPress={() => {
+                                                console.log("Clicou no perfil");
+                                                setProfileMenuVisible(false);
+                                                navigation.navigate("Perfil");
+                                            }}
+                                            activeOpacity={0.6}
+                                        >
+                                            <FontAwesome
+                                                name="user"
+                                                size={16}
+                                                color="#1792FE"
+                                            />
+                                            <Text style={profileMenuStyles.menuText}>
+                                                Perfil
+                                            </Text>
+                                        </TouchableOpacity>
+
+                                        <View style={profileMenuStyles.divider} />
+
+                                        <TouchableOpacity
+                                            style={[
+                                                profileMenuStyles.menuItem,
+                                                profileMenuStyles.buttonStyle,
+                                            ]}
+                                            onPress={() => {
+                                                console.log("Clicou em sair");
+                                                setProfileMenuVisible(false);
+                                                handleLogout();
+                                            }}
+                                            activeOpacity={0.6}
+                                        >
+                                            <FontAwesome
+                                                name="sign-out"
+                                                size={16}
+                                                color="#1792FE"
+                                            />
+                                            <Text style={profileMenuStyles.menuText}>
+                                                Sair
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+
+                                {/* Botão de Idioma */}
+                                <TouchableOpacity
+                                    onPress={toggleLanguageSelector} // Alterna a visibilidade do combobox de idiomas
+                                    style={{ marginRight: 10, marginLeft: 10 }}
+                                >
+                                    <Text style={{ color: "#1792FE", fontSize: 16 }}>
+                                        {i18n.language === "pt" ? "PT" : "EN"}
                                     </Text>
                                 </TouchableOpacity>
 
-                                <View style={profileMenuStyles.divider} />
-
-                                <TouchableOpacity
-                                    style={[
-                                        profileMenuStyles.menuItem,
-                                        profileMenuStyles.buttonStyle,
-                                    ]}
-                                    onPress={() => {
-                                        console.log("Clicou em sair");
-                                        setProfileMenuVisible(false);
-                                        handleLogout();
-                                    }}
-                                    activeOpacity={0.6}
-                                >
-                                    <FontAwesome
-                                        name="sign-out"
-                                        size={16}
-                                        color="#1792FE"
-                                    />
-                                    <Text style={profileMenuStyles.menuText}>
-                                        Sair
-                                    </Text>
-                                </TouchableOpacity>
+                                {/* Exibe o combobox de idiomas se estiver visível */}
+                                {languageSelectorVisible && (
+                                    <View
+                                        style={{
+                                            position: "absolute",
+                                            top: 50,
+                                            right: 0,
+                                            width: 75,
+                                            backgroundColor: "white",
+                                            borderRadius: 5,
+                                            shadowColor: "#000",
+                                            shadowOpacity: 0.25,
+                                            shadowRadius: 3.5,
+                                            elevation: 5,
+                                        }}
+                                    >
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                i18n.changeLanguage("pt");
+                                                setLanguageSelectorVisible(false); // Fecha o combobox
+                                            }}
+                                            onMouseEnter={() =>
+                                                handleLanguageHover("pt")
+                                            } // Evento de hover
+                                            onMouseLeave={handleLanguageLeave} // Evento de sair do hover
+                                            style={{
+                                                padding: 10,
+                                                backgroundColor:
+                                                    hoveredLanguage === "pt"
+                                                        ? "#e1e1e1"
+                                                        : "transparent",
+                                            }}
+                                        >
+                                            <Text style={{ fontSize: 16 }}>PT-PT</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                i18n.changeLanguage("en");
+                                                setLanguageSelectorVisible(false); // Fecha o combobox
+                                            }}
+                                            onMouseEnter={() =>
+                                                handleLanguageHover("en")
+                                            } // Evento de hover
+                                            onMouseLeave={handleLanguageLeave} // Evento de sair do hover
+                                            style={{
+                                                padding: 10,
+                                                backgroundColor:
+                                                    hoveredLanguage === "en"
+                                                        ? "#e1e1e1"
+                                                        : "transparent",
+                                            }}
+                                        >
+                                            <Text style={{ fontSize: 16 }}>EN-EN</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
                             </View>
-                        )}
-
-                        {/* Botão de Idioma */}
-                        <TouchableOpacity
-                            onPress={toggleLanguageSelector} // Alterna a visibilidade do combobox de idiomas
-                            style={{ marginRight: 10, marginLeft: 10 }}
-                        >
-                            <Text style={{ color: "#1792FE", fontSize: 16 }}>
-                                {i18n.language === "pt" ? "PT" : "EN"}
-                            </Text>
-                        </TouchableOpacity>
-
-                        {/* Exibe o combobox de idiomas se estiver visível */}
-                        {languageSelectorVisible && (
-                            <View
-                                style={{
-                                    position: "absolute",
-                                    top: 50,
-                                    right: 0,
-                                    width: 75,
-                                    backgroundColor: "white",
-                                    borderRadius: 5,
-                                    shadowColor: "#000",
-                                    shadowOpacity: 0.25,
-                                    shadowRadius: 3.5,
-                                    elevation: 5,
-                                }}
-                            >
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        i18n.changeLanguage("pt");
-                                        setLanguageSelectorVisible(false); // Fecha o combobox
-                                    }}
-                                    onMouseEnter={() =>
-                                        handleLanguageHover("pt")
-                                    } // Evento de hover
-                                    onMouseLeave={handleLanguageLeave} // Evento de sair do hover
-                                    style={{
-                                        padding: 10,
-                                        backgroundColor:
-                                            hoveredLanguage === "pt"
-                                                ? "#e1e1e1"
-                                                : "transparent",
-                                    }}
-                                >
-                                    <Text style={{ fontSize: 16 }}>PT-PT</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        i18n.changeLanguage("en");
-                                        setLanguageSelectorVisible(false); // Fecha o combobox
-                                    }}
-                                    onMouseEnter={() =>
-                                        handleLanguageHover("en")
-                                    } // Evento de hover
-                                    onMouseLeave={handleLanguageLeave} // Evento de sair do hover
-                                    style={{
-                                        padding: 10,
-                                        backgroundColor:
-                                            hoveredLanguage === "en"
-                                                ? "#e1e1e1"
-                                                : "transparent",
-                                    }}
-                                >
-                                    <Text style={{ fontSize: 16 }}>EN-EN</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-                    </View>
-                ),
-            })}
-        >
-            <Drawer.Screen name="Login">
-                {(props) => (
-                    <Login
-                        {...props}
-                        setIsLoggedIn={setIsLoggedIn}
-                        setIsAdmin={setIsAdmin}
-                        setUsername={setUsername}
-                        setUserNome={setUserNome}
-                        onLoginComplete={fetchUserData}
-                    />
-                )}
-            </Drawer.Screen>
-
-            {isSuperAdmin && (
-                <>
-                    <Drawer.Screen name="ADHome" component={ADHome} />
-                    <Drawer.Screen
-                        name="RegistoAdmin"
-                        component={RegistoAdmin}
-                    />
-                </>
-            )}
-
-            <Drawer.Screen
-                name="ListarRegistos"
-                component={ListarRegistos}
-                options={{
-                    title: "AdvirLink - Registos",
-                    drawerItemStyle: { display: "none" },
-                }}
-            />
-            <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
-            <Drawer.Screen
-                name="RegistoPontoObra"
-                component={RegistoPontoObra}
-            />
-            <Drawer.Screen
-                name="CalendarioHorasTrabalho"
-                component={CalendarioHorasTrabalho}
-            />
-
-            <Drawer.Screen
-                name="AprovacaoFaltaFerias"
-                component={AprovacaoFaltaFerias}
-            />
-            <Drawer.Screen
-                name="GestaoTrabalhadoresExternos"
-                component={GestaoTrabalhadoresExternos}
-            />
-            <Drawer.Screen
-                name="AprovacaoPontoPendentes"
-                component={AprovacaoPontoPendentes}
-            />
-            <Drawer.Screen
-                name="GestaoPartesDiarias"
-                component={GestaoPartesDiarias}
-            />
-
-            <Drawer.Screen
-                name="RegistosPorUtilizador"
-                component={RegistosPorUtilizador}
-            />
-
-            {!loading &&
-                (tipoUser === "Encarregado" ||
-                    tipoUser === "Diretor" ||
-                    tipoUser === "Administrador") && (
-                    <>
-                        <Drawer.Screen name="Obras" component={Obras} />
-                        <Drawer.Screen
-                            name="PartesDiarias"
-                            component={PartesDiarias}
-                        />
-                        <Drawer.Screen
-                            name="CriarEquipa"
-                            component={CriarEquipa}
-                        />
-                        <Drawer.Screen
-                            name="PessoalObra"
-                            component={PessoalObra}
-                            options={{ drawerItemStyle: { display: "none" } }}
-                        />
-                        {/* Adicionar a nova tela ao Drawer.Navigator */}
-                        <Drawer.Screen
-                            name="MapaRegistos"
-                            component={MapaRegistos}
-                            options={{ title: "AdvirLink - Mapa Registos" }}
-                        />
-                    </>
-                )}
-
-            <Drawer.Screen name="PontoBotao" component={PontoBotao} />
-            <Drawer.Screen
-                name="Perfil"
-                options={{ title: "AdvirLink - Perfil" }}
-            >
-                {(props) => (
-                    <Perfil
-                        {...props}
-                        user={{ name: userNome, company: empresa }}
-                    />
-                )}
-            </Drawer.Screen>
-
-            <Drawer.Screen
-                name="ConcursosAprovacao"
-                component={ConcursosAprovacao}
-                options={{ title: "AdvirLink - Pedidos de Assistência" }}
-            />
-            <Drawer.Screen
-                name="PedidosAssistencia"
-                component={PedidosAssistencia}
-                options={{ title: "AdvirLink - Pedidos de Assistência" }}
-            />
-            <Drawer.Screen
-                name="PandIByTecnico"
-                component={PandIByTecnico}
-                options={{ title: "AdvirLink - Dashboard Técnico" }}
-            />
-            <Drawer.Screen
-                name="RegistoIntervencao"
-                component={RegistoIntervencao}
-                options={{
-                    title: "AdvirLink - Intervenção",
-                    drawerItemStyle: { display: "none" },
-                }}
-            />
-            <Drawer.Screen
-                name="RegistarPedido"
-                component={RegistoPedido}
-                options={{
-                    title: "AdvirLink - Pedido",
-                    drawerItemStyle: { display: "none" },
-                }}
-            />
-            <Drawer.Screen
-                name="Intervencoes"
-                component={intervencoes}
-                options={{
-                    title: "AdvirLink - Intervenção",
-                    drawerItemStyle: { display: "none" },
-                }}
-            />
-            <Drawer.Screen
-                name="DashboardAnalytics"
-                component={DashboardAnalytics}
-                options={{ title: "AdvirLink - Dashboard Analytics" }}
-            />
-
-            <Drawer.Screen
-                name="RegistoPontoAdmin"
-                component={RegistoPontoAdmin}
-            />
-            <Drawer.Screen
-                name="PedidosAlteracaoAdmin"
-                component={PedidosAlteracaoAdmin}
-            />
-            <Drawer.Screen
-                name="UserModulesManagement"
-                component={UserModulesManagement}
-                options={{ drawerItemStyle: { display: "none" } }}
-            />
-            <Drawer.Screen
-                name="VerificaConta"
-                component={VerificaConta}
-                options={{ drawerItemStyle: { display: "none" } }}
-            />
-            <Drawer.Screen
-                name="OficiosPage"
-                component={OficiosPage}
-                options={{ title: "AdvirLink - Oficios" }}
-            />
-            <Drawer.Screen
-                name="OficiosList"
-                component={OficiosList}
-                options={{ title: "AdvirLink - Oficios" }}
-            />
-            <Drawer.Screen
-                name="EditOficio"
-                component={EditOficio}
-                options={{ title: "AdvirLink - Oficios" }}
-            />
-            <Drawer.Screen
-                name="Home"
-                component={Home}
-                options={{ title: "AdvirLink - Home" }}
-            />
-            {isLoggedIn && (
-                <Drawer.Screen
-                    name="SelecaoEmpresa"
-                    options={{ title: "AdvirLink - Empresa" }}
+                        ),
+                    })}
                 >
-                    {(props) => (
-                        <SelecaoEmpresa {...props} setEmpresa={setEmpresa} />
+                    <Drawer.Screen name="Login">
+                        {(props) => (
+                            <Login
+                                {...props}
+                                setIsLoggedIn={setIsLoggedIn}
+                                setIsAdmin={setIsAdmin}
+                                setUsername={setUsername}
+                                setUserNome={setUserNome}
+                                onLoginComplete={fetchUserData}
+                            />
+                        )}
+                    </Drawer.Screen>
+
+                    {isSuperAdmin && (
+                        <>
+                            <Drawer.Screen name="ADHome" component={ADHome} />
+                            <Drawer.Screen
+                                name="RegistoAdmin"
+                                component={RegistoAdmin}
+                            />
+                        </>
                     )}
-                </Drawer.Screen>
-            )}
-            <Drawer.Screen
-                name="RecuperarPassword"
-                component={RecuperarPassword}
-                options={{ drawerItemStyle: { display: "none" } }}
-            />
-            <Drawer.Screen
-                name="RedefinirPassword"
-                component={RedefinirPassword}
-                options={{ drawerItemStyle: { display: "none" } }}
-            />
 
-            {isAdmin && (
-                <>
-                    <Drawer.Screen name="PainelAdmin" component={PainelAdmin} />
                     <Drawer.Screen
-                        name="WhatsAppWebConfig"
-                        component={WhatsAppWebConfig}
+                        name="ListarRegistos"
+                        component={ListarRegistos}
+                        options={{
+                            title: "AdvirLink - Registos",
+                            drawerItemStyle: { display: "none" },
+                        }}
+                    />
+                    <Drawer.Screen name="LeitorQRCode" component={LeitorQRCode} />
+                    <Drawer.Screen
+                        name="RegistoPontoObra"
+                        component={RegistoPontoObra}
                     />
                     <Drawer.Screen
-                        name="UsersEmpresa"
-                        component={UsersEmpresa}
-                    />
-                    <Drawer.Screen
-                        name="ContratosList"
-                        component={ContratosList}
+                        name="CalendarioHorasTrabalho"
+                        component={CalendarioHorasTrabalho}
                     />
 
-                    <Drawer.Screen name="RegistoUser" component={RegistoUser} />
-                </>
-            )}
-        </Drawer.Navigator>
+                    <Drawer.Screen
+                        name="AprovacaoFaltaFerias"
+                        component={AprovacaoFaltaFerias}
+                    />
+                    <Drawer.Screen
+                        name="GestaoTrabalhadoresExternos"
+                        component={GestaoTrabalhadoresExternos}
+                    />
+                    <Drawer.Screen
+                        name="AprovacaoPontoPendentes"
+                        component={AprovacaoPontoPendentes}
+                    />
+                    <Drawer.Screen
+                        name="GestaoPartesDiarias"
+                        component={GestaoPartesDiarias}
+                    />
+
+                    <Drawer.Screen
+                        name="RegistosPorUtilizador"
+                        component={RegistosPorUtilizador}
+                    />
+
+                    {!loading &&
+                        (tipoUser === "Encarregado" ||
+                            tipoUser === "Diretor" ||
+                            tipoUser === "Administrador") && (
+                            <>
+                                <Drawer.Screen name="Obras" component={Obras} />
+                                <Drawer.Screen
+                                    name="PartesDiarias"
+                                    component={PartesDiarias}
+                                />
+                                <Drawer.Screen
+                                    name="CriarEquipa"
+                                    component={CriarEquipa}
+                                />
+                                <Drawer.Screen
+                                    name="PessoalObra"
+                                    component={PessoalObra}
+                                    options={{ drawerItemStyle: { display: "none" } }}
+                                />
+                                {/* Adicionar a nova tela ao Drawer.Navigator */}
+                                <Drawer.Screen
+                                    name="MapaRegistos"
+                                    component={MapaRegistos}
+                                    options={{ title: "AdvirLink - Mapa Registos" }}
+                                />
+                            </>
+                        )}
+
+                    <Drawer.Screen name="PontoBotao" component={PontoBotao} />
+                    <Drawer.Screen
+                        name="Perfil"
+                        options={{ title: "AdvirLink - Perfil" }}
+                    >
+                        {(props) => (
+                            <Perfil
+                                {...props}
+                                user={{ name: userNome, company: empresa }}
+                            />
+                        )}
+                    </Drawer.Screen>
+
+                    <Drawer.Screen
+                        name="ConcursosAprovacao"
+                        component={ConcursosAprovacao}
+                        options={{ title: "AdvirLink - Pedidos de Assistência" }}
+                    />
+                    <Drawer.Screen
+                        name="PedidosAssistencia"
+                        component={PedidosAssistencia}
+                        options={{ title: "AdvirLink - Pedidos de Assistência" }}
+                    />
+                    <Drawer.Screen
+                        name="PandIByTecnico"
+                        component={PandIByTecnico}
+                        options={{ title: "AdvirLink - Dashboard Técnico" }}
+                    />
+                    <Drawer.Screen
+                        name="RegistoIntervencao"
+                        component={RegistoIntervencao}
+                        options={{
+                            title: "AdvirLink - Intervenção",
+                            drawerItemStyle: { display: "none" },
+                        }}
+                    />
+                    <Drawer.Screen
+                        name="RegistarPedido"
+                        component={RegistoPedido}
+                        options={{
+                            title: "AdvirLink - Pedido",
+                            drawerItemStyle: { display: "none" },
+                        }}
+                    />
+                    <Drawer.Screen
+                        name="Intervencoes"
+                        component={intervencoes}
+                        options={{
+                            title: "AdvirLink - Intervenção",
+                            drawerItemStyle: { display: "none" },
+                        }}
+                    />
+                    <Drawer.Screen
+                        name="DashboardAnalytics"
+                        component={DashboardAnalytics}
+                        options={{ title: "AdvirLink - Dashboard Analytics" }}
+                    />
+
+                    <Drawer.Screen
+                        name="RegistoPontoAdmin"
+                        component={RegistoPontoAdmin}
+                    />
+                    <Drawer.Screen
+                        name="PedidosAlteracaoAdmin"
+                        component={PedidosAlteracaoAdmin}
+                    />
+                    <Drawer.Screen
+                        name="UserModulesManagement"
+                        component={UserModulesManagement}
+                        options={{ drawerItemStyle: { display: "none" } }}
+                    />
+                    <Drawer.Screen
+                        name="VerificaConta"
+                        component={VerificaConta}
+                        options={{ drawerItemStyle: { display: "none" } }}
+                    />
+                    <Drawer.Screen
+                        name="OficiosPage"
+                        component={OficiosPage}
+                        options={{ title: "AdvirLink - Oficios" }}
+                    />
+                    <Drawer.Screen
+                        name="OficiosList"
+                        component={OficiosList}
+                        options={{ title: "AdvirLink - Oficios" }}
+                    />
+                    <Drawer.Screen
+                        name="EditOficio"
+                        component={EditOficio}
+                        options={{ title: "AdvirLink - Oficios" }}
+                    />
+                    <Drawer.Screen
+                        name="Home"
+                        component={Home}
+                        options={{ title: "AdvirLink - Home" }}
+                    />
+                    {isLoggedIn && (
+                        <Drawer.Screen
+                            name="SelecaoEmpresa"
+                            options={{ title: "AdvirLink - Empresa" }}
+                        >
+                            {(props) => (
+                                <SelecaoEmpresa {...props} setEmpresa={setEmpresa} />
+                            )}
+                        </Drawer.Screen>
+                    )}
+                    <Drawer.Screen
+                        name="RecuperarPassword"
+                        component={RecuperarPassword}
+                        options={{ drawerItemStyle: { display: "none" } }}
+                    />
+                    <Drawer.Screen
+                        name="RedefinirPassword"
+                        component={RedefinirPassword}
+                        options={{ drawerItemStyle: { display: "none" } }}
+                    />
+
+                    {isAdmin && (
+                        <>
+                            <Drawer.Screen name="PainelAdmin" component={PainelAdmin} />
+                            <Drawer.Screen
+                                name="WhatsAppWebConfig"
+                                component={WhatsAppWebConfig}
+                            />
+                            <Drawer.Screen
+                                name="UsersEmpresa"
+                                component={UsersEmpresa}
+                            />
+                            <Drawer.Screen
+                                name="ContratosList"
+                                component={ContratosList}
+                            />
+
+                            <Drawer.Screen name="RegistoUser" component={RegistoUser} />
+                        </>
+                    )}
+                </Drawer.Navigator>
+            </TokenManager>
+        </ThemeProvider>
     );
 };
 

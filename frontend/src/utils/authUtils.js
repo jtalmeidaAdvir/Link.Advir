@@ -217,22 +217,86 @@ const checkTokenOnServer = async () => {
     }
 };
 
+// Função para renovar automaticamente o painelAdminToken
+const refreshPainelAdminToken = async () => {
+    try {
+        const loginToken = localStorage.getItem('loginToken');
+        const empresaSelecionada = localStorage.getItem('empresaSelecionada');
+        const urlempresa = localStorage.getItem('urlempresa');
+
+        if (!loginToken || !empresaSelecionada || !urlempresa) {
+            console.log('Informações necessárias para renovar token não encontradas');
+            return false;
+        }
+
+        // Buscar credenciais da empresa
+        const credenciaisResponse = await fetch(
+            `https://backend.advir.pt/api/empresas/nome/${encodeURIComponent(empresaSelecionada)}`,
+            {
+                method: "GET",
+                headers: { Authorization: `Bearer ${loginToken}` },
+            }
+        );
+
+        if (!credenciaisResponse.ok) {
+            console.log('Erro ao obter credenciais da empresa para renovar token');
+            return false;
+        }
+
+        const credenciais = await credenciaisResponse.json();
+
+        // Solicitar novo token
+        const response = await fetch("https://webapiprimavera.advir.pt/connect-database/token", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${loginToken}`,
+            },
+            body: JSON.stringify({
+                username: credenciais.username,
+                password: credenciais.password,
+                company: credenciais.empresa,
+                line: credenciais.linha,
+                instance: "DEFAULT",
+                urlempresa: credenciais.urlempresa,
+                forceRefresh: true,
+            }),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem("painelAdminToken", data.token);
+            console.log('painelAdminToken renovado automaticamente');
+            return true;
+        } else {
+            console.log('Erro ao renovar painelAdminToken:', response.status);
+            return false;
+        }
+
+    } catch (error) {
+        console.error('Erro ao renovar painelAdminToken:', error);
+        return false;
+    }
+};
+
 // Função para verificar painelAdminToken
 const checkPainelAdminToken = async () => {
     try {
         const painelAdminToken = localStorage.getItem('painelAdminToken');
         if (!painelAdminToken) {
-            console.log('Nenhum painelAdminToken encontrado, não fazendo logout.');
-            return true; // Nenhum token encontrado
+            console.log('Nenhum painelAdminToken encontrado, tentando renovar automaticamente...');
+
+            // Tentar renovar automaticamente
+            const renovado = await refreshPainelAdminToken();
+            if (renovado) {
+                console.log('Token renovado automaticamente com sucesso');
+                return true;
+            } else {
+                console.log('Não foi possível renovar o token automaticamente');
+                return true; // Não fazer logout se não conseguir renovar
+            }
         }
-        /*
-        // Verificar se o token está expirado localmente
-        if (isTokenExpired(painelAdminToken)) {
-            console.log('painelAdminToken expirado localmente.');
-            handleTokenExpired('Token de administração expirado', 'painelAdminToken');
-            return false;
-        }
-        */
+
         // Fazer uma chamada à Web API para validar o token
         const urlempresa = localStorage.getItem('urlempresa');
         if (!urlempresa) {
@@ -254,11 +318,19 @@ const checkPainelAdminToken = async () => {
             return true;
         }
 
-        // Apenas faça logout para 401 ou 403
-        if (response.status === 401 || response.status === 403|| response.status === 500) {
-            console.log(`painelAdminToken inválido - Status: ${response.status}`);
-            handleTokenExpired('Token de administração expirado', 'painelAdminToken');
-            return false;
+        // Se o token está expirado, tentar renovar automaticamente
+        if (response.status === 401 || response.status === 403 || response.status === 500) {
+            console.log(`painelAdminToken inválido - Status: ${response.status}, tentando renovar...`);
+
+            const renovado = await refreshPainelAdminToken();
+            if (renovado) {
+                console.log('Token renovado automaticamente após expiração');
+                return true;
+            } else {
+                console.log('Falha ao renovar token, fazendo logout');
+                handleTokenExpired('Token de administração expirado', 'painelAdminToken');
+                return false;
+            }
         }
 
         // Para outros status, você pode registrar o erro, mas não fazer logout
@@ -297,3 +369,114 @@ export const stopTokenValidation = () => {
         console.log('Verificação automática de token parada');
     }
 };
+
+// Função para renovar o loginToken automaticamente
+const refreshLoginToken = async () => {
+    try {
+        const currentToken = localStorage.getItem('loginToken');
+        const email = localStorage.getItem('email');
+
+        if (!currentToken || !email) {
+            console.log('Informações de login não encontradas para renovar token');
+            return false;
+        }
+
+        // Verificar se o token ainda está válido
+        if (!isTokenExpired(currentToken)) {
+            console.log('Token de login ainda válido, não precisa renovar');
+            return true;
+        }
+
+        console.log('Token de login expirado, tentando renovar...');
+
+        // Tentar renovar usando refresh token se disponível
+        const response = await fetch('https://backend.advir.pt/api/auth/refresh-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentToken}`
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('loginToken', data.token);
+            console.log('Token de login renovado automaticamente');
+            return true;
+        } else {
+            console.log('Falha ao renovar token de login:', response.status);
+            return false;
+        }
+
+    } catch (error) {
+        console.error('Erro ao renovar token de login:', error);
+        return false;
+    }
+};
+
+// Função principal para renovar todos os tokens quando o app ganha foco
+export const refreshTokensOnAppFocus = async () => {
+    try {
+        const loginToken = localStorage.getItem('loginToken');
+        const painelAdminToken = localStorage.getItem('painelAdminToken');
+        const empresaSelecionada = localStorage.getItem('empresaSelecionada');
+
+        console.log('Verificando estado dos tokens...');
+
+        // Se não há loginToken, não fazer nada (usuário não está logado)
+        if (!loginToken) {
+            console.log('Usuário não está logado');
+            return;
+        }
+
+        // 1. Verificar e renovar loginToken se necessário
+        const loginTokenValid = await refreshLoginToken();
+
+        if (!loginTokenValid) {
+            console.log('Não foi possível renovar o token de login');
+            return;
+        }
+
+        // 2. Se há empresa selecionada, verificar e renovar painelAdminToken
+        if (empresaSelecionada && painelAdminToken) {
+            console.log('Verificando painelAdminToken...');
+
+            // Verificar se o painelAdminToken precisa ser renovado
+            const urlempresa = localStorage.getItem('urlempresa');
+            if (urlempresa) {
+                try {
+                    const testResponse = await fetch('https://webapiprimavera.advir.pt/listarPedidos/listarPedidos', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${painelAdminToken}`,
+                            'urlempresa': urlempresa,
+                            'Content-Type': 'application/json',
+                        },
+                    });
+
+                    if (!testResponse.ok && (testResponse.status === 401 || testResponse.status === 403 || testResponse.status === 500)) {
+                        console.log('painelAdminToken expirado, renovando...');
+                        await refreshPainelAdminToken();
+                    } else {
+                        console.log('painelAdminToken ainda válido');
+                    }
+                } catch (error) {
+                    console.log('Erro ao verificar painelAdminToken, tentando renovar...');
+                    await refreshPainelAdminToken();
+                }
+            }
+        } else if (empresaSelecionada && !painelAdminToken) {
+            // Se há empresa selecionada mas não há painelAdminToken, tentar obter um novo
+            console.log('Empresa selecionada encontrada, obtendo novo painelAdminToken...');
+            await refreshPainelAdminToken();
+        }
+
+        console.log('Verificação e renovação de tokens concluída');
+
+    } catch (error) {
+        console.error('Erro durante a renovação automática de tokens:', error);
+    }
+};
+
+// Exportar função de renovação para uso externo
+export { refreshPainelAdminToken };
