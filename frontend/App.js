@@ -122,6 +122,13 @@ const CustomDrawerContent = ({
     isLoggedIn,
     modules,
     tipoUser,
+    hasContratosAtivosModule,
+    hasPainelAdministracaoModule,
+    hasWhatsappConfigsModule,
+    hasGestaoUtilizadoresModule,
+    hasRegistarUtilizadorModule,
+    hasRegistoPontoAdminModule,
+    hasPedidosAlteracaoAdminModule,
     ...props
 }) => {
     const [expanded, setExpanded] = useState(false);
@@ -255,42 +262,14 @@ const CustomDrawerContent = ({
             module.submodulos.some((sub) => sub.nome === "Equipas"),
     );
 
-    // Filtros para submódulos do módulo Administrador
-    const hasContratosAtivosModule = modules.some(
-        (module) =>
-            module.nome === "Administrador" &&
-            module.submodulos.some((sub) => sub.nome === "ContratosAtivos"),
-    );
-    const hasPainelAdministracaoModule = modules.some(
-        (module) =>
-            module.nome === "Administrador" &&
-            module.submodulos.some((sub) => sub.nome === "PainelAdministracao"),
-    );
-    const hasWhatsappConfigsModule = modules.some(
-        (module) =>
-            module.nome === "Administrador" &&
-            module.submodulos.some((sub) => sub.nome === "WhatsappConfigs"),
-    );
-    const hasGestaoUtilizadoresModule = modules.some(
-        (module) =>
-            module.nome === "Administrador" &&
-            module.submodulos.some((sub) => sub.nome === "GestaoUtilizadores"),
-    );
-    const hasRegistarUtilizadorModule = modules.some(
-        (module) =>
-            module.nome === "Administrador" &&
-            module.submodulos.some((sub) => sub.nome === "RegistarUtilizador"),
-    );
-    const hasRegistoPontoAdminModule = modules.some(
-        (module) =>
-            module.nome === "Administrador" &&
-            module.submodulos.some((sub) => sub.nome === "RegistoPontoAdmin"),
-    );
-    const hasPedidosAlteracaoAdminModule = modules.some(
-        (module) =>
-            module.nome === "Administrador" &&
-            module.submodulos.some((sub) => sub.nome === "PedidosAlteracaoAdmin"),
-    );
+    // Check if user has any admin module
+    const hasAnyAdminModule = hasContratosAtivosModule ||
+        hasPainelAdministracaoModule ||
+        hasWhatsappConfigsModule ||
+        hasGestaoUtilizadoresModule ||
+        hasRegistarUtilizadorModule ||
+        hasRegistoPontoAdminModule ||
+        hasPedidosAlteracaoAdminModule;
 
     return (
         <DrawerContentScrollView
@@ -668,7 +647,7 @@ const CustomDrawerContent = ({
                     paddingBottom: 20,
                 }}
             >
-                {isAdmin && (
+                {hasAnyAdminModule && (
                     <List.Accordion
                         title={t("Drawer.ADM.title")}
                         left={() => (
@@ -804,6 +783,43 @@ const AppNavigator = () => {
     const [initialRoute, setInitialRoute] = useState("Login"); // Define a rota inicial com Login por padrão
     const [tipoUser, setTipoUser] = useState("");
     const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+
+    // Filtros para submódulos do módulo Administrador
+    const hasContratosAtivosModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "ContratosAtivos"),
+    );
+    const hasPainelAdministracaoModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "PainelAdministracao"),
+    );
+    const hasWhatsappConfigsModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "WhatsappConfigs"),
+    );
+    const hasGestaoUtilizadoresModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "GestaoUtilizadores"),
+    );
+    const hasRegistarUtilizadorModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "RegistarUtilizador"),
+    );
+    const hasRegistoPontoAdminModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "RegistoPontoAdmin"),
+    );
+    const hasPedidosAlteracaoAdminModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "PedidosAlteracaoAdmin"),
+    );
 
     // Dentro de AppNavigator:
     const fetchUserData = async () => {
@@ -1013,6 +1029,13 @@ const AppNavigator = () => {
                             isLoggedIn={isLoggedIn}
                             modules={modules}
                             tipoUser={tipoUser}
+                            hasContratosAtivosModule={hasContratosAtivosModule}
+                            hasPainelAdministracaoModule={hasPainelAdministracaoModule}
+                            hasWhatsappConfigsModule={hasWhatsappConfigsModule}
+                            hasGestaoUtilizadoresModule={hasGestaoUtilizadoresModule}
+                            hasRegistarUtilizadorModule={hasRegistarUtilizadorModule}
+                            hasRegistoPontoAdminModule={hasRegistoPontoAdminModule}
+                            hasPedidosAlteracaoAdminModule={hasPedidosAlteracaoAdminModule}
                         />
                     )}
                     screenOptions={({ navigation }) => ({
@@ -1416,24 +1439,29 @@ const AppNavigator = () => {
                         options={{ drawerItemStyle: { display: "none" } }}
                     />
 
-                    {isAdmin && (
-                        <>
-                            <Drawer.Screen name="PainelAdmin" component={PainelAdmin} />
-                            <Drawer.Screen
-                                name="WhatsAppWebConfig"
-                                component={WhatsAppWebConfig}
-                            />
-                            <Drawer.Screen
-                                name="UsersEmpresa"
-                                component={UsersEmpresa}
-                            />
-                            <Drawer.Screen
-                                name="ContratosList"
-                                component={ContratosList}
-                            />
-
-                            <Drawer.Screen name="RegistoUser" component={RegistoUser} />
-                        </>
+                    {hasPainelAdministracaoModule && (
+                        <Drawer.Screen name="PainelAdmin" component={PainelAdmin} />
+                    )}
+                    {hasWhatsappConfigsModule && (
+                        <Drawer.Screen
+                            name="WhatsAppWebConfig"
+                            component={WhatsAppWebConfig}
+                        />
+                    )}
+                    {hasGestaoUtilizadoresModule && (
+                        <Drawer.Screen
+                            name="UsersEmpresa"
+                            component={UsersEmpresa}
+                        />
+                    )}
+                    {hasContratosAtivosModule && (
+                        <Drawer.Screen
+                            name="ContratosList"
+                            component={ContratosList}
+                        />
+                    )}
+                    {hasRegistarUtilizadorModule && (
+                        <Drawer.Screen name="RegistoUser" component={RegistoUser} />
                     )}
                 </Drawer.Navigator>
             </TokenManager>
@@ -1508,16 +1536,16 @@ export default function App() {
         setTimeout(() => setAppReady(true), 100); // pequeno delay para garantir fetchUserData concluir
     }, []);
 
-        return (
-<NavigationContainer linking={linking}>
-<ImageBackground
+    return (
+        <NavigationContainer linking={linking}>
+            <ImageBackground
                 source={backgroundPattern}
                 style={styles.background}
->
-<View style={styles.overlay}>
+            >
+                <View style={styles.overlay}>
                     {appReady && <AppNavigator />}
-</View>
-</ImageBackground>
-</NavigationContainer>
+                </View>
+            </ImageBackground>
+        </NavigationContainer>
     );
 }
