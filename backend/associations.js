@@ -45,9 +45,20 @@ Submodulo.belongsToMany(User, { through: UserSubmodulo, as: 'utilizadores', fore
 Empresa.belongsToMany(Modulo, { through: 'EmpresaModulo', foreignKey: 'empresa_id', as: 'modulos' });
 Modulo.belongsToMany(Empresa, { through: 'EmpresaModulo', foreignKey: 'modulo_id', as: 'empresas' });
 
-// Associação entre Empresa e Submodulo
-Empresa.belongsToMany(Submodulo, { through: 'EmpresaSubmodulo', foreignKey: 'empresa_id', as: 'submodulos' });
-Submodulo.belongsToMany(Empresa, { through: 'EmpresaSubmodulo', foreignKey: 'submodulo_id', as: 'empresas' });
+// Associações entre Empresa e Submodulo (many-to-many)
+Empresa.belongsToMany(Submodulo, {
+    through: 'empresa_submodulo',
+    as: 'submodulos',
+    foreignKey: 'empresa_id',
+    otherKey: 'submodulo_id'
+});
+
+Submodulo.belongsToMany(Empresa, {
+    through: 'empresa_submodulo',
+    as: 'empresas',
+    foreignKey: 'submodulo_id',
+    otherKey: 'empresa_id'
+});
 
 
 
