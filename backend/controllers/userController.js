@@ -771,12 +771,10 @@ const listarModulosDaEmpresaDoUser = async (req, res) => {
                 {
                     model: Modulo,
                     as: 'modulos',
-                    include: [
-                        {
-                            model: Submodulo,
-                            as: 'submodulos', // Certifica-te de que o alias é correto
-                        },
-                    ],
+                },
+                {
+                    model: Submodulo,
+                    as: 'submodulos', // Submódulos que a empresa tem associados
                 },
             ],
         });
@@ -789,11 +787,13 @@ const listarModulosDaEmpresaDoUser = async (req, res) => {
             id: modulo.id,
             nome: modulo.nome,
             descricao: modulo.descricao,
-            submodulos: modulo.submodulos.map(submodulo => ({
-                id: submodulo.id,
-                nome: submodulo.nome,
-                descricao: submodulo.descricao,
-            })),
+            submodulos: empresa.submodulos
+                .filter(submodulo => submodulo.moduloId === modulo.id)
+                .map(submodulo => ({
+                    id: submodulo.id,
+                    nome: submodulo.nome,
+                    descricao: submodulo.descricao,
+                })),
         }));
 
         res.status(200).json({ modulos });

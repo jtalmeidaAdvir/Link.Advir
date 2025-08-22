@@ -260,6 +260,20 @@ const fetchUserData = async () => {
         );
     };
 
+    // Function to filter submodules based on what the company has available in empresa_submodulo table
+    const getFilteredSubmodules = (moduleSubmodules, moduleId) => {
+        const empresaModule = empresaModulos.find(m => m.id === moduleId);
+        if (!empresaModule) {
+            return [];
+        }
+        
+        // Only show submodules that the company has associated in empresa_submodulo table
+        const empresaSubmodulos = empresaModule.submodulos || [];
+        const empresaSubmoduloIds = empresaSubmodulos.map(sub => sub.id);
+        
+        return moduleSubmodules.filter(sub => empresaSubmoduloIds.includes(sub.id));
+    };
+
     const renderModuleItem = ({ item }) => {
         const isExpanded = expandedModules[item.id];
         const isChecked = isModuloChecked(item.id);
@@ -299,7 +313,7 @@ const fetchUserData = async () => {
                 
                 {isExpanded && item.submodulos && item.submodulos.length > 0 && (
                     <View style={styles.submodulesContainer}>
-                        {item.submodulos.map(submodulo => 
+                        {getFilteredSubmodules(item.submodulos, item.id).map(submodulo => 
                             renderSubmoduleItem(submodulo, item.id)
                         )}
                     </View>
