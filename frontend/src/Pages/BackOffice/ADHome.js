@@ -1,26 +1,21 @@
+
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, TouchableOpacity, ScrollView, Modal, TextInput } from 'react-native';
-
-
+import { View, Text, TouchableOpacity, ScrollView, Modal, TextInput, Alert } from 'react-native';
 
 const ADHome = () => {
     const [empresas, setEmpresas] = useState([]);
     const [selectedEmpresa, setSelectedEmpresa] = useState(null);
     const [empresaModulos, setEmpresaModulos] = useState([]);
     const [allModulos, setAllModulos] = useState([]);
-    const [empresaSubmodulos, setEmpresaSubmodulos] = useState([]);
-    const [allSubmodulos, setAllSubmodulos] = useState([]);
-    const [selectedModuloForSubmodules, setSelectedModuloForSubmodules] = useState(null);
+    const [activeTab, setActiveTab] = useState('config'); // config, modules, submodules
     const [modalVisible, setModalVisible] = useState(false);
-    const [submoduleModalVisible, setSubmoduleModalVisible] = useState(false);
-    const [confirmationVisible, setConfirmationVisible] = useState(false); // Estado para modal de confirmação
     const [selectedModulo, setSelectedModulo] = useState(null);
-    const [selectedSubmodulo, setSelectedSubmodulo] = useState(null);
+    const [selectedModuloForSubmodules, setSelectedModuloForSubmodules] = useState(null);
+    const [allSubmodulos, setAllSubmodulos] = useState([]);
     const [isAdding, setIsAdding] = useState(true);
-    const [isAddingSubmodule, setIsAddingSubmodule] = useState(true);
     const [maxUsers, setMaxUsers] = useState('');
     const [tempoIntervaloPadrao, setTempoIntervaloPadrao] = useState('');
-
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         fetchEmpresas();
@@ -34,27 +29,26 @@ const ADHome = () => {
             setEmpresas(data);
         } catch (error) {
             console.error('Erro ao carregar empresas:', error);
+            Alert.alert('Erro', 'Não foi possível carregar as empresas');
         }
     };
 
-
     const fetchEmpresaInfo = async (empresaId) => {
-    try {
-        const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}`);
-        const data = await response.json();
-        setMaxUsers(data.maxUsers || '');
-        setTempoIntervaloPadrao(data.tempoIntervaloPadrao?.toString() || '');
-    } catch (error) {
-        console.error('Erro ao carregar dados da empresa:', error);
-    }
-};
-
+        try {
+            const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}`);
+            const data = await response.json();
+            setMaxUsers(data.maxUsers?.toString() || '');
+            setTempoIntervaloPadrao(data.tempoIntervaloPadrao?.toString() || '');
+        } catch (error) {
+            console.error('Erro ao carregar dados da empresa:', error);
+        }
+    };
 
     const fetchAllModulos = async () => {
         try {
             const response = await fetch('https://backend.advir.pt/api/modulos/listar');
             const data = await response.json();
-            setAllModulos(data.modulos);
+            setAllModulos(data.modulos || []);
         } catch (error) {
             console.error('Erro ao carregar módulos:', error);
         }
@@ -64,7 +58,7 @@ const ADHome = () => {
         try {
             const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}/modulos`);
             const data = await response.json();
-            setEmpresaModulos(data.modulos);
+            setEmpresaModulos(data.modulos || []);
         } catch (error) {
             console.error('Erro ao carregar módulos da empresa:', error);
         }
@@ -76,301 +70,268 @@ const ADHome = () => {
             const data = await response.json();
             setAllSubmodulos(data.submodulos || []);
         } catch (error) {
-            console.error('Erro ao carregar submódulos do módulo:', error);
-        }
-    };
-
-    const fetchMaxUsers = async (empresaId) => {
-        try {
-            const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}`);
-            const data = await response.json();
-            setMaxUsers(data.maxUsers || ''); // Definir o valor inicial do campo `maxUsers`
-        } catch (error) {
-            console.error('Erro ao carregar limite de utilizadores:', error);
+            console.error('Erro ao carregar submódulos:', error);
         }
     };
 
     const handleEmpresaSelect = (empresa) => {
-    setSelectedEmpresa(empresa);
-    fetchEmpresaModulos(empresa.id);
-    fetchEmpresaInfo(empresa.id); // <- aqui
+        setSelectedEmpresa(empresa);
+        fetchEmpresaModulos(empresa.id);
+        fetchEmpresaInfo(empresa.id);
+        setActiveTab('config');
     };
 
     const updateEmpresaInfo = async () => {
-    try {
-        const response = await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/updateEmpresaInfo`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                maxUsers,
-                tempoIntervaloPadrao: parseFloat(tempoIntervaloPadrao),
-            }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Erro ao atualizar dados da empresa.');
+        if (!maxUsers || !tempoIntervaloPadrao) {
+            Alert.alert('Erro', 'Preencha todos os campos');
+            return;
         }
 
-        const data = await response.json();
-        console.log(data.message);
-        setConfirmationVisible(true);
-    } catch (error) {
-        console.error('Erro ao atualizar dados da empresa:', error);
-    }
-};
-
-
-
-    const updateMaxUsers = async () => {
-        console.log("ID da Empresa:", selectedEmpresa.id);
-        console.log("Novo Limite de Utilizadores:", maxUsers);
-
+        setLoading(true);
         try {
-            const response = await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/updateMaxUsers`, {
+            const response = await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/updateEmpresaInfo`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ maxUsers: maxUsers }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    maxUsers: parseInt(maxUsers),
+                    tempoIntervaloPadrao: parseFloat(tempoIntervaloPadrao),
+                }),
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Erro ao atualizar o limite de utilizadores.');
-            }
-
-            const data = await response.json();
-            console.log(data.message); // Mensagem de sucesso
-            setConfirmationVisible(true); // Mostrar modal de confirmação após sucesso
+            if (!response.ok) throw new Error('Erro ao atualizar');
+            
+            Alert.alert('Sucesso', 'Dados atualizados com sucesso!');
         } catch (error) {
-            console.error('Erro ao atualizar o limite de utilizadores:', error);
+            Alert.alert('Erro', 'Não foi possível atualizar os dados');
+        } finally {
+            setLoading(false);
         }
     };
 
-    const toggleModal = (modulo, isAdding) => {
-        setIsAdding(isAdding);
-        setSelectedModulo(modulo);
-        setModalVisible(true);
-    };
-
-    const toggleSubmoduleModal = (submodulo, isAdding) => {
-        setIsAddingSubmodule(isAdding);
-        setSelectedSubmodulo(submodulo);
-        setSubmoduleModalVisible(true);
-    };
-
-    const handleModuloSelectForSubmodules = (modulo) => {
-        setSelectedModuloForSubmodules(modulo);
-        fetchAllSubmodulosByModulo(modulo.id);
-    };
-
-    const confirmAction = async () => {
-        if (isAdding) {
-            await addModuloToEmpresa(selectedModulo.id);
-        } else {
-            await removeModuloFromEmpresa(selectedModulo.id);
-        }
-        setModalVisible(false);
-    };
-
-    const confirmSubmoduleAction = async () => {
-        if (isAddingSubmodule) {
-            await addSubmoduloToEmpresa(selectedSubmodulo.id);
-        } else {
-            await removeSubmoduloFromEmpresa(selectedSubmodulo.id);
-        }
-        setSubmoduleModalVisible(false);
-    };
-
-    const addModuloToEmpresa = async (moduloId) => {
+    const toggleModulo = async (modulo, adding) => {
+        setLoading(true);
         try {
-            await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/modulos`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ moduloId }),
+            const url = `https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/modulos${adding ? '' : `/${modulo.id}`}`;
+            const method = adding ? 'POST' : 'DELETE';
+            const body = adding ? JSON.stringify({ moduloId: modulo.id }) : null;
+
+            await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body,
             });
+
             fetchEmpresaModulos(selectedEmpresa.id);
+            Alert.alert('Sucesso', `Módulo ${adding ? 'adicionado' : 'removido'} com sucesso!`);
         } catch (error) {
-            console.error('Erro ao associar módulo:', error);
+            Alert.alert('Erro', 'Operação falhou');
+        } finally {
+            setLoading(false);
         }
     };
 
-    const removeModuloFromEmpresa = async (moduloId) => {
+    const toggleSubmodulo = async (submodulo, adding) => {
+        setLoading(true);
         try {
-            await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/modulos/${moduloId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            fetchEmpresaModulos(selectedEmpresa.id);
-        } catch (error) {
-            console.error('Erro ao remover módulo:', error);
-        }
-    };
+            const url = `https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/submodulos${adding ? '' : `/${submodulo.id}`}`;
+            const method = adding ? 'POST' : 'DELETE';
+            const body = adding ? JSON.stringify({ submoduloId: submodulo.id }) : null;
 
-    const addSubmoduloToEmpresa = async (submoduloId) => {
-        try {
-            await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/submodulos`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ submoduloId }),
+            await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body,
             });
+
             fetchEmpresaModulos(selectedEmpresa.id);
             if (selectedModuloForSubmodules) {
                 fetchAllSubmodulosByModulo(selectedModuloForSubmodules.id);
             }
+            Alert.alert('Sucesso', `Submódulo ${adding ? 'adicionado' : 'removido'} com sucesso!`);
         } catch (error) {
-            console.error('Erro ao associar submódulo:', error);
+            Alert.alert('Erro', 'Operação falhou');
+        } finally {
+            setLoading(false);
         }
     };
 
-    const removeSubmoduloFromEmpresa = async (submoduloId) => {
-        try {
-            await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/submodulos/${submoduloId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            fetchEmpresaModulos(selectedEmpresa.id);
-            if (selectedModuloForSubmodules) {
-                fetchAllSubmodulosByModulo(selectedModuloForSubmodules.id);
-            }
-        } catch (error) {
-            console.error('Erro ao remover submódulo:', error);
-        }
-    };
-
-    return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.title}>Gestão de Módulos e Limite de Utilizadores por Empresa</Text>
-            <View style={styles.selectorContainer}>
-                <Text style={styles.subTitle}>Empresas</Text>
+    const renderEmpresaSelector = () => (
+        <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Selecionar Empresa</Text>
+            <View style={styles.empresaGrid}>
                 {empresas.map((empresa) => (
                     <TouchableOpacity
                         key={empresa.id}
                         style={[
-                            styles.empresaButton,
-                            selectedEmpresa?.id === empresa.id && styles.selectedButton
+                            styles.empresaCard,
+                            selectedEmpresa?.id === empresa.id && styles.empresaCardSelected
                         ]}
                         onPress={() => handleEmpresaSelect(empresa)}
                     >
-                        <Text style={styles.empresaText}>{empresa.empresa || "Empresa sem nome"}</Text>
+                        <Text style={[
+                            styles.empresaText,
+                            selectedEmpresa?.id === empresa.id && styles.empresaTextSelected
+                        ]}>
+                            {empresa.empresa || "Empresa"}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+        </View>
+    );
+
+    const renderConfigTab = () => (
+        <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Configurações da Empresa</Text>
+            
+            <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Limite máximo de utilizadores</Text>
+                <TextInput
+                    style={styles.input}
+                    value={maxUsers}
+                    onChangeText={setMaxUsers}
+                    keyboardType="numeric"
+                    placeholder="Ex: 50"
+                />
+            </View>
+
+            <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Intervalo padrão (horas)</Text>
+                <TextInput
+                    style={styles.input}
+                    value={tempoIntervaloPadrao}
+                    onChangeText={setTempoIntervaloPadrao}
+                    keyboardType="decimal-pad"
+                    placeholder="Ex: 8.5"
+                />
+            </View>
+
+            <TouchableOpacity 
+                style={[styles.primaryButton, loading && styles.buttonDisabled]} 
+                onPress={updateEmpresaInfo}
+                disabled={loading}
+            >
+                <Text style={styles.buttonText}>
+                    {loading ? 'Atualizando...' : 'Salvar Configurações'}
+                </Text>
+            </TouchableOpacity>
+        </View>
+    );
+
+    const renderModulesTab = () => {
+        const availableModules = allModulos.filter(modulo => 
+            !empresaModulos.some(em => em.id === modulo.id)
+        );
+
+        return (
+            <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>Gestão de Módulos</Text>
+                
+                {empresaModulos.length > 0 && (
+                    <View style={styles.subsection}>
+                        <Text style={styles.subsectionTitle}>Módulos Ativos</Text>
+                        {empresaModulos.map((modulo) => (
+                            <View key={modulo.id} style={styles.moduleItem}>
+                                <Text style={styles.moduleText}>{modulo.nome}</Text>
+                                <TouchableOpacity
+                                    style={styles.removeButton}
+                                    onPress={() => toggleModulo(modulo, false)}
+                                    disabled={loading}
+                                >
+                                    <Text style={styles.buttonText}>Remover</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
+                {availableModules.length > 0 && (
+                    <View style={styles.subsection}>
+                        <Text style={styles.subsectionTitle}>Módulos Disponíveis</Text>
+                        {availableModules.map((modulo) => (
+                            <View key={modulo.id} style={styles.moduleItem}>
+                                <Text style={styles.moduleText}>{modulo.nome}</Text>
+                                <TouchableOpacity
+                                    style={styles.addButton}
+                                    onPress={() => toggleModulo(modulo, true)}
+                                    disabled={loading}
+                                >
+                                    <Text style={styles.buttonText}>Adicionar</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </View>
+                )}
+            </View>
+        );
+    };
+
+    const renderSubmodulesTab = () => (
+        <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Gestão de Submódulos</Text>
+            
+            <Text style={styles.subsectionTitle}>Selecionar Módulo:</Text>
+            <View style={styles.moduleSelector}>
+                {empresaModulos.map((modulo) => (
+                    <TouchableOpacity
+                        key={modulo.id}
+                        style={[
+                            styles.moduleSelectorButton,
+                            selectedModuloForSubmodules?.id === modulo.id && styles.moduleSelectorButtonActive
+                        ]}
+                        onPress={() => {
+                            setSelectedModuloForSubmodules(modulo);
+                            fetchAllSubmodulosByModulo(modulo.id);
+                        }}
+                    >
+                        <Text style={[
+                            styles.moduleSelectorText,
+                            selectedModuloForSubmodules?.id === modulo.id && styles.moduleSelectorTextActive
+                        ]}>
+                            {modulo.nome}
+                        </Text>
                     </TouchableOpacity>
                 ))}
             </View>
 
-            {selectedEmpresa && (
-                <View style={styles.detailContainer}>
-                    <Text style={styles.subTitle}>Definir Limite de Utilizadores</Text>
-                    <TextInput
-                        placeholder="Número máximo de utilizadores"
-                        keyboardType="numeric"
-                        value={maxUsers.toString()}
-                        onChangeText={setMaxUsers}
-                        style={styles.input}
-                    />
-                    <TouchableOpacity style={styles.updateButton} onPress={updateMaxUsers}>
-                        <Text style={styles.updateButtonText}>ATUALIZAR LIMITE</Text>
-                    </TouchableOpacity>
-
-                    <Text style={styles.subTitle}>Definir Intervalo Padrão (em horas)</Text>
-                    <TextInput
-                        placeholder="Definir intervalo padrão"
-                        keyboardType="decimal-pad"
-                        value={tempoIntervaloPadrao}
-                        onChangeText={setTempoIntervaloPadrao}
-                        style={styles.input}
-                    />
-
-                    <TouchableOpacity style={styles.updateButton} onPress={updateEmpresaInfo}>
-                        <Text style={styles.updateButtonText}>ATUALIZAR DADOS</Text>
-                    </TouchableOpacity>
-
-
-                    <Text style={styles.subTitle}>Módulos Associados a {selectedEmpresa.empresa}</Text>
-                    {empresaModulos.map((modulo) => (
-                        <View key={modulo.id} style={styles.moduleContainer}>
-                            <Text style={styles.moduleText}>{modulo.nome}</Text>
-                            <TouchableOpacity
-                                style={styles.removeButton}
-                                onPress={() => toggleModal(modulo, false)}
-                            >
-                                <Text style={styles.buttonText}>REMOVER</Text>
-                            </TouchableOpacity>
+            {selectedModuloForSubmodules && (
+                <View style={styles.submodulesContainer}>
+                    <Text style={styles.subsectionTitle}>
+                        Submódulos de "{selectedModuloForSubmodules.nome}"
+                    </Text>
+                    
+                    {selectedModuloForSubmodules.submodulos?.length > 0 && (
+                        <View style={styles.subsection}>
+                            <Text style={styles.label}>Ativos:</Text>
+                            {selectedModuloForSubmodules.submodulos.map((submodulo) => (
+                                <View key={submodulo.id} style={styles.moduleItem}>
+                                    <Text style={styles.moduleText}>{submodulo.nome}</Text>
+                                    <TouchableOpacity
+                                        style={styles.addButton}
+                                        onPress={() => toggleSubmodulo(submodulo, false)}
+                                        disabled={loading}
+                                    >
+                                        <Text style={styles.buttonText}>Adicionar</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
                         </View>
-                    ))}
+                    )}
 
-                    <Text style={styles.subTitle}>Adicionar Módulo</Text>
-                    {allModulos
-                        .filter((modulo) => !empresaModulos.some((em) => em.id === modulo.id))
-                        .map((modulo) => (
-                            <View key={modulo.id} style={styles.moduleContainer}>
-                                <Text style={styles.moduleText}>{modulo.nome}</Text>
-                                <TouchableOpacity
-                                    style={styles.addButton}
-                                    onPress={() => toggleModal(modulo, true)}
-                                >
-                                    <Text style={styles.buttonText}>ADICIONAR</Text>
-                                </TouchableOpacity>
-                            </View>
-                        ))}
-
-                    <Text style={styles.subTitle}>Gestão de Submódulos</Text>
-                    <Text style={styles.subTitle2}>Selecionar Módulo para gerir submódulos:</Text>
-                    {empresaModulos.map((modulo) => (
-                        <TouchableOpacity
-                            key={modulo.id}
-                            style={[
-                                styles.moduleSelectButton,
-                                selectedModuloForSubmodules?.id === modulo.id && styles.selectedModuleButton
-                            ]}
-                            onPress={() => handleModuloSelectForSubmodules(modulo)}
-                        >
-                            <Text style={styles.moduleSelectText}>{modulo.nome}</Text>
-                        </TouchableOpacity>
-                    ))}
-
-                    {selectedModuloForSubmodules && (
-                        <View style={styles.submoduleSection}>
-                            <Text style={styles.subTitle}>Submódulos do módulo "{selectedModuloForSubmodules.nome}"</Text>
-                            
-                            <Text style={styles.subTitle2}>Submódulos Associados:</Text>
-                            {selectedModuloForSubmodules.submodulos && selectedModuloForSubmodules.submodulos.length > 0 ? (
-                                selectedModuloForSubmodules.submodulos.map((submodulo) => (
-                                    <View key={submodulo.id} style={styles.moduleContainer}>
+                    {allSubmodulos.filter(sub => 
+                        !selectedModuloForSubmodules.submodulos?.some(es => es.id === sub.id)
+                    ).length > 0 && (
+                        <View style={styles.subsection}>
+                            <Text style={styles.label}>Disponíveis:</Text>
+                            {allSubmodulos
+                                .filter(sub => !selectedModuloForSubmodules.submodulos?.some(es => es.id === sub.id))
+                                .map((submodulo) => (
+                                    <View key={submodulo.id} style={styles.moduleItem}>
                                         <Text style={styles.moduleText}>{submodulo.nome}</Text>
                                         <TouchableOpacity
                                             style={styles.removeButton}
-                                            onPress={() => toggleSubmoduleModal(submodulo, false)}
-                                        >
-                                            <Text style={styles.buttonText}>Adicionar</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                ))
-                            ) : (
-                                <Text style={styles.noSubmodulesText}>Nenhum submódulo associado</Text>
-                            )}
-
-                            <Text style={styles.subTitle2}>Adicionar Submódulo:</Text>
-                            {allSubmodulos
-                                .filter((submodulo) => 
-                                    !selectedModuloForSubmodules.submodulos?.some((es) => es.id === submodulo.id)
-                                )
-                                .map((submodulo) => (
-                                    <View key={submodulo.id} style={styles.moduleContainer}>
-                                        <Text style={styles.moduleText}>{submodulo.nome}</Text>
-                                        <TouchableOpacity
-                                            style={styles.addButton}
-                                            onPress={() => toggleSubmoduleModal(submodulo, true)}
+                                            onPress={() => toggleSubmodulo(submodulo, true)}
+                                            disabled={loading}
                                         >
                                             <Text style={styles.buttonText}>Remover</Text>
                                         </TouchableOpacity>
@@ -380,255 +341,246 @@ const ADHome = () => {
                     )}
                 </View>
             )}
+        </View>
+    );
 
-            {/* Modal para confirmar ação de adicionar/remover módulo */}
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalVisible}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContainer}>
-                        <Text style={styles.modalText}>
-                            {isAdding ? "Remover" : "Adicionar"} o módulo "{selectedModulo?.nome}"?
-                        </Text>
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.cancelButton]}
-                                onPress={() => setModalVisible(false)}
-                            >
-                                <Text style={styles.buttonText}>Cancelar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.confirmButton]}
-                                onPress={confirmAction}
-                            >
-                                <Text style={styles.buttonText}>Confirmar</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
+    return (
+        <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+            <Text style={styles.title}>Gestão de Empresas - AdvirLink</Text>
+            
+            {renderEmpresaSelector()}
 
-            {/* Modal para confirmar ação de adicionar/remover submódulo */}
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={submoduleModalVisible}
-                onRequestClose={() => setSubmoduleModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContainer}>
-                        <Text style={styles.modalText}>
-                            {isAddingSubmodule ? "Remover" : "Adicionar"} o submódulo "{selectedSubmodulo?.nome}"?
-                        </Text>
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.cancelButton]}
-                                onPress={() => setSubmoduleModalVisible(false)}
-                            >
-                                <Text style={styles.buttonText}>Cancelar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalButton, styles.confirmButton]}
-                                onPress={confirmSubmoduleAction}
-                            >
-                                <Text style={styles.buttonText}>Confirmar</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-
-            {/* Modal de confirmação de atualização de limite */}
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={confirmationVisible}
-                onRequestClose={() => setConfirmationVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContainer}>
-                        <Text style={styles.modalText}>Limite de utilizadores atualizado com sucesso!</Text>
+            {selectedEmpresa && (
+                <>
+                    <View style={styles.tabContainer}>
                         <TouchableOpacity
-                            style={[styles.modalButton, styles.confirmButton]}
-                            onPress={() => setConfirmationVisible(false)}
+                            style={[styles.tab, activeTab === 'config' && styles.tabActive]}
+                            onPress={() => setActiveTab('config')}
                         >
-                            <Text style={styles.buttonText}>Fechar</Text>
+                            <Text style={[styles.tabText, activeTab === 'config' && styles.tabTextActive]}>
+                                Configurações
+                            </Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                            style={[styles.tab, activeTab === 'modules' && styles.tabActive]}
+                            onPress={() => setActiveTab('modules')}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'modules' && styles.tabTextActive]}>
+                                Módulos
+                            </Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                            style={[styles.tab, activeTab === 'submodules' && styles.tabActive]}
+                            onPress={() => setActiveTab('submodules')}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'submodules' && styles.tabTextActive]}>
+                                Submódulos
+                            </Text>
                         </TouchableOpacity>
                     </View>
-                </View>
-            </Modal>
+
+                    {activeTab === 'config' && renderConfigTab()}
+                    {activeTab === 'modules' && renderModulesTab()}
+                    {activeTab === 'submodules' && renderSubmodulesTab()}
+                </>
+            )}
         </ScrollView>
     );
 };
-const styles = StyleSheet.create({
+
+const styles = {
     container: {
-        flexGrow: 1,
-        padding: 20,
-        backgroundColor: '#d4e4ff',
+        flex: 1,
+        backgroundColor: '#f8f9fa',
+    },
+    contentContainer: {
+        padding: 16,
+        paddingBottom: 32,
     },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#1792FE',
+        color: '#1976D2',
         textAlign: 'center',
-        marginBottom: 20,
+        marginBottom: 24,
     },
-    selectorContainer: {
-        marginBottom: 20,
-    },
-    subTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#1792FE',
-        marginBottom: 10,
-    },
-    empresaButton: {
-        padding: 15,
-        borderRadius: 10,
-        backgroundColor: '#1792FE',
-        marginVertical: 5,
-    },
-    selectedButton: {
-        backgroundColor: '#0022FA',
-    },
-    empresaText: {
-        color: '#FFF',
-        fontWeight: '600',
-    },
-    detailContainer: {
-        backgroundColor: '#FFFFFF',
-        padding: 15,
-        borderRadius: 15,
+    sectionCard: {
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        padding: 20,
+        marginBottom: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.1,
         shadowRadius: 4,
-        elevation: 5,
-        marginBottom: 20,
+        elevation: 3,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#2c3e50',
+        marginBottom: 16,
+    },
+    empresaGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+    },
+    empresaCard: {
+        backgroundColor: '#e3f2fd',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 8,
+        borderWidth: 2,
+        borderColor: 'transparent',
+        minWidth: 120,
+    },
+    empresaCardSelected: {
+        backgroundColor: '#1976D2',
+        borderColor: '#1565C0',
+    },
+    empresaText: {
+        color: '#1976D2',
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    empresaTextSelected: {
+        color: '#ffffff',
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    tabActive: {
+        backgroundColor: '#1976D2',
+    },
+    tabText: {
+        color: '#666',
+        fontWeight: '500',
+    },
+    tabTextActive: {
+        color: '#ffffff',
+        fontWeight: '600',
+    },
+    inputGroup: {
+        marginBottom: 16,
+    },
+    inputLabel: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#2c3e50',
+        marginBottom: 8,
     },
     input: {
-        borderColor: '#BDC3C7',
         borderWidth: 1,
-        borderRadius: 10,
-        padding: 10,
-        marginBottom: 10,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        backgroundColor: '#fafafa',
     },
-    updateButton: {
-        backgroundColor: '#1792FE',
-        borderRadius: 10,
-        padding: 10,
+    primaryButton: {
+        backgroundColor: '#1976D2',
+        paddingVertical: 16,
+        borderRadius: 8,
         alignItems: 'center',
+        marginTop: 8,
+    },
+    buttonDisabled: {
+        backgroundColor: '#bbb',
+    },
+    buttonText: {
+        color: '#ffffff',
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    subsection: {
         marginBottom: 20,
     },
-    updateButtonText: {
-        color: '#FFF',
-        fontWeight: 'bold',
+    subsectionTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#34495e',
+        marginBottom: 12,
     },
-    moduleContainer: {
+    label: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#555',
+        marginBottom: 8,
+    },
+    moduleItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 10,
-        borderBottomColor: '#ddd',
-        borderBottomWidth: 1,
-    },
-    moduleText: {
-        fontSize: 16,
-        color: '#2C3E50',
-    },
-    addButton: {
-        backgroundColor: '#2ECC71',
-        borderRadius: 10,
-        padding: 8,
-    },
-    removeButton: {
-        backgroundColor: '#E74C3C',
-        borderRadius: 10,
-        padding: 8,
-    },
-    modalOverlay: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    modalContainer: {
-        width: '80%',
-        padding: 20,
-        backgroundColor: 'white',
-        borderRadius: 15,
-        alignItems: 'center',
-    },
-    modalText: {
-        fontSize: 18,
-        marginBottom: 20,
-        textAlign: 'center',
-        color: '#2C3E50',
-    },
-    modalButtons: {
-        flexDirection: 'row',
-        width: '100%',
-        justifyContent: 'space-around',
-    },
-    modalButton: {
-        flex: 1,
-        padding: 10,
-        marginHorizontal: 5,
-        borderRadius: 5,
-        alignItems: 'center',
-    },
-    cancelButton: {
-        backgroundColor: '#BDC3C7',
-    },
-    confirmButton: {
-        backgroundColor: '#3498DB',
-    },
-    buttonText: {
-        color: '#FFF',
-        fontWeight: 'bold',
-    },
-    subTitle2: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#34495E',
-        marginTop: 15,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        backgroundColor: '#f8f9fa',
+        borderRadius: 8,
         marginBottom: 8,
     },
-    moduleSelectButton: {
-        padding: 12,
+    moduleText: {
+        flex: 1,
+        fontSize: 16,
+        color: '#2c3e50',
+    },
+    addButton: {
+        backgroundColor: '#27ae60',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 6,
+    },
+    removeButton: {
+        backgroundColor: '#e74c3c',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 6,
+    },
+    moduleSelector: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 20,
+    },
+    moduleSelectorButton: {
+        backgroundColor: '#ecf0f1',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
         borderRadius: 8,
-        backgroundColor: '#ECF0F1',
-        marginVertical: 3,
         borderWidth: 1,
-        borderColor: '#BDC3C7',
+        borderColor: '#bdc3c7',
     },
-    selectedModuleButton: {
-        backgroundColor: '#3498DB',
-        borderColor: '#2980B9',
+    moduleSelectorButtonActive: {
+        backgroundColor: '#3498db',
+        borderColor: '#2980b9',
     },
-    moduleSelectText: {
-        color: '#2C3E50',
+    moduleSelectorText: {
+        color: '#2c3e50',
         fontWeight: '500',
-        textAlign: 'center',
     },
-    submoduleSection: {
-        marginTop: 20,
-        padding: 15,
-        backgroundColor: '#F8F9FA',
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#E9ECEF',
+    moduleSelectorTextActive: {
+        color: '#ffffff',
+        fontWeight: '600',
     },
-    noSubmodulesText: {
-        fontSize: 14,
-        color: '#95A5A6',
-        fontStyle: 'italic',
-        textAlign: 'center',
-        marginVertical: 10,
+    submodulesContainer: {
+        marginTop: 16,
     },
-});
+};
 
 export default ADHome;
