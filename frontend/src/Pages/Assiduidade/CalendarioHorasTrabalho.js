@@ -829,7 +829,7 @@ const CalendarioHorasTrabalho = () => {
             safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/registo-ponto-obra/resumo-mensal?ano=${ano}&mes=${mes}`, {
                 headers: { Authorization: `Bearer ${loginToken}` },
             })),
-            safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/obra`, {
+            safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/obra/por-empresa?empresa_id=${localStorage.getItem('empresa_id')}`, {
                 headers: { Authorization: `Bearer ${loginToken}` },
             })),
             safeJson(fetchJSONWithRetry(`https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${funcionarioId}`, {
@@ -1179,8 +1179,15 @@ const CalendarioHorasTrabalho = () => {
 
     const carregarObras = async () => {
         const token = localStorage.getItem('loginToken');
+        const empresaId = localStorage.getItem('empresa_id');
+
+        if (!empresaId) {
+            console.error('ID da empresa não encontrado');
+            return;
+        }
+
         try {
-            const res = await fetch(`https://backend.advir.pt/api/obra`, {
+            const res = await fetch(`https://backend.advir.pt/api/obra/por-empresa?empresa_id=${empresaId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const dados = await res.json();
