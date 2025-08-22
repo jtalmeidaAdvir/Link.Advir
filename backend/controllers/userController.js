@@ -761,27 +761,48 @@ const uploadProfileImage = async (file) => {
 const listarModulosDaEmpresaDoUser = async (req, res) => {
     const { userId } = req.params;
     try {
-        const empresa = await Empresa.findOne({
+        // Primeiro, encontrar a empresa associada ao utilizador
+        const user = await User.findByPk(userId, {
+            include: {
+                model: Empresa,
+                attributes: ['id']
+            }
+        });
+
+        if (!user || !user.Empresas || user.Empresas.length === 0) {
+            return res.status(404).json({ message: 'Utilizador não tem empresa associada.' });
+        }
+
+        const empresaId = user.Empresas[0].id; // Pega a primeira empresa associada
+
+        // Buscar a empresa com seus módulos e submódulos
+        const empresa = await Empresa.findByPk(empresaId, {
             include: [
-                {
-                    model: User,
-                    where: { id: userId },
-                    attributes: [], // Evita carregar dados adicionais do utilizador
-                },
                 {
                     model: Modulo,
                     as: 'modulos',
+                    include: [
+                        {
+                            model: Submodulo,
+                            as: 'submodulos', // Todos os submódulos do módulo
+                            attributes: ['id', 'nome', 'descricao']
+                        }
+                    ]
                 },
                 {
                     model: Submodulo,
                     as: 'submodulos', // Submódulos que a empresa tem associados
-                },
-            ],
+                    attributes: ['id', 'nome', 'descricao', 'moduloId']
+                }
+            ]
         });
 
         if (!empresa) {
-            return res.status(404).json({ message: 'Empresa não associada ao utilizador.' });
+            return res.status(404).json({ message: 'Empresa não encontrada.' });
         }
+
+        // Criar um conjunto dos IDs dos submódulos que a empresa tem associados
+        const empresaSubmoduloIds = new Set(empresa.submodulos.map(sub => sub.id));
 
         const modulos = empresa.modulos.map(modulo => ({
             id: modulo.id,
@@ -796,6 +817,7 @@ const listarModulosDaEmpresaDoUser = async (req, res) => {
                 })),
         }));
 
+        console.log('Módulos com submódulos filtrados:', JSON.stringify(modulos, null, 2));
         res.status(200).json({ modulos });
     } catch (error) {
         console.error('Erro ao carregar módulos e submódulos da empresa do utilizador:', error);
