@@ -382,38 +382,17 @@ const RegistoPontoObra = (props) => {
         };
     }, [scannerVisible, isProcessing]);
 
-    const handleManualAction = async (tipo) => {
-        const obra = obras.find(o => o.id == obraSelecionada);
-        if (!obraSelecionada || !obra) {
-            return alert('Selecione uma obra válida');
-        }
+// Substituir a handleManualAction por:
+const handlePicagemManual = async () => {
+  const obra = obras.find(o => o.id == obraSelecionada);
+  if (!obraSelecionada || !obra) {
+    alert('Selecione uma obra válida');
+    return;
+  }
+  // Usa a tua lógica que já fecha/abre automaticamente
+  await processarPorQR(obra.id, obra.nome);
+};
 
-        const tipoAcao = tipo.toLowerCase();
-
-        if (tipoAcao === 'entrada') {
-            await processarEntradaComValidacao(obra.id, obra.nome);
-        }
-        else if (tipoAcao === 'saida') {
-            // Verifica se há entrada anterior sem saída para a mesma obra
-            const entradaSemSaida = registos
-                .filter(r => r.tipo === 'entrada' && r.obra_id === obra.id)
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                .find(entrada => {
-                    const saida = registos.find(saida =>
-                        saida.tipo === 'saida' &&
-                        saida.obra_id === entrada.obra_id &&
-                        new Date(saida.timestamp) > new Date(entrada.timestamp)
-                    );
-                    return !saida;
-                });
-
-            if (!entradaSemSaida) {
-                return alert(`Não há entrada ativa na obra "${obra.nome}" para registar saída.`);
-            }
-
-            await registarPonto('saida', obra.id, obra.nome);
-        }
-    };
 
 
 
@@ -456,12 +435,7 @@ const RegistoPontoObra = (props) => {
     return (
         <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{ 
             overflowX: 'hidden',
-            backgroundImage: `url(${backgroundImage})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            backgroundAttachment: 'fixed',
-            position: 'relative'
+      
         }}>
             <div style={{
                 position: 'absolute',
@@ -666,28 +640,17 @@ const RegistoPontoObra = (props) => {
                                                 </div>
 
                                                 <div className="row g-2">
-                                                    <div className="col-6">
+                                                    <div className="col-13">
                                                         <button
-                                                            className="btn btn-success btn-action w-100"
-                                                            onClick={() => handleManualAction('entrada')}
-                                                            disabled={!obraSelecionada || loading}
-                                                        >
-                                                            <FaPlay className="me-1 me-md-2" />
-                                                            <span className="d-none d-sm-inline">ENTRADA</span>
-                                                            <span className="d-sm-none">ENTRA</span>
-                                                        </button>
+                                                    className="btn btn-success btn-action w-100"
+                                                    onClick={handlePicagemManual}
+                                                    disabled={!obraSelecionada || loading || isProcessing}
+                                                    >
+                                                    <FaCheckCircle className="me-2" />
+                                                    Picar
+                                                    </button>
                                                     </div>
-                                                    <div className="col-6">
-                                                        <button
-                                                            className="btn btn-danger btn-action w-100"
-                                                            onClick={() => handleManualAction('saida')}
-                                                            disabled={!obraSelecionada || loading}
-                                                        >
-                                                            <FaStop className="me-1 me-md-2" />
-                                                            <span className="d-none d-sm-inline">SAÍDA</span>
-                                                            <span className="d-sm-none">SAI</span>
-                                                        </button>
-                                                    </div>
+                                                    
                                                 </div>
                                             </div>
                                         )}
@@ -836,7 +799,9 @@ const RegistoPontoObra = (props) => {
                                                 <p className="text-muted mb-0">Nenhum registo encontrado para hoje</p>
                                             </div>
                                         ) : (
-                                            registos.map((r, i) => (
+                                            [...registos]
+  .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt))
+                                                .map((r, i) => (
                                                 <div
                                                     key={i}
                                                     className={`registro-item ${r.tipo === 'saida' ? 'registro-saida' : ''}`}

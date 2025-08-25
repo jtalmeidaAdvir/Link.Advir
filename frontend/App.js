@@ -138,10 +138,15 @@ const CustomDrawerContent = ({
     hasPedidosAlteracaoAdminModule,
     ...props
 }) => {
-    const [expanded, setExpanded] = useState(false);
+    const [expandedModules, setExpandedModules] = useState({});
     const { t } = useTranslation();
-    const handlePress = () => setExpanded(!expanded);
-    const [aprovacoesExpanded, setAprovacoesExpanded] = useState(false);
+
+    const handleModulePress = (moduleName) => {
+        setExpandedModules((prev) => ({
+            ...prev,
+            [moduleName]: !prev[moduleName],
+        }));
+    };
 
     const handleLogout = () => {
         localStorage.clear();
@@ -154,135 +159,172 @@ const CustomDrawerContent = ({
     // Se for superAdmin, mostra apenas opções específicas
     if (isSuperAdmin) {
         return (
-            <DrawerContentScrollView
-                {...props}
-                contentContainerStyle={{ flexGrow: 1 }}
-            >
-                <DrawerItem
-                    label="ADHome"
-                    onPress={() => props.navigation.navigate("ADHome")}
-                    icon={() => (
-                        <FontAwesome name="home" size={20} color="#1792FE" />
-                    )}
-                />
-                <DrawerItem
-                    label="RegistoAdmin"
-                    onPress={() => props.navigation.navigate("RegistoAdmin")}
-                    icon={() => (
-                        <FontAwesome name="home" size={20} color="#1792FE" />
-                    )}
-                />
+            <View style={drawerStyles.container}>
+                {/* Header */}
+                <View style={drawerStyles.header}>
+                    <View style={drawerStyles.logoContainer}>
+                        <Image source={logo} style={drawerStyles.logo} />
+                        <Text style={drawerStyles.appName}>AdvirLink</Text>
+                    </View>
+                    <Text style={drawerStyles.userRole}>Super Admin</Text>
+                </View>
 
-                <DrawerItem
-                    label="Meu Perfil"
-                    onPress={() => props.navigation.navigate("Perfil")}
-                    icon={() => (
-                        <FontAwesome name="user" size={20} color="#1792FE" />
-                    )}
-                />
-                <DrawerItem
-                    label="Logout"
-                    onPress={handleLogout}
-                    icon={() => (
-                        <FontAwesome
-                            name="sign-out"
-                            size={20}
-                            color="#1792FE"
+                <DrawerContentScrollView
+                    {...props}
+                    contentContainerStyle={{ flexGrow: 1, paddingTop: 0 }}
+                >
+                    <DrawerItem
+                        label="Início"
+                        onPress={() => props.navigation.navigate("ADHome")}
+                        icon={() => (
+                            <FontAwesome
+                                name="home"
+                                size={18}
+                                color="#1792FE"
+                            />
+                        )}
+                        labelStyle={drawerStyles.menuItemLabel}
+                        style={drawerStyles.menuItem}
+                    />
+                    <DrawerItem
+                        label="Registo Admin"
+                        onPress={() =>
+                            props.navigation.navigate("RegistoAdmin")
+                        }
+                        icon={() => (
+                            <FontAwesome
+                                name="user-plus"
+                                size={18}
+                                color="#1792FE"
+                            />
+                        )}
+                        labelStyle={drawerStyles.menuItemLabel}
+                        style={drawerStyles.menuItem}
+                    />
+
+                    <View style={drawerStyles.bottomSection}>
+                        <DrawerItem
+                            label="Meu Perfil"
+                            onPress={() => props.navigation.navigate("Perfil")}
+                            icon={() => (
+                                <FontAwesome
+                                    name="user"
+                                    size={18}
+                                    color="#1792FE"
+                                />
+                            )}
+                            labelStyle={drawerStyles.menuItemLabel}
+                            style={drawerStyles.menuItem}
                         />
-                    )}
-                />
-            </DrawerContentScrollView>
+                        <DrawerItem
+                            label="Sair"
+                            onPress={handleLogout}
+                            icon={() => (
+                                <FontAwesome
+                                    name="sign-out"
+                                    size={18}
+                                    color="#4A9EFF"
+                                />
+                            )}
+                            labelStyle={[
+                                drawerStyles.menuItemLabel,
+                                { color: "#4A9EFF" },
+                            ]}
+                            style={[
+                                drawerStyles.menuItem,
+                                drawerStyles.logoutItem,
+                            ]}
+                        />
+                    </View>
+                </DrawerContentScrollView>
+            </View>
         );
     }
 
-    // Conteúdo do drawer para outros utilizadores
+    // Organizar módulos para drawer
+    const getModuleIcon = (moduleName) => {
+        const icons = {
+            Obras: "building",
+            Assiduidade: "clock-o",
+            Servicos: "wrench",
+            Oficios: "file-text",
+            Administrador: "cog",
+        };
+        return icons[moduleName] || "circle";
+    };
 
-    const hasOficiosModule = modules.some(
-        (module) => module.nome === "Oficios",
-    );
+    const getSubmoduleIcon = (submoduleName) => {
+        const icons = {
+            Obras: "road",
+            Escritório: "building-o",
+            PartesDiarias: "book",
+            Equipas: "users",
+            Agenda: "calendar",
+            GestaoFaltas: "check-square-o",
+            GestaoPontos: "calendar-check-o",
+            GestaoExternos: "user-plus",
+            GestaoPartes: "clipboard",
+            Ponto: "map-marker",
+            MapaRegistos: "map",
+            QrCode: "qrcode",
+            Botao: "clock-o",
+            Aprovacoes: "check-square-o",
+        };
+        return icons[submoduleName] || "circle-o";
+    };
 
-    const hasServicesModule = modules.some(
-        (module) => module.nome === "Servicos",
-    );
+    // Filtrar módulos disponíveis para o usuário
+    console.log(`📋 Módulos recebidos:`, modules);
+    console.log(`👤 Estado atual - tipoUser: "${tipoUser}", isLoggedIn: ${isLoggedIn}`);
+    console.log(`🔧 Valores do localStorage:`, {
+        tipoUser: localStorage.getItem("tipoUser"),
+        userTipo: localStorage.getItem("userTipo"),
+        tipo_user: localStorage.getItem("tipo_user"),
+        isAdmin: localStorage.getItem("isAdmin"),
+        superAdmin: localStorage.getItem("superAdmin")
+    });
 
-    const hasConcursosModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "Aprovacoes"),
-    );
+    const availableModules = modules.filter((module) => {
+        console.log(`🔍 Verificando módulo: ${module.nome}, tipoUser: "${tipoUser}"`);
 
-    const hasQrCodeAssiduidadeModule = modules.some(
-        (module) =>
-            module.nome === "Assiduidade" &&
-            module.submodulos.some((sub) => sub.nome === "QrCode"),
-    );
-    const hasBotaoAssiduidadeModule = modules.some(
-        (module) =>
-            module.nome === "Assiduidade" &&
-            module.submodulos.some((sub) => sub.nome === "Botao"),
-    );
-    const hasObrasModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "Controlo"),
-    );
+        // Log detalhado para o módulo Obras
+        if (module.nome === "Obras") {
+            console.log(`🏗️ MÓDULO OBRAS ENCONTRADO:`, {
+                moduloNome: module.nome,
+                tipoUser: tipoUser,
+                tipoUserType: typeof tipoUser,
+                tipoUserLength: tipoUser?.length,
+                isEncarregado: tipoUser === "Encarregado",
+                isDiretor: tipoUser === "Diretor",
+                isAdministrador: tipoUser === "Administrador",
+                submodulos: module.submodulos,
+                localStorageTipoUser: localStorage.getItem("tipoUser")
+            });
+        }
 
-    // Novos filtros para submódulos do módulo Obras
-    const hasPartesDiariasModule = modules.some(
-        (module) =>
+        // Se o tipoUser parece ser um JWT (contém pontos), permitir todos os módulos temporariamente
+        if (tipoUser && tipoUser.includes('.')) {
+            console.log(`⚠️ tipoUser parece ser um token JWT, permitindo módulo ${module.nome} temporariamente`);
+            return true;
+        }
+
+        if (
             module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "PartesDiarias"),
-    );
-    const hasAgendaModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "Agenda"),
-    );
-    const hasGestaoFaltasModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "GestaoFaltas"),
-    );
-    const hasGestaoPontosModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "GestaoPontos"),
-    );
-    const hasGestaoExternosModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "GestaoExternos"),
-    );
-    const hasGestaoPartesModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "GestaoPartes"),
-    );
-    const hasPontoModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "Ponto"),
-    );
-    const hasEquipasModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "Equipas"),
-    );
-    const hasObrasListModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "Obras"),
-    );
-    const hasEscritorioModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "Escritório"),
-    );
-    const hasMapaRegistosModule = modules.some(
-        (module) =>
-            module.nome === "Obras" &&
-            module.submodulos.some((sub) => sub.nome === "MapaRegistos"),
-    );
+            !(
+                tipoUser === "Encarregado" ||
+                tipoUser === "Diretor" ||
+                tipoUser === "Administrador" ||
+                tipoUser === "Trabalhador"  // Permitir Trabalhadores terem acesso ao módulo Obras
+            )
+        ) {
+            console.log(`❌ Módulo Obras bloqueado para tipoUser: "${tipoUser}"`);
+            return false;
+        }
+        console.log(`✅ Módulo ${module.nome} permitido para tipoUser: "${tipoUser}"`);
+        return true;
+    });
+
+    console.log(`📊 Módulos disponíveis após filtro:`, availableModules);
 
     // Check if user has any admin module
     const hasAnyAdminModule =
@@ -294,581 +336,692 @@ const CustomDrawerContent = ({
         hasRegistoPontoAdminModule ||
         hasPedidosAlteracaoAdminModule;
 
+    const userNome = localStorage.getItem("userNome") || "";
+    const empresa = localStorage.getItem("empresaSelecionada") || "";
+
     return (
-        <DrawerContentScrollView
-            {...props}
-            contentContainerStyle={{ flexGrow: 1 }}
-        >
-            <DrawerItem
-                label={t("Drawer.Home")}
-                onPress={() => props.navigation.navigate("Home")}
-                icon={() => (
-                    <FontAwesome name="home" size={20} color="#1792FE" />
+        <View style={drawerStyles.container}>
+            {/* Header */}
+            <View style={drawerStyles.header}>
+                <View style={drawerStyles.logoContainer}>
+                    <Image source={logo} style={drawerStyles.logo} />
+                    <Text style={drawerStyles.appName}>AdvirLink</Text>
+                </View>
+                {userNome && (
+                    <Text style={drawerStyles.userName}>{userNome}</Text>
                 )}
-            />
-            {isLoggedIn && (
-                <>
+            </View>
+
+            <DrawerContentScrollView
+                {...props}
+                contentContainerStyle={{ flexGrow: 1, paddingTop: 0 }}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Menu Principal */}
+                <View style={drawerStyles.mainSection}>
                     <DrawerItem
-                        label={t("Drawer.SelecaoEmpresa")}
-                        onPress={() =>
-                            props.navigation.navigate("SelecaoEmpresa")
-                        }
+                        label="Início"
+                        onPress={() => props.navigation.navigate("Home")}
                         icon={() => (
                             <FontAwesome
-                                name="briefcase"
-                                size={20}
+                                name="home"
+                                size={18}
                                 color="#1792FE"
                             />
                         )}
+                        labelStyle={drawerStyles.menuItemLabel}
+                        style={drawerStyles.menuItem}
                     />
 
-                    {(tipoUser === "Encarregado" ||
-                        tipoUser === "Diretor" ||
-                        tipoUser === "Administrador") && (
-                        <>
-                        {hasObrasListModule && (
-                            <DrawerItem
-                                label={t("Drawer.Obra")}
-                                onPress={() =>
-                                    props.navigation.navigate("Obras")
-                                }
-                                icon={() => (
-                                    <FontAwesome
-                                        name="road"
-                                        size={20}
-                                        color="#1792FE"
-                                    />
-                                )}
-                                options={{
-                                    drawerItemStyle:
-                                        tipoUser === "Encarregado" ||
-                                        tipoUser === "Diretor" ||
-                                        tipoUser === "Administrador"
-                                            ? {}
-                                            : { display: "none" },
-                                }}
-                                
-                            />
-                            )}
-                            {hasEscritorioModule && (
-                            <DrawerItem
-                                label={t("Escritório")}
-                                onPress={() =>
-                                    props.navigation.navigate("Escritorio")
-                                }
-                                icon={() => (
-                                    <FontAwesome
-                                        name="building"
-                                        size={20}
-                                        color="#1792FE"
-                                    />
-                                )}
-                                options={{
-                                    drawerItemStyle:
-                                        tipoUser === "Encarregado" ||
-                                        tipoUser === "Diretor" ||
-                                        tipoUser === "Administrador"
-                                            ? {}
-                                            : { display: "none" },
-                                }}
-                                
-                            />
-                            )}
-
-                            {hasPartesDiariasModule && (
-                                <DrawerItem
-                                    label={t("Partes Diarias")}
-                                    onPress={() =>
-                                        props.navigation.navigate(
-                                            "PartesDiarias",
-                                        )
-                                    }
-                                    icon={() => (
-                                        <FontAwesome
-                                            name="book"
-                                            size={20}
-                                            color="#1792FE"
-                                        />
-                                    )}
-                                    options={{
-                                        drawerItemStyle:
-                                            tipoUser === "Encarregado" ||
-                                            tipoUser === "Diretor" ||
-                                            tipoUser === "Administrador"
-                                                ? {}
-                                                : { display: "none" },
-                                    }}
-                                />
-                            )}
-
-                            {hasEquipasModule && (
-                                <DrawerItem
-                                    label={t("Equipas")}
-                                    onPress={() =>
-                                        props.navigation.navigate("CriarEquipa")
-                                    }
-                                    icon={() => (
-                                        <FontAwesome
-                                            name="users"
-                                            size={20}
-                                            color="#1792FE"
-                                        />
-                                    )}
-                                    options={{
-                                        drawerItemStyle:
-                                            tipoUser === "Encarregado" ||
-                                            tipoUser === "Diretor" ||
-                                            tipoUser === "Administrador"
-                                                ? {}
-                                                : { display: "none" },
-                                    }}
-                                />
-                            )}
-
-                            {hasEscritorioModule && (
-                                <DrawerItem
-                                    label={t("Escritório")}
-                                    onPress={() =>
-                                        props.navigation.navigate("Escritório")
-                                    }
-                                    icon={() => (
-                                        <FontAwesome
-                                            name="users"
-                                            size={20}
-                                            color="#1792FE"
-                                        />
-                                    )}
-                                    options={{
-                                        drawerItemStyle:
-                                            tipoUser === "Encarregado" ||
-                                            tipoUser === "Diretor" ||
-                                            tipoUser === "Administrador"
-                                                ? {}
-                                                : { display: "none" },
-                                    }}
-                                />
-                            )}
-
-                            {hasObrasListModule && (
-                                <DrawerItem
-                                    label={t("Obras")}
-                                    onPress={() =>
-                                        props.navigation.navigate("Obras")
-                                    }
-                                    icon={() => (
-                                        <FontAwesome
-                                            name="users"
-                                            size={20}
-                                            color="#1792FE"
-                                        />
-                                    )}
-                                    options={{
-                                        drawerItemStyle:
-                                            tipoUser === "Encarregado" ||
-                                            tipoUser === "Diretor" ||
-                                            tipoUser === "Administrador"
-                                                ? {}
-                                                : { display: "none" },
-                                    }}
-                                />
-                            )}
-                        </>
-                    )}
-
-                    {hasServicesModule && (
+                    {isLoggedIn && (
                         <DrawerItem
-                            label={t("Drawer.Servicos")}
+                            label="Selecionar Empresa"
                             onPress={() =>
-                                props.navigation.navigate("PedidosAssistencia")
+                                props.navigation.navigate("SelecaoEmpresa")
                             }
                             icon={() => (
                                 <FontAwesome
-                                    name="wrench"
-                                    size={20}
-                                    color="#1792FE"
-                                />
-                            )}
-                        />
-                    )}
-
-                    {hasConcursosModule && (
-                        <List.Accordion
-                            title={t("Aprovações")}
-                            left={() => (
-                                <MaterialCommunityIcons
-                                    name="file-check"
-                                    size={20}
-                                    color="#1792FE"
-                                    style={{ marginLeft: 15 }}
-                                />
-                            )}
-                            right={() => (
-                                <FontAwesome
-                                    name={
-                                        aprovacoesExpanded
-                                            ? "angle-down"
-                                            : "angle-up"
-                                    }
+                                    name="building"
                                     size={18}
                                     color="#1792FE"
                                 />
                             )}
-                            expanded={aprovacoesExpanded}
-                            onPress={() =>
-                                setAprovacoesExpanded(!aprovacoesExpanded)
-                            }
-                            titleStyle={{
-                                fontSize: 14,
-                                marginLeft: 0,
-                                flexDirection: "row",
-                                alignItems: "center",
-                            }}
-                        >
-                            <List.Item
-                                title="Concursos Pendentes"
-                                onPress={() =>
-                                    props.navigation.navigate(
-                                        "ConcursosAprovacao",
-                                    )
-                                }
-                            />
-                        </List.Accordion>
-                    )}
-                    {hasOficiosModule && (
-                        <DrawerItem
-                            label={t("Oficios")}
-                            onPress={() =>
-                                props.navigation.navigate("OficiosList")
-                            }
-                            icon={() => (
-                                <FontAwesome
-                                    name="file"
-                                    size={20}
-                                    color="#1792FE"
-                                />
-                            )}
+                            labelStyle={drawerStyles.menuItemLabel}
+                            style={drawerStyles.menuItem}
                         />
                     )}
+                </View>
 
-                    {hasQrCodeAssiduidadeModule && (
-                        <DrawerItem
-                            label={t("Drawer.PontoQR")}
-                            onPress={() =>
-                                props.navigation.navigate("LeitorQRCode")
-                            }
-                            icon={() => (
-                                <FontAwesome
-                                    name="qrcode"
-                                    size={20}
-                                    color="#1792FE"
-                                />
-                            )}
-                        />
-                    )}
+                {/* Módulos */}
+                {isLoggedIn && availableModules.length > 0 && (
+                    <View style={drawerStyles.modulesSection}>
+                        {availableModules.map((module) => {
+                            const hasVisibleSubmodules =
+                                module.submodulos &&
+                                module.submodulos.length > 0;
 
-                    {hasPontoModule && (
-                        <DrawerItem
-                            label={t("Ponto")}
-                            onPress={() =>
-                                props.navigation.navigate("RegistoPontoObra")
+                            if (
+                                !hasVisibleSubmodules &&
+                                module.nome !== "Servicos" &&
+                                module.nome !== "Oficios"
+                            ) {
+                                return null;
                             }
-                            icon={() => (
-                                <FontAwesome
-                                    name="qrcode"
-                                    size={20}
-                                    color="#1792FE"
-                                />
-                            )}
-                        />
-                    )}
-                    {hasAgendaModule && (
-                        <DrawerItem
-                            label={t("Agenda")}
-                            onPress={() =>
-                                props.navigation.navigate(
-                                    "CalendarioHorasTrabalho",
-                                )
-                            }
-                            icon={() => (
-                                <FontAwesome
-                                    name="calendar"
-                                    size={20}
-                                    color="#1792FE"
-                                />
-                            )}
-                        />
-                    )}
 
-                    {(tipoUser === "Encarregado" ||
-                        tipoUser === "Diretor" ||
-                        tipoUser === "Administrador") && (
-                        <>
-                            {hasGestaoFaltasModule && (
-                                <DrawerItem
-                                    label={t("Gestão Faltas")}
-                                    onPress={() =>
-                                        props.navigation.navigate(
-                                            "AprovacaoFaltaFerias",
-                                        )
-                                    }
-                                    icon={() => (
+                            // Para módulos sem submódulos ou com comportamento especial
+                            if (module.nome === "Servicos") {
+                                return (
+                                    <View
+                                        key={module.nome}
+                                        style={drawerStyles.moduleContainer}
+                                    >
+                                        <TouchableOpacity
+                                            style={drawerStyles.moduleHeader}
+                                            onPress={() =>
+                                                handleModulePress(module.nome)
+                                            }
+                                        >
+                                            <View
+                                                style={drawerStyles.moduleTitle}
+                                            >
+                                                <FontAwesome
+                                                    name={getModuleIcon(
+                                                        module.nome,
+                                                    )}
+                                                    size={18}
+                                                    color="#1792FE"
+                                                />
+                                                <Text
+                                                    style={
+                                                        drawerStyles.moduleText
+                                                    }
+                                                >
+                                                    Serviços
+                                                </Text>
+                                            </View>
+                                            <FontAwesome
+                                                name={
+                                                    expandedModules[module.nome]
+                                                        ? "angle-down"
+                                                        : "angle-right"
+                                                }
+                                                size={16}
+                                                color="#666"
+                                            />
+                                        </TouchableOpacity>
+
+                                        {expandedModules[module.nome] && (
+                                            <View
+                                                style={
+                                                    drawerStyles.submoduleContainer
+                                                }
+                                            >
+                                                <TouchableOpacity
+                                                    style={
+                                                        drawerStyles.submoduleItem
+                                                    }
+                                                    onPress={() =>
+                                                        props.navigation.navigate(
+                                                            "PedidosAssistencia",
+                                                        )
+                                                    }
+                                                >
+                                                    <FontAwesome
+                                                        name="wrench"
+                                                        size={16}
+                                                        color="#1792FE"
+                                                    />
+                                                    <Text
+                                                        style={
+                                                            drawerStyles.submoduleText
+                                                        }
+                                                    >
+                                                        Pedidos de Assistência
+                                                    </Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={
+                                                        drawerStyles.submoduleItem
+                                                    }
+                                                    onPress={() =>
+                                                        props.navigation.navigate(
+                                                            "PandIByTecnico",
+                                                        )
+                                                    }
+                                                >
+                                                    <FontAwesome
+                                                        name="bar-chart"
+                                                        size={16}
+                                                        color="#1792FE"
+                                                    />
+                                                    <Text
+                                                        style={
+                                                            drawerStyles.submoduleText
+                                                        }
+                                                    >
+                                                        Dashboard Técnico
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        )}
+                                    </View>
+                                );
+                            }
+
+                            if (module.nome === "Oficios") {
+                                return (
+                                    <View
+                                        key={module.nome}
+                                        style={drawerStyles.moduleContainer}
+                                    >
+                                        <TouchableOpacity
+                                            style={drawerStyles.moduleHeader}
+                                            onPress={() =>
+                                                handleModulePress(module.nome)
+                                            }
+                                        >
+                                            <View
+                                                style={drawerStyles.moduleTitle}
+                                            >
+                                                <FontAwesome
+                                                    name={getModuleIcon(
+                                                        module.nome,
+                                                    )}
+                                                    size={18}
+                                                    color="#1792FE"
+                                                />
+                                                <Text
+                                                    style={
+                                                        drawerStyles.moduleText
+                                                    }
+                                                >
+                                                    Ofícios
+                                                </Text>
+                                            </View>
+                                            <FontAwesome
+                                                name={
+                                                    expandedModules[module.nome]
+                                                        ? "angle-down"
+                                                        : "angle-right"
+                                                }
+                                                size={16}
+                                                color="#666"
+                                            />
+                                        </TouchableOpacity>
+
+                                        {expandedModules[module.nome] && (
+                                            <View
+                                                style={
+                                                    drawerStyles.submoduleContainer
+                                                }
+                                            >
+                                                <TouchableOpacity
+                                                    style={
+                                                        drawerStyles.submoduleItem
+                                                    }
+                                                    onPress={() =>
+                                                        props.navigation.navigate(
+                                                            "OficiosList",
+                                                        )
+                                                    }
+                                                >
+                                                    <FontAwesome
+                                                        name="list"
+                                                        size={16}
+                                                        color="#1792FE"
+                                                    />
+                                                    <Text
+                                                        style={
+                                                            drawerStyles.submoduleText
+                                                        }
+                                                    >
+                                                        Lista de Ofícios
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        )}
+                                    </View>
+                                );
+                            }
+
+                            // Não mostrar o módulo Administrador como módulo normal
+                            if (module.nome === "Administrador") {
+                                return null;
+                            }
+
+                            return (
+                                <View
+                                    key={module.nome}
+                                    style={drawerStyles.moduleContainer}
+                                >
+                                    <TouchableOpacity
+                                        style={drawerStyles.moduleHeader}
+                                        onPress={() =>
+                                            handleModulePress(module.nome)
+                                        }
+                                    >
+                                        <View style={drawerStyles.moduleTitle}>
+                                            <FontAwesome
+                                                name={getModuleIcon(
+                                                    module.nome,
+                                                )}
+                                                size={18}
+                                                color="#1792FE"
+                                            />
+                                            <Text
+                                                style={drawerStyles.moduleText}
+                                            >
+                                                {module.nome}
+                                            </Text>
+                                        </View>
                                         <FontAwesome
-                                            name="check-square"
-                                            size={20}
-                                            color="#1792FE"
+                                            name={
+                                                expandedModules[module.nome]
+                                                    ? "angle-down"
+                                                    : "angle-right"
+                                            }
+                                            size={16}
+                                            color="#666"
                                         />
-                                    )}
-                                    options={{
-                                        drawerItemStyle:
-                                            tipoUser === "Encarregado" ||
-                                            tipoUser === "Diretor" ||
-                                            tipoUser === "Administrador"
-                                                ? {}
-                                                : { display: "none" },
-                                    }}
-                                />
-                            )}
+                                    </TouchableOpacity>
 
-                            {hasGestaoPontosModule && (
-                                <DrawerItem
-                                    label={t("Gestão Pontos")}
-                                    onPress={() =>
-                                        props.navigation.navigate(
-                                            "AprovacaoPontoPendentes",
-                                        )
-                                    }
-                                    icon={() => (
-                                        <FontAwesome
-                                            name="calendar-check-o"
-                                            size={20}
-                                            color="#1792FE"
-                                        />
-                                    )}
-                                    options={{
-                                        drawerItemStyle:
-                                            tipoUser === "Encarregado" ||
-                                            tipoUser === "Diretor" ||
-                                            tipoUser === "Administrador"
-                                                ? {}
-                                                : { display: "none" },
-                                    }}
-                                />
-                            )}
-                        </>
-                    )}
-                    {tipoUser === "Administrador" &&
-                        hasGestaoExternosModule && (
-                            <>
-                                <DrawerItem
-                                    label={t("Gestão Externos")}
-                                    onPress={() =>
-                                        props.navigation.navigate(
-                                            "GestaoTrabalhadoresExternos",
-                                        )
-                                    }
-                                    icon={() => (
-                                        <FontAwesome
-                                            name="check-square"
-                                            size={20}
-                                            color="#1792FE"
-                                        />
-                                    )}
-                                    options={{
-                                        drawerItemStyle:
-                                            tipoUser === "Administrador"
-                                                ? {}
-                                                : { display: "none" },
-                                    }}
-                                />
-                            </>
-                        )}
+                                    {expandedModules[module.nome] && (
+                                        <View
+                                            style={
+                                                drawerStyles.submoduleContainer
+                                            }
+                                        >
+                                            {module.submodulos.map(
+                                                (submodulo) => {
+                                                    // Mapear submódulos para navegação
+                                                    const navigationMap = {
+                                                        Obras: "Obras",
+                                                        Escritório:
+                                                            "Escritorio",
+                                                        PartesDiarias:
+                                                            "PartesDiarias",
+                                                        Equipas: "CriarEquipa",
+                                                        Agenda: "CalendarioHorasTrabalho",
+                                                        GestaoFaltas:
+                                                            "AprovacaoFaltaFerias",
+                                                        GestaoPontos:
+                                                            "AprovacaoPontoPendentes",
+                                                        GestaoExternos:
+                                                            "GestaoTrabalhadoresExternos",
+                                                        GestaoPartes:
+                                                            "GestaoPartesDiarias",
+                                                        Ponto: "RegistoPontoObra",
+                                                        MapaRegistos:
+                                                            "MapaRegistos",
+                                                        QrCode: "LeitorQRCode",
+                                                        Botao: "PontoBotao",
+                                                        Aprovacoes:
+                                                            "ConcursosAprovacao",
+                                                    };
 
-                    {(tipoUser === "Diretor" || tipoUser === "Administrador") &&
-                        hasGestaoPartesModule && (
-                            <DrawerItem
-                                label={t("Gestão Partes Diárias")}
-                                onPress={() =>
-                                    props.navigation.navigate(
-                                        "GestaoPartesDiarias",
-                                    )
-                                }
-                                icon={() => (
-                                    <FontAwesome
-                                        name="check-square"
-                                        size={20}
-                                        color="#1792FE"
-                                    />
-                                )}
-                                options={{
-                                    drawerItemStyle:
-                                        tipoUser === "Encarregado" ||
-                                        tipoUser === "Diretor" ||
-                                        tipoUser === "Administrador"
-                                            ? {}
-                                            : { display: "none" },
-                                }}
-                            />
-                        )}
+                                                    const screenName =
+                                                        navigationMap[
+                                                        submodulo.nome
+                                                        ];
+                                                    if (!screenName) {
+                                                        console.log(`⚠️ Submódulo sem mapeamento: ${submodulo.nome}`);
+                                                        return null;
+                                                    }
 
-                    {hasBotaoAssiduidadeModule && (
-                        <DrawerItem
-                            label={t("Drawer.PontoBT")}
-                            onPress={() =>
-                                props.navigation.navigate("PontoBotao")
-                            }
-                            icon={() => (
-                                <FontAwesome
-                                    name="clock-o"
-                                    size={20}
-                                    color="#1792FE"
-                                />
-                            )}
-                        />
-                    )}
-                    {hasServicesModule && (
-                        <DrawerItem
-                            label={t("Drawer.ServicosTecnicos")}
-                            onPress={() =>
-                                props.navigation.navigate("PandIByTecnico")
-                            }
-                            icon={() => (
-                                <FontAwesome
-                                    name="bar-chart"
-                                    size={20}
-                                    color="#1792FE"
-                                />
-                            )}
-                        />
-                    )}
-                </>
-            )}
-            <View
-                style={{
-                    flexGrow: 1,
-                    justifyContent: "flex-end",
-                    paddingBottom: 20,
-                }}
-            >
+                                                    // Log específico para Ponto e Agenda
+                                                    if (submodulo.nome === "Ponto" || submodulo.nome === "Agenda") {
+                                                        console.log(`🎯 Processando submódulo ${submodulo.nome} para tipoUser: "${tipoUser}"`);
+                                                    }
+
+                                                    // Verificar permissões especiais
+                                                    if (
+                                                        (submodulo.nome ===
+                                                            "GestaoFaltas" ||
+                                                            submodulo.nome ===
+                                                            "GestaoPontos") &&
+                                                        !(
+                                                            tipoUser ===
+                                                            "Encarregado" ||
+                                                            tipoUser ===
+                                                            "Diretor" ||
+                                                            tipoUser ===
+                                                            "Administrador"
+                                                        )
+                                                    ) {
+                                                        return null;
+                                                    }
+
+                                                    // Trabalhadores têm acesso APENAS aos submódulos Ponto e Agenda
+                                                    if (tipoUser === "Trabalhador") {
+                                                        if (!(submodulo.nome === "Ponto" || submodulo.nome === "Agenda")) {
+                                                            console.log(`❌ Submódulo ${submodulo.nome} bloqueado para Trabalhador`);
+                                                            return null;
+                                                        }
+                                                        console.log(`✅ Submódulo ${submodulo.nome} permitido para Trabalhador`);
+                                                    }
+
+                                                    if (
+                                                        submodulo.nome ===
+                                                        "GestaoExternos" &&
+                                                        tipoUser !==
+                                                        "Administrador"
+                                                    ) {
+                                                        return null;
+                                                    }
+
+                                                    if (
+                                                        submodulo.nome ===
+                                                        "GestaoPartes" &&
+                                                        !(
+                                                            tipoUser ===
+                                                            "Diretor" ||
+                                                            tipoUser ===
+                                                            "Administrador"
+                                                        )
+                                                    ) {
+                                                        return null;
+                                                    }
+
+                                                    const displayName =
+                                                        {
+                                                            PartesDiarias:
+                                                                "Partes Diárias",
+                                                            GestaoFaltas:
+                                                                "Gestão Faltas",
+                                                            GestaoPontos:
+                                                                "Gestão Pontos",
+                                                            GestaoExternos:
+                                                                "Gestão Externos",
+                                                            GestaoPartes:
+                                                                "Gestão Partes Diárias",
+                                                            QrCode: "Ponto QR",
+                                                            Botao: "Ponto Botão",
+                                                            Aprovacoes:
+                                                                "Aprovações",
+                                                        }[submodulo.nome] ||
+                                                        submodulo.nome;
+
+                                                    return (
+                                                        <TouchableOpacity
+                                                            key={submodulo.nome}
+                                                            style={[
+                                                                drawerStyles.submoduleItem,
+                                                                {
+                                                                    backgroundColor: "transparent",
+                                                                }
+                                                            ]}
+                                                            onPress={() =>
+                                                                props.navigation.navigate(
+                                                                    screenName,
+                                                                )
+                                                            }
+                                                            onPressIn={(e) => {
+                                                                e.currentTarget.setNativeProps({
+                                                                    style: {
+                                                                        backgroundColor: "#F0F9FF",
+                                                                    }
+                                                                });
+                                                            }}
+                                                            onPressOut={(e) => {
+                                                                e.currentTarget.setNativeProps({
+                                                                    style: {
+                                                                        backgroundColor: "transparent",
+                                                                    }
+                                                                });
+                                                            }}
+                                                            activeOpacity={0.7}
+                                                        >
+                                                            <FontAwesome
+                                                                name={getSubmoduleIcon(
+                                                                    submodulo.nome,
+                                                                )}
+                                                                size={18}
+                                                                color="#4A9EFF"
+                                                            />
+                                                            <Text
+                                                                style={
+                                                                    drawerStyles.submoduleText
+                                                                }
+                                                            >
+                                                                {displayName}
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                    );
+                                                },
+                                            )}
+                                        </View>
+                                    )}
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
+
+                {/* Área de Administração */}
                 {hasAnyAdminModule && (
-                    <List.Accordion
-                        title={t("Drawer.ADM.title")}
-                        left={() => (
+                    <View style={drawerStyles.adminSection}>
+                        <View style={drawerStyles.sectionDivider} />
+                        <TouchableOpacity
+                            style={drawerStyles.moduleHeader}
+                            onPress={() => handleModulePress("admin")}
+                        >
+                            <View style={drawerStyles.moduleTitle}>
+                                <FontAwesome
+                                    name="cog"
+                                    size={18}
+                                    color="#1792FE"
+                                />
+                                <Text style={drawerStyles.moduleText}>
+                                    Administrador
+                                </Text>
+                            </View>
                             <FontAwesome
-                                name="cogs"
-                                size={18}
-                                color="#1792FE"
-                                style={{ marginLeft: 15 }}
-                            />
-                        )}
-                        right={() => (
-                            <FontAwesome
-                                name={expanded ? "angle-down" : "angle-up"} // Seta para cima ou para baixo
-                                size={18}
-                                color="#1792FE"
-                            />
-                        )}
-                        expanded={expanded}
-                        onPress={handlePress}
-                        titleStyle={{
-                            fontSize: 14,
-                            marginLeft: 0,
-                            flexDirection: "row",
-                            alignItems: "center",
-                        }}
-                    >
-                        {hasContratosAtivosModule && (
-                            <List.Item
-                                title="> Contratos Ativos"
-                                onPress={() =>
-                                    props.navigation.navigate("ContratosList")
+                                name={
+                                    expandedModules["admin"]
+                                        ? "angle-down"
+                                        : "angle-right"
                                 }
+                                size={16}
+                                color="#666"
                             />
-                        )}
+                        </TouchableOpacity>
 
-                        {hasPainelAdministracaoModule && (
-                            <List.Item
-                                title={t("Drawer.ADM.1")}
-                                onPress={() =>
-                                    props.navigation.navigate("PainelAdmin")
-                                }
-                            />
+                        {expandedModules["admin"] && (
+                            <View style={drawerStyles.submoduleContainer}>
+                                {hasContratosAtivosModule && (
+                                    <TouchableOpacity
+                                        style={drawerStyles.submoduleItem}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "ContratosList",
+                                            )
+                                        }
+                                    >
+                                        <FontAwesome
+                                            name="file-text-o"
+                                            size={16}
+                                            color="#1792FE"
+                                        />
+                                        <Text
+                                            style={drawerStyles.submoduleText}
+                                        >
+                                            Contratos Ativos
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                {hasPainelAdministracaoModule && (
+                                    <TouchableOpacity
+                                        style={drawerStyles.submoduleItem}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "PainelAdmin",
+                                            )
+                                        }
+                                    >
+                                        <FontAwesome
+                                            name="dashboard"
+                                            size={16}
+                                            color="#1792FE"
+                                        />
+                                        <Text
+                                            style={drawerStyles.submoduleText}
+                                        >
+                                            Painel Administração
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                {hasWhatsappConfigsModule && (
+                                    <TouchableOpacity
+                                        style={drawerStyles.submoduleItem}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "WhatsAppWebConfig",
+                                            )
+                                        }
+                                    >
+                                        <FontAwesome
+                                            name="whatsapp"
+                                            size={16}
+                                            color="#1792FE"
+                                        />
+                                        <Text
+                                            style={drawerStyles.submoduleText}
+                                        >
+                                            WhatsApp Configs
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                {hasGestaoUtilizadoresModule && (
+                                    <TouchableOpacity
+                                        style={drawerStyles.submoduleItem}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "UsersEmpresa",
+                                            )
+                                        }
+                                    >
+                                        <FontAwesome
+                                            name="users"
+                                            size={16}
+                                            color="#1792FE"
+                                        />
+                                        <Text
+                                            style={drawerStyles.submoduleText}
+                                        >
+                                            Gestão Utilizadores
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                {hasRegistarUtilizadorModule && (
+                                    <TouchableOpacity
+                                        style={drawerStyles.submoduleItem}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "RegistoUser",
+                                            )
+                                        }
+                                    >
+                                        <FontAwesome
+                                            name="user-plus"
+                                            size={16}
+                                            color="#1792FE"
+                                        />
+                                        <Text
+                                            style={drawerStyles.submoduleText}
+                                        >
+                                            Registar Utilizador
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                {hasRegistoPontoAdminModule && (
+                                    <TouchableOpacity
+                                        style={drawerStyles.submoduleItem}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "RegistoPontoAdmin",
+                                            )
+                                        }
+                                    >
+                                        <FontAwesome
+                                            name="clock-o"
+                                            size={16}
+                                            color="#1792FE"
+                                        />
+                                        <Text
+                                            style={drawerStyles.submoduleText}
+                                        >
+                                            Registo Ponto Admin
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                {hasPedidosAlteracaoAdminModule && (
+                                    <TouchableOpacity
+                                        style={drawerStyles.submoduleItem}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "PedidosAlteracaoAdmin",
+                                            )
+                                        }
+                                    >
+                                        <FontAwesome
+                                            name="edit"
+                                            size={16}
+                                            color="#1792FE"
+                                        />
+                                        <Text
+                                            style={drawerStyles.submoduleText}
+                                        >
+                                            Pedidos Alteração Admin
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
                         )}
-                        {hasWhatsappConfigsModule && (
-                            <List.Item
-                                title={t("> Whatsapp Configs")}
-                                onPress={() =>
-                                    props.navigation.navigate(
-                                        "WhatsAppWebConfig",
-                                    )
-                                }
-                            />
-                        )}
-                        {hasGestaoUtilizadoresModule && (
-                            <List.Item
-                                title={t("Drawer.ADM.2")}
-                                onPress={() =>
-                                    props.navigation.navigate("UsersEmpresa")
-                                }
-                            />
-                        )}
-                        {hasRegistarUtilizadorModule && (
-                            <List.Item
-                                title={t("Drawer.ADM.3")}
-                                onPress={() =>
-                                    props.navigation.navigate("RegistoUser")
-                                }
-                            />
-                        )}
-                        {hasRegistoPontoAdminModule && (
-                            <List.Item
-                                title={t("Drawer.ADM.4")}
-                                onPress={() =>
-                                    props.navigation.navigate(
-                                        "RegistoPontoAdmin",
-                                    )
-                                }
-                            />
-                        )}
-                        {hasPedidosAlteracaoAdminModule && (
-                            <List.Item
-                                title={t("Drawer.ADM.5")}
-                                onPress={() =>
-                                    props.navigation.navigate(
-                                        "PedidosAlteracaoAdmin",
-                                    )
-                                }
-                            />
-                        )}
-                    </List.Accordion>
+                    </View>
                 )}
-                {localStorage.getItem("loginToken") && (
-                    <DrawerItem
-                        label={t("Drawer.Perfil")}
-                        onPress={() => props.navigation.navigate("Perfil")}
-                        icon={() => (
-                            <FontAwesome
-                                name="user"
-                                size={20}
-                                color="#1792FE"
-                            />
-                        )}
-                    />
-                )}
-                {localStorage.getItem("loginToken") && (
-                    <DrawerItem
-                        label={t("Drawer.Exit")}
-                        icon={() => (
-                            <FontAwesome
-                                name="sign-out"
-                                size={20}
-                                color="#1792FE"
-                            />
-                        )}
-                        onPress={handleLogout}
-                    />
-                )}
-            </View>
-        </DrawerContentScrollView>
+
+                {/* Área de Perfil e Logout */}
+                <View style={drawerStyles.bottomSection}>
+                    <View style={drawerStyles.sectionDivider} />
+                    {localStorage.getItem("loginToken") && (
+                        <DrawerItem
+                            label="Meu Perfil"
+                            onPress={() => props.navigation.navigate("Perfil")}
+                            icon={() => (
+                                <FontAwesome
+                                    name="user"
+                                    size={18}
+                                    color="#1792FE"
+                                />
+                            )}
+                            labelStyle={drawerStyles.menuItemLabel}
+                            style={drawerStyles.menuItem}
+                        />
+                    )}
+                    {localStorage.getItem("loginToken") && (
+                        <DrawerItem
+                            label="Sair"
+                            icon={() => (
+                                <FontAwesome
+                                    name="sign-out"
+                                    size={18}
+                                    color="#FFFFFF"
+                                />
+                            )}
+                            onPress={handleLogout}
+                            labelStyle={[
+                                drawerStyles.menuItemLabel,
+                                { color: "#FFFFFF" },
+                            ]}
+                            style={[
+                                drawerStyles.menuItem,
+                                drawerStyles.logoutItem,
+                            ]}
+                        />
+                    )}
+                </View>
+            </DrawerContentScrollView>
+        </View>
     );
 };
 
@@ -934,7 +1087,32 @@ const AppNavigator = () => {
         setLoading(true);
         const token = localStorage.getItem("loginToken");
         const empresaLs = localStorage.getItem("empresaSelecionada");
-        const tipoUserLs = localStorage.getItem("tipoUser");
+        let tipoUserLs = localStorage.getItem("tipoUser");
+
+        // Verificar se tipoUser é um token JWT em vez do valor correto
+        if (tipoUserLs && tipoUserLs.includes('.')) {
+            console.log(`⚠️ tipoUser parece ser um token JWT, tentando recuperar o valor correto...`);
+            // Tentar recuperar de outras fontes ou limpar
+            tipoUserLs = localStorage.getItem("userTipo") || localStorage.getItem("tipo_user") || "";
+            if (!tipoUserLs) {
+                console.log(`🔧 Tentando decodificar informações do token...`);
+                try {
+                    // Se ainda não temos o tipo, podemos tentar recuperar do token de login
+                    const payload = JSON.parse(atob(token.split(".")[1]));
+                    // Note: normalmente o tipo não está no token, mas vamos verificar
+                    console.log(`📋 Payload do token:`, payload);
+                } catch (error) {
+                    console.error("Erro ao decodificar token:", error);
+                }
+            }
+        }
+
+        console.log(`👤 fetchUserData - Dados do localStorage:`, {
+            token: token ? "exists" : "null",
+            empresa: empresaLs,
+            tipoUser: tipoUserLs,
+            tipoUserOriginal: localStorage.getItem("tipoUser")
+        });
 
         if (token && isTokenValid(token)) {
             setIsLoggedIn(true);
@@ -944,6 +1122,8 @@ const AppNavigator = () => {
             setUserNome(localStorage.getItem("userNome") || "");
             setEmpresa(empresaLs || "");
             setTipoUser(tipoUserLs || "");
+
+            console.log(`✅ Estado definido - tipoUser: "${tipoUserLs}"`);
 
             // buscar módulos (agora com filtro por empresa)
             await fetchUserModules();
@@ -994,6 +1174,12 @@ const AppNavigator = () => {
         const userId = localStorage.getItem("userId");
         const empresaId = localStorage.getItem("empresa_id");
 
+        console.log(`🔧 fetchUserModules - Parâmetros:`, {
+            userId,
+            empresaId,
+            hasToken: !!token
+        });
+
         if (userId && token) {
             try {
                 let url = `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`;
@@ -1003,15 +1189,26 @@ const AppNavigator = () => {
                     url += `?empresa_id=${empresaId}`;
                 }
 
+                console.log(`🌐 Fazendo request para:`, url);
+
                 const response = await fetch(url, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await response.json();
+
+                console.log(`📨 Resposta da API:`, data);
+                console.log(`📁 Módulos recebidos:`, data.modulos);
+
                 setModules(data.modulos || []);
             } catch (error) {
                 console.error("Erro ao buscar módulos:", error);
                 setModules([]);
             }
+        } else {
+            console.log(`❌ fetchUserModules - Dados em falta:`, {
+                userId: !!userId,
+                token: !!token
+            });
         }
     };
 
@@ -1033,7 +1230,27 @@ const AppNavigator = () => {
         const fetchUserData = async () => {
             const token = localStorage.getItem("loginToken");
             const empresa = localStorage.getItem("empresaSelecionada");
-            const tipoUser = localStorage.getItem("tipoUser");
+            let tipoUser = localStorage.getItem("tipoUser");
+
+            // Verificar se tipoUser é um token JWT e tentar corrigir
+            if (tipoUser && tipoUser.includes('.')) {
+                console.log(`🔧 Detectado tipoUser como JWT, tentando recuperar valor correto...`);
+                tipoUser = localStorage.getItem("userTipo") || localStorage.getItem("tipo_user") || "";
+
+                // Se ainda não encontramos, definir como vazio para forçar nova seleção
+                if (!tipoUser || tipoUser.includes('.')) {
+                    console.log(`❌ Não foi possível recuperar tipoUser válido, limpando...`);
+                    localStorage.removeItem("tipoUser");
+                    tipoUser = "";
+                }
+            }
+
+            console.log(`🔍 fetchUserData - valores após verificação:`, {
+                token: token ? "exists" : "null",
+                empresa,
+                tipoUser,
+                originalTipoUser: localStorage.getItem("tipoUser")
+            });
 
             // Verificar se o token existe e é válido
             if (token && isTokenValid(token)) {
@@ -1164,22 +1381,45 @@ const AppNavigator = () => {
                         />
                     )}
                     screenOptions={({ navigation }) => ({
+                        headerStyle: {
+                            backgroundColor: "#FFFFFF",
+                            elevation: 8,
+                            shadowColor: "#E5E7EB",
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 12,
+                            height: 80,
+                        },
+                        headerTintColor: "#4A9EFF",
                         headerTitle: () => (
                             <View
                                 style={{
                                     flexDirection: "row",
                                     alignItems: "center",
+                                    flex: 1,
+                                    justifyContent: "center",
                                 }}
                             >
                                 <Image
                                     source={logo}
                                     style={{
-                                        width: 40,
-                                        height: 40,
+                                        width: 36,
+                                        height: 36,
                                         resizeMode: "contain",
-                                        marginLeft: 10,
+                                        marginRight: 12,
+                                        borderRadius: 8,
                                     }}
                                 />
+                                <Text
+                                    style={{
+                                        fontSize: 20,
+                                        fontWeight: "700",
+                                        color: "#4A9EFF",
+                                        letterSpacing: 0.5,
+                                    }}
+                                >
+                                    
+                                </Text>
                             </View>
                         ),
                         headerRight: () => (
@@ -1187,7 +1427,7 @@ const AppNavigator = () => {
                                 style={{
                                     flexDirection: "row",
                                     alignItems: "center",
-                                    marginRight: 15,
+                                    marginRight: 20,
                                     position: "relative",
                                 }}
                             >
@@ -1207,35 +1447,53 @@ const AppNavigator = () => {
                                     style={{
                                         flexDirection: "row",
                                         alignItems: "center",
+                                        backgroundColor: "rgba(30, 64, 175, 0.1)",
+                                        paddingVertical: 8,
+                                        paddingHorizontal: 12,
+                                        borderRadius: 20,
                                         position: "relative",
                                     }}
-                                    activeOpacity={0.7}
+                                    activeOpacity={0.8}
                                 >
-                                    <FontAwesome
-                                        name="user"
-                                        size={20}
-                                        color="#1792FE"
-                                    />
-                                    <Text
+                                    <View
                                         style={{
-                                            marginLeft: 8,
-                                            color: "#1792FE",
-                                            fontSize: 16,
+                                            width: 32,
+                                            height: 32,
+                                            borderRadius: 16,
+                                            backgroundColor: "rgba(30, 64, 175, 0.2)",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            marginRight: 8,
                                         }}
                                     >
-                                        {userNome}
-                                    </Text>
-                                    {empresa && (
+                                        <FontAwesome
+                                            name="user"
+                                            size={16}
+                                            color="#4A9EFF"
+                                        />
+                                    </View>
+                                    <View style={{ alignItems: "flex-start" }}>
                                         <Text
                                             style={{
-                                                marginLeft: 15,
-                                                color: "#1792FE",
-                                                fontSize: 16,
+                                                color: "#4A9EFF",
+                                                fontSize: 14,
+                                                fontWeight: "600",
                                             }}
                                         >
-                                            {empresa}
+                                            {userNome || "Utilizador"}
                                         </Text>
-                                    )}
+                                        {empresa && (
+                                            <Text
+                                                style={{
+                                                    color: "#4A9EFF",
+                                                    fontSize: 12,
+                                                    fontWeight: "500",
+                                                }}
+                                            >
+                                                {empresa}
+                                            </Text>
+                                        )}
+                                    </View>
                                 </TouchableOpacity>
 
                                 {/* Modal do perfil */}
@@ -1485,19 +1743,33 @@ const AppNavigator = () => {
                         component={RegistosPorUtilizador}
                     />
 
-                    {!loading &&
-                        (tipoUser === "Encarregado" ||
-                            tipoUser === "Diretor" ||
-                            tipoUser === "Administrador") && (
+                    {(() => {
+                        const canAccessObras = !loading &&
+                            (tipoUser === "Encarregado" ||
+                                tipoUser === "Diretor" ||
+                                tipoUser === "Administrador");
+
+                        console.log(`🏗️ Verificando acesso às screens de Obras:`, {
+                            loading,
+                            tipoUser,
+                            canAccessObras
+                        });
+
+                        return canAccessObras;
+                    })() && (
                             <>
-                                <Drawer.Screen name="Obras" component={Obras}  options={{
-                                        title: "AdvirLink - Obras"
-                                    }}/>
+                                <Drawer.Screen
+                                    name="Obras"
+                                    component={Obras}
+                                    options={{
+                                        title: "AdvirLink - Obras",
+                                    }}
+                                />
                                 <Drawer.Screen
                                     name="Escritorio"
                                     component={Escritorio}
                                     options={{
-                                        title: "AdvirLink - Escritório"
+                                        title: "AdvirLink - Escritório",
                                     }}
                                 />
 
@@ -1700,49 +1972,213 @@ const styles = StyleSheet.create({
     },
 });
 
+    const drawerStyles = StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor: "#F8FAFC",
+        },
+        header: {
+            backgroundColor: "#4A9EFF",
+            paddingTop: 50,
+            paddingBottom: 25,
+            paddingHorizontal: 24,
+            borderBottomLeftRadius: 20,
+            borderBottomRightRadius: 20,
+            shadowColor: "#4A9EFF",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 12,
+            elevation: 8,
+        },
+        logoContainer: {
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+            justifyContent: "center",
+        },
+        logo: {
+            width: 40,
+            height: 40,
+            marginRight: 12,
+            borderRadius: 8,
+        },
+        appName: {
+            fontSize: 24,
+            fontWeight: "700",
+            color: "#FFFFFF",
+            letterSpacing: 0.5,
+        },
+        userName: {
+            fontSize: 16,
+            color: "#E0E7FF",
+            fontWeight: "600",
+            textAlign: "center",
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+            borderRadius: 12,
+            marginTop: 8,
+        },
+        userRole: {
+            fontSize: 13,
+            color: "#C7D2FE",
+            fontWeight: "500",
+            textAlign: "center",
+            marginTop: 4,
+        },
+        mainSection: {
+            paddingTop: 16,
+            paddingHorizontal: 4,
+        },
+        modulesSection: {
+            paddingTop: 12,
+            paddingHorizontal: 4,
+        },
+        adminSection: {
+            paddingTop: 12,
+            paddingHorizontal: 4,
+        },
+        bottomSection: {
+            marginTop: "auto",
+            paddingBottom: 24,
+            paddingHorizontal: 4,
+        },
+        sectionDivider: {
+            height: 1,
+            backgroundColor: "#E2E8F0",
+            marginVertical: 16,
+            marginHorizontal: 20,
+        },
+        menuItem: {
+            marginHorizontal: 12,
+            marginVertical: 3,
+            borderRadius: 12,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            backgroundColor: "#FFFFFF",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 3,
+            elevation: 1,
+        },
+        menuItemLabel: {
+            fontSize: 16,
+            paddingHorizontal: 1,
+            fontWeight: "600",
+            color: "#64748B",
+            marginLeft: "-10 !important",
+        },
+        logoutItem: {
+            backgroundColor: "#4A9EFF",
+            borderWidth: 1,
+            borderColor: "#4A9EFF",
+        },
+        moduleContainer: {
+            marginHorizontal: 12,
+            marginVertical: 6,
+            backgroundColor: "#FFFFFF",
+            borderRadius: 16,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 3,
+            overflow: "hidden",
+        },
+        moduleHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            borderRadius: 16,            
+            shadowOpacity: 0.08,
+            
+            shadowRadius: 8,
+            justifyContent: "space-between",
+            paddingVertical: 16,
+            paddingHorizontal: 20,
+            backgroundColor: "#FFFFFF",
+            borderBottomWidth: 1,
+            borderBottomColor: "#FFFFFF",
+        },
+        moduleTitle: {
+            flexDirection: "row",
+            alignItems: "center",
+        },
+        moduleText: {
+            fontSize: 15,
+            fontWeight: "600",
+            color: "#64748B",
+            marginLeft: 35,
+        },
+        submoduleContainer: {
+            backgroundColor: "#FFFFFF",
+            paddingVertical: 8,
+        },
+        submoduleItem: {
+            flexDirection: "row",
+            alignItems: "center",
+            paddingVertical: 12,
+            paddingHorizontal: 24,
+            marginVertical: 2,
+            marginHorizontal: 8,
+            borderRadius: 10,
+            backgroundColor: "transparent",
+            transition: "background-color 0.2s ease",
+        },
+        submoduleText: {
+            fontSize: 15,
+            color: "#64748B",
+            marginLeft: 14,
+            fontWeight: "600",
+        },
+    });
+
 const profileMenuStyles = StyleSheet.create({
     dropdown: {
         position: "absolute",
         top: "100%",
         right: 0,
-        backgroundColor: "white",
-        borderRadius: 8,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 16,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 8,
-        minWidth: 150,
+        shadowRadius: 24,
+        elevation: 12,
+        minWidth: 180,
         zIndex: 1000,
-        marginTop: 8,
+        marginTop: 12,
         borderWidth: 1,
-        borderColor: "#e0e0e0",
+        borderColor: "#E5E7EB",
+        overflow: "hidden",
     },
     menuItem: {
         flexDirection: "row",
         alignItems: "center",
-        padding: 12,
-        paddingHorizontal: 16,
-        minHeight: 44,
+        padding: 16,
+        paddingHorizontal: 20,
+        minHeight: 52,
+        backgroundColor: "transparent",
     },
     buttonStyle: {
         cursor: "pointer",
         backgroundColor: "transparent",
-        borderRadius: 6,
-        marginHorizontal: 4,
-        marginVertical: 2,
+        borderRadius: 12,
+        marginHorizontal: 6,
+        marginVertical: 3,
+        transition: "background-color 0.2s ease",
     },
     menuText: {
-        marginLeft: 12,
-        fontSize: 14,
-        fontWeight: "500",
-        color: "#1792FE",
+        marginLeft: 14,
+        fontSize: 15,
+        fontWeight: "600",
+        color: "#374151",
     },
     divider: {
         height: 1,
-        backgroundColor: "#e0e0e0",
-        marginHorizontal: 8,
-        marginVertical: 4,
+        backgroundColor: "#F3F4F6",
+        marginHorizontal: 12,
+        marginVertical: 6,
     },
 });
 
