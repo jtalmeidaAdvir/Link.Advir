@@ -839,7 +839,7 @@ const AppNavigator = () => {
             setEmpresa(empresaLs || "");
             setTipoUser(tipoUserLs || "");
 
-            // buscar módulos
+            // buscar módulos (agora com filtro por empresa)
             await fetchUserModules();
 
             // definir rota inicial
@@ -886,18 +886,25 @@ const AppNavigator = () => {
     const fetchUserModules = async () => {
         const token = localStorage.getItem("loginToken");
         const userId = localStorage.getItem("userId");
+        const empresaId = localStorage.getItem("empresa_id");
+
         if (userId && token) {
             try {
-                const response = await fetch(
-                    `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`,
-                    {
-                        headers: { Authorization: `Bearer ${token}` },
-                    },
-                );
+                let url = `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`;
+
+                // Se há empresa selecionada, adicionar o parâmetro
+                if (empresaId) {
+                    url += `?empresa_id=${empresaId}`;
+                }
+
+                const response = await fetch(url, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
                 const data = await response.json();
-                setModules(data.modulos);
+                setModules(data.modulos || []);
             } catch (error) {
                 console.error("Erro ao buscar módulos:", error);
+                setModules([]);
             }
         }
     };
