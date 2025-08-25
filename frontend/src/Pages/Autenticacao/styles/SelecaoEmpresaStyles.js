@@ -6,7 +6,9 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-      backgroundColor: '#d4e4ff',
+    backgroundColor: '#d4e4ff',
+    minHeight: '100vh',
+    width: '100%',
   },
   card: {
     backgroundColor: 'rgba(255, 255, 255, 0.92)',

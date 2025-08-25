@@ -254,12 +254,7 @@ const DashboardAnalytics = ({ navigation }) => {
                         <FontAwesomeIcon icon={faFilter} color="#fff" size="sm" />
                     </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={styles.exportButton}
-                        onPress={exportarRelatorio}
-                    >
-                        <FontAwesomeIcon icon={faDownload} color="#fff" size="sm" />
-                    </TouchableOpacity>
+                    
                 </View>
             </View>
 

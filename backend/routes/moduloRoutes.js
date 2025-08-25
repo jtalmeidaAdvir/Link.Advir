@@ -1,15 +1,16 @@
 const express = require('express');
-const { associarUtilizadorModulo, listarTodosModulos,removerUtilizadorModulo,  listarTodosModulosComSubModulos,addModuloToEmpresa,
+const { associarUtilizadorModulo, listarTodosModulos, removerUtilizadorModulo, listarTodosModulosComSubModulos, addModuloToEmpresa,
     removeModuloFromEmpresa,
-  } = require('../controllers/moduloController');
+} = require('../controllers/moduloController');
+const { associarModulo, removerModulo } = require('../controllers/userController');
 const router = express.Router();
 
 // Rota para associar um utilizador a um módulo
-router.post('/associar', associarUtilizadorModulo);
+router.post('/associar', associarModulo);
 // Rota para listar módulos do utilizador (recebe userid via query)
 router.get('/listar', listarTodosModulos);
 // Rota para remover módulo do utilizador
-router.post('/remover', removerUtilizadorModulo);
+router.post('/remover', removerModulo);
 
 router.get('/listar-com-submodulos', listarTodosModulosComSubModulos);
 

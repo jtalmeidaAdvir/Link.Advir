@@ -305,7 +305,7 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
       `}</style>
 
       {loading && (
-        <div className="loading-overlay">
+        <div className="loading-overlay" style={{backgroundColor: '#d4e4ff'}}>
           <div className="spinner-border text-primary" role="status" style={{width: '3rem', height: '3rem'}}>
             <span className="visually-hidden">Carregando...</span>
           </div>

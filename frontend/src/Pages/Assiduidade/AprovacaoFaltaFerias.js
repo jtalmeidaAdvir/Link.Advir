@@ -688,7 +688,7 @@ const AprovacaoFaltaFerias = () => {
     // ✅ NOVO: bloquear renderização total até os nomes estarem prontos
     if (!nomesProntos) {
         return (
-            <div className="loading-overlay">
+            <div className="loading-overlay" style={{ backgroundColor: '#d4e4ff' }}>
                 <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
                     <span className="visually-hidden">Carregando...</span>
                 </div>
@@ -706,7 +706,7 @@ const AprovacaoFaltaFerias = () => {
         .form-moderno:focus { border-color: #007bff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25); }
         .btn-responsive { font-size: 0.8rem; padding: 0.4rem 0.8rem; }
         @media (min-width: 768px) { .btn-responsive { font-size: 0.875rem; padding: 0.5rem 1rem; } }
-        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; backgroundColor: '#d4e4ff',; display: flex; align-items: center; justify-content: center; z-index: 9999; }
         .pedido-card { transition: all 0.3s ease; height: 100%; }
         .pedido-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
         .status-badge { font-size: 0.75rem; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 600; }
@@ -731,7 +731,7 @@ const AprovacaoFaltaFerias = () => {
 
             {loading && (
                 <div className="loading-overlay">
-                    <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+                    <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem',backgroundColor: '#d4e4ff', }}>
                         <span className="visually-hidden">Carregando...</span>
                     </div>
                 </div>

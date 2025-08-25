@@ -1,3 +1,4 @@
+﻿
 ﻿import React, { useState, useEffect } from "react";
 import {
     View,
@@ -27,6 +28,9 @@ import {
     faChartLine,
     faPaperclip,
     faEye,
+    faCalendarAlt,
+    faUser,
+    faFileText,
 } from "@fortawesome/free-solid-svg-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -77,6 +81,18 @@ const PedidosAssistencia = ({ navigation }) => {
 
     const [isAdmin, setIsAdmin] = useState(false);
     const [userTecnicoID, setUserTecnicoID] = useState("");
+
+    // Novo state para controlar se está em mobile
+    const [isMobile, setIsMobile] = useState(width < 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         const groupedData = Object.values(
@@ -322,7 +338,6 @@ const PedidosAssistencia = ({ navigation }) => {
         }
     };
 
-
     const downloadAnexo = async (anexoId, nomeArquivo) => {
         try {
             const response = await fetch(`${ANEXOS_BASE}/download/${anexoId}`);
@@ -527,7 +542,6 @@ const PedidosAssistencia = ({ navigation }) => {
         }
     };
 
-
     // Get estado
     const getEstado = (estado) => {
         switch (estado) {
@@ -613,58 +627,60 @@ const PedidosAssistencia = ({ navigation }) => {
         }));
     };
 
+    // Função para truncar texto
+    const truncateText = (text, maxLength = 120) => {
+        if (!text) return "Sem descrição disponível";
+        return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+    };
+
     const renderPedidoDetails = (pedido) => (
         <View style={styles.pedidoDetailContainer}>
-            <View style={styles.pedidoInfoRow}>
-                <View style={styles.pedidoInfoColumn}>
+            <View style={[styles.pedidoInfoRow, isMobile && styles.pedidoInfoRowMobile]}>
+                <View style={[styles.pedidoInfoColumn, isMobile && styles.pedidoInfoColumnMobile]}>
                     <View style={styles.infoGroup}>
-                        <Text style={styles.pedidoDetailLabel}>Cliente</Text>
-                        <Text style={styles.pedidoDetailValue}>
-                            {pedido.Cliente} - {pedido.Nome}
-                        </Text>
+                        <View style={styles.infoWithIcon}>
+                            <FontAwesomeIcon icon={faUser} style={styles.infoIcon} size={14} />
+                            <View style={styles.infoContent}>
+                                <Text style={styles.pedidoDetailLabel}>Cliente</Text>
+                                <Text style={styles.pedidoDetailValue}>
+                                    {pedido.Cliente} - {pedido.Nome}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
 
                     <View style={styles.infoGroup}>
-                        <Text style={styles.pedidoDetailLabel}>
-                            Data de Abertura
-                        </Text>
-                        <Text style={styles.pedidoDetailValue}>
-                            {new Date(
-                                pedido.DataHoraAbertura,
-                            ).toLocaleDateString()}{" "}
-                            {new Date(
-                                pedido.DataHoraAbertura,
-                            ).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            })}
-                        </Text>
+                        <View style={styles.infoWithIcon}>
+                            <FontAwesomeIcon icon={faCalendarAlt} style={styles.infoIcon} size={14} />
+                            <View style={styles.infoContent}>
+                                <Text style={styles.pedidoDetailLabel}>Data de Abertura</Text>
+                                <Text style={styles.pedidoDetailValue}>
+                                    {new Date(pedido.DataHoraAbertura).toLocaleDateString()}{" "}
+                                    {new Date(pedido.DataHoraAbertura).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                    })}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
                 </View>
 
-                <View style={styles.pedidoInfoColumn}>
-                    <View style={styles.badgeRow}>
+                <View style={[styles.pedidoInfoColumn, isMobile && styles.pedidoInfoColumnMobile]}>
+                    <View style={[styles.badgeRow, isMobile && styles.badgeRowMobile]}>
                         <View
                             style={[
                                 styles.badge,
                                 {
-                                    backgroundColor:
-                                        getPrioridadeColor(pedido.Prioridade) +
-                                        "20",
-                                    borderColor: getPrioridadeColor(
-                                        pedido.Prioridade,
-                                    ),
+                                    backgroundColor: getPrioridadeColor(pedido.Prioridade) + "20",
+                                    borderColor: getPrioridadeColor(pedido.Prioridade),
                                 },
                             ]}
                         >
                             <Text
                                 style={[
                                     styles.badgeText,
-                                    {
-                                        color: getPrioridadeColor(
-                                            pedido.Prioridade,
-                                        ),
-                                    },
+                                    { color: getPrioridadeColor(pedido.Prioridade) },
                                 ]}
                             >
                                 {getPrioridade(pedido.Prioridade)}
@@ -675,8 +691,7 @@ const PedidosAssistencia = ({ navigation }) => {
                             style={[
                                 styles.badge,
                                 {
-                                    backgroundColor:
-                                        getEstadoColor(pedido.Estado) + "20",
+                                    backgroundColor: getEstadoColor(pedido.Estado) + "20",
                                     borderColor: getEstadoColor(pedido.Estado),
                                 },
                             ]}
@@ -701,10 +716,15 @@ const PedidosAssistencia = ({ navigation }) => {
             </View>
 
             <View style={styles.descriptionContainer}>
-                <Text style={styles.pedidoDetailLabel}>Descrição</Text>
-                <Text style={styles.descriptionText}>
-                    {pedido.DescricaoProb}
-                </Text>
+                <View style={styles.infoWithIcon}>
+                    <FontAwesomeIcon icon={faFileText} style={styles.infoIcon} size={14} />
+                    <View style={styles.infoContent}>
+                        <Text style={styles.pedidoDetailLabel}>Descrição</Text>
+                        <Text style={styles.descriptionText}>
+                            {pedido.DescricaoProb || "Sem descrição disponível"}
+                        </Text>
+                    </View>
+                </View>
             </View>
         </View>
     );
@@ -739,31 +759,19 @@ const PedidosAssistencia = ({ navigation }) => {
         <View
             style={[styles.filterMenu, !showFilters && styles.filterMenuClosed]}
         >
-            <View style={styles.filterHeader}>
-                <Text style={styles.filterTitle}>Filtros</Text>
-                <TouchableOpacity
-                    style={styles.toggleFiltersButton}
-                    onPress={() => setShowFilters(!showFilters)}
-                >
-                    <FontAwesomeIcon
-                        icon={showFilters ? faChevronUp : faChevronDown}
-                        style={styles.filterIcon}
-                        size={16}
-                    />
-                </TouchableOpacity>
-            </View>
+            
 
             {showFilters && (
                 <View style={styles.filterContent}>
                     <Text style={styles.filterLabel}>Prioridade</Text>
-                    <View style={styles.filterGroup}>
+                    <View style={[styles.filterGroup, isMobile && styles.filterGroupMobile]}>
                         {prioridades.map(({ label, value }) => (
                             <TouchableOpacity
                                 key={value}
                                 style={[
                                     styles.filterButton,
-                                    filterPrioridade === value &&
-                                    styles.filterButtonSelected,
+                                    filterPrioridade === value && styles.filterButtonSelected,
+                                    isMobile && styles.filterButtonMobile,
                                 ]}
                                 onPress={() =>
                                     setFilterPrioridade((prev) =>
@@ -774,8 +782,7 @@ const PedidosAssistencia = ({ navigation }) => {
                                 <Text
                                     style={[
                                         styles.filterButtonText,
-                                        filterPrioridade === value &&
-                                        styles.filterButtonTextSelected,
+                                        filterPrioridade === value && styles.filterButtonTextSelected,
                                     ]}
                                 >
                                     {label}
@@ -785,14 +792,14 @@ const PedidosAssistencia = ({ navigation }) => {
                     </View>
 
                     <Text style={styles.filterLabel}>Estado</Text>
-                    <View style={styles.filterGroup}>
+                    <View style={[styles.filterGroup, isMobile && styles.filterGroupMobile]}>
                         {estados.map(({ label, value }) => (
                             <TouchableOpacity
                                 key={value}
                                 style={[
                                     styles.filterButton,
-                                    filterEstado === value &&
-                                    styles.filterButtonSelected,
+                                    filterEstado === value && styles.filterButtonSelected,
+                                    isMobile && styles.filterButtonMobile,
                                 ]}
                                 onPress={() =>
                                     setFilterEstado((prev) =>
@@ -803,8 +810,7 @@ const PedidosAssistencia = ({ navigation }) => {
                                 <Text
                                     style={[
                                         styles.filterButtonText,
-                                        filterEstado === value &&
-                                        styles.filterButtonTextSelected,
+                                        filterEstado === value && styles.filterButtonTextSelected,
                                     ]}
                                 >
                                     {label}
@@ -814,14 +820,14 @@ const PedidosAssistencia = ({ navigation }) => {
                     </View>
 
                     <Text style={styles.filterLabel}>Série</Text>
-                    <View style={styles.filterGroup}>
+                    <View style={[styles.filterGroup, isMobile && styles.filterGroupMobile]}>
                         {series.map(({ label, value }) => (
                             <TouchableOpacity
                                 key={value}
                                 style={[
                                     styles.filterButton,
-                                    filterSerie === value &&
-                                    styles.filterButtonSelected,
+                                    filterSerie === value && styles.filterButtonSelected,
+                                    isMobile && styles.filterButtonMobile,
                                 ]}
                                 onPress={() =>
                                     setFilterSerie((prev) =>
@@ -832,8 +838,7 @@ const PedidosAssistencia = ({ navigation }) => {
                                 <Text
                                     style={[
                                         styles.filterButtonText,
-                                        filterSerie === value &&
-                                        styles.filterButtonTextSelected,
+                                        filterSerie === value && styles.filterButtonTextSelected,
                                     ]}
                                 >
                                     {label}
@@ -853,35 +858,88 @@ const PedidosAssistencia = ({ navigation }) => {
         const cliente = item[0].Nome || "Cliente Desconhecido";
         const isExpanded = expandedSections[numProcesso];
         const estado = item[0].Estado || "0";
+        const descricao = item[0].DescricaoProb || "Sem descrição disponível";
 
         return (
             <View
                 style={[
                     styles.sectionContainer,
                     { borderLeftColor: getEstadoColor(estado) },
+                    isMobile && styles.sectionContainerMobile,
                 ]}
             >
+                {/* Header compacto com informações principais */}
                 <View style={styles.sectionHeaderContainer}>
                     <TouchableOpacity
-                        style={styles.sectionHeader}
+                        style={[styles.sectionHeader, isMobile && styles.sectionHeaderMobile]}
                         onPress={() => toggleSection(numProcesso)}
                         activeOpacity={0.7}
                     >
-                        <View style={styles.headerTitleContainer}>
-                            <FontAwesomeIcon
-                                icon={isExpanded ? faChevronUp : faChevronDown}
-                                style={styles.expandIcon}
-                                size={14}
-                            />
-                            <Text style={styles.sectionHeaderText}>
-                                {`${numProcesso} - ${cliente}`}
-                            </Text>
+                        <View style={styles.headerContent}>
+                            <View style={styles.headerTitleContainer}>
+                                <FontAwesomeIcon
+                                    icon={isExpanded ? faChevronUp : faChevronDown}
+                                    style={styles.expandIcon}
+                                    size={14}
+                                />
+                                <View style={styles.headerTitleContent}>
+                                    <Text style={styles.sectionHeaderText}>
+                                        {`${numProcesso} - ${cliente}`}
+                                    </Text>
+                                    {/* Preview da descrição sempre visível */}
+                                    <Text style={styles.descriptionPreview}>
+                                        {truncateText(descricao, isMobile ? 80 : 120)}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Badges compactos na mesma linha */}
+                            <View style={[styles.headerBadges, isMobile && styles.headerBadgesMobile]}>
+                                <View
+                                    style={[
+                                        styles.badgeCompact,
+                                        {
+                                            backgroundColor: getPrioridadeColor(item[0].Prioridade) + "20",
+                                            borderColor: getPrioridadeColor(item[0].Prioridade),
+                                        },
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.badgeCompactText,
+                                            { color: getPrioridadeColor(item[0].Prioridade) },
+                                        ]}
+                                    >
+                                        {getPrioridade(item[0].Prioridade)}
+                                    </Text>
+                                </View>
+
+                                <View
+                                    style={[
+                                        styles.badgeCompact,
+                                        {
+                                            backgroundColor: getEstadoColor(estado) + "20",
+                                            borderColor: getEstadoColor(estado),
+                                        },
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.badgeCompactText,
+                                            { color: getEstadoColor(estado) },
+                                        ]}
+                                    >
+                                        {getEstado(estado)}
+                                    </Text>
+                                </View>
+                            </View>
                         </View>
                     </TouchableOpacity>
 
-                    <View style={styles.actionButtonsContainer}>
+                    {/* Botões de ação */}
+                    <View style={[styles.actionButtonsContainer, isMobile && styles.actionButtonsContainerMobile]}>
                         <TouchableOpacity
-                            style={styles.actionButton}
+                            style={[styles.actionButton, styles.primaryActionButton]}
                             onPress={async () => {
                                 try {
                                     await AsyncStorage.setItem(
@@ -907,7 +965,7 @@ const PedidosAssistencia = ({ navigation }) => {
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={styles.actionButton}
+                            style={[styles.actionButton, styles.secondaryActionButton]}
                             onPress={() => {
                                 setPedidoAnexos(item[0]);
                                 carregarAnexos(item[0].ID);
@@ -939,7 +997,7 @@ const PedidosAssistencia = ({ navigation }) => {
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={styles.actionButton}
+                            style={[styles.actionButton, styles.warningActionButton]}
                             onPress={() => {
                                 setProcessoParaFechar(item[0].ID);
                                 setModalCloseVisible(true);
@@ -968,6 +1026,7 @@ const PedidosAssistencia = ({ navigation }) => {
                     </View>
                 </View>
 
+                {/* Detalhes expandidos */}
                 {isExpanded && (
                     <View style={styles.pedidosContainer}>
                         {item.map((pedido) => (
@@ -990,9 +1049,9 @@ const PedidosAssistencia = ({ navigation }) => {
                 userId={userTecnicoID}
                 title={t("Pedidos de Assistência")}
             />
-            <div style={{ padding: "20px" }}>
-                <View style={styles.searchContainer}>
-                    <View style={styles.searchInputContainer}>
+            <div style={{ padding: isMobile ? "10px" : "20px" }}>
+                <View style={[styles.searchContainer, isMobile && styles.searchContainerMobile]}>
+                    <View style={[styles.searchInputContainer, isMobile && styles.searchInputContainerMobile]}>
                         <FontAwesomeIcon
                             icon={faSearch}
                             style={styles.searchIcon}
@@ -1006,33 +1065,31 @@ const PedidosAssistencia = ({ navigation }) => {
                         />
                     </View>
 
-                    <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={() => navigation.navigate("RegistarPedido")}
-                    >
-                        <FontAwesomeIcon
-                            icon={faPlus}
-                            style={styles.addButtonIcon}
-                            size={16}
-                        />
-                        <Text style={styles.addButtonText}>Criar Pedido</Text>
-                    </TouchableOpacity>
+                    <View style={[styles.buttonGroup, isMobile && styles.buttonGroupMobile]}>
+                        <TouchableOpacity
+                            style={[styles.addButton, isMobile && styles.addButtonMobile]}
+                            onPress={() => navigation.navigate("RegistarPedido")}
+                        >
+                            <FontAwesomeIcon
+                                icon={faPlus}
+                                style={styles.addButtonIcon}
+                                size={16}
+                            />
+                            {!isMobile && <Text style={styles.addButtonText}>Criar Pedido</Text>}
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={styles.analyticsButton}
-                        onPress={() =>
-                            navigation.navigate("DashboardAnalytics")
-                        }
-                    >
-                        <FontAwesomeIcon
-                            icon={faChartLine}
-                            style={styles.analyticsButtonIcon}
-                            size={16}
-                        />
-                        <Text style={styles.analyticsButtonText}>
-                            Analytics
-                        </Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.analyticsButton, isMobile && styles.analyticsButtonMobile]}
+                            onPress={() => navigation.navigate("DashboardAnalytics")}
+                        >
+                            <FontAwesomeIcon
+                                icon={faChartLine}
+                                style={styles.analyticsButtonIcon}
+                                size={16}
+                            />
+                            {!isMobile && <Text style={styles.analyticsButtonText}>Analytics</Text>}
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 <TouchableOpacity
@@ -1057,7 +1114,7 @@ const PedidosAssistencia = ({ navigation }) => {
                     </View>
                 ) : null}
 
-                <View style={styles.tableContainer}>
+                <View style={[styles.tableContainer, isMobile && styles.tableContainerMobile]}>
                     {loading ? (
                         <View style={styles.loadingContainer}>
                             <ActivityIndicator
@@ -1085,14 +1142,10 @@ const PedidosAssistencia = ({ navigation }) => {
                                     <TouchableOpacity
                                         style={styles.emptyListButton}
                                         onPress={() =>
-                                            navigation.navigate(
-                                                "RegistarPedido",
-                                            )
+                                            navigation.navigate("RegistarPedido")
                                         }
                                     >
-                                        <Text
-                                            style={styles.emptyListButtonText}
-                                        >
+                                        <Text style={styles.emptyListButtonText}>
                                             Criar Primeiro Pedido
                                         </Text>
                                     </TouchableOpacity>
@@ -1605,6 +1658,175 @@ const styles = StyleSheet.create({
         overflow: "auto",
         maxHeight: "100vh",
     },
+
+    // ===== RESPONSIVIDADE GERAL =====
+    searchContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+        gap: 10,
+    },
+    searchContainerMobile: {
+        flexDirection: "column",
+        gap: 15,
+        paddingHorizontal: 10,
+        paddingVertical: 10,
+    },
+    searchInputContainer: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#fff",
+        borderRadius: 10,
+        paddingHorizontal: 15,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 2,
+        minWidth: 250,
+    },
+    searchInputContainerMobile: {
+        flex: "none",
+        width: "100%",
+        minWidth: "auto",
+    },
+    buttonGroup: {
+        flexDirection: "row",
+        gap: 10,
+    },
+    buttonGroupMobile: {
+        width: "100%",
+        justifyContent: "space-between",
+    },
+
+    // ===== NOVA ESTRUTURA DE CARDS =====
+    sectionContainer: {
+        marginBottom: 12,
+        backgroundColor: "#fff",
+        borderRadius: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
+        borderLeftWidth: 4,
+        overflow: "hidden",
+    },
+    sectionContainerMobile: {
+        marginBottom: 8,
+        borderRadius: 8,
+    },
+    sectionHeaderContainer: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        padding: 15,
+    },
+    sectionHeader: {
+        flex: 1,
+        marginRight: 10,
+    },
+    sectionHeaderMobile: {
+        marginRight: 5,
+    },
+    headerContent: {
+        width: "100%",
+    },
+    headerTitleContainer: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        marginBottom: 8,
+    },
+    headerTitleContent: {
+        flex: 1,
+        marginLeft: 8,
+    },
+    sectionHeaderText: {
+        fontWeight: "600",
+        fontSize: 15,
+        color: "#333",
+        marginBottom: 4,
+    },
+
+    // ===== PREVIEW DA DESCRIÇÃO =====
+    descriptionPreview: {
+        fontSize: 13,
+        color: "#666",
+        lineHeight: 18,
+        fontStyle: "italic",
+    },
+
+    // ===== BADGES COMPACTOS NO HEADER =====
+    headerBadges: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 6,
+        marginTop: 4,
+    },
+    headerBadgesMobile: {
+        flexDirection: "column",
+        gap: 4,
+    },
+    badgeCompact: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        backgroundColor: "#f0f0f0",
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+    },
+    badgeCompactText: {
+        fontSize: 11,
+        fontWeight: "500",
+        color: "#555",
+    },
+
+    // ===== BOTÕES DE AÇÃO MELHORADOS =====
+    actionButtonsContainer: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 6,
+    },
+    actionButtonsContainerMobile: {
+        flexDirection: "column",
+        gap: 4,
+    },
+    actionButton: {
+        padding: 8,
+        borderRadius: 6,
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: 36,
+        minHeight: 36,
+    },
+    primaryActionButton: {
+        backgroundColor: "#e3f2fd",
+        borderWidth: 1,
+        borderColor: "#1792FE",
+    },
+    secondaryActionButton: {
+        backgroundColor: "#f3e5f5",
+        borderWidth: 1,
+        borderColor: "#9C27B0",
+    },
+    uploadButton: {
+        backgroundColor: "#e8f5e8",
+        borderWidth: 1,
+        borderColor: "#4CAF50",
+    },
+    warningActionButton: {
+        backgroundColor: "#fff3e0",
+        borderWidth: 1,
+        borderColor: "#ff9800",
+    },
+    deleteButton: {
+        backgroundColor: "#ffebee",
+        borderWidth: 1,
+        borderColor: "#f44336",
+    },
+
+    // ===== BADGES E CONTADORES =====
     badgeCount: {
         backgroundColor: "#1792FE",
         borderRadius: 10,
@@ -1621,52 +1843,7 @@ const styles = StyleSheet.create({
         fontWeight: "700",
     },
 
-    header: {
-        backgroundColor: "#1792FE",
-        paddingVertical: 20,
-        paddingHorizontal: 20,
-        borderBottomLeftRadius: 15,
-        borderBottomRightRadius: 15,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    title: {
-        fontSize: 22,
-        color: "#fff",
-        fontWeight: "700",
-    },
-    searchContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 20,
-        paddingVertical: 15,
-    },
-    searchInputContainer: {
-        flex: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#fff",
-        borderRadius: 10,
-        paddingHorizontal: 15,
-        marginRight: 10,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
-    },
-    searchIcon: {
-        color: "#1792FE",
-        marginRight: 8,
-    },
-    searchInput: {
-        flex: 1,
-        height: 44,
-        fontSize: 16,
-    },
+    // ===== BOTÕES PRINCIPAIS =====
     addButton: {
         flexDirection: "row",
         alignItems: "center",
@@ -1680,11 +1857,144 @@ const styles = StyleSheet.create({
         shadowRadius: 3,
         elevation: 3,
     },
+    addButtonMobile: {
+        flex: 1,
+        justifyContent: "center",
+        paddingHorizontal: 12,
+    },
+    analyticsButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#28a745",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        shadowColor: "#28a745",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    analyticsButtonMobile: {
+        flex: 1,
+        justifyContent: "center",
+        paddingHorizontal: 12,
+    },
+
+    // ===== FILTROS RESPONSIVOS =====
+    filterGroup: {
+        flexDirection: "row",
+        marginBottom: 15,
+        gap: 8,
+    },
+    filterGroupMobile: {
+        flexDirection: "column",
+        gap: 8,
+    },
+    filterButton: {
+        flex: 1,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+        borderRadius: 8,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f8f9fa",
+    },
+    filterButtonMobile: {
+        flex: "none",
+        width: "100%",
+    },
+
+    // ===== DETALHES DOS PEDIDOS =====
+    pedidoInfoRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: 12,
+        gap: 15,
+    },
+    pedidoInfoRowMobile: {
+        flexDirection: "column",
+        gap: 12,
+    },
+    pedidoInfoColumn: {
+        flex: 1,
+    },
+    pedidoInfoColumnMobile: {
+        flex: "none",
+        width: "100%",
+    },
+    infoWithIcon: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+    },
+    infoIcon: {
+        color: "#1792FE",
+        marginRight: 8,
+        marginTop: 2,
+    },
+    infoContent: {
+        flex: 1,
+    },
+
+    // ===== BADGES EXPANDIDOS =====
+    badgeRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        justifyContent: "flex-end",
+        gap: 6,
+    },
+    badgeRowMobile: {
+        justifyContent: "flex-start",
+    },
+
+    // ===== CONTAINER PRINCIPAL =====
+    tableContainer: {
+        flex: 1,
+        paddingHorizontal: 20,
+        maxHeight: "calc(100vh - 300px)",
+        overflow: "auto",
+    },
+    tableContainerMobile: {
+        paddingHorizontal: 10,
+        maxHeight: "calc(100vh - 250px)",
+    },
+
+    // ===== ESTILOS EXISTENTES (mantidos) =====
+    expandIcon: {
+        color: "#666",
+        marginRight: 8,
+        marginTop: 2,
+    },
+    icon: {
+        color: "#1792FE",
+    },
+    iconDelete: {
+        color: "#f44336",
+    },
+    searchIcon: {
+        color: "#1792FE",
+        marginRight: 8,
+    },
+    searchInput: {
+        flex: 1,
+        height: 44,
+        fontSize: 16,
+    },
     addButtonIcon: {
         color: "#fff",
         marginRight: 6,
     },
     addButtonText: {
+        color: "#fff",
+        fontWeight: "600",
+        fontSize: 15,
+    },
+    analyticsButtonIcon: {
+        color: "#fff",
+        marginRight: 6,
+    },
+    analyticsButtonText: {
         color: "#fff",
         fontWeight: "600",
         fontSize: 15,
@@ -1749,21 +2059,6 @@ const styles = StyleSheet.create({
         color: "#555",
         fontSize: 14,
     },
-    filterGroup: {
-        flexDirection: "row",
-        marginBottom: 15,
-    },
-    filterButton: {
-        flex: 1,
-        marginHorizontal: 4,
-        paddingVertical: 10,
-        borderWidth: 1,
-        borderColor: "#e0e0e0",
-        borderRadius: 8,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#f8f9fa",
-    },
     filterButtonSelected: {
         backgroundColor: "#1792FE",
         borderColor: "#1792FE",
@@ -1788,12 +2083,6 @@ const styles = StyleSheet.create({
         color: "#d32f2f",
         fontSize: 14,
     },
-    tableContainer: {
-        flex: 1,
-        paddingHorizontal: 20,
-        maxHeight: "calc(100vh - 300px)",
-        overflow: "auto",
-    },
     loadingContainer: {
         flex: 1,
         justifyContent: "center",
@@ -1810,82 +2099,20 @@ const styles = StyleSheet.create({
     flatListContent: {
         paddingBottom: 20,
     },
-    sectionContainer: {
-        marginBottom: 15,
-        backgroundColor: "#fff",
-        borderRadius: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 2,
-        borderLeftWidth: 4,
-    },
-    sectionHeaderContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: 15,
-    },
-    sectionHeader: {
-        flex: 1,
-    },
-    headerTitleContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-    },
-    expandIcon: {
-        color: "#666",
-        marginRight: 8,
-    },
-    sectionHeaderText: {
-        fontWeight: "600",
-        fontSize: 15,
-        color: "#333",
-    },
-    actionButtonsContainer: {
-        flexDirection: "row",
-    },
-    actionButton: {
-        padding: 8,
-        borderRadius: 6,
-        marginLeft: 5,
-        backgroundColor: "#f0f7ff",
-    },
-    deleteButton: {
-        backgroundColor: "#ffebee",
-    },
-    uploadButton: {
-        backgroundColor: "#e8f5e8",
-    },
-    icon: {
-        color: "#1792FE",
-    },
-    iconDelete: {
-        color: "#f44336",
-    },
     pedidosContainer: {
         padding: 15,
         paddingTop: 0,
-    },
-    pedidoContainer: {
         borderTopWidth: 1,
         borderTopColor: "#f0f0f0",
+    },
+    pedidoContainer: {
         paddingTop: 15,
     },
     pedidoDetailContainer: {
         marginVertical: 5,
     },
-    pedidoInfoRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 12,
-    },
-    pedidoInfoColumn: {
-        flex: 1,
-    },
     infoGroup: {
-        marginBottom: 8,
+        marginBottom: 12,
     },
     pedidoDetailLabel: {
         fontWeight: "600",
@@ -1896,13 +2123,8 @@ const styles = StyleSheet.create({
     pedidoDetailValue: {
         fontSize: 14,
         color: "#333",
+        lineHeight: 18,
     },
-    badgeRow: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        justifyContent: "flex-end",
-    },
-
     badge: {
         paddingHorizontal: 10,
         paddingVertical: 5,
@@ -1910,8 +2132,6 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         borderWidth: 1,
         borderColor: "#e0e0e0",
-        marginLeft: 6,
-        marginBottom: 6,
     },
     badgeText: {
         fontSize: 12,
@@ -1922,7 +2142,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#f9f9f9",
         padding: 12,
         borderRadius: 8,
-        marginTop: 5,
+        marginTop: 8,
     },
     descriptionText: {
         fontSize: 14,
@@ -1951,6 +2171,8 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         fontSize: 15,
     },
+
+    // ===== MODAIS =====
     modalBackground: {
         flex: 1,
         justifyContent: "center",
@@ -2014,29 +2236,6 @@ const styles = StyleSheet.create({
     },
     deleteConfirmButtonText: {
         color: "white",
-        fontWeight: "600",
-        fontSize: 15,
-    },
-    analyticsButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#28a745",
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 10,
-        shadowColor: "#28a745",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 3,
-        elevation: 3,
-        marginLeft: 10,
-    },
-    analyticsButtonIcon: {
-        color: "#fff",
-        marginRight: 6,
-    },
-    analyticsButtonText: {
-        color: "#fff",
         fontWeight: "600",
         fontSize: 15,
     },
@@ -2130,33 +2329,20 @@ const styles = StyleSheet.create({
         color: "#1792FE",
         fontSize: 14,
     },
-    fileTypesText: {
-        fontSize: 12,
-        color: "#666",
-        textAlign: "center",
-        marginBottom: 5,
-    },
-    fileSizeText: {
-        fontSize: 12,
-        color: "#666",
-        textAlign: "center",
-    },
     anexoButtonsContainer: {
         flexDirection: "row",
         alignItems: "center",
+        gap: 8,
     },
     deleteAnexoButton: {
         backgroundColor: "#f44336",
         paddingVertical: 6,
         paddingHorizontal: 8,
         borderRadius: 4,
-        marginLeft: 8,
     },
     deleteAnexoIcon: {
         color: "white",
     },
-
-    // ===== estilos para temporários no modal de upload =====
     tempListBox: {
         marginTop: 10,
         padding: 12,
@@ -2216,20 +2402,15 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         fontSize: 15,
     },
-
-    // Estilos para o botão de preview
     previewButton: {
         backgroundColor: "#28a745",
         paddingVertical: 6,
         paddingHorizontal: 8,
         borderRadius: 4,
-        marginRight: 8,
     },
     previewButtonIcon: {
         color: "white",
     },
-
-    // Estilos para o modal de preview
     previewModalBackground: {
         flex: 1,
         justifyContent: "center",

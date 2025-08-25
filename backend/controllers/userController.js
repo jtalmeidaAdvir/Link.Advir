@@ -1,43 +1,59 @@
-const { Op } = require('sequelize'); // Certifica-te de que isto está presente
-const User = require('../models/user');
+const { Op } = require("sequelize"); // Certifica-te de que isto está presente
+const User = require("../models/user");
 
-const Empresa = require('../models/empresa');
-const Modulo = require('../models/modulo');
-const User_Modulo = require('../models/user_modulo');
-const User_Submodulo = require('../models/user_submodulo');
-const Submodulo = require('../models/submodulo');
-const bcryptjs = require('bcryptjs');
-const crypto = require('crypto');
-const transporter = require('../config/email'); // O ficheiro configurado para envio de e-mails
-const User_Empresa = require('../models/user_empresa');
-
+const Empresa = require("../models/empresa");
+const Modulo = require("../models/modulo");
+const User_Modulo = require("../models/user_modulo");
+const User_Submodulo = require("../models/user_submodulo");
+const Submodulo = require("../models/submodulo");
+const bcryptjs = require("bcryptjs");
+const crypto = require("crypto");
+const transporter = require("../config/email"); // O ficheiro configurado para envio de e-mails
+const User_Empresa = require("../models/user_empresa");
 
 const parseImageToBinary = (req, res, next) => {
     if (req.body.imageData) {
-        req.body.imageData = Buffer.from(req.body.imageData, 'base64');
+        req.body.imageData = Buffer.from(req.body.imageData, "base64");
     }
     next();
 };
 
-
 // Função para criar um novo utilizador e enviar e-mail de verificação
 const criarUtilizadorAdmin = async (req, res) => {
     try {
-        const { nome, username, email, password, isAdmin = false, empresa_areacliente } = req.body;
+        const {
+            nome,
+            username,
+            email,
+            password,
+            isAdmin = false,
+            empresa_areacliente,
+        } = req.body;
 
         // Verificar se o campo empresa_areacliente foi fornecido
         if (!empresa_areacliente) {
-            return res.status(400).json({ message: 'O campo empresa_areacliente é obrigatório.' });
+            return res
+                .status(400)
+                .json({
+                    message: "O campo empresa_areacliente é obrigatório.",
+                });
         }
 
         // Gerar um token de verificação aleatório
-        const verificationToken = crypto.randomBytes(32).toString('hex');
+        const verificationToken = crypto.randomBytes(32).toString("hex");
 
         // Criptografar a password
         const hashedPassword = await bcryptjs.hash(password, 10);
 
         // Criar o utilizador
-        console.log({ nome, username, email, password, isAdmin, empresa_areacliente });
+        console.log({
+            nome,
+            username,
+            email,
+            password,
+            isAdmin,
+            empresa_areacliente,
+        });
 
         const novoUser = await User.create({
             nome,
@@ -50,14 +66,13 @@ const criarUtilizadorAdmin = async (req, res) => {
             empresa_areacliente, // Verifique se este campo está correto
         });
 
-
         // Enviar e-mail de verificação
         const verificationLink = `https://backend.advir.pt/api/users/verify/${verificationToken}`;
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: email,
-            subject: 'Verificação de Conta',
+            subject: "Verificação de Conta",
             html: `
             <div style="font-family: Arial, sans-serif; text-align: center;">
                 <img src="https://link.advir.pt/static/media/img_logo.a2a85989c690f4bfd096.png" alt="Advir Plan" style="width: 200px; margin-bottom: 20px;" />
@@ -66,43 +81,47 @@ const criarUtilizadorAdmin = async (req, res) => {
                 <a href="${verificationLink}" style="background-color: #1792FE; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">Verifica a minha Conta</a>
                 <p style="font-size: 14px; color: #333;">Se tiveres alguma questão ou precisares de ajuda, não hesites em contactar a <a href="mailto:support@advir.pt" style="color: #1792FE;">equipa de suporte</a>.</p>
                 <p style="font-size: 14px; color: #333;">Obrigado,<br>Advir</p>
-            </div>`
+            </div>`,
         };
 
         transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
-                return console.error('Erro ao enviar e-mail:', error);
+                return console.error("Erro ao enviar e-mail:", error);
             }
-            console.log('E-mail enviado:', info.response);
+            console.log("E-mail enviado:", info.response);
         });
 
-        res.status(201).json({ message: 'Utilizador criado com sucesso. Por favor, verifica o teu e-mail.' });
-
+        res.status(201).json({
+            message:
+                "Utilizador criado com sucesso. Por favor, verifica o teu e-mail.",
+        });
     } catch (error) {
-        console.error('Erro ao criar utilizador:', error);
-        res.status(500).json({ error: 'Erro ao criar o utilizador.' });
+        console.error("Erro ao criar utilizador:", error);
+        res.status(500).json({ error: "Erro ao criar o utilizador." });
     }
 };
-
-
-
-
-
-
 
 // Função para criar um novo utilizador e enviar e-mail de verificação
 const criarUtilizador = async (req, res) => {
     try {
-        const { nome, username, email, password, empresa_id, isAdmin = false, empresa_areacliente } = req.body;
+        const {
+            nome,
+            username,
+            email,
+            password,
+            empresa_id,
+            isAdmin = false,
+            empresa_areacliente,
+        } = req.body;
 
         // Verificar se a empresa existe
         const empresa = await Empresa.findByPk(empresa_id);
         if (!empresa) {
-            return res.status(404).json({ message: 'Empresa não encontrada.' });
+            return res.status(404).json({ message: "Empresa não encontrada." });
         }
 
         // Gerar um token de verificação aleatório
-        const verificationToken = crypto.randomBytes(32).toString('hex');
+        const verificationToken = crypto.randomBytes(32).toString("hex");
 
         // Criptografar a password
         const hashedPassword = await bcryptjs.hash(password, 10);
@@ -120,7 +139,7 @@ const criarUtilizador = async (req, res) => {
         });
 
         // Associar o utilizador à empresa
-        await novoUser.addEmpresa(empresa);  // Usa o método gerado pelo Sequelize para associar muitos-para-muitos
+        await novoUser.addEmpresa(empresa); // Usa o método gerado pelo Sequelize para associar muitos-para-muitos
 
         // Enviar e-mail de verificação
         const verificationLink = `https://backend.advir.pt/api/users/verify/${verificationToken}`;
@@ -128,7 +147,7 @@ const criarUtilizador = async (req, res) => {
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: email,
-            subject: 'Verificação de Conta',
+            subject: "Verificação de Conta",
             html: `
             <div style="font-family: Arial, sans-serif; text-align: center;">
                 <img src="https://link.advir.pt/static/media/img_logo.a2a85989c690f4bfd096.png" alt="Advir Plan" style="width: 200px; margin-bottom: 20px;" />
@@ -137,24 +156,25 @@ const criarUtilizador = async (req, res) => {
                 <a href="${verificationLink}" style="background-color: #1792FE; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">Verifica a minha Conta</a>
                 <p style="font-size: 14px; color: #333;">Se tiveres alguma questão ou precisares de ajuda, não hesites em contactar a <a href="mailto:support@advir.pt" style="color: #1792FE;">equipa de suporte</a>.</p>
                 <p style="font-size: 14px; color: #333;">Obrigado,<br>Advir</p>
-            </div>`
+            </div>`,
         };
 
         transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
-                return console.error('Erro ao enviar e-mail:', error);
+                return console.error("Erro ao enviar e-mail:", error);
             }
-            console.log('E-mail enviado:', info.response);
+            console.log("E-mail enviado:", info.response);
         });
 
-        res.status(201).json({ message: 'Utilizador criado com sucesso. Por favor, verifica o teu e-mail.' });
-
+        res.status(201).json({
+            message:
+                "Utilizador criado com sucesso. Por favor, verifica o teu e-mail.",
+        });
     } catch (error) {
-        console.error('Erro ao criar utilizador:', error);
-        res.status(500).json({ error: 'Erro ao criar o utilizador.' });
+        console.error("Erro ao criar utilizador:", error);
+        res.status(500).json({ error: "Erro ao criar o utilizador." });
     }
 };
-
 
 // Verificar o token e ativar a conta
 const verificarConta = async (req, res) => {
@@ -162,10 +182,14 @@ const verificarConta = async (req, res) => {
 
     try {
         // Procura o utilizador pelo token de verificação
-        const user = await User.findOne({ where: { verificationToken: token } });
+        const user = await User.findOne({
+            where: { verificationToken: token },
+        });
 
         if (!user) {
-            return res.status(400).json({ message: 'Token inválido ou já utilizado.' });
+            return res
+                .status(400)
+                .json({ message: "Token inválido ou já utilizado." });
         }
 
         // Ativa a conta
@@ -174,136 +198,159 @@ const verificarConta = async (req, res) => {
         await user.save();
 
         // Redireciona para o frontend (login) após a verificação
-        return res.redirect('https://link.advir.pt'); // Altera a URL para o endereço do frontend
+        return res.redirect("https://link.advir.pt"); // Altera a URL para o endereço do frontend
     } catch (error) {
-        console.error('Erro ao verificar a conta:', error);
-        return res.status(500).json({ error: 'Erro ao verificar a conta.' });
+        console.error("Erro ao verificar a conta:", error);
+        return res.status(500).json({ error: "Erro ao verificar a conta." });
     }
 };
 
-
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 
 const loginUtilizador = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-const user = await User.findOne({
-  attributes: [
-    'id',
-    'nome',
-    'username',
-    'email',
-    'password',
-    'profileImage',
-    'isAdmin',
-    'superAdmin',
-    'verificationToken',
-    'isActive',
-    'isFirstLogin',
-    'createdon',
-    'recoveryToken',
-    'recoveryTokenExpiry',
-    'empresa_areacliente',
-    'id_tecnico',
-    'empresaPredefinida',
-    'tipoUser',
-    'codFuncionario',
-    'codRecursosHumanos'
-  ],
-  where: { email }
-});
-console.log("→ Dados do user:", user.get({ plain: true }));
+        const user = await User.findOne({
+            attributes: [
+                "id",
+                "nome",
+                "username",
+                "email",
+                "password",
+                "profileImage",
+                "isAdmin",
+                "superAdmin",
+                "verificationToken",
+                "isActive",
+                "isFirstLogin",
+                "createdon",
+                "recoveryToken",
+                "recoveryTokenExpiry",
+                "empresa_areacliente",
+                "id_tecnico",
+                "empresaPredefinida",
+                "tipoUser",
+                "codFuncionario",
+                "codRecursosHumanos",
+            ],
+            where: { email },
+        });
+        console.log("→ Dados do user:", user.get({ plain: true }));
 
-const userPlain = user.get({ plain: true });
-console.log("→ Empresa predefinida do utilizador:", user.empresaPredefinida);
-console.log("→ Campos completos:", user.get({ plain: true }));
-
-
+        const userPlain = user.get({ plain: true });
+        console.log(
+            "→ Empresa predefinida do utilizador:",
+            user.empresaPredefinida,
+        );
+        console.log("→ Campos completos:", user.get({ plain: true }));
 
         if (!user) {
-            return res.status(400).json({ error: 'Utilizador não encontrado.' });
+            return res
+                .status(400)
+                .json({ error: "Utilizador não encontrado." });
         }
 
         if (!user.isActive) {
-            return res.status(403).json({ error: 'Conta não verificada. Verifica o teu e-mail para ativar a conta.' });
+            return res
+                .status(403)
+                .json({
+                    error: "Conta não verificada. Verifica o teu e-mail para ativar a conta.",
+                });
         }
 
         const isPasswordValid = await bcryptjs.compare(password, user.password);
         if (!isPasswordValid) {
-            return res.status(401).json({ error: 'Password incorreta.' });
+            return res.status(401).json({ error: "Password incorreta." });
         }
 
-console.log("→ Empresa predefinida do utilizador:", userPlain.empresaPredefinida);
-
-        const token = jwt.sign(
-            { id: user.id, userNome: user.nome, isAdmin: user.isAdmin, superAdmin: user.superAdmin },
-            process.env.JWT_SECRET,
-            { expiresIn: '24h' }
+        console.log(
+            "→ Empresa predefinida do utilizador:",
+            userPlain.empresaPredefinida,
         );
 
-       return res.status(200).json({
-        message: 'Login bem-sucedido',
-        token,
-        userId: user.id,
-        isAdmin: user.isAdmin,
-        superAdmin: user.superAdmin,
-        empresa_areacliente: user.empresa_areacliente,
-        id_tecnico: user.id_tecnico,
-        userNome: user.nome,
-        userEmail: user.email,
-        username: user.username, // 👈 este aqui
-        empresaPredefinida: userPlain.empresaPredefinida,
-        tipoUser: user.tipoUser,
-        codFuncionario: user.codFuncionario,
-        codRecursosHumanos: user.codRecursosHumanos
-        });
+        const token = jwt.sign(
+            {
+                id: user.id,
+                userNome: user.nome,
+                isAdmin: user.isAdmin,
+                superAdmin: user.superAdmin,
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: "24h" },
+        );
 
+        return res.status(200).json({
+            message: "Login bem-sucedido",
+            token,
+            userId: user.id,
+            isAdmin: user.isAdmin,
+            superAdmin: user.superAdmin,
+            empresa_areacliente: user.empresa_areacliente,
+            id_tecnico: user.id_tecnico,
+            userNome: user.nome,
+            userEmail: user.email,
+            username: user.username, // 👈 este aqui
+            empresaPredefinida: userPlain.empresaPredefinida,
+            tipoUser: user.tipoUser,
+            codFuncionario: user.codFuncionario,
+            codRecursosHumanos: user.codRecursosHumanos,
+        });
     } catch (error) {
-        console.error('Erro ao fazer login:', error);
-        return res.status(500).json({ error: 'Erro ao fazer login.' });
+        console.error("Erro ao fazer login:", error);
+        return res.status(500).json({ error: "Erro ao fazer login." });
     }
 };
-
 
 const getCodFuncionario = async (req, res) => {
-  const { userId } = req.params;
+    const { userId } = req.params;
 
-  try {
-    const user = await User.findByPk(userId, {
-      attributes: ['codFuncionario', 'nome']
-    });
+    try {
+        const user = await User.findByPk(userId, {
+            attributes: ["codFuncionario", "nome"],
+        });
 
-    if (!user || !user.codFuncionario) {
-      return res.status(404).json({ erro: 'Funcionário não encontrado para este utilizador.' });
+        if (!user || !user.codFuncionario) {
+            return res
+                .status(404)
+                .json({
+                    erro: "Funcionário não encontrado para este utilizador.",
+                });
+        }
+
+        res.json({ codFuncionario: user.codFuncionario });
+    } catch (err) {
+        console.error("Erro ao obter codFuncionario:", err);
+        res.status(500).json({
+            erro: "Erro ao obter funcionário",
+            detalhes: err.message,
+        });
     }
-
-    res.json({ codFuncionario: user.codFuncionario });
-  } catch (err) {
-    console.error('Erro ao obter codFuncionario:', err);
-    res.status(500).json({ erro: 'Erro ao obter funcionário', detalhes: err.message });
-  }
 };
-
-
-
 
 const alterarPassword = async (req, res) => {
     try {
         const { newPassword, confirmNewPassword } = req.body;
 
         if (newPassword !== confirmNewPassword) {
-            return res.status(400).json({ error: 'As passwords não coincidem.' });
+            return res
+                .status(400)
+                .json({ error: "As passwords não coincidem." });
         }
 
         // Decodifica o token JWT para obter o ID do utilizador
-        const { id } = jwt.verify(req.headers.authorization.split(' ')[1], process.env.JWT_SECRET);
+        const { id } = jwt.verify(
+            req.headers.authorization.split(" ")[1],
+            process.env.JWT_SECRET,
+        );
 
         // Encontra o utilizador pelo ID
         const user = await User.findByPk(id);
 
         if (!user) {
-            return res.status(404).json({ error: 'Utilizador não encontrado.' });
+            return res
+                .status(404)
+                .json({ error: "Utilizador não encontrado." });
         }
 
         // Criptografar a nova password
@@ -314,50 +361,42 @@ const alterarPassword = async (req, res) => {
         user.isFirstLogin = false; // Atualiza o campo após a primeira alteração de password
         await user.save();
 
-        return res.status(200).json({ message: 'Password alterada com sucesso.' });
-
+        return res
+            .status(200)
+            .json({ message: "Password alterada com sucesso." });
     } catch (error) {
-        console.error('Erro ao alterar password:', error);
-        return res.status(500).json({ error: 'Erro ao alterar a password.' });
+        console.error("Erro ao alterar password:", error);
+        return res.status(500).json({ error: "Erro ao alterar a password." });
     }
 };
 
-
-
-
-
-// Controller atualizado
 const getUsersByEmpresa = async (req, res) => {
-  const userId = req.user.id;
-  const empresaId = req.query.empresaId;
+    const userId = req.user.id;
+    const empresaId = req.query.empresaId;
 
-  try {
-    const empresa = await Empresa.findByPk(empresaId, {
-      include: {
-        model: User,
-        attributes: ['id', 'username', 'email']
-      }
-    });
+    try {
+        const empresa = await Empresa.findByPk(empresaId, {
+            include: {
+                model: User,
+                attributes: ["id", "username", "email"],
+            },
+        });
 
-    if (!empresa) {
-      return res.status(404).json({ message: 'Empresa não encontrada.' });
+        if (!empresa) {
+            return res.status(404).json({ message: "Empresa não encontrada." });
+        }
+
+        const users = empresa.Users.map((user) => ({
+            ...user.dataValues,
+            empresa: empresa.empresa,
+        }));
+
+        res.json(users);
+    } catch (error) {
+        console.error("Erro ao obter utilizadores por empresa:", error);
+        res.status(500).json({ message: "Erro interno." });
     }
-
-    const users = empresa.Users.map(user => ({
-      ...user.dataValues,
-      empresa: empresa.empresa
-    }));
-
-    res.json(users);
-  } catch (error) {
-    console.error('Erro ao obter utilizadores por empresa:', error);
-    res.status(500).json({ message: 'Erro interno.' });
-  }
 };
-
-
-
-
 
 const getEmpresasByUser = async (req, res) => {
     const userId = req.user.id;
@@ -366,29 +405,33 @@ const getEmpresasByUser = async (req, res) => {
         const user = await User.findByPk(userId, {
             include: {
                 model: Empresa,
-                attributes: ['id', 'empresa'],  // Ajusta conforme o teu modelo
-                through: { attributes: [] }  // Remove os atributos da tabela de junção
+                attributes: ["id", "empresa"], // Ajusta conforme o teu modelo
+                through: { attributes: [] }, // Remove os atributos da tabela de junção
             },
         });
 
         if (!user) {
-            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+            return res
+                .status(404)
+                .json({ message: "Utilizador não encontrado." });
         }
 
         if (!user.Empresas || user.Empresas.length === 0) {
-            return res.status(204).send();  // Resposta sem conteúdo (204 No Content)
+            return res.status(204).send(); // Resposta sem conteúdo (204 No Content)
         }
 
         // Retorna apenas os dataValues (dados importantes) de cada empresa
-        const empresasData = user.Empresas.map(empresa => empresa.dataValues);
+        const empresasData = user.Empresas.map((empresa) => empresa.dataValues);
 
         res.json(empresasData);
     } catch (error) {
-        console.error('Erro ao obter empresas associadas ao utilizador:', error);
-        res.status(500).json({ message: 'Erro ao obter empresas.' });
+        console.error(
+            "Erro ao obter empresas associadas ao utilizador:",
+            error,
+        );
+        res.status(500).json({ message: "Erro ao obter empresas." });
     }
 };
-
 
 // Função para associar um utilizador existente a uma nova empresa
 const adicionarEmpresaAoUser = async (req, res) => {
@@ -398,52 +441,75 @@ const adicionarEmpresaAoUser = async (req, res) => {
         // Verifica se o utilizador existe
         const user = await User.findByPk(userId);
         if (!user) {
-            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+            return res
+                .status(404)
+                .json({ message: "Utilizador não encontrado." });
         }
 
         // Verifica se a empresa existe
         const empresa = await Empresa.findByPk(novaEmpresaId);
         if (!empresa) {
-            return res.status(404).json({ message: 'Empresa não encontrada.' });
+            return res.status(404).json({ message: "Empresa não encontrada." });
         }
 
         // Verifica se o utilizador já está associado à empresa
-        const associacaoExistente = await User_Empresa.findOne({ where: { user_id: userId, empresa_id: novaEmpresaId } });
+        const associacaoExistente = await User_Empresa.findOne({
+            where: { user_id: userId, empresa_id: novaEmpresaId },
+        });
         if (associacaoExistente) {
-            return res.status(400).json({ message: 'O utilizador já está associado a esta empresa.' });
+            return res
+                .status(400)
+                .json({
+                    message: "O utilizador já está associado a esta empresa.",
+                });
         }
 
         // Faz a associação
-        await User_Empresa.create({ user_id: userId, empresa_id: novaEmpresaId });
+        await User_Empresa.create({
+            user_id: userId,
+            empresa_id: novaEmpresaId,
+        });
 
-        return res.status(200).json({ message: 'Empresa associada ao utilizador com sucesso.' });
+        return res
+            .status(200)
+            .json({ message: "Empresa associada ao utilizador com sucesso." });
     } catch (error) {
-        console.error('Erro ao associar empresa ao utilizador:', error);
-        return res.status(500).json({ message: 'Erro ao associar empresa ao utilizador.' });
+        console.error("Erro ao associar empresa ao utilizador:", error);
+        return res
+            .status(500)
+            .json({ message: "Erro ao associar empresa ao utilizador." });
     }
 };
-
 
 const removerEmpresaDoUser = async (req, res) => {
     const { userId, empresaId } = req.body;
 
     try {
         // Verifica se a associação existe
-        const associacao = await User_Empresa.findOne({ where: { user_id: userId, empresa_id: empresaId } });
+        const associacao = await User_Empresa.findOne({
+            where: { user_id: userId, empresa_id: empresaId },
+        });
         if (!associacao) {
-            return res.status(404).json({ message: 'A associação não foi encontrada.' });
+            return res
+                .status(404)
+                .json({ message: "A associação não foi encontrada." });
         }
 
         // Remove a associação
-        await User_Empresa.destroy({ where: { user_id: userId, empresa_id: empresaId } });
+        await User_Empresa.destroy({
+            where: { user_id: userId, empresa_id: empresaId },
+        });
 
-        return res.status(200).json({ message: 'Empresa removida do utilizador com sucesso.' });
+        return res
+            .status(200)
+            .json({ message: "Empresa removida do utilizador com sucesso." });
     } catch (error) {
-        console.error('Erro ao remover empresa do utilizador:', error);
-        return res.status(500).json({ message: 'Erro ao remover empresa do utilizador.' });
+        console.error("Erro ao remover empresa do utilizador:", error);
+        return res
+            .status(500)
+            .json({ message: "Erro ao remover empresa do utilizador." });
     }
 };
-
 
 const recuperarPassword = async (req, res) => {
     const { email } = req.body;
@@ -451,11 +517,13 @@ const recuperarPassword = async (req, res) => {
     try {
         const user = await User.findOne({ where: { email } });
         if (!user) {
-            return res.status(404).json({ error: 'Utilizador não encontrado.' });
+            return res
+                .status(404)
+                .json({ error: "Utilizador não encontrado." });
         }
 
         // Gerar token de recuperação e definir a expiração para 1 hora
-        const recoveryToken = crypto.randomBytes(32).toString('hex');
+        const recoveryToken = crypto.randomBytes(32).toString("hex");
         user.recoveryToken = recoveryToken;
         user.recoveryTokenExpiry = Date.now() + 3600000; // 1 hora de validade
         await user.save();
@@ -466,7 +534,7 @@ const recuperarPassword = async (req, res) => {
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: email,
-            subject: 'Recuperação de Password - Advir',
+            subject: "Recuperação de Password - Advir",
             html: `
             <!DOCTYPE html>
             <html lang="pt">
@@ -545,22 +613,20 @@ const recuperarPassword = async (req, res) => {
                     </div>
                 </div>
             </body>
-            </html>`
+            </html>`,
         };
 
         transporter.sendMail(mailOptions, (error) => {
             if (error) {
-                return res.status(500).json({ error: 'Erro ao enviar email.' });
+                return res.status(500).json({ error: "Erro ao enviar email." });
             }
-            res.status(200).json({ message: 'Email enviado com sucesso.' });
+            res.status(200).json({ message: "Email enviado com sucesso." });
         });
-
     } catch (error) {
-        console.error('Erro ao recuperar password:', error);
-        res.status(500).json({ error: 'Erro ao recuperar password.' });
+        console.error("Erro ao recuperar password:", error);
+        res.status(500).json({ error: "Erro ao recuperar password." });
     }
 };
-
 
 const redefinirPassword = async (req, res) => {
     const { token } = req.params;
@@ -570,98 +636,111 @@ const redefinirPassword = async (req, res) => {
         const user = await User.findOne({
             where: {
                 recoveryToken: token,
-                recoveryTokenExpiry: { [Op.gt]: Date.now() },  // Verifica se o token ainda é válido
+                recoveryTokenExpiry: { [Op.gt]: Date.now() }, // Verifica se o token ainda é válido
             },
         });
 
         if (!user) {
-            return res.status(400).json({ error: 'Token inválido ou expirado.' });
+            return res
+                .status(400)
+                .json({ error: "Token inválido ou expirado." });
         }
 
         // Atualiza a senha
         const hashedPassword = await bcryptjs.hash(newPassword, 10);
         user.password = hashedPassword;
-        user.recoveryToken = null;  // Limpa o token após uso
+        user.recoveryToken = null; // Limpa o token após uso
         user.recoveryTokenExpiry = null;
         await user.save();
 
-        res.status(200).json({ message: 'Senha alterada com sucesso.' });
+        res.status(200).json({ message: "Senha alterada com sucesso." });
     } catch (error) {
-        console.error('Erro ao redefinir a senha:', error);
-        res.status(500).json({ error: 'Erro ao redefinir a senha.' });
+        console.error("Erro ao redefinir a senha:", error);
+        res.status(500).json({ error: "Erro ao redefinir a senha." });
     }
 };
-
 
 const listarModulosDoUtilizador = async (req, res) => {
     try {
         const { userid } = req.params;
         const utilizador = await User.findByPk(userid, {
-            include: [
-                { model: Modulo, as: 'modulos' }
-            ]
+            include: [{ model: Modulo, as: "modulos" }],
         });
 
         if (!utilizador) {
-            return res.status(404).json({ error: 'Utilizador não encontrado.' });
+            return res
+                .status(404)
+                .json({ error: "Utilizador não encontrado." });
         }
 
         res.json({ modulos: utilizador.modulos });
     } catch (error) {
-        res.status(500).json({ error: 'Erro ao listar módulos do utilizador.' });
+        res.status(500).json({
+            error: "Erro ao listar módulos do utilizador.",
+        });
     }
 };
 
-
 const listarModulosESubmodulosDoUtilizador = async (req, res) => {
+    const { userid: userId } = req.params;
+    const { empresa_id } = req.query;
+    console.log(
+        `Listando módulos e submódulos para o utilizador ${userId}, empresa: ${empresa_id}`,
+    );
     try {
-        const { userid } = req.params;
-        const utilizador = await User.findByPk(userid, {
-            include: [
-                {
-                    model: Modulo,
-                    as: 'modulos',
-                    through: { attributes: [] },
-                    include: [
-                        {
-                            model: Submodulo,
-                            as: 'submodulos',
-                            required: true,
-                            include: {
-                                model: User,
-                                as: 'utilizadores',
-                                where: { id: userid },
-                                attributes: []
-                            }
-                        }
-                    ]
-                }
-            ]
-        });
-
-        if (!utilizador) {
-            return res.status(404).json({ error: 'Utilizador não encontrado.' });
+        const whereConditions = { user_id: userId };
+        if (empresa_id) {
+            whereConditions.empresa_id = empresa_id;
         }
 
-        const modulosAssociados = utilizador.modulos.map(modulo => ({
-            id: modulo.id,
-            nome: modulo.nome,
-            descricao: modulo.descricao,
-            submodulos: modulo.submodulos.map(submodulo => ({
-                id: submodulo.id,
-                nome: submodulo.nome,
-                descricao: submodulo.descricao
-            }))
-        }));
+        // Buscar módulos do utilizador com os submódulos que ele tem associados
+        const userModulos = await User_Modulo.findAll({
+            where: whereConditions,
+            include: [{
+                model: Modulo,
+                attributes: ['id', 'nome', 'descricao']
+            }]
+        });
+
+        // Buscar submódulos do utilizador
+        const userSubmodulos = await User_Submodulo.findAll({
+            where: whereConditions,
+            include: [{
+                model: Submodulo,
+                attributes: ['id', 'nome', 'descricao', 'moduloId']
+            }]
+        });
+
+        // Organizar os dados - apenas submódulos que o utilizador tem associados
+        const modulosAssociados = userModulos.map((userModulo) => {
+            const modulo = userModulo.Modulo;
+            const submodulosDoModulo = userSubmodulos
+                .filter(userSubmodulo => userSubmodulo.Submodulo.moduloId === modulo.id)
+                .map(userSubmodulo => ({
+                    id: userSubmodulo.Submodulo.id,
+                    nome: userSubmodulo.Submodulo.nome,
+                    descricao: userSubmodulo.Submodulo.descricao,
+                }));
+
+            return {
+                id: modulo.id,
+                nome: modulo.nome,
+                descricao: modulo.descricao,
+                submodulos: submodulosDoModulo, // Só os submódulos que o user tem
+            };
+        });
 
         res.status(200).json({ modulos: modulosAssociados });
     } catch (error) {
-        console.error('Erro ao listar módulos e submódulos do utilizador:', error);
-        res.status(500).json({ error: 'Erro ao listar módulos e submódulos do utilizador.' });
+        console.error(
+            "Erro ao listar módulos e submódulos do utilizador:",
+            error,
+        );
+        res.status(500).json({
+            error: "Erro ao listar módulos e submódulos do utilizador.",
+        });
     }
 };
-
-
 
 // Função para atualizar a imagem de perfil no servidor
 const updateProfileImage = async (req, res) => {
@@ -669,7 +748,7 @@ const updateProfileImage = async (req, res) => {
 
     if (!req.files || !req.files.profileImage) {
         console.log("Nenhuma imagem foi enviada.");
-        return res.status(400).json({ message: 'Nenhuma imagem foi enviada.' });
+        return res.status(400).json({ message: "Nenhuma imagem foi enviada." });
     }
 
     try {
@@ -677,28 +756,24 @@ const updateProfileImage = async (req, res) => {
         const user = await User.findByPk(userId);
 
         if (!user) {
-            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+            return res
+                .status(404)
+                .json({ message: "Utilizador não encontrado." });
         }
 
         user.profileImage = profileImage;
         await user.save();
 
-        res.status(200).json({ message: 'Imagem de perfil atualizada com sucesso.' });
+        res.status(200).json({
+            message: "Imagem de perfil atualizada com sucesso.",
+        });
     } catch (error) {
-        console.error('Erro ao atualizar a imagem de perfil:', error);
-        res.status(500).json({ message: 'Erro ao atualizar a imagem de perfil.' });
+        console.error("Erro ao atualizar a imagem de perfil:", error);
+        res.status(500).json({
+            message: "Erro ao atualizar a imagem de perfil.",
+        });
     }
 };
-
-
-
-
-
-
-
-
-
-
 
 // Função para obter a imagem de perfil
 const getProfileImage = async (req, res) => {
@@ -707,22 +782,23 @@ const getProfileImage = async (req, res) => {
         const user = await User.findByPk(userId);
 
         if (!user || !user.profileImage) {
-            return res.status(404).json({ message: 'Imagem não encontrada.' });
+            return res.status(404).json({ message: "Imagem não encontrada." });
         }
 
-        res.set('Content-Type', 'image/png'); // Defina o tipo MIME
+        res.set("Content-Type", "image/png"); // Defina o tipo MIME
         return res.send(user.profileImage);
     } catch (error) {
-        console.error('Erro ao obter a imagem do perfil:', error);
-        return res.status(500).json({ message: 'Erro ao obter a imagem do perfil.' });
+        console.error("Erro ao obter a imagem do perfil:", error);
+        return res
+            .status(500)
+            .json({ message: "Erro ao obter a imagem do perfil." });
     }
 };
 
-
 // Função para fazer o upload da imagem de perfil
 const uploadProfileImage = async (file) => {
-    const token = localStorage.getItem('loginToken');
-    const userId = localStorage.getItem('userId');
+    const token = localStorage.getItem("loginToken");
+    const userId = localStorage.getItem("userId");
 
     if (!token || !userId) {
         alert("Autenticação necessária.");
@@ -730,16 +806,19 @@ const uploadProfileImage = async (file) => {
     }
 
     const formData = new FormData();
-    formData.append('profileImage', file); // Envia o ficheiro diretamente
+    formData.append("profileImage", file); // Envia o ficheiro diretamente
 
     try {
-        const response = await fetch(`https://backend.advir.pt/api/users/${userId}/uploadProfileImage`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
+        const response = await fetch(
+            `https://backend.advir.pt/api/users/${userId}/uploadProfileImage`,
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: formData,
             },
-            body: formData,
-        });
+        );
 
         const data = await response.json();
         if (response.ok) {
@@ -754,10 +833,6 @@ const uploadProfileImage = async (file) => {
     }
 };
 
-
-
-
-
 const listarModulosDaEmpresaDoUser = async (req, res) => {
     const { userId } = req.params;
     try {
@@ -765,12 +840,14 @@ const listarModulosDaEmpresaDoUser = async (req, res) => {
         const user = await User.findByPk(userId, {
             include: {
                 model: Empresa,
-                attributes: ['id']
-            }
+                attributes: ["id"],
+            },
         });
 
         if (!user || !user.Empresas || user.Empresas.length === 0) {
-            return res.status(404).json({ message: 'Utilizador não tem empresa associada.' });
+            return res
+                .status(404)
+                .json({ message: "Utilizador não tem empresa associada." });
         }
 
         const empresaId = user.Empresas[0].id; // Pega a primeira empresa associada
@@ -780,48 +857,58 @@ const listarModulosDaEmpresaDoUser = async (req, res) => {
             include: [
                 {
                     model: Modulo,
-                    as: 'modulos',
+                    as: "modulos",
                     include: [
                         {
                             model: Submodulo,
-                            as: 'submodulos', // Todos os submódulos do módulo
-                            attributes: ['id', 'nome', 'descricao']
-                        }
-                    ]
+                            as: "submodulos", // Todos os submódulos do módulo
+                            attributes: ["id", "nome", "descricao"],
+                        },
+                    ],
                 },
                 {
                     model: Submodulo,
-                    as: 'submodulos', // Submódulos que a empresa tem associados
-                    attributes: ['id', 'nome', 'descricao', 'moduloId']
-                }
-            ]
+                    as: "submodulos", // Submódulos que a empresa tem associados
+                    attributes: ["id", "nome", "descricao", "moduloId"],
+                },
+            ],
         });
 
         if (!empresa) {
-            return res.status(404).json({ message: 'Empresa não encontrada.' });
+            return res.status(404).json({ message: "Empresa não encontrada." });
         }
 
         // Criar um conjunto dos IDs dos submódulos que a empresa tem associados
-        const empresaSubmoduloIds = new Set(empresa.submodulos.map(sub => sub.id));
+        const empresaSubmoduloIds = new Set(
+            empresa.submodulos.map((sub) => sub.id),
+        );
 
-        const modulos = empresa.modulos.map(modulo => ({
+        const modulos = empresa.modulos.map((modulo) => ({
             id: modulo.id,
             nome: modulo.nome,
             descricao: modulo.descricao,
             submodulos: empresa.submodulos
-                .filter(submodulo => submodulo.moduloId === modulo.id)
-                .map(submodulo => ({
+                .filter((submodulo) => submodulo.moduloId === modulo.id)
+                .map((submodulo) => ({
                     id: submodulo.id,
                     nome: submodulo.nome,
                     descricao: submodulo.descricao,
                 })),
         }));
 
-        console.log('Módulos com submódulos filtrados:', JSON.stringify(modulos, null, 2));
+        console.log(
+            "Módulos com submódulos filtrados:",
+            JSON.stringify(modulos, null, 2),
+        );
         res.status(200).json({ modulos });
     } catch (error) {
-        console.error('Erro ao carregar módulos e submódulos da empresa do utilizador:', error);
-        res.status(500).json({ error: 'Erro ao carregar módulos e submódulos da empresa do utilizador.' });
+        console.error(
+            "Erro ao carregar módulos e submódulos da empresa do utilizador:",
+            error,
+        );
+        res.status(500).json({
+            error: "Erro ao carregar módulos e submódulos da empresa do utilizador.",
+        });
     }
 };
 
@@ -833,15 +920,21 @@ const removerEmpresa = async (req, res) => {
         const empresa = await Empresa.findByPk(empresaId);
 
         if (!utilizador || !empresa) {
-            return res.status(404).json({ message: 'Utilizador ou Empresa não encontrados.' });
+            return res
+                .status(404)
+                .json({ message: "Utilizador ou Empresa não encontrados." });
         }
 
         await utilizador.removeEmpresa(empresa);
 
-        res.status(200).json({ message: 'Empresa removida do utilizador com sucesso.' });
+        res.status(200).json({
+            message: "Empresa removida do utilizador com sucesso.",
+        });
     } catch (error) {
-        console.error('Erro ao remover empresa do utilizador:', error);
-        res.status(500).json({ message: 'Erro ao remover empresa do utilizador.' });
+        console.error("Erro ao remover empresa do utilizador:", error);
+        res.status(500).json({
+            message: "Erro ao remover empresa do utilizador.",
+        });
     }
 };
 
@@ -852,13 +945,17 @@ const obterEmpresaPredefinida = async (req, res) => {
         const utilizador = await User.findByPk(userId);
 
         if (!utilizador) {
-            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+            return res
+                .status(404)
+                .json({ message: "Utilizador não encontrado." });
         }
 
-        res.status(200).json({ empresaPredefinida: utilizador.empresaPredefinida });
+        res.status(200).json({
+            empresaPredefinida: utilizador.empresaPredefinida,
+        });
     } catch (error) {
-        console.error('Erro ao obter empresa predefinida:', error);
-        res.status(500).json({ message: 'Erro ao obter empresa predefinida.' });
+        console.error("Erro ao obter empresa predefinida:", error);
+        res.status(500).json({ message: "Erro ao obter empresa predefinida." });
     }
 };
 
@@ -870,21 +967,27 @@ const definirEmpresaPredefinida = async (req, res) => {
         const utilizador = await User.findByPk(userId);
 
         if (!utilizador) {
-            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+            return res
+                .status(404)
+                .json({ message: "Utilizador não encontrado." });
         }
 
         console.log("→ Antes:", utilizador.empresaPredefinida);
 
         // Força a alteração e garante que o Sequelize grava
-        utilizador.setDataValue('empresaPredefinida', empresaPredefinida);
-        await utilizador.save({ fields: ['empresaPredefinida'] });
+        utilizador.setDataValue("empresaPredefinida", empresaPredefinida);
+        await utilizador.save({ fields: ["empresaPredefinida"] });
 
         console.log("→ Depois:", utilizador.empresaPredefinida);
 
-        res.status(200).json({ message: 'Empresa predefinida atualizada com sucesso.' });
+        res.status(200).json({
+            message: "Empresa predefinida atualizada com sucesso.",
+        });
     } catch (error) {
         console.error("→ Erro ao atualizar empresa predefinida:", error);
-        res.status(500).json({ message: 'Erro ao definir empresa predefinida.' });
+        res.status(500).json({
+            message: "Erro ao definir empresa predefinida.",
+        });
     }
 };
 
@@ -892,67 +995,98 @@ const definirEmpresaPredefinida = async (req, res) => {
 const atualizarDadosUtilizador = async (req, res) => {
     try {
         const { userId } = req.params;
-        const { empresa_areacliente, id_tecnico, tipoUser, codFuncionario, codRecursosHumanos } = req.body;
+        const {
+            empresa_areacliente,
+            id_tecnico,
+            tipoUser,
+            codFuncionario,
+            codRecursosHumanos,
+        } = req.body;
 
         // Verificar se o utilizador existe
         const user = await User.findByPk(userId);
         if (!user) {
-            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+            return res
+                .status(404)
+                .json({ message: "Utilizador não encontrado." });
         }
 
         // Validar tipoUser se fornecido
-        if (tipoUser && !['Trabalhador', 'Diretor', 'Encarregado','Orçamentista','Externo','Administrador'].includes(tipoUser)) {
-            return res.status(400).json({ message: 'Tipo de utilizador inválido.' });
+        if (
+            tipoUser &&
+            ![
+                "Trabalhador",
+                "Diretor",
+                "Encarregado",
+                "Orçamentista",
+                "Externo",
+                "Administrador",
+            ].includes(tipoUser)
+        ) {
+            return res
+                .status(400)
+                .json({ message: "Tipo de utilizador inválido." });
         }
 
         // Preparar dados para atualização (apenas campos fornecidos)
         const dadosParaAtualizar = {};
-        if (empresa_areacliente !== undefined) dadosParaAtualizar.empresa_areacliente = empresa_areacliente;
-        if (id_tecnico !== undefined) dadosParaAtualizar.id_tecnico = id_tecnico;
+        if (empresa_areacliente !== undefined)
+            dadosParaAtualizar.empresa_areacliente = empresa_areacliente;
+        if (id_tecnico !== undefined)
+            dadosParaAtualizar.id_tecnico = id_tecnico;
         if (tipoUser !== undefined) dadosParaAtualizar.tipoUser = tipoUser;
-        if (codFuncionario !== undefined) dadosParaAtualizar.codFuncionario = codFuncionario;
-        if (codRecursosHumanos !== undefined) dadosParaAtualizar.codRecursosHumanos = codRecursosHumanos;
-
+        if (codFuncionario !== undefined)
+            dadosParaAtualizar.codFuncionario = codFuncionario;
+        if (codRecursosHumanos !== undefined)
+            dadosParaAtualizar.codRecursosHumanos = codRecursosHumanos;
 
         // Atualizar o utilizador
         await user.update(dadosParaAtualizar);
 
         res.status(200).json({
-        message: 'Dados do utilizador atualizados com sucesso.',
-        user: {
-            id: user.id,
-            nome: user.nome,
-            email: user.email,
-            empresa_areacliente: user.empresa_areacliente,
-            id_tecnico: user.id_tecnico,
-            tipoUser: user.tipoUser,
-            codFuncionario: user.codFuncionario,
-            codRecursosHumanos: user.codRecursosHumanos
-        }
-    });
-
+            message: "Dados do utilizador atualizados com sucesso.",
+            user: {
+                id: user.id,
+                nome: user.nome,
+                email: user.email,
+                empresa_areacliente: user.empresa_areacliente,
+                id_tecnico: user.id_tecnico,
+                tipoUser: user.tipoUser,
+                codFuncionario: user.codFuncionario,
+                codRecursosHumanos: user.codRecursosHumanos,
+            },
+        });
     } catch (error) {
-        console.error('Erro ao atualizar dados do utilizador:', error);
-        res.status(500).json({ message: 'Erro interno do servidor.' });
+        console.error("Erro ao atualizar dados do utilizador:", error);
+        res.status(500).json({ message: "Erro interno do servidor." });
     }
 };
-
 
 const getDadosUtilizador = async (req, res) => {
     try {
         const { userId } = req.params;
         const user = await User.findByPk(userId, {
-            attributes: ['empresa_areacliente', 'id_tecnico', 'tipoUser','codFuncionario','codRecursosHumanos'],
+            attributes: [
+                "empresa_areacliente",
+                "id_tecnico",
+                "tipoUser",
+                "codFuncionario",
+                "codRecursosHumanos",
+            ],
         });
 
         if (!user) {
-            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+            return res
+                .status(404)
+                .json({ message: "Utilizador não encontrado." });
         }
 
         return res.status(200).json(user);
     } catch (error) {
-        console.error('Erro ao obter dados do utilizador:', error);
-        return res.status(500).json({ message: 'Erro ao obter dados do utilizador.' });
+        console.error("Erro ao obter dados do utilizador:", error);
+        return res
+            .status(500)
+            .json({ message: "Erro ao obter dados do utilizador." });
     }
 };
 
@@ -963,7 +1097,9 @@ const removerUtilizador = async (req, res) => {
         // Verificar se o utilizador existe
         const user = await User.findByPk(userId);
         if (!user) {
-            return res.status(404).json({ message: 'Utilizador não encontrado.' });
+            return res
+                .status(404)
+                .json({ message: "Utilizador não encontrado." });
         }
 
         // Remover todas as associações do utilizador
@@ -974,13 +1110,99 @@ const removerUtilizador = async (req, res) => {
         // Remover o utilizador
         await user.destroy();
 
-        res.status(200).json({ message: 'Utilizador removido com sucesso.' });
+        res.status(200).json({ message: "Utilizador removido com sucesso." });
     } catch (error) {
-        console.error('Erro ao remover utilizador:', error);
-        res.status(500).json({ message: 'Erro ao remover utilizador.' });
+        console.error("Erro ao remover utilizador:", error);
+        res.status(500).json({ message: "Erro ao remover utilizador." });
     }
 };
 
+// Associar módulo
+const associarModulo = async (req, res) => {
+    const { userid, moduloid, empresaId } = req.body;
+
+    try {
+        console.log("📝 Dados recebidos para associar módulo:", { userid, moduloid, empresaId });
+
+        // Verificar se todos os parâmetros foram fornecidos
+        if (!userid || !moduloid || !empresaId) {
+            return res.status(400).json({
+                error: "Dados incompletos. userid, moduloid e empresaId são obrigatórios."
+            });
+        }
+
+        // Verifica se a associação já existe
+        const existeAssociacao = await User_Modulo.findOne({
+            where: {
+                user_id: userid,
+                modulo_id: moduloid,
+                empresa_id: empresaId,
+            },
+        });
+
+        if (existeAssociacao) {
+            console.log("⚠️ Associação já existe");
+            return res
+                .status(200)
+                .json({ message: "Módulo já está associado ao utilizador." });
+        }
+
+        // Criar a associação incluindo o empresa_id
+        const novaAssociacao = await User_Modulo.create({
+            user_id: userid,
+            modulo_id: moduloid,
+            empresa_id: empresaId,
+        });
+
+        console.log("✅ Módulo associado com sucesso:", novaAssociacao);
+        res.status(201).json({ message: "Módulo associado com sucesso." });
+    } catch (error) {
+        console.error("❌ Erro ao associar módulo ao utilizador:", error);
+        res.status(500).json({
+            error: "Erro ao associar o utilizador ao módulo.",
+            details: error.message
+        });
+    }
+};
+
+// Remover módulo
+const removerModulo = async (req, res) => {
+    const { userid, moduloid, empresaId } = req.body;
+
+    try {
+        console.log("📝 Dados recebidos para remover módulo:", { userid, moduloid, empresaId });
+
+        // Verificar se todos os parâmetros foram fornecidos
+        if (!userid || !moduloid || !empresaId) {
+            return res.status(400).json({
+                error: "Dados incompletos. userid, moduloid e empresaId são obrigatórios."
+            });
+        }
+
+        const whereCondition = {
+            user_id: userid,
+            modulo_id: moduloid,
+            empresa_id: empresaId
+        };
+
+        const deletedRows = await User_Modulo.destroy({ where: whereCondition });
+
+        if (deletedRows === 0) {
+            return res.status(404).json({
+                message: "Associação não encontrada."
+            });
+        }
+
+        console.log("✅ Módulo removido com sucesso");
+        res.status(200).json({ message: "Módulo removido com sucesso." });
+    } catch (error) {
+        console.error("❌ Erro ao remover módulo do utilizador:", error);
+        res.status(500).json({
+            error: "Erro ao remover módulo do utilizador.",
+            details: error.message
+        });
+    }
+};
 
 module.exports = {
     criarUtilizador,
@@ -1004,5 +1226,7 @@ module.exports = {
     atualizarDadosUtilizador,
     getDadosUtilizador,
     removerUtilizador,
-    getCodFuncionario
+    getCodFuncionario,
+    associarModulo,
+    removerModulo,
 };

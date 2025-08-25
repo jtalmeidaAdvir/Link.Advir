@@ -24,6 +24,15 @@ const User_Modulo = sequelize.define('User_Modulo', {
             key: 'id',
         },
         onDelete: 'CASCADE', // Se o modulo for eliminado, elimina também a relação
+    },
+    empresa_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'empresa',
+            key: 'id',
+        },
+        onDelete: 'CASCADE', // Se a empresa for eliminada, elimina também a relação
     }
 }, {
     timestamps: false,

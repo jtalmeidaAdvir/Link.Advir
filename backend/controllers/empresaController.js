@@ -135,7 +135,7 @@ const listarModulosDaEmpresa = async (req, res) => {
         // Para cada módulo, filtrar apenas os submódulos que estão associados à empresa
         const modulosComSubmodulos = empresa.modulos.map(modulo => {
             const submodulosDoModulo = modulo.submodulos || [];
-            const submodulosAssociados = submodulosDoModulo.filter(submodulo => 
+            const submodulosAssociados = submodulosDoModulo.filter(submodulo =>
                 empresa.submodulos.some(empresaSubmodulo => empresaSubmodulo.id === submodulo.id)
             );
 
@@ -290,6 +290,31 @@ const removeSubmoduloFromEmpresa = async (req, res) => {
     }
 };
 
+// Listar submódulos da empresa para um módulo específico
+const listarSubmodulosEmpresaPorModulo = async (req, res) => {
+    const { empresaId, moduloId } = req.params;
+
+    try {
+        const empresa = await Empresa.findByPk(empresaId, {
+            include: {
+                model: Submodulo,
+                as: 'submodulos',
+                where: { moduloId: moduloId },
+                required: false
+            }
+        });
+
+        if (!empresa) {
+            return res.status(404).json({ message: 'Empresa não encontrada.' });
+        }
+
+        res.status(200).json({ submodulos: empresa.submodulos || [] });
+    } catch (error) {
+        console.error('Erro ao listar submódulos da empresa por módulo:', error);
+        res.status(500).json({ message: 'Erro ao listar submódulos da empresa.' });
+    }
+};
+
 // Listar submódulos disponíveis de um módulo para uma empresa
 const listarSubmodulosDisponiveisParaEmpresa = async (req, res) => {
     const { empresaId, moduloId } = req.params;
@@ -318,7 +343,7 @@ const listarSubmodulosDisponiveisParaEmpresa = async (req, res) => {
         }
 
         // Filtrar submódulos do módulo que não estão associados à empresa
-        const submodulosDisponiveis = modulo.submodulos.filter(submodulo => 
+        const submodulosDisponiveis = modulo.submodulos.filter(submodulo =>
             !empresa.submodulos.some(empresaSubmodulo => empresaSubmodulo.id === submodulo.id)
         );
 
@@ -343,4 +368,5 @@ module.exports = {
     addSubmoduloToEmpresa,
     removeSubmoduloFromEmpresa,
     listarSubmodulosDisponiveisParaEmpresa,
+    listarSubmodulosEmpresaPorModulo,
 };

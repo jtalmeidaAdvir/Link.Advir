@@ -7,6 +7,7 @@ import {
     Image,
     Modal,
     TouchableOpacity,
+    ScrollView,
 } from "react-native";
 import i18n from "./i18n";
 import { useTranslation } from "react-i18next";
@@ -434,7 +435,7 @@ const Perfil = ({ user }) => {
     };
 
     return (
-        <View style={styles.container}>
+        <ScrollView style={styles.scrollViewStyle} contentContainerStyle={styles.container}>
             {showSuccessMessage && (
                 <View style={styles.messageContainer}>
                     <Text style={styles.messageText}>{successMessage}</Text>
@@ -582,17 +583,18 @@ const Perfil = ({ user }) => {
                     console.log("Biometria configurada com sucesso");
                 }}
             />
-        </View>
+        </ScrollView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        flexGrow: 1,
         alignItems: "center",
         backgroundColor: "#d4e4ff",
         padding: 20,
         position: "relative",
+        minHeight: "100vh",
     },
     messageContainer: {
         position: "absolute",
@@ -791,10 +793,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     scrollViewStyle: {
+        flex: 1,
         backgroundColor: "#d4e4ff",
-        overflowY: "auto", // Ativa scroll vertical quando necessário
         width: "100%",
-        padding: "10px",
     },
     biometricSection: {
         backgroundColor: "white",

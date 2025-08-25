@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
 import { useRoute } from '@react-navigation/native';
+import backgroundImage from '../../../../images/ImagemFundo.png';
 
 import { styles } from '../styles/SelecaoEmpresaStyles';
 import EmpresaButtons from '../components/EmpresaButtons';
@@ -47,6 +48,15 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
 });
 
 
+// acrescenta perto dos outros handlers
+const onEmpresaPress = (empresa) => {
+  if (loadingButton) return; // evita duplo clique
+  setEmpresaSelecionada(empresa);
+  entrar(empresa, onTogglePredefinir); // entra logo na empresa clicada
+};
+
+
+
   const onTogglePredefinir = () => {
     handlePredefinirEmpresa({
       checked: !empresaPredefinida,
@@ -56,7 +66,32 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {
+      backgroundImage: `url(${backgroundImage})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundAttachment: 'fixed',
+      position: 'relative'
+    }]}>
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.4)',
+        zIndex: 0
+      }}></View>
+      <View style={{
+        position: 'relative',
+        zIndex: 1,
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
       <View style={styles.card}>
         <Text style={styles.title}>{t('SelecaoEmpresa.Title')}</Text>
 
@@ -70,11 +105,12 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
             <EmpresaButtons
               empresas={empresas}
               empresaSelecionada={empresaSelecionada}
-              setEmpresaSelecionada={setEmpresaSelecionada}
+              setEmpresaSelecionada={onEmpresaPress} 
               loadingButton={loadingButton}
               handleEntrarEmpresa={(empresa) => entrar(empresa, onTogglePredefinir)}
               setEmpresaPredefinida={setEmpresaPredefinida}
             />
+
 
 
             {empresaSelecionada && (
@@ -90,22 +126,10 @@ const SelecaoEmpresa = ({ setEmpresa }) => {
               </View>
             )}
 
-            <TouchableOpacity
-              onPress={() => entrar(empresaSelecionada, onTogglePredefinir)}
-              disabled={loadingButton || !empresaSelecionada}
-              style={[
-                styles.entrarButton,
-                !empresaSelecionada && styles.entrarButtonDisabled,
-              ]}
-            >
-              <Text style={styles.entrarButtonText}>
-                {empresaPredefinida
-                  ? t('SelecaoEmpresa.BtEntrar')
-                  : t('Entrar na Empresa')}
-              </Text>
-            </TouchableOpacity>
+            
           </View>
         )}
+      </View>
       </View>
     </View>
   );

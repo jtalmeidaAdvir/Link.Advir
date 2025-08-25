@@ -47,7 +47,7 @@ const UserModulesManagement = ({ route }) => {
     }, []);
 
     useEffect(() => {
-        console.log('🚀 useEffect chamado com userId:', userId);
+        console.log("🚀 useEffect chamado com userId:", userId);
         fetchEmpresaModulos();
         fetchUserModulos(userId);
         fetchUserData();
@@ -55,13 +55,20 @@ const UserModulesManagement = ({ route }) => {
 
     const fetchEmpresaModulos = async () => {
         try {
-            console.log('📋 Iniciando fetchEmpresaModulos para userId:', userId);
+            console.log("📋 Iniciando fetchEmpresaModulos para userId:", userId);
             setLoading(true);
+
+            const empresaId = localStorage.getItem("empresa_id");
+            if (!empresaId) {
+                throw new Error("Empresa não selecionada");
+            }
+
+            // Buscar módulos da empresa
             const response = await fetch(
-                `https://backend.advir.pt/api/users/${userId}/empresa-modulos`,
+                `https://backend.advir.pt/api/empresas/${empresaId}/modulos`,
             );
             const data = await response.json();
-            console.log('📋 Resposta de empresa-modulos:', data);
+            console.log("📋 Resposta de empresa-modulos:", data);
 
             if (!response.ok) {
                 throw new Error(
@@ -70,7 +77,7 @@ const UserModulesManagement = ({ route }) => {
             }
 
             const modulos = data.modulos || [];
-            console.log('📋 Módulos encontrados:', modulos);
+            console.log("📋 Módulos encontrados:", modulos);
             setEmpresaModulos(modulos);
 
             // Initialize expanded state for all modules
@@ -81,25 +88,12 @@ const UserModulesManagement = ({ route }) => {
             setExpandedModules(initialExpandState);
 
             // Fetch available submodules for each module
-            const empresaId = localStorage.getItem("empresa_id") || data.empresaId;
-            console.log('📋 Chamando fetchAvailableSubmodules com empresaId:', empresaId, 'e módulos:', modulos);
-
-            if (empresaId) {
-                await fetchAvailableSubmodules(empresaId, modulos);
-            } else {
-                console.log('⚠️ Nenhum empresaId encontrado, não é possível buscar submódulos');
-                // Initialize empty submodules
-                const emptySubmodules = {};
-                modulos.forEach(modulo => {
-                    emptySubmodules[modulo.id] = [];
-                });
-                setAvailableSubmodules(emptySubmodules);
-            }
+            await fetchAvailableSubmodules(empresaId, modulos);
 
             setErrorMessage("");
         } catch (error) {
             setErrorMessage("Erro ao carregar módulos da empresa.");
-            console.error('❌ Erro em fetchEmpresaModulos:', error);
+            console.error("❌ Erro em fetchEmpresaModulos:", error);
         } finally {
             setLoading(false);
         }
@@ -107,19 +101,38 @@ const UserModulesManagement = ({ route }) => {
 
     const fetchUserModulos = async (userId) => {
         try {
-            const response = await fetch(
-                `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`,
-            );
+            const empresaId = localStorage.getItem("empresa_id");
+            if (!empresaId) {
+                throw new Error("Empresa não selecionada");
+            }
+
+            const url = `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos?empresa_id=${empresaId}`;
+
+            const response = await fetch(url, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("loginToken")}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error("Erro ao buscar módulos do utilizador");
+            }
+
             const data = await response.json();
+            console.log("👤 Módulos do utilizador:", data);
             setUserModulos(data.modulos || []);
         } catch (error) {
+            console.error("❌ Erro ao carregar módulos do utilizador:", error);
             setErrorMessage("Erro ao carregar módulos do utilizador.");
         }
     };
 
     const fetchAvailableSubmodules = async (empresaId, modulos) => {
         try {
-            console.log('🎯 fetchAvailableSubmodules INICIADO com:', { empresaId, modulos });
+            console.log("🎯 fetchAvailableSubmodules INICIADO com:", {
+                empresaId,
+                modulos,
+            });
             const availableSubmodulesData = {};
 
             for (const modulo of modulos) {
@@ -127,73 +140,35 @@ const UserModulesManagement = ({ route }) => {
                     `🔍 Buscando submódulos para módulo ${modulo.id} (${modulo.nome}), empresaId: ${empresaId}`,
                 );
 
-                // Primeiro tenta buscar submódulos associados à empresa
-                const empresaResponse = await fetch(
-                    `https://backend.advir.pt/api/empresas/${empresaId}/modulos/${modulo.id}/submodulos-disponiveis`,
+                // Busca os submódulos que a empresa tem associados a este módulo
+                const empresaSubmodulosResponse = await fetch(
+                    `https://backend.advir.pt/api/empresas/${empresaId}/modulos/${modulo.id}/submodulos`,
                 );
-                console.log(
-                    `🔗 URL da API para submódulos da empresa: https://backend.advir.pt/api/empresas/${empresaId}/modulos/${modulo.id}/submodulos-disponiveis`,
-                );
-                if (empresaResponse.ok) {
-                    const empresaData = await empresaResponse.json();
+
+                if (empresaSubmodulosResponse.ok) {
+                    const empresaSubmodulosData = await empresaSubmodulosResponse.json();
                     console.log(
-                        `📊 Submódulos da empresa para módulo ${modulo.nome}:`,
-                        empresaData,
+                        `📊 Submódulos disponíveis na empresa para módulo ${modulo.nome}:`,
+                        empresaSubmodulosData,
                     );
-                    // A API retorna os submódulos dentro de um objeto 'submodulos'
-                    availableSubmodulesData[modulo.id] =
-                        empresaData.submodulos || [];
+                    availableSubmodulesData[modulo.id] = empresaSubmodulosData.submodulos || [];
                 } else {
                     console.log(
-                        `⚠️ Erro ao buscar submódulos da empresa, tentando buscar todos os submódulos do módulo`,
+                        `⚠️ Erro ao buscar submódulos da empresa para o módulo ${modulo.nome}`,
                     );
-
-                    // Se não conseguir pela empresa, busca todos os submódulos do módulo
-                    const moduloResponse = await fetch(
-                        `https://backend.advir.pt/api/submodulos/modulo/${modulo.id}`,
-                    );
-
-                    if (moduloResponse.ok) {
-                        const moduloData = await moduloResponse.json();
-                        console.log(
-                            `📋 Todos os submódulos do módulo ${modulo.nome}:`,
-                            moduloData,
-                        );
-                        // A API retorna os submódulos dentro de um objeto 'submodulos'
-                        availableSubmodulesData[modulo.id] =
-                            moduloData.submodulos || [];
-                    } else {
-                        console.log(
-                            `❌ Falha ao buscar submódulos para o módulo ${modulo.nome}`,
-                        );
-                        availableSubmodulesData[modulo.id] = [];
-                    }
+                    availableSubmodulesData[modulo.id] = [];
                 }
             }
 
-            console.log(
-                "🎯 Dados finais de submódulos disponíveis:",
-                availableSubmodulesData,
-            );
-
-            // Debug detalhado para cada módulo
-            Object.keys(availableSubmodulesData).forEach((moduloId) => {
-                console.log(
-                    `🔍 Módulo ${moduloId}: ${availableSubmodulesData[moduloId].length} submódulos`,
-                    availableSubmodulesData[moduloId],
-                );
-            });
-
-            console.log('✅ setAvailableSubmodules chamado com:', availableSubmodulesData);
+            console.log("✅ setAvailableSubmodules chamado com:", availableSubmodulesData);
             setAvailableSubmodules(availableSubmodulesData);
-
-            // Verificar o estado depois de definir
-            setTimeout(() => {
-                console.log('⏰ Estado availableSubmodules após setTimeout (verificação):', availableSubmodulesData);
-            }, 100);
-
         } catch (error) {
             console.error("❌ Erro ao carregar submódulos disponíveis:", error);
+            const emptySubmodules = {};
+            modulos.forEach((modulo) => {
+                emptySubmodules[modulo.id] = [];
+            });
+            setAvailableSubmodules(emptySubmodules);
         }
     };
 
@@ -215,32 +190,43 @@ const UserModulesManagement = ({ route }) => {
             setSuccessMessage("");
             setErrorMessage("");
 
+            const empresaId = localStorage.getItem("empresa_id");
+
+            console.log("🔄 Toggle módulo:", { userId, moduloId, empresaId, isChecked });
+
             const response = await fetch(url, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${localStorage.getItem("loginToken")}`,
                 },
-                body: JSON.stringify({ userid: userId, moduloid: moduloId }),
+                body: JSON.stringify({
+                    userid: userId,
+                    moduloid: moduloId,
+                    empresaId: empresaId,
+                }),
             });
 
+            const responseData = await response.json();
+            console.log("📡 Resposta do toggle módulo:", responseData);
+
             if (response.ok) {
-                fetchUserModulos(userId);
+                await fetchUserModulos(userId);
                 setSuccessMessage(
                     isChecked
                         ? "Módulo associado com sucesso!"
                         : "Módulo removido com sucesso!",
                 );
 
-                // Clear success message after 3 seconds
                 setTimeout(() => {
                     setSuccessMessage("");
                 }, 3000);
             } else {
-                setErrorMessage("Falha ao atualizar módulo.");
+                console.error("❌ Erro na resposta:", responseData);
+                setErrorMessage(responseData.message || "Falha ao atualizar módulo.");
             }
         } catch (error) {
-            console.error("Error toggling module:", error);
+            console.error("❌ Error toggling module:", error);
             setErrorMessage("Erro ao atualizar módulo.");
         }
     };
@@ -258,6 +244,10 @@ const UserModulesManagement = ({ route }) => {
             setSuccessMessage("");
             setErrorMessage("");
 
+            const empresaId = localStorage.getItem("empresa_id");
+
+            console.log("🔄 Toggle submódulo:", { userId, submoduloId, empresaId, isCurrentlyChecked });
+
             const response = await fetch(url, {
                 method: "POST",
                 headers: {
@@ -267,26 +257,30 @@ const UserModulesManagement = ({ route }) => {
                 body: JSON.stringify({
                     userid: userId,
                     submoduloid: submoduloId,
+                    empresaId: empresaId,
                 }),
             });
 
+            const responseData = await response.json();
+            console.log("📡 Resposta do toggle submódulo:", responseData);
+
             if (response.ok) {
-                fetchUserModulos(userId);
+                await fetchUserModulos(userId);
                 setSuccessMessage(
                     isCurrentlyChecked
                         ? "Submódulo removido com sucesso!"
                         : "Submódulo associado com sucesso!",
                 );
 
-                // Clear success message after 3 seconds
                 setTimeout(() => {
                     setSuccessMessage("");
                 }, 3000);
             } else {
-                setErrorMessage("Falha ao atualizar submódulo.");
+                console.error("❌ Erro na resposta:", responseData);
+                setErrorMessage(responseData.message || "Falha ao atualizar submódulo.");
             }
         } catch (error) {
-            console.error("Error toggling submodule:", error);
+            console.error("❌ Error toggling submodule:", error);
             setErrorMessage("Erro ao atualizar submódulo.");
         }
     };
@@ -405,10 +399,10 @@ const UserModulesManagement = ({ route }) => {
         const isExpanded = expandedModules[item.id];
         const isChecked = isModuloChecked(item.id);
 
-        // Only render the module if it has available submodules
-        if (!availableSubmodules[item.id] || availableSubmodules[item.id].length === 0) {
-            return null;
-        }
+        // Always render the module - it may have no submodules or submodules may be loading
+        // if (!availableSubmodules[item.id] || availableSubmodules[item.id].length === 0) {
+        //     return null;
+        // }
 
         return (
             <View style={styles.moduleCard}>
@@ -460,9 +454,18 @@ const UserModulesManagement = ({ route }) => {
                                 `🔧 Renderizando submódulos para módulo ${item.nome} (ID: ${item.id}):`,
                                 availableSubmodulesForModule,
                             );
-                            console.log('🔧 Estado completo availableSubmodules:', availableSubmodules);
-                            console.log('🔧 Chaves disponíveis:', Object.keys(availableSubmodules));
-                            console.log(`🔧 availableSubmodules[${item.id}]:`, availableSubmodules[item.id]);
+                            console.log(
+                                "🔧 Estado completo availableSubmodules:",
+                                availableSubmodules,
+                            );
+                            console.log(
+                                "🔧 Chaves disponíveis:",
+                                Object.keys(availableSubmodules),
+                            );
+                            console.log(
+                                `🔧 availableSubmodules[${item.id}]:`,
+                                availableSubmodules[item.id],
+                            );
 
                             if (availableSubmodulesForModule.length > 0) {
                                 return availableSubmodulesForModule.map(

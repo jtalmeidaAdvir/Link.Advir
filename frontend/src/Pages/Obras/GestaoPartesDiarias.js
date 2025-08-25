@@ -1330,7 +1330,7 @@ horasInput: { backgroundColor:'#fff', borderWidth:1, borderColor:'#e0e0e0', bord
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 5 },
   headerSubtitle: { fontSize: 16, color: '#e3f2fd', opacity: 0.9 },
   listContent: { padding: 16, paddingBottom: 30 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#f8f9fa' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#d4e4ff', },
   loadingText: { marginTop: 15, fontSize: 16, color: '#1792FE', fontWeight: '500' },
   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30, backgroundColor: '#f8f9fa' },
   errorText: { fontSize: 16, color: '#dc3545', textAlign: 'center', marginVertical: 20, lineHeight: 22 },

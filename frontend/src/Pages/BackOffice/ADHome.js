@@ -7,12 +7,10 @@ const ADHome = () => {
     const [selectedEmpresa, setSelectedEmpresa] = useState(null);
     const [empresaModulos, setEmpresaModulos] = useState([]);
     const [allModulos, setAllModulos] = useState([]);
-    const [activeTab, setActiveTab] = useState('config'); // config, modules, submodules
-    const [modalVisible, setModalVisible] = useState(false);
-    const [selectedModulo, setSelectedModulo] = useState(null);
+    const [activeTab, setActiveTab] = useState('config');
     const [selectedModuloForSubmodules, setSelectedModuloForSubmodules] = useState(null);
-    const [allSubmodulos, setAllSubmodulos] = useState([]);
-    const [isAdding, setIsAdding] = useState(true);
+    const [allSubmodulosForSelectedModule, setAllSubmodulosForSelectedModule] = useState([]);
+    const [empresaSubmodulosForSelectedModule, setEmpresaSubmodulosForSelectedModule] = useState([]);
     const [maxUsers, setMaxUsers] = useState('');
     const [tempoIntervaloPadrao, setTempoIntervaloPadrao] = useState('');
     const [loading, setLoading] = useState(false);
@@ -64,13 +62,31 @@ const ADHome = () => {
         }
     };
 
-    const fetchAllSubmodulosByModulo = async (moduloId) => {
+    const fetchAllSubmodulosForModule = async (moduloId) => {
         try {
-            const response = await fetch(`https://backend.advir.pt/api/empresas/${selectedEmpresa.id}/modulos/${moduloId}/submodulos-disponiveis`);
+            const response = await fetch(`https://backend.advir.pt/api/submodulos/modulo/${moduloId}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
             const data = await response.json();
-            setAllSubmodulos(data.submodulos || []);
+            setAllSubmodulosForSelectedModule(data.submodulos || []);
         } catch (error) {
-            console.error('Erro ao carregar submódulos:', error);
+            console.error('Erro ao carregar todos os submódulos do módulo:', error);
+            setAllSubmodulosForSelectedModule([]);
+        }
+    };
+
+    const fetchEmpresaSubmodulosForModule = async (empresaId, moduloId) => {
+        try {
+            const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}/modulos/${moduloId}/submodulos`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const data = await response.json();
+            setEmpresaSubmodulosForSelectedModule(data.submodulos || []);
+        } catch (error) {
+            console.error('Erro ao carregar submódulos da empresa para o módulo:', error);
+            setEmpresaSubmodulosForSelectedModule([]);
         }
     };
 
@@ -79,6 +95,9 @@ const ADHome = () => {
         fetchEmpresaModulos(empresa.id);
         fetchEmpresaInfo(empresa.id);
         setActiveTab('config');
+        setSelectedModuloForSubmodules(null);
+        setAllSubmodulosForSelectedModule([]);
+        setEmpresaSubmodulosForSelectedModule([]);
     };
 
     const updateEmpresaInfo = async () => {
@@ -99,7 +118,7 @@ const ADHome = () => {
             });
 
             if (!response.ok) throw new Error('Erro ao atualizar');
-            
+
             Alert.alert('Sucesso', 'Dados atualizados com sucesso!');
         } catch (error) {
             Alert.alert('Erro', 'Não foi possível atualizar os dados');
@@ -115,13 +134,23 @@ const ADHome = () => {
             const method = adding ? 'POST' : 'DELETE';
             const body = adding ? JSON.stringify({ moduloId: modulo.id }) : null;
 
-            await fetch(url, {
+            const response = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body,
             });
 
+            if (!response.ok) throw new Error('Erro na operação');
+
             fetchEmpresaModulos(selectedEmpresa.id);
+
+            // Se estamos removendo o módulo que está selecionado para submódulos, limpar a seleção
+            if (!adding && selectedModuloForSubmodules?.id === modulo.id) {
+                setSelectedModuloForSubmodules(null);
+                setAllSubmodulosForSelectedModule([]);
+                setEmpresaSubmodulosForSelectedModule([]);
+            }
+
             Alert.alert('Sucesso', `Módulo ${adding ? 'adicionado' : 'removido'} com sucesso!`);
         } catch (error) {
             Alert.alert('Erro', 'Operação falhou');
@@ -137,22 +166,35 @@ const ADHome = () => {
             const method = adding ? 'POST' : 'DELETE';
             const body = adding ? JSON.stringify({ submoduloId: submodulo.id }) : null;
 
-            await fetch(url, {
+            const response = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body,
             });
 
-            fetchEmpresaModulos(selectedEmpresa.id);
-            if (selectedModuloForSubmodules) {
-                fetchAllSubmodulosByModulo(selectedModuloForSubmodules.id);
-            }
+            if (!response.ok) throw new Error('Erro na operação');
+
+            // Recarregar os submódulos da empresa para o módulo selecionado
+            await fetchEmpresaSubmodulosForModule(selectedEmpresa.id, selectedModuloForSubmodules.id);
+
             Alert.alert('Sucesso', `Submódulo ${adding ? 'adicionado' : 'removido'} com sucesso!`);
         } catch (error) {
             Alert.alert('Erro', 'Operação falhou');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleModuleSelectionForSubmodules = async (modulo) => {
+        setSelectedModuloForSubmodules(modulo);
+        await Promise.all([
+            fetchAllSubmodulosForModule(modulo.id),
+            fetchEmpresaSubmodulosForModule(selectedEmpresa.id, modulo.id)
+        ]);
+    };
+
+    const isSubmoduloAvailableForEmpresa = (submodulo) => {
+        return !empresaSubmodulosForSelectedModule.some(empresaSubmodulo => empresaSubmodulo.id === submodulo.id);
     };
 
     const renderEmpresaSelector = () => (
@@ -183,7 +225,7 @@ const ADHome = () => {
     const renderConfigTab = () => (
         <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Configurações da Empresa</Text>
-            
+
             <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Limite máximo de utilizadores</Text>
                 <TextInput
@@ -206,8 +248,8 @@ const ADHome = () => {
                 />
             </View>
 
-            <TouchableOpacity 
-                style={[styles.primaryButton, loading && styles.buttonDisabled]} 
+            <TouchableOpacity
+                style={[styles.primaryButton, loading && styles.buttonDisabled]}
                 onPress={updateEmpresaInfo}
                 disabled={loading}
             >
@@ -219,14 +261,14 @@ const ADHome = () => {
     );
 
     const renderModulesTab = () => {
-        const availableModules = allModulos.filter(modulo => 
+        const availableModules = allModulos.filter(modulo =>
             !empresaModulos.some(em => em.id === modulo.id)
         );
 
         return (
             <View style={styles.sectionCard}>
                 <Text style={styles.sectionTitle}>Gestão de Módulos</Text>
-                
+
                 {empresaModulos.length > 0 && (
                     <View style={styles.subsection}>
                         <Text style={styles.subsectionTitle}>Módulos Ativos</Text>
@@ -269,7 +311,7 @@ const ADHome = () => {
     const renderSubmodulesTab = () => (
         <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Gestão de Submódulos</Text>
-            
+
             <Text style={styles.subsectionTitle}>Selecionar Módulo:</Text>
             <View style={styles.moduleSelector}>
                 {empresaModulos.map((modulo) => (
@@ -279,10 +321,7 @@ const ADHome = () => {
                             styles.moduleSelectorButton,
                             selectedModuloForSubmodules?.id === modulo.id && styles.moduleSelectorButtonActive
                         ]}
-                        onPress={() => {
-                            setSelectedModuloForSubmodules(modulo);
-                            fetchAllSubmodulosByModulo(modulo.id);
-                        }}
+                        onPress={() => handleModuleSelectionForSubmodules(modulo)}
                     >
                         <Text style={[
                             styles.moduleSelectorText,
@@ -299,44 +338,48 @@ const ADHome = () => {
                     <Text style={styles.subsectionTitle}>
                         Submódulos de "{selectedModuloForSubmodules.nome}"
                     </Text>
-                    
-                    {selectedModuloForSubmodules.submodulos?.length > 0 && (
+
+                    {empresaSubmodulosForSelectedModule.length > 0 && (
                         <View style={styles.subsection}>
-                            <Text style={styles.label}>Ativos:</Text>
-                            {selectedModuloForSubmodules.submodulos.map((submodulo) => (
+                            <Text style={styles.label}>Submódulos Ativos:</Text>
+                            {empresaSubmodulosForSelectedModule.map((submodulo) => (
                                 <View key={submodulo.id} style={styles.moduleItem}>
                                     <Text style={styles.moduleText}>{submodulo.nome}</Text>
                                     <TouchableOpacity
-                                        style={styles.addButton}
+                                        style={styles.removeButton}
                                         onPress={() => toggleSubmodulo(submodulo, false)}
                                         disabled={loading}
                                     >
-                                        <Text style={styles.buttonText}>Adicionar</Text>
+                                        <Text style={styles.buttonText}>Remover</Text>
                                     </TouchableOpacity>
                                 </View>
                             ))}
                         </View>
                     )}
 
-                    {allSubmodulos.filter(sub => 
-                        !selectedModuloForSubmodules.submodulos?.some(es => es.id === sub.id)
-                    ).length > 0 && (
+                    {allSubmodulosForSelectedModule.filter(sub => isSubmoduloAvailableForEmpresa(sub)).length > 0 && (
                         <View style={styles.subsection}>
-                            <Text style={styles.label}>Disponíveis:</Text>
-                            {allSubmodulos
-                                .filter(sub => !selectedModuloForSubmodules.submodulos?.some(es => es.id === sub.id))
+                            <Text style={styles.label}>Submódulos Disponíveis:</Text>
+                            {allSubmodulosForSelectedModule
+                                .filter(sub => isSubmoduloAvailableForEmpresa(sub))
                                 .map((submodulo) => (
                                     <View key={submodulo.id} style={styles.moduleItem}>
                                         <Text style={styles.moduleText}>{submodulo.nome}</Text>
                                         <TouchableOpacity
-                                            style={styles.removeButton}
+                                            style={styles.addButton}
                                             onPress={() => toggleSubmodulo(submodulo, true)}
                                             disabled={loading}
                                         >
-                                            <Text style={styles.buttonText}>Remover</Text>
+                                            <Text style={styles.buttonText}>Adicionar</Text>
                                         </TouchableOpacity>
                                     </View>
                                 ))}
+                        </View>
+                    )}
+
+                    {allSubmodulosForSelectedModule.length === 0 && (
+                        <View style={styles.subsection}>
+                            <Text style={styles.label}>Este módulo não possui submódulos disponíveis.</Text>
                         </View>
                     )}
                 </View>
@@ -347,7 +390,7 @@ const ADHome = () => {
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
             <Text style={styles.title}>Gestão de Empresas - AdvirLink</Text>
-            
+
             {renderEmpresaSelector()}
 
             {selectedEmpresa && (
@@ -361,7 +404,7 @@ const ADHome = () => {
                                 Configurações
                             </Text>
                         </TouchableOpacity>
-                        
+
                         <TouchableOpacity
                             style={[styles.tab, activeTab === 'modules' && styles.tabActive]}
                             onPress={() => setActiveTab('modules')}
@@ -370,7 +413,7 @@ const ADHome = () => {
                                 Módulos
                             </Text>
                         </TouchableOpacity>
-                        
+
                         <TouchableOpacity
                             style={[styles.tab, activeTab === 'submodules' && styles.tabActive]}
                             onPress={() => setActiveTab('submodules')}

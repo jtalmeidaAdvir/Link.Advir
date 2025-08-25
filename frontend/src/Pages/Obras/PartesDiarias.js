@@ -4285,6 +4285,7 @@ editSubmitButtonText: {
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
+        backgroundColor: '#d4e4ff',
     },
     loadingText: {
         fontSize: 16,

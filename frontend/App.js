@@ -13,6 +13,8 @@ import {
     TouchableOpacity,
     ImageBackground,
     StyleSheet,
+    Modal,
+    Pressable
 } from "react-native";
 import { List } from "react-native-paper";
 import {
@@ -1111,55 +1113,62 @@ const AppNavigator = () => {
                                 </TouchableOpacity>
 
                                 {/* Modal do perfil */}
-                                {profileMenuVisible && isLoggedIn && (
-                                    <View style={profileMenuStyles.dropdown}>
-                                        <TouchableOpacity
-                                            style={[
-                                                profileMenuStyles.menuItem,
-                                                profileMenuStyles.buttonStyle,
-                                            ]}
-                                            onPress={() => {
-                                                console.log("Clicou no perfil");
-                                                setProfileMenuVisible(false);
-                                                navigation.navigate("Perfil");
-                                            }}
-                                            activeOpacity={0.6}
-                                        >
-                                            <FontAwesome
-                                                name="user"
-                                                size={16}
-                                                color="#1792FE"
-                                            />
-                                            <Text style={profileMenuStyles.menuText}>
-                                                Perfil
-                                            </Text>
-                                        </TouchableOpacity>
+                                {/* Menu de perfil com click-outside */}
+<Modal
+  transparent
+  visible={profileMenuVisible && isLoggedIn}
+  animationType="fade"
+  onRequestClose={() => setProfileMenuVisible(false)}
+>
+  {/* Backdrop que fecha ao clicar fora */}
+  <Pressable
+    style={StyleSheet.absoluteFill}
+    onPress={() => setProfileMenuVisible(false)}
+  />
 
-                                        <View style={profileMenuStyles.divider} />
+  {/* Contentor para posicionar o dropdown no canto superior direito */}
+  <View pointerEvents="box-none" style={{ flex: 1 }}>
+    <View
+      style={[
+        profileMenuStyles.dropdown,
+        { position: "absolute", top: 56, right: 10 } // ajusta se precisares
+      ]}
+    >
+      <TouchableOpacity
+        style={[
+          profileMenuStyles.menuItem,
+          profileMenuStyles.buttonStyle,
+        ]}
+        onPress={() => {
+          setProfileMenuVisible(false);
+          navigation.navigate("Perfil");
+        }}
+        activeOpacity={0.6}
+      >
+        <FontAwesome name="user" size={16} color="#1792FE" />
+        <Text style={profileMenuStyles.menuText}>Perfil</Text>
+      </TouchableOpacity>
 
-                                        <TouchableOpacity
-                                            style={[
-                                                profileMenuStyles.menuItem,
-                                                profileMenuStyles.buttonStyle,
-                                            ]}
-                                            onPress={() => {
-                                                console.log("Clicou em sair");
-                                                setProfileMenuVisible(false);
-                                                handleLogout();
-                                            }}
-                                            activeOpacity={0.6}
-                                        >
-                                            <FontAwesome
-                                                name="sign-out"
-                                                size={16}
-                                                color="#1792FE"
-                                            />
-                                            <Text style={profileMenuStyles.menuText}>
-                                                Sair
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
+      <View style={profileMenuStyles.divider} />
+
+      <TouchableOpacity
+        style={[
+          profileMenuStyles.menuItem,
+          profileMenuStyles.buttonStyle,
+        ]}
+        onPress={() => {
+          setProfileMenuVisible(false);
+          handleLogout();
+        }}
+        activeOpacity={0.6}
+      >
+        <FontAwesome name="sign-out" size={16} color="#1792FE" />
+        <Text style={profileMenuStyles.menuText}>Sair</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
+
 
                                 {/* Botão de Idioma */}
                                 <TouchableOpacity

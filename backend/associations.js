@@ -42,36 +42,43 @@ Submodulo.belongsToMany(User, { through: UserSubmodulo, as: 'utilizadores', fore
 
 
 // Associação entre Empresa e Modulo
-Empresa.belongsToMany(Modulo, { through: 'EmpresaModulo', foreignKey: 'empresa_id', as: 'modulos' });
-Modulo.belongsToMany(Empresa, { through: 'EmpresaModulo', foreignKey: 'modulo_id', as: 'empresas' });
+Empresa.belongsToMany(Modulo, { through: EmpresaModulo, foreignKey: 'empresa_id', as: 'modulos' });
+Modulo.belongsToMany(Empresa, { through: EmpresaModulo, foreignKey: 'modulo_id', as: 'empresas' });
 
 // Associações entre Empresa e Submodulo (many-to-many)
 Empresa.belongsToMany(Submodulo, {
-    through: 'empresa_submodulo',
+    through: EmpresaSubmodulo,
     as: 'submodulos',
     foreignKey: 'empresa_id',
     otherKey: 'submodulo_id'
 });
 
 Submodulo.belongsToMany(Empresa, {
-    through: 'empresa_submodulo',
+    through: EmpresaSubmodulo,
     as: 'empresas',
     foreignKey: 'submodulo_id',
     otherKey: 'empresa_id'
 });
 
+// User_Empresa associações
+UserEmpresa.belongsTo(User, { foreignKey: "user_id" });
+UserEmpresa.belongsTo(Empresa, { foreignKey: "empresa_id" });
 
+// User_Modulo associações
+UserModulo.belongsTo(User, { foreignKey: "user_id" });
+UserModulo.belongsTo(Modulo, { foreignKey: "modulo_id" });
+UserModulo.belongsTo(Empresa, { foreignKey: "empresa_id" });
 
-
-
-
+// User_Submodulo associações
+UserSubmodulo.belongsTo(User, { foreignKey: "user_id" });
+UserSubmodulo.belongsTo(Submodulo, { foreignKey: "submodulo_id" });
+UserSubmodulo.belongsTo(Empresa, { foreignKey: "empresa_id" });
 
 // Relacionamentos para EquipaObra
 User.hasMany(EquipaObra, { foreignKey: 'user_id', as: 'equipasMembro' });
 User.hasMany(EquipaObra, { foreignKey: 'encarregado_id', as: 'equipasEncarregado' });
 EquipaObra.belongsTo(User, { foreignKey: 'user_id', as: 'membro' });
 EquipaObra.belongsTo(User, { foreignKey: 'encarregado_id', as: 'encarregado' });
-
 
 
 // Relacionamento RegistoPonto com Obra

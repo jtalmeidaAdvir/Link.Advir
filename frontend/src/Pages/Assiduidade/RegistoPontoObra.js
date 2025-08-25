@@ -16,6 +16,7 @@ import NotificacaoCombinada from './components/NotificacaoCombinada';
 import Select from 'react-select';
 import { useAppStateRefresh } from '../Autenticacao/utils/useAppStateRefresh';
 import { useEnsureValidTokens } from '../../utils/useEnsureValidTokens';
+import backgroundImage from '../../../images/ImagemFundo.png';
 
 
 const RegistoPontoObra = (props) => {
@@ -453,7 +454,24 @@ const RegistoPontoObra = (props) => {
     console.log('tipoUser:', tipoUser);
 
     return (
-        <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{ overflowX: 'hidden', background: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)' }}>
+        <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{ 
+            overflowX: 'hidden',
+            backgroundImage: `url(${backgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'fixed',
+            position: 'relative'
+        }}>
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(to bottom, rgba(227, 242, 253, 0.8), rgba(187, 222, 251, 0.8), rgba(144, 202, 249, 0.8))',
+                zIndex: 0
+            }}></div>
 
             <style jsx>{`
 
@@ -555,6 +573,7 @@ const RegistoPontoObra = (props) => {
                 </div>
             )}
 
+            <div style={{ position: 'relative', zIndex: 1 }}>
             <div className="row justify-content-center">
                 <div className="col-12 col-xl-10">
                     {/* Header */}
@@ -871,6 +890,7 @@ const RegistoPontoObra = (props) => {
 
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     );
