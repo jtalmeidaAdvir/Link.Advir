@@ -19,10 +19,14 @@ import {
   Ionicons,
 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useEnsureValidTokens } from "../../utils/useEnsureValidTokens";
 
 const { width, height } = Dimensions.get("window");
 
 const MapaRegistos = ({ navigation }) => {
+  // Garantir que os tokens estão válidos
+  useEnsureValidTokens();
+  
   const { width: winW, height: winH } = useWindowDimensions();
   const isSmall = winW < 520;
   const isMedium = winW >= 520 && winW < 900;
@@ -55,14 +59,63 @@ const MapaRegistos = ({ navigation }) => {
   const [obras, setObras] = useState([]);
   const [users, setUsers] = useState([]);
   const [mapaLoaded, setMapaLoaded] = useState(false);
+  const [userModules, setUserModules] = useState([]);
 
   const mapaRef = useRef(null);
   const containerRef = useRef(null);
 
+  // Função para verificar se o utilizador tem determinado submódulo
+  const hasSubmodule = (moduleName, submoduleName) => {
+    return userModules.some(
+      (module) =>
+        module.nome === moduleName &&
+        module.submodulos.some((sub) => sub.nome === submoduleName)
+    );
+  };
+
+  // Função para determinar a navegação correta
+  const getNavigationTarget = () => {
+    if (hasSubmodule("Obras", "Obras")) {
+      return "Obras";
+    } else if (hasSubmodule("Obras", "Escritório")) {
+      return "Escritorio";
+    } else {
+      return "Home"; // Fallback
+    }
+  };
+
   useEffect(() => {
     carregarLeaflet();
     carregarRegistos();
+    carregarModulosUtilizador();
   }, []);
+
+  // Função para carregar os módulos do utilizador
+  const carregarModulosUtilizador = async () => {
+    try {
+      const token = localStorage.getItem("loginToken");
+      const userId = localStorage.getItem("userId");
+      const empresaId = await AsyncStorage.getItem("empresa_id");
+
+      if (userId && token) {
+        let url = `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`;
+
+        // Se há empresa selecionada, adicionar o parâmetro
+        if (empresaId) {
+          url += `?empresa_id=${empresaId}`;
+        }
+
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        setUserModules(data.modulos || []);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar módulos do utilizador:", error);
+      setUserModules([]);
+    }
+  };
 
   useEffect(() => {
     carregarRegistos();
@@ -462,7 +515,7 @@ const MapaRegistos = ({ navigation }) => {
       <View style={styles.headerContent}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.navigate("Obras")}
+          onPress={() => navigation.navigate(getNavigationTarget())}
         >
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
