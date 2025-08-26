@@ -137,8 +137,13 @@ const criar = async (req, res) => {
       return res.status(400).json({ message: 'data_fim não pode ser anterior a data_inicio.' });
     }
 
-    // Regra simples para evitar duplicados óbvios não anulados na mesma empresa
+    // Usar empresa_id do header ou do user autenticado
     const empresaIdFinal = empresa_id || req.headers['x-empresa-id'] || req.user?.empresa_id;
+    if (!empresaIdFinal) {
+      return res.status(400).json({ message: 'empresa_id é obrigatório.' });
+    }
+
+    // Regra simples para evitar duplicados óbvios não anulados na mesma empresa
     const existente = await TrabalhadorExterno.findOne({
       where: { 
         empresa_id: parseInt(empresaIdFinal, 10),
@@ -150,10 +155,6 @@ const criar = async (req, res) => {
     });
     if (existente) {
       return res.status(409).json({ message: 'Já existe um registo ativo/anulado=false com a mesma empresa/funcionário/categoria.' });
-    }
-
-    if (!empresaIdFinal) {
-      return res.status(400).json({ message: 'empresa_id é obrigatório.' });
     }
 
     const novo = await TrabalhadorExterno.create({
@@ -250,13 +251,26 @@ const eliminar = async (req, res) => {
     
     // Filtrar pela empresa do usuário logado
     const empresaId = req.headers['x-empresa-id'] || req.user?.empresa_id;
+    console.log('Eliminando trabalhador externo:', { 
+      id: req.params.id, 
+      empresaId, 
+      headers: req.headers['x-empresa-id'],
+      user: req.user?.empresa_id 
+    });
+    
     if (empresaId) {
       where.empresa_id = parseInt(empresaId, 10);
     }
+    
+    console.log('Where clause para eliminar:', where);
 
     const reg = await TrabalhadorExterno.findOne({ where });
-    if (!reg) return res.status(404).json({ message: 'Registo não encontrado.' });
+    if (!reg) {
+      console.log('Registo não encontrado para eliminar:', where);
+      return res.status(404).json({ message: 'Registo não encontrado.' });
+    }
 
+    console.log('Registo encontrado para eliminar:', { id: reg.id, empresa_id: reg.empresa_id });
     await reg.destroy();
     res.status(200).json({ message: 'Registo eliminado com sucesso.' });
   } catch (error) {
@@ -272,12 +286,26 @@ const anular = async (req, res) => {
     
     // Filtrar pela empresa do usuário logado
     const empresaId = req.headers['x-empresa-id'] || req.user?.empresa_id;
+    console.log('Anulando trabalhador externo:', { 
+      id: req.params.id, 
+      empresaId, 
+      headers: req.headers['x-empresa-id'],
+      user: req.user?.empresa_id 
+    });
+    
     if (empresaId) {
       where.empresa_id = parseInt(empresaId, 10);
     }
+    
+    console.log('Where clause para anular:', where);
 
     const reg = await TrabalhadorExterno.findOne({ where });
-    if (!reg) return res.status(404).json({ message: 'Registo não encontrado.' });
+    if (!reg) {
+      console.log('Registo não encontrado para anular:', where);
+      return res.status(404).json({ message: 'Registo não encontrado.' });
+    }
+
+    console.log('Registo encontrado para anular:', { id: reg.id, empresa_id: reg.empresa_id });
     await reg.update({ anulado: true, ativo: false });
     res.status(200).json(reg);
   } catch (error) {
