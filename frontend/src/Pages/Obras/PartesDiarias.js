@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
     View,
@@ -38,6 +37,7 @@ const PartesDiarias = ({ navigation }) => {
     const [mesAno, setMesAno] = useState({ mes: new Date().getMonth() + 1, ano: new Date().getFullYear() });
     const [dadosProcessados, setDadosProcessados] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
+    const [modalExternosVisible, setModalExternosVisible] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [selectedTrabalhador, setSelectedTrabalhador] = useState(null);
     const [selectedDia, setSelectedDia] = useState(null);
@@ -122,7 +122,6 @@ const codToUser = useMemo(() => {
 
 
 // === EXTERNOS ===
-const [modalExternosVisible, setModalExternosVisible] = useState(false);
 const [externosLista, setExternosLista] = useState([]);           // da tabela trabalhadores_externos
 const [linhasExternos, setLinhasExternos] = useState([]);         // linhas que vais submeter
 const [linhaAtual, setLinhaAtual] = useState({
@@ -233,12 +232,12 @@ const carregarExternos = useCallback(async () => {
   try {
     const token = await AsyncStorage.getItem('loginToken');
     const empresaId = await AsyncStorage.getItem('empresa_id');
-    
+
     const headers = { 
       Authorization: `Bearer ${token}`,
       'X-Empresa-ID': empresaId // Enviar empresa_id no header
     };
-    
+
     const res = await fetch('https://backend.advir.pt/api/trabalhadores-externos?ativo=true&anulado=false&pageSize=500', {
       headers
     });
@@ -806,7 +805,7 @@ const getMinutosCell = useCallback((item, dia) => {
         { label: 'Mão de Obra', value: 'MaoObra' },
         { label: 'Equipamentos', value: 'Equipamentos' }
     ];
-    
+
 
     // === HELPER: extrai as linhas (uma só data + uma só obra) ===
 const montarLinhasDoDia = (item, dia, obraIdDia) => {
@@ -860,13 +859,14 @@ const montarLinhasDoDia = (item, dia, obraIdDia) => {
 const postarItensGrupo = async (documentoID, obraId, dataISO, codFuncionario, linhas) => {
   const painelToken = await AsyncStorage.getItem('painelAdminToken');
 
+  let numeroSequencial = 1; // contador para numeração correta
+
   for (let i = 0; i < linhas.length; i++) {
     const l = linhas[i];
 
-    // para equipamentos, é obrigatório o SubEmpID/ComponenteID
+    // validação mais flexível: só avisa se equipamento não tem subEmpId, mas não bloqueia
     if (l.categoria === 'Equipamentos' && !l.subEmpId) {
-      console.warn(`⛔ Equipamento sem SubEmpID em ${dataISO} (obra ${obraId}). Linha ignorada.`);
-      continue;
+      console.warn(`⚠️ Equipamento sem SubEmpID em ${dataISO} (obra ${obraId}). Enviando mesmo assim.`);
     }
 
     const [yyyy, mm, dd] = dataISO.split('-').map(Number);
@@ -876,7 +876,7 @@ const postarItensGrupo = async (documentoID, obraId, dataISO, codFuncionario, li
       DocumentoID: documentoID,
       ObraID: obraId,
       Data: dataISO,
-      Numero: i + 1,
+      Numero: numeroSequencial, // usa contador sequencial
       ColaboradorID: codFuncionario,
       Funcionario: String(codFuncionario),
       ClasseID: 1,
@@ -886,6 +886,8 @@ const postarItensGrupo = async (documentoID, obraId, dataISO, codFuncionario, li
       categoria: l.categoria, // 'MaoObra' | 'Equipamentos'
       TipoHoraID: tipoHoraId,
     };
+
+    console.log(`📝 Enviando item ${numeroSequencial} (${l.categoria}) para ${dataISO}:`, payloadItem);
 
     const resp = await fetch('https://backend.advir.pt/api/parte-diaria/itens', {
       method: 'POST',
@@ -898,7 +900,11 @@ const postarItensGrupo = async (documentoID, obraId, dataISO, codFuncionario, li
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
-      console.warn(`Erro a criar item (${i + 1}) em ${dataISO} obra ${obraId}`, err);
+      console.error(`❌ Erro a criar item ${numeroSequencial} em ${dataISO} obra ${obraId}:`, err);
+      throw new Error(`Falha ao criar item ${numeroSequencial}: ${err.erro || 'Erro desconhecido'}`);
+    } else {
+      console.log(`✅ Item ${numeroSequencial} (${l.categoria}) criado com sucesso`);
+      numeroSequencial++; // incrementa apenas se criou com sucesso
     }
   }
 };
@@ -910,10 +916,10 @@ const postarItensGrupo = async (documentoID, obraId, dataISO, codFuncionario, li
     // Função para converter minutos para formato H:MM
     const formatarHorasMinutos = useCallback((minutos) => {
         if (minutos === 0) return '-';
-        
+
         const horas = Math.floor(minutos / 60);
         const mins = minutos % 60;
-        
+
         if (horas === 0) {
             return `${mins}m`;
         } else if (mins === 0) {
@@ -957,7 +963,7 @@ const postarItensGrupo = async (documentoID, obraId, dataISO, codFuncionario, li
 
     const carregarDados = async () => {
  setLoadingProgress(0);
-        
+
         try {
             // Verificar cache primeiro
             const cachedData = getCachedData(cacheKey);
@@ -981,12 +987,12 @@ const postarItensGrupo = async (documentoID, obraId, dataISO, codFuncionario, li
                 processarDadosPartes(cachedData.registos || [], cachedData.equipas || []);
 return { equipas: cachedData.equipas, registos: cachedData.registos };
 
- 
+
             }
  const resultado = await carregarDadosReais();
 
   return resultado;  
-            
+
         } catch (error) {
             console.error('Erro ao carregar dados:', error);
             Alert.alert('Erro', 'Erro ao carregar os dados necessários');
@@ -1003,8 +1009,8 @@ return { equipas: cachedData.equipas, registos: cachedData.registos };
         }
 
         try {
-            setLoadingProgress(10);
-            
+            setLoadingProgress(0); // resetar progresso
+
             // 1. Buscar minhas equipas primeiro
             console.log('Carregando equipas...');
             const equipasResponse = await fetch('https://backend.advir.pt/api/equipa-obra/minhas-agrupadas', {
@@ -1016,10 +1022,10 @@ return { equipas: cachedData.equipas, registos: cachedData.registos };
             }
 
             const equipasData = await equipasResponse.json();
-            setLoadingProgress(20);
-            
+            setLoadingProgress(10);
+
             // Transformar dados para o formato esperado
-            
+
             const getEquipaObraId = (equipa) =>
    // tenta várias formas comuns que a API pode devolver
    equipa.obraId ??
@@ -1038,7 +1044,7 @@ return { equipas: cachedData.equipas, registos: cachedData.registos };
  }));
 
             setEquipas(equipasFormatadas);
-            setLoadingProgress(30);
+            setLoadingProgress(20);
 
             // 2. Coletar todos os IDs dos membros
             const membrosIds = [];
@@ -1063,7 +1069,7 @@ return { equipas: cachedData.equipas, registos: cachedData.registos };
 
 
             console.log('IDs dos membros encontrados:', membrosIds);
-            setLoadingProgress(40);
+            setLoadingProgress(30);
 
             if (membrosIds.length === 0) {
                 console.log('Nenhum membro encontrado nas equipas');
@@ -1076,26 +1082,26 @@ return { equipas: cachedData.equipas, registos: cachedData.registos };
             // 3. Carregar registos de forma otimizada com requisições paralelas
             const todosRegistos = [];
             const obrasUnicas = new Map();
-            
+
             console.log('Carregando registos de ponto...');
-            
+
             // Criar chunks de requisições para não sobrecarregar o servidor
             const CHUNK_SIZE = 5; // Processar 5 membros por vez
             const CONCURRENT_DAYS = 7; // Processar 7 dias por vez
 
             for (let i = 0; i < membrosIds.length; i += CHUNK_SIZE) {
                 const membrosChunk = membrosIds.slice(i, i + CHUNK_SIZE);
-                
+
                 // Para cada chunk de membros, processar dias em paralelo
                 for (let j = 0; j < diasDoMes.length; j += CONCURRENT_DAYS) {
                     const diasChunk = diasDoMes.slice(j, j + CONCURRENT_DAYS);
-                    
+
                     const promises = [];
-                    
+
                     membrosChunk.forEach(membroId => {
                         diasChunk.forEach(dia => {
                             const dataFormatada = `${mesAno.ano}-${String(mesAno.mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-                            
+
                             const promise = fetch(
                                 `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-e-dia?user_id=${membroId}&data=${dataFormatada}`,
                                 {
@@ -1111,22 +1117,22 @@ return { equipas: cachedData.equipas, registos: cachedData.registos };
                                 console.log(`Erro ao buscar registos para membro ${membroId} no dia ${dataFormatada}:`, error);
                                 return { membroId, dia, registos: [] };
                             });
-                            
+
                             promises.push(promise);
                         });
                     });
-                    
+
                     // Aguardar todas as requisições do chunk
                     const results = await Promise.all(promises);
-                    
-                    
+
+
 
                     // Processar resultados
                     results.forEach(({ registos }) => {
                         registos.forEach(registo => {
-                            if (registo && registo.User && registo.Obra) {
+                            if (registo && registo.User && registo.Obra && registo.timestamp) {
                                 todosRegistos.push(registo);
-                                
+
                                 // Coletar obras únicas
                                 if (!obrasUnicas.has(registo.Obra.id)) {
                                     obrasUnicas.set(registo.Obra.id, {
@@ -1138,9 +1144,9 @@ return { equipas: cachedData.equipas, registos: cachedData.registos };
                             }
                         });
                     });
-                    
+
                     // Atualizar progresso
-                    const progressIncrement = 50 / (membrosIds.length * diasDoMes.length / (CHUNK_SIZE * CONCURRENT_DAYS));
+                    const progressIncrement = 60 / (Math.ceil(membrosIds.length / CHUNK_SIZE) * Math.ceil(diasDoMes.length / CONCURRENT_DAYS));
                     setLoadingProgress(prev => Math.min(90, prev + progressIncrement));
                 }
             }
@@ -1153,7 +1159,7 @@ return { equipas: cachedData.equipas, registos: cachedData.registos };
 
             setObras(obrasArray);
             setRegistosPonto(todosRegistos);
-            
+
             // Armazenar no cache
             setCachedData(cacheKey, {
                 equipas: equipasFormatadas,
@@ -1166,7 +1172,7 @@ return { equipas: cachedData.equipas, registos: cachedData.registos };
             setLoadingProgress(100);
             processarDadosPartes(todosRegistos, equipasFormatadas);
 return { equipas: equipasFormatadas, registos: todosRegistos };
-            
+
 
 
         } catch (error) {
@@ -1178,7 +1184,7 @@ return { equipas: equipasFormatadas, registos: todosRegistos };
 const agruparRegistosPorUserObra = useCallback((registos) => {
   const map = new Map();
   for (const r of registos) {
-    if (!r?.User || !r?.Obra || !r?.timestamp) continue;
+    if (!r?.User?.id || !r?.Obra?.id || !r?.timestamp) continue;
     const dt = new Date(r.timestamp);
     if (dt.getFullYear() !== mesAno.ano || (dt.getMonth()+1) !== mesAno.mes) continue;
     const key = `${r.User.id}-${r.Obra.id}`;
@@ -1199,9 +1205,8 @@ const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
   registosPorUsuarioObra.forEach(grupo => {
     const horasPorDia = calcularHorasPorDia(grupo.registos, diasDoMes);
 
-    const horasOriginaisPorDia = { ...horasPorDia };
     const horasPorDefeito = {};
-    diasDoMes.forEach(d => (horasPorDefeito[d] = horasOriginaisPorDia[d] > 0 ? 480 : 0));
+    diasDoMes.forEach(d => (horasPorDefeito[d] = horasPorDia[d] > 0 ? 480 : 0));
 
     const cod = codMap[grupo.user.id] || null;
 
@@ -1214,11 +1219,11 @@ const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
       obraNome: grupo.obra.nome,
       obraCodigo: grupo.obra.codigo,
       horasPorDia: horasPorDefeito,
-      horasOriginais: horasOriginaisPorDia,
+      horasOriginais: horasPorDia, // guarda as horas originais do ponto
       // NEW: se quiseres guardar para UI, mas sem misturar com o ponto
       horasSubmetidasPorDia: null,
       totalMinSubmetido: 0,
-      isOriginal: true,
+      isOriginal: true, // Marca como sendo do ponto original
     });
   });
 
@@ -1246,7 +1251,7 @@ const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
       // NEW: aqui mostramos as horas do "parte diária"
       horasSubmetidasPorDia: row.horasPorDia,
       totalMinSubmetido: row.totalMin,
-      isOriginal: false,
+      isOriginal: false, // Marca que não é do ponto
       fromSubmittedOnly: true, // marca que esta linha vem só da PD
     });
   });
@@ -1335,7 +1340,7 @@ const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
      });
    });
 
-  
+
   setDadosProcessados(linhas);
 }, [diasDoMes, equipas, codMap, submetidosPorUserObra, obrasParaPickers, obras, codToUser]);
 
@@ -1352,7 +1357,7 @@ useEffect(() => {
     // Memoizar cálculo de horas para melhor performance
     const calcularHorasPorDia = useCallback((registos, diasDoMes) => {
         const horasPorDia = {};
-        
+
         // Inicializar todos os dias com 0
         diasDoMes.forEach(dia => {
             horasPorDia[dia] = 0;
@@ -1360,10 +1365,10 @@ useEffect(() => {
 
         // Agrupar registos por data apenas (não por obra, pois queremos somar por dia)
         const registosPorData = new Map();
-        
+
         registos.forEach(registo => {
             const data = new Date(registo.timestamp).toISOString().split('T')[0];
-            
+
             if (!registosPorData.has(data)) {
                 registosPorData.set(data, []);
             }
@@ -1381,7 +1386,7 @@ useEffect(() => {
             // Processar registos sequencialmente
             for (let i = 0; i < registosDia.length; i++) {
                 const registo = registosDia[i];
-                
+
                 if (registo.tipo === 'entrada') {
                     // Nova entrada - guarda o timestamp
                     ultimaEntrada = new Date(registo.timestamp);
@@ -1398,7 +1403,7 @@ useEffect(() => {
             if (ultimaEntrada) {
                 const fimDia = new Date(ultimaEntrada);
                 fimDia.setHours(18, 0, 0, 0);
-                
+
                 if (ultimaEntrada < fimDia) {
                     const minutos = (fimDia - ultimaEntrada) / (1000 * 60);
                     totalMinutosDia += Math.max(0, minutos);
@@ -1435,7 +1440,8 @@ useEffect(() => {
               obraId: trabalhador.obraId,
               notaDia: trabalhador?.notasPorDia?.[dia] ?? ''   // <- carrega nota já existente 
             }
-         ]
+         ],
+         notaDia: trabalhador?.notasPorDia?.[dia] ?? '' // carrega a nota do dia
     });
     setEditModalVisible(true);
  }, []);
@@ -1446,13 +1452,13 @@ const adicionarEspecialidade = useCallback(() => {
 
 
   novasEspecialidades.push({
-    horas: 0,
+    dia: selectedDia,
     categoria: 'MaoObra',
     especialidade: '',
     subEmpId: null,
-    dia: selectedDia,
-    horaExtra: false,
+    horas: 0,
     obraId: selectedTrabalhador?.obraId,
+    horaExtra: false,
   });
 
   setEditData({
@@ -1506,7 +1512,7 @@ const codRaw = String(codFuncionario ?? '');
 };
 
 
-    
+
   const salvarEdicao = useCallback(() => {
   if (!selectedTrabalhador || !selectedDia) return;
 
@@ -1545,7 +1551,6 @@ const codRaw = String(codFuncionario ?? '');
               horas: Math.round((l.minutos / 60) * 100) / 100, // guarda em horas decimais
               subEmpId: l.subEmpId,
               horaExtra: !!l.horaExtra,
-              obraId: it.obraId,
             });
           });
 
@@ -1584,7 +1589,7 @@ const codRaw = String(codFuncionario ?? '');
           obraNome: obraMeta.nome,
           obraCodigo: obraMeta.codigo,
           horasPorDia: baseHoras,
-          horasOriginais: {},      // sem ponto (manual)
+          horasOriginais: {},
           especialidades: [],
           isOriginal: false
         });
@@ -1604,7 +1609,6 @@ const codRaw = String(codFuncionario ?? '');
             horas: Math.round((l.minutos / 60) * 100) / 100,
             subEmpId: l.subEmpId,
             horaExtra: !!l.horaExtra,
-            obraId
           });
         });
 
@@ -1635,7 +1639,7 @@ const codRaw = String(codFuncionario ?? '');
   Alert.alert('Sucesso', 'Horas distribuídas pelas obras selecionadas.');
 }, [selectedTrabalhador, selectedDia, editData, obras, diasDoMes, codMap]);
 
-    
+
 const obterCodFuncionario = async (userId) => {
   const painelToken = await AsyncStorage.getItem("painelAdminToken");
 
@@ -2007,14 +2011,14 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                 >
                     <Ionicons name="chevron-back" size={20} color="#1792FE" />
                 </TouchableOpacity>
-                
+
                 <Text style={styles.monthText}>
                     {new Date(mesAno.ano, mesAno.mes - 1).toLocaleDateString('pt-PT', { 
                         month: 'long', 
                         year: 'numeric' 
                     })}
                 </Text>
-                
+
                 <TouchableOpacity
                     style={styles.monthButton}
                     onPress={() => {
@@ -2171,7 +2175,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                 <Text style={styles.externosFormTitle}>
                   <Ionicons name="document-text" size={16} color="#1792FE" /> Novo Registo
                 </Text>
-                
+
                 {/* Grid responsivo para campos */}
                 <View style={styles.externosFormGrid}>
                   {/* Obra */}
@@ -2374,7 +2378,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                     <Ionicons name="list" size={16} color="#1792FE" /> 
                     Itens para Submeter ({linhasExternos.length})
                   </Text>
-                  
+
                   {linhasExternos.map(l => (
                     <View key={l.key} style={styles.externosListItem}>
                       <View style={styles.externosListItemContent}>
@@ -2388,7 +2392,7 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                             </Text>
                           </View>
                         </View>
-                        
+
                         <Text style={styles.externosListItemDetails}>
                           <Ionicons name="business" size={12} color="#666" /> {l.empresa}
                           {' • '}
@@ -2397,12 +2401,12 @@ const criarItensParaMembro = async (documentoID, item, codFuncionario, mesAno, d
                           <Ionicons name="cash" size={12} color="#666" /> {l.valor?.toFixed(2)} {l.moeda}
                           {l.horaExtra && ' • Extra'}
                         </Text>
-                        
+
                         <Text style={styles.externosListItemCategory}>
                           {l.categoria === 'Equipamentos' ? '🔧' : '👷'} {l.especialidadeDesc || l.especialidadeCodigo}
                         </Text>
                       </View>
-                      
+
                       <TouchableOpacity 
                         onPress={() => removerLinhaExterno(l.key)}
                         style={styles.externosListItemDelete}
@@ -2824,7 +2828,7 @@ const renderDataSheet = () => {
   </View>
 </View>
 
-                                  
+
                               </View>
                           ))}
                             {/* === EXTERNOS na vista por UTILIZADOR === */}
@@ -2900,7 +2904,7 @@ const renderDataSheet = () => {
   </>
 )}
                       </View>
-                    
+
 
                   </ScrollView>
               </ScrollView>
@@ -2931,8 +2935,8 @@ const renderDataSheet = () => {
                         <Text style={styles.confirmText}>
                             Pretende gerar as partes diárias os registos de ponto que mapeou as respetivas tarefas?
                         </Text>
-                        
-                  
+
+
 
                         <View style={styles.confirmButtons}>
                             <TouchableOpacity
@@ -3003,7 +3007,7 @@ const renderDataSheet = () => {
                                 <Text style={styles.editInfoTitle}>
                                     <Ionicons name="person" size={16} color="#1792FE" /> Informações do Registo
                                 </Text>
-                                
+
                                 <View style={styles.editInfoGrid}>
                                     <View style={styles.editInfoItem}>
                                         <Text style={styles.editInfoLabel}>
@@ -3011,7 +3015,7 @@ const renderDataSheet = () => {
                                         </Text>
                                         <Text style={styles.editInfoValue}>{selectedTrabalhador.userName}</Text>
                                     </View>
-                                    
+
                                     <View style={styles.editInfoItem}>
                                         <Text style={styles.editInfoLabel}>
                                             <Ionicons name="business" size={14} color="#666" /> Obra Principal
@@ -3029,7 +3033,7 @@ const renderDataSheet = () => {
                                             {formatarHorasMinutos(selectedTrabalhador.horasOriginais[selectedDia] || 0)}
                                         </Text>
                                     </View>
-                                    
+
                                     <View style={styles.editInfoItem}>
                                         <Text style={styles.editInfoLabel}>
                                             <Ionicons name="clipboard" size={14} color="#666" /> Para Parte Diária
@@ -3120,7 +3124,7 @@ const renderDataSheet = () => {
                                                     Hora Extra
                                                 </Text>
                                             </TouchableOpacity>
-                                            
+
                                             {editData.especialidadesDia.length > 1 && (
                                                 <TouchableOpacity
                                                     style={styles.editRemoveButton}
@@ -3170,9 +3174,9 @@ const renderDataSheet = () => {
                                                         atualizarEspecialidade(index, 'horas', 0);
                                                         return;
                                                     }
-                                                    
+
                                                     let minutos = 0;
-                                                    
+
                                                     if (value.includes(':')) {
                                                         const [h, m] = value.split(':');
                                                         const horas = parseInt(h) || 0;
@@ -3182,7 +3186,7 @@ const renderDataSheet = () => {
                                                         const horas = parseFloat(value) || 0;
                                                         minutos = Math.round(horas * 60);
                                                     }
-                                                    
+
                                                     const horasDecimais = minutos / 60;
                                                     atualizarEspecialidade(index, 'horas', horasDecimais);
                                                 }}
@@ -4228,7 +4232,7 @@ editSubmitButtonText: {
     tableWrapper: {
         flex: 1,
         margin: 10,
-        
+
         borderRadius: 10,
         elevation: 2,
     },
