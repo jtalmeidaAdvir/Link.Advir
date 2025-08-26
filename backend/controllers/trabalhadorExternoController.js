@@ -94,6 +94,7 @@ const listarCategoriasDistintas = async (_req, res) => {
 const criar = async (req, res) => {
   try {
     const {
+      empresa_id,
       empresa,
       funcionario,
       categoria,
@@ -104,8 +105,8 @@ const criar = async (req, res) => {
       observacoes,
     } = req.body;
 
-    if (!empresa || !funcionario || valor === undefined) {
-      return res.status(400).json({ message: 'empresa, funcionario e valor são obrigatórios.' });
+    if (!empresa_id || !empresa || !funcionario || valor === undefined) {
+      return res.status(400).json({ message: 'empresa_id, empresa, funcionario e valor são obrigatórios.' });
     }
 
     const v = Number(valor);
@@ -124,6 +125,7 @@ const criar = async (req, res) => {
     }
 
     const novo = await TrabalhadorExterno.create({
+      empresa_id,
       empresa,
       funcionario,
       categoria: categoria || null,
@@ -160,7 +162,7 @@ const atualizar = async (req, res) => {
     if (!reg) return res.status(404).json({ message: 'Registo não encontrado.' });
 
     const {
-      empresa, funcionario, categoria, valor, moeda,
+      empresa_id, empresa, funcionario, categoria, valor, moeda,
       ativo, anulado, data_inicio, data_fim, observacoes,
     } = req.body;
 
@@ -173,6 +175,7 @@ const atualizar = async (req, res) => {
     }
 
     await reg.update({
+      empresa_id: empresa_id ?? reg.empresa_id,
       empresa: empresa ?? reg.empresa,
       funcionario: funcionario ?? reg.funcionario,
       categoria: categoria ?? reg.categoria,

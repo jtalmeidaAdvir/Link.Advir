@@ -4,6 +4,9 @@ const { sequelize } = require('../config/db');
 const TrabalhadorExterno = sequelize.define('TrabalhadorExterno', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
 
+  // ID da empresa (relação com tabela empresas)
+  empresa_id: { type: DataTypes.INTEGER, allowNull: false },
+
   // Empresa externa/fornecedor (ex.: Rubinova, Gesto Decisivo)
   empresa: { type: DataTypes.STRING, allowNull: false },
 
@@ -30,6 +33,7 @@ const TrabalhadorExterno = sequelize.define('TrabalhadorExterno', {
   timestamps: true,
   tableName: 'trabalhador_externo',
   indexes: [
+    { fields: ['empresa_id'] },
     { fields: ['empresa'] },
     { fields: ['funcionario'] },
     { fields: ['categoria'] },
