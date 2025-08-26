@@ -1081,236 +1081,458 @@ const handleRejeitar = async (cab) => {
 
         <Modal visible={modalVisible} animationType="slide" onRequestClose={fecharModal}>
           <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Detalhes da Parte Diária</Text>
-              <TouchableOpacity onPress={fecharModal} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
+            {/* Header do Modal */}
+            <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.modalHeader}>
+              <View style={styles.modalHeaderContent}>
+                <Text style={styles.modalTitle}>Detalhes da Parte Diária</Text>
+                <TouchableOpacity onPress={fecharModal} style={styles.closeButton}>
+                  <Ionicons name="close" size={26} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
 
-            <ScrollView contentContainerStyle={styles.modalBody}>
+            <ScrollView 
+              contentContainerStyle={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+            >
               {selectedCabecalho && (
                 <>
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>Registado por</Text>
-                    <Text style={styles.modalValue}>
-                      {selectedCabecalho.CriadoPor || selectedCabecalho.Utilizador}
-                    </Text>
-                  </View>
+                  {/* Informações Principais */}
+                  <View style={styles.modalInfoCard}>
+                    <Text style={styles.modalSectionTitle}>Informações Gerais</Text>
+                    
+                    <View style={styles.modalInfoGrid}>
+                      <View style={styles.modalInfoItem}>
+                        <View style={styles.modalInfoIconContainer}>
+                          <Ionicons name="person-circle" size={24} color="#1792FE" />
+                        </View>
+                        <View style={styles.modalInfoContent}>
+                          <Text style={styles.modalInfoLabel}>Registado por</Text>
+                          <Text style={styles.modalInfoValue}>
+                            {selectedCabecalho.CriadoPor || selectedCabecalho.Utilizador}
+                          </Text>
+                        </View>
+                      </View>
 
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>Data do registo</Text>
-                    <Text style={styles.modalValue}>
-                      {new Date(selectedCabecalho.Data).toLocaleDateString('pt-PT')}
-                    </Text>
-                  </View>
+                      <View style={styles.modalInfoItem}>
+                        <View style={styles.modalInfoIconContainer}>
+                          <Ionicons name="calendar-outline" size={24} color="#1792FE" />
+                        </View>
+                        <View style={styles.modalInfoContent}>
+                          <Text style={styles.modalInfoLabel}>Data do registo</Text>
+                          <Text style={styles.modalInfoValue}>
+                            {new Date(selectedCabecalho.Data).toLocaleDateString('pt-PT', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </Text>
+                        </View>
+                      </View>
 
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>Estado</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedCabecalho.IntegradoERP) }]}>
-                      <Ionicons name={getStatusIcon(selectedCabecalho.IntegradoERP)} size={12} color="#fff" style={styles.statusIcon}/>
-                      <Text style={styles.statusText}>
-                        {selectedCabecalho.IntegradoERP ? 'Integrado' : 'Pendente'}
-                      </Text>
+                      <View style={styles.modalInfoItem}>
+                        <View style={styles.modalInfoIconContainer}>
+                          <Ionicons name="business-outline" size={24} color="#1792FE" />
+                        </View>
+                        <View style={styles.modalInfoContent}>
+                          <Text style={styles.modalInfoLabel}>Obra</Text>
+                          <Text style={styles.modalInfoValue}>
+                            {obrasMap[String(selectedCabecalho.ObraID)]
+                              ? `${obrasMap[String(selectedCabecalho.ObraID)].codigo} — ${obrasMap[String(selectedCabecalho.ObraID)].descricao}`
+                              : selectedCabecalho.ObraID}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.modalInfoItem}>
+                        <View style={styles.modalInfoIconContainer}>
+                          <Ionicons 
+                            name={getStatusIcon(selectedCabecalho.IntegradoERP)} 
+                            size={24} 
+                            color={getStatusColor(selectedCabecalho.IntegradoERP)} 
+                          />
+                        </View>
+                        <View style={styles.modalInfoContent}>
+                          <Text style={styles.modalInfoLabel}>Estado</Text>
+                          <View style={[styles.statusBadgeModal, { backgroundColor: getStatusColor(selectedCabecalho.IntegradoERP) }]}>
+                            <Text style={styles.statusTextModal}>
+                              {selectedCabecalho.IntegradoERP ? 'Integrado' : 'Pendente'}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
                     </View>
                   </View>
 
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>Itens da Parte Diária</Text>
+                  {/* Resumo dos Itens */}
+                  <View style={styles.modalSummaryCard}>
+                    <Text style={styles.modalSectionTitle}>Resumo</Text>
+                    <View style={styles.summaryGrid}>
+                      {(() => {
+                        const { pes, eq, ext } = contarPorCategoria(selectedCabecalho?.ParteDiariaItems);
+                        const totalHoras = selectedCabecalho?.ParteDiariaItems?.reduce((acc, item) => acc + (item.NumHoras || 0), 0) || 0;
+                        return (
+                          <>
+                            <View style={styles.summaryItem}>
+                              <Text style={styles.summaryValue}>{selectedCabecalho.ParteDiariaItems?.length || 0}</Text>
+                              <Text style={styles.summaryLabel}>Total Itens</Text>
+                            </View>
+                            <View style={styles.summaryItem}>
+                              <Text style={styles.summaryValue}>{formatarHoras(totalHoras)}</Text>
+                              <Text style={styles.summaryLabel}>Total Horas</Text>
+                            </View>
+                            <View style={styles.summaryItem}>
+                              <Text style={styles.summaryValue}>{pes}</Text>
+                              <Text style={styles.summaryLabel}>Pessoal</Text>
+                            </View>
+                            <View style={styles.summaryItem}>
+                              <Text style={styles.summaryValue}>{eq}</Text>
+                              <Text style={styles.summaryLabel}>Equipamentos</Text>
+                            </View>
+                            <View style={styles.summaryItem}>
+                              <Text style={styles.summaryValue}>{ext}</Text>
+                              <Text style={styles.summaryLabel}>Externos</Text>
+                            </View>
+                          </>
+                        );
+                      })()}
+                    </View>
+                  </View>
+
+                  {/* Lista de Itens */}
+                  <View style={styles.modalItemsSection}>
+                    <Text style={styles.modalSectionTitle}>Itens da Parte Diária</Text>
                     {selectedCabecalho.ParteDiariaItems?.length > 0 ? (
                       selectedCabecalho.ParteDiariaItems.map((item, index) => {
                         const externo = isExternoItem(item);
+                        const isEquipamento = String(item.Categoria || '').toLowerCase() === 'equipamentos';
                         return (
-                          <View key={`${String(item.ComponenteID)}-${index}`} style={styles.itemCard}>
-                            <View style={styles.itemHeader}>
-                              <Text style={styles.itemNumber}>Item {index + 1}</Text>
-                            </View>
-                            <View style={styles.itemContent}>
-                              <View style={styles.itemRow}>
-                                <Ionicons name="calendar" size={14} color="#666" />
-                                <Text style={styles.itemText}>Data: {item.Data}</Text>
-                              </View>
-                              <View style={styles.itemRow}>
-                                <Ionicons name="person" size={14} color="#666" />
-                                <Text style={styles.itemText}>
-                                  {externo
-                                    ? 'Colaborador: (Externo)'
-                                    : `Colaborador: ${cacheNomes[item.ColaboradorID] || item.ColaboradorID}`}
-                                </Text>
-                              </View>
-                              <View style={styles.itemRow}>
-                                <Ionicons name="business" size={14} color="#666" />
-                                <Text style={styles.itemText}>
-                                  Obra: {obrasMap[String(item.ObraID)]
-                                    ? `${obrasMap[String(item.ObraID)].codigo} — ${obrasMap[String(item.ObraID)].descricao}`
-                                    : item.ObraID}
-                                </Text>
-                              </View>
-                              <View style={styles.itemRow}>
-                                <Ionicons name="pricetag" size={14} color="#666" />
-                                {String(item.Categoria || '').toLowerCase() === 'equipamentos' ? (
-                                  <Text style={styles.itemText}>
-                                    Equipamento: {equipamentosMap[String(item.ComponenteID)] || equipamentosMap[String(item.SubEmpID)] || item.ComponenteID || item.SubEmpID}
+                          <View key={`${String(item.ComponenteID)}-${index}`} style={styles.modernItemCard}>
+                            {/* Header do Item */}
+                            <View style={styles.modernItemHeader}>
+                              <View style={styles.itemHeaderLeft}>
+                                <View style={[
+                                  styles.itemTypeBadge,
+                                  { backgroundColor: isEquipamento ? '#6f42c1' : '#17a2b8' }
+                                ]}>
+                                  <Ionicons 
+                                    name={isEquipamento ? 'construct' : 'people'} 
+                                    size={12} 
+                                    color="#fff" 
+                                  />
+                                  <Text style={styles.itemTypeBadgeText}>
+                                    {isEquipamento ? 'EQUIP' : 'PESSOAL'}
                                   </Text>
-                                ) : (
-                                  <Text style={styles.itemText}>
-                                    Especialidade: {especialidadesMap[String(item.SubEmpID)] || item.SubEmpID}
-                                  </Text>
-                                )}
+                                </View>
+                                <Text style={styles.modernItemNumber}>Item {index + 1}</Text>
                               </View>
-
-                              <View style={styles.itemRow}>
-                                <Ionicons name="time" size={14} color="#666" />
-                                <Text style={styles.itemText}>Horas: {formatarHoras(item.NumHoras)}</Text>
-                              </View>
-
-                              <View style={styles.itemRow}>
-                                <Ionicons name={externo ? 'warning' : 'checkmark'} size={14} color={externo ? '#fd7e14' : '#28a745'} />
-                                <Text style={[styles.itemText, { color: externo ? '#fd7e14' : '#28a745' }]}>
-                                  {externo ? 'Externo' : 'Interno'}
-                                </Text>
-                              </View>
-                            </View>
-                            <View style={styles.itemHeader}>
-                              <Text style={styles.itemNumber}>Item {index + 1}</Text>
+                              
                               <TouchableOpacity
                                 onPress={() => abrirEdicaoItem(item, selectedCabecalho, index)}
-                                style={{ flexDirection:'row', alignItems:'center' }}
+                                style={styles.editButton}
                               >
-                                <Ionicons name="create" size={16} color="#1792FE" style={{ marginRight: 6 }} />
-                                <Text style={{ color:'#1792FE', fontWeight:'600' }}>Editar</Text>
+                                <Ionicons name="create-outline" size={18} color="#1792FE" />
+                                <Text style={styles.editButtonText}>Editar</Text>
                               </TouchableOpacity>
-
                             </View>
 
+                            {/* Conteúdo do Item */}
+                            <View style={styles.modernItemContent}>
+                              <View style={styles.itemDetailRow}>
+                                <View style={styles.itemDetailColumn}>
+                                  <Text style={styles.itemDetailLabel}>Data</Text>
+                                  <Text style={styles.itemDetailValue}>
+                                    {new Date(item.Data).toLocaleDateString('pt-PT')}
+                                  </Text>
+                                </View>
+                                <View style={styles.itemDetailColumn}>
+                                  <Text style={styles.itemDetailLabel}>Horas</Text>
+                                  <View style={styles.horasContainer}>
+                                    <Ionicons name="time-outline" size={16} color="#1792FE" />
+                                    <Text style={styles.horasValue}>{formatarHoras(item.NumHoras)}</Text>
+                                  </View>
+                                </View>
+                              </View>
+
+                              <View style={styles.itemDetailFull}>
+                                <Text style={styles.itemDetailLabel}>
+                                  {externo ? 'Colaborador (Externo)' : 'Colaborador'}
+                                </Text>
+                                <Text style={[
+                                  styles.itemDetailValue,
+                                  externo && { color: '#fd7e14', fontWeight: '600' }
+                                ]}>
+                                  {externo
+                                    ? '(Externo)'
+                                    : cacheNomes[item.ColaboradorID] || item.ColaboradorID}
+                                </Text>
+                              </View>
+
+                              <View style={styles.itemDetailFull}>
+                                <Text style={styles.itemDetailLabel}>
+                                  {isEquipamento ? 'Equipamento' : 'Especialidade'}
+                                </Text>
+                                <Text style={styles.itemDetailValue}>
+                                  {isEquipamento 
+                                    ? equipamentosMap[String(item.ComponenteID)] || equipamentosMap[String(item.SubEmpID)] || item.ComponenteID || item.SubEmpID
+                                    : especialidadesMap[String(item.SubEmpID)] || item.SubEmpID}
+                                </Text>
+                              </View>
+
+                              {/* Status do Item */}
+                              <View style={styles.itemStatusContainer}>
+                                <View style={[
+                                  styles.itemStatusBadge,
+                                  { backgroundColor: externo ? '#fd7e14' : '#28a745' }
+                                ]}>
+                                  <Ionicons 
+                                    name={externo ? 'warning-outline' : 'checkmark-circle-outline'} 
+                                    size={14} 
+                                    color="#fff" 
+                                  />
+                                  <Text style={styles.itemStatusText}>
+                                    {externo ? 'Externo' : 'Interno'}
+                                  </Text>
+                                </View>
+                                {item.TipoHoraID && (
+                                  <View style={[styles.itemStatusBadge, { backgroundColor: '#dc3545' }]}>
+                                    <Ionicons name="flash-outline" size={14} color="#fff" />
+                                    <Text style={styles.itemStatusText}>Hora Extra</Text>
+                                  </View>
+                                )}
+                              </View>
+                            </View>
                           </View>
                         );
                       })
                     ) : (
-                      <Text style={styles.emptyItemsText}>Sem itens registados.</Text>
+                      <View style={styles.emptyItemsContainer}>
+                        <Ionicons name="document-outline" size={48} color="#ccc" />
+                        <Text style={styles.emptyItemsText}>Sem itens registados</Text>
+                        <Text style={styles.emptyItemsSubtext}>Esta parte diária não contém itens.</Text>
+                      </View>
                     )}
                   </View>
-                  
-
                 </>
               )}
             </ScrollView>
           </SafeAreaView>
         </Modal>
         <Modal visible={editItemModalVisible} animationType="slide" onRequestClose={() => setEditItemModalVisible(false)} transparent>
-  <View style={styles.modalContainer}>
-    <View style={styles.modalContent}>
-      <View style={styles.modalHeader}>
-        <Text style={styles.modalTitle}>Editar Item</Text>
-        <TouchableOpacity onPress={() => setEditItemModalVisible(false)} style={styles.closeButton}>
-          <Ionicons name="close" size={24} color="#666" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.modalBody}>
-        {/* Data (só leitura, mas podes transformar em Picker de data) */}
-        <View style={styles.modalSection}>
-          <Text style={styles.modalLabel}>Data</Text>
-          <Text style={styles.modalValue}>{editItem.dataISO}</Text>
-        </View>
-
-        {/* Obra */}
-        <View style={styles.modalSection}>
-          <Text style={styles.modalLabel}>Obra</Text>
-          <View style={{ backgroundColor:'#f0f0f0', borderRadius:8 }}>
-            <Picker
-              selectedValue={editItem.obraId}
-              onValueChange={(v) => setEditItem(s => ({ ...s, obraId: v }))}
-            >
-              {Object.entries(obrasMap).map(([id, meta]) => (
-                <Picker.Item
-                  key={id}
-                  label={`${meta.codigo} — ${meta.descricao}`}
-                  value={Number(id)}
-                />
-              ))}
-            </Picker>
-          </View>
-        </View>
-
-        {/* Categoria */}
-        <View style={styles.modalSection}>
-          <Text style={styles.modalLabel}>Categoria</Text>
-          <View style={styles.pickerContainer}>
-            {[
-              { label:'Mão de Obra', value:'MaoObra' },
-              { label:'Equipamentos', value:'Equipamentos' }
-            ].map(opt => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[styles.pickerOptionSmall, editItem.categoria === opt.value && styles.pickerOptionSelected]}
-                onPress={() => setEditItem(s => ({ ...s, categoria: opt.value, especialidadeCodigo:'', subEmpId:null }))}
-              >
-                <Text style={[styles.pickerOptionTextSmall, editItem.categoria === opt.value && styles.pickerOptionTextSelected]}>
-                  {opt.label}
+          <View style={styles.editModalOverlay}>
+            <View style={styles.editModalContainer}>
+              {/* Header com gradiente */}
+              <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.editModalHeader}>
+                <View style={styles.editModalHeaderContent}>
+                  <View style={styles.editModalTitleContainer}>
+                    <Ionicons name="create-outline" size={24} color="#fff" />
+                    <Text style={styles.editModalTitle}>Editar Item da Parte Diária</Text>
+                  </View>
+                  <TouchableOpacity 
+                    onPress={() => setEditItemModalVisible(false)} 
+                    style={styles.editModalCloseButton}
+                  >
+                    <Ionicons name="close" size={26} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.editModalSubtitle}>
+                  Modifique os dados do item selecionado
                 </Text>
-              </TouchableOpacity>
-            ))}
+              </LinearGradient>
+
+              <ScrollView 
+                style={styles.editModalBody}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 30 }}
+              >
+                {/* Card de informação da data */}
+                <View style={styles.editInfoCard}>
+                  <View style={styles.editInfoHeader}>
+                    <Ionicons name="calendar-outline" size={20} color="#1792FE" />
+                    <Text style={styles.editInfoTitle}>Data do Registo</Text>
+                  </View>
+                  <View style={styles.editDateContainer}>
+                    <Text style={styles.editDateValue}>
+                      {new Date(editItem.dataISO).toLocaleDateString('pt-PT', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Card de seleção de obra */}
+                <View style={styles.editCard}>
+                  <View style={styles.editCardHeader}>
+                    <Ionicons name="business-outline" size={20} color="#1792FE" />
+                    <Text style={styles.editCardTitle}>Obra</Text>
+                  </View>
+                  <View style={styles.editPickerContainer}>
+                    <Picker
+                      selectedValue={editItem.obraId}
+                      onValueChange={(v) => setEditItem(s => ({ ...s, obraId: v }))}
+                      style={styles.editPicker}
+                    >
+                      {Object.entries(obrasMap).map(([id, meta]) => (
+                        <Picker.Item
+                          key={id}
+                          label={`${meta.codigo} — ${meta.descricao}`}
+                          value={Number(id)}
+                        />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* Card de categoria */}
+                <View style={styles.editCard}>
+                  <View style={styles.editCardHeader}>
+                    <Ionicons name="list-outline" size={20} color="#1792FE" />
+                    <Text style={styles.editCardTitle}>Categoria</Text>
+                  </View>
+                  <View style={styles.editCategoryContainer}>
+                    {[
+                      { label:'Mão de Obra', value:'MaoObra', icon:'people-outline' },
+                      { label:'Equipamentos', value:'Equipamentos', icon:'construct-outline' }
+                    ].map(opt => (
+                      <TouchableOpacity
+                        key={opt.value}
+                        style={[
+                          styles.editCategoryOption, 
+                          editItem.categoria === opt.value && styles.editCategoryOptionSelected
+                        ]}
+                        onPress={() => setEditItem(s => ({ ...s, categoria: opt.value, especialidadeCodigo:'', subEmpId:null }))}
+                      >
+                        <Ionicons 
+                          name={opt.icon} 
+                          size={20} 
+                          color={editItem.categoria === opt.value ? '#fff' : '#1792FE'} 
+                        />
+                        <Text style={[
+                          styles.editCategoryOptionText, 
+                          editItem.categoria === opt.value && styles.editCategoryOptionTextSelected
+                        ]}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Card de especialidade/equipamento */}
+                <View style={styles.editCard}>
+                  <View style={styles.editCardHeader}>
+                    <Ionicons 
+                      name={editItem.categoria === 'Equipamentos' ? 'construct-outline' : 'school-outline'} 
+                      size={20} 
+                      color="#1792FE" 
+                    />
+                    <Text style={styles.editCardTitle}>
+                      {editItem.categoria === 'Equipamentos' ? 'Equipamento' : 'Especialidade'}
+                    </Text>
+                  </View>
+                  <View style={styles.editPickerContainer}>
+                    <Picker
+                      selectedValue={editItem.especialidadeCodigo}
+                      onValueChange={(cod) => {
+                        const lista = editItem.categoria === 'Equipamentos' ? equipamentosList : especialidadesList;
+                        const sel = lista.find(x => x.codigo === cod);
+                        setEditItem(s => ({ ...s, especialidadeCodigo: cod, subEmpId: sel?.subEmpId ?? null }));
+                      }}
+                      style={styles.editPicker}
+                    >
+                      <Picker.Item label="— Selecione uma opção —" value="" />
+                      {(editItem.categoria === 'Equipamentos' ? equipamentosList : especialidadesList)
+                        .map(opt => (
+                          <Picker.Item 
+                            key={opt.codigo} 
+                            label={opt.descricao} 
+                            value={opt.codigo} 
+                          />
+                        ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* Card de horas */}
+                <View style={styles.editCard}>
+                  <View style={styles.editCardHeader}>
+                    <Ionicons name="time-outline" size={20} color="#1792FE" />
+                    <Text style={styles.editCardTitle}>Horas Trabalhadas</Text>
+                  </View>
+                  <View style={styles.editInputContainer}>
+                    <TextInput
+                      style={styles.editHorasInput}
+                      value={editItem.horasStr}
+                      onChangeText={(v) => setEditItem(s => ({ ...s, horasStr: v }))}
+                      placeholder="ex.: 8:00 ou 8.0"
+                      keyboardType="default"
+                      placeholderTextColor="#999"
+                    />
+                    <View style={styles.editHorasHint}>
+                      <Ionicons name="information-circle-outline" size={16} color="#666" />
+                      <Text style={styles.editHorasHintText}>
+                        Use formato H:MM (ex: 8:30) ou decimal (ex: 8.5)
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Card de hora extra */}
+                <View style={styles.editCard}>
+                  <TouchableOpacity
+                    style={styles.editHoraExtraContainer}
+                    onPress={() => setEditItem(s => ({ ...s, horaExtra: !s.horaExtra }))}
+                  >
+                    <View style={styles.editHoraExtraLeft}>
+                      <Ionicons name="flash-outline" size={20} color="#1792FE" />
+                      <View style={styles.editHoraExtraInfo}>
+                        <Text style={styles.editHoraExtraTitle}>Hora Extra</Text>
+                        <Text style={styles.editHoraExtraSubtitle}>
+                          Marcar estas horas como extraordinárias
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={[
+                      styles.editCheckbox,
+                      editItem.horaExtra && styles.editCheckboxSelected
+                    ]}>
+                      {editItem.horaExtra && (
+                        <Ionicons name="checkmark" size={16} color="#fff" />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+
+              {/* Footer com botões */}
+              <View style={styles.editModalFooter}>
+                <TouchableOpacity
+                  onPress={() => setEditItemModalVisible(false)}
+                  style={styles.editCancelButton}
+                >
+                  <Text style={styles.editCancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  onPress={guardarItemEditado} 
+                  style={styles.editSaveButton}
+                >
+                  <LinearGradient 
+                    colors={['#28a745', '#20c997']} 
+                    style={styles.editSaveButtonGradient}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                    <Text style={styles.editSaveButtonText}>Guardar Alterações</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
-
-        {/* Especialidade/Equipamento */}
-        <View style={styles.modalSection}>
-          <Text style={styles.modalLabel}>
-            {editItem.categoria === 'Equipamentos' ? 'Equipamento' : 'Especialidade'}
-          </Text>
-          <View style={{ backgroundColor:'#f0f0f0', borderRadius:8 }}>
-            <Picker
-              selectedValue={editItem.especialidadeCodigo}
-              onValueChange={(cod) => {
-                const lista = editItem.categoria === 'Equipamentos' ? equipamentosList : especialidadesList;
-                const sel = lista.find(x => x.codigo === cod);
-                setEditItem(s => ({ ...s, especialidadeCodigo: cod, subEmpId: sel?.subEmpId ?? null }));
-              }}
-            >
-              <Picker.Item label="— Selecione —" value="" />
-              {(editItem.categoria === 'Equipamentos' ? equipamentosList : especialidadesList)
-                .map(opt => <Picker.Item key={opt.codigo} label={opt.descricao} value={opt.codigo} />)}
-            </Picker>
-          </View>
-        </View>
-
-        {/* Horas */}
-        <View style={styles.modalSection}>
-          <Text style={styles.modalLabel}>Horas (H:MM ou decimal)</Text>
-          <TextInput
-            style={styles.horasInput}
-            value={editItem.horasStr}
-            onChangeText={(v) => setEditItem(s => ({ ...s, horasStr: v }))}
-            placeholder="ex.: 8:00 ou 8.0"
-            keyboardType="default"
-          />
-        </View>
-
-        {/* Hora extra */}
-        <TouchableOpacity
-          style={{ flexDirection:'row', alignItems:'center', marginBottom: 18, marginLeft: 20 }}
-          onPress={() => setEditItem(s => ({ ...s, horaExtra: !s.horaExtra }))}
-        >
-          <Ionicons
-            name={editItem.horaExtra ? 'checkbox' : 'square-outline'}
-            size={20}
-            color={editItem.horaExtra ? '#28a745' : '#666'}
-          />
-          <Text style={{ marginLeft: 8, color:'#333' }}>Hora extra</Text>
-        </TouchableOpacity>
-
-        {/* Guardar */}
-        <TouchableOpacity onPress={guardarItemEditado} style={{ borderRadius:8, overflow:'hidden', marginHorizontal: 20 }}>
-          <LinearGradient colors={['#28a745', '#20c997']} style={styles.buttonGradient}>
-            <Ionicons name="save" size={16} color="#fff" />
-            <Text style={styles.buttonText}>Guardar</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
-  </View>
-</Modal>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -1318,13 +1540,281 @@ const handleRejeitar = async (cab) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  // adiciona/ajusta conforme o teu StyleSheet
-pickerContainer: { flexDirection:'row', gap:8, flexWrap:'wrap', marginTop:6 },
-pickerOptionSmall: { paddingVertical:8, paddingHorizontal:12, borderRadius:12, backgroundColor:'#eef2f7' },
-pickerOptionSelected: { backgroundColor:'#1792FE' },
-pickerOptionTextSmall: { color:'#1792FE', fontWeight:'600' },
-pickerOptionTextSelected: { color:'#fff' },
-horasInput: { backgroundColor:'#fff', borderWidth:1, borderColor:'#e0e0e0', borderRadius:8, paddingHorizontal:12, height:44 },
+  // Estilos do modal de edição melhorado
+  editModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  editModalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '90%',
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    overflow: 'hidden',
+  },
+  editModalHeader: {
+    paddingTop: 20,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+  },
+  editModalHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  editModalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  editModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    flex: 1,
+  },
+  editModalSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+  },
+  editModalCloseButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  editModalBody: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  editInfoCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  editInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  editInfoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  editDateContainer: {
+    backgroundColor: '#f0f8ff',
+    padding: 12,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#1792FE',
+  },
+  editDateValue: {
+    fontSize: 15,
+    color: '#1792FE',
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  editCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 16,
+    padding: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  editCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  editCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  editPickerContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    overflow: 'hidden',
+  },
+  editPicker: {
+    height: 50,
+  },
+  editCategoryContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  editCategoryOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    gap: 8,
+  },
+  editCategoryOptionSelected: {
+    backgroundColor: '#1792FE',
+    borderColor: '#1792FE',
+  },
+  editCategoryOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1792FE',
+  },
+  editCategoryOptionTextSelected: {
+    color: '#fff',
+  },
+  editInputContainer: {
+    gap: 8,
+  },
+  editHorasInput: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  editHorasHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  editHorasHintText: {
+    fontSize: 13,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  editHoraExtraContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  editHoraExtraLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  editHoraExtraInfo: {
+    flex: 1,
+  },
+  editHoraExtraTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  editHoraExtraSubtitle: {
+    fontSize: 13,
+    color: '#666',
+  },
+  editCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editCheckboxSelected: {
+    backgroundColor: '#28a745',
+    borderColor: '#28a745',
+  },
+  editModalFooter: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+    gap: 12,
+  },
+  editCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editCancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  editSaveButton: {
+    flex: 2,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#28a745',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  editSaveButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  editSaveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+
+  // Estilos antigos mantidos para compatibilidade
+  pickerContainer: { flexDirection:'row', gap:8, flexWrap:'wrap', marginTop:6 },
+  pickerOptionSmall: { paddingVertical:8, paddingHorizontal:12, borderRadius:12, backgroundColor:'#eef2f7' },
+  pickerOptionSelected: { backgroundColor:'#1792FE' },
+  pickerOptionTextSmall: { color:'#1792FE', fontWeight:'600' },
+  pickerOptionTextSelected: { color:'#fff' },
+  horasInput: { backgroundColor:'#fff', borderWidth:1, borderColor:'#e0e0e0', borderRadius:8, paddingHorizontal:12, height:44 },
 
   header: { paddingHorizontal: 20, paddingVertical: 25, paddingTop: 40 },
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 5 },
@@ -1364,20 +1854,72 @@ horasInput: { backgroundColor:'#fff', borderWidth:1, borderColor:'#e0e0e0', bord
   filtroTexto: { color: '#1792FE', fontWeight: '500', fontSize: 14 },
   filtroTextoAtivo: { color: '#fff', fontWeight: '600', fontSize: 14 },
   modalContainer: { flex: 1, backgroundColor: '#f8f9fa' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e9ecef', elevation: 2 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
-  closeButton: { padding: 8, borderRadius: 20, backgroundColor: '#f8f9fa' },
-  modalBody: { padding: 20 },
+  modalHeader: { paddingTop: 20, paddingBottom: 15, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+  modalHeaderContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20 },
+  modalTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
+  closeButton: { padding: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)' },
+  modalBody: { padding: 20, paddingBottom: 30 },
+  
+  // Novos estilos para cards de informação
+  modalInfoCard: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 },
+  modalSectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 16 },
+  modalInfoGrid: { gap: 16 },
+  modalInfoItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  modalInfoIconContainer: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#f0f8ff', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  modalInfoContent: { flex: 1 },
+  modalInfoLabel: { fontSize: 14, color: '#666', marginBottom: 2, fontWeight: '500' },
+  modalInfoValue: { fontSize: 16, color: '#333', fontWeight: '600', lineHeight: 22 },
+  statusBadgeModal: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginTop: 4 },
+  statusTextModal: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  
+  // Card de resumo
+  modalSummaryCard: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 },
+  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
+  summaryItem: { backgroundColor: '#f8f9fa', borderRadius: 12, padding: 12, alignItems: 'center', minWidth: '30%', flex: 1 },
+  summaryValue: { fontSize: 20, fontWeight: 'bold', color: '#1792FE', marginBottom: 4 },
+  summaryLabel: { fontSize: 12, color: '#666', textAlign: 'center' },
+  
+  // Seção de itens
+  modalItemsSection: { backgroundColor: '#fff', borderRadius: 16, padding: 20, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 },
+  
+  // Novos cards de itens modernos
+  modernItemCard: { backgroundColor: '#fff', borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#e9ecef', overflow: 'hidden' },
+  modernItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8f9fa', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e9ecef' },
+  itemHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  itemTypeBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, gap: 4 },
+  itemTypeBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  modernItemNumber: { fontSize: 14, fontWeight: '600', color: '#666' },
+  editButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(23, 146, 254, 0.1)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, gap: 4 },
+  editButtonText: { color: '#1792FE', fontSize: 12, fontWeight: '600' },
+  
+  modernItemContent: { padding: 16, gap: 12 },
+  itemDetailRow: { flexDirection: 'row', gap: 16 },
+  itemDetailColumn: { flex: 1 },
+  itemDetailFull: { width: '100%' },
+  itemDetailLabel: { fontSize: 12, color: '#666', fontWeight: '500', marginBottom: 4 },
+  itemDetailValue: { fontSize: 14, color: '#333', fontWeight: '600' },
+  horasContainer: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  horasValue: { fontSize: 14, color: '#1792FE', fontWeight: '700' },
+  
+  itemStatusContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  itemStatusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, gap: 4 },
+  itemStatusText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  
+  // Empty state melhorado
+  emptyItemsContainer: { alignItems: 'center', paddingVertical: 40 },
+  emptyItemsText: { fontSize: 16, color: '#999', textAlign: 'center', fontWeight: '600', marginTop: 12 },
+  emptyItemsSubtext: { fontSize: 14, color: '#ccc', textAlign: 'center', marginTop: 4 },
+  
+  // Estilos antigos mantidos para compatibilidade
   modalSection: { marginBottom: 24 },
   modalLabel: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 8 },
   modalValue: { fontSize: 15, color: '#555', lineHeight: 22 },
   itemCard: { backgroundColor: '#fff', borderRadius: 12, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, overflow: 'hidden' },
-  itemHeader: { backgroundColor: '#f8f9fa', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e9ecef' },
+  itemHeader: { backgroundColor: '#f8f9fa', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e9ecef', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   itemNumber: { fontSize: 14, fontWeight: '600', color: '#1792FE' },
   itemContent: { padding: 16 },
   itemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   itemText: { fontSize: 14, color: '#555', marginLeft: 8, flex: 1, lineHeight: 20 },
-  emptyItemsText: { fontSize: 15, color: '#999', textAlign: 'center', fontStyle: 'italic', paddingVertical: 20 },
   categoriaChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 8, marginTop: 6 },
   categoriaChipText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 });

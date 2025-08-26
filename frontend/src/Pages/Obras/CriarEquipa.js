@@ -196,7 +196,7 @@ const CriarEquipa = () => {
                     membros: membrosSelecionados,
                 }),
             });
-            
+
             const data = await res.json();
             if (res.ok) {
                 Alert.alert('Sucesso', 'Equipa criada com sucesso!');
@@ -216,7 +216,7 @@ const CriarEquipa = () => {
 
     const removerEquipaInteira = async () => {
         if (!equipaParaRemover) return;
-        
+
         try {
             const token = await AsyncStorage.getItem('loginToken');
             const res = await fetch('https://backend.advir.pt/api/equipa-obra/remover-equipa', {
@@ -365,7 +365,7 @@ const CriarEquipa = () => {
                             </Animated.View>
                         </View>
                     </TouchableOpacity>
-                    
+
                     {membersExpanded && (
                         <View style={styles.membersContainer}>
                             <ScrollView style={styles.membersScrollView} nestedScrollEnabled={true}>
@@ -389,14 +389,19 @@ const CriarEquipa = () => {
                                                 )}
                                             </View>
                                             <FontAwesome name="user" size={16} color="#1792FE" style={styles.userIcon} />
-                                            <Text style={styles.memberText}>{user.email}</Text>
+                                            <View style={styles.memberInfo}>
+                                                <Text style={styles.memberName}>
+                                                    {user.nome || user.name || user.email.split('@')[0]}
+                                                </Text>
+                                                <Text style={styles.memberEmail}>{user.email}</Text>
+                                            </View>
                                         </View>
                                     </TouchableOpacity>
                                 ))}
                             </ScrollView>
                         </View>
                     )}
-                    
+
                     {!membersExpanded && membrosSelecionados.length > 0 && (
                         <View style={styles.selectedMembersPreview}>
                             <Text style={styles.previewTitle}>Membros selecionados:</Text>
@@ -572,7 +577,7 @@ const CriarEquipa = () => {
                             <FontAwesome name="edit" size={24} color="#FFFFFF" />
                             <Text style={[styles.modalTitle, { marginLeft: 10 }]}>Editar Equipa</Text>
                         </LinearGradient>
-                        
+
                         <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
                             <View style={styles.inputContainer}>
                                 <Text style={styles.label}>
@@ -594,7 +599,7 @@ const CriarEquipa = () => {
                                 <Text style={styles.selectedCount}>
                                     {membrosSelecionados.length} de {utilizadores.length} selecionados
                                 </Text>
-                                
+
                                 <ScrollView style={styles.modalMembersContainer} nestedScrollEnabled={true}>
                                     {utilizadores.map((user) => (
                                         <TouchableOpacity
@@ -616,14 +621,19 @@ const CriarEquipa = () => {
                                                     )}
                                                 </View>
                                                 <FontAwesome name="user" size={16} color="#1792FE" style={styles.userIcon} />
-                                                <Text style={styles.memberText}>{user.email}</Text>
+                                                <View style={styles.memberInfo}>
+                                                    <Text style={styles.memberName}>
+                                                        {user.nome || user.name || user.email.split('@')[0]}
+                                                    </Text>
+                                                    <Text style={styles.memberEmail}>{user.email}</Text>
+                                                </View>
                                             </View>
                                         </TouchableOpacity>
                                     ))}
                                 </ScrollView>
                             </View>
                         </ScrollView>
-                        
+
                         <View style={styles.modalButtons}>
                             <TouchableOpacity 
                                 onPress={() => {
@@ -636,7 +646,7 @@ const CriarEquipa = () => {
                             >
                                 <Text style={styles.cancelButtonText}>Cancelar</Text>
                             </TouchableOpacity>
-                            
+
                             <TouchableOpacity 
                                 onPress={salvarEdicaoEquipa}
                                 style={styles.saveButton}
@@ -668,7 +678,7 @@ const CriarEquipa = () => {
                             <FontAwesome name="exclamation-triangle" size={24} color="#FFFFFF" />
                             <Text style={[styles.modalTitle, { marginLeft: 10 }]}>Confirmar Eliminação</Text>
                         </LinearGradient>
-                        
+
                         <View style={styles.modalBody}>
                             <Text style={styles.confirmText}>
                                 Tens a certeza que queres remover a equipa{' '}
@@ -677,7 +687,7 @@ const CriarEquipa = () => {
                             <Text style={styles.warningText}>
                                 Esta ação não pode ser desfeita.
                             </Text>
-                            
+
                             <View style={styles.modalButtons}>
                                 <TouchableOpacity 
                                     onPress={() => {
@@ -688,7 +698,7 @@ const CriarEquipa = () => {
                                 >
                                     <Text style={styles.cancelButtonText}>Cancelar</Text>
                                 </TouchableOpacity>
-                                
+
                                 <TouchableOpacity 
                                     onPress={removerEquipaInteira}
                                     style={styles.deleteConfirmButton}
@@ -893,9 +903,17 @@ const styles = StyleSheet.create({
     userIcon: {
         marginRight: 10,
     },
-    memberText: {
+    memberInfo: {
+        flex: 1,
+    },
+    memberName: {
         fontSize: 16,
+        fontWeight: '600',
         color: '#333',
+    },
+    memberEmail: {
+        fontSize: 13,
+        color: '#666',
     },
     createButton: {
         marginTop: 10,
@@ -1104,6 +1122,7 @@ const styles = StyleSheet.create({
     modalButtons: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
+        padding: 20,
     },
     cancelButton: {
         paddingHorizontal: 20,

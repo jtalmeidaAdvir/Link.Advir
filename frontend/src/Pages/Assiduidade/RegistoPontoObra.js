@@ -143,6 +143,10 @@ const RegistoPontoObra = (props) => {
                     const obrasDaEmpresa = data.filter(o => o.empresa_id == empresaId);
                     setObras(obrasDaEmpresa);
 
+                    // Auto-selecionar se só houver uma obra
+                    if (obrasDaEmpresa.length === 1) {
+                        setObraSelecionada(obrasDaEmpresa[0].id);
+                    }
                 }
             } catch (err) {
                 console.error('Erro ao carregar obras:', err);
@@ -556,10 +560,9 @@ const handlePicagemManual = async () => {
                             <div className="d-flex justify-content-between align-items-center">
                                 <div className="text-center flex-grow-1">
                                     <h1 className="h4 h3-md mb-2 text-primary">
-                                        <FaQrcode className="me-2 me-md-3" />
-                                        <span className="d-none d-sm-inline">Registo de Ponto QR Code</span>
-                                        <span className="d-sm-none">Ponto QR Code</span>
+                                        
                                     </h1>
+                                                    <h1 className="h4 h3-md mb-2 text-primary">Ponto</h1>
                                     <p className="text-muted mb-0 small">Digitaliza QR Code ou regista manualmente</p>
                                 </div>
 
@@ -627,12 +630,12 @@ const handlePicagemManual = async () => {
                                         {mostrarManual && (
                                             <div className="p-3 p-md-4" style={{ backgroundColor: '#f8f9ff' }}>
                                                 <div className="mb-3">
-                                                    <label className="form-label fw-semibold small">Selecionar Obra</label>
+                                                    <label className="form-label fw-semibold small">Selecionar Local</label>
                                                     <Select
                                                         options={opcoesObras}
                                                         value={opcoesObras.find(o => o.value == obraSelecionada)}
                                                         onChange={(opcao) => setObraSelecionada(opcao.value)}
-                                                        placeholder="Escolha a obra..."
+                                                        placeholder="Escolha o local..."
                                                         classNamePrefix="react-select"
                                                         isClearable
                                                     />
@@ -675,7 +678,7 @@ const handlePicagemManual = async () => {
                                                 <div className="p-3 p-md-4">
                                                     {/* Obra */}
                                                     <div className="mb-3">
-                                                        <label className="form-label fw-semibold small">Obra</label>
+                                                        <label className="form-label fw-semibold small">Local</label>
                                                         <Select
                                                             options={opcoesObras}
                                                             value={opcoesObras.find(o => o.value == obraSelecionada)}
