@@ -138,7 +138,7 @@ const CustomDrawerContent = ({
     hasPedidosAlteracaoAdminModule,
     ...props
 }) => {
-    const [expandedModules, setExpandedModules] = useState({});
+    const [expandedModules, setExpandedModules] = useState({ Geral: true, Administrador: false });
     const { t } = useTranslation();
 
     const handleModulePress = (moduleName) => {
@@ -241,10 +241,38 @@ const CustomDrawerContent = ({
         );
     }
 
+    const moduleDisplayNames = {
+  Obras: "Ponto",
+  Servicos: "Serviços",
+  Oficios: "Ofícios",
+  Administrador: "Administrador",
+};
+
+
+
+// Define a ordem que queres para os submódulos de Obras
+const obrasSubmodulesOrder = [
+  "Ponto",          // RegistoPontoObra
+  "Agenda",         // Calendário
+  "Obras",         // Obras
+  "Escritório",     // Escritório
+  "Equipas",        // Criar Equipa
+  "PartesDiarias",   // Partes Diárias
+  "GestaoPontos",   // GestaoPontos
+  "GestaoFaltas",   // GestaoFaltas
+  "PartesDiarias",   // PartesDiarias
+  "GestaoExternos", // GestaoTrabalhadoresExternos
+  "GestaoPartes",   // GestaoPartesDiarias
+    "MapaRegistos"    // MapaRegistos
+
+];
+
+
+
     // Organizar módulos para drawer
     const getModuleIcon = (moduleName) => {
         const icons = {
-            Obras: "building",
+            Obras: "map-marker",
             Assiduidade: "clock-o",
             Servicos: "wrench",
             Oficios: "file-text",
@@ -357,40 +385,37 @@ const CustomDrawerContent = ({
                 contentContainerStyle={{ flexGrow: 1, paddingTop: 0 }}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Menu Principal */}
-                <View style={drawerStyles.mainSection}>
-                    <DrawerItem
-                        label="Início"
-                        onPress={() => props.navigation.navigate("Home")}
-                        icon={() => (
-                            <FontAwesome
-                                name="home"
-                                size={18}
-                                color="#1792FE"
-                            />
-                        )}
-                        labelStyle={drawerStyles.menuItemLabel}
-                        style={drawerStyles.menuItem}
-                    />
+{/* Início */}
+<View style={drawerStyles.moduleContainer}>
+  <TouchableOpacity
+    style={drawerStyles.moduleHeader}
+    onPress={() => props.navigation.navigate("Home")}
+    activeOpacity={0.7}
+  >
+    <View style={drawerStyles.moduleTitle}>
+      <FontAwesome name="home" size={18} color="#1792FE" />
+      <Text style={drawerStyles.moduleText}>Início</Text>
+    </View>
+  </TouchableOpacity>
+</View>
 
-                    {isLoggedIn && (
-                        <DrawerItem
-                            label="Selecionar Empresa"
-                            onPress={() =>
-                                props.navigation.navigate("SelecaoEmpresa")
-                            }
-                            icon={() => (
-                                <FontAwesome
-                                    name="building"
-                                    size={18}
-                                    color="#1792FE"
-                                />
-                            )}
-                            labelStyle={drawerStyles.menuItemLabel}
-                            style={drawerStyles.menuItem}
-                        />
-                    )}
-                </View>
+{/* Selecionar Empresa */}
+{isLoggedIn && (
+  <View style={drawerStyles.moduleContainer}>
+    <TouchableOpacity
+      style={drawerStyles.moduleHeader}
+      onPress={() => props.navigation.navigate("SelecaoEmpresa")}
+      activeOpacity={0.7}
+    >
+      <View style={drawerStyles.moduleTitle}>
+        <FontAwesome name="building" size={18} color="#1792FE" />
+        <Text style={drawerStyles.moduleText}>Selecionar Empresa</Text>
+      </View>
+    </TouchableOpacity>
+  </View>
+)}
+
+
 
                 {/* Módulos */}
                 {isLoggedIn && availableModules.length > 0 && (
@@ -608,11 +633,10 @@ const CustomDrawerContent = ({
                                                 size={18}
                                                 color="#1792FE"
                                             />
-                                            <Text
-                                                style={drawerStyles.moduleText}
-                                            >
-                                                {module.nome}
-                                            </Text>
+                                            <Text style={drawerStyles.moduleText}>
+                                                {moduleDisplayNames[module.nome] || module.nome}
+                                                </Text>
+
                                         </View>
                                         <FontAwesome
                                             name={
@@ -626,13 +650,14 @@ const CustomDrawerContent = ({
                                     </TouchableOpacity>
 
                                     {expandedModules[module.nome] && (
-                                        <View
-                                            style={
-                                                drawerStyles.submoduleContainer
-                                            }
-                                        >
-                                            {module.submodulos.map(
-                                                (submodulo) => {
+  <View style={drawerStyles.submoduleContainer}>
+    {module.submodulos
+      .sort((a, b) => {
+        const orderA = obrasSubmodulesOrder.indexOf(a.nome);
+        const orderB = obrasSubmodulesOrder.indexOf(b.nome);
+        return orderA - orderB;
+      })
+                                            .map((submodulo) => {
                                                     // Mapear submódulos para navegação
                                                     const navigationMap = {
                                                         Obras: "Obras",
@@ -724,6 +749,7 @@ const CustomDrawerContent = ({
 
                                                     const displayName =
                                                         {
+                                                            
                                                             PartesDiarias:
                                                                 "Partes Diárias",
                                                             GestaoFaltas:
@@ -1715,32 +1741,60 @@ const AppNavigator = () => {
                     <Drawer.Screen
                         name="RegistoPontoObra"
                         component={RegistoPontoObra}
+                        options={{
+                            title: "AdvirLink - Ponto",
+                            drawerItemStyle: { display: "none" },
+                        }}
                     />
                     <Drawer.Screen
                         name="CalendarioHorasTrabalho"
                         component={CalendarioHorasTrabalho}
+                        options={{
+                            title: "AdvirLink - Agenda",
+                            drawerItemStyle: { display: "none" },
+                        }}
                     />
 
                     <Drawer.Screen
                         name="AprovacaoFaltaFerias"
                         component={AprovacaoFaltaFerias}
+                        options={{
+                            title: "AdvirLink - Aprovação Faltas/Férias",
+                            drawerItemStyle: { display: "none" },
+                        }}
                     />
                     <Drawer.Screen
                         name="GestaoTrabalhadoresExternos"
                         component={GestaoTrabalhadoresExternos}
+                        options={{
+                            title: "AdvirLink - Gestão Externos",
+                            drawerItemStyle: { display: "none" },
+                        }}
                     />
                     <Drawer.Screen
                         name="AprovacaoPontoPendentes"
                         component={AprovacaoPontoPendentes}
+                        options={{
+                            title: "AdvirLink - Aprovacão Pontos",
+                            drawerItemStyle: { display: "none" },
+                        }}
                     />
                     <Drawer.Screen
                         name="GestaoPartesDiarias"
                         component={GestaoPartesDiarias}
+                        options={{
+                            title: "AdvirLink - Gestão Partes",
+                            drawerItemStyle: { display: "none" },
+                        }}
                     />
 
                     <Drawer.Screen
                         name="RegistosPorUtilizador"
                         component={RegistosPorUtilizador}
+                        options={{
+                            title: "AdvirLink - Histórico Registos",
+                            drawerItemStyle: { display: "none" },
+                        }}
                     />
 
                     {(() => {
