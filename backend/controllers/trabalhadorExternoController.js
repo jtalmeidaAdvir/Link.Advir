@@ -20,6 +20,12 @@ const listar = async (req, res) => {
     } = req.query;
 
     const where = {};
+    
+    // Filtrar sempre pela empresa do usuário logado
+    if (req.user && req.user.empresa_id) {
+      where.empresa_id = req.user.empresa_id;
+    }
+    
     if (empresa) where.empresa = { [Op.like]: `%${empresa}%` };
     if (categoria) where.categoria = { [Op.like]: `%${categoria}%` };
     if (moeda) where.moeda = moeda.toUpperCase();
@@ -63,10 +69,16 @@ const listar = async (req, res) => {
 };
 
 // GET /api/trabalhadores-externos/distintos/empresas
-const listarEmpresasDistintas = async (_req, res) => {
+const listarEmpresasDistintas = async (req, res) => {
   try {
+    const where = {};
+    if (req.user && req.user.empresa_id) {
+      where.empresa_id = req.user.empresa_id;
+    }
+    
     const empresas = await TrabalhadorExterno.findAll({
       attributes: [[fn('DISTINCT', col('empresa')), 'empresa']],
+      where,
       order: [['empresa', 'ASC']],
     });
     res.status(200).json(empresas.map(e => e.get('empresa')).filter(Boolean));
@@ -77,10 +89,16 @@ const listarEmpresasDistintas = async (_req, res) => {
 };
 
 // GET /api/trabalhadores-externos/distintos/categorias
-const listarCategoriasDistintas = async (_req, res) => {
+const listarCategoriasDistintas = async (req, res) => {
   try {
+    const where = {};
+    if (req.user && req.user.empresa_id) {
+      where.empresa_id = req.user.empresa_id;
+    }
+    
     const categorias = await TrabalhadorExterno.findAll({
       attributes: [[fn('DISTINCT', col('categoria')), 'categoria']],
+      where,
       order: [['categoria', 'ASC']],
     });
     res.status(200).json(categorias.map(c => c.get('categoria')).filter(Boolean));
@@ -105,8 +123,8 @@ const criar = async (req, res) => {
       observacoes,
     } = req.body;
 
-    if (!empresa_id || !empresa || !funcionario || valor === undefined) {
-      return res.status(400).json({ message: 'empresa_id, empresa, funcionario e valor são obrigatórios.' });
+    if (!empresa || !funcionario || valor === undefined) {
+      return res.status(400).json({ message: 'empresa, funcionario e valor são obrigatórios.' });
     }
 
     const v = Number(valor);
@@ -116,16 +134,22 @@ const criar = async (req, res) => {
       return res.status(400).json({ message: 'data_fim não pode ser anterior a data_inicio.' });
     }
 
-    // Regra simples para evitar duplicados óbvios não anulados
+    // Regra simples para evitar duplicados óbvios não anulados na mesma empresa
     const existente = await TrabalhadorExterno.findOne({
-      where: { empresa, funcionario, categoria, anulado: false },
+      where: { 
+        empresa_id: empresa_id || req.user.empresa_id,
+        empresa, 
+        funcionario, 
+        categoria, 
+        anulado: false 
+      },
     });
     if (existente) {
       return res.status(409).json({ message: 'Já existe um registo ativo/anulado=false com a mesma empresa/funcionário/categoria.' });
     }
 
     const novo = await TrabalhadorExterno.create({
-      empresa_id,
+      empresa_id: empresa_id || req.user.empresa_id,
       empresa,
       funcionario,
       categoria: categoria || null,
