@@ -141,10 +141,15 @@ const [linhaAtual, setLinhaAtual] = useState({
 const carregarObrasTodas = useCallback(async () => {
   try {
     const token = await AsyncStorage.getItem('loginToken');
+    const empresaId = await AsyncStorage.getItem('empresa_id');
 
-    // 👇 AJUSTA este endpoint/params conforme a tua API
+    const headers = { 
+      Authorization: `Bearer ${token}`,
+      'X-Empresa-ID': empresaId // Enviar empresa_id no header
+    };
+
     const res = await fetch('https://backend.advir.pt/api/obra', {
-      headers: { Authorization: `Bearer ${token}` }
+      headers
     });
 
     if (!res.ok) throw new Error('Falha ao obter lista de obras');
@@ -227,8 +232,15 @@ const parseHorasToMinutos = (str) => {
 const carregarExternos = useCallback(async () => {
   try {
     const token = await AsyncStorage.getItem('loginToken');
+    const empresaId = await AsyncStorage.getItem('empresa_id');
+    
+    const headers = { 
+      Authorization: `Bearer ${token}`,
+      'X-Empresa-ID': empresaId // Enviar empresa_id no header
+    };
+    
     const res = await fetch('https://backend.advir.pt/api/trabalhadores-externos?ativo=true&anulado=false&pageSize=500', {
-      headers: { Authorization: `Bearer ${token}` }
+      headers
     });
     if (!res.ok) throw new Error('Falha ao obter externos');
     const data = await res.json();

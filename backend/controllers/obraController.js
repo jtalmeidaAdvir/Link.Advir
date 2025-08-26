@@ -7,7 +7,17 @@ const QRCode = require('qrcode');
 // Listar todas as obras
 const listarObras = async (req, res) => {
     try {
-        const obras = await Obra.findAll();
+        const empresaId = req.headers['x-empresa-id'];
+        
+        let whereClause = {};
+        if (empresaId) {
+            whereClause.empresa_id = empresaId;
+        }
+        
+        const obras = await Obra.findAll({
+            where: whereClause
+        });
+        
         res.status(200).json(obras);
     } catch (error) {
         console.error('Erro ao listar obras:', error);

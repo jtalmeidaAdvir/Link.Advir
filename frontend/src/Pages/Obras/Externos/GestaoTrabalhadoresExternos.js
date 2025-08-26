@@ -273,12 +273,43 @@ const GestaoTrabalhadoresExternos = () => {
     }
   };
 
-  // Ações rápidas
-  const confirmar = (title, msg, onOk) => {
-    Alert.alert(title, msg, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Confirmar', style: 'destructive', onPress: onOk }
-    ]);
+  // Modal de confirmação
+  const [modalConfirmacao, setModalConfirmacao] = useState({
+    visible: false,
+    titulo: '',
+    mensagem: '',
+    onConfirm: null,
+    confirmText: 'Confirmar',
+    confirmColor: '#dc3545'
+  });
+
+  const mostrarConfirmacao = (titulo, mensagem, onConfirm, confirmText = 'Confirmar', confirmColor = '#dc3545') => {
+    setModalConfirmacao({
+      visible: true,
+      titulo,
+      mensagem,
+      onConfirm,
+      confirmText,
+      confirmColor
+    });
+  };
+
+  const fecharConfirmacao = () => {
+    setModalConfirmacao({
+      visible: false,
+      titulo: '',
+      mensagem: '',
+      onConfirm: null,
+      confirmText: 'Confirmar',
+      confirmColor: '#dc3545'
+    });
+  };
+
+  const executarConfirmacao = () => {
+    if (modalConfirmacao.onConfirm) {
+      modalConfirmacao.onConfirm();
+    }
+    fecharConfirmacao();
   };
 
   const callPost = async (urlSuffix) => {
@@ -298,44 +329,98 @@ const GestaoTrabalhadoresExternos = () => {
     if (!res.ok) throw new Error(data?.message || 'Falha na operação.');
   };
 
-  const eliminar = (id) => confirmar('Eliminar', 'Tem a certeza que pretende eliminar?', async () => {
-    try {
-      const loginToken = await AsyncStorage.getItem('loginToken');
-      const empresaId = await AsyncStorage.getItem('empresa_id');
-      
-      const headers = { 
-        Authorization: `Bearer ${loginToken}`,
-        'X-Empresa-ID': empresaId
-      };
-      
-      const res = await fetch(`${API_BASE}/${id}`, {
-        method: 'DELETE',
-        headers
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.message || 'Falha ao eliminar.');
-      await fetchRegistos();
-      Alert.alert('Sucesso', 'Registo eliminado.');
-    } catch (e) {
-      Alert.alert('Erro', e.message || 'Erro ao eliminar.');
-    }
-  });
+  const eliminar = (id) => mostrarConfirmacao(
+    'Eliminar Trabalhador Externo', 
+    'Tem a certeza que pretende eliminar este registo permanentemente? Esta ação não pode ser desfeita.', 
+    async () => {
+      try {
+        const loginToken = await AsyncStorage.getItem('loginToken');
+        const empresaId = await AsyncStorage.getItem('empresa_id');
+        
+        const headers = { 
+          Authorization: `Bearer ${loginToken}`,
+          'X-Empresa-ID': empresaId
+        };
+        
+        const res = await fetch(`${API_BASE}/${id}`, {
+          method: 'DELETE',
+          headers
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.message || 'Falha ao eliminar.');
+        await fetchRegistos();
+        Alert.alert('Sucesso', 'Registo eliminado.');
+      } catch (e) {
+        Alert.alert('Erro', e.message || 'Erro ao eliminar.');
+      }
+    },
+    'Eliminar',
+    '#dc3545'
+  );
 
-  const anular = (id) => confirmar('Anular', 'Marcar como anulado?', async () => {
-    try { await callPost(`${id}/anular`); await fetchRegistos(); } catch (e) { Alert.alert('Erro', e.message); }
-  });
+  const anular = (id) => mostrarConfirmacao(
+    'Anular Trabalhador Externo', 
+    'Marcar este trabalhador como anulado? O registo ficará inativo mas pode ser restaurado posteriormente.', 
+    async () => {
+      try { 
+        await callPost(`${id}/anular`); 
+        await fetchRegistos(); 
+        Alert.alert('Sucesso', 'Registo anulado.');
+      } catch (e) { 
+        Alert.alert('Erro', e.message); 
+      }
+    },
+    'Anular',
+    '#ffc107'
+  );
 
-  const restaurar = (id) => confirmar('Restaurar', 'Restaurar registo?', async () => {
-    try { await callPost(`${id}/restaurar`); await fetchRegistos(); } catch (e) { Alert.alert('Erro', e.message); }
-  });
+  const restaurar = (id) => mostrarConfirmacao(
+    'Restaurar Trabalhador Externo', 
+    'Restaurar este registo e voltar a ativá-lo?', 
+    async () => {
+      try { 
+        await callPost(`${id}/restaurar`); 
+        await fetchRegistos(); 
+        Alert.alert('Sucesso', 'Registo restaurado.');
+      } catch (e) { 
+        Alert.alert('Erro', e.message); 
+      }
+    },
+    'Restaurar',
+    '#17a2b8'
+  );
 
-  const ativar = (id) => confirmar('Ativar', 'Marcar como ativo?', async () => {
-    try { await callPost(`${id}/ativar`); await fetchRegistos(); } catch (e) { Alert.alert('Erro', e.message); }
-  });
+  const ativar = (id) => mostrarConfirmacao(
+    'Ativar Trabalhador Externo', 
+    'Marcar este trabalhador como ativo?', 
+    async () => {
+      try { 
+        await callPost(`${id}/ativar`); 
+        await fetchRegistos(); 
+        Alert.alert('Sucesso', 'Registo ativado.');
+      } catch (e) { 
+        Alert.alert('Erro', e.message); 
+      }
+    },
+    'Ativar',
+    '#28a745'
+  );
 
-  const desativar = (id) => confirmar('Desativar', 'Marcar como inativo?', async () => {
-    try { await callPost(`${id}/desativar`); await fetchRegistos(); } catch (e) { Alert.alert('Erro', e.message); }
-  });
+  const desativar = (id) => mostrarConfirmacao(
+    'Desativar Trabalhador Externo', 
+    'Marcar este trabalhador como inativo?', 
+    async () => {
+      try { 
+        await callPost(`${id}/desativar`); 
+        await fetchRegistos(); 
+        Alert.alert('Sucesso', 'Registo desativado.');
+      } catch (e) { 
+        Alert.alert('Erro', e.message); 
+      }
+    },
+    'Desativar',
+    '#6c757d'
+  );
 
   const abrirDetalhe = (item) => { setDetalhe(item); setModalDetalheVisible(true); };
   const fecharDetalhe = () => { setDetalhe(null); setModalDetalheVisible(false); };
@@ -1348,7 +1433,7 @@ const GestaoTrabalhadoresExternos = () => {
                     <View key={period.periodKey} style={styles.analyticsCard}>
                       <View style={styles.analyticsCardHeader}>
                         <View style={styles.analyticsIconContainer}>
-                          <Ionicons name="calendar" size={20} color="#fd7e14" />
+                          <Ionicons name="calendar" size={20} color="#1792FE" />
                         </View>
                         <Text style={styles.analyticsCardTitle}>{period.label}</Text>
                         <View style={styles.analyticsCardBadge}>
@@ -1399,6 +1484,50 @@ const GestaoTrabalhadoresExternos = () => {
               </ScrollView>
             )}
           </SafeAreaView>
+        </Modal>
+
+        {/* Modal de Confirmação */}
+        <Modal visible={modalConfirmacao.visible} animationType="fade" transparent onRequestClose={fecharConfirmacao}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmationModal}>
+              <View style={styles.confirmationHeader}>
+                <View style={styles.confirmationIconContainer}>
+                  <Ionicons name="warning" size={32} color="#1792FE'" />
+                </View>
+                <Text style={styles.confirmationTitle}>{modalConfirmacao.titulo}</Text>
+              </View>
+
+              <View style={styles.confirmationContent}>
+                <Text style={styles.confirmationMessage}>{modalConfirmacao.mensagem}</Text>
+              </View>
+
+              <View style={styles.confirmationActions}>
+                <TouchableOpacity onPress={fecharConfirmacao} style={styles.confirmationCancelBtn}>
+                  <Text style={styles.confirmationCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={executarConfirmacao} style={styles.confirmationConfirmBtn}>
+                  <LinearGradient 
+                    colors={[modalConfirmacao.confirmColor, modalConfirmacao.confirmColor + '99']} 
+                    style={styles.confirmationConfirmBtnGradient}
+                  >
+                    <Ionicons 
+                      name={
+                        modalConfirmacao.confirmText === 'Eliminar' ? 'trash' :
+                        modalConfirmacao.confirmText === 'Anular' ? 'close-circle' :
+                        modalConfirmacao.confirmText === 'Restaurar' ? 'refresh' :
+                        modalConfirmacao.confirmText === 'Ativar' ? 'checkmark-circle' :
+                        'pause-circle'
+                      } 
+                      size={18} 
+                      color="#fff" 
+                    />
+                    <Text style={styles.confirmationConfirmText}>{modalConfirmacao.confirmText}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </Modal>
       </SafeAreaView>
     </LinearGradient>
@@ -2281,6 +2410,91 @@ const styles = StyleSheet.create({
   moneyText: {
     color: '#28a745',
     fontWeight: '700',
+  },
+
+  // Confirmation Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  confirmationModal: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 0,
+    width: '100%',
+    maxWidth: 400,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+  },
+  confirmationHeader: {
+    alignItems: 'center',
+    paddingTop: 30,
+    paddingHorizontal: 25,
+    paddingBottom: 20,
+  },
+  confirmationIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  confirmationTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    textAlign: 'center',
+  },
+  confirmationContent: {
+    paddingHorizontal: 25,
+    paddingBottom: 25,
+  },
+  confirmationMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  confirmationActions: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f3f4',
+  },
+  confirmationCancelBtn: {
+    flex: 1,
+    paddingVertical: 18,
+    alignItems: 'center',
+    borderRightWidth: 1,
+    borderRightColor: '#f1f3f4',
+  },
+  confirmationCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  confirmationConfirmBtn: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  confirmationConfirmBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 8,
+  },
+  confirmationConfirmText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });
 
