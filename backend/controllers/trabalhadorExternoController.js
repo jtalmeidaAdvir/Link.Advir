@@ -20,12 +20,12 @@ const listar = async (req, res) => {
     } = req.query;
 
     const where = {};
-    
+
     // Filtrar sempre pela empresa do usuário logado
     if (req.user && req.user.empresa_id) {
       where.empresa_id = req.user.empresa_id;
     }
-    
+
     if (empresa) where.empresa = { [Op.like]: `%${empresa}%` };
     if (categoria) where.categoria = { [Op.like]: `%${categoria}%` };
     if (moeda) where.moeda = moeda.toUpperCase();
@@ -72,10 +72,11 @@ const listar = async (req, res) => {
 const listarEmpresasDistintas = async (req, res) => {
   try {
     const where = {};
-    if (req.user && req.user.empresa_id) {
-      where.empresa_id = req.user.empresa_id;
+    const empresaId = req.user?.empresa_id || req.headers['x-empresa-id'];
+    if (empresaId) {
+      where.empresa_id = parseInt(empresaId, 10);
     }
-    
+
     const empresas = await TrabalhadorExterno.findAll({
       attributes: [[fn('DISTINCT', col('empresa')), 'empresa']],
       where,
@@ -92,10 +93,11 @@ const listarEmpresasDistintas = async (req, res) => {
 const listarCategoriasDistintas = async (req, res) => {
   try {
     const where = {};
-    if (req.user && req.user.empresa_id) {
-      where.empresa_id = req.user.empresa_id;
+    const empresaId = req.user?.empresa_id || req.headers['x-empresa-id'];
+    if (empresaId) {
+      where.empresa_id = parseInt(empresaId, 10);
     }
-    
+
     const categorias = await TrabalhadorExterno.findAll({
       attributes: [[fn('DISTINCT', col('categoria')), 'categoria']],
       where,

@@ -227,7 +227,11 @@ const GestaoTrabalhadoresExternos = () => {
         'Content-Type': 'application/json'
       };
 
+      // Obter empresa_id do localStorage
+      const empresaId = await AsyncStorage.getItem('empresa_id');
+      
       const payload = {
+        empresa_id: empresaId ? Number(empresaId) : null,
         empresa: form.empresa.trim(),
         funcionario: form.funcionario.trim(),
         categoria: form.categoria.trim() || null,
