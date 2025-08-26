@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity,
@@ -39,8 +40,6 @@ const formatarHoras = (minutos = 0) => {
   return `${h > 0 ? `${h}h ` : ''}${m}m`;
 };
 
-// considera “trabalhador externo” apenas nos itens de PESSOAL (ignora equipamentos)
-// considera “trabalhador externo” apenas nos itens de PESSOAL (ignora equipamentos)
 const isExternoItem = (it) => {
   const isEquip = String(it.Categoria || '').toLowerCase() === 'equipamentos';
   if (isEquip) return false;
@@ -50,25 +49,21 @@ const isExternoItem = (it) => {
     it.ColaboradorID === undefined ||
     String(it.ColaboradorID).trim() === '';
 
-  // aceita qualquer “externo” no texto, com/sem parênteses
   const marca = /\bexterno\b/i.test(String(it.Funcionario || ''));
 
   return semColab || marca;
 };
 
-// normaliza nomes: remove acentos, "(...)", a palavra "externo", pontuação e espaços extra
 const normalizeName = (s = '') =>
   s.toString()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/\(.*?\)/g, ' ')         // remove qualquer "(...)"
-    .replace(/\bexterno\b/gi, ' ')    // remove a palavra externo
-    .replace(/[^a-z0-9\s]/gi, ' ')    // remove pontuação
-    .replace(/\s+/g, ' ')             // espaços múltiplos
+    .replace(/\(.*?\)/g, ' ')
+    .replace(/\bexterno\b/gi, ' ')
+    .replace(/[^a-z0-9\s]/gi, ' ')
+    .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
 
-
-// devolve a especialidade a partir do item da Parte Diária (vários nomes possíveis)
 const getEspecialidade = (it = {}) =>
   it.Especialidade ||
   it.EspecialidadeNome ||
@@ -82,8 +77,6 @@ const getEspecialidade = (it = {}) =>
 const formatarValor = (n = 0) =>
   Number(n).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-
-// tem ALGUM item externo de pessoal?
 const hasAnyExternosPessoal = (cab) => {
   const itens = cab?.ParteDiariaItems || [];
   return itens.some(it => String(it.Categoria || '').toLowerCase() !== 'equipamentos' && isExternoItem(it));
@@ -98,7 +91,7 @@ const GestaoTrabalhadoresExternos = () => {
 
   // Filtros
   const [search, setSearch] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState('todos'); // todos | ativos | inativos | anulados
+  const [filtroStatus, setFiltroStatus] = useState('todos');
   const [empresaFiltro, setEmpresaFiltro] = useState('');
   const [categoriaFiltro, setCategoriaFiltro] = useState('');
   const [empresasCombo, setEmpresasCombo] = useState([]);
@@ -113,27 +106,23 @@ const GestaoTrabalhadoresExternos = () => {
   const [modalDetalheVisible, setModalDetalheVisible] = useState(false);
   const [detalhe, setDetalhe] = useState(null);
 
-  // === RESUMO EXTERNOS (NOVO) ===
+  // === RESUMO EXTERNOS ===
   const [modalResumoVisible, setModalResumoVisible] = useState(false);
   const [resumoLoading, setResumoLoading] = useState(false);
   const [resumoDocs, setResumoDocs] = useState([]);
   const [obrasMap, setObrasMap] = useState({});
 
   // Controlo do resumo
-  const [granularidade, setGranularidade] = useState('diario'); // 'diario' | 'mensal' | 'anual'
-const [agruparPor, setAgruparPor] = useState('geral');        // 'geral' | 'obra' | 'empresa' | 'externo'
-const [dataInicio, setDataInicio] = useState('');
-const [dataFim, setDataFim] = useState('');
+  const [granularidade, setGranularidade] = useState('diario');
+  const [agruparPor, setAgruparPor] = useState('geral');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
 
-
-// Mostrar € e filtros de resumo
-const [mostrarValores, setMostrarValores] = useState(true);
-
-const [empresaResumoFiltro, setEmpresaResumoFiltro] = useState('');
-const [externoResumoFiltro, setExternoResumoFiltro] = useState('');
-const [especialidadeResumoFiltro, setEspecialidadeResumoFiltro] = useState('');
-
-
+  // Mostrar € e filtros de resumo
+  const [mostrarValores, setMostrarValores] = useState(true);
+  const [empresaResumoFiltro, setEmpresaResumoFiltro] = useState('');
+  const [externoResumoFiltro, setExternoResumoFiltro] = useState('');
+  const [especialidadeResumoFiltro, setEspecialidadeResumoFiltro] = useState('');
 
   const carregarCombos = useCallback(async () => {
     try {
@@ -148,8 +137,8 @@ const [especialidadeResumoFiltro, setEspecialidadeResumoFiltro] = useState('');
       const empData = emp.ok ? await emp.json() : [];
       const catData = cat.ok ? await cat.json() : [];
 
-      setEmpresasCombo(['', ...empData]);      // '' = Todos
-      setCategoriasCombo(['', ...catData]);    // '' = Todos
+      setEmpresasCombo(['', ...empData]);
+      setCategoriasCombo(['', ...catData]);
     } catch { /* silencioso */ }
   }, []);
 
@@ -347,7 +336,6 @@ const [especialidadeResumoFiltro, setEspecialidadeResumoFiltro] = useState('');
       const painelToken = await AsyncStorage.getItem('painelAdminToken');
       const res = await fetch(API_PARTE_DIARIA, { headers: { Authorization: `Bearer ${painelToken}` } });
       const all = await res.json();
-      // integrados + com algum externo de pessoal
       const aprovados = (all || [])
         .filter(c => c.IntegradoERP)
         .filter(c => hasAnyExternosPessoal(c))
@@ -366,86 +354,78 @@ const [especialidadeResumoFiltro, setEspecialidadeResumoFiltro] = useState('');
   };
   const closeResumoExternos = () => { setModalResumoVisible(false); setResumoDocs([]); };
 
- // Mapa (NOME NORMALIZADO) -> empresa do externo
- const nomeToEmpresa = useMemo(() => {
-   const m = {};
-   (registos || []).forEach(r => {
-     const key = normalizeName(r?.funcionario || '');
-     if (key) m[key] = r?.empresa || '—';
-   });
-   return m;
- }, [registos]);
+  // Mapa (NOME NORMALIZADO) -> empresa do externo
+  const nomeToEmpresa = useMemo(() => {
+    const m = {};
+    (registos || []).forEach(r => {
+      const key = normalizeName(r?.funcionario || '');
+      if (key) m[key] = r?.empresa || '—';
+    });
+    return m;
+  }, [registos]);
 
- // Info por externo (valor hora / moeda / empresa), indexado por nome normalizado
-const nomeToInfo = useMemo(() => {
-  const m = {};
-  (registos || []).forEach(r => {
-    const key = normalizeName(r?.funcionario || '');
-    if (!key) return;
-    m[key] = {
-      empresa: r?.empresa || '—',
-      valorHora: Number(r?.valor) || 0,
-      moeda: (r?.moeda || 'EUR').toUpperCase(),
-    };
-  });
-  return m;
-}, [registos]);
-
+  // Info por externo (valor hora / moeda / empresa), indexado por nome normalizado
+  const nomeToInfo = useMemo(() => {
+    const m = {};
+    (registos || []).forEach(r => {
+      const key = normalizeName(r?.funcionario || '');
+      if (!key) return;
+      m[key] = {
+        empresa: r?.empresa || '—',
+        valorHora: Number(r?.valor) || 0,
+        moeda: (r?.moeda || 'EUR').toUpperCase(),
+      };
+    });
+    return m;
+  }, [registos]);
 
   // Helpers resumo
   const getPeriodParts = (iso) => {
     const d = new Date(iso);
     const y = d.getFullYear();
-    const m = d.getMonth() + 1; // 1..12
+    const m = d.getMonth() + 1;
     const dd = d.getDate();
     return { y, m, dd, ts: d.getTime() };
   };
 
+  // Opções dos pickers no Resumo
+  const resumoOptions = useMemo(() => {
+    const empresas = new Set(['']);
+    const externos = new Set(['']);
+    const especialidades = new Set(['']);
 
-  // Opções dos pickers no Resumo, geradas a partir dos docs carregados
-const resumoOptions = useMemo(() => {
-  const empresas = new Set(['']);
-  const externos = new Set(['']);
-  const especialidades = new Set(['']);
+    (resumoDocs || []).forEach(cab => {
+      (cab.ParteDiariaItems || []).forEach(it => {
+        if (String(it.Categoria || '').toLowerCase() === 'equipamentos') return;
+        if (!isExternoItem(it)) return;
 
-  (resumoDocs || []).forEach(cab => {
-    (cab.ParteDiariaItems || []).forEach(it => {
-      if (String(it.Categoria || '').toLowerCase() === 'equipamentos') return;
-      if (!isExternoItem(it)) return;
-
-      const key = normalizeName(it.Funcionario || '');
-      const emp = nomeToInfo[key]?.empresa || '—';
-      if (emp) empresas.add(emp);
-      if (it.Funcionario) externos.add(it.Funcionario);
-      const esp = getEspecialidade(it);
-      if (esp) especialidades.add(esp);
+        const key = normalizeName(it.Funcionario || '');
+        const emp = nomeToInfo[key]?.empresa || '—';
+        if (emp) empresas.add(emp);
+        if (it.Funcionario) externos.add(it.Funcionario);
+        const esp = getEspecialidade(it);
+        if (esp) especialidades.add(esp);
+      });
     });
-  });
 
-  return {
-    empresas: Array.from(empresas),
-    externos: Array.from(externos),
-    especialidades: Array.from(especialidades),
+    return {
+      empresas: Array.from(empresas),
+      externos: Array.from(externos),
+      especialidades: Array.from(especialidades),
+    };
+  }, [resumoDocs, nomeToInfo]);
+
+  const passaFiltrosResumo = (it) => {
+    const nome = it.Funcionario || '';
+    const esp = getEspecialidade(it);
+    const emp = nomeToInfo[normalizeName(nome)]?.empresa || '—';
+
+    if (empresaResumoFiltro && emp !== empresaResumoFiltro) return false;
+    if (externoResumoFiltro && nome !== externoResumoFiltro) return false;
+    if (especialidadeResumoFiltro && esp !== especialidadeResumoFiltro) return false;
+
+    return true;
   };
-}, [resumoDocs, nomeToInfo]);
-
-const passaFiltrosResumo = (it) => {
-  const nome = it.Funcionario || '';
-  const esp = getEspecialidade(it);
-  const emp = nomeToInfo[normalizeName(nome)]?.empresa || '—';
-
-  if (empresaResumoFiltro && emp !== empresaResumoFiltro) return false;
-  if (externoResumoFiltro && nome !== externoResumoFiltro) return false;
-  if (especialidadeResumoFiltro && esp !== especialidadeResumoFiltro) return false;
-
-  return true;
-};
-
-
-
-
-
-
 
   const periodKeyAndLabel = (iso, gran) => {
     const { y, m, ts } = getPeriodParts(iso);
@@ -454,7 +434,6 @@ const passaFiltrosResumo = (it) => {
       const k = `${y}-${String(m).padStart(2, '0')}`;
       return { key: k, label: k, sort: y * 100 + m };
     }
-    // diário
     const d = new Date(iso);
     const key = iso.slice(0, 10);
     return { key, label: d.toLocaleDateString('pt-PT'), sort: ts };
@@ -469,81 +448,75 @@ const passaFiltrosResumo = (it) => {
   };
 
   const resumoAgrupado = useMemo(() => {
-  // árvore: Map(periodKey => { label, sort, groups: Map(label => {minutos, valores{EUR: n, CHF: n}}), totalMin, totalVals{...} })
-  const tree = new Map();
+    const tree = new Map();
 
-  (resumoDocs || []).forEach(cab => {
-    if (!dentroIntervalo(cab.Data)) return;
+    (resumoDocs || []).forEach(cab => {
+      if (!dentroIntervalo(cab.Data)) return;
 
-    const itensExternos = (cab.ParteDiariaItems || [])
-      .filter(it => String(it.Categoria || '').toLowerCase() !== 'equipamentos')
-      .filter(isExternoItem)
-      .filter(passaFiltrosResumo);
+      const itensExternos = (cab.ParteDiariaItems || [])
+        .filter(it => String(it.Categoria || '').toLowerCase() !== 'equipamentos')
+        .filter(isExternoItem)
+        .filter(passaFiltrosResumo);
 
-    if (itensExternos.length === 0) return;
+      if (itensExternos.length === 0) return;
 
-    const { key: pKey, label: pLabel, sort } = periodKeyAndLabel(cab.Data, granularidade);
-    if (!tree.has(pKey)) tree.set(pKey, { label: pLabel, sort, groups: new Map(), totalMin: 0, totalVals: {} });
+      const { key: pKey, label: pLabel, sort } = periodKeyAndLabel(cab.Data, granularidade);
+      if (!tree.has(pKey)) tree.set(pKey, { label: pLabel, sort, groups: new Map(), totalMin: 0, totalVals: {} });
 
-    itensExternos.forEach(it => {
-      // label do grupo
-      const nome = it.Funcionario || 'Externo';
-      const nomeKey = normalizeName(nome);
-      const emp = nomeToEmpresa[nomeKey] || nomeToInfo[nomeKey]?.empresa || '—';
-      const esp = getEspecialidade(it);
+      itensExternos.forEach(it => {
+        const nome = it.Funcionario || 'Externo';
+        const nomeKey = normalizeName(nome);
+        const emp = nomeToEmpresa[nomeKey] || nomeToInfo[nomeKey]?.empresa || '—';
+        const esp = getEspecialidade(it);
 
-      let gLabel = 'Total';
-      switch (agruparPor) {
-        case 'obra': {
-          const ob = obrasMap[String(cab.ObraID)];
-          gLabel = ob ? `${ob.codigo} — ${ob.nome}` : `Obra ${cab.ObraID}`;
-          break;
+        let gLabel = 'Total';
+        switch (agruparPor) {
+          case 'obra': {
+            const ob = obrasMap[String(cab.ObraID)];
+            gLabel = ob ? `${ob.codigo} — ${ob.nome}` : `Obra ${cab.ObraID}`;
+            break;
+          }
+          case 'empresa': gLabel = emp; break;
+          case 'externo': gLabel = nome; break;
+          case 'especialidade': gLabel = esp; break;
+          case 'empresa_externo': gLabel = `${emp} — ${nome}`; break;
+          case 'especialidade_externo': gLabel = `${esp} — ${nome}`; break;
+          case 'especialidade_empresa': gLabel = `${esp} — ${emp}`; break;
         }
-        case 'empresa': gLabel = emp; break;
-        case 'externo': gLabel = nome; break;
-        case 'especialidade': gLabel = esp; break;
-        case 'empresa_externo': gLabel = `${emp} — ${nome}`; break;
-        case 'especialidade_externo': gLabel = `${esp} — ${nome}`; break;
-        case 'especialidade_empresa': gLabel = `${esp} — ${emp}`; break;
-        // 'geral' fica 'Total'
-      }
 
-      // minutos + € do item
-      const minutos = Number(it.NumHoras || 0);
-      const info = nomeToInfo[nomeKey]; // pode não existir
-      const moeda = info?.moeda || 'EUR';
-      const valorMin = info ? (info.valorHora * (minutos / 60)) : 0;
+        const minutos = Number(it.NumHoras || 0);
+        const info = nomeToInfo[nomeKey];
+        const moeda = info?.moeda || 'EUR';
+        const valorMin = info ? (info.valorHora * (minutos / 60)) : 0;
 
-      const node = tree.get(pKey);
-      const bucket = node.groups;
+        const node = tree.get(pKey);
+        const bucket = node.groups;
 
-      const current = bucket.get(gLabel) || { minutos: 0, valores: {} };
-      current.minutos += minutos;
-      current.valores[moeda] = (current.valores[moeda] || 0) + valorMin;
-      bucket.set(gLabel, current);
+        const current = bucket.get(gLabel) || { minutos: 0, valores: {} };
+        current.minutos += minutos;
+        current.valores[moeda] = (current.valores[moeda] || 0) + valorMin;
+        bucket.set(gLabel, current);
 
-      node.totalMin += minutos;
-      node.totalVals[moeda] = (node.totalVals[moeda] || 0) + valorMin;
+        node.totalMin += minutos;
+        node.totalVals[moeda] = (node.totalVals[moeda] || 0) + valorMin;
+      });
     });
-  });
 
-  // para array ordenado
-  const arr = Array.from(tree.entries())
-    .map(([k, v]) => ({
-      periodKey: k,
-      label: v.label,
-      sort: v.sort,
-      groups: Array.from(v.groups.entries())
-        .map(([g, { minutos, valores }]) => ({ label: g, minutos, valores }))
-        .sort((a, b) => b.minutos - a.minutos),
-      total: v.totalMin,
-      totais: v.totalVals,
-    }))
-    .sort((a, b) => b.sort - a.sort);
+    const arr = Array.from(tree.entries())
+      .map(([k, v]) => ({
+        periodKey: k,
+        label: v.label,
+        sort: v.sort,
+        groups: Array.from(v.groups.entries())
+          .map(([g, { minutos, valores }]) => ({ label: g, minutos, valores }))
+          .sort((a, b) => b.minutos - a.minutos),
+        total: v.totalMin,
+        totais: v.totalVals,
+      }))
+      .sort((a, b) => b.sort - a.sort);
 
-  return arr;
-}, [resumoDocs, granularidade, agruparPor, obrasMap, nomeToEmpresa, nomeToInfo, dataInicio, dataFim, empresaResumoFiltro, externoResumoFiltro, especialidadeResumoFiltro]);
-
+    return arr;
+  }, [resumoDocs, granularidade, agruparPor, obrasMap, nomeToEmpresa, nomeToInfo, dataInicio, dataFim, empresaResumoFiltro, externoResumoFiltro, especialidadeResumoFiltro]);
 
   // Render cards
   const renderItem = ({ item }) => {
@@ -553,8 +526,10 @@ const passaFiltrosResumo = (it) => {
         <TouchableOpacity onPress={() => abrirDetalhe(item)} style={styles.cardContent}>
           <View style={styles.cardHeader}>
             <View style={styles.titleContainer}>
-              <Ionicons name="briefcase" size={20} color="#1792FE" />
-              <Text style={styles.cardTitle}>{item.funcionario}</Text>
+              <View style={styles.iconBadge}>
+                <Ionicons name="person" size={20} color="#1792FE" />
+              </View>
+              <Text style={styles.cardTitle} numberOfLines={1}>{item.funcionario}</Text>
             </View>
             <View style={[styles.statusBadge, { backgroundColor: s.color }]}>
               <Ionicons name={s.icon} size={12} color="#fff" style={styles.statusIcon} />
@@ -564,54 +539,51 @@ const passaFiltrosResumo = (it) => {
 
           <View style={styles.cardBody}>
             <View style={styles.infoRow}>
-              <Ionicons name="business" size={16} color="#666" />
-              <Text style={styles.cardText}>{item.empresa}</Text>
+              <View style={styles.infoIcon}>
+                <Ionicons name="business" size={16} color="#666" />
+              </View>
+              <Text style={styles.infoLabel}>Empresa:</Text>
+              <Text style={styles.infoValue} numberOfLines={1}>{item.empresa}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Ionicons name="pricetag" size={16} color="#666" />
-              <Text style={styles.cardText}>{item.categoria || '—'}</Text>
+              <View style={styles.infoIcon}>
+                <Ionicons name="construct" size={16} color="#666" />
+              </View>
+              <Text style={styles.infoLabel}>Categoria:</Text>
+              <Text style={styles.infoValue} numberOfLines={1}>{item.categoria || '—'}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Ionicons name="cash" size={16} color="#666" />
-              <Text style={styles.cardText}>
-                {Number(item.valor).toFixed(2)} {item.moeda || 'EUR'}
+              <View style={styles.infoIcon}>
+                <Ionicons name="cash" size={16} color="#28a745" />
+              </View>
+              <Text style={styles.infoLabel}>Valor:</Text>
+              <Text style={[styles.infoValue, styles.valueText]}>
+                {formatarValor(item.valor)} {item.moeda || 'EUR'}
               </Text>
             </View>
           </View>
 
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.smallBtn} onPress={() => openEdit(item)}>
-              <Ionicons name="create" size={16} color="#1792FE" />
-              <Text style={styles.smallBtnText}>Editar</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.editBtn]} onPress={() => openEdit(item)}>
+              <Ionicons name="create-outline" size={18} color="#1792FE" />
+              <Text style={[styles.actionBtnText, { color: '#1792FE' }]}>Editar</Text>
             </TouchableOpacity>
 
             {!item.anulado ? (
-              <TouchableOpacity style={styles.smallBtn} onPress={() => anular(item.id)}>
-                <Ionicons name="close-circle" size={16} color="#dc3545" />
-                <Text style={[styles.smallBtnText, { color: '#dc3545' }]}>Anular</Text>
+              <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={() => anular(item.id)}>
+                <Ionicons name="close-circle-outline" size={18} color="#dc3545" />
+                <Text style={[styles.actionBtnText, { color: '#dc3545' }]}>Anular</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={styles.smallBtn} onPress={() => restaurar(item.id)}>
-                <Ionicons name="refresh" size={16} color="#17a2b8" />
-                <Text style={[styles.smallBtnText, { color: '#17a2b8' }]}>Restaurar</Text>
+              <TouchableOpacity style={[styles.actionBtn, styles.restoreBtn]} onPress={() => restaurar(item.id)}>
+                <Ionicons name="refresh-outline" size={18} color="#17a2b8" />
+                <Text style={[styles.actionBtnText, { color: '#17a2b8' }]}>Restaurar</Text>
               </TouchableOpacity>
             )}
 
-            {item.ativo ? (
-              <TouchableOpacity style={styles.smallBtn} onPress={() => desativar(item.id)}>
-                <Ionicons name="pause-circle" size={16} color="#6c757d" />
-                <Text style={[styles.smallBtnText, { color: '#6c757d' }]}>Desativar</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.smallBtn} onPress={() => ativar(item.id)}>
-                <Ionicons name="play-circle" size={16} color="#28a745" />
-                <Text style={[styles.smallBtnText, { color: '#28a745' }]}>Ativar</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity style={styles.smallBtn} onPress={() => eliminar(item.id)}>
-              <Ionicons name="trash" size={16} color="#000" />
-              <Text style={[styles.smallBtnText, { color: '#000' }]}>Eliminar</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => eliminar(item.id)}>
+              <Ionicons name="trash-outline" size={18} color="#6c757d" />
+              <Text style={[styles.actionBtnText, { color: '#6c757d' }]}>Eliminar</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -620,254 +592,423 @@ const passaFiltrosResumo = (it) => {
   };
 
   if (loading) return (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#1792FE" />
-      <Text style={styles.loadingText}>A carregar trabalhadores externos...</Text>
+    <View style={styles.centerContainer}>
+      <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.loadingCard}>
+        <ActivityIndicator size="large" color="#fff" />
+        <Text style={styles.loadingText}>A carregar trabalhadores externos...</Text>
+      </LinearGradient>
     </View>
   );
 
   if (erro) return (
-    <View style={styles.errorContainer}>
-      <Ionicons name="alert-circle" size={64} color="#dc3545" />
-      <Text style={styles.errorText}>{erro}</Text>
-      <TouchableOpacity onPress={fetchRegistos} style={styles.retryButton}>
-        <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.buttonGradient}>
-          <Ionicons name="refresh" size={16} color="#fff" />
-          <Text style={styles.retryText}>Tentar Novamente</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+    <View style={styles.centerContainer}>
+      <View style={styles.errorCard}>
+        <Ionicons name="alert-circle" size={64} color="#dc3545" />
+        <Text style={styles.errorTitle}>Oops! Algo correu mal</Text>
+        <Text style={styles.errorText}>{erro}</Text>
+        <TouchableOpacity onPress={fetchRegistos} style={styles.retryButton}>
+          <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.buttonGradient}>
+            <Ionicons name="refresh" size={18} color="#fff" />
+            <Text style={styles.buttonText}>Tentar Novamente</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
   return (
-    <LinearGradient colors={['#e3f2fd', '#bbdefb', '#90caf9']} style={{ flex: 1 }}>
+    <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.mainContainer}>
       <SafeAreaView style={styles.container}>
-        <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.header}>
-          <Text style={styles.headerTitle}>Trabalhadores Externos</Text>
-          <Text style={styles.headerSubtitle}>
-            {listaFiltrada.length} {listaFiltrada.length === 1 ? 'registo' : 'registos'}
-          </Text>
-        </LinearGradient>
-
-        {/* Filtros */}
-        <View style={styles.filtersCard}>
-          <View style={styles.searchRow}>
-            <Ionicons name="search" size={18} color="#1792FE" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Pesquisar (empresa, funcionário, categoria)"
-              value={search}
-              onChangeText={setSearch}
-              returnKeyType="search"
-              onSubmitEditing={fetchRegistos}
-            />
-            <TouchableOpacity onPress={fetchRegistos}>
-              <Ionicons name="arrow-forward-circle" size={24} color="#1792FE" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.pickersRow}>
-            <View style={styles.pickerWrap}>
-              <Text style={styles.pickerLabel}>Empresa</Text>
-              <Picker
-                selectedValue={empresaFiltro}
-                onValueChange={(v) => setEmpresaFiltro(v)}
-                style={styles.picker}
-              >
-                {empresasCombo.map((e, idx) => (
-                  <Picker.Item key={String(idx)} label={e || 'Todas'} value={e} />
-                ))}
-              </Picker>
-            </View>
-
-            <View style={styles.pickerWrap}>
-              <Text style={styles.pickerLabel}>Categoria</Text>
-              <Picker
-                selectedValue={categoriaFiltro}
-                onValueChange={(v) => setCategoriaFiltro(v)}
-                style={styles.picker}
-              >
-                {categoriasCombo.map((c, idx) => (
-                  <Picker.Item key={String(idx)} label={c || 'Todas'} value={c} />
-                ))}
-              </Picker>
-            </View>
-          </View>
-
-          <View style={styles.statusRow}>
-            {['todos', 'ativos', 'inativos', 'anulados'].map(opcao => (
-              <TouchableOpacity
-                key={opcao}
-                style={[styles.statusBtn, filtroStatus === opcao && styles.statusBtnActive]}
-                onPress={() => setFiltroStatus(opcao)}
-              >
-                <Text style={filtroStatus === opcao ? styles.statusBtnTextActive : styles.statusBtnText}>
-                  {opcao.charAt(0).toUpperCase() + opcao.slice(1)}
+        {/* Header Melhorado */}
+        <View style={styles.header}>
+          <LinearGradient colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']} style={styles.headerContent}>
+            <View style={styles.headerTop}>
+              <View style={styles.headerIcon}>
+                <Ionicons name="people" size={28} color="#fff" />
+              </View>
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.headerTitle}>Trabalhadores Externos</Text>
+                <Text style={styles.headerSubtitle}>
+                  {listaFiltrada.length} {listaFiltrada.length === 1 ? 'registo encontrado' : 'registos encontrados'}
                 </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={styles.bottomFilterRow}>
-            <TouchableOpacity onPress={fetchRegistos} style={styles.applyFiltersBtn}>
-              <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.applyFiltersGrad}>
-                <Ionicons name="funnel" size={16} color="#fff" />
-                <Text style={styles.applyFiltersText}>Aplicar Filtros</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={openCreate} style={styles.newBtn}>
-              <LinearGradient colors={['#34c759', '#2aa94f']} style={styles.applyFiltersGrad}>
-                <Ionicons name="add-circle" size={16} color="#fff" />
-                <Text style={styles.applyFiltersText}>Novo</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Botão Resumo */}
-            <TouchableOpacity onPress={openResumoExternos} style={styles.resumoBtn}>
-              <LinearGradient colors={['#fd7e14', '#f39c12']} style={styles.applyFiltersGrad}>
-                <Ionicons name="analytics" size={16} color="#fff" />
-                <Text style={styles.applyFiltersText}>Resumo Externos</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
+              </View>
+            </View>
+          </LinearGradient>
         </View>
 
-        {/* Lista */}
-        <FlatList
-          data={listaFiltrada}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1792FE']} />}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="people-circle" size={80} color="#ccc" />
-              <Text style={styles.emptyTitle}>Sem trabalhadores externos</Text>
-              <Text style={styles.emptyText}>Clique em "Novo" para criar o primeiro registo.</Text>
-            </View>
-          )}
-        />
-
-        {/* Modal Form */}
-        <Modal visible={modalFormVisible} animationType="slide" onRequestClose={closeForm}>
-          <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{form.id ? 'Editar' : 'Novo'} Trabalhador Externo</Text>
-              <TouchableOpacity onPress={closeForm} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#333" />
+        {/* Filtros Melhorados */}
+        <View style={styles.filtersContainer}>
+          <View style={styles.filtersCard}>
+            {/* Pesquisa */}
+            <View style={styles.searchContainer}>
+              <View style={styles.searchIcon}>
+                <Ionicons name="search" size={20} color="#1792FE" />
+              </View>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Pesquisar por empresa, funcionário ou categoria..."
+                value={search}
+                onChangeText={setSearch}
+                returnKeyType="search"
+                onSubmitEditing={fetchRegistos}
+                placeholderTextColor="#999"
+              />
+              <TouchableOpacity style={styles.searchBtn} onPress={fetchRegistos}>
+                <Ionicons name="arrow-forward" size={20} color="#1792FE" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.formBody}>
-              <View style={styles.formRow}>
-                <Text style={styles.label}>Empresa *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={form.empresa}
-                  onChangeText={(t) => handleChange('empresa', t)}
-                  placeholder="Ex.: Rubinova"
-                />
-              </View>
-
-              <View style={styles.formRow}>
-                <Text style={styles.label}>Funcionário *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={form.funcionario}
-                  onChangeText={(t) => handleChange('funcionario', t)}
-                  placeholder="Ex.: Joaquim Ribeiro"
-                />
-              </View>
-
-              <View style={styles.formRow}>
-                <Text style={styles.label}>Categoria</Text>
-                <TextInput
-                  style={styles.input}
-                  value={form.categoria}
-                  onChangeText={(t) => handleChange('categoria', t)}
-                  placeholder="Ex.: Servente / Oficial 1ª"
-                />
-              </View>
-
-              <View style={styles.twoCols}>
-                <View style={[styles.formRow, { flex: 1, marginRight: 6 }]}>
-                  <Text style={styles.label}>Valor *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={String(form.valor)}
-                    onChangeText={(t) => handleChange('valor', t.replace(',', '.'))}
-                    keyboardType="numeric"
-                    placeholder="Ex.: 9.50"
-                  />
-                </View>
-                <View style={[styles.formRow, { width: 110, marginLeft: 6 }]}>
-                  <Text style={styles.label}>Moeda</Text>
+            {/* Dropdowns Melhorados */}
+            <View style={styles.dropdownsContainer}>
+              <View style={styles.dropdownWrapper}>
+                <Text style={styles.dropdownLabel}>
+                  <Ionicons name="business-outline" size={14} color="#666" /> Empresa
+                </Text>
+                <View style={styles.modernPicker}>
                   <Picker
-                    selectedValue={form.moeda}
-                    onValueChange={(v) => handleChange('moeda', v)}
-                    style={styles.picker}
+                    selectedValue={empresaFiltro}
+                    onValueChange={(v) => setEmpresaFiltro(v)}
+                    style={styles.pickerStyle}
+                    dropdownIconColor="#1792FE"
                   >
-                    <Picker.Item label="EUR" value="EUR" />
-                    <Picker.Item label="CHF" value="CHF" />
+                    <Picker.Item label="Todas as empresas" value="" />
+                    {empresasCombo.slice(1).map((e, idx) => (
+                      <Picker.Item key={`emp-${idx}`} label={`🏢 ${e}`} value={e} />
+                    ))}
                   </Picker>
                 </View>
               </View>
 
-              <View style={styles.twoCols}>
-                <View style={[styles.formRow, { flex: 1, marginRight: 6 }]}>
-                  <Text style={styles.label}>Data Início</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={form.data_inicio}
-                    onChangeText={(t) => handleChange('data_inicio', t)}
-                    placeholder="YYYY-MM-DD"
+              <View style={styles.dropdownWrapper}>
+                <Text style={styles.dropdownLabel}>
+                  <Ionicons name="construct-outline" size={14} color="#666" /> Categoria
+                </Text>
+                <View style={styles.modernPicker}>
+                  <Picker
+                    selectedValue={categoriaFiltro}
+                    onValueChange={(v) => setCategoriaFiltro(v)}
+                    style={styles.pickerStyle}
+                    dropdownIconColor="#1792FE"
+                  >
+                    <Picker.Item label="Todas as categorias" value="" />
+                    {categoriasCombo.slice(1).map((c, idx) => (
+                      <Picker.Item key={`cat-${idx}`} label={`⚒️ ${c}`} value={c} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+            </View>
+
+            {/* Status Chips */}
+            <View style={styles.statusContainer}>
+              {[
+                { key: 'todos', label: 'Todos', icon: 'list' },
+                { key: 'ativos', label: 'Ativos', icon: 'checkmark-circle' },
+                { key: 'inativos', label: 'Inativos', icon: 'pause-circle' },
+                { key: 'anulados', label: 'Anulados', icon: 'close-circle' }
+              ].map(opcao => (
+                <TouchableOpacity
+                  key={opcao.key}
+                  style={[styles.statusChip, filtroStatus === opcao.key && styles.statusChipActive]}
+                  onPress={() => setFiltroStatus(opcao.key)}
+                >
+                  <Ionicons 
+                    name={opcao.icon} 
+                    size={16} 
+                    color={filtroStatus === opcao.key ? '#fff' : '#666'} 
                   />
+                  <Text style={filtroStatus === opcao.key ? styles.statusChipTextActive : styles.statusChipText}>
+                    {opcao.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.actionButtonsContainer}>
+              <TouchableOpacity onPress={fetchRegistos} style={[styles.modernButton, styles.primaryButton]}>
+                <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.modernButtonGradient}>
+                  <Ionicons name="funnel" size={18} color="#fff" />
+                  <Text style={styles.modernButtonText}>Aplicar Filtros</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={openCreate} style={[styles.modernButton, styles.successButton]}>
+                <LinearGradient colors={['#28a745', '#20c997']} style={styles.modernButtonGradient}>
+                  <Ionicons name="add-circle" size={18} color="#fff" />
+                  <Text style={styles.modernButtonText}>Novo Registo</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={openResumoExternos} style={[styles.modernButton, styles.warningButton]}>
+                <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.modernButtonGradient}>
+                  <Ionicons name="analytics" size={18} color="#fff" />
+                  <Text style={styles.modernButtonText}>Resumo Analytics</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Lista Melhorada */}
+        <FlatList
+          data={listaFiltrada}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh} 
+              colors={['#1792FE']}
+              tintColor="#1792FE"
+            />
+          }
+          ListEmptyComponent={() => (
+            <View style={styles.emptyStateContainer}>
+              <View style={styles.emptyStateCard}>
+                <LinearGradient 
+                  colors={['rgba(23, 146, 254, 0.1)', 'rgba(23, 146, 254, 0.05)']} 
+                  style={styles.emptyStateIcon}
+                >
+                  <Ionicons name="people-outline" size={80} color="#1792FE" />
+                </LinearGradient>
+                <Text style={styles.emptyStateTitle}>Nenhum trabalhador externo encontrado</Text>
+                <Text style={styles.emptyStateText}>
+                  {search || empresaFiltro || categoriaFiltro || filtroStatus !== 'todos' 
+                    ? 'Tente ajustar os filtros de pesquisa ou limpar os critérios.' 
+                    : 'Comece por criar o primeiro registo de trabalhador externo.'}
+                </Text>
+                <TouchableOpacity onPress={openCreate} style={styles.emptyStateButton}>
+                  <LinearGradient colors={['#28a745', '#20c997']} style={styles.emptyStateButtonGradient}>
+                    <Ionicons name="add" size={20} color="#fff" />
+                    <Text style={styles.emptyStateButtonText}>Criar Primeiro Registo</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        />
+
+        {/* Modal Form Melhorado */}
+        <Modal visible={modalFormVisible} animationType="slide" onRequestClose={closeForm} presentationStyle="pageSheet">
+          <SafeAreaView style={styles.modalContainer}>
+            <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.modalHeader}>
+              <View style={styles.modalHeaderContent}>
+                <View style={styles.modalTitleContainer}>
+                  <View style={styles.modalIcon}>
+                    <Ionicons name={form.id ? "create" : "add-circle"} size={24} color="#fff" />
+                  </View>
+                  <Text style={styles.modalTitle}>
+                    {form.id ? 'Editar Trabalhador Externo' : 'Novo Trabalhador Externo'}
+                  </Text>
                 </View>
-                <View style={[styles.formRow, { flex: 1, marginLeft: 6 }]}>
-                  <Text style={styles.label}>Data Fim</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={form.data_fim}
-                    onChangeText={(t) => handleChange('data_fim', t)}
-                    placeholder="YYYY-MM-DD"
-                  />
+                <TouchableOpacity onPress={closeForm} style={styles.modalCloseBtn}>
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+
+            <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>
+                  <Ionicons name="information-circle" size={16} color="#1792FE" /> Informações Básicas
+                </Text>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    <Ionicons name="business" size={14} color="#666" /> Empresa *
+                  </Text>
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.modernInput}
+                      value={form.empresa}
+                      onChangeText={(t) => handleChange('empresa', t)}
+                      placeholder="Ex.: Rubinova, Construtora ABC..."
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    <Ionicons name="person" size={14} color="#666" /> Nome do Funcionário *
+                  </Text>
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.modernInput}
+                      value={form.funcionario}
+                      onChangeText={(t) => handleChange('funcionario', t)}
+                      placeholder="Ex.: João Silva, Maria Santos..."
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    <Ionicons name="construct" size={14} color="#666" /> Categoria / Função
+                  </Text>
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.modernInput}
+                      value={form.categoria}
+                      onChangeText={(t) => handleChange('categoria', t)}
+                      placeholder="Ex.: Servente, Oficial 1ª, Pedreiro..."
+                      placeholderTextColor="#999"
+                    />
+                  </View>
                 </View>
               </View>
 
-              <View style={styles.formRow}>
-                <Text style={styles.label}>Observações</Text>
-                <TextInput
-                  style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-                  value={form.observacoes}
-                  onChangeText={(t) => handleChange('observacoes', t)}
-                  placeholder="Notas adicionais…"
-                  multiline
-                />
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>
+                  <Ionicons name="card" size={16} color="#28a745" /> Informações Financeiras
+                </Text>
+
+                <View style={styles.rowContainer}>
+                  <View style={[styles.inputGroup, { flex: 2, marginRight: 10 }]}>
+                    <Text style={styles.inputLabel}>
+                      <Ionicons name="cash" size={14} color="#666" /> Valor por Hora *
+                    </Text>
+                    <View style={styles.inputContainer}>
+                      <TextInput
+                        style={styles.modernInput}
+                        value={String(form.valor)}
+                        onChangeText={(t) => handleChange('valor', t.replace(',', '.'))}
+                        keyboardType="numeric"
+                        placeholder="Ex.: 9.50"
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.inputLabel}>
+                      <Ionicons name="globe" size={14} color="#666" /> Moeda
+                    </Text>
+                    <View style={styles.modernPicker}>
+                      <Picker
+                        selectedValue={form.moeda}
+                        onValueChange={(v) => handleChange('moeda', v)}
+                        style={styles.pickerStyle}
+                      >
+                        <Picker.Item label="💶 EUR" value="EUR" />
+                        <Picker.Item label="🇨🇭 CHF" value="CHF" />
+                      </Picker>
+                    </View>
+                  </View>
+                </View>
               </View>
 
-              <View style={styles.switchRow}>
-                <View style={styles.switchItem}>
-                  <Text style={styles.switchLabel}>Ativo</Text>
-                  <Switch value={form.ativo} onValueChange={(v) => handleChange('ativo', v)} />
-                </View>
-                <View style={styles.switchItem}>
-                  <Text style={styles.switchLabel}>Anulado</Text>
-                  <Switch value={form.anulado} onValueChange={(v) => handleChange('anulado', v)} />
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>
+                  <Ionicons name="calendar" size={16} color="#fd7e14" /> Período de Vigência
+                </Text>
+
+                <View style={styles.rowContainer}>
+                  <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+                    <Text style={styles.inputLabel}>
+                      <Ionicons name="play" size={14} color="#666" /> Data de Início
+                    </Text>
+                    <View style={styles.inputContainer}>
+                      <TextInput
+                        style={styles.modernInput}
+                        value={form.data_inicio}
+                        onChangeText={(t) => handleChange('data_inicio', t)}
+                        placeholder="YYYY-MM-DD"
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.inputLabel}>
+                      <Ionicons name="stop" size={14} color="#666" /> Data de Fim
+                    </Text>
+                    <View style={styles.inputContainer}>
+                      <TextInput
+                        style={styles.modernInput}
+                        value={form.data_fim}
+                        onChangeText={(t) => handleChange('data_fim', t)}
+                        placeholder="YYYY-MM-DD"
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+                  </View>
                 </View>
               </View>
 
-              <TouchableOpacity onPress={guardar} disabled={aGuardar} style={{ marginTop: 10 }}>
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>
+                  <Ionicons name="document-text" size={16} color="#17a2b8" /> Observações
+                </Text>
+
+                <View style={styles.inputGroup}>
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={[styles.modernInput, styles.textArea]}
+                      value={form.observacoes}
+                      onChangeText={(t) => handleChange('observacoes', t)}
+                      placeholder="Adicione notas, comentários ou informações adicionais..."
+                      multiline
+                      numberOfLines={4}
+                      textAlignVertical="top"
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>
+                  <Ionicons name="settings" size={16} color="#6c757d" /> Estado do Registo
+                </Text>
+
+                <View style={styles.switchContainer}>
+                  <View style={styles.switchItem}>
+                    <View style={styles.switchLabelContainer}>
+                      <Ionicons name="checkmark-circle" size={18} color="#28a745" />
+                      <Text style={styles.switchLabel}>Trabalhador Ativo</Text>
+                    </View>
+                    <Switch 
+                      value={form.ativo} 
+                      onValueChange={(v) => handleChange('ativo', v)}
+                      trackColor={{ false: '#e9ecef', true: '#28a745' }}
+                      thumbColor={form.ativo ? '#fff' : '#6c757d'}
+                    />
+                  </View>
+
+                  <View style={styles.switchItem}>
+                    <View style={styles.switchLabelContainer}>
+                      <Ionicons name="close-circle" size={18} color="#dc3545" />
+                      <Text style={styles.switchLabel}>Registo Anulado</Text>
+                    </View>
+                    <Switch 
+                      value={form.anulado} 
+                      onValueChange={(v) => handleChange('anulado', v)}
+                      trackColor={{ false: '#e9ecef', true: '#dc3545' }}
+                      thumbColor={form.anulado ? '#fff' : '#6c757d'}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <TouchableOpacity onPress={guardar} disabled={aGuardar} style={styles.saveButtonContainer}>
                 <LinearGradient
-                  colors={aGuardar ? ['#999', '#777'] : ['#1792FE', '#0B5ED7']}
-                  style={styles.saveBtn}
+                  colors={aGuardar ? ['#999', '#777'] : ['#28a745', '#20c997']}
+                  style={styles.saveButton}
                 >
                   {aGuardar ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <>
+                      <ActivityIndicator size="small" color="#fff" />
+                      <Text style={styles.saveButtonText}>A guardar...</Text>
+                    </>
                   ) : (
                     <>
-                      <Ionicons name="save" size={16} color="#fff" />
-                      <Text style={styles.saveBtnText}>Guardar</Text>
+                      <Ionicons name="save" size={20} color="#fff" />
+                      <Text style={styles.saveButtonText}>Guardar Registo</Text>
                     </>
                   )}
                 </LinearGradient>
@@ -876,53 +1017,109 @@ const passaFiltrosResumo = (it) => {
           </SafeAreaView>
         </Modal>
 
-        {/* Modal Detalhe */}
-        <Modal visible={modalDetalheVisible} animationType="slide" onRequestClose={fecharDetalhe}>
+        {/* Modal Detalhe Melhorado */}
+        <Modal visible={modalDetalheVisible} animationType="slide" onRequestClose={fecharDetalhe} presentationStyle="pageSheet">
           <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Detalhes</Text>
-              <TouchableOpacity onPress={fecharDetalhe} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
+            <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.modalHeader}>
+              <View style={styles.modalHeaderContent}>
+                <View style={styles.modalTitleContainer}>
+                  <View style={styles.modalIcon}>
+                    <Ionicons name="eye" size={24} color="#fff" />
+                  </View>
+                  <Text style={styles.modalTitle}>Detalhes do Trabalhador</Text>
+                </View>
+                <TouchableOpacity onPress={fecharDetalhe} style={styles.modalCloseBtn}>
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
 
-            <ScrollView contentContainerStyle={styles.modalBody}>
+            <ScrollView contentContainerStyle={styles.detailsContainer} showsVerticalScrollIndicator={false}>
               {detalhe && (
                 <>
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>Empresa</Text>
-                    <Text style={styles.modalValue}>{detalhe.empresa}</Text>
-                  </View>
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>Funcionário</Text>
-                    <Text style={styles.modalValue}>{detalhe.funcionario}</Text>
-                  </View>
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>Categoria</Text>
-                    <Text style={styles.modalValue}>{detalhe.categoria || '—'}</Text>
-                  </View>
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>Valor</Text>
-                    <Text style={styles.modalValue}>
-                      {Number(detalhe.valor).toFixed(2)} {detalhe.moeda || 'EUR'}
-                    </Text>
-                  </View>
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>Vigência</Text>
-                    <Text style={styles.modalValue}>
-                      {detalhe.data_inicio || '—'} {detalhe.data_fim ? `→ ${detalhe.data_fim}` : ''}
-                    </Text>
-                  </View>
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>Observações</Text>
-                    <Text style={styles.modalValue}>{detalhe.observacoes || '—'}</Text>
-                  </View>
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalLabel}>Estado</Text>
-                    <View style={[styles.statusBadge, { backgroundColor: statusBadge(detalhe.ativo, detalhe.anulado).color }]}>
-                      <Ionicons name={statusBadge(detalhe.ativo, detalhe.anulado).icon} size={12} color="#fff" style={styles.statusIcon} />
-                      <Text style={styles.statusText}>{statusBadge(detalhe.ativo, detalhe.anulado).label}</Text>
+                  <View style={styles.detailCard}>
+                    <View style={styles.detailHeader}>
+                      <View style={styles.detailIconBadge}>
+                        <Ionicons name="person" size={24} color="#1792FE" />
+                      </View>
+                      <Text style={styles.detailMainTitle}>{detalhe.funcionario}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: statusBadge(detalhe.ativo, detalhe.anulado).color }]}>
+                        <Ionicons name={statusBadge(detalhe.ativo, detalhe.anulado).icon} size={12} color="#fff" />
+                        <Text style={styles.statusText}>{statusBadge(detalhe.ativo, detalhe.anulado).label}</Text>
+                      </View>
                     </View>
+
+                    <View style={styles.detailsGrid}>
+                      <View style={styles.detailItem}>
+                        <View style={styles.detailItemIcon}>
+                          <Ionicons name="business" size={20} color="#1792FE" />
+                        </View>
+                        <View style={styles.detailItemContent}>
+                          <Text style={styles.detailItemLabel}>Empresa</Text>
+                          <Text style={styles.detailItemValue}>{detalhe.empresa}</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.detailItem}>
+                        <View style={styles.detailItemIcon}>
+                          <Ionicons name="construct" size={20} color="#fd7e14" />
+                        </View>
+                        <View style={styles.detailItemContent}>
+                          <Text style={styles.detailItemLabel}>Categoria</Text>
+                          <Text style={styles.detailItemValue}>{detalhe.categoria || 'Não especificada'}</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.detailItem}>
+                        <View style={styles.detailItemIcon}>
+                          <Ionicons name="cash" size={20} color="#28a745" />
+                        </View>
+                        <View style={styles.detailItemContent}>
+                          <Text style={styles.detailItemLabel}>Valor por Hora</Text>
+                          <Text style={[styles.detailItemValue, styles.priceText]}>
+                            {formatarValor(detalhe.valor)} {detalhe.moeda || 'EUR'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.detailItem}>
+                        <View style={styles.detailItemIcon}>
+                          <Ionicons name="calendar" size={20} color="#17a2b8" />
+                        </View>
+                        <View style={styles.detailItemContent}>
+                          <Text style={styles.detailItemLabel}>Período de Vigência</Text>
+                          <Text style={styles.detailItemValue}>
+                            {detalhe.data_inicio && detalhe.data_fim 
+                              ? `${detalhe.data_inicio} até ${detalhe.data_fim}`
+                              : detalhe.data_inicio 
+                                ? `Desde ${detalhe.data_inicio}`
+                                : 'Período não definido'
+                            }
+                          </Text>
+                        </View>
+                      </View>
+
+                      {detalhe.observacoes && (
+                        <View style={[styles.detailItem, styles.fullWidth]}>
+                          <View style={styles.detailItemIcon}>
+                            <Ionicons name="document-text" size={20} color="#6c757d" />
+                          </View>
+                          <View style={styles.detailItemContent}>
+                            <Text style={styles.detailItemLabel}>Observações</Text>
+                            <Text style={styles.detailItemValue}>{detalhe.observacoes}</Text>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={styles.detailActions}>
+                    <TouchableOpacity onPress={() => { fecharDetalhe(); openEdit(detalhe); }} style={styles.detailActionBtn}>
+                      <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.detailActionBtnGradient}>
+                        <Ionicons name="create" size={20} color="#fff" />
+                        <Text style={styles.detailActionBtnText}>Editar Registo</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
                   </View>
                 </>
               )}
@@ -930,209 +1127,237 @@ const passaFiltrosResumo = (it) => {
           </SafeAreaView>
         </Modal>
 
-        {/* === MODAL RESUMO EXTERNOS (NOVO) === */}
+        {/* Modal Resumo com melhorias visuais */}
         <Modal visible={modalResumoVisible} animationType="slide" onRequestClose={closeResumoExternos}>
           <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Resumo — Externos Aprovados</Text>
-              <TouchableOpacity onPress={closeResumoExternos} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
+            <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.modalHeader}>
+              <View style={styles.modalHeaderContent}>
+                <View style={styles.modalTitleContainer}>
+                  <View style={styles.modalIcon}>
+                    <Ionicons name="analytics" size={24} color="#fff" />
+                  </View>
+                  <Text style={styles.modalTitle}>Analytics - Externos Aprovados</Text>
+                </View>
+                <TouchableOpacity onPress={closeResumoExternos} style={styles.modalCloseBtn}>
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
 
-            {/* Controlo de resumo */}
-            <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
-              <View style={styles.segmentRow}>
-                {[
-                  { k: 'diario', label: 'Diário' },
-                  { k: 'mensal', label: 'Mensal' },
-                  { k: 'anual', label: 'Anual' },
-                ].map(op => (
-                  <TouchableOpacity
-                    key={op.k}
-                    onPress={() => setGranularidade(op.k)}
-                    style={[styles.segmentBtn, granularidade === op.k && styles.segmentBtnActive]}
-                  >
-                    <Text style={granularidade === op.k ? styles.segmentTextActive : styles.segmentText}>
-                      {op.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            <View style={styles.resumoControls}>
+              <View style={styles.controlSection}>
+                <Text style={styles.controlSectionTitle}>Granularidade Temporal</Text>
+                <View style={styles.segmentControl}>
+                  {[
+                    { k: 'diario', label: 'Diário', icon: 'calendar-outline' },
+                    { k: 'mensal', label: 'Mensal', icon: 'calendar' },
+                    { k: 'anual', label: 'Anual', icon: 'calendar-sharp' },
+                  ].map(op => (
+                    <TouchableOpacity
+                      key={op.k}
+                      onPress={() => setGranularidade(op.k)}
+                      style={[styles.segmentBtn, granularidade === op.k && styles.segmentBtnActive]}
+                    >
+                      <Ionicons name={op.icon} size={16} color={granularidade === op.k ? '#fff' : '#666'} />
+                      <Text style={granularidade === op.k ? styles.segmentTextActive : styles.segmentText}>
+                        {op.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
 
-              {/* 1ª linha: básicos */}
-<View style={[styles.segmentRow, { marginTop: 8 }]}>
-  {[
-    { k: 'geral', label: 'Geral' },
-    { k: 'obra', label: 'Obra' },
-    { k: 'empresa', label: 'Empresa' },
-    { k: 'externo', label: 'Externo' },
-    { k: 'especialidade', label: 'Especialidade' },
-  ].map(op => (
-    <TouchableOpacity
-      key={op.k}
-      onPress={() => setAgruparPor(op.k)}
-      style={[styles.segmentBtn, agruparPor === op.k && styles.segmentBtnActive]}
-    >
-      <Text style={agruparPor === op.k ? styles.segmentTextActive : styles.segmentText}>
-        {op.label}
-      </Text>
-    </TouchableOpacity>
-  ))}
-</View>
+              <View style={styles.controlSection}>
+                <Text style={styles.controlSectionTitle}>Agrupamento de Dados</Text>
+                <View style={styles.chipContainer}>
+                  {[
+                    { k: 'geral', label: 'Geral', icon: 'grid-outline' },
+                    { k: 'obra', label: 'Por Obra', icon: 'business-outline' },
+                    { k: 'empresa', label: 'Por Empresa', icon: 'storefront-outline' },
+                    { k: 'externo', label: 'Por Colaborador', icon: 'person-outline' },
+                    { k: 'especialidade', label: 'Por Especialidade', icon: 'construct-outline' },
+                  ].map(op => (
+                    <TouchableOpacity
+                      key={op.k}
+                      onPress={() => setAgruparPor(op.k)}
+                      style={[styles.chip, agruparPor === op.k && styles.chipActive]}
+                    >
+                      <Ionicons name={op.icon} size={14} color={agruparPor === op.k ? '#fff' : '#666'} />
+                      <Text style={agruparPor === op.k ? styles.chipTextActive : styles.chipText}>
+                        {op.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
 
-{/* 2ª linha: combos */}
-<View style={[styles.segmentRow, { marginTop: 8 }]}>
-  {[
-    { k: 'empresa_externo', label: 'Empresa/Colaborador' },
-    { k: 'especialidade_externo', label: 'Especialidade/Colaborador' },
-    { k: 'especialidade_empresa', label: 'Especialidade/Empresa' },
-  ].map(op => (
-    <TouchableOpacity
-      key={op.k}
-      onPress={() => setAgruparPor(op.k)}
-      style={[styles.segmentBtn, agruparPor === op.k && styles.segmentBtnActive]}
-    >
-      <Text style={agruparPor === op.k ? styles.segmentTextActive : styles.segmentText}>
-        {op.label}
-      </Text>
-    </TouchableOpacity>
-  ))}
-</View>
-<View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 12 }}>
-  <Text style={{ color: '#333', fontWeight: '600' }}>Mostrar valores (€)</Text>
-  <Switch value={mostrarValores} onValueChange={setMostrarValores} />
-</View>
-
-
-
-
-              <View style={styles.rangeRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rangeLabel}>Data início</Text>
-                  <TextInput
-                    placeholder="YYYY-MM-DD"
-                    value={dataInicio}
-                    onChangeText={setDataInicio}
-                    style={styles.rangeInput}
+              <View style={styles.switchSection}>
+                <View style={styles.switchOptionContainer}>
+                  <Ionicons name="cash" size={18} color="#28a745" />
+                  <Text style={styles.switchOptionLabel}>Mostrar valores financeiros (€)</Text>
+                  <Switch 
+                    value={mostrarValores} 
+                    onValueChange={setMostrarValores}
+                    trackColor={{ false: '#e9ecef', true: '#28a745' }}
+                    thumbColor={mostrarValores ? '#fff' : '#6c757d'}
                   />
                 </View>
-                <View style={{ width: 12 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rangeLabel}>Data fim</Text>
-                  <TextInput
-                    placeholder="YYYY-MM-DD"
-                    value={dataFim}
-                    onChangeText={setDataFim}
-                    style={styles.rangeInput}
-                  />
+              </View>
+
+              <View style={styles.controlSection}>
+                <Text style={styles.controlSectionTitle}>Filtros de Data</Text>
+                <View style={styles.dateRangeContainer}>
+                  <View style={styles.dateInput}>
+                    <Text style={styles.dateInputLabel}>Data Início</Text>
+                    <TextInput
+                      placeholder="YYYY-MM-DD"
+                      value={dataInicio}
+                      onChangeText={setDataInicio}
+                      style={styles.modernInput}
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+                  <View style={styles.dateInput}>
+                    <Text style={styles.dateInputLabel}>Data Fim</Text>
+                    <TextInput
+                      placeholder="YYYY-MM-DD"
+                      value={dataFim}
+                      onChangeText={setDataFim}
+                      style={styles.modernInput}
+                      placeholderTextColor="#999"
+                    />
+                  </View>
                 </View>
-                {/* Filtros do resumo */}
-<View style={{ marginTop: 10 }}>
-  <View style={styles.pickersRow}>
-    <View style={styles.pickerWrap}>
-      <Text style={styles.pickerLabel}>Empresa</Text>
-      <Picker
-        selectedValue={empresaResumoFiltro}
-        onValueChange={setEmpresaResumoFiltro}
-        style={styles.picker}
-      >
-        {resumoOptions.empresas.map((e, idx) => (
-          <Picker.Item key={`emp-${idx}`} label={e || 'Todas'} value={e} />
-        ))}
-      </Picker>
-    </View>
+              </View>
 
-    <View style={styles.pickerWrap}>
-      <Text style={styles.pickerLabel}>Externo</Text>
-      <Picker
-        selectedValue={externoResumoFiltro}
-        onValueChange={setExternoResumoFiltro}
-        style={styles.picker}
-      >
-        {resumoOptions.externos.map((e, idx) => (
-          <Picker.Item key={`ext-${idx}`} label={e || 'Todos'} value={e} />
-        ))}
-      </Picker>
-    </View>
-  </View>
+              <View style={styles.controlSection}>
+                <Text style={styles.controlSectionTitle}>Filtros Avançados</Text>
+                <View style={styles.advancedFilters}>
+                  <View style={styles.filterDropdown}>
+                    <Text style={styles.filterLabel}>Empresa</Text>
+                    <View style={styles.modernPicker}>
+                      <Picker
+                        selectedValue={empresaResumoFiltro}
+                        onValueChange={setEmpresaResumoFiltro}
+                        style={styles.pickerStyle}
+                      >
+                        <Picker.Item label="Todas" value="" />
+                        {resumoOptions.empresas.slice(1).map((e, idx) => (
+                          <Picker.Item key={`emp-res-${idx}`} label={e} value={e} />
+                        ))}
+                      </Picker>
+                    </View>
+                  </View>
 
-  <View style={[styles.pickersRow, { marginTop: 10 }]}>
-    <View style={[styles.pickerWrap, { flex: 1 }]}>
-      <Text style={styles.pickerLabel}>Especialidade</Text>
-      <Picker
-        selectedValue={especialidadeResumoFiltro}
-        onValueChange={setEspecialidadeResumoFiltro}
-        style={styles.picker}
-      >
-        {resumoOptions.especialidades.map((e, idx) => (
-          <Picker.Item key={`esp-${idx}`} label={e || 'Todas'} value={e} />
-        ))}
-      </Picker>
-    </View>
-  </View>
-</View>
+                  <View style={styles.filterDropdown}>
+                    <Text style={styles.filterLabel}>Colaborador</Text>
+                    <View style={styles.modernPicker}>
+                      <Picker
+                        selectedValue={externoResumoFiltro}
+                        onValueChange={setExternoResumoFiltro}
+                        style={styles.pickerStyle}
+                      >
+                        <Picker.Item label="Todos" value="" />
+                        {resumoOptions.externos.slice(1).map((e, idx) => (
+                          <Picker.Item key={`ext-res-${idx}`} label={e} value={e} />
+                        ))}
+                      </Picker>
+                    </View>
+                  </View>
 
+                  <View style={styles.filterDropdown}>
+                    <Text style={styles.filterLabel}>Especialidade</Text>
+                    <View style={styles.modernPicker}>
+                      <Picker
+                        selectedValue={especialidadeResumoFiltro}
+                        onValueChange={setEspecialidadeResumoFiltro}
+                        style={styles.pickerStyle}
+                      >
+                        <Picker.Item label="Todas" value="" />
+                        {resumoOptions.especialidades.slice(1).map((e, idx) => (
+                          <Picker.Item key={`esp-res-${idx}`} label={e} value={e} />
+                        ))}
+                      </Picker>
+                    </View>
+                  </View>
+                </View>
               </View>
             </View>
 
             {resumoLoading ? (
-              <View style={[styles.loadingContainer, { backgroundColor: '#fff' }]}>
-                <ActivityIndicator size="large" color="#1792FE" />
-                <Text style={styles.loadingText}>A carregar resumo…</Text>
+              <View style={styles.centerContainer}>
+                <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.loadingCard}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={styles.loadingText}>A processar dados analytics...</Text>
+                </LinearGradient>
               </View>
             ) : (
-              <ScrollView contentContainerStyle={styles.modalBody}>
+              <ScrollView contentContainerStyle={styles.resumoContent} showsVerticalScrollIndicator={false}>
                 {resumoAgrupado.length === 0 ? (
-                  <View style={styles.emptyContainer}>
-                    <Ionicons name="document-text" size={64} color="#ccc" />
-                    <Text style={styles.emptyTitle}>Sem dados para o filtro</Text>
-                    <Text style={styles.emptyText}>Ajuste a granularidade, agrupamento ou intervalo.</Text>
+                  <View style={styles.emptyStateContainer}>
+                    <View style={styles.emptyStateCard}>
+                      <LinearGradient 
+                        colors={['rgba(253, 126, 20, 0.1)', 'rgba(243, 156, 18, 0.05)']} 
+                        style={styles.emptyStateIcon}
+                      >
+                        <Ionicons name="analytics-outline" size={80} color="#fd7e14" />
+                      </LinearGradient>
+                      <Text style={styles.emptyStateTitle}>Sem dados para análise</Text>
+                      <Text style={styles.emptyStateText}>
+                        Ajuste os filtros, granularidade ou período para visualizar os dados.
+                      </Text>
+                    </View>
                   </View>
                 ) : (
                   resumoAgrupado.map(period => (
-                    <View key={period.periodKey} style={styles.resumoCard}>
-                      <View style={styles.resumoHeader}>
-                        <Ionicons name="calendar" size={16} color="#1792FE" />
-                        <Text style={styles.resumoTitle}>{period.label}</Text>
-                        <View style={[styles.statusBadge, { backgroundColor: '#17a2b8', marginLeft: 'auto' }]}>
-                          <Ionicons name="timer" size={12} color="#fff" style={styles.statusIcon} />
-                          <Text style={styles.statusText}>{formatarHoras(period.total)}</Text>
+                    <View key={period.periodKey} style={styles.analyticsCard}>
+                      <View style={styles.analyticsCardHeader}>
+                        <View style={styles.analyticsIconContainer}>
+                          <Ionicons name="calendar" size={20} color="#fd7e14" />
+                        </View>
+                        <Text style={styles.analyticsCardTitle}>{period.label}</Text>
+                        <View style={styles.analyticsCardBadge}>
+                          <Ionicons name="time" size={14} color="#fff" />
+                          <Text style={styles.analyticsCardBadgeText}>{formatarHoras(period.total)}</Text>
                         </View>
                       </View>
 
-                    {period.groups.map(g => (
-  <View key={`${period.periodKey}-${g.label}`} style={{ marginBottom: 4 }}>
-    <View style={styles.resumoRow}>
-      <Ionicons
-        name={
-          agruparPor === 'obra' ? 'business'
-          : agruparPor === 'externo' ? 'person'
-          : agruparPor.includes('empresa') ? 'storefront'
-          : agruparPor.includes('especialidade') ? 'construct'
-          : 'analytics'
-        }
-        size={14}
-        color="#666"
-      />
-      <Text style={styles.resumoText}>{g.label}</Text>
-
-      <Ionicons name="time" size={14} color="#666" />
-      <Text style={[styles.resumoText, { fontWeight: '700', flexGrow: 0 }]}>
-        {formatarHoras(g.minutos)}
-      </Text>
-
-      {mostrarValores && (
-        <Text style={[styles.resumoText, { flexGrow: 0, fontWeight: '700', marginLeft: 8 }]}>
-          {Object.entries(g.valores || {})
-            .map(([moeda, v]) => `${formatarValor(v)} ${moeda}`)
-            .join('  •  ')}
-        </Text>
-      )}
-    </View>
-  </View>
-))}
-
+                      <View style={styles.analyticsCardContent}>
+                        {period.groups.map(g => (
+                          <View key={`${period.periodKey}-${g.label}`} style={styles.analyticsItem}>
+                            <View style={styles.analyticsItemIcon}>
+                              <Ionicons
+                                name={
+                                  agruparPor === 'obra' ? 'business' :
+                                  agruparPor === 'externo' ? 'person' :
+                                  agruparPor.includes('empresa') ? 'storefront' :
+                                  agruparPor.includes('especialidade') ? 'construct' :
+                                  'analytics'
+                                }
+                                size={16}
+                                color="#666"
+                              />
+                            </View>
+                            <View style={styles.analyticsItemContent}>
+                              <Text style={styles.analyticsItemLabel} numberOfLines={1}>{g.label}</Text>
+                              <View style={styles.analyticsItemValues}>
+                                <View style={styles.analyticsValueItem}>
+                                  <Ionicons name="time" size={12} color="#17a2b8" />
+                                  <Text style={styles.analyticsValueText}>{formatarHoras(g.minutos)}</Text>
+                                </View>
+                                {mostrarValores && Object.entries(g.valores || {}).map(([moeda, v]) => (
+                                  <View key={moeda} style={styles.analyticsValueItem}>
+                                    <Ionicons name="cash" size={12} color="#28a745" />
+                                    <Text style={[styles.analyticsValueText, styles.moneyText]}>
+                                      {formatarValor(v)} {moeda}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </View>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
                     </View>
                   ))
                 )}
@@ -1146,109 +1371,882 @@ const passaFiltrosResumo = (it) => {
 };
 
 const styles = StyleSheet.create({
+  // Containers Principais
+  mainContainer: { flex: 1 },
   container: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingVertical: 25, paddingTop: 40 },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 5 },
-  headerSubtitle: { fontSize: 16, color: '#e3f2fd', opacity: 0.9 },
+  centerContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 20 
+  },
 
+  // Header Melhorado
+  header: { 
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+  },
+  headerContent: {
+    borderRadius: 20,
+    padding: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  headerTitle: { 
+    fontSize: 26, 
+    fontWeight: '800', 
+    color: '#fff', 
+    marginBottom: 5 
+  },
+  headerSubtitle: { 
+    fontSize: 16, 
+    color: 'rgba(255,255,255,0.8)', 
+    fontWeight: '500' 
+  },
+
+  // Filtros Melhorados
+  filtersContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
   filtersCard: {
-    margin: 16, padding: 12, backgroundColor: '#fff', borderRadius: 16,
-    elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1, shadowRadius: 3
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8 },
-  searchInput: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#f2f6fb' },
 
-  pickersRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  pickerWrap: { flex: 1, backgroundColor: '#f8f9fa', borderRadius: 10, paddingHorizontal: 6 },
-  pickerLabel: { fontSize: 12, color: '#666', paddingTop: 6, paddingLeft: 4 },
-  picker: { width: '100%' },
+  // Pesquisa
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 15,
+    paddingHorizontal: 15,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 15,
+    fontSize: 16,
+    color: '#333',
+  },
+  searchBtn: {
+    padding: 5,
+  },
 
-  statusRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 10 },
-  statusBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, backgroundColor: '#e9f3ff' },
-  statusBtnActive: { backgroundColor: '#1792FE' },
-  statusBtnText: { color: '#1792FE', fontWeight: '600' },
-  statusBtnTextActive: { color: '#fff', fontWeight: '700' },
+  // Dropdowns
+  dropdownsContainer: {
+    flexDirection: 'row',
+    gap: 15,
+    marginBottom: 20,
+  },
+  dropdownWrapper: {
+    flex: 1,
+  },
+  dropdownLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  modernPicker: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    overflow: 'hidden',
+  },
+  pickerStyle: {
+    color: '#333',
+  },
 
-  bottomFilterRow: { flexDirection: 'row', gap: 10, marginTop: 12, flexWrap: 'wrap' },
-  applyFiltersBtn: { flex: 1, borderRadius: 25, overflow: 'hidden' },
-  newBtn: { width: 140, borderRadius: 25, overflow: 'hidden' },
-  resumoBtn: { width: 200, borderRadius: 25, overflow: 'hidden' },
+  // Status Chips
+  statusContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    gap: 6,
+  },
+  statusChipActive: {
+    backgroundColor: '#1792FE',
+    borderColor: '#1792FE',
+  },
+  statusChipText: {
+    color: '#666',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  statusChipTextActive: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
 
-  applyFiltersGrad: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, gap: 6 },
-  applyFiltersText: { color: '#fff', fontWeight: '700' },
+  // Action Buttons
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  modernButton: {
+    flex: 1,
+    minWidth: 120,
+    borderRadius: 15,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  modernButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    gap: 8,
+  },
+  modernButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
 
-  listContent: { padding: 16, paddingBottom: 40 },
+  // Lista
+  listContainer: {
+    padding: 20,
+    paddingTop: 10,
+  },
 
+  // Cards Melhorados
   card: {
-    backgroundColor: '#fff', borderRadius: 16, marginBottom: 16, elevation: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, overflow: 'hidden'
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    marginBottom: 20,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    overflow: 'hidden',
   },
-  cardContent: { padding: 16 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  titleContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginLeft: 10 },
-  statusIcon: { marginRight: 4 },
-  statusText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  cardBody: { marginBottom: 8 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  cardText: { fontSize: 14, color: '#555', marginLeft: 8, flex: 1, lineHeight: 20 },
-
-  actionsRow: { flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' },
-  smallBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#f6f9ff', borderRadius: 10 },
-  smallBtnText: { color: '#1792FE', fontWeight: '700' },
-
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#f8f9fa' },
-  loadingText: { marginTop: 15, fontSize: 16, color: '#1792FE', fontWeight: '500' },
-  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30, backgroundColor: '#f8f9fa' },
-  errorText: { fontSize: 16, color: '#dc3545', textAlign: 'center', marginVertical: 20, lineHeight: 22 },
-  retryButton: { borderRadius: 25, overflow: 'hidden', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84 },
-  buttonGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 20 },
-  retryText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-
-  modalContainer: { flex: 1, backgroundColor: '#f8f9fa' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e9ecef', elevation: 2 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
-  closeButton: { padding: 8, borderRadius: 20, backgroundColor: '#f8f9fa' },
-
-  formBody: { padding: 16 },
-  formRow: { marginBottom: 12 },
-  label: { fontSize: 14, color: '#333', marginBottom: 6, fontWeight: '600' },
-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#e5e7eb' },
-  twoCols: { flexDirection: 'row' },
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  switchItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  switchLabel: { fontSize: 14, color: '#333', fontWeight: '600' },
-
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 12, gap: 8 },
-  saveBtnText: { color: '#fff', fontWeight: '700' },
-
-  modalBody: { padding: 16, paddingBottom: 24 },
-
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#666', marginTop: 20, marginBottom: 10, textAlign: 'center' },
-  emptyText: { fontSize: 16, color: '#999', textAlign: 'center', lineHeight: 22 },
-
-  // RESUMO
-  segmentRow: { flexDirection: 'row', gap: 8 },
-  segmentBtn: { flex: 1, paddingVertical: 8, borderRadius: 12, backgroundColor: '#e9f3ff', alignItems: 'center' },
-  segmentBtnActive: { backgroundColor: '#1792FE' },
-  segmentText: { color: '#1792FE', fontWeight: '700' },
-  segmentTextActive: { color: '#fff', fontWeight: '800' },
-
-  rangeRow: { flexDirection: 'row', marginTop: 10 },
-  rangeLabel: { fontSize: 12, color: '#666', marginBottom: 4, marginLeft: 2 },
-  rangeInput: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#e5e7eb' },
-
-  resumoCard: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12,
-    elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2
+  cardContent: {
+    padding: 20,
   },
-  resumoHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  resumoTitle: { fontWeight: '800', color: '#333', flexShrink: 1 },
-  resumoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 },
-  resumoText: { color: '#555', flex: 1 },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(23, 146, 254, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+    flex: 1,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    gap: 4,
+  },
+  statusIcon: {
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Card Body
+  cardBody: {
+    gap: 12,
+    marginBottom: 15,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoIcon: {
+    width: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    width: 80,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+    fontWeight: '500',
+  },
+  valueText: {
+    color: '#28a745',
+    fontWeight: '700',
+  },
+
+  // Actions Row
+  actionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#f8f9fa',
+    gap: 6,
+    flex: 1,
+    minWidth: 80,
+    justifyContent: 'center',
+  },
+  actionBtnText: {
+    fontWeight: '600',
+    fontSize: 13,
+  },
+
+  // Loading States
+  loadingCard: {
+    padding: 30,
+    borderRadius: 20,
+    alignItems: 'center',
+    gap: 15,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Error States
+  errorCard: {
+    backgroundColor: '#fff',
+    padding: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#dc3545',
+    marginTop: 15,
+    marginBottom: 10,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  retryButton: {
+    borderRadius: 15,
+    overflow: 'hidden',
+    elevation: 3,
+  },
+  buttonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+
+  // Empty States
+  emptyStateContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+  },
+  emptyStateCard: {
+    backgroundColor: '#fff',
+    padding: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  emptyStateIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 25,
+  },
+  emptyStateButton: {
+    borderRadius: 15,
+    overflow: 'hidden',
+    elevation: 3,
+  },
+  emptyStateButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  emptyStateButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  modalHeader: {
+    paddingTop: 10,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  modalHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  modalIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    flex: 1,
+  },
+  modalCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Form Styles
+  formContainer: {
+    padding: 20,
+  },
+  formSection: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 15,
+    paddingBottom: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: '#f1f3f4',
+  },
+  inputGroup: {
+    marginBottom: 15,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  inputContainer: {
+    position: 'relative',
+  },
+  modernInput: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 15,
+    fontSize: 16,
+    color: '#333',
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  rowContainer: {
+    flexDirection: 'row',
+  },
+
+  // Switch Styles
+  switchContainer: {
+    gap: 15,
+  },
+  switchItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+  },
+  switchLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  switchLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+
+  // Save Button
+  saveButtonContainer: {
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    borderRadius: 15,
+    gap: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+
+  // Details Modal
+  detailsContainer: {
+    padding: 20,
+  },
+  detailCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 25,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    marginBottom: 20,
+  },
+  detailHeader: {
+    alignItems: 'center',
+    marginBottom: 25,
+  },
+  detailIconBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(23, 146, 254, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  detailMainTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  detailsGrid: {
+    gap: 20,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#1792FE',
+  },
+  fullWidth: {
+    marginTop: 10,
+  },
+  detailItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  detailItemContent: {
+    flex: 1,
+  },
+  detailItemLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 5,
+  },
+  detailItemValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    lineHeight: 22,
+  },
+  priceText: {
+    color: '#28a745',
+    fontWeight: '700',
+  },
+  detailActions: {
+    gap: 10,
+  },
+  detailActionBtn: {
+    borderRadius: 15,
+    overflow: 'hidden',
+    elevation: 3,
+  },
+  detailActionBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    gap: 10,
+  },
+  detailActionBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+
+  // Resumo/Analytics Modal
+  resumoControls: {
+    padding: 20,
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  controlSection: {
+    marginBottom: 20,
+  },
+  controlSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 12,
+  },
+  segmentControl: {
+    flexDirection: 'row',
+    backgroundColor: '#e9ecef',
+    borderRadius: 12,
+    padding: 4,
+    gap: 4,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  segmentBtnActive: {
+    backgroundColor: '#1792FE',
+  },
+  segmentText: {
+    color: '#666',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  segmentTextActive: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#e9ecef',
+    borderRadius: 20,
+    gap: 6,
+  },
+  chipActive: {
+    backgroundColor: '#1792FE',
+  },
+  chipText: {
+    color: '#666',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  chipTextActive: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  switchSection: {
+    marginBottom: 20,
+  },
+  switchOptionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 12,
+    gap: 12,
+  },
+  switchOptionLabel: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  dateRangeContainer: {
+    flexDirection: 'row',
+    gap: 15,
+  },
+  dateInput: {
+    flex: 1,
+  },
+  dateInputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  advancedFilters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 15,
+  },
+  filterDropdown: {
+    flex: 1,
+    minWidth: 150,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+
+  // Analytics Content
+  resumoContent: {
+    padding: 20,
+  },
+  analyticsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 15,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  analyticsCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f4',
+  },
+  analyticsIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(253, 126, 20, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  analyticsCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+    flex: 1,
+  },
+  analyticsCardBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#17a2b8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    gap: 4,
+  },
+  analyticsCardBadgeText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  analyticsCardContent: {
+    gap: 12,
+  },
+  analyticsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+  },
+  analyticsItemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  analyticsItemContent: {
+    flex: 1,
+  },
+  analyticsItemLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  analyticsItemValues: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  analyticsValueItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  analyticsValueText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  moneyText: {
+    color: '#28a745',
+    fontWeight: '700',
+  },
 });
 
 export default GestaoTrabalhadoresExternos;
