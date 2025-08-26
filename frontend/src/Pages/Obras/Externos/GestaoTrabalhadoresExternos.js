@@ -127,7 +127,12 @@ const GestaoTrabalhadoresExternos = () => {
   const carregarCombos = useCallback(async () => {
     try {
       const loginToken = await AsyncStorage.getItem('loginToken');
-      const headers = { Authorization: `Bearer ${loginToken}` };
+      const empresaId = await AsyncStorage.getItem('empresa_id');
+      
+      const headers = { 
+        Authorization: `Bearer ${loginToken}`,
+        'X-Empresa-ID': empresaId
+      };
 
       const [emp, cat] = await Promise.all([
         fetch(`${API_BASE}/distintos/empresas`, { headers }),
@@ -159,9 +164,14 @@ const GestaoTrabalhadoresExternos = () => {
     setErro('');
     try {
       const loginToken = await AsyncStorage.getItem('loginToken');
-      const res = await fetch(`${API_BASE}?${buildQuery()}`, {
-        headers: { Authorization: `Bearer ${loginToken}` }
-      });
+      const empresaId = await AsyncStorage.getItem('empresa_id');
+      
+      const headers = { 
+        Authorization: `Bearer ${loginToken}`,
+        'X-Empresa-ID': empresaId // Enviar empresa_id no header
+      };
+      
+      const res = await fetch(`${API_BASE}?${buildQuery()}`, { headers });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || 'Falha a obter trabalhadores externos.');
       setRegistos(data?.data || data || []);
@@ -273,9 +283,16 @@ const GestaoTrabalhadoresExternos = () => {
 
   const callPost = async (urlSuffix) => {
     const loginToken = await AsyncStorage.getItem('loginToken');
+    const empresaId = await AsyncStorage.getItem('empresa_id');
+    
+    const headers = { 
+      Authorization: `Bearer ${loginToken}`,
+      'X-Empresa-ID': empresaId
+    };
+    
     const res = await fetch(`${API_BASE}/${urlSuffix}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${loginToken}` }
+      headers
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || 'Falha na operação.');
@@ -284,9 +301,16 @@ const GestaoTrabalhadoresExternos = () => {
   const eliminar = (id) => confirmar('Eliminar', 'Tem a certeza que pretende eliminar?', async () => {
     try {
       const loginToken = await AsyncStorage.getItem('loginToken');
+      const empresaId = await AsyncStorage.getItem('empresa_id');
+      
+      const headers = { 
+        Authorization: `Bearer ${loginToken}`,
+        'X-Empresa-ID': empresaId
+      };
+      
       const res = await fetch(`${API_BASE}/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${loginToken}` }
+        headers
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.message || 'Falha ao eliminar.');
@@ -322,7 +346,14 @@ const GestaoTrabalhadoresExternos = () => {
   const fetchObrasResumo = useCallback(async () => {
     try {
       const loginToken = await AsyncStorage.getItem('loginToken');
-      const res = await fetch(API_OBRAS, { headers: { Authorization: `Bearer ${loginToken}` } });
+      const empresaId = await AsyncStorage.getItem('empresa_id');
+      
+      const headers = { 
+        Authorization: `Bearer ${loginToken}`,
+        'X-Empresa-ID': empresaId
+      };
+      
+      const res = await fetch(API_OBRAS, { headers });
       if (!res.ok) return;
       const obras = await res.json();
       const map = {};

@@ -21,9 +21,10 @@ const listar = async (req, res) => {
 
     const where = {};
 
-    // Filtrar sempre pela empresa do usuário logado
-    if (req.user && req.user.empresa_id) {
-      where.empresa_id = req.user.empresa_id;
+    // Filtrar sempre pela empresa do usuário logado - priorizar header
+    const empresaId = req.headers['x-empresa-id'] || req.user?.empresa_id;
+    if (empresaId) {
+      where.empresa_id = parseInt(empresaId, 10);
     }
 
     if (empresa) where.empresa = { [Op.like]: `%${empresa}%` };
@@ -137,9 +138,10 @@ const criar = async (req, res) => {
     }
 
     // Regra simples para evitar duplicados óbvios não anulados na mesma empresa
+    const empresaIdFinal = empresa_id || req.headers['x-empresa-id'] || req.user?.empresa_id;
     const existente = await TrabalhadorExterno.findOne({
       where: { 
-        empresa_id: empresa_id || req.user.empresa_id,
+        empresa_id: parseInt(empresaIdFinal, 10),
         empresa, 
         funcionario, 
         categoria, 
@@ -150,8 +152,12 @@ const criar = async (req, res) => {
       return res.status(409).json({ message: 'Já existe um registo ativo/anulado=false com a mesma empresa/funcionário/categoria.' });
     }
 
+    if (!empresaIdFinal) {
+      return res.status(400).json({ message: 'empresa_id é obrigatório.' });
+    }
+
     const novo = await TrabalhadorExterno.create({
-      empresa_id: empresa_id || req.user.empresa_id,
+      empresa_id: parseInt(empresaIdFinal, 10),
       empresa,
       funcionario,
       categoria: categoria || null,
@@ -172,7 +178,15 @@ const criar = async (req, res) => {
 // GET /api/trabalhadores-externos/:id
 const obter = async (req, res) => {
   try {
-    const reg = await TrabalhadorExterno.findByPk(req.params.id);
+    const where = { id: req.params.id };
+    
+    // Filtrar pela empresa do usuário logado
+    const empresaId = req.headers['x-empresa-id'] || req.user?.empresa_id;
+    if (empresaId) {
+      where.empresa_id = parseInt(empresaId, 10);
+    }
+
+    const reg = await TrabalhadorExterno.findOne({ where });
     if (!reg) return res.status(404).json({ message: 'Registo não encontrado.' });
     res.status(200).json(reg);
   } catch (error) {
@@ -184,7 +198,15 @@ const obter = async (req, res) => {
 // PUT /api/trabalhadores-externos/:id
 const atualizar = async (req, res) => {
   try {
-    const reg = await TrabalhadorExterno.findByPk(req.params.id);
+    const where = { id: req.params.id };
+    
+    // Filtrar pela empresa do usuário logado
+    const empresaId = req.headers['x-empresa-id'] || req.user?.empresa_id;
+    if (empresaId) {
+      where.empresa_id = parseInt(empresaId, 10);
+    }
+
+    const reg = await TrabalhadorExterno.findOne({ where });
     if (!reg) return res.status(404).json({ message: 'Registo não encontrado.' });
 
     const {
@@ -224,7 +246,15 @@ const atualizar = async (req, res) => {
 // DELETE /api/trabalhadores-externos/:id
 const eliminar = async (req, res) => {
   try {
-    const reg = await TrabalhadorExterno.findByPk(req.params.id);
+    const where = { id: req.params.id };
+    
+    // Filtrar pela empresa do usuário logado
+    const empresaId = req.headers['x-empresa-id'] || req.user?.empresa_id;
+    if (empresaId) {
+      where.empresa_id = parseInt(empresaId, 10);
+    }
+
+    const reg = await TrabalhadorExterno.findOne({ where });
     if (!reg) return res.status(404).json({ message: 'Registo não encontrado.' });
 
     await reg.destroy();
@@ -238,7 +268,15 @@ const eliminar = async (req, res) => {
 // POST /api/trabalhadores-externos/:id/anular
 const anular = async (req, res) => {
   try {
-    const reg = await TrabalhadorExterno.findByPk(req.params.id);
+    const where = { id: req.params.id };
+    
+    // Filtrar pela empresa do usuário logado
+    const empresaId = req.headers['x-empresa-id'] || req.user?.empresa_id;
+    if (empresaId) {
+      where.empresa_id = parseInt(empresaId, 10);
+    }
+
+    const reg = await TrabalhadorExterno.findOne({ where });
     if (!reg) return res.status(404).json({ message: 'Registo não encontrado.' });
     await reg.update({ anulado: true, ativo: false });
     res.status(200).json(reg);
@@ -251,7 +289,15 @@ const anular = async (req, res) => {
 // POST /api/trabalhadores-externos/:id/restaurar
 const restaurar = async (req, res) => {
   try {
-    const reg = await TrabalhadorExterno.findByPk(req.params.id);
+    const where = { id: req.params.id };
+    
+    // Filtrar pela empresa do usuário logado
+    const empresaId = req.headers['x-empresa-id'] || req.user?.empresa_id;
+    if (empresaId) {
+      where.empresa_id = parseInt(empresaId, 10);
+    }
+
+    const reg = await TrabalhadorExterno.findOne({ where });
     if (!reg) return res.status(404).json({ message: 'Registo não encontrado.' });
     await reg.update({ anulado: false, ativo: true });
     res.status(200).json(reg);
@@ -264,7 +310,15 @@ const restaurar = async (req, res) => {
 // POST /api/trabalhadores-externos/:id/ativar
 const ativar = async (req, res) => {
   try {
-    const reg = await TrabalhadorExterno.findByPk(req.params.id);
+    const where = { id: req.params.id };
+    
+    // Filtrar pela empresa do usuário logado
+    const empresaId = req.headers['x-empresa-id'] || req.user?.empresa_id;
+    if (empresaId) {
+      where.empresa_id = parseInt(empresaId, 10);
+    }
+
+    const reg = await TrabalhadorExterno.findOne({ where });
     if (!reg) return res.status(404).json({ message: 'Registo não encontrado.' });
     await reg.update({ ativo: true, anulado: false });
     res.status(200).json(reg);
@@ -277,7 +331,15 @@ const ativar = async (req, res) => {
 // POST /api/trabalhadores-externos/:id/desativar
 const desativar = async (req, res) => {
   try {
-    const reg = await TrabalhadorExterno.findByPk(req.params.id);
+    const where = { id: req.params.id };
+    
+    // Filtrar pela empresa do usuário logado
+    const empresaId = req.headers['x-empresa-id'] || req.user?.empresa_id;
+    if (empresaId) {
+      where.empresa_id = parseInt(empresaId, 10);
+    }
+
+    const reg = await TrabalhadorExterno.findOne({ where });
     if (!reg) return res.status(404).json({ message: 'Registo não encontrado.' });
     await reg.update({ ativo: false });
     res.status(200).json(reg);
