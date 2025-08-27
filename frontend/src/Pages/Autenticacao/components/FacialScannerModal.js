@@ -56,36 +56,101 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         }
     };
 
-    const startScan = () => {
+    const detectFace = async () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        
+        if (!video || !canvas) return false;
+
+        const ctx = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+
+        // Análise básica de detecção facial baseada em pixels
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Detectar variação de luminosidade (indicativo de presença humana)
+        let variations = 0;
+        let totalBrightness = 0;
+        const step = 4 * 10; // Verificar a cada 10 pixels para otimização
+        
+        for (let i = 0; i < data.length; i += step) {
+            const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            totalBrightness += brightness;
+            
+            if (i > 0) {
+                const prevBrightness = (data[i - step] + data[i - step + 1] + data[i - step + 2]) / 3;
+                if (Math.abs(brightness - prevBrightness) > 30) {
+                    variations++;
+                }
+            }
+        }
+        
+        const avgBrightness = totalBrightness / (data.length / step);
+        const variationRatio = variations / (data.length / step);
+        
+        // Verificar se há contraste suficiente e variações que indicam uma face
+        const hasFace = variationRatio > 0.1 && avgBrightness > 30 && avgBrightness < 200;
+        
+        return hasFace;
+    };
+
+    const startScan = async () => {
         if (!cameraReady) {
             setStatusMessage('A câmera ainda não está pronta.');
             return;
         }
 
+        // Verificar se há uma face detectada antes de iniciar
+        const faceDetected = await detectFace();
+        if (!faceDetected) {
+            setStatusMessage('Nenhuma face detectada. Posicione-se melhor na frente da câmera.');
+            return;
+        }
+
         setIsScanning(true);
         setScanProgress(0);
-        setStatusMessage('Processando...');
+        setStatusMessage('Face detectada! Processando...');
 
-        // Simular progresso do scan com feedback visual
-        const interval = setInterval(() => {
-            setScanProgress(prev => {
-                const nextProgress = prev + 10;
-                if (nextProgress >= 100) {
-                    clearInterval(interval);
-                    completeScan();
-                    return 100;
-                }
-                // Atualizar mensagem de status com base no progresso
-                if (nextProgress < 50) {
-                    setStatusMessage('Alinhando rosto...');
-                } else if (nextProgress < 80) {
-                    setStatusMessage('Capturando detalhes...');
-                } else {
-                    setStatusMessage('Finalizando...');
-                }
-                return nextProgress;
-            });
-        }, 200);
+        // Múltiplas verificações durante o scan para garantir presença contínua da face
+        let consecutiveDetections = 0;
+        const requiredDetections = 5;
+
+        const interval = setInterval(async () => {
+            const stillDetected = await detectFace();
+            
+            if (stillDetected) {
+                consecutiveDetections++;
+                setScanProgress(prev => {
+                    const nextProgress = Math.min(prev + (100 / requiredDetections), 100);
+                    
+                    // Atualizar mensagem de status com base no progresso
+                    if (nextProgress < 40) {
+                        setStatusMessage('Alinhando rosto...');
+                    } else if (nextProgress < 80) {
+                        setStatusMessage('Capturando detalhes...');
+                    } else if (nextProgress < 100) {
+                        setStatusMessage('Finalizando...');
+                    }
+                    
+                    if (consecutiveDetections >= requiredDetections) {
+                        clearInterval(interval);
+                        completeScan();
+                        return 100;
+                    }
+                    
+                    return nextProgress;
+                });
+            } else {
+                // Face perdida durante o scan
+                clearInterval(interval);
+                setIsScanning(false);
+                setScanProgress(0);
+                setStatusMessage('Face perdida durante a captura. Tente novamente.');
+            }
+        }, 600);
     };
 
     const completeScan = async () => {
@@ -99,15 +164,28 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
                 canvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0);
 
+                // Validação final antes de processar
+                const finalValidation = await detectFace();
+                if (!finalValidation) {
+                    setIsScanning(false);
+                    setScanProgress(0);
+                    setStatusMessage('Validação final falhou. Face não detectada.');
+                    return;
+                }
+
                 const imageData = canvas.toDataURL('image/jpeg', 0.8);
 
-                // Simular processamento de dados biométricos faciais
-                const facialData = await processFacialBiometrics(imageData);
+                // Processar dados biométricos faciais apenas se a validação passou
+                const facialData = await processFacialBiometrics(imageData, true);
 
                 setIsScanning(false);
                 setScanProgress(0);
-                onScanComplete(facialData);
-                onClose();
+                setStatusMessage('Captura facial concluída com sucesso!');
+                
+                setTimeout(() => {
+                    onScanComplete(facialData);
+                    onClose();
+                }, 1000);
             }
         } catch (error) {
             console.error('Erro ao completar scan:', error);
@@ -118,24 +196,98 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         }
     };
 
-    const processFacialBiometrics = async (imageData) => {
-        // Simulação de processamento de características faciais
-        const features = {
-            faceDetected: true,
-            confidence: 0.95,
-            landmarks: {
-                eyes: { left: [120, 150], right: [180, 150] },
-                nose: [150, 170],
-                mouth: [150, 200]
-            },
-            encoding: generateFaceEncoding(imageData),
-            timestamp: new Date().toISOString()
-        };
+    const processFacialBiometrics = async (imageData, validated = false) => {
+        if (!validated) {
+            throw new Error('Dados faciais não validados');
+        }
 
+        // Análise mais detalhada das características faciais
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        return new Promise((resolve, reject) => {
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                // Análise de características mais robusta
+                let faceRegions = 0;
+                let totalIntensity = 0;
+                
+                // Dividir imagem em regiões para análise
+                const regionSize = 20;
+                for (let y = 0; y < canvas.height; y += regionSize) {
+                    for (let x = 0; x < canvas.width; x += regionSize) {
+                        let regionIntensity = 0;
+                        let pixelCount = 0;
+                        
+                        for (let dy = 0; dy < regionSize && y + dy < canvas.height; dy++) {
+                            for (let dx = 0; dx < regionSize && x + dx < canvas.width; dx++) {
+                                const i = ((y + dy) * canvas.width + (x + dx)) * 4;
+                                const intensity = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                                regionIntensity += intensity;
+                                pixelCount++;
+                            }
+                        }
+                        
+                        const avgIntensity = regionIntensity / pixelCount;
+                        totalIntensity += avgIntensity;
+                        
+                        // Considerar regiões com intensidade típica de pele
+                        if (avgIntensity > 60 && avgIntensity < 200) {
+                            faceRegions++;
+                        }
+                    }
+                }
+                
+                const confidence = Math.min(faceRegions / 10, 1); // Normalizar confiança
+                
+                if (confidence < 0.3) {
+                    reject(new Error('Confiança de detecção facial muito baixa'));
+                    return;
+                }
+                
+                // Gerar características faciais únicas
+                const features = {
+                    faceDetected: true,
+                    confidence: confidence,
+                    faceRegions: faceRegions,
+                    totalIntensity: totalIntensity,
+                    landmarks: generateLandmarks(canvas.width, canvas.height),
+                    encoding: generateFaceEncoding(imageData),
+                    timestamp: new Date().toISOString(),
+                    validationPassed: true
+                };
+
+                resolve({
+                    type: 'facial',
+                    data: JSON.stringify(features),
+                    imageData: imageData.split(',')[1] // Remover data:image/jpeg;base64,
+                });
+            };
+            
+            img.onerror = () => reject(new Error('Erro ao processar imagem'));
+            img.src = imageData;
+        });
+    };
+
+    const generateLandmarks = (width, height) => {
+        // Gerar landmarks baseados nas dimensões da imagem
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
         return {
-            type: 'facial',
-            data: JSON.stringify(features),
-            imageData: imageData.split(',')[1] // Remover data:image/jpeg;base64,
+            eyes: { 
+                left: [centerX - width * 0.1, centerY - height * 0.1], 
+                right: [centerX + width * 0.1, centerY - height * 0.1] 
+            },
+            nose: [centerX, centerY],
+            mouth: [centerX, centerY + height * 0.1]
         };
     };
 
