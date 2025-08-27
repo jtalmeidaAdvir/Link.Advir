@@ -24,12 +24,17 @@ router.post('/verify-token', authMiddleware, (req, res) => {
 });
 
 // Rotas de autenticação biométrica
-router.post('/biometric/register-challenge', biometricController.getRegistrationChallenge);
+// Rotas de autenticação biométrica
+router.post('/biometric/register-challenge', biometricController.generateRegisterChallenge);
 router.post('/biometric/register', biometricController.registerBiometric);
-router.post('/biometric/login-challenge', biometricController.getLoginChallenge);
-router.post('/biometric/authenticate', biometricController.authenticateBiometric);
-router.post('/biometric/check', biometricController.checkBiometricStatus);
+router.post('/biometric/login-challenge', biometricController.generateLoginChallenge);
+router.post('/biometric/authenticate', biometricController.authenticateWithBiometric);
+router.post('/biometric/check', biometricController.checkBiometric);
 router.delete('/biometric/remove', biometricController.removeBiometric);
+
+// Rota de autenticação facial
+router.post('/facial-login', biometricController.authenticateWithFacialData);
+
 
 // Rota de autenticação facial
 router.post('/facial-login', biometricController.authenticateWithFacialData);
