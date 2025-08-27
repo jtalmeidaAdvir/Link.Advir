@@ -60,21 +60,35 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
         
-        if (!video || !canvas) return false;
+        if (!video || !canvas) return { detected: false, confidence: 0, metrics: null };
 
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0);
 
-        // Análise básica de detecção facial baseada em pixels
+        // Análise mais detalhada de detecção facial
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
         
-        // Detectar variação de luminosidade (indicativo de presença humana)
+        // Múltiplas métricas de detecção
+        const metrics = calculateFaceMetrics(data, canvas.width, canvas.height);
+        
+        // Calcular confiança baseada em múltiplas métricas
+        const confidence = calculateConfidence(metrics);
+        
+        return {
+            detected: confidence > 0.6, // Threshold mais rigoroso
+            confidence: confidence,
+            metrics: metrics
+        };
+    };
+
+    const calculateFaceMetrics = (data, width, height) => {
+        // 1. Análise de variação de luminosidade
         let variations = 0;
         let totalBrightness = 0;
-        const step = 4 * 10; // Verificar a cada 10 pixels para otimização
+        const step = 4 * 8; // Mais granular
         
         for (let i = 0; i < data.length; i += step) {
             const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
@@ -82,7 +96,7 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
             
             if (i > 0) {
                 const prevBrightness = (data[i - step] + data[i - step + 1] + data[i - step + 2]) / 3;
-                if (Math.abs(brightness - prevBrightness) > 30) {
+                if (Math.abs(brightness - prevBrightness) > 25) {
                     variations++;
                 }
             }
@@ -91,10 +105,148 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         const avgBrightness = totalBrightness / (data.length / step);
         const variationRatio = variations / (data.length / step);
         
-        // Verificar se há contraste suficiente e variações que indicam uma face
-        const hasFace = variationRatio > 0.1 && avgBrightness > 30 && avgBrightness < 200;
+        // 2. Análise de distribuição de cores (tons de pele)
+        let skinTonePixels = 0;
+        let totalPixels = 0;
         
-        return hasFace;
+        for (let i = 0; i < data.length; i += 16) { // Amostra mais espaçada
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            // Detectar tons de pele aproximados
+            if (r > 95 && g > 40 && b > 20 && 
+                Math.max(r, g, b) - Math.min(r, g, b) > 15 &&
+                Math.abs(r - g) > 15 && r > g && r > b) {
+                skinTonePixels++;
+            }
+            totalPixels++;
+        }
+        
+        const skinRatio = skinTonePixels / totalPixels;
+        
+        // 3. Análise de simetria horizontal (faces tendem a ser simétricas)
+        const symmetryScore = calculateSymmetry(data, width, height);
+        
+        // 4. Análise de contraste nas regiões centrais
+        const centralContrast = calculateCentralContrast(data, width, height);
+        
+        return {
+            avgBrightness,
+            variationRatio,
+            skinRatio,
+            symmetryScore,
+            centralContrast
+        };
+    };
+
+    const calculateSymmetry = (data, width, height) => {
+        let symmetryScore = 0;
+        const centerX = Math.floor(width / 2);
+        const sampleLines = 10;
+        
+        for (let y = Math.floor(height * 0.3); y < Math.floor(height * 0.7); y += Math.floor(height * 0.4 / sampleLines)) {
+            for (let offset = 1; offset < Math.min(centerX, width - centerX); offset += 5) {
+                const leftIdx = (y * width + (centerX - offset)) * 4;
+                const rightIdx = (y * width + (centerX + offset)) * 4;
+                
+                if (leftIdx >= 0 && rightIdx < data.length - 2) {
+                    const leftBrightness = (data[leftIdx] + data[leftIdx + 1] + data[leftIdx + 2]) / 3;
+                    const rightBrightness = (data[rightIdx] + data[rightIdx + 1] + data[rightIdx + 2]) / 3;
+                    
+                    const diff = Math.abs(leftBrightness - rightBrightness);
+                    symmetryScore += Math.max(0, 100 - diff) / 100;
+                }
+            }
+        }
+        
+        return symmetryScore / (sampleLines * 10); // Normalizar
+    };
+
+    const calculateCentralContrast = (data, width, height) => {
+        const centerX = Math.floor(width / 2);
+        const centerY = Math.floor(height / 2);
+        const region = Math.min(width, height) * 0.3;
+        
+        let totalContrast = 0;
+        let samples = 0;
+        
+        for (let y = centerY - region/2; y < centerY + region/2; y += 5) {
+            for (let x = centerX - region/2; x < centerX + region/2; x += 5) {
+                if (x >= 0 && x < width && y >= 0 && y < height) {
+                    const idx = (Math.floor(y) * width + Math.floor(x)) * 4;
+                    if (idx < data.length - 2) {
+                        const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                        
+                        // Comparar com pixels adjacentes
+                        let localContrast = 0;
+                        let neighbors = 0;
+                        
+                        for (let dy = -2; dy <= 2; dy++) {
+                            for (let dx = -2; dx <= 2; dx++) {
+                                const nx = Math.floor(x) + dx;
+                                const ny = Math.floor(y) + dy;
+                                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                                    const nIdx = (ny * width + nx) * 4;
+                                    if (nIdx < data.length - 2) {
+                                        const nBrightness = (data[nIdx] + data[nIdx + 1] + data[nIdx + 2]) / 3;
+                                        localContrast += Math.abs(brightness - nBrightness);
+                                        neighbors++;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (neighbors > 0) {
+                            totalContrast += localContrast / neighbors;
+                            samples++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return samples > 0 ? totalContrast / samples : 0;
+    };
+
+    const calculateConfidence = (metrics) => {
+        let confidence = 0;
+        
+        // Peso para cada métrica
+        const weights = {
+            brightness: 0.15,
+            variation: 0.25,
+            skinTone: 0.25,
+            symmetry: 0.20,
+            contrast: 0.15
+        };
+        
+        // Avaliar brilho (nem muito escuro nem muito claro)
+        if (metrics.avgBrightness > 50 && metrics.avgBrightness < 180) {
+            confidence += weights.brightness;
+        }
+        
+        // Avaliar variação (deve ter variações moderadas para indicar features faciais)
+        if (metrics.variationRatio > 0.15 && metrics.variationRatio < 0.4) {
+            confidence += weights.variation;
+        }
+        
+        // Avaliar tons de pele
+        if (metrics.skinRatio > 0.08 && metrics.skinRatio < 0.4) {
+            confidence += weights.skinTone;
+        }
+        
+        // Avaliar simetria
+        if (metrics.symmetryScore > 0.3) {
+            confidence += weights.symmetry * metrics.symmetryScore;
+        }
+        
+        // Avaliar contraste central
+        if (metrics.centralContrast > 20 && metrics.centralContrast < 80) {
+            confidence += weights.contrast;
+        }
+        
+        return Math.min(confidence, 1.0);
     };
 
     const startScan = async () => {
@@ -104,53 +256,159 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         }
 
         // Verificar se há uma face detectada antes de iniciar
-        const faceDetected = await detectFace();
-        if (!faceDetected) {
-            setStatusMessage('Nenhuma face detectada. Posicione-se melhor na frente da câmera.');
+        const initialDetection = await detectFace();
+        if (!initialDetection.detected || initialDetection.confidence < 0.6) {
+            setStatusMessage(`Face não detectada adequadamente (confiança: ${Math.round(initialDetection.confidence * 100)}%). Posicione-se melhor.`);
             return;
         }
 
         setIsScanning(true);
         setScanProgress(0);
-        setStatusMessage('Face detectada! Processando...');
+        setStatusMessage('Face detectada! Iniciando captura de precisão...');
 
-        // Múltiplas verificações durante o scan para garantir presença contínua da face
-        let consecutiveDetections = 0;
-        const requiredDetections = 5;
+        // Múltiplos scans para maior precisão
+        const scans = [];
+        const totalScans = 8; // Mais scans para maior precisão
+        let currentScan = 0;
+        let failedScans = 0;
 
         const interval = setInterval(async () => {
-            const stillDetected = await detectFace();
+            const detection = await detectFace();
             
-            if (stillDetected) {
-                consecutiveDetections++;
-                setScanProgress(prev => {
-                    const nextProgress = Math.min(prev + (100 / requiredDetections), 100);
-                    
-                    // Atualizar mensagem de status com base no progresso
-                    if (nextProgress < 40) {
-                        setStatusMessage('Alinhando rosto...');
-                    } else if (nextProgress < 80) {
-                        setStatusMessage('Capturando detalhes...');
-                    } else if (nextProgress < 100) {
-                        setStatusMessage('Finalizando...');
-                    }
-                    
-                    if (consecutiveDetections >= requiredDetections) {
-                        clearInterval(interval);
-                        completeScan();
-                        return 100;
-                    }
-                    
-                    return nextProgress;
-                });
+            if (detection.detected && detection.confidence > 0.6) {
+                scans.push(detection);
+                currentScan++;
+                
+                const progress = (currentScan / totalScans) * 100;
+                setScanProgress(progress);
+                
+                // Mensagens mais informativas
+                if (progress < 25) {
+                    setStatusMessage(`Capturando amostra ${currentScan}/${totalScans} (confiança: ${Math.round(detection.confidence * 100)}%)`);
+                } else if (progress < 50) {
+                    setStatusMessage(`Validando características faciais... ${currentScan}/${totalScans}`);
+                } else if (progress < 75) {
+                    setStatusMessage(`Refinando dados biométricos... ${currentScan}/${totalScans}`);
+                } else {
+                    setStatusMessage(`Finalizando captura... ${currentScan}/${totalScans}`);
+                }
+                
+                if (currentScan >= totalScans) {
+                    clearInterval(interval);
+                    completeScanWithAveraging(scans);
+                }
             } else {
-                // Face perdida durante o scan
-                clearInterval(interval);
+                failedScans++;
+                
+                if (failedScans > 3) {
+                    // Muitas falhas consecutivas
+                    clearInterval(interval);
+                    setIsScanning(false);
+                    setScanProgress(0);
+                    setStatusMessage('Qualidade da captura insuficiente. Tente novamente com melhor iluminação.');
+                    return;
+                }
+                
+                setStatusMessage(`Ajustando captura... (confiança: ${Math.round(detection.confidence * 100)}%)`);
+            }
+        }, 500); // Mais frequente para maior precisão
+    };
+
+    const completeScanWithAveraging = async (scans) => {
+        try {
+            // Calcular métricas médias de todos os scans
+            const avgMetrics = calculateAverageMetrics(scans);
+            const overallConfidence = avgMetrics.avgConfidence;
+            
+            if (overallConfidence < 0.7) {
                 setIsScanning(false);
                 setScanProgress(0);
-                setStatusMessage('Face perdida durante a captura. Tente novamente.');
+                setStatusMessage(`Confiança insuficiente (${Math.round(overallConfidence * 100)}%). Tente novamente.`);
+                return;
             }
-        }, 600);
+
+            setStatusMessage(`Processando dados... (confiança: ${Math.round(overallConfidence * 100)}%)`);
+            
+            const canvas = canvasRef.current;
+            const video = videoRef.current;
+
+            if (canvas && video) {
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+
+                const imageData = canvas.toDataURL('image/jpeg', 0.9); // Maior qualidade
+
+                // Processar dados biométricos com as métricas médias
+                const facialData = await processFacialBiometrics(imageData, true, avgMetrics, overallConfidence);
+
+                setIsScanning(false);
+                setScanProgress(0);
+                setStatusMessage(`Captura concluída! Confiança: ${Math.round(overallConfidence * 100)}%`);
+                
+                setTimeout(() => {
+                    onScanComplete(facialData);
+                    onClose();
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('Erro ao completar scan:', error);
+            setIsScanning(false);
+            setScanProgress(0);
+            setStatusMessage('Erro ao processar dados faciais.');
+        }
+    };
+
+    const calculateAverageMetrics = (scans) => {
+        if (scans.length === 0) return null;
+        
+        const totals = {
+            avgBrightness: 0,
+            variationRatio: 0,
+            skinRatio: 0,
+            symmetryScore: 0,
+            centralContrast: 0,
+            confidence: 0
+        };
+        
+        scans.forEach(scan => {
+            totals.avgBrightness += scan.metrics.avgBrightness;
+            totals.variationRatio += scan.metrics.variationRatio;
+            totals.skinRatio += scan.metrics.skinRatio;
+            totals.symmetryScore += scan.metrics.symmetryScore;
+            totals.centralContrast += scan.metrics.centralContrast;
+            totals.confidence += scan.confidence;
+        });
+        
+        const count = scans.length;
+        return {
+            avgBrightness: totals.avgBrightness / count,
+            variationRatio: totals.variationRatio / count,
+            skinRatio: totals.skinRatio / count,
+            symmetryScore: totals.symmetryScore / count,
+            centralContrast: totals.centralContrast / count,
+            avgConfidence: totals.confidence / count,
+            sampleCount: count,
+            consistency: calculateConsistency(scans)
+        };
+    };
+
+    const calculateConsistency = (scans) => {
+        if (scans.length < 2) return 1.0;
+        
+        let totalVariance = 0;
+        const metrics = ['avgBrightness', 'variationRatio', 'skinRatio', 'symmetryScore', 'centralContrast'];
+        
+        metrics.forEach(metric => {
+            const values = scans.map(scan => scan.metrics[metric]);
+            const mean = values.reduce((a, b) => a + b, 0) / values.length;
+            const variance = values.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / values.length;
+            totalVariance += variance;
+        });
+        
+        // Converter variância em score de consistência (0-1)
+        return Math.max(0, Math.min(1, 1 - (totalVariance / 1000)));
     };
 
     const completeScan = async () => {
@@ -196,7 +454,7 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         }
     };
 
-    const processFacialBiometrics = async (imageData, validated = false) => {
+    const processFacialBiometrics = async (imageData, validated = false, avgMetrics = null, overallConfidence = 0) => {
         if (!validated) {
             throw new Error('Dados faciais não validados');
         }
@@ -252,16 +510,27 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
                     return;
                 }
                 
-                // Gerar características faciais únicas
+                // Gerar características faciais únicas com dados médios
                 const features = {
                     faceDetected: true,
-                    confidence: confidence,
+                    confidence: overallConfidence || confidence,
                     faceRegions: faceRegions,
                     totalIntensity: totalIntensity,
                     landmarks: generateLandmarks(canvas.width, canvas.height),
                     encoding: generateFaceEncoding(imageData),
                     timestamp: new Date().toISOString(),
-                    validationPassed: true
+                    validationPassed: true,
+                    // Dados adicionais de precisão
+                    avgMetrics: avgMetrics,
+                    scanQuality: {
+                        brightness: avgMetrics?.avgBrightness || 0,
+                        variation: avgMetrics?.variationRatio || 0,
+                        skinTone: avgMetrics?.skinRatio || 0,
+                        symmetry: avgMetrics?.symmetryScore || 0,
+                        contrast: avgMetrics?.centralContrast || 0,
+                        consistency: avgMetrics?.consistency || 0,
+                        sampleCount: avgMetrics?.sampleCount || 1
+                    }
                 };
 
                 resolve({
