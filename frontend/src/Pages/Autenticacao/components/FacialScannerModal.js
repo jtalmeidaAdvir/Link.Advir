@@ -29,30 +29,14 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         try {
             setStatusMessage('Carregando modelos de detecção facial...');
 
-            // Tentar carregar modelos localmente primeiro, depois via CDN
-            const LOCAL_MODEL_URL = '/models';
+            // Usar CDN diretamente para maior confiabilidade
             const CDN_MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
 
-            let modelUrl = LOCAL_MODEL_URL;
-
-            try {
-                // Testar se os modelos locais estão disponíveis
-                const response = await fetch(`${LOCAL_MODEL_URL}/tiny_face_detector_model-weights_manifest.json`);
-                if (!response.ok) {
-                    throw new Error('Modelos locais não encontrados');
-                }
-            } catch (localError) {
-                console.log('Modelos locais não encontrados, usando CDN...');
-                modelUrl = CDN_MODEL_URL;
-                setStatusMessage('Carregando modelos via CDN...');
-            }
-
-            // Carregar modelos do face-api.js
+            // Carregar apenas os modelos essenciais
             await Promise.all([
-                faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
-                faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
-                faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl),
-                faceapi.nets.faceExpressionNet.loadFromUri(modelUrl)
+                faceapi.nets.tinyFaceDetector.loadFromUri(CDN_MODEL_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(CDN_MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(CDN_MODEL_URL)
             ]);
 
             setModelsLoaded(true);
@@ -63,13 +47,11 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
             console.error('Erro ao carregar modelos face-api.js:', error);
             setStatusMessage('Erro ao carregar modelos de detecção facial.');
             
-            // Tentar uma abordagem mais simples com apenas o detector básico
+            // Tentar carregar apenas o detector básico como fallback
             try {
                 setStatusMessage('Tentando modo básico de detecção...');
-                const CDN_MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
                 
                 await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_MODEL_URL);
-                await faceapi.nets.faceLandmark68Net.loadFromUri(CDN_MODEL_URL);
                 
                 setModelsLoaded(true);
                 setStatusMessage('Modo básico carregado! Iniciando câmera...');
@@ -77,8 +59,7 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
                 
             } catch (fallbackError) {
                 console.error('Erro no fallback:', fallbackError);
-                setStatusMessage('Não foi possível carregar os modelos de detecção facial.');
-                alert('Erro ao carregar modelos de detecção facial. Verifique sua conexão com a internet.');
+                setStatusMessage('Não foi possível carregar os modelos de detecção facial. Verifique sua conexão.');
             }
         }
     };
@@ -137,17 +118,25 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
             const displaySize = { width: video.videoWidth || 640, height: video.videoHeight || 480 };
             faceapi.matchDimensions(canvas, displaySize);
 
-            // Usar apenas o detector básico se outros modelos não estiverem disponíveis
+            // Detectar faces com fallbacks progressivos
             let detections;
             try {
+                // Tentar com landmarks e reconhecimento
                 detections = await faceapi
                     .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
                     .withFaceLandmarks()
-                    .withFaceExpressions();
+                    .withFaceDescriptors();
             } catch (detectionError) {
-                // Fallback para detecção básica apenas
-                detections = await faceapi
-                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+                try {
+                    // Fallback para detecção com landmarks apenas
+                    detections = await faceapi
+                        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks();
+                } catch (landmarkError) {
+                    // Fallback final para detecção básica
+                    detections = await faceapi
+                        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+                }
             }
 
             const resizedDetections = faceapi.resizeResults(detections, displaySize);
@@ -194,10 +183,22 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         const video = videoRef.current;
         if (!video) return;
 
-        const detections = await faceapi
-            .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks()
-            .withFaceDescriptors();
+        let detections;
+        try {
+            detections = await faceapi
+                .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                .withFaceLandmarks()
+                .withFaceDescriptors();
+        } catch (error) {
+            try {
+                detections = await faceapi
+                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks();
+            } catch (landmarkError) {
+                detections = await faceapi
+                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+            }
+        }
 
         if (detections.length === 0) {
             setStatusMessage('Face não detectada. Posicione-se corretamente.');
@@ -212,7 +213,7 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         const confidence = detection.detection.score;
         const qualityScore = calculateFaceQuality(detection, video);
 
-        if (confidence < 0.8 || qualityScore < 0.7) {
+        if (confidence < 0.7 || qualityScore < 0.6) {
             setStatusMessage(`Qualidade insuficiente (Confiança: ${Math.round(confidence * 100)}%). Ajuste seu posicionamento.`);
             return;
         }
@@ -227,17 +228,29 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         let failedScans = 0;
 
         const interval = setInterval(async () => {
-            const scanDetection = await faceapi
-                .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-                .withFaceLandmarks()
-                .withFaceDescriptors();
+            let scanDetection;
+            try {
+                scanDetection = await faceapi
+                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks()
+                    .withFaceDescriptors();
+            } catch (error) {
+                try {
+                    scanDetection = await faceapi
+                        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks();
+                } catch (landmarkError) {
+                    scanDetection = await faceapi
+                        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+                }
+            }
 
             if (scanDetection.length > 0) {
                 const currentDetection = scanDetection[0]; // Assume a primeira face detectada
                 const currentConfidence = currentDetection.detection.score;
                 const currentQuality = calculateFaceQuality(currentDetection, video);
 
-                if (currentDetection.descriptor && currentConfidence > 0.8 && currentQuality > 0.7) {
+                if (currentConfidence > 0.7 && currentQuality > 0.6) {
                     scans.push({
                         confidence: currentConfidence,
                         qualityScore: currentQuality,
