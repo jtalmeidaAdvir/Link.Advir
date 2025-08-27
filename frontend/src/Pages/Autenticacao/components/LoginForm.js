@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import RecuperarPasswordLink from "./RecuperarPasswordLink";
 import FacialScannerModal from "./FacialScannerModal";
+import InvisibleFacialScanner from "./InvisibleFacialScanner";
 import { hasBiometricRegistered, authenticateWithBiometric } from "../utils/biometricAuth";
 import { inputStyle, buttonStyle, errorStyle } from "../styles/LoginFormStyles";
 
@@ -24,25 +25,56 @@ const LoginForm = ({
     const [facialScannerVisible, setFacialScannerVisible] = useState(false);
     const [isFacialLoading, setIsFacialLoading] = useState(false);
     const [isCameraAvailable, setIsCameraAvailable] = useState(false);
+    const [cameraPermissionGranted, setCameraPermissionGranted] = useState(false);
+    const [autoFacialStarted, setAutoFacialStarted] = useState(false);
 
-    // Verificar disponibilidade da câmera
+    // Verificar disponibilidade da câmera e permissões
     useEffect(() => {
         const checkCameraAvailability = async () => {
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 try {
-                    await navigator.mediaDevices.getUserMedia({ video: true });
-                    setIsCameraAvailable(true);
+                    // Verificar se já temos permissão armazenada
+                    const hasPermission = localStorage.getItem('cameraPermissionGranted') === 'true';
+                    
+                    if (hasPermission) {
+                        setCameraPermissionGranted(true);
+                        setIsCameraAvailable(true);
+                    } else {
+                        // Tentar obter permissão da câmera
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        // Se chegou aqui, a permissão foi concedida
+                        setCameraPermissionGranted(true);
+                        setIsCameraAvailable(true);
+                        localStorage.setItem('cameraPermissionGranted', 'true');
+                        // Parar o stream imediatamente
+                        stream.getTracks().forEach(track => track.stop());
+                    }
                 } catch (error) {
                     console.error("Erro ao acessar a câmera:", error);
                     setIsCameraAvailable(false);
+                    setCameraPermissionGranted(false);
                 }
             } else {
                 setIsCameraAvailable(false);
+                setCameraPermissionGranted(false);
             }
         };
 
         checkCameraAvailability();
     }, []);
+
+    // Auto-iniciar reconhecimento facial invisível quando as condições estão reunidas
+    useEffect(() => {
+        const shouldAutoStart = 
+            isCameraAvailable && 
+            cameraPermissionGranted && 
+            !autoFacialStarted && 
+            !isLoading;
+
+        if (shouldAutoStart) {
+            setAutoFacialStarted(true);
+        }
+    }, [isCameraAvailable, cameraPermissionGranted, autoFacialStarted, isLoading]);
 
     // Verificar se o utilizador tem biometria registada quando o email muda
     useEffect(() => {
@@ -101,6 +133,18 @@ const LoginForm = ({
             return;
         }
         setFacialScannerVisible(true);
+    };
+
+    const handleFacialModalClose = () => {
+        setFacialScannerVisible(false);
+    };
+
+    const handleInvisibleScanError = (error) => {
+        console.error('Erro no scanner invisível:', error);
+        // Em caso de erro, permitir tentar novamente após um tempo
+        setTimeout(() => {
+            setAutoFacialStarted(false);
+        }, 5000);
     };
 
     const handleFacialScanComplete = async (facialData) => {
@@ -252,39 +296,33 @@ const LoginForm = ({
                 )}
             </button>
 
-            {/* Botão de Autenticação Facial */}
-            {isCameraAvailable && (
-                <button 
-                    type="button"
-                    onClick={handleFacialLogin}
-                    disabled={isFacialLoading}
-                    style={{
-                        ...buttonStyle,
-                        backgroundColor: "#4CAF50",
-                        marginTop: "10px",
-                        opacity: isFacialLoading ? 0.6 : 1,
-                        cursor: isFacialLoading ? "not-allowed" : "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "10px"
-                    }}
-                >
-                    {isFacialLoading ? (
-                        "A processar..."
-                    ) : (
-                        <>
-                            <span>👤</span>
-                            Entrar com Reconhecimento Facial
-                        </>
-                    )}
-                </button>
+            {/* Indicador de reconhecimento facial automático */}
+            {isCameraAvailable && cameraPermissionGranted && autoFacialStarted && (
+                <div style={{
+                    marginTop: "10px",
+                    padding: "10px",
+                    backgroundColor: "rgba(76, 175, 80, 0.1)",
+                    border: "1px solid #4CAF50",
+                    borderRadius: "5px",
+                    textAlign: "center",
+                    color: "#4CAF50",
+                    fontSize: "14px"
+                }}>
+                    <span>🎯</span> Reconhecimento facial automático ativo em segundo plano
+                </div>
             )}
+
+            {/* Scanner Facial Invisível */}
+            <InvisibleFacialScanner
+                isActive={autoFacialStarted && isCameraAvailable && cameraPermissionGranted}
+                onScanComplete={handleFacialScanComplete}
+                onError={handleInvisibleScanError}
+            />
 
             {/* Modal do Scanner Facial */}
             <FacialScannerModal
                 visible={facialScannerVisible}
-                onClose={() => setFacialScannerVisible(false)}
+                onClose={handleFacialModalClose}
                 onScanComplete={handleFacialScanComplete}
                 t={t}
             />
