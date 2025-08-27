@@ -400,6 +400,7 @@ const getUsersByEmpresa = async (req, res) => {
 
 const getEmpresasByUser = async (req, res) => {
     const userId = req.user.id;
+    console.log('🏢 getEmpresasByUser - Buscando empresas para user:', userId);
 
     try {
         const user = await User.findByPk(userId, {
@@ -409,6 +410,9 @@ const getEmpresasByUser = async (req, res) => {
                 through: { attributes: [] }, // Remove os atributos da tabela de junção
             },
         });
+
+        console.log('🏢 User encontrado:', user ? 'sim' : 'não');
+        console.log('🏢 Empresas do user:', user?.Empresas?.length || 0);
 
         if (!user) {
             return res

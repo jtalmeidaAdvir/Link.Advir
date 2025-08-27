@@ -28,33 +28,78 @@ export const handleAutoCompanySelection = async (navigation) => {
             }
         }
 
+        // Verificar se o token é válido antes de fazer a requisição
+        if (!loginToken || loginToken === 'undefined' || loginToken === 'null') {
+            console.log('Token inválido ou não encontrado');
+            return false;
+        }
+
+        console.log('🔍 Fazendo requisição para empresas com token:', loginToken.substring(0, 20) + '...');
+
         // Buscar empresas disponíveis
         const response = await fetch("https://backend.advir.pt/api/users/empresas", {
             method: "GET",
-            headers: { Authorization: `Bearer ${loginToken}` },
+            headers: { 
+                Authorization: `Bearer ${loginToken}`,
+                'Content-Type': 'application/json'
+            },
+        });
+
+        console.log('📡 Resposta da requisição:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+            headers: Object.fromEntries(response.headers.entries())
         });
 
         if (!response.ok) {
             console.log('Erro ao buscar empresas do usuário:', response.status, response.statusText);
-            
+
             // Se for 401, tentar renovar token
             if (response.status === 401) {
                 const { refreshTokensOnAppFocus } = await import('../../../utils/authUtils');
                 await refreshTokensOnAppFocus();
-                
+
                 // Tentar novamente com token renovado
-                const retryResponse = await fetch("https://backend.advir.pt/api/users/empresas", {
-                    method: "GET",
-                    headers: { Authorization: `Bearer ${localStorage.getItem('loginToken')}` },
-                });
-                
-                if (!retryResponse.ok) {
+                const newToken = localStorage.getItem('loginToken');
+                if (!newToken) {
+                    console.log('Não foi possível renovar o token');
                     return false;
                 }
-                
+
+                const retryResponse = await fetch("https://backend.advir.pt/api/users/empresas", {
+                    method: "GET",
+                    headers: { Authorization: `Bearer ${newToken}` },
+                });
+
+                if (!retryResponse.ok) {
+                    console.log('Falha na segunda tentativa:', retryResponse.status);
+                    return false;
+                }
+
                 const empresas = await retryResponse.json();
-                // Continue com a lógica...
-                
+
+                // Se há apenas uma empresa, entrar automaticamente
+                if (empresas.length === 1) {
+                    const empresaUnica = empresas[0].empresa;
+                    console.log('Apenas uma empresa disponível (retry), entrando automaticamente:', empresaUnica);
+
+                    try {
+                        const { handleEntrarEmpresa } = await import('../handlers/handleEntrarEmpresa');
+                        await handleEntrarEmpresa({
+                            empresa: empresaUnica,
+                            setEmpresa: () => {},
+                            setLoadingButton: () => {},
+                            setErrorMessage: () => {},
+                            navigation,
+                        });
+                        return true;
+                    } catch (error) {
+                        console.error('Erro ao entrar na empresa (retry):', error);
+                        return false;
+                    }
+                }
+
             } else {
                 return false;
             }

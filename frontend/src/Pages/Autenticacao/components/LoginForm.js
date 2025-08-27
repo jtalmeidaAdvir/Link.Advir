@@ -154,15 +154,24 @@ const LoginForm = ({
                 if (setIsLoggedIn && typeof setIsLoggedIn === 'function') {
                     setIsLoggedIn(true);
                 }
+                // Chamar onLoginComplete antes do alert e navegação
                 if (onLoginComplete && typeof onLoginComplete === 'function') {
                     onLoginComplete();
                 }
 
                 alert(`Login facial bem-sucedido! Confiança: ${Math.round(result.confidence * 100)}%`);
 
-                // Tentar seleção automática de empresa como no login normal
+                // Seguir o mesmo padrão do login normal - delay maior para garantir que os tokens estão processados
                 setTimeout(async () => {
                     try {
+                        // Verificar se o token foi realmente salvo antes de prosseguir
+                        const token = localStorage.getItem('loginToken');
+                        if (!token) {
+                            console.error('Token não encontrado após login facial');
+                            navigation.navigate('SelecaoEmpresa', { autoLogin: true });
+                            return;
+                        }
+
                         const { handleAutoCompanySelection } = await import('../utils/autoCompanySelection');
                         const autoSelectionSuccess = await handleAutoCompanySelection(navigation);
 
@@ -174,7 +183,7 @@ const LoginForm = ({
                         console.error('Erro na seleção automática:', error);
                         navigation.navigate('SelecaoEmpresa', { autoLogin: true });
                     }
-                }, 100);
+                }, 1000); // Aumentar o delay de 500ms para 1000ms
             } else {
                 alert(result.message || 'Erro na autenticação facial');
             }

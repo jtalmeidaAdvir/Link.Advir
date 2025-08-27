@@ -1,32 +1,27 @@
 const jwt = require('jsonwebtoken');
 
 const authMiddleware = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Extrai o token após 'Bearer'
+    console.log('🔐 AuthMiddleware - Verificando autenticação para:', req.method, req.path);
+
+    const authHeader = req.headers.authorization;
+    console.log('🔐 Authorization header:', authHeader ? authHeader.substring(0, 30) + '...' : 'não encontrado');
+
+    const token = authHeader?.split(' ')[1];
 
     if (!token) {
-        return res.status(403).json({ message: 'Token não fornecido.' });
+        console.log('❌ AuthMiddleware - Token não fornecido');
+        return res.status(401).json({ error: 'Token não fornecido.' });
     }
 
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) {
-            if (err.name === 'TokenExpiredError') {
-                return res.status(401).json({ 
-                    message: 'Token expirado',
-                    error: 'Token expirado',
-                    expired: true 
-                });
-            }
-            return res.status(403).json({ 
-                message: 'Token inválido.',
-                error: 'Token inválido'
-            });
-        }
-
-        req.user = { id: user.id };  // Garante que `id` está presente e simplifica o acesso
-        console.log("User ID from token in middleware:", req.user.id); // Confirmação
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('✅ AuthMiddleware - Token válido para user:', decoded.id);
+        req.user = decoded;
         next();
-    });
+    } catch (error) {
+        console.log('❌ AuthMiddleware - Token inválido:', error.message);
+        return res.status(401).json({ error: 'Token inválido.' });
+    }
 };
 
 module.exports = authMiddleware;
