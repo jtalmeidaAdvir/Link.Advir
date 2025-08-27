@@ -533,15 +533,17 @@ const authenticateWithFacialData = async (req, res) => {
                     storedDescriptor,
                 );
 
-                // Threshold muito tolerante para reconhecimento facial
-                const SIMILARITY_THRESHOLD = 0.3; // Ainda mais tolerante
-                const DISTANCE_THRESHOLD = 1.5; // Ainda mais tolerante
+                // Threshold mais restritivo para reconhecimento facial
+                const SIMILARITY_THRESHOLD = 0.7; // Mais restritivo - apenas faces muito similares
+                const DISTANCE_THRESHOLD = 0.6; // Mais restritivo - distância menor
 
                 if (
                     similarity > SIMILARITY_THRESHOLD &&
                     distance < DISTANCE_THRESHOLD
                 ) {
-                    if (similarity > bestSimilarity) {
+                    // Validação adicional - apenas aceitar se a similaridade for muito alta
+                    const qualityScore = similarity - (distance * 0.5);
+                    if (qualityScore > 0.6 && similarity > bestSimilarity) {
                         bestSimilarity = similarity;
                         bestDistance = distance;
                         bestMatch = credential;
@@ -560,10 +562,12 @@ const authenticateWithFacialData = async (req, res) => {
             }
         }
 
-        if (!bestMatch) {
+        if (!bestMatch || bestSimilarity < 0.75) {
+            console.log(`❌ Login rejeitado - Melhor similaridade: ${bestSimilarity?.toFixed(3) || 'N/A'}`);
             return res.status(401).json({
                 success: false,
-                message:
+                message: bestMatch ? 
+                    `Face não reconhecida com confiança suficiente (${Math.round(bestSimilarity * 100)}%). Acesso negado.` :
                     "Utilizador não reconhecido. Face não encontrada no sistema.",
             });
         }
