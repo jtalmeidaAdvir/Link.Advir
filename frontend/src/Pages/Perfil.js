@@ -22,6 +22,11 @@ const Perfil = ({ user }) => {
     const [showSuccessMessage, setShowSuccessMessage] = useState(false);
     const [successMessage, setSuccessMessage] = useState("");
 
+    const [isFacialRegistered, setIsFacialRegistered] = useState(false);
+    const [isCameraAvailable, setIsCameraAvailable] = useState(false);
+    const [facialScannerVisible, setFacialScannerVisible] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
     const fileInput = useRef(null);
     const { t } = useTranslation();
 
@@ -32,6 +37,229 @@ const Perfil = ({ user }) => {
         setUserEmail(userEmailFromStorage);
         loadProfileImage();
     }, []);
+
+    useEffect(() => {
+        checkCameraAvailability();
+        checkFacialBiometricStatus();
+    }, []);
+
+    const checkCameraAvailability = async () => {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            try {
+                // Tentativa de acessar a câmera para verificar a disponibilidade
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                setIsCameraAvailable(true);
+            } catch (error) {
+                console.error("Erro ao acessar a câmera:", error);
+                setIsCameraAvailable(false);
+            }
+        } else {
+            setIsCameraAvailable(false);
+        }
+    };
+
+    const checkFacialBiometricStatus = async () => {
+        try {
+            const userId = localStorage.getItem("userId");
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/biometrics/facial/check`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setIsFacialRegistered(data.isRegistered || false);
+            } else {
+                console.error("Falha ao verificar o status da biometria facial");
+            }
+        } catch (error) {
+            console.error("Erro ao verificar o status da biometria facial:", error);
+        }
+    };
+
+    const registerFacialBiometric = async () => {
+        setIsLoading(true);
+        try {
+            const userId = parseInt(localStorage.getItem("userId"));
+            const userEmail = localStorage.getItem("userEmail");
+
+            if (!userEmail) throw new Error("Email do utilizador não encontrado");
+
+            // Abrir modal para o scanner facial
+            setFacialScannerVisible(true);
+
+        } catch (error) {
+            console.error("Erro ao iniciar registo de biometria facial:", error);
+            showMessage(
+                "Ocorreu um erro ao iniciar o registo facial: " + error.message,
+                true,
+            );
+        } finally {
+            // Não definir isLoading para true aqui, pois o modal gerenciará o estado de carregamento
+        }
+    };
+
+    const handleFacialScanComplete = async (facialData) => {
+        if (!facialData) {
+            showMessage("Nenhum dado facial recebido.", true);
+            setFacialScannerVisible(false);
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const userId = parseInt(localStorage.getItem("userId"));
+            const token = localStorage.getItem("loginToken");
+
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/biometrics/facial/register`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ facialData: facialData }),
+            });
+
+            if (response.ok) {
+                setIsFacialRegistered(true);
+                showMessage("Biometria facial registada com sucesso!");
+            } else {
+                const errorData = await response.json();
+                showMessage(
+                    `Falha ao registar biometria facial: ${errorData.message || response.statusText}`,
+                    true,
+                );
+            }
+        } catch (error) {
+            console.error("Erro durante o registo da biometria facial:", error);
+            showMessage("Ocorreu um erro ao registar a biometria facial: " + error.message, true);
+        } finally {
+            setIsLoading(false);
+            setFacialScannerVisible(false);
+        }
+    };
+
+    const unregisterFacialBiometric = async () => {
+        setIsLoading(true);
+        try {
+            const userId = localStorage.getItem("userId");
+            const token = localStorage.getItem("loginToken");
+
+            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/biometrics/facial/unregister`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (response.ok) {
+                setIsFacialRegistered(false);
+                showMessage("Biometria facial removida com sucesso!");
+            } else {
+                const errorData = await response.json();
+                showMessage(
+                    `Falha ao remover biometria facial: ${errorData.message || response.statusText}`,
+                    true,
+                );
+            }
+        } catch (error) {
+            console.error("Erro durante a remoção da biometria facial:", error);
+            showMessage("Ocorreu um erro ao remover a biometria facial: " + error.message, true);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Componente Modal do Scanner Facial (simplificado)
+    const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
+        const videoRef = useRef(null);
+        const streamRef = useRef(null);
+        const [isScanning, setIsScanning] = useState(false);
+        const [scanMessage, setScanMessage] = useState("Aguardando...");
+
+        useEffect(() => {
+            if (visible) {
+                startCamera();
+            } else {
+                stopCamera();
+            }
+            return () => stopCamera();
+        }, [visible]);
+
+        const startCamera = async () => {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 400 },
+                            height: { ideal: 400 },
+                            facingMode: 'user' // Garante que a câmera frontal seja usada
+                        }
+                    });
+                    streamRef.current = stream;
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                    }
+                    setIsScanning(true);
+                    setScanMessage("Posicione seu rosto no quadro.");
+                    // Simula o processo de scan
+                    setTimeout(() => {
+                        // Em um cenário real, aqui seria a lógica de captura e análise do frame
+                        const simulatedFacialData = { data: "simulated_face_data_xyz" }; // Dados simulados
+                        onScanComplete(simulatedFacialData);
+                        stopCamera();
+                    }, 5000); // Simula um scan de 5 segundos
+                } catch (err) {
+                    console.error("Erro ao iniciar a câmera:", err);
+                    setScanMessage("Erro ao iniciar a câmera.");
+                    onClose();
+                }
+            } else {
+                setScanMessage("Seu navegador não suporta acesso à câmera.");
+                onClose();
+            }
+        };
+
+        const stopCamera = () => {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+                streamRef.current = null;
+            }
+        };
+
+        return (
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={visible}
+                onRequestClose={onClose}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainerFacial}>
+                        <View style={styles.modalHeaderFacial}>
+                            <Text style={styles.modalTitleFacial}>Scanner Facial</Text>
+                            <TouchableOpacity onPress={onClose} style={styles.closeButtonFacial}>
+                                <Text style={styles.closeButtonTextFacial}>X</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.videoContainer}>
+                            {isScanning ? (
+                                <video ref={videoRef} autoPlay playsInline muted style={styles.videoElement} />
+                            ) : (
+                                <Text style={styles.scanMessage}>{scanMessage}</Text>
+                            )}
+                        </View>
+                        <Text style={styles.scanMessage}>{scanMessage}</Text>
+                        {isLoading && <Text style={styles.loadingMessage}>Processando...</Text>}
+                    </View>
+                </View>
+            </Modal>
+        );
+    };
+
 
     const loadProfileImage = async () => {
         try {
@@ -583,6 +811,139 @@ const Perfil = ({ user }) => {
                     console.log("Biometria configurada com sucesso");
                 }}
             />
+
+            {/* Seção Reconhecimento Facial */}
+            <View style={[styles.biometricTypeSection, { marginTop: 20 }]}>
+                <Text style={styles.biometricTypeTitle}>👤 Reconhecimento Facial</Text>
+
+                <View style={styles.biometricStatusContainer}>
+                    <View
+                        style={[
+                            styles.biometricStatusBadge,
+                            isFacialRegistered
+                                ? styles.statusActive
+                                : styles.statusInactive,
+                        ]}
+                    >
+                        <Text
+                            style={[
+                                styles.biometricStatusText,
+                                isFacialRegistered
+                                    ? styles.statusActive
+                                    : styles.statusInactive,
+                            ]}
+                        >
+                            {isFacialRegistered ? (
+                                <Text>
+                                    <Text style={{ fontSize: 16, marginRight: 8 }}>✅</Text>
+                                    Ativa
+                                </Text>
+                            ) : (
+                                <Text>
+                                    <Text style={{ fontSize: 16, marginRight: 8 }}>⚪</Text>
+                                    Inativa
+                                </Text>
+                            )}
+                        </Text>
+                    </View>
+                </View>
+
+                {!isFacialRegistered && isCameraAvailable ? (
+                    <TouchableOpacity
+                        style={[styles.biometricButton, styles.registerButton]}
+                        onPress={registerFacialBiometric}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <>
+                                <Text style={styles.biometricButtonIcon}>
+                                    ⏳
+                                </Text>
+                                <Text style={styles.biometricButtonText}>
+                                    A configurar...
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={styles.biometricButtonIcon}>
+                                    📷
+                                </Text>
+                                <Text style={styles.biometricButtonText}>
+                                    Configurar Facial
+                                </Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                ) : isFacialRegistered ? (
+                    <View style={styles.biometricActions}>
+                        <TouchableOpacity
+                            style={[
+                                styles.biometricButton,
+                                styles.removeButton,
+                            ]}
+                            onPress={unregisterFacialBiometric}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Text style={styles.biometricButtonIcon}>
+                                        ⏳
+                                    </Text>
+                                    <Text style={styles.biometricButtonText}>
+                                        A remover...
+                                    </Text>
+                                </>
+                            ) : (
+                                <>
+                                    <Text style={styles.biometricButtonIcon}>
+                                        🗑️
+                                    </Text>
+                                    <Text style={styles.biometricButtonText}>
+                                        Remover Facial
+                                    </Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                ) : !isCameraAvailable ? (
+                    <Text style={styles.errorText}>
+                        📷 Câmera não disponível neste dispositivo
+                    </Text>
+                ) : null}
+            </View>
+
+            <View
+                style={{
+                    marginTop: 20,
+                    padding: 15,
+                    backgroundColor: "rgba(23, 146, 254, 0.05)",
+                    borderRadius: 12,
+                    borderLeftWidth: 4,
+                    borderLeftColor: "#1792FE",
+                }}
+            >
+                <Text
+                    style={{
+                        fontSize: 13,
+                        color: "#666",
+                        textAlign: "center",
+                        fontStyle: "italic",
+                    }}
+                >
+                    💡 A biometria utiliza a segurança do seu dispositivo
+                    para autenticação rápida e segura
+                </Text>
+            </View>
+
+            {/* Modal do Scanner Facial */}
+            {facialScannerVisible && (
+                <FacialScannerModal
+                    visible={facialScannerVisible}
+                    onClose={() => setFacialScannerVisible(false)}
+                    onScanComplete={handleFacialScanComplete}
+                    t={t}
+                />
+            )}
         </ScrollView>
     );
 };
@@ -898,6 +1259,94 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         gap: 8,
+    },
+    modalContainerFacial: {
+        width: "90%",
+        maxWidth: 500,
+        backgroundColor: "#fff",
+        borderRadius: 20,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.3,
+        shadowRadius: 18,
+        elevation: 20,
+        alignItems: "center",
+    },
+    modalHeaderFacial: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: "#1792FE",
+        paddingVertical: 15,
+        paddingHorizontal: 20,
+        width: "100%",
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+    },
+    modalTitleFacial: {
+        color: "white",
+        fontSize: 20,
+        fontWeight: "bold",
+    },
+    closeButtonFacial: {
+        padding: 5,
+    },
+    closeButtonTextFacial: {
+        color: "white",
+        fontSize: 22,
+        fontWeight: "bold",
+    },
+    videoContainer: {
+        width: "100%",
+        height: 350,
+        backgroundColor: "#f0f0f0",
+        justifyContent: "center",
+        alignItems: "center",
+        position: "relative",
+    },
+    videoElement: {
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+    },
+    scanMessage: {
+        fontSize: 16,
+        color: "#555",
+        marginTop: 15,
+        textAlign: "center",
+        paddingHorizontal: 20,
+    },
+    loadingMessage: {
+        fontSize: 16,
+        color: "#1792FE",
+        fontWeight: "bold",
+        marginTop: 10,
+    },
+    errorText: {
+        color: "#FF4757",
+        textAlign: "center",
+        marginTop: 10,
+        fontWeight: "500",
+    },
+    biometricTypeSection: {
+        backgroundColor: "white",
+        borderRadius: 20,
+        padding: 25,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 8,
+        borderWidth: 1,
+        borderColor: "rgba(23, 146, 254, 0.1)",
+    },
+    biometricTypeTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#1792FE",
+        textAlign: "center",
+        marginBottom: 15,
     },
 });
 

@@ -52,9 +52,9 @@ const generateRegisterChallenge = async (req, res) => {
 // Registar credencial biométrica
 const registerBiometric = async (req, res) => {
     try {
-        const { userId, credentialId, publicKey, attestationObject } = req.body;
+        const { userId, credentialId, publicKey, attestationObject, type, facialData } = req.body;
 
-        if (!userId || !credentialId || !publicKey) {
+        if (!userId || (!credentialId && !facialData)) {
             return res
                 .status(400)
                 .json({ message: "Dados da credencial incompletos." });
@@ -71,32 +71,55 @@ const registerBiometric = async (req, res) => {
                 .json({ message: "Challenge expirado ou inválido." });
         }
 
-        // Verificar se já existe credencial para este utilizador
+        // Verificar se já existe credencial para este utilizador e tipo
+        const biometricType = type || 'fingerprint';
         const existingCredential = await BiometricCredential.findOne({
-            where: { userId: userId },
+            where: { 
+                userId: userId,
+                biometricType: biometricType
+            },
         });
 
         if (existingCredential) {
             return res
                 .status(400)
-                .json({ message: "Utilizador já tem biometria registada." });
+                .json({ message: `Utilizador já tem ${biometricType === 'facial' ? 'biometria facial' : 'biometria'} registada.` });
+        }
+
+        let credentialData = {};
+
+        if (biometricType === 'facial' && facialData) {
+            // Processar dados faciais
+            credentialData = {
+                userId: userId,
+                credentialId: `facial_${userId}_${Date.now()}`,
+                publicKey: JSON.stringify(facialData),
+                biometricType: 'facial',
+                counter: 0,
+                isActive: true,
+            };
+        } else {
+            // Processar dados de impressão digital
+            credentialData = {
+                userId: userId,
+                credentialId: credentialId,
+                publicKey: publicKey,
+                biometricType: 'fingerprint',
+                counter: 0,
+                isActive: true,
+            };
         }
 
         // Criar nova credencial
-        const newCredential = await BiometricCredential.create({
-            userId: userId,
-            credentialId: credentialId,
-            publicKey: publicKey,
-            counter: 0,
-            isActive: true,
-        });
+        const newCredential = await BiometricCredential.create(credentialData);
 
         // Limpar challenge
         delete global.tempChallenges[userId];
 
         res.status(201).json({
-            message: "Biometria registada com sucesso.",
+            message: `${biometricType === 'facial' ? 'Biometria facial' : 'Biometria'} registada com sucesso.`,
             credentialId: newCredential.credentialId,
+            type: biometricType,
         });
     } catch (error) {
         console.error("Erro ao registar biometria:", error);
@@ -254,7 +277,7 @@ const authenticateWithBiometric = async (req, res) => {
 // Verificar se utilizador tem biometria
 const checkBiometric = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, type } = req.body;
 
         if (!email) {
             return res.status(400).json({ message: "Email é obrigatório." });
@@ -263,14 +286,43 @@ const checkBiometric = async (req, res) => {
         const user = await User.findOne({ where: { email: email } });
 
         if (!user) {
-            return res.json({ hasBiometric: false });
+            return res.json({ hasBiometric: false, hasFingerprint: false, hasFacial: false });
         }
 
-        const credential = await BiometricCredential.findOne({
-            where: { userId: user.id, isActive: true },
+        if (type) {
+            // Verificar tipo específico
+            const credential = await BiometricCredential.findOne({
+                where: { 
+                    userId: user.id, 
+                    isActive: true,
+                    biometricType: type
+                },
+            });
+            return res.json({ hasBiometric: !!credential });
+        }
+
+        // Verificar todos os tipos
+        const fingerprint = await BiometricCredential.findOne({
+            where: { 
+                userId: user.id, 
+                isActive: true,
+                biometricType: 'fingerprint'
+            },
         });
 
-        res.json({ hasBiometric: !!credential });
+        const facial = await BiometricCredential.findOne({
+            where: { 
+                userId: user.id, 
+                isActive: true,
+                biometricType: 'facial'
+            },
+        });
+
+        res.json({ 
+            hasBiometric: !!(fingerprint || facial),
+            hasFingerprint: !!fingerprint,
+            hasFacial: !!facial
+        });
     } catch (error) {
         console.error("Erro ao verificar biometria:", error);
         res.status(500).json({ message: "Erro interno do servidor." });
@@ -280,7 +332,7 @@ const checkBiometric = async (req, res) => {
 // Remover credencial biométrica
 const removeBiometric = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, type } = req.body;
 
         if (!email) {
             return res.status(400).json({ message: "Email é obrigatório." });
@@ -294,20 +346,33 @@ const removeBiometric = async (req, res) => {
                 .json({ message: "Utilizador não encontrado." });
         }
 
-        // Remover todas as credenciais biométricas do utilizador
+        // Definir condições de remoção
+        const whereCondition = { userId: user.id };
+        if (type) {
+            whereCondition.biometricType = type;
+        }
+
+        // Remover credenciais biométricas do utilizador
         const deleted = await BiometricCredential.destroy({
-            where: { userId: user.id },
+            where: whereCondition,
         });
 
         if (deleted === 0) {
             return res
                 .status(404)
-                .json({ message: "Nenhuma credencial biométrica encontrada." });
+                .json({ 
+                    message: type 
+                        ? `Nenhuma credencial ${type === 'facial' ? 'facial' : 'biométrica'} encontrada.`
+                        : "Nenhuma credencial biométrica encontrada." 
+                });
         }
 
         res.json({
-            message: "Credenciais biométricas removidas com sucesso.",
+            message: type 
+                ? `Credencial ${type === 'facial' ? 'facial' : 'biométrica'} removida com sucesso.`
+                : "Credenciais biométricas removidas com sucesso.",
             removed: deleted,
+            type: type || 'all'
         });
     } catch (error) {
         console.error("Erro ao remover biometria:", error);

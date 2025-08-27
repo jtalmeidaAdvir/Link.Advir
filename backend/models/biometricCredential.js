@@ -27,6 +27,11 @@ const BiometricCredential = sequelize.define(
             type: DataTypes.TEXT,
             allowNull: false,
         },
+        biometricType: {
+            type: DataTypes.ENUM('fingerprint', 'facial'),
+            defaultValue: 'fingerprint',
+            allowNull: false,
+        },
         counter: {
             type: DataTypes.INTEGER,
             defaultValue: 0,
