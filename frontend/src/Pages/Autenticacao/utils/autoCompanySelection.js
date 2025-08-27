@@ -35,8 +35,29 @@ export const handleAutoCompanySelection = async (navigation) => {
         });
 
         if (!response.ok) {
-            console.log('Erro ao buscar empresas do usuário');
-            return false;
+            console.log('Erro ao buscar empresas do usuário:', response.status, response.statusText);
+            
+            // Se for 401, tentar renovar token
+            if (response.status === 401) {
+                const { refreshTokensOnAppFocus } = await import('../../../utils/authUtils');
+                await refreshTokensOnAppFocus();
+                
+                // Tentar novamente com token renovado
+                const retryResponse = await fetch("https://backend.advir.pt/api/users/empresas", {
+                    method: "GET",
+                    headers: { Authorization: `Bearer ${localStorage.getItem('loginToken')}` },
+                });
+                
+                if (!retryResponse.ok) {
+                    return false;
+                }
+                
+                const empresas = await retryResponse.json();
+                // Continue com a lógica...
+                
+            } else {
+                return false;
+            }
         }
 
         const empresas = await response.json();

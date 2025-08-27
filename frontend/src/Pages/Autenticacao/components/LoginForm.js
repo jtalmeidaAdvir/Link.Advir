@@ -142,11 +142,21 @@ const LoginForm = ({
                 localStorage.setItem('codRecursosHumanos', result.codRecursosHumanos || '');
 
                 // Atualizar estados como no login normal
-                setUsername(result.username);
-                setEmail(result.userEmail);
-                setIsAdmin(result.isAdmin);
-                setIsLoggedIn(true);
-                onLoginComplete();
+                if (setUsername && typeof setUsername === 'function') {
+                    setUsername(result.username);
+                }
+                if (setEmail && typeof setEmail === 'function') {
+                    setEmail(result.userEmail);
+                }
+                if (setIsAdmin && typeof setIsAdmin === 'function') {
+                    setIsAdmin(result.isAdmin);
+                }
+                if (setIsLoggedIn && typeof setIsLoggedIn === 'function') {
+                    setIsLoggedIn(true);
+                }
+                if (onLoginComplete && typeof onLoginComplete === 'function') {
+                    onLoginComplete();
+                }
 
                 alert(`Login facial bem-sucedido! Confiança: ${Math.round(result.confidence * 100)}%`);
 

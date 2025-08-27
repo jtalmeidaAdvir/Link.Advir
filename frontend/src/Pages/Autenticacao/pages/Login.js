@@ -81,6 +81,11 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
                     errorMessage={errorMessage}
                     handleLogin={handleSubmit}
                     t={t}
+                    navigation={navigation}
+                    onLoginComplete={onLoginComplete}
+                    setUsername={setUsername}
+                    setIsAdmin={setIsAdmin}
+                    setIsLoggedIn={setIsLoggedIn}
                 />
             </div>
         </div>
