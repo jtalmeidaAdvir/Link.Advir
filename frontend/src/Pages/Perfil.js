@@ -3,14 +3,16 @@ import {
     View,
     Text,
     TextInput,
-    StyleSheet,
-    Image,
-    Modal,
     TouchableOpacity,
     ScrollView,
+    Modal,
+    Alert,
+    StyleSheet,
+    Image,
 } from "react-native";
-import i18n from "./i18n";
 import { useTranslation } from "react-i18next";
+import { isCameraAvailable } from "./Autenticacao/utils/facialBiometricAuth";
+import FacialScannerModal from "./Autenticacao/components/FacialScannerModal";
 
 const Perfil = ({ user }) => {
     const [newPassword, setNewPassword] = useState("");
@@ -60,17 +62,18 @@ const Perfil = ({ user }) => {
 
     const checkFacialBiometricStatus = async () => {
         try {
-            const userId = localStorage.getItem("userId");
-            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/biometrics/facial/check`, {
-                method: "GET",
+            const userEmail = localStorage.getItem("userEmail");
+            const response = await fetch(`https://backend.advir.pt/api/auth/biometric/check`, {
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
+                body: JSON.stringify({ email: userEmail, type: 'facial' }),
             });
 
             if (response.ok) {
                 const data = await response.json();
-                setIsFacialRegistered(data.isRegistered || false);
+                setIsFacialRegistered(data.hasBiometric || false);
             } else {
                 console.error("Falha ao verificar o status da biometria facial");
             }
@@ -111,15 +114,40 @@ const Perfil = ({ user }) => {
         setIsLoading(true);
         try {
             const userId = parseInt(localStorage.getItem("userId"));
+            const userEmail = localStorage.getItem("userEmail");
             const token = localStorage.getItem("loginToken");
 
-            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/biometrics/facial/register`, {
+            // Primeiro obter challenge
+            const challengeResponse = await fetch(
+                "https://backend.advir.pt/api/auth/biometric/register-challenge",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ userId: userId, userEmail: userEmail }),
+                }
+            );
+
+            const challengeData = await challengeResponse.json();
+
+            if (!challengeResponse.ok) {
+                throw new Error(challengeData.message || "Erro ao obter challenge");
+            }
+
+            // Depois registar biometria facial
+            const response = await fetch(`https://backend.advir.pt/api/auth/biometric/register`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ facialData: facialData }),
+                body: JSON.stringify({
+                    userId: userId,
+                    type: 'facial',
+                    facialData: facialData
+                }),
             });
 
             if (response.ok) {
@@ -144,15 +172,14 @@ const Perfil = ({ user }) => {
     const unregisterFacialBiometric = async () => {
         setIsLoading(true);
         try {
-            const userId = localStorage.getItem("userId");
-            const token = localStorage.getItem("loginToken");
+            const userEmail = localStorage.getItem("userEmail");
 
-            const response = await fetch(`https://backend.advir.pt/api/users/${userId}/biometrics/facial/unregister`, {
-                method: "POST",
+            const response = await fetch(`https://backend.advir.pt/api/auth/biometric/remove`, {
+                method: "DELETE",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
                 },
+                body: JSON.stringify({ email: userEmail, type: 'facial' }),
             });
 
             if (response.ok) {
@@ -170,242 +197,6 @@ const Perfil = ({ user }) => {
             showMessage("Ocorreu um erro ao remover a biometria facial: " + error.message, true);
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    // Componente Modal do Scanner Facial (simplificado)
-    const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
-        const videoRef = useRef(null);
-        const streamRef = useRef(null);
-        const [isScanning, setIsScanning] = useState(false);
-        const [scanMessage, setScanMessage] = useState("Aguardando...");
-
-        useEffect(() => {
-            if (visible) {
-                startCamera();
-            } else {
-                stopCamera();
-            }
-            return () => stopCamera();
-        }, [visible]);
-
-        const startCamera = async () => {
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            width: { ideal: 400 },
-                            height: { ideal: 400 },
-                            facingMode: 'user' // Garante que a câmera frontal seja usada
-                        }
-                    });
-                    streamRef.current = stream;
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = stream;
-                    }
-                    setIsScanning(true);
-                    setScanMessage("Posicione seu rosto no quadro.");
-                    // Simula o processo de scan
-                    setTimeout(() => {
-                        // Em um cenário real, aqui seria a lógica de captura e análise do frame
-                        const simulatedFacialData = { data: "simulated_face_data_xyz" }; // Dados simulados
-                        onScanComplete(simulatedFacialData);
-                        stopCamera();
-                    }, 5000); // Simula um scan de 5 segundos
-                } catch (err) {
-                    console.error("Erro ao iniciar a câmera:", err);
-                    setScanMessage("Erro ao iniciar a câmera.");
-                    onClose();
-                }
-            } else {
-                setScanMessage("Seu navegador não suporta acesso à câmera.");
-                onClose();
-            }
-        };
-
-        const stopCamera = () => {
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-                streamRef.current = null;
-            }
-        };
-
-        return (
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={visible}
-                onRequestClose={onClose}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContainerFacial}>
-                        <View style={styles.modalHeaderFacial}>
-                            <Text style={styles.modalTitleFacial}>Scanner Facial</Text>
-                            <TouchableOpacity onPress={onClose} style={styles.closeButtonFacial}>
-                                <Text style={styles.closeButtonTextFacial}>X</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <View style={styles.videoContainer}>
-                            {isScanning ? (
-                                <video ref={videoRef} autoPlay playsInline muted style={styles.videoElement} />
-                            ) : (
-                                <Text style={styles.scanMessage}>{scanMessage}</Text>
-                            )}
-                        </View>
-                        <Text style={styles.scanMessage}>{scanMessage}</Text>
-                        {isLoading && <Text style={styles.loadingMessage}>Processando...</Text>}
-                    </View>
-                </View>
-            </Modal>
-        );
-    };
-
-
-    const loadProfileImage = async () => {
-        try {
-            const userId = localStorage.getItem("userId");
-            const token = localStorage.getItem("loginToken");
-
-            if (!userId || !token) {
-                return;
-            }
-
-            const response = await fetch(
-                `https://backend.advir.pt/api/users/${userId}/profileImage`,
-                {
-                    method: "GET",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                },
-            );
-
-            if (response.ok) {
-                const imageBlob = await response.blob();
-                setProfileImage(URL.createObjectURL(imageBlob));
-            }
-        } catch (error) {
-            console.error("Erro ao carregar a imagem do perfil:", error);
-        }
-    };
-
-    const uploadProfileImage = async (file) => {
-        const token = localStorage.getItem("loginToken");
-        const userId = localStorage.getItem("userId");
-
-        if (!token || !userId) {
-            showMessage(
-                "Não foi possível obter os dados do utilizador. Por favor, tente novamente.",
-            );
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append("profileImage", file);
-
-        try {
-            const response = await fetch(
-                `https://backend.advir.pt/api/users/${userId}/uploadProfileImage`,
-                {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: formData,
-                },
-            );
-
-            const data = await response.json();
-            if (response.ok) {
-                showMessage("A imagem do perfil foi atualizada com sucesso.");
-            } else {
-                showMessage(
-                    "Ocorreu um erro ao carregar a imagem. Por favor, tente novamente.",
-                    true,
-                );
-            }
-        } catch (error) {
-            showMessage(
-                "Ocorreu um erro ao carregar a imagem. Tente novamente.",
-                true,
-            );
-        }
-    };
-
-    const showMessage = (message, isError = false) => {
-        setSuccessMessage(message);
-        setShowSuccessMessage(true);
-        setTimeout(() => setShowSuccessMessage(false), 3000);
-    };
-
-    const handleFileInput = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setProfileImage(URL.createObjectURL(file));
-            uploadProfileImage(file);
-        }
-    };
-
-    const handleSavePassword = () => {
-        if (!newPassword || !confirmPassword) {
-            showMessage("As passwords devem ter pelo menos 6 carateres.", true);
-            return;
-        }
-
-        if (newPassword !== confirmPassword) {
-            showMessage("As passwords não coincidem.", true);
-            return;
-        }
-
-        if (newPassword.length < 6) {
-            showMessage("A sua nova password foi definida com sucesso.", true);
-            return;
-        }
-
-        setModalVisible(true);
-    };
-
-    const alterarPassword = async () => {
-        setModalVisible(false);
-        try {
-            const token = localStorage.getItem("loginToken");
-            if (!token) {
-                showMessage("Token de autenticação não encontrado.", true);
-                return;
-            }
-
-            const response = await fetch(
-                "https://backend.advir.pt/api/users/alterarPassword",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        newPassword: newPassword,
-                        confirmNewPassword: confirmPassword,
-                    }),
-                },
-            );
-
-            const data = await response.json();
-
-            if (response.ok) {
-                showMessage("A sua password foi alterada com sucesso.");
-                setNewPassword("");
-                setConfirmPassword("");
-            } else {
-                showMessage(
-                    "Não foi possível alterar a password. Por favor, tente novamente.",
-                    true,
-                );
-            }
-        } catch (error) {
-            showMessage(
-                "Ocorreu um erro ao alterar a password. Por favor, tente novamente.",
-                true,
-            );
         }
     };
 
@@ -660,6 +451,95 @@ const Perfil = ({ user }) => {
                 </View>
             </View>
         );
+    };
+
+    const showMessage = (message, isError = false) => {
+        setSuccessMessage(message);
+        setShowSuccessMessage(true);
+        setTimeout(() => {
+            setShowSuccessMessage(false);
+            setSuccessMessage("");
+        }, 3000);
+    };
+
+    const handleSavePassword = () => {
+        if (newPassword === confirmPassword && newPassword.length >= 6) {
+            setModalVisible(true);
+        } else if (newPassword.length < 6) {
+            showMessage(
+                "A nova palavra-passe deve ter pelo menos 6 caracteres.",
+                true,
+            );
+        } else {
+            showMessage(
+                "As palavras-passe não coincidem. Por favor, confirme.",
+                true,
+            );
+        }
+    };
+
+    const alterarPassword = async () => {
+        setModalVisible(false);
+        setIsLoading(true);
+        try {
+            const userId = localStorage.getItem("userId");
+            const token = localStorage.getItem("loginToken");
+
+            const response = await fetch(
+                `https://backend.advir.pt/api/auth/change-password/${userId}`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        currentPassword: "", // Não é necessário enviar a password atual neste endpoint específico
+                        newPassword: newPassword,
+                    }),
+                },
+            );
+
+            if (response.ok) {
+                showMessage("Palavra-passe alterada com sucesso!");
+                setNewPassword("");
+                setConfirmPassword("");
+            } else {
+                const errorData = await response.json();
+                showMessage(
+                    `Falha ao alterar palavra-passe: ${
+                        errorData.message || response.statusText
+                    }`,
+                    true,
+                );
+            }
+        } catch (error) {
+            console.error("Erro ao alterar palavra-passe:", error);
+            showMessage("Ocorreu um erro ao alterar a palavra-passe.", true);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const loadProfileImage = () => {
+        const savedImage = localStorage.getItem("profileImage");
+        if (savedImage) {
+            setProfileImage(savedImage);
+        }
+    };
+
+    const handleFileInput = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageData = e.target.result;
+                setProfileImage(imageData);
+                localStorage.setItem("profileImage", imageData);
+                showMessage("Imagem de perfil atualizada com sucesso!");
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     return (
@@ -936,14 +816,11 @@ const Perfil = ({ user }) => {
             </View>
 
             {/* Modal do Scanner Facial */}
-            {facialScannerVisible && (
-                <FacialScannerModal
-                    visible={facialScannerVisible}
-                    onClose={() => setFacialScannerVisible(false)}
-                    onScanComplete={handleFacialScanComplete}
-                    t={t}
-                />
-            )}
+            <FacialScannerModal
+                visible={facialScannerVisible}
+                onClose={() => setFacialScannerVisible(false)}
+                onScanComplete={handleFacialScanComplete}
+            />
         </ScrollView>
     );
 };
