@@ -433,7 +433,12 @@ const authenticateWithFacialData = async (req, res) => {
             include: [
                 {
                     model: User,
-                    attributes: ["id", "nome", "email", "isAdmin", "superAdmin", "empresa_areacliente", "id_tecnico", "tipoUser", "codFuncionario", "codRecursosHumanos", "username"], // Incluir todos os campos necessários
+                    attributes: [
+                        "id", "nome", "email", "isAdmin", "superAdmin", 
+                        "empresa_areacliente", "id_tecnico", "tipoUser", 
+                        "codFuncionario", "codRecursosHumanos", "username",
+                        "empresaPredefinida", "isActive"
+                    ],
                 },
             ],
         });
@@ -533,9 +538,9 @@ const authenticateWithFacialData = async (req, res) => {
                     storedDescriptor,
                 );
 
-                // Threshold mais restritivo para reconhecimento facial
-                const SIMILARITY_THRESHOLD = 0.7; // Mais restritivo - apenas faces muito similares
-                const DISTANCE_THRESHOLD = 0.6; // Mais restritivo - distância menor
+                // Threshold muito mais restritivo para reconhecimento facial
+                const SIMILARITY_THRESHOLD = 0.85; // Muito mais restritivo - apenas faces quase idênticas
+                const DISTANCE_THRESHOLD = 0.4; // Muito mais restritivo - distância menor
 
                 if (
                     similarity > SIMILARITY_THRESHOLD &&
@@ -562,7 +567,7 @@ const authenticateWithFacialData = async (req, res) => {
             }
         }
 
-        if (!bestMatch || bestSimilarity < 0.75) {
+        if (!bestMatch || bestSimilarity < 0.88) {
             console.log(`❌ Login rejeitado - Melhor similaridade: ${bestSimilarity?.toFixed(3) || 'N/A'}`);
             return res.status(401).json({
                 success: false,
@@ -593,7 +598,7 @@ const authenticateWithFacialData = async (req, res) => {
             message: "Autenticação facial bem-sucedida",
             token,
             userId: bestMatch.userId,
-            username: user.nome, // Adicionar username como no login normal
+            username: user.username || user.nome,
             userEmail: user.email,
             userNome: user.nome,
             isAdmin: user.isAdmin || false,
@@ -603,6 +608,7 @@ const authenticateWithFacialData = async (req, res) => {
             tipoUser: user.tipoUser || '',
             codFuncionario: user.codFuncionario || '',
             codRecursosHumanos: user.codRecursosHumanos || '',
+            empresaPredefinida: user.empresaPredefinida || null,
             confidence: bestSimilarity,
             biometricType: 'facial'
         });

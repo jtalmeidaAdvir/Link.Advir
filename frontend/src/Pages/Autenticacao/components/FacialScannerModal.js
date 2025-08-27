@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import * as faceapi from 'face-api.js';
 
 const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
