@@ -35,6 +35,11 @@ export const handleAutoCompanySelection = async (navigation) => {
         }
 
         console.log('🔍 Fazendo requisição para empresas com token:', loginToken.substring(0, 20) + '...');
+        console.log('🔍 Token completo length:', loginToken.length);
+        console.log('🔍 Headers sendo enviados:', {
+            Authorization: `Bearer ${loginToken.substring(0, 20)}...`,
+            'Content-Type': 'application/json'
+        });
 
         // Buscar empresas disponíveis
         const response = await fetch("https://backend.advir.pt/api/users/empresas", {

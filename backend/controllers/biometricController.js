@@ -582,15 +582,17 @@ const authenticateWithFacialData = async (req, res) => {
         // Login bem-sucedido
         console.log(`✅ Login facial aprovado para utilizador: ${bestMatch.userId} (Similaridade: ${bestSimilarity.toFixed(3)})`);
 
-        // Gerar token JWT
+        // Gerar token JWT com a mesma estrutura do login normal
         const token = jwt.sign(
-            { 
-                userId: bestMatch.userId, 
-                userEmail: user.email,
+            {
+                id: bestMatch.userId,
+                userNome: user.nome,
+                isAdmin: user.isAdmin,
+                superAdmin: user.superAdmin,
                 type: 'facial'
             },
             process.env.JWT_SECRET,
-            { expiresIn: '7d' }
+            { expiresIn: '24h' }
         );
 
         res.json({

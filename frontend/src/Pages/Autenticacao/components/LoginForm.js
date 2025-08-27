@@ -126,17 +126,17 @@ const LoginForm = ({
             const result = await response.json();
 
             if (response.ok && result.success) {
-                // Guardar todos os dados no localStorage como no login normal
+                // Guardar dados no localStorage como no login normal
                 localStorage.setItem('loginToken', result.token);
                 localStorage.setItem('isAdmin', result.isAdmin ? 'true' : 'false');
                 localStorage.setItem('superAdmin', result.superAdmin ? 'true' : 'false');
-                localStorage.setItem('username', result.username); // usa o que vem da API
+                localStorage.setItem('username', result.username);
                 localStorage.setItem('email', result.userEmail);
                 localStorage.setItem('userId', result.userId);
                 localStorage.setItem('userNome', result.userNome);
                 localStorage.setItem('userEmail', result.userEmail);
-                localStorage.setItem('empresa_areacliente', result.empresa_areacliente);
-                localStorage.setItem('id_tecnico', result.id_tecnico);
+                localStorage.setItem('empresa_areacliente', result.empresa_areacliente || '');
+                localStorage.setItem('id_tecnico', result.id_tecnico || '');
                 localStorage.setItem('tipoUser', result.tipoUser || '');
                 localStorage.setItem('codFuncionario', result.codFuncionario || '');
                 localStorage.setItem('codRecursosHumanos', result.codRecursosHumanos || '');
@@ -161,11 +161,16 @@ const LoginForm = ({
 
                 alert(`Login facial bem-sucedido! Confiança: ${Math.round(result.confidence * 100)}%`);
 
+                // Aguardar um pouco para garantir que o localStorage foi atualizado
+                await new Promise(resolve => setTimeout(resolve, 100));
+
                 // Seguir o mesmo padrão do login normal - delay maior para garantir que os tokens estão processados
                 setTimeout(async () => {
                     try {
                         // Verificar se o token foi realmente salvo antes de prosseguir
                         const token = localStorage.getItem('loginToken');
+                        console.log('🔍 Token após login facial:', token ? 'encontrado' : 'não encontrado');
+
                         if (!token) {
                             console.error('Token não encontrado após login facial');
                             navigation.navigate('SelecaoEmpresa', { autoLogin: true });
