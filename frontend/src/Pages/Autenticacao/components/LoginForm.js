@@ -159,7 +159,6 @@ const LoginForm = ({
                     onLoginComplete();
                 }
 
-                alert(`Login facial bem-sucedido! Confiança: ${Math.round(result.confidence * 100)}%`);
 
                 // Aguardar um pouco para garantir que o localStorage foi atualizado
                 await new Promise(resolve => setTimeout(resolve, 100));
