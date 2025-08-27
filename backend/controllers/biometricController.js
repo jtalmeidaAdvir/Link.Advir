@@ -433,13 +433,13 @@ const authenticateWithFacialData = async (req, res) => {
             include: [
                 {
                     model: User,
-                    attributes: ["id", "nome", "email", "isAdmin"], // Corrigido para isAdmin
+                    attributes: ["id", "nome", "email", "isAdmin", "superAdmin", "empresa_areacliente", "id_tecnico", "tipoUser", "codFuncionario", "codRecursosHumanos", "username"], // Incluir todos os campos necessários
                 },
             ],
         });
 
         console.log(`🔍 Encontradas ${facialCredentials.length} credenciais faciais no sistema`);
-        
+
         if (facialCredentials.length === 0) {
             return res.status(404).json({
                 success: false,
@@ -574,34 +574,37 @@ const authenticateWithFacialData = async (req, res) => {
 
         const user = bestMatch.User;
 
+        // Login bem-sucedido
+        console.log(`✅ Login facial aprovado para utilizador: ${bestMatch.userId} (Similaridade: ${bestSimilarity.toFixed(3)})`);
+
         // Gerar token JWT
         const token = jwt.sign(
-            {
-                userId: user.id,
-                email: user.email,
-                isAdmin: user.isAdmin, // Corrigido para isAdmin
+            { 
+                userId: bestMatch.userId, 
+                userEmail: user.email,
+                type: 'facial'
             },
-            process.env.JWT_SECRET || "advir_secret_key",
-            { expiresIn: "24h" },
-        );
-
-        console.log(
-            `✅ Login facial bem-sucedido para ${user.email} (Similaridade: ${bestSimilarity.toFixed(3)}, Distância: ${bestDistance.toFixed(3)})`,
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
         );
 
         res.json({
             success: true,
             message: "Autenticação facial bem-sucedida",
-            userId: user.id,
-            userNome: user.nome,
+            token,
+            userId: bestMatch.userId,
+            username: user.nome, // Adicionar username como no login normal
             userEmail: user.email,
-            isAdmin: user.isAdmin, // Corrigido para isAdmin
-            token: token,
-            confidence: Math.round(bestSimilarity * 100),
-            matchQuality: {
-                similarity: bestSimilarity,
-                distance: bestDistance,
-            },
+            userNome: user.nome,
+            isAdmin: user.isAdmin || false,
+            superAdmin: user.superAdmin || false,
+            empresa_areacliente: user.empresa_areacliente || '',
+            id_tecnico: user.id_tecnico || null,
+            tipoUser: user.tipoUser || '',
+            codFuncionario: user.codFuncionario || '',
+            codRecursosHumanos: user.codRecursosHumanos || '',
+            confidence: bestSimilarity,
+            biometricType: 'facial'
         });
     } catch (error) {
         console.error("Erro na autenticação facial:", error);

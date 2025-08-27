@@ -12,6 +12,11 @@ const LoginForm = ({
     errorMessage,
     handleLogin,
     t,
+    navigation, // Adicionado para navegação
+    onLoginComplete, // Adicionado para callback de login completo
+    setUsername, // Adicionado para atualizar estado do username
+    setIsAdmin, // Adicionado para atualizar estado do isAdmin
+    setIsLoggedIn, // Adicionado para atualizar estado do isLoggedIn
 }) => {
     const [hasBiometric, setHasBiometric] = useState(false);
     const [isCheckingBiometric, setIsCheckingBiometric] = useState(false);
@@ -70,7 +75,7 @@ const LoginForm = ({
             if (hasBiometric) {
                 // Login com biometria
                 const result = await authenticateWithBiometric(email);
-                
+
                 // Usar o mesmo handler do login tradicional
                 if (window.handleBiometricSuccess) {
                     window.handleBiometricSuccess(result);
@@ -103,43 +108,71 @@ const LoginForm = ({
             alert("Nenhum dado facial capturado.");
             setFacialScannerVisible(false);
             return;
+
         }
 
-        setIsFacialLoading(true);
+        setIsLoading(true);
         try {
-            const response = await fetch("https://backend.advir.pt/api/auth/facial-login", {
-                method: "POST",
+            const response = await fetch('https://backend.advir.pt/api/auth/biometric/facial/authenticate', {
+                method: 'POST',
                 headers: {
-                    "Content-Type": "application/json",
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     facialData: facialData
                 }),
             });
 
-            if (response.ok) {
-                const result = await response.json();
-                
-                // Armazenar dados do utilizador no localStorage
-                localStorage.setItem("userId", result.userId);
-                localStorage.setItem("userNome", result.userNome);
-                localStorage.setItem("userEmail", result.userEmail);
-                localStorage.setItem("loginToken", result.token);
-                localStorage.setItem("isAdmin", result.isAdmin);
+            const result = await response.json();
 
-                // Usar o mesmo handler do login tradicional
-                if (window.handleBiometricSuccess) {
-                    window.handleBiometricSuccess(result);
-                }
+            if (response.ok && result.success) {
+                // Guardar todos os dados no localStorage como no login normal
+                localStorage.setItem('loginToken', result.token);
+                localStorage.setItem('isAdmin', result.isAdmin ? 'true' : 'false');
+                localStorage.setItem('superAdmin', result.superAdmin ? 'true' : 'false');
+                localStorage.setItem('username', result.username); // usa o que vem da API
+                localStorage.setItem('email', result.userEmail);
+                localStorage.setItem('userId', result.userId);
+                localStorage.setItem('userNome', result.userNome);
+                localStorage.setItem('userEmail', result.userEmail);
+                localStorage.setItem('empresa_areacliente', result.empresa_areacliente);
+                localStorage.setItem('id_tecnico', result.id_tecnico);
+                localStorage.setItem('tipoUser', result.tipoUser || '');
+                localStorage.setItem('codFuncionario', result.codFuncionario || '');
+                localStorage.setItem('codRecursosHumanos', result.codRecursosHumanos || '');
+
+                // Atualizar estados como no login normal
+                setUsername(result.username);
+                setEmail(result.userEmail);
+                setIsAdmin(result.isAdmin);
+                setIsLoggedIn(true);
+                onLoginComplete();
+
+                alert(`Login facial bem-sucedido! Confiança: ${Math.round(result.confidence * 100)}%`);
+
+                // Tentar seleção automática de empresa como no login normal
+                setTimeout(async () => {
+                    try {
+                        const { handleAutoCompanySelection } = await import('../utils/autoCompanySelection');
+                        const autoSelectionSuccess = await handleAutoCompanySelection(navigation);
+
+                        if (!autoSelectionSuccess) {
+                            // Se a seleção automática falhar, ir para seleção manual
+                            navigation.navigate('SelecaoEmpresa', { autoLogin: true });
+                        }
+                    } catch (error) {
+                        console.error('Erro na seleção automática:', error);
+                        navigation.navigate('SelecaoEmpresa', { autoLogin: true });
+                    }
+                }, 100);
             } else {
-                const errorData = await response.json();
-                alert(errorData.message || "Falha na autenticação facial. Utilizador não reconhecido.");
+                alert(result.message || 'Erro na autenticação facial');
             }
         } catch (error) {
-            console.error("Erro na autenticação facial:", error);
-            alert("Erro ao processar autenticação facial. Tente novamente.");
+            console.error('Erro no login facial:', error);
+            alert('Erro na autenticação facial. Tente novamente.');
         } finally {
-            setIsFacialLoading(false);
+            setIsLoading(false);
             setFacialScannerVisible(false);
         }
     };
@@ -156,7 +189,7 @@ const LoginForm = ({
                     style={inputStyle}
                 />
             </div>
-            
+
             {/* Mostrar campo da password apenas se não tiver biometria ou se estiver a verificar */}
             {(!hasBiometric || isCheckingBiometric) && (
                 <div style={{ marginBottom: "20px" }}>
