@@ -52,7 +52,14 @@ const generateRegisterChallenge = async (req, res) => {
 // Registar credencial biométrica
 const registerBiometric = async (req, res) => {
     try {
-        const { userId, credentialId, publicKey, attestationObject, type, facialData } = req.body;
+        const {
+            userId,
+            credentialId,
+            publicKey,
+            attestationObject,
+            type,
+            facialData,
+        } = req.body;
 
         if (!userId || (!credentialId && !facialData)) {
             return res
@@ -72,29 +79,31 @@ const registerBiometric = async (req, res) => {
         }
 
         // Verificar se já existe credencial para este utilizador e tipo
-        const biometricType = type || 'fingerprint';
+        const biometricType = type || "fingerprint";
         const existingCredential = await BiometricCredential.findOne({
-            where: { 
+            where: {
                 userId: userId,
-                biometricType: biometricType
+                biometricType: biometricType,
             },
         });
 
         if (existingCredential) {
             return res
                 .status(400)
-                .json({ message: `Utilizador já tem ${biometricType === 'facial' ? 'biometria facial' : 'biometria'} registada.` });
+                .json({
+                    message: `Utilizador já tem ${biometricType === "facial" ? "biometria facial" : "biometria"} registada.`,
+                });
         }
 
         let credentialData = {};
 
-        if (biometricType === 'facial' && facialData) {
+        if (biometricType === "facial" && facialData) {
             // Processar dados faciais
             credentialData = {
                 userId: userId,
                 credentialId: `facial_${userId}_${Date.now()}`,
                 publicKey: JSON.stringify(facialData), // Armazena os dados faciais em publicKey por enquanto
-                biometricType: 'facial',
+                biometricType: "facial",
                 counter: 0,
                 isActive: true,
             };
@@ -104,7 +113,7 @@ const registerBiometric = async (req, res) => {
                 userId: userId,
                 credentialId: credentialId,
                 publicKey: publicKey,
-                biometricType: 'fingerprint',
+                biometricType: "fingerprint",
                 counter: 0,
                 isActive: true,
             };
@@ -117,7 +126,7 @@ const registerBiometric = async (req, res) => {
         delete global.tempChallenges[userId];
 
         res.status(201).json({
-            message: `${biometricType === 'facial' ? 'Biometria facial' : 'Biometria'} registada com sucesso.`,
+            message: `${biometricType === "facial" ? "Biometria facial" : "Biometria"} registada com sucesso.`,
             credentialId: newCredential.credentialId,
             type: biometricType,
         });
@@ -150,11 +159,9 @@ const generateLoginChallenge = async (req, res) => {
         });
 
         if (!credential) {
-            return res
-                .status(404)
-                .json({
-                    message: "Biometria não registada para este utilizador.",
-                });
+            return res.status(404).json({
+                message: "Biometria não registada para este utilizador.",
+            });
         }
 
         // Gerar challenge
@@ -286,16 +293,20 @@ const checkBiometric = async (req, res) => {
         const user = await User.findOne({ where: { email: email } });
 
         if (!user) {
-            return res.json({ hasBiometric: false, hasFingerprint: false, hasFacial: false });
+            return res.json({
+                hasBiometric: false,
+                hasFingerprint: false,
+                hasFacial: false,
+            });
         }
 
         if (type) {
             // Verificar tipo específico
             const credential = await BiometricCredential.findOne({
-                where: { 
-                    userId: user.id, 
+                where: {
+                    userId: user.id,
                     isActive: true,
-                    biometricType: type
+                    biometricType: type,
                 },
             });
             return res.json({ hasBiometric: !!credential });
@@ -303,25 +314,25 @@ const checkBiometric = async (req, res) => {
 
         // Verificar todos os tipos
         const fingerprint = await BiometricCredential.findOne({
-            where: { 
-                userId: user.id, 
+            where: {
+                userId: user.id,
                 isActive: true,
-                biometricType: 'fingerprint'
+                biometricType: "fingerprint",
             },
         });
 
         const facial = await BiometricCredential.findOne({
-            where: { 
-                userId: user.id, 
+            where: {
+                userId: user.id,
                 isActive: true,
-                biometricType: 'facial'
+                biometricType: "facial",
             },
         });
 
-        res.json({ 
+        res.json({
             hasBiometric: !!(fingerprint || facial),
             hasFingerprint: !!fingerprint,
-            hasFacial: !!facial
+            hasFacial: !!facial,
         });
     } catch (error) {
         console.error("Erro ao verificar biometria:", error);
@@ -332,50 +343,50 @@ const checkBiometric = async (req, res) => {
 // Remover credencial biométrica
 const removeBiometric = async (req, res) => {
     try {
-        const { email, type = 'fingerprint' } = req.body;
+        const { email, type = "fingerprint" } = req.body;
 
         if (!email) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Email é obrigatório' 
+            return res.status(400).json({
+                success: false,
+                message: "Email é obrigatório",
             });
         }
 
         // Encontrar o utilizador
         const user = await User.findOne({ where: { email } });
         if (!user) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Utilizador não encontrado' 
+            return res.status(404).json({
+                success: false,
+                message: "Utilizador não encontrado",
             });
         }
 
         // Remover todas as credenciais biométricas do tipo especificado
         const deletedCount = await BiometricCredential.destroy({
-            where: { 
+            where: {
                 userId: user.id,
-                biometricType: type // Corrigido para biometricType
-            }
+                biometricType: type, // Corrigido para biometricType
+            },
         });
 
         if (deletedCount === 0) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Nenhuma credencial biométrica encontrada para remover' 
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Nenhuma credencial biométrica encontrada para remover",
             });
         }
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: `Credencial biométrica ${type} removida com sucesso`,
-            removedCount: deletedCount // Corrigido para removedCount
+            removedCount: deletedCount, // Corrigido para removedCount
         });
-
     } catch (error) {
-        console.error('Erro ao remover credencial biométrica:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Erro interno do servidor' 
+        console.error("Erro ao remover credencial biométrica:", error);
+        res.status(500).json({
+            success: false,
+            message: "Erro interno do servidor",
         });
     }
 };
@@ -388,49 +399,63 @@ const authenticateWithFacialData = async (req, res) => {
         if (!facialData || !facialData.data) {
             return res.status(400).json({
                 success: false,
-                message: 'Dados faciais são obrigatórios'
+                message: "Dados faciais são obrigatórios",
             });
         }
 
         // Parsear os dados faciais
         let parsedFacialData;
         try {
-            parsedFacialData = typeof facialData.data === 'string' 
-                ? JSON.parse(facialData.data) 
-                : facialData.data;
+            parsedFacialData =
+                typeof facialData.data === "string"
+                    ? JSON.parse(facialData.data)
+                    : facialData.data;
         } catch (parseError) {
             return res.status(400).json({
                 success: false,
-                message: 'Formato de dados faciais inválido'
+                message: "Formato de dados faciais inválido",
             });
         }
 
-        if (!parsedFacialData.biometricTemplate || !parsedFacialData.biometricTemplate.descriptor) {
+        if (
+            !parsedFacialData.biometricTemplate ||
+            !parsedFacialData.biometricTemplate.descriptor
+        ) {
             return res.status(400).json({
                 success: false,
-                message: 'Template biométrico não encontrado nos dados faciais'
+                message: "Template biométrico não encontrado nos dados faciais",
             });
         }
 
         // Buscar todas as credenciais faciais registadas
         const facialCredentials = await BiometricCredential.findAll({
-            where: { biometricType: 'facial' }, // Corrigido para biometricType
-            include: [{
-                model: User,
-                attributes: ['id', 'nome', 'email', 'isAdmin'] // Corrigido para isAdmin
-            }]
+            where: { biometricType: "facial" }, // Corrigido para biometricType
+            include: [
+                {
+                    model: User,
+                    attributes: ["id", "nome", "email", "isAdmin"], // Corrigido para isAdmin
+                },
+            ],
         });
 
+        console.log(`🔍 Encontradas ${facialCredentials.length} credenciais faciais no sistema`);
+        
         if (facialCredentials.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Nenhuma biometria facial registada no sistema'
+                message: "Nenhuma biometria facial registada no sistema",
             });
         }
 
+        console.log(`📊 Dados faciais recebidos - Descriptor length: ${inputDescriptor?.length}`);
+
         // Função para calcular similaridade entre descritores
         const calculateSimilarity = (descriptor1, descriptor2) => {
-            if (!descriptor1 || !descriptor2 || descriptor1.length !== descriptor2.length) {
+            if (
+                !descriptor1 ||
+                !descriptor2 ||
+                descriptor1.length !== descriptor2.length
+            ) {
                 return 0;
             }
 
@@ -450,7 +475,11 @@ const authenticateWithFacialData = async (req, res) => {
 
         // Função para calcular distância euclidiana
         const calculateEuclideanDistance = (descriptor1, descriptor2) => {
-            if (!descriptor1 || !descriptor2 || descriptor1.length !== descriptor2.length) {
+            if (
+                !descriptor1 ||
+                !descriptor2 ||
+                descriptor1.length !== descriptor2.length
+            ) {
                 return Infinity;
             }
 
@@ -470,27 +499,47 @@ const authenticateWithFacialData = async (req, res) => {
         // Comparar com cada credencial registada
         for (const credential of facialCredentials) {
             try {
-                // As credenciais faciais podem ter os dados diretamente na coluna publicKey
-                // Ou em um campo separado como credentialData se a estrutura mudar.
-                // Vamos assumir que está em publicKey para este exemplo, conforme registerBiometric.
-                const storedDescriptor = JSON.parse(credential.publicKey)?.biometricTemplate?.descriptor;
+                // Extrair os dados faciais do publicKey
+                let storedFacialData;
+                try {
+                    const parsedData = JSON.parse(credential.publicKey);
+                    // Os dados podem estar diretamente ou dentro de .data
+                    storedFacialData = parsedData.data ? JSON.parse(parsedData.data) : parsedData;
+                } catch (parseError) {
+                    console.warn(`Erro ao fazer parse dos dados da credencial ${credential.credentialId}:`, parseError);
+                    continue;
+                }
 
-                if (!storedDescriptor) {
-                    console.warn(`Credencial ${credential.credentialId} não possui descriptor válido.`);
+                const storedDescriptor = storedFacialData?.biometricTemplate?.descriptor;
+
+                if (!storedDescriptor || !Array.isArray(storedDescriptor)) {
+                    console.warn(
+                        `Credencial ${credential.credentialId} não possui descriptor válido.`,
+                        { hasDescriptor: !!storedDescriptor, isArray: Array.isArray(storedDescriptor) }
+                    );
                     continue;
                 }
 
                 // Calcular similaridade (cosseno)
-                const similarity = calculateSimilarity(inputDescriptor, storedDescriptor);
+                const similarity = calculateSimilarity(
+                    inputDescriptor,
+                    storedDescriptor,
+                );
 
                 // Calcular distância euclidiana
-                const distance = calculateEuclideanDistance(inputDescriptor, storedDescriptor);
+                const distance = calculateEuclideanDistance(
+                    inputDescriptor,
+                    storedDescriptor,
+                );
 
-                // Threshold mais tolerante para reconhecimento facial
-                const SIMILARITY_THRESHOLD = 0.4; // Reduzido de 0.6 para 0.4
-                const DISTANCE_THRESHOLD = 1.2;   // Aumentado de 0.8 para 1.2
+                // Threshold muito tolerante para reconhecimento facial
+                const SIMILARITY_THRESHOLD = 0.3; // Ainda mais tolerante
+                const DISTANCE_THRESHOLD = 1.5; // Ainda mais tolerante
 
-                if (similarity > SIMILARITY_THRESHOLD && distance < DISTANCE_THRESHOLD) {
+                if (
+                    similarity > SIMILARITY_THRESHOLD &&
+                    distance < DISTANCE_THRESHOLD
+                ) {
                     if (similarity > bestSimilarity) {
                         bestSimilarity = similarity;
                         bestDistance = distance;
@@ -498,10 +547,14 @@ const authenticateWithFacialData = async (req, res) => {
                     }
                 }
 
-                console.log(`Comparação com utilizador ${credential.User.email}: Similaridade=${similarity.toFixed(3)}, Distância=${distance.toFixed(3)}`);
-
+                console.log(
+                    `📝 Comparação com ${credential.User.email}: Sim=${similarity.toFixed(3)}, Dist=${distance.toFixed(3)} | Thresholds: Sim>=${SIMILARITY_THRESHOLD}, Dist<=${DISTANCE_THRESHOLD} | Match: ${similarity > SIMILARITY_THRESHOLD && distance < DISTANCE_THRESHOLD}`,
+                );
             } catch (error) {
-                console.error(`Erro ao processar credencial ${credential.credentialId}:`, error);
+                console.error(
+                    `Erro ao processar credencial ${credential.credentialId}:`,
+                    error,
+                );
                 continue;
             }
         }
@@ -509,7 +562,8 @@ const authenticateWithFacialData = async (req, res) => {
         if (!bestMatch) {
             return res.status(401).json({
                 success: false,
-                message: 'Utilizador não reconhecido. Face não encontrada no sistema.'
+                message:
+                    "Utilizador não reconhecido. Face não encontrada no sistema.",
             });
         }
 
@@ -517,20 +571,22 @@ const authenticateWithFacialData = async (req, res) => {
 
         // Gerar token JWT
         const token = jwt.sign(
-            { 
-                userId: user.id, 
-                email: user.email, 
-                isAdmin: user.isAdmin // Corrigido para isAdmin
+            {
+                userId: user.id,
+                email: user.email,
+                isAdmin: user.isAdmin, // Corrigido para isAdmin
             },
-            process.env.JWT_SECRET || 'advir_secret_key',
-            { expiresIn: '24h' }
+            process.env.JWT_SECRET || "advir_secret_key",
+            { expiresIn: "24h" },
         );
 
-        console.log(`Login facial bem-sucedido para ${user.email} (Similaridade: ${bestSimilarity.toFixed(3)}, Distância: ${bestDistance.toFixed(3)})`);
+        console.log(
+            `✅ Login facial bem-sucedido para ${user.email} (Similaridade: ${bestSimilarity.toFixed(3)}, Distância: ${bestDistance.toFixed(3)})`,
+        );
 
         res.json({
             success: true,
-            message: 'Autenticação facial bem-sucedida',
+            message: "Autenticação facial bem-sucedida",
             userId: user.id,
             userNome: user.nome,
             userEmail: user.email,
@@ -539,15 +595,14 @@ const authenticateWithFacialData = async (req, res) => {
             confidence: Math.round(bestSimilarity * 100),
             matchQuality: {
                 similarity: bestSimilarity,
-                distance: bestDistance
-            }
+                distance: bestDistance,
+            },
         });
-
     } catch (error) {
-        console.error('Erro na autenticação facial:', error);
+        console.error("Erro na autenticação facial:", error);
         res.status(500).json({
             success: false,
-            message: 'Erro interno do servidor durante a autenticação facial'
+            message: "Erro interno do servidor durante a autenticação facial",
         });
     }
 };
@@ -559,5 +614,5 @@ module.exports = {
     authenticateWithBiometric,
     checkBiometric,
     removeBiometric,
-    authenticateWithFacialData
+    authenticateWithFacialData,
 };
