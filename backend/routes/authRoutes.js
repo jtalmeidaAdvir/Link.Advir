@@ -2,7 +2,9 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const authMiddleware = require('../middleware/authMiddleware');
 const router = express.Router();
- 
+const userController = require('../controllers/userController');
+const biometricController = require('../controllers/biometricController');
+
 // Rota para verificar se o token é válido
 router.post('/verify-token', authMiddleware, (req, res) => {
     try {
@@ -20,5 +22,16 @@ router.post('/verify-token', authMiddleware, (req, res) => {
         });
     }
 });
- 
+
+// Rotas de autenticação biométrica
+router.post('/biometric/register-challenge', biometricController.getRegistrationChallenge);
+router.post('/biometric/register', biometricController.registerBiometric);
+router.post('/biometric/login-challenge', biometricController.getLoginChallenge);
+router.post('/biometric/authenticate', biometricController.authenticateBiometric);
+router.post('/biometric/check', biometricController.checkBiometricStatus);
+router.delete('/biometric/remove', biometricController.removeBiometric);
+
+// Rota de autenticação facial
+router.post('/facial-login', biometricController.authenticateWithFacialData);
+
 module.exports = router;

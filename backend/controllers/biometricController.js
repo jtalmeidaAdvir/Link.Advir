@@ -93,7 +93,7 @@ const registerBiometric = async (req, res) => {
             credentialData = {
                 userId: userId,
                 credentialId: `facial_${userId}_${Date.now()}`,
-                publicKey: JSON.stringify(facialData),
+                publicKey: JSON.stringify(facialData), // Armazena os dados faciais em publicKey por enquanto
                 biometricType: 'facial',
                 counter: 0,
                 isActive: true,
@@ -332,51 +332,223 @@ const checkBiometric = async (req, res) => {
 // Remover credencial biométrica
 const removeBiometric = async (req, res) => {
     try {
-        const { email, type } = req.body;
+        const { email, type = 'fingerprint' } = req.body;
 
         if (!email) {
-            return res.status(400).json({ message: "Email é obrigatório." });
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Email é obrigatório' 
+            });
         }
 
         // Encontrar o utilizador
-        const user = await User.findOne({ where: { email: email } });
+        const user = await User.findOne({ where: { email } });
         if (!user) {
-            return res
-                .status(404)
-                .json({ message: "Utilizador não encontrado." });
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Utilizador não encontrado' 
+            });
         }
 
-        // Definir condições de remoção
-        const whereCondition = { userId: user.id };
-        if (type) {
-            whereCondition.biometricType = type;
-        }
-
-        // Remover credenciais biométricas do utilizador
-        const deleted = await BiometricCredential.destroy({
-            where: whereCondition,
+        // Remover todas as credenciais biométricas do tipo especificado
+        const deletedCount = await BiometricCredential.destroy({
+            where: { 
+                userId: user.id,
+                biometricType: type // Corrigido para biometricType
+            }
         });
 
-        if (deleted === 0) {
-            return res
-                .status(404)
-                .json({ 
-                    message: type 
-                        ? `Nenhuma credencial ${type === 'facial' ? 'facial' : 'biométrica'} encontrada.`
-                        : "Nenhuma credencial biométrica encontrada." 
-                });
+        if (deletedCount === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Nenhuma credencial biométrica encontrada para remover' 
+            });
         }
+
+        res.json({ 
+            success: true, 
+            message: `Credencial biométrica ${type} removida com sucesso`,
+            removedCount: deletedCount // Corrigido para removedCount
+        });
+
+    } catch (error) {
+        console.error('Erro ao remover credencial biométrica:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Erro interno do servidor' 
+        });
+    }
+};
+
+// Função para autenticação com dados faciais
+const authenticateWithFacialData = async (req, res) => {
+    try {
+        const { facialData } = req.body;
+
+        if (!facialData || !facialData.data) {
+            return res.status(400).json({
+                success: false,
+                message: 'Dados faciais são obrigatórios'
+            });
+        }
+
+        // Parsear os dados faciais
+        let parsedFacialData;
+        try {
+            parsedFacialData = typeof facialData.data === 'string' 
+                ? JSON.parse(facialData.data) 
+                : facialData.data;
+        } catch (parseError) {
+            return res.status(400).json({
+                success: false,
+                message: 'Formato de dados faciais inválido'
+            });
+        }
+
+        if (!parsedFacialData.biometricTemplate || !parsedFacialData.biometricTemplate.descriptor) {
+            return res.status(400).json({
+                success: false,
+                message: 'Template biométrico não encontrado nos dados faciais'
+            });
+        }
+
+        // Buscar todas as credenciais faciais registadas
+        const facialCredentials = await BiometricCredential.findAll({
+            where: { biometricType: 'facial' }, // Corrigido para biometricType
+            include: [{
+                model: User,
+                attributes: ['id', 'nome', 'email', 'isAdmin'] // Corrigido para isAdmin
+            }]
+        });
+
+        if (facialCredentials.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Nenhuma biometria facial registada no sistema'
+            });
+        }
+
+        // Função para calcular similaridade entre descritores
+        const calculateSimilarity = (descriptor1, descriptor2) => {
+            if (!descriptor1 || !descriptor2 || descriptor1.length !== descriptor2.length) {
+                return 0;
+            }
+
+            let dotProduct = 0;
+            let norm1 = 0;
+            let norm2 = 0;
+
+            for (let i = 0; i < descriptor1.length; i++) {
+                dotProduct += descriptor1[i] * descriptor2[i];
+                norm1 += descriptor1[i] * descriptor1[i];
+                norm2 += descriptor2[i] * descriptor2[i];
+            }
+
+            const magnitude = Math.sqrt(norm1) * Math.sqrt(norm2);
+            return magnitude === 0 ? 0 : dotProduct / magnitude;
+        };
+
+        // Função para calcular distância euclidiana
+        const calculateEuclideanDistance = (descriptor1, descriptor2) => {
+            if (!descriptor1 || !descriptor2 || descriptor1.length !== descriptor2.length) {
+                return Infinity;
+            }
+
+            let sum = 0;
+            for (let i = 0; i < descriptor1.length; i++) {
+                const diff = descriptor1[i] - descriptor2[i];
+                sum += diff * diff;
+            }
+            return Math.sqrt(sum);
+        };
+
+        const inputDescriptor = parsedFacialData.biometricTemplate.descriptor;
+        let bestMatch = null;
+        let bestSimilarity = 0;
+        let bestDistance = Infinity;
+
+        // Comparar com cada credencial registada
+        for (const credential of facialCredentials) {
+            try {
+                // As credenciais faciais podem ter os dados diretamente na coluna publicKey
+                // Ou em um campo separado como credentialData se a estrutura mudar.
+                // Vamos assumir que está em publicKey para este exemplo, conforme registerBiometric.
+                const storedDescriptor = JSON.parse(credential.publicKey)?.biometricTemplate?.descriptor;
+
+                if (!storedDescriptor) {
+                    console.warn(`Credencial ${credential.credentialId} não possui descriptor válido.`);
+                    continue;
+                }
+
+                // Calcular similaridade (cosseno)
+                const similarity = calculateSimilarity(inputDescriptor, storedDescriptor);
+
+                // Calcular distância euclidiana
+                const distance = calculateEuclideanDistance(inputDescriptor, storedDescriptor);
+
+                // Threshold mais tolerante para reconhecimento facial
+                const SIMILARITY_THRESHOLD = 0.4; // Reduzido de 0.6 para 0.4
+                const DISTANCE_THRESHOLD = 1.2;   // Aumentado de 0.8 para 1.2
+
+                if (similarity > SIMILARITY_THRESHOLD && distance < DISTANCE_THRESHOLD) {
+                    if (similarity > bestSimilarity) {
+                        bestSimilarity = similarity;
+                        bestDistance = distance;
+                        bestMatch = credential;
+                    }
+                }
+
+                console.log(`Comparação com utilizador ${credential.User.email}: Similaridade=${similarity.toFixed(3)}, Distância=${distance.toFixed(3)}`);
+
+            } catch (error) {
+                console.error(`Erro ao processar credencial ${credential.credentialId}:`, error);
+                continue;
+            }
+        }
+
+        if (!bestMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Utilizador não reconhecido. Face não encontrada no sistema.'
+            });
+        }
+
+        const user = bestMatch.User;
+
+        // Gerar token JWT
+        const token = jwt.sign(
+            { 
+                userId: user.id, 
+                email: user.email, 
+                isAdmin: user.isAdmin // Corrigido para isAdmin
+            },
+            process.env.JWT_SECRET || 'advir_secret_key',
+            { expiresIn: '24h' }
+        );
+
+        console.log(`Login facial bem-sucedido para ${user.email} (Similaridade: ${bestSimilarity.toFixed(3)}, Distância: ${bestDistance.toFixed(3)})`);
 
         res.json({
-            message: type 
-                ? `Credencial ${type === 'facial' ? 'facial' : 'biométrica'} removida com sucesso.`
-                : "Credenciais biométricas removidas com sucesso.",
-            removed: deleted,
-            type: type || 'all'
+            success: true,
+            message: 'Autenticação facial bem-sucedida',
+            userId: user.id,
+            userNome: user.nome,
+            userEmail: user.email,
+            isAdmin: user.isAdmin, // Corrigido para isAdmin
+            token: token,
+            confidence: Math.round(bestSimilarity * 100),
+            matchQuality: {
+                similarity: bestSimilarity,
+                distance: bestDistance
+            }
         });
+
     } catch (error) {
-        console.error("Erro ao remover biometria:", error);
-        res.status(500).json({ message: "Erro interno do servidor." });
+        console.error('Erro na autenticação facial:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno do servidor durante a autenticação facial'
+        });
     }
 };
 
@@ -387,4 +559,5 @@ module.exports = {
     authenticateWithBiometric,
     checkBiometric,
     removeBiometric,
+    authenticateWithFacialData
 };
