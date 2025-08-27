@@ -447,6 +447,8 @@ const authenticateWithFacialData = async (req, res) => {
             });
         }
 
+        // Definir inputDescriptor antes dos logs
+        const inputDescriptor = parsedFacialData.biometricTemplate.descriptor;
         console.log(`📊 Dados faciais recebidos - Descriptor length: ${inputDescriptor?.length}`);
 
         // Função para calcular similaridade entre descritores
@@ -491,7 +493,6 @@ const authenticateWithFacialData = async (req, res) => {
             return Math.sqrt(sum);
         };
 
-        const inputDescriptor = parsedFacialData.biometricTemplate.descriptor;
         let bestMatch = null;
         let bestSimilarity = 0;
         let bestDistance = Infinity;
