@@ -213,8 +213,8 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         const confidence = detection.detection.score;
         const qualityScore = calculateFaceQuality(detection, video);
 
-        if (confidence < 0.7 || qualityScore < 0.6) {
-            setStatusMessage(`Qualidade insuficiente (Confiança: ${Math.round(confidence * 100)}%). Ajuste seu posicionamento.`);
+        if (confidence < 0.6 || qualityScore < 0.4) {
+            setStatusMessage(`Qualidade insuficiente (Confiança: ${Math.round(confidence * 100)}%, Qualidade: ${Math.round(qualityScore * 100)}%). Ajuste seu posicionamento.`);
             return;
         }
 
@@ -250,7 +250,7 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
                 const currentConfidence = currentDetection.detection.score;
                 const currentQuality = calculateFaceQuality(currentDetection, video);
 
-                if (currentConfidence > 0.7 && currentQuality > 0.6) {
+                if (currentConfidence > 0.6 && currentQuality > 0.4) {
                     scans.push({
                         confidence: currentConfidence,
                         qualityScore: currentQuality,
@@ -299,28 +299,31 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         const { width, height } = video;
         const box = detection.detection.box;
 
-        // Center face
+        // Center face - mais tolerante
         const faceCenterX = box.x + box.width / 2;
         const faceCenterY = box.y + box.height / 2;
         const imageCenterX = width / 2;
         const imageCenterY = height / 2;
         const centerDistance = Math.sqrt(Math.pow(faceCenterX - imageCenterX, 2) + Math.pow(faceCenterY - imageCenterY, 2));
         const maxDistance = Math.sqrt(Math.pow(width / 2, 2) + Math.pow(height / 2, 2));
-        const centeringScore = 1 - (centerDistance / maxDistance);
+        const centeringScore = Math.max(0.3, 1 - (centerDistance / maxDistance)); // Mínimo de 0.3
 
-        // Face size
+        // Face size - muito mais tolerante
         const faceArea = box.width * box.height;
         const videoArea = width * height;
         const faceRatio = faceArea / videoArea;
         let sizeScore = 0;
-        if (faceRatio > 0.08 && faceRatio < 0.4) sizeScore = 1.0;
-        else if (faceRatio > 0.05 && faceRatio < 0.6) sizeScore = 0.7;
-        else sizeScore = 0.3;
+        if (faceRatio > 0.02 && faceRatio < 0.8) sizeScore = 1.0; // Muito mais tolerante
+        else if (faceRatio > 0.01 && faceRatio < 0.9) sizeScore = 0.8;
+        else sizeScore = 0.5; // Ainda assim dar alguma pontuação
 
-        // Landmark detection quality (basic check)
-        const landmarkQuality = detection.landmarks ? 1.0 : 0.0;
+        // Landmark detection quality - mais tolerante
+        const landmarkQuality = detection.landmarks ? 1.0 : 0.7; // Mesmo sem landmarks, dar 0.7
 
-        return (centeringScore * 0.4 + sizeScore * 0.4 + landmarkQuality * 0.2);
+        // Dar mais peso à confiança da detecção
+        const confidenceScore = detection.detection.score;
+
+        return Math.max(0.4, (centeringScore * 0.2 + sizeScore * 0.3 + landmarkQuality * 0.2 + confidenceScore * 0.3));
     };
 
     const completeScanWithFaceAPI = async (scans) => {
@@ -328,7 +331,7 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
             const avgMetrics = calculateAverageDetections(scans);
             const overallConfidence = avgMetrics.avgConfidence;
 
-            if (overallConfidence < 0.85) {
+            if (overallConfidence < 0.75) {
                 setIsScanning(false);
                 setScanProgress(0);
                 setStatusMessage(`Confiança insuficiente (${Math.round(overallConfidence * 100)}%). Tente novamente.`);
