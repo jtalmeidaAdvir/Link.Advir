@@ -62,7 +62,7 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
         
         if (!video || !canvas) return false;
 
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0);
@@ -159,7 +159,7 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
             const video = videoRef.current;
 
             if (canvas && video) {
-                const ctx = canvas.getContext('2d');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0);
@@ -267,7 +267,7 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
                 resolve({
                     type: 'facial',
                     data: JSON.stringify(features),
-                    imageData: imageData.split(',')[1] // Remover data:image/jpeg;base64,
+                    imageData: img.src.includes(',') ? img.src.split(',')[1] : img.src
                 });
             };
             
@@ -292,8 +292,23 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
     };
 
     const generateFaceEncoding = (imageData) => {
-        // Gerar encoding único baseado na imagem
-        const hash = btoa(imageData.slice(-100));
+        // Gerar encoding único baseado nos dados da imagem
+        const data = imageData.data;
+        const sampleSize = Math.min(1000, data.length); // Usar uma amostra dos dados
+        
+        // Criar um hash simples baseado nos valores dos pixels
+        let hash = '';
+        for (let i = 0; i < sampleSize; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const avg = Math.floor((r + g + b) / 3);
+            hash += avg.toString(16).padStart(2, '0');
+        }
+        
+        // Limitar o tamanho do hash
+        hash = hash.substring(0, 100);
+        
         return Array.from({ length: 128 }, (_, i) => 
             Math.sin(hash.charCodeAt(i % hash.length) + i) * 100
         );
