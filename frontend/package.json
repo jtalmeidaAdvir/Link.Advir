@@ -36,6 +36,7 @@
     "expo-location": "^18.1.6",
     "expo-status-bar": "~1.12.1",
     "expo-updates": "~0.25.27",
+    "face-api.js": "^0.22.2",
     "file-saver": "^2.0.5",
     "framer-motion": "^11.11.9",
     "html2canvas": "^1.4.1",

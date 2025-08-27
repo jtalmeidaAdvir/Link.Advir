@@ -1,19 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import * as faceapi from 'face-api.js';
 
 const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
     const [isScanning, setIsScanning] = useState(false);
     const [scanProgress, setScanProgress] = useState(0);
     const [statusMessage, setStatusMessage] = useState('');
     const [cameraReady, setCameraReady] = useState(false);
+    const [modelsLoaded, setModelsLoaded] = useState(false);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
 
     useEffect(() => {
         if (visible) {
-            startCamera();
-            setStatusMessage('Posicione o rosto dentro do círculo.');
+            initializeFaceAPI();
         } else {
             stopCamera();
             setStatusMessage('');
@@ -23,6 +24,64 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
             stopCamera();
         };
     }, [visible]);
+
+    const initializeFaceAPI = async () => {
+        try {
+            setStatusMessage('Carregando modelos de detecção facial...');
+
+            // Tentar carregar modelos localmente primeiro, depois via CDN
+            const LOCAL_MODEL_URL = '/models';
+            const CDN_MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+
+            let modelUrl = LOCAL_MODEL_URL;
+
+            try {
+                // Testar se os modelos locais estão disponíveis
+                const response = await fetch(`${LOCAL_MODEL_URL}/tiny_face_detector_model-weights_manifest.json`);
+                if (!response.ok) {
+                    throw new Error('Modelos locais não encontrados');
+                }
+            } catch (localError) {
+                console.log('Modelos locais não encontrados, usando CDN...');
+                modelUrl = CDN_MODEL_URL;
+                setStatusMessage('Carregando modelos via CDN...');
+            }
+
+            // Carregar modelos do face-api.js
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
+                faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
+                faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl),
+                faceapi.nets.faceExpressionNet.loadFromUri(modelUrl)
+            ]);
+
+            setModelsLoaded(true);
+            setStatusMessage('Modelos carregados! Iniciando câmera...');
+            await startCamera();
+
+        } catch (error) {
+            console.error('Erro ao carregar modelos face-api.js:', error);
+            setStatusMessage('Erro ao carregar modelos de detecção facial.');
+            
+            // Tentar uma abordagem mais simples com apenas o detector básico
+            try {
+                setStatusMessage('Tentando modo básico de detecção...');
+                const CDN_MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+                
+                await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(CDN_MODEL_URL);
+                
+                setModelsLoaded(true);
+                setStatusMessage('Modo básico carregado! Iniciando câmera...');
+                await startCamera();
+                
+            } catch (fallbackError) {
+                console.error('Erro no fallback:', fallbackError);
+                setStatusMessage('Não foi possível carregar os modelos de detecção facial.');
+                alert('Erro ao carregar modelos de detecção facial. Verifique sua conexão com a internet.');
+            }
+        }
+    };
 
     const startCamera = async () => {
         try {
@@ -37,14 +96,21 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 streamRef.current = stream;
-                setCameraReady(true);
-                setStatusMessage('Posicione o rosto dentro do círculo.');
+
+                videoRef.current.onloadedmetadata = () => {
+                    setCameraReady(true);
+                    setStatusMessage('Posicione o rosto dentro do círculo.');
+                    // Start drawing detections once metadata is loaded and models are ready
+                    if (modelsLoaded) {
+                        detectFacesOnStream();
+                    }
+                };
             }
         } catch (error) {
             console.error('Erro ao acessar câmera:', error);
             setCameraReady(false);
             setStatusMessage('Erro ao acessar a câmera. Verifique as permissões.');
-            alert('Erro ao acessar a câmera. Verifique as permissões.');
+            alert('Erro ao acessar a câmera. Por favor, conceda as permissões necessárias.');
         }
     };
 
@@ -53,300 +119,227 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
             streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
             setCameraReady(false);
+            // Clear canvas drawings
+            const canvas = canvasRef.current;
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
         }
     };
 
-    const detectFace = async () => {
+    const detectFacesOnStream = async () => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        
-        if (!video || !canvas) return { detected: false, confidence: 0, metrics: null };
+        if (!video || !canvas || !modelsLoaded) return;
 
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
+        try {
+            const displaySize = { width: video.videoWidth || 640, height: video.videoHeight || 480 };
+            faceapi.matchDimensions(canvas, displaySize);
 
-        // Análise mais detalhada de detecção facial
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        
-        // Múltiplas métricas de detecção
-        const metrics = calculateFaceMetrics(data, canvas.width, canvas.height);
-        
-        // Calcular confiança baseada em múltiplas métricas
-        const confidence = calculateConfidence(metrics);
-        
-        return {
-            detected: confidence > 0.6, // Threshold mais rigoroso
-            confidence: confidence,
-            metrics: metrics
-        };
-    };
+            // Usar apenas o detector básico se outros modelos não estiverem disponíveis
+            let detections;
+            try {
+                detections = await faceapi
+                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks()
+                    .withFaceExpressions();
+            } catch (detectionError) {
+                // Fallback para detecção básica apenas
+                detections = await faceapi
+                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+            }
 
-    const calculateFaceMetrics = (data, width, height) => {
-        // 1. Análise de variação de luminosidade
-        let variations = 0;
-        let totalBrightness = 0;
-        const step = 4 * 8; // Mais granular
-        
-        for (let i = 0; i < data.length; i += step) {
-            const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-            totalBrightness += brightness;
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            if (i > 0) {
-                const prevBrightness = (data[i - step] + data[i - step + 1] + data[i - step + 2]) / 3;
-                if (Math.abs(brightness - prevBrightness) > 25) {
-                    variations++;
+            // Draw bounding boxes and landmarks
+            resizedDetections.forEach(detection => {
+                const box = detection.detection.box;
+                const drawBox = new faceapi.draw.DrawBox(box, {
+                    label: `Confiança: ${Math.round(detection.detection.score * 100)}%`,
+                    boxColor: '#1792FE'
+                });
+                drawBox.draw(canvas);
+
+                // Só desenhar landmarks se estiverem disponíveis
+                if (detection.landmarks) {
+                    const drawLandmarks = new faceapi.draw.DrawLandmarks(detection.landmarks, {
+                        drawLines: true,
+                        color: '#FFEB3B'
+                    });
+                    drawLandmarks.draw(canvas);
                 }
-            }
-        }
-        
-        const avgBrightness = totalBrightness / (data.length / step);
-        const variationRatio = variations / (data.length / step);
-        
-        // 2. Análise de distribuição de cores (tons de pele)
-        let skinTonePixels = 0;
-        let totalPixels = 0;
-        
-        for (let i = 0; i < data.length; i += 16) { // Amostra mais espaçada
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
+            });
+
+            // Continue the detection loop
+            requestAnimationFrame(detectFacesOnStream);
             
-            // Detectar tons de pele aproximados
-            if (r > 95 && g > 40 && b > 20 && 
-                Math.max(r, g, b) - Math.min(r, g, b) > 15 &&
-                Math.abs(r - g) > 15 && r > g && r > b) {
-                skinTonePixels++;
-            }
-            totalPixels++;
+        } catch (error) {
+            console.error('Erro na detecção contínua:', error);
+            // Tentar novamente após um pequeno delay
+            setTimeout(detectFacesOnStream, 1000);
         }
-        
-        const skinRatio = skinTonePixels / totalPixels;
-        
-        // 3. Análise de simetria horizontal (faces tendem a ser simétricas)
-        const symmetryScore = calculateSymmetry(data, width, height);
-        
-        // 4. Análise de contraste nas regiões centrais
-        const centralContrast = calculateCentralContrast(data, width, height);
-        
-        return {
-            avgBrightness,
-            variationRatio,
-            skinRatio,
-            symmetryScore,
-            centralContrast
-        };
-    };
-
-    const calculateSymmetry = (data, width, height) => {
-        let symmetryScore = 0;
-        const centerX = Math.floor(width / 2);
-        const sampleLines = 10;
-        
-        for (let y = Math.floor(height * 0.3); y < Math.floor(height * 0.7); y += Math.floor(height * 0.4 / sampleLines)) {
-            for (let offset = 1; offset < Math.min(centerX, width - centerX); offset += 5) {
-                const leftIdx = (y * width + (centerX - offset)) * 4;
-                const rightIdx = (y * width + (centerX + offset)) * 4;
-                
-                if (leftIdx >= 0 && rightIdx < data.length - 2) {
-                    const leftBrightness = (data[leftIdx] + data[leftIdx + 1] + data[leftIdx + 2]) / 3;
-                    const rightBrightness = (data[rightIdx] + data[rightIdx + 1] + data[rightIdx + 2]) / 3;
-                    
-                    const diff = Math.abs(leftBrightness - rightBrightness);
-                    symmetryScore += Math.max(0, 100 - diff) / 100;
-                }
-            }
-        }
-        
-        return symmetryScore / (sampleLines * 10); // Normalizar
-    };
-
-    const calculateCentralContrast = (data, width, height) => {
-        const centerX = Math.floor(width / 2);
-        const centerY = Math.floor(height / 2);
-        const region = Math.min(width, height) * 0.3;
-        
-        let totalContrast = 0;
-        let samples = 0;
-        
-        for (let y = centerY - region/2; y < centerY + region/2; y += 5) {
-            for (let x = centerX - region/2; x < centerX + region/2; x += 5) {
-                if (x >= 0 && x < width && y >= 0 && y < height) {
-                    const idx = (Math.floor(y) * width + Math.floor(x)) * 4;
-                    if (idx < data.length - 2) {
-                        const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-                        
-                        // Comparar com pixels adjacentes
-                        let localContrast = 0;
-                        let neighbors = 0;
-                        
-                        for (let dy = -2; dy <= 2; dy++) {
-                            for (let dx = -2; dx <= 2; dx++) {
-                                const nx = Math.floor(x) + dx;
-                                const ny = Math.floor(y) + dy;
-                                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                                    const nIdx = (ny * width + nx) * 4;
-                                    if (nIdx < data.length - 2) {
-                                        const nBrightness = (data[nIdx] + data[nIdx + 1] + data[nIdx + 2]) / 3;
-                                        localContrast += Math.abs(brightness - nBrightness);
-                                        neighbors++;
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if (neighbors > 0) {
-                            totalContrast += localContrast / neighbors;
-                            samples++;
-                        }
-                    }
-                }
-            }
-        }
-        
-        return samples > 0 ? totalContrast / samples : 0;
-    };
-
-    const calculateConfidence = (metrics) => {
-        let confidence = 0;
-        
-        // Peso para cada métrica
-        const weights = {
-            brightness: 0.15,
-            variation: 0.25,
-            skinTone: 0.25,
-            symmetry: 0.20,
-            contrast: 0.15
-        };
-        
-        // Avaliar brilho (nem muito escuro nem muito claro)
-        if (metrics.avgBrightness > 50 && metrics.avgBrightness < 180) {
-            confidence += weights.brightness;
-        }
-        
-        // Avaliar variação (deve ter variações moderadas para indicar features faciais)
-        if (metrics.variationRatio > 0.15 && metrics.variationRatio < 0.4) {
-            confidence += weights.variation;
-        }
-        
-        // Avaliar tons de pele
-        if (metrics.skinRatio > 0.08 && metrics.skinRatio < 0.4) {
-            confidence += weights.skinTone;
-        }
-        
-        // Avaliar simetria
-        if (metrics.symmetryScore > 0.3) {
-            confidence += weights.symmetry * metrics.symmetryScore;
-        }
-        
-        // Avaliar contraste central
-        if (metrics.centralContrast > 20 && metrics.centralContrast < 80) {
-            confidence += weights.contrast;
-        }
-        
-        return Math.min(confidence, 1.0);
     };
 
     const startScan = async () => {
-        if (!cameraReady) {
-            setStatusMessage('A câmera ainda não está pronta.');
+        if (!cameraReady || !modelsLoaded) {
+            setStatusMessage('Sistema ainda não está pronto. Aguarde o carregamento.');
             return;
         }
 
-        // Verificar se há uma face detectada antes de iniciar
-        const initialDetection = await detectFace();
-        if (!initialDetection.detected || initialDetection.confidence < 0.6) {
-            setStatusMessage(`Face não detectada adequadamente (confiança: ${Math.round(initialDetection.confidence * 100)}%). Posicione-se melhor.`);
+        // Perform a single detection to check readiness for scan
+        const video = videoRef.current;
+        if (!video) return;
+
+        const detections = await faceapi
+            .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+            .withFaceLandmarks()
+            .withFaceDescriptors();
+
+        if (detections.length === 0) {
+            setStatusMessage('Face não detectada. Posicione-se corretamente.');
+            return;
+        }
+        if (detections.length > 1) {
+            setStatusMessage('Múltiplas faces detectadas. Apenas uma pessoa permitida.');
+            return;
+        }
+
+        const detection = detections[0];
+        const confidence = detection.detection.score;
+        const qualityScore = calculateFaceQuality(detection, video);
+
+        if (confidence < 0.8 || qualityScore < 0.7) {
+            setStatusMessage(`Qualidade insuficiente (Confiança: ${Math.round(confidence * 100)}%). Ajuste seu posicionamento.`);
             return;
         }
 
         setIsScanning(true);
         setScanProgress(0);
-        setStatusMessage('Face detectada! Iniciando captura de precisão...');
+        setStatusMessage('Face detectada! Iniciando captura biométrica...');
 
-        // Múltiplos scans para maior precisão
         const scans = [];
-        const totalScans = 8; // Mais scans para maior precisão
+        const totalScans = 8;
         let currentScan = 0;
         let failedScans = 0;
 
         const interval = setInterval(async () => {
-            const detection = await detectFace();
-            
-            if (detection.detected && detection.confidence > 0.6) {
-                scans.push(detection);
-                currentScan++;
-                
-                const progress = (currentScan / totalScans) * 100;
-                setScanProgress(progress);
-                
-                // Mensagens mais informativas
-                if (progress < 25) {
-                    setStatusMessage(`Capturando amostra ${currentScan}/${totalScans} (confiança: ${Math.round(detection.confidence * 100)}%)`);
-                } else if (progress < 50) {
-                    setStatusMessage(`Validando características faciais... ${currentScan}/${totalScans}`);
-                } else if (progress < 75) {
-                    setStatusMessage(`Refinando dados biométricos... ${currentScan}/${totalScans}`);
+            const scanDetection = await faceapi
+                .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                .withFaceLandmarks()
+                .withFaceDescriptors();
+
+            if (scanDetection.length > 0) {
+                const currentDetection = scanDetection[0]; // Assume a primeira face detectada
+                const currentConfidence = currentDetection.detection.score;
+                const currentQuality = calculateFaceQuality(currentDetection, video);
+
+                if (currentDetection.descriptor && currentConfidence > 0.8 && currentQuality > 0.7) {
+                    scans.push({
+                        confidence: currentConfidence,
+                        qualityScore: currentQuality,
+                        landmarks: currentDetection.landmarks,
+                        descriptor: currentDetection.descriptor,
+                        expressions: currentDetection.expressions // Include expressions if needed
+                    });
+                    currentScan++;
+
+                    const progress = (currentScan / totalScans) * 100;
+                    setScanProgress(progress);
+
+                    if (progress < 25) {
+                        setStatusMessage(`Capturando dados biométricos ${currentScan}/${totalScans} (Confiança: ${Math.round(currentConfidence * 100)}%)`);
+                    } else if (progress < 50) {
+                        setStatusMessage(`Analisando características faciais... ${currentScan}/${totalScans}`);
+                    } else if (progress < 75) {
+                        setStatusMessage(`Gerando template biométrico... ${currentScan}/${totalScans}`);
+                    } else {
+                        setStatusMessage(`Finalizando captura... ${currentScan}/${totalScans}`);
+                    }
+
+                    if (currentScan >= totalScans) {
+                        clearInterval(interval);
+                        completeScanWithFaceAPI(scans);
+                    }
                 } else {
-                    setStatusMessage(`Finalizando captura... ${currentScan}/${totalScans}`);
-                }
-                
-                if (currentScan >= totalScans) {
-                    clearInterval(interval);
-                    completeScanWithAveraging(scans);
+                    failedScans++;
+                    setStatusMessage(`Ajustando captura... (Confiança: ${Math.round(currentConfidence * 100)}%)`);
                 }
             } else {
                 failedScans++;
-                
-                if (failedScans > 3) {
-                    // Muitas falhas consecutivas
-                    clearInterval(interval);
-                    setIsScanning(false);
-                    setScanProgress(0);
-                    setStatusMessage('Qualidade da captura insuficiente. Tente novamente com melhor iluminação.');
-                    return;
-                }
-                
-                setStatusMessage(`Ajustando captura... (confiança: ${Math.round(detection.confidence * 100)}%)`);
+                setStatusMessage('Face não detectada nesta amostra. Ajustando...');
             }
-        }, 500); // Mais frequente para maior precisão
+
+            if (failedScans > 3) {
+                clearInterval(interval);
+                setIsScanning(false);
+                setScanProgress(0);
+                setStatusMessage('Qualidade da captura insuficiente. Tente novamente.');
+            }
+        }, 500);
     };
 
-    const completeScanWithAveraging = async (scans) => {
+    const calculateFaceQuality = (detection, video) => {
+        const { width, height } = video;
+        const box = detection.detection.box;
+
+        // Center face
+        const faceCenterX = box.x + box.width / 2;
+        const faceCenterY = box.y + box.height / 2;
+        const imageCenterX = width / 2;
+        const imageCenterY = height / 2;
+        const centerDistance = Math.sqrt(Math.pow(faceCenterX - imageCenterX, 2) + Math.pow(faceCenterY - imageCenterY, 2));
+        const maxDistance = Math.sqrt(Math.pow(width / 2, 2) + Math.pow(height / 2, 2));
+        const centeringScore = 1 - (centerDistance / maxDistance);
+
+        // Face size
+        const faceArea = box.width * box.height;
+        const videoArea = width * height;
+        const faceRatio = faceArea / videoArea;
+        let sizeScore = 0;
+        if (faceRatio > 0.08 && faceRatio < 0.4) sizeScore = 1.0;
+        else if (faceRatio > 0.05 && faceRatio < 0.6) sizeScore = 0.7;
+        else sizeScore = 0.3;
+
+        // Landmark detection quality (basic check)
+        const landmarkQuality = detection.landmarks ? 1.0 : 0.0;
+
+        return (centeringScore * 0.4 + sizeScore * 0.4 + landmarkQuality * 0.2);
+    };
+
+    const completeScanWithFaceAPI = async (scans) => {
         try {
-            // Calcular métricas médias de todos os scans
-            const avgMetrics = calculateAverageMetrics(scans);
+            const avgMetrics = calculateAverageDetections(scans);
             const overallConfidence = avgMetrics.avgConfidence;
-            
-            if (overallConfidence < 0.7) {
+
+            if (overallConfidence < 0.85) {
                 setIsScanning(false);
                 setScanProgress(0);
                 setStatusMessage(`Confiança insuficiente (${Math.round(overallConfidence * 100)}%). Tente novamente.`);
                 return;
             }
 
-            setStatusMessage(`Processando dados... (confiança: ${Math.round(overallConfidence * 100)}%)`);
-            
+            setStatusMessage(`Processando template biométrico... (Confiança: ${Math.round(overallConfidence * 100)}%)`);
+
             const canvas = canvasRef.current;
             const video = videoRef.current;
 
             if (canvas && video) {
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
+                // Capture final image for processing
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous drawings
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
 
-                const imageData = canvas.toDataURL('image/jpeg', 0.9); // Maior qualidade
-
-                // Processar dados biométricos com as métricas médias
-                const facialData = await processFacialBiometrics(imageData, true, avgMetrics, overallConfidence);
+                const facialData = await processFacialBiometricsWithAPI(imageDataUrl, avgMetrics, overallConfidence);
 
                 setIsScanning(false);
                 setScanProgress(0);
                 setStatusMessage(`Captura concluída! Confiança: ${Math.round(overallConfidence * 100)}%`);
-                
+
                 setTimeout(() => {
                     onScanComplete(facialData);
                     onClose();
@@ -357,424 +350,256 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
             setIsScanning(false);
             setScanProgress(0);
             setStatusMessage('Erro ao processar dados faciais.');
+            alert('Ocorreu um erro ao processar seus dados faciais. Por favor, tente novamente.');
         }
     };
 
-    const calculateAverageMetrics = (scans) => {
+    const calculateAverageDetections = (scans) => {
         if (scans.length === 0) return null;
-        
-        const totals = {
-            avgBrightness: 0,
-            variationRatio: 0,
-            skinRatio: 0,
-            symmetryScore: 0,
-            centralContrast: 0,
-            confidence: 0
-        };
-        
+
+        let totalConfidence = 0;
+        let totalQuality = 0;
+        const allDescriptors = [];
+        const allLandmarks = [];
+
         scans.forEach(scan => {
-            totals.avgBrightness += scan.metrics.avgBrightness;
-            totals.variationRatio += scan.metrics.variationRatio;
-            totals.skinRatio += scan.metrics.skinRatio;
-            totals.symmetryScore += scan.metrics.symmetryScore;
-            totals.centralContrast += scan.metrics.centralContrast;
-            totals.confidence += scan.confidence;
+            totalConfidence += scan.confidence;
+            totalQuality += scan.qualityScore;
+            if (scan.descriptor) allDescriptors.push(scan.descriptor);
+            if (scan.landmarks) allLandmarks.push(scan.landmarks);
         });
-        
+
         const count = scans.length;
+        const avgDescriptor = calculateAverageDescriptor(allDescriptors);
+        const avgLandmarks = calculateAverageLandmarks(allLandmarks);
+
         return {
-            avgBrightness: totals.avgBrightness / count,
-            variationRatio: totals.variationRatio / count,
-            skinRatio: totals.skinRatio / count,
-            symmetryScore: totals.symmetryScore / count,
-            centralContrast: totals.centralContrast / count,
-            avgConfidence: totals.confidence / count,
+            avgConfidence: totalConfidence / count,
+            avgQuality: totalQuality / count,
             sampleCount: count,
-            consistency: calculateConsistency(scans)
+            consistency: calculateDescriptorConsistency(allDescriptors),
+            avgDescriptor: avgDescriptor,
+            avgLandmarks: avgLandmarks
         };
     };
 
-    const calculateConsistency = (scans) => {
-        if (scans.length < 2) return 1.0;
-        
-        let totalVariance = 0;
-        const metrics = ['avgBrightness', 'variationRatio', 'skinRatio', 'symmetryScore', 'centralContrast'];
-        
-        metrics.forEach(metric => {
-            const values = scans.map(scan => scan.metrics[metric]);
-            const mean = values.reduce((a, b) => a + b, 0) / values.length;
-            const variance = values.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / values.length;
-            totalVariance += variance;
+    const calculateAverageDescriptor = (descriptors) => {
+        if (descriptors.length === 0) return null;
+        const descriptorLength = descriptors[0].length;
+        const avgDescriptor = new Array(descriptorLength).fill(0);
+
+        descriptors.forEach(descriptor => {
+            descriptor.forEach((value, index) => {
+                avgDescriptor[index] += value;
+            });
         });
-        
-        // Converter variância em score de consistência (0-1)
-        return Math.max(0, Math.min(1, 1 - (totalVariance / 1000)));
+
+        return avgDescriptor.map(sum => sum / descriptors.length);
     };
 
-    const completeScan = async () => {
-        try {
-            const canvas = canvasRef.current;
-            const video = videoRef.current;
+    const calculateAverageLandmarks = (landmarksArray) => {
+        if (landmarksArray.length === 0) return null;
 
-            if (canvas && video) {
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
+        // Assumindo que todos os landmarks têm a mesma estrutura (ex: 68 pontos)
+        const landmarkCount = landmarksArray[0].positions.length;
+        const avgLandmarks = Array.from({ length: landmarkCount }, () => ({ x: 0, y: 0 }));
 
-                // Validação final antes de processar
-                const finalValidation = await detectFace();
-                if (!finalValidation) {
-                    setIsScanning(false);
-                    setScanProgress(0);
-                    setStatusMessage('Validação final falhou. Face não detectada.');
-                    return;
-                }
+        landmarksArray.forEach(landmarks => {
+            landmarks.positions.forEach((pos, index) => {
+                avgLandmarks[index].x += pos.x;
+                avgLandmarks[index].y += pos.y;
+            });
+        });
 
-                const imageData = canvas.toDataURL('image/jpeg', 0.8);
-
-                // Processar dados biométricos faciais apenas se a validação passou
-                const facialData = await processFacialBiometrics(imageData, true);
-
-                setIsScanning(false);
-                setScanProgress(0);
-                setStatusMessage('Captura facial concluída com sucesso!');
-                
-                setTimeout(() => {
-                    onScanComplete(facialData);
-                    onClose();
-                }, 1000);
-            }
-        } catch (error) {
-            console.error('Erro ao completar scan:', error);
-            setIsScanning(false);
-            setScanProgress(0);
-            setStatusMessage('Erro ao processar dados faciais.');
-            alert('Erro ao processar dados faciais. Tente novamente.');
-        }
+        return {
+            positions: avgLandmarks.map(p => ({ x: p.x / landmarksArray.length, y: p.y / landmarksArray.length }))
+        };
     };
 
-    const processFacialBiometrics = async (imageData, validated = false, avgMetrics = null, overallConfidence = 0) => {
-        if (!validated) {
-            throw new Error('Dados faciais não validados');
-        }
+    const calculateDescriptorConsistency = (descriptors) => {
+        if (descriptors.length < 2) return 1.0;
 
-        // Análise mais detalhada das características faciais
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+        const avgDescriptor = calculateAverageDescriptor(descriptors);
+        let totalVariance = 0;
+
+        descriptors.forEach(descriptor => {
+            let variance = 0;
+            descriptor.forEach((value, index) => {
+                variance += Math.pow(value - avgDescriptor[index], 2);
+            });
+            totalVariance += variance / descriptor.length;
+        });
+
+        const avgVariance = totalVariance / descriptors.length;
+        // Normalize variance to a consistency score (0 to 1)
+        // The scaling factor (e.g., 10) might need tuning based on typical variance values
+        return Math.max(0, Math.min(1, 1 - (avgVariance / 10)));
+    };
+
+    const processFacialBiometricsWithAPI = async (imageDataUrl, avgMetrics, overallConfidence) => {
         const img = new Image();
-        
+        img.src = imageDataUrl;
+
         return new Promise((resolve, reject) => {
             img.onload = () => {
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-                
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-                
-                // Análise de características mais robusta
-                let faceRegions = 0;
-                let totalIntensity = 0;
-                
-                // Dividir imagem em regiões para análise
-                const regionSize = 20;
-                for (let y = 0; y < canvas.height; y += regionSize) {
-                    for (let x = 0; x < canvas.width; x += regionSize) {
-                        let regionIntensity = 0;
-                        let pixelCount = 0;
-                        
-                        for (let dy = 0; dy < regionSize && y + dy < canvas.height; dy++) {
-                            for (let dx = 0; dx < regionSize && x + dx < canvas.width; dx++) {
-                                const i = ((y + dy) * canvas.width + (x + dx)) * 4;
-                                const intensity = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                                regionIntensity += intensity;
-                                pixelCount++;
-                            }
-                        }
-                        
-                        const avgIntensity = regionIntensity / pixelCount;
-                        totalIntensity += avgIntensity;
-                        
-                        // Considerar regiões com intensidade típica de pele
-                        if (avgIntensity > 60 && avgIntensity < 200) {
-                            faceRegions++;
-                        }
-                    }
-                }
-                
-                const confidence = Math.min(faceRegions / 10, 1); // Normalizar confiança
-                
-                if (confidence < 0.3) {
-                    reject(new Error('Confiança de detecção facial muito baixa'));
-                    return;
-                }
-                
-                // Gerar características faciais únicas com dados médios
                 const features = {
                     faceDetected: true,
-                    confidence: overallConfidence || confidence,
-                    faceRegions: faceRegions,
-                    totalIntensity: totalIntensity,
-                    landmarks: generateLandmarks(canvas.width, canvas.height),
-                    encoding: generateFaceEncoding(imageData),
+                    confidence: overallConfidence,
+                    qualityScore: avgMetrics.avgQuality,
+                    algorithm: 'face-api.js',
+                    version: '1.0.0',
+                    biometricTemplate: {
+                        descriptor: avgMetrics.avgDescriptor,
+                        landmarks: avgMetrics.avgLandmarks,
+                        consistency: avgMetrics.consistency,
+                        sampleCount: avgMetrics.sampleCount
+                    },
+                    scanQuality: {
+                        confidence: overallConfidence,
+                        qualityScore: avgMetrics.avgQuality,
+                        consistency: avgMetrics.consistency,
+                        sampleCount: avgMetrics.sampleCount,
+                        securityLevel: avgMetrics.consistency > 0.8 ? 'HIGH' : avgMetrics.consistency > 0.6 ? 'MEDIUM' : 'LOW'
+                    },
                     timestamp: new Date().toISOString(),
                     validationPassed: true,
-                    // Dados adicionais de precisão
-                    avgMetrics: avgMetrics,
-                    scanQuality: {
-                        brightness: avgMetrics?.avgBrightness || 0,
-                        variation: avgMetrics?.variationRatio || 0,
-                        skinTone: avgMetrics?.skinRatio || 0,
-                        symmetry: avgMetrics?.symmetryScore || 0,
-                        contrast: avgMetrics?.centralContrast || 0,
-                        consistency: avgMetrics?.consistency || 0,
-                        sampleCount: avgMetrics?.sampleCount || 1
-                    }
+                    captureMethod: 'face-api.js',
+                    encoding: avgMetrics.avgDescriptor,
+                    landmarks: convertLandmarksToLegacyFormat(avgMetrics.avgLandmarks)
                 };
-
                 resolve({
                     type: 'facial',
                     data: JSON.stringify(features),
-                    imageData: img.src.includes(',') ? img.src.split(',')[1] : img.src
+                    imageData: imageDataUrl.includes(',') ? imageDataUrl.split(',')[1] : imageDataUrl
                 });
             };
-            
             img.onerror = () => reject(new Error('Erro ao processar imagem'));
-            img.src = imageData;
         });
     };
 
-    const generateLandmarks = (width, height) => {
-        // Gerar landmarks baseados nas dimensões da imagem
-        const centerX = width / 2;
-        const centerY = height / 2;
-        
+    const convertLandmarksToLegacyFormat = (landmarks) => {
+        if (!landmarks || !landmarks.positions || landmarks.positions.length === 0) {
+            const video = videoRef.current;
+            if (!video) return null;
+            const centerX = video.videoWidth / 2;
+            const centerY = video.videoHeight / 2;
+            return {
+                eyes: { left: [centerX - video.videoWidth * 0.1, centerY - video.videoHeight * 0.1], right: [centerX + video.videoWidth * 0.1, centerY - video.videoHeight * 0.1] },
+                nose: [centerX, centerY],
+                mouth: [centerX, centerY + video.videoHeight * 0.1]
+            };
+        }
+
+        const positions = landmarks.positions;
         return {
-            eyes: { 
-                left: [centerX - width * 0.1, centerY - height * 0.1], 
-                right: [centerX + width * 0.1, centerY - height * 0.1] 
+            eyes: {
+                left: [positions[36].x, positions[36].y], // Canto externo olho esquerdo
+                right: [positions[45].x, positions[45].y] // Canto externo olho direito
             },
-            nose: [centerX, centerY],
-            mouth: [centerX, centerY + height * 0.1]
+            nose: [positions[30].x, positions[30].y], // Ponta do nariz
+            mouth: [positions[51].x, positions[51].y] // Centro lábio inferior
         };
     };
 
-    const generateFaceEncoding = (imageData) => {
-        // Gerar encoding único baseado nos dados da imagem
-        const data = imageData.data;
-        const sampleSize = Math.min(1000, data.length); // Usar uma amostra dos dados
-        
-        // Criar um hash simples baseado nos valores dos pixels
-        let hash = '';
-        for (let i = 0; i < sampleSize; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            const avg = Math.floor((r + g + b) / 3);
-            hash += avg.toString(16).padStart(2, '0');
-        }
-        
-        // Limitar o tamanho do hash
-        hash = hash.substring(0, 100);
-        
-        return Array.from({ length: 128 }, (_, i) => 
-            Math.sin(hash.charCodeAt(i % hash.length) + i) * 100
-        );
-    };
-
-    // Estilos ajustados para Web
+    // Estilos ajustados para renderização em ambiente que suporta CSS (como Web)
+    // Para React Native puro, estes seriam convertidos via StyleSheet.create
     const styles = {
         modalOverlay: {
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000,
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)', display: 'flex',
+            justifyContent: 'center', alignItems: 'center', zIndex: 1000,
         },
         modalContainer: {
-            backgroundColor: '#1a1a1a',
-            borderRadius: 15,
-            width: '90%',
-            maxWidth: '500px',
-            overflow: 'hidden',
-            boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
-            display: 'flex',
-            flexDirection: 'column',
+            backgroundColor: '#1a1a1a', borderRadius: 15, width: '90%', maxWidth: '500px',
+            overflow: 'hidden', boxShadow: '0 5px 15px rgba(0,0,0,0.5)',
+            display: 'flex', flexDirection: 'column',
         },
         header: {
-            backgroundColor: '#1792FE',
-            padding: '15px 20px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+            backgroundColor: '#1792FE', padding: '15px 20px', display: 'flex',
+            justifyContent: 'space-between', alignItems: 'center',
         },
         title: {
-            fontSize: '24px',
-            fontWeight: 'bold',
-            color: 'white',
-            margin: 0,
+            fontSize: '24px', fontWeight: 'bold', color: 'white', margin: 0,
         },
         closeButton: {
-            backgroundColor: 'transparent',
-            border: 'none',
-            color: 'white',
-            fontSize: '28px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
+            backgroundColor: 'transparent', border: 'none', color: 'white',
+            fontSize: '28px', cursor: 'pointer', fontWeight: 'bold',
         },
         cameraContainer: {
-            position: 'relative',
-            width: '100%',
-            height: '350px',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+            position: 'relative', width: '100%', height: '350px',
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
             backgroundColor: '#000',
         },
         video: {
-            display: 'block',
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
+            display: 'block', width: '100%', height: '100%', objectFit: 'cover',
         },
         overlay: {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
             flexDirection: 'column',
         },
         faceGuide: {
-            width: '80%',
-            maxWidth: '200px',
-            height: '200px',
-            borderRadius: '100px',
-            border: '3px dashed #1792FE',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: 'rgba(23, 146, 254, 0.1)',
+            width: '80%', maxWidth: '200px', height: '200px', borderRadius: '100px',
+            border: '3px dashed #1792FE', display: 'flex', justifyContent: 'center',
+            alignItems: 'center', backgroundColor: 'rgba(23, 146, 254, 0.1)',
             position: 'relative',
         },
         faceCircle: {
-            width: '100%',
-            height: '100%',
-            borderRadius: '100%',
+            width: '100%', height: '100%', borderRadius: '100%',
             border: '2px solid rgba(255, 255, 255, 0.5)',
         },
-        landmarks: {
-            position: 'absolute',
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+        landmarks: { // Container for drawing landmarks on canvas
+            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            pointerEvents: 'none', // Allow interaction with elements below
         },
-        landmarkPoint: {
-            position: 'absolute',
-            width: '8px',
-            height: '8px',
-            backgroundColor: '#FFEB3B',
-            borderRadius: '50%',
-            animation: 'blink 1s infinite',
-        },
+        // Landmark points are drawn directly on the canvas by face-api.js
         statusContainer: {
-            padding: '15px 20px',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: '15px 20px', backgroundColor: 'rgba(0, 0, 0, 0.8)',
             textAlign: 'center',
         },
         statusMessage: {
-            color: 'white',
-            fontSize: '16px',
-            marginBottom: '10px',
-            minHeight: '20px', // Para evitar saltos de layout
+            color: 'white', fontSize: '16px', marginBottom: '10px', minHeight: '20px',
         },
         progressContainer: {
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginTop: '10px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '10px',
         },
         progressBar: {
-            flexGrow: 1,
-            height: '8px',
-            backgroundColor: 'rgba(255, 255, 255, 0.3)',
-            borderRadius: '4px',
-            marginRight: '10px',
-            overflow: 'hidden',
+            flexGrow: 1, height: '8px', backgroundColor: 'rgba(255, 255, 255, 0.3)',
+            borderRadius: '4px', marginRight: '10px', overflow: 'hidden',
         },
         progressFill: {
-            height: '100%',
-            backgroundColor: '#1792FE',
-            borderRadius: '4px',
+            height: '100%', backgroundColor: '#1792FE', borderRadius: '4px',
             transition: 'width 0.2s ease-in-out',
         },
         progressText: {
-            color: 'white',
-            fontSize: '14px',
-            fontWeight: 'bold',
+            color: 'white', fontSize: '14px', fontWeight: 'bold',
         },
         controls: {
-            padding: '20px',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            justifyContent: 'center',
+            padding: '20px', backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex', justifyContent: 'center',
         },
         scanButton: {
-            backgroundColor: '#1792FE',
-            padding: '15px 25px',
-            borderRadius: '12px',
-            border: 'none',
-            color: 'white',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            transition: 'background-color 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
+            backgroundColor: '#1792FE', padding: '15px 25px', borderRadius: '12px',
+            border: 'none', color: 'white', fontSize: '18px', fontWeight: 'bold',
+            cursor: 'pointer', transition: 'background-color 0.3s ease',
+            display: 'flex', alignItems: 'center', gap: '10px',
         },
         scanButtonDisabled: {
-            backgroundColor: '#666',
-            cursor: 'not-allowed',
+            backgroundColor: '#666', cursor: 'not-allowed',
         },
         instructions: {
-            padding: '20px',
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            textAlign: 'center',
-            borderTop: '1px solid #333',
+            padding: '20px', backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            textAlign: 'center', borderTop: '1px solid #333',
         },
         instructionItem: {
-            color: 'white',
-            fontSize: '14px',
-            marginBottom: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
+            color: 'white', fontSize: '14px', marginBottom: '8px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
         },
-        // Estilos CSS para animações (adicionar em um arquivo CSS separado ou dentro de uma tag style)
-        '@keyframes blink': {
-            '0%': { opacity: 1 },
-            '50%': { opacity: 0.5 },
-            '100%': { opacity: 1 },
-        }
     };
 
-    // Retorna null se o modal não estiver visível
+    // If not visible, return null
     if (!visible) return null;
 
-    // Renderização do modal para Web (usando divs e estilos inline/CSS)
     return (
         <div style={styles.modalOverlay}>
             <div style={styles.modalContainer}>
@@ -792,28 +617,18 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
                         autoPlay
                         playsInline
                         muted
+                        // We will draw detections on a canvas overlay
                     />
                     <canvas
                         ref={canvasRef}
-                        style={{ display: 'none' }}
+                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
                     />
 
                     <div style={styles.overlay}>
                         <div style={styles.faceGuide}>
                             <div style={styles.faceCircle}></div>
                         </div>
-
-                        {/* Pontos de referência animados */}
-                        <div style={styles.landmarks}>
-                            {isScanning && (
-                                <>
-                                    <div style={{...styles.landmarkPoint, top: '35%', left: '42%'}}></div>
-                                    <div style={{...styles.landmarkPoint, top: '35%', left: '58%'}}></div>
-                                    <div style={{...styles.landmarkPoint, top: '50%', left: '50%'}}></div>
-                                    <div style={{...styles.landmarkPoint, top: '65%', left: '50%'}}></div>
-                                </>
-                            )}
-                        </div>
+                        {/* Landmarks will be drawn directly on the canvas by face-api */}
                     </div>
                 </div>
 
@@ -832,31 +647,34 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
                                     }}
                                 />
                             </div>
-                            <span style={styles.progressText}>{scanProgress}%</span>
+                            <span style={styles.progressText}>{Math.round(scanProgress)}%</span>
                         </div>
                     )}
                 </div>
 
-                {!isScanning && cameraReady && (
+                {!isScanning && cameraReady && modelsLoaded && (
                     <div style={styles.controls}>
                         <button
                             style={styles.scanButton}
                             onClick={startScan}
                         >
-                            📷 Iniciar Captura Facial
+                            🔍 Iniciar Scan Biométrico
                         </button>
                     </div>
                 )}
 
                 <div style={styles.instructions}>
                     <div style={styles.instructionItem}>
-                        💡 Mantenha o rosto bem iluminado
+                        🤖 Sistema de detecção facial avançado (face-api.js)
+                    </div>
+                    <div style={styles.instructionItem}>
+                        💡 Mantenha o rosto bem iluminado e centralizado
                     </div>
                     <div style={styles.instructionItem}>
                         👀 Olhe diretamente para a câmera
                     </div>
                     <div style={styles.instructionItem}>
-                        🎯 Posicione-se dentro do círculo
+                        🎯 Apenas uma pessoa deve estar visível
                     </div>
                 </div>
             </div>
@@ -864,49 +682,9 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
     );
 };
 
-// Adiciona os estilos CSS para as animações
-const styles = StyleSheet.create({
-    // ... (estilos existentes da aplicação React Native)
-    // Aqui seriam adicionados os estilos CSS que faltam para a versão Web,
-    // mas como estamos no contexto de um componente React Native,
-    // o `StyleSheet.create` é usado. Para Web, isso seria transpilado para CSS.
-
-    // Adicionando animação CSS para os pontos de referência
-    // Nota: Esta parte é conceitual para um ambiente Web.
-    // Em React Native puro, animações de pontos seriam feitas com `Animated` API.
-    // Para este exemplo, estamos simulando a intenção de animação via estilos.
-    // O código acima já inclui estilos inline para 'animation' que seriam
-    // processados se este fosse um app web com um bundler CSS.
-    // Para manter a compatibilidade com React Native, omitimos a definição
-    // direta de keyframes aqui, confiando que o React Native cuidará disso
-    // se a plataforma de destino suportar.
-    // Se este código fosse para React Web, os keyframes seriam definidos em um arquivo CSS.
-
-    // Placeholder para estilos adicionais que seriam necessários para Web
-    modalOverlay: {},
-    modalContainer: {},
-    header: {},
-    title: {},
-    closeButton: {},
-    cameraContainer: {},
-    video: {},
-    overlay: {},
-    faceGuide: {},
-    faceCircle: {},
-    landmarks: {},
-    landmarkPoint: {},
-    statusContainer: {},
-    statusMessage: {},
-    progressContainer: {},
-    progressBar: {},
-    progressFill: {},
-    progressText: {},
-    controls: {},
-    scanButton: {},
-    scanButtonDisabled: {},
-    instructions: {},
-    instructionItem: {},
-
-});
+// Note: The StyleSheet.create part from the original code is removed
+// as this implementation assumes a web-like environment where inline styles or CSS files are used.
+// For a true React Native environment, you would need to manage styles differently
+// and potentially use a library that bridges face-api.js with React Native's camera/canvas components.
 
 export default FacialScannerModal;
