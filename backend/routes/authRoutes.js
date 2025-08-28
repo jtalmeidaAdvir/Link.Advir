@@ -1,12 +1,12 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const { authenticateToken } = require('../middleware/authMiddleware');
+const authMiddleware = require("../middleware/authMiddleware");
 const router = express.Router();
 const userController = require("../controllers/userController");
 const biometricController = require("../controllers/biometricController");
 
 // Rota para verificar se o token é válido
-router.post("/verify-token", authenticateToken, (req, res) => {
+router.post("/verify-token", authMiddleware, (req, res) => {
     try {
         // Se chegou até aqui, o token é válido (passou pelo middleware)
         res.json({
