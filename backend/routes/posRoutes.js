@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { criarPOS, loginPOS, listarPOS, atualizarPOS, eliminarPOS } = require('../controllers/posController');
-const { authMiddleware } = require('../middleware/authMiddleware');
+const  authMiddleware  = require('../middleware/authMiddleware');
 
 // Login do POS (sem autenticação)
 router.post('/login', loginPOS);
