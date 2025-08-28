@@ -379,7 +379,10 @@ router.post("/disconnect", async (req, res) => {
                             await Promise.race([
                                 client.pupPage.close(),
                                 new Promise((_, reject) =>
-                                    setTimeout(() => reject(new Error("Timeout")), 1000),
+                                    setTimeout(
+                                        () => reject(new Error("Timeout")),
+                                        1000,
+                                    ),
                                 ),
                             ]).catch(() => { });
                         }
@@ -392,7 +395,10 @@ router.post("/disconnect", async (req, res) => {
                             await Promise.race([
                                 client.pupBrowser.close(),
                                 new Promise((_, reject) =>
-                                    setTimeout(() => reject(new Error("Timeout")), 1000),
+                                    setTimeout(
+                                        () => reject(new Error("Timeout")),
+                                        1000,
+                                    ),
                                 ),
                             ]).catch(() => { });
                         }
@@ -1214,7 +1220,9 @@ async function checkContactAuthorization(phoneNumber) {
 // Função para verificar autorização de ponto do contacto
 async function checkPontoAuthorization(phoneNumber) {
     try {
-        const cleanPhoneNumber = phoneNumber.replace('@c.us', '').replace(/\D/g, '');
+        const cleanPhoneNumber = phoneNumber
+            .replace("@c.us", "")
+            .replace(/\D/g, "");
         console.log(`🔍 Verificando autorização para ${cleanPhoneNumber}`);
 
         const contacts = await Contact.findAll();
@@ -1222,36 +1230,49 @@ async function checkPontoAuthorization(phoneNumber) {
         for (const contact of contacts) {
             let contactsData;
             try {
-                contactsData = typeof contact.contacts === 'string'
-                    ? JSON.parse(contact.contacts)
-                    : contact.contacts;
+                contactsData =
+                    typeof contact.contacts === "string"
+                        ? JSON.parse(contact.contacts)
+                        : contact.contacts;
             } catch (parseError) {
-                console.error('Erro ao parsear contactos:', parseError);
+                console.error("Erro ao parsear contactos:", parseError);
                 continue;
             }
 
             if (Array.isArray(contactsData)) {
                 for (const contactData of contactsData) {
-                    const contactPhone = contactData.phone?.replace(/\D/g, '');
-                    console.log(`📱 Verificando contacto: ${contactPhone} vs ${cleanPhoneNumber}`);
+                    const contactPhone = contactData.phone?.replace(/\D/g, "");
+                    console.log(
+                        `📱 Verificando contacto: ${contactPhone} vs ${cleanPhoneNumber}`,
+                    );
 
                     // Verificar se o número coincide (comparação mais flexível)
-                    const phoneMatch = contactPhone &&
+                    const phoneMatch =
+                        contactPhone &&
                         (contactPhone === cleanPhoneNumber ||
                             contactPhone.includes(cleanPhoneNumber) ||
                             cleanPhoneNumber.includes(contactPhone) ||
                             contactPhone.endsWith(cleanPhoneNumber.slice(-9)) || // Últimos 9 dígitos
                             cleanPhoneNumber.endsWith(contactPhone.slice(-9)));
 
-                    console.log(`📞 Comparando phones: ${contactPhone} vs ${cleanPhoneNumber} = ${phoneMatch}`);
+                    console.log(
+                        `📞 Comparando phones: ${contactPhone} vs ${cleanPhoneNumber} = ${phoneMatch}`,
+                    );
 
                     if (phoneMatch && contactData.canRegisterPonto) {
-                        console.log(`✅ Contacto encontrado! Verificando autorização...`);
+                        console.log(
+                            `✅ Contacto encontrado! Verificando autorização...`,
+                        );
 
                         // Verificar se tem user_id válido
-                        const userId = contactData.userID || contactData.user_id || contact.user_id;
+                        const userId =
+                            contactData.userID ||
+                            contactData.user_id ||
+                            contact.user_id;
                         if (!userId) {
-                            console.error(`❌ Contacto encontrado mas sem user_id configurado`);
+                            console.error(
+                                `❌ Contacto encontrado mas sem user_id configurado`,
+                            );
                             return {
                                 authorized: false,
                                 contactData: null,
@@ -1260,15 +1281,19 @@ async function checkPontoAuthorization(phoneNumber) {
                         }
 
                         // Verificar datas de autorização se existirem
-                        const dataInicio = contactData.dataInicioAutorizacao || contact.dataInicioAutorizacao;
-                        const dataFim = contactData.dataFimAutorizacao || contact.dataFimAutorizacao;
-                        const hoje = new Date().toISOString().split('T')[0];
+                        const dataInicio =
+                            contactData.dataInicioAutorizacao ||
+                            contact.dataInicioAutorizacao;
+                        const dataFim =
+                            contactData.dataFimAutorizacao ||
+                            contact.dataFimAutorizacao;
+                        const hoje = new Date().toISOString().split("T")[0];
 
                         if (dataInicio && hoje < dataInicio) {
                             return {
                                 authorized: false,
                                 contactData: null,
-                                error: `Autorização só é válida a partir de ${new Date(dataInicio).toLocaleDateString('pt-PT')}`,
+                                error: `Autorização só é válida a partir de ${new Date(dataInicio).toLocaleDateString("pt-PT")}`,
                             };
                         }
 
@@ -1276,13 +1301,15 @@ async function checkPontoAuthorization(phoneNumber) {
                             return {
                                 authorized: false,
                                 contactData: null,
-                                error: `Autorização expirou em ${new Date(dataFim).toLocaleDateString('pt-PT')}`,
+                                error: `Autorização expirou em ${new Date(dataFim).toLocaleDateString("pt-PT")}`,
                             };
                         }
 
                         // Obter obras autorizadas
-                        let obrasAutorizadas = contactData.obrasAutorizadas || contact.obrasAutorizadas;
-                        if (typeof obrasAutorizadas === 'string') {
+                        let obrasAutorizadas =
+                            contactData.obrasAutorizadas ||
+                            contact.obrasAutorizadas;
+                        if (typeof obrasAutorizadas === "string") {
                             try {
                                 obrasAutorizadas = JSON.parse(obrasAutorizadas);
                             } catch (e) {
@@ -1296,7 +1323,7 @@ async function checkPontoAuthorization(phoneNumber) {
                                 userId: userId,
                                 obrasAutorizadas: obrasAutorizadas || [],
                                 dataInicio: dataInicio,
-                                dataFim: dataFim
+                                dataFim: dataFim,
                             },
                         };
                     }
@@ -1304,14 +1331,19 @@ async function checkPontoAuthorization(phoneNumber) {
             }
         }
 
-        console.log(`❌ Nenhuma autorização encontrada para ${cleanPhoneNumber}`);
+        console.log(
+            `❌ Nenhuma autorização encontrada para ${cleanPhoneNumber}`,
+        );
         return {
             authorized: false,
             contactData: null,
             error: "Número não encontrado nas listas de contactos ou sem autorização",
         };
     } catch (error) {
-        console.error("Erro ao verificar autorização de ponto do contacto:", error);
+        console.error(
+            "Erro ao verificar autorização de ponto do contacto:",
+            error,
+        );
         return {
             authorized: false,
             contactData: null,
@@ -1328,7 +1360,9 @@ async function getObrasAutorizadas(obrasIds) {
     }
 
     try {
-        console.log(`🔍 Buscando obras autorizadas pelos IDs: [${obrasIds.join(', ')}]`);
+        console.log(
+            `🔍 Buscando obras autorizadas pelos IDs: [${obrasIds.join(", ")}]`,
+        );
 
         // Importar o modelo Obra
         const Obra = require("../models/obra");
@@ -1338,29 +1372,37 @@ async function getObrasAutorizadas(obrasIds) {
         const obras = await Obra.findAll({
             where: {
                 id: {
-                    [Op.in]: obrasIds.map(id => parseInt(id)) // Converter para números
+                    [Op.in]: obrasIds.map((id) => parseInt(id)), // Converter para números
                 },
-                estado: 'Ativo'
+                estado: "Ativo",
             },
-            attributes: ['id', 'codigo', 'nome', 'localizacao'],
-            order: [['nome', 'ASC']]
+            attributes: ["id", "codigo", "nome", "localizacao"],
+            order: [["nome", "ASC"]],
         });
 
-        console.log(`✅ Encontradas ${obras.length} obras autorizadas e ativas`);
+        console.log(
+            `✅ Encontradas ${obras.length} obras autorizadas e ativas`,
+        );
 
         // Converter para formato esperado
-        const obrasDetails = obras.map(obra => ({
+        const obrasDetails = obras.map((obra) => ({
             id: obra.id,
             nome: obra.nome,
             codigo: obra.codigo,
             localizacao: obra.localizacao,
         }));
 
-        console.log('📋 Obras autorizadas:', obrasDetails.map(o => `${o.codigo} - ${o.nome}`).join(', '));
+        console.log(
+            "📋 Obras autorizadas:",
+            obrasDetails.map((o) => `${o.codigo} - ${o.nome}`).join(", "),
+        );
 
         return obrasDetails;
     } catch (error) {
-        console.error("❌ Erro ao obter obras autorizadas da base de dados local:", error);
+        console.error(
+            "❌ Erro ao obter obras autorizadas da base de dados local:",
+            error,
+        );
         return [];
     }
 }
@@ -1373,26 +1415,160 @@ async function handleIncomingMessage(message) {
     }
 
     const phoneNumber = message.from;
-    const messageText = message.body.trim();
+    const messageText = message.body ? message.body.trim() : "";
 
-    console.log(`📥 Mensagem recebida de ${phoneNumber}: ${messageText}`);
+    console.log(
+        `📥 Mensagem recebida de ${phoneNumber}: "${messageText}" (Tipo: ${typeof messageText}, Length: ${messageText.length})`,
+    );
+    console.log(`📱 Tipo da mensagem:`, message.type);
+    console.log(`📱 Propriedades da mensagem:`, Object.keys(message));
 
-    // Verificar se é uma mensagem de localização
-    if (message.hasLocation) {
+    // **MÉTODO 1: Verificar se é uma mensagem de localização**
+    if (message.hasLocation && message.location) {
         console.log(
-            `📍 Localização recebida de ${phoneNumber}: ${message.location.latitude}, ${message.location.longitude}`,
+            `📍 Localização GPS recebida de ${phoneNumber}: ${message.location.latitude}, ${message.location.longitude}`,
         );
-        // Verificar se o utilizador está no estado de espera por localização
         const userState = getUserState(phoneNumber);
-        if (userState && userState.type === 'awaiting_location') {
+        if (userState && userState.type === "awaiting_location") {
             await processarRegistoPontoComLocalizacao(message, userState);
-            return; // Importante: retornar aqui para não continuar processamento
+            return;
         }
-        // Se não está à espera de localização, enviar mensagem informativa
         await client.sendMessage(
             phoneNumber,
-            "📍 Localização recebida, mas não estava a ser esperada. Se pretende registar ponto, envie 'ponto' primeiro."
+            "📍 Localização GPS recebida, mas não estava a ser esperada. Se pretende registar ponto, envie 'ponto' primeiro.",
         );
+        return;
+    }
+
+    // **MÉTODO 2: Verificar se é mensagem do tipo location**
+    if (message.type === 'location') {
+        console.log(`📍 Mensagem tipo location detectada`);
+
+        // Tentar extrair coordenadas de diferentes formas
+        let latitude, longitude;
+
+        if (message.location) {
+            latitude = message.location.latitude;
+            longitude = message.location.longitude;
+        } else if (message.body && message.body.includes('geo:')) {
+            // Formato geo:lat,lng
+            const geoMatch = message.body.match(/geo:(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+            if (geoMatch) {
+                latitude = parseFloat(geoMatch[1]);
+                longitude = parseFloat(geoMatch[2]);
+            }
+        }
+
+        if (latitude && longitude) {
+            console.log(`📍 Coordenadas extraídas: ${latitude}, ${longitude}`);
+            const userState = getUserState(phoneNumber);
+            if (userState && userState.type === "awaiting_location") {
+                const simulatedMessage = {
+                    from: phoneNumber,
+                    location: {
+                        latitude: latitude,
+                        longitude: longitude,
+                        description: "Localização partilhada via WhatsApp",
+                    },
+                    body: message.body,
+                };
+                await processarRegistoPontoComLocalizacao(simulatedMessage, userState);
+                return;
+            }
+        }
+    }
+
+    // **MÉTODO 3: Analisar texto para coordenadas ou links do Google Maps**
+    const parsedLocation = tryParseLocationData(messageText);
+    if (parsedLocation) {
+        console.log(
+            `📍 Dados de localização analisados de ${phoneNumber}: ${parsedLocation.latitude}, ${parsedLocation.longitude}`,
+        );
+        const userState = getUserState(phoneNumber);
+        if (userState && userState.type === "awaiting_location") {
+            const simulatedMessage = {
+                from: phoneNumber,
+                location: {
+                    latitude: parsedLocation.latitude,
+                    longitude: parsedLocation.longitude,
+                    description: "Localização extraída do texto/link",
+                },
+                body: messageText,
+            };
+            await processarRegistoPontoComLocalizacao(simulatedMessage, userState);
+            return;
+        } else {
+            await client.sendMessage(
+                phoneNumber,
+                "📍 Localização recebida via texto/link, mas não estava a ser esperada. Se pretende registar ponto, envie 'ponto' primeiro.",
+            );
+            return;
+        }
+    }
+
+    // **MÉTODO 4: Verificar mensagens multimédia que podem conter localização**
+    if (message.hasMedia) {
+        console.log(`📎 Mensagem com média recebida`);
+
+        try {
+            const media = await message.downloadMedia();
+            if (media) {
+                console.log(`📎 Tipo de média: ${media.mimetype}`);
+
+                // Se for imagem, verificar metadados EXIF para GPS
+                if (media.mimetype && media.mimetype.startsWith('image/')) {
+                    const locationFromExif = await extractLocationFromImage(media.data);
+                    if (locationFromExif) {
+                        console.log(`📍 Localização extraída de EXIF: ${locationFromExif.latitude}, ${locationFromExif.longitude}`);
+                        const userState = getUserState(phoneNumber);
+                        if (userState && userState.type === "awaiting_location") {
+                            const simulatedMessage = {
+                                from: phoneNumber,
+                                location: {
+                                    latitude: locationFromExif.latitude,
+                                    longitude: locationFromExif.longitude,
+                                    description: "Localização extraída de imagem EXIF",
+                                },
+                                body: "Imagem com localização",
+                            };
+                            await processarRegistoPontoComLocalizacao(simulatedMessage, userState);
+                            return;
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.log(`⚠️ Erro ao processar média:`, error.message);
+        }
+    }
+
+    // **MÉTODO 5: Verificar se a mensagem parece ser dados de localização em base64**
+    if (
+        messageText.length > 1000 &&
+        (messageText.startsWith("/9j/") || messageText.startsWith("data:image"))
+    ) {
+        console.log(
+            `📷 Dados de imagem/localização base64 recebidos (Length: ${messageText.length})`,
+        );
+
+        const userState = getUserState(phoneNumber);
+        if (userState && userState.type === "awaiting_location") {
+            await client.sendMessage(
+                phoneNumber,
+                "❌ **Localização GPS Necessária**\n\n" +
+                "🔍 Recebi dados de imagem, mas preciso da **localização GPS real**.\n\n" +
+                "📍 **Como partilhar:**\n" +
+                "1. Clique no ícone de anexo (📎)\n" +
+                "2. Selecione **'Localização'**\n" +
+                "3. Toque em **'Localização atual'**\n" +
+                "4. Confirme o envio\n\n" +
+                "🌐 **Alternativas:**\n" +
+                "• Envie um link do Google Maps\n" +
+                "• Digite coordenadas (ex: 41.1234, -8.5678)\n" +
+                "• Toque em **'Partilhar'** numa localização no Google Maps e cole o link aqui\n\n" +
+                "💡 A localização deve aparecer como um **pequeno mapa** no chat!",
+            );
+        }
         return;
     }
 
@@ -1453,19 +1629,31 @@ async function handleIncomingMessage(message) {
         if (!pontoAuthResult.authorized) {
             let errorMessage = "❌ *Erro de Autorização*\n\n";
 
-            if (pontoAuthResult.error === "Contacto não tem user_id configurado") {
-                errorMessage += "O seu contacto foi encontrado mas não tem um utilizador (user_id) configurado.\n\n";
+            if (
+                pontoAuthResult.error === "Contacto não tem user_id configurado"
+            ) {
+                errorMessage +=
+                    "O seu contacto foi encontrado mas não tem um utilizador (user_id) configurado.\n\n";
                 errorMessage += "📋 **Detalhes do problema:**\n";
                 errorMessage += "• O contacto existe nas listas\n";
                 errorMessage += "• Tem autorização para registo de ponto\n";
                 errorMessage += "• **MAS** não tem user_id associado\n\n";
-                errorMessage += "👨‍💻 **Solução:** Contacte o administrador para configurar o user_id no seu contacto.";
-            } else if (pontoAuthResult.error.includes("Autorização só é válida") || pontoAuthResult.error.includes("Autorização expirou")) {
+                errorMessage +=
+                    "👨‍💻 **Solução:** Contacte o administrador para configurar o user_id no seu contacto.";
+            } else if (
+                pontoAuthResult.error.includes("Autorização só é válida") ||
+                pontoAuthResult.error.includes("Autorização expirou")
+            ) {
                 errorMessage += pontoAuthResult.error + "\n\n";
                 errorMessage += "📅 **Período de autorização:**\n";
-                errorMessage += "• Contacte o administrador para verificar/atualizar as suas datas de autorização.";
-            } else if (pontoAuthResult.error === "Número não encontrado nas listas de contactos ou sem autorização") {
-                errorMessage += "O seu número não foi encontrado nas listas de contactos ou não tem autorização para registo de ponto.\n\n";
+                errorMessage +=
+                    "• Contacte o administrador para verificar/atualizar as suas datas de autorização.";
+            } else if (
+                pontoAuthResult.error ===
+                "Número não encontrado nas listas de contactos ou sem autorização"
+            ) {
+                errorMessage +=
+                    "O seu número não foi encontrado nas listas de contactos ou não tem autorização para registo de ponto.\n\n";
                 errorMessage += "📋 **Verifique se:**\n";
                 errorMessage +=
                     "• O número está registado nas listas de contactos\n";
@@ -1501,7 +1689,7 @@ async function handleIncomingMessage(message) {
 
     // Se existe estado de utilizador (ex: a selecionar obra), continuar
     if (userState) {
-        if (userState.type === 'selecting_obra') {
+        if (userState.type === "selecting_obra") {
             await handleObraSelection(message, userState);
         } else {
             // Se o estado não é reconhecido, limpar e enviar mensagem padrão
@@ -1642,9 +1830,15 @@ Indique o código do cliente para podermos proceder com o registo.`;
 
 // Continuar a conversa baseado no estado atual
 async function continueConversation(phoneNumber, message, conversation) {
+    console.log(
+        `🔄 continueConversation - Estado: ${conversation.state}, Mensagem: "${message}"`,
+    );
+
     // Se for uma mensagem de localização, não processar como texto
     if (message.hasLocation) {
-        console.log("⚠️ Localização recebida durante conversa, mas será processada em handleIncomingMessage");
+        console.log(
+            "⚠️ Localização recebida durante conversa, mas será processada em handleIncomingMessage",
+        );
         return;
     }
 
@@ -1653,6 +1847,18 @@ async function continueConversation(phoneNumber, message, conversation) {
         await client.sendMessage(
             phoneNumber,
             "❌ Processo cancelado com sucesso. Para iniciar um novo pedido de assistência técnica, envie uma mensagem contendo 'pedido' ou 'assistência'.",
+        );
+        return;
+    }
+
+    // Verificar se a mensagem não está vazia
+    if (!message || message.trim() === "") {
+        console.log(
+            `⚠️ Mensagem vazia recebida no estado: ${conversation.state}`,
+        );
+        await client.sendMessage(
+            phoneNumber,
+            "❓ Não consegui processar a sua mensagem. Por favor, tente novamente ou digite 'cancelar' para sair.",
         );
         return;
     }
@@ -1675,7 +1881,7 @@ async function continueConversation(phoneNumber, message, conversation) {
             break;
         // Estados para registo de ponto
         case CONVERSATION_STATES.PONTO_WAITING_OBRA:
-            await handlePontoObraInput(phoneNumber, message, conversation);
+            await handleObraSelection(phoneNumber, message, conversation); // Corrigido para chamar handleObraSelection
             break;
         case CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION:
             await handlePontoConfirmationInput(
@@ -1872,7 +2078,8 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
 
                 // Buscar obras autorizadas do contacto
                 const obrasAutorizadasIds = contactData.obrasAutorizadas;
-                const obrasInfo = await getObrasAutorizadas(obrasAutorizadasIds);
+                const obrasInfo =
+                    await getObrasAutorizadas(obrasAutorizadasIds);
 
                 if (obrasInfo.length === 0) {
                     console.log(
@@ -1899,7 +2106,6 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                     activeConversations.set(phoneNumber, conversation);
                     await client.sendMessage(phoneNumber, response);
                     return;
-
                 } else if (obrasInfo.length === 1) {
                     // Uma única obra - selecionar automaticamente
                     const obra = obrasInfo[0];
@@ -1921,7 +2127,6 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                     activeConversations.set(phoneNumber, conversation);
                     await client.sendMessage(phoneNumber, response);
                     return;
-
                 } else {
                     // Múltiplas obras - pedir para escolher
                     conversationData.obrasDisponiveis = obrasInfo;
@@ -1951,7 +2156,10 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                 }
             }
         } catch (error) {
-            console.error("Erro ao buscar dados do utilizador ou obras:", error);
+            console.error(
+                "Erro ao buscar dados do utilizador ou obras:",
+                error,
+            );
         }
     }
 
@@ -2004,223 +2212,38 @@ function clearUserState(phoneNumber) {
 const userStates = {};
 
 // Função para selecionar obra
-async function handleObraSelection(message, userState) {
-    const phoneNumber = message.from;
-    const selection = message.body.trim();
-    const obrasInfo = userState.obrasInfo; // Obtenha as obras do estado
-    const userId = userState.userId;
+async function handleObraSelection(phoneNumber, message, conversation) {
+    // Alterado para aceitar phoneNumber e message
+    const selection = message.body.trim(); // Use message.body
+    const obrasInfo = conversation.data.obrasDisponiveis; // Get from conversation data
+    const userId = conversation.data.userId;
 
     // Verificar se o utilizador quer cancelar
-    if (selection.toLowerCase() === 'cancelar' || selection.toLowerCase() === 'cancel') {
-        clearUserState(phoneNumber);
-        await message.reply("❌ *Registo Cancelado*\n\nO registo de ponto foi cancelado. Envie 'ponto' novamente quando quiser registar.");
-        return;
-    }
-
-    // Verificar se é um número válido
-    const selectedIndex = parseInt(selection) - 1;
-
-    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= obrasInfo.length) {
-        const errorMessage = `❌ *Seleção Inválida*\n\n` +
-            `Por favor, responda com um número entre 1 e ${obrasInfo.length}.\n\n` +
-            `Ou envie "cancelar" para cancelar o registo.`;
-        await message.reply(errorMessage);
-        return;
-    }
-
-    // Limpar estado do utilizador após a seleção
-    clearUserState(phoneNumber);
-
-    const obraSelecionada = obrasInfo[selectedIndex];
-
-    // Armazenar a obra selecionada no estado da conversa
-    const conversation = activeConversations.get(phoneNumber);
-    if (conversation) {
-        conversation.data.obraId = obraSelecionada.id;
-        conversation.data.obraNome = obraSelecionada.nome;
-        conversation.state = CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION; // Próximo passo: confirmar tipo de registo
-        activeConversations.set(phoneNumber, conversation);
-
-        let response = `✅ *Obra Selecionada:* ${obraSelecionada.nome}\n`;
-        response += `📍 *Localização:* ${obraSelecionada.localizacao || 'N/A'}\n\n`;
-        response += `Escolha o tipo de registo:\n`;
-        response += `• Digite "1" para ENTRADA\n`;
-        response += `• Digite "2" para SAÍDA\n\n`;
-        response += `Digite sua escolha (1 ou 2):`;
-
-        await message.reply(response);
-    } else {
-        // Se não houver conversa ativa, informar e pedir para iniciar novamente
-        await message.reply("❌ Erro: Não foi possível continuar o registo. Por favor, inicie novamente enviando 'ponto'.");
-    }
-}
-
-// Função para lidar com confirmação de ponto (tipo de registo: ENTRADA/SAÍDA)
-async function handlePontoConfirmationInput(
-    phoneNumber,
-    message,
-    conversation,
-) {
-    console.log(`🔧 handlePontoConfirmationInput chamada - Mensagem: "${message}", Tipo: ${typeof message}`);
-    const escolha = message.trim();
-    let tipo;
-
-    if (escolha === "1" || escolha.toLowerCase() === "entrada") {
-        tipo = "entrada";
-    } else if (
-        escolha === "2" ||
-        escolha.toLowerCase() === "saida" ||
-        escolha.toLowerCase() === "saída"
+    if (
+        selection.toLowerCase() === "cancelar" ||
+        selection.toLowerCase() === "cancel"
     ) {
-        tipo = "saida";
-    } else {
+        clearUserState(phoneNumber);
         await client.sendMessage(
             phoneNumber,
-            `❌ Escolha inválida. Digite "1" para ENTRADA ou "2" para SAÍDA:`,
+            "❌ *Registo Cancelado*\n\nO registo de ponto foi cancelado. Envie 'ponto' novamente quando quiser registar.",
         );
-        return;
-    }
-
-    // Armazenar tipo de registo na conversa
-    conversation.data.tipoRegisto = tipo;
-
-    // Atualizar o estado do utilizador para aguardar localização
-    setUserState(phoneNumber, {
-        type: 'awaiting_location',
-        userId: conversation.data.userId,
-        obraId: conversation.data.obraId,
-        obraNome: conversation.data.obraNome,
-        tipoRegisto: tipo
-    });
-
-    // Solicitar localização ao utilizador
-    await client.sendMessage(
-        phoneNumber,
-        "📍 Por favor, partilhe a sua localização atual clicando no ícone de anexo (📎) e selecionando 'Localização'.",
-    );
-}
-
-// Função para processar o registo de ponto com localização
-async function processarRegistoPontoComLocalizacao(message, userState) {
-    const phoneNumber = message.from;
-    const latitude = message.location.latitude;
-    const longitude = message.location.longitude;
-    const endereco = message.location.description || "Localização partilhada";
-
-    // Limpar estado do utilizador após obter a localização
-    clearUserState(phoneNumber);
-
-    // Obter dados da conversa anterior
-    const conversation = activeConversations.get(phoneNumber);
-    if (!conversation) {
-        await message.reply("❌ Erro: Não foi possível encontrar o seu registo em andamento.");
-        return;
-    }
-
-    // Obter user_id e obra_id do estado ou da conversa
-    const userId = userState.userId || conversation.data.userId;
-    const obraId = userState.obraId || conversation.data.obraId;
-    const obraNome = userState.obraNome || conversation.data.obraNome;
-    const tipoRegisto = userState.tipoRegisto || conversation.data.tipoRegisto; // Usa do estado se disponível
-
-    if (!userId || !tipoRegisto) {
-        await message.reply("❌ Erro: Informações incompletas para registar o ponto.");
-        return;
-    }
-
-    try {
-        // Chamar o controller de registo de ponto obra existente
-        const registoPontoObraController = require("../controllers/registoPontoObraControllers");
-
-        // Simular um request object para o controller
-        const mockReq = {
-            user: { id: userId }, // Assumindo que o controller espera user.id
-            body: {
-                tipo: tipoRegisto,
-                obra_id: obraId, // Pode ser null se não houver obra específica
-                latitude: latitude.toString(),
-                longitude: longitude.toString(),
-                // Adicionar outros campos se necessário, como IP, etc.
-            },
-        };
-
-        // Simular response object que captura o resultado
-        let controllerResult = null;
-        let controllerError = null;
-        const mockRes = {
-            status: (code) => ({
-                json: (data) => {
-                    controllerResult = { status: code, data: data };
-                    console.log(`Controller response - Status: ${code}`, data);
-                    return data;
-                },
-            }),
-            json: (data) => {
-                controllerResult = { status: 200, data: data };
-                console.log("Controller response:", data);
-                return data;
-            },
-        };
-
-        // Chamar o controller de registo de ponto obra
-        await registoPontoObraController.registarPonto(mockReq, mockRes);
-
-        // Verificar se o registo foi bem-sucedido
-        if (!controllerResult || (controllerResult.status !== 200 && controllerResult.status !== 201)) {
-            throw new Error('Controller não retornou sucesso');
-        }
-
-        console.log('✅ Ponto registado com sucesso na base de dados:', controllerResult);
-
-        // Mensagem de sucesso
-        const tipoTexto = tipoRegisto === "entrada" ? "ENTRADA" : "SAÍDA";
-        const emoji = tipoRegisto === "entrada" ? "🟢" : "🔴";
-
-        const successMessage = `${emoji} *PONTO REGISTADO COM SUCESSO*\n\n` +
-            `👤 **Utilizador:** ${userId}\n` +
-            `🏗️ **Obra:** ${obraNome || 'N/A'}\n` +
-            `📍 **Localização:** ${endereco}\n` +
-            `⏰ **Data/Hora:** ${new Date().toLocaleString('pt-PT')}\n\n` +
-            `O seu registo foi efetuado com sucesso no sistema AdvirLink.`;
-
-        await message.reply(successMessage);
-
-    } catch (error) {
-        console.error("Erro ao registar ponto:", error);
-
-        await message.reply(
-            `❌ *Erro ao Registar Ponto*\n\n` +
-            `Ocorreu um erro ao registar o seu ponto. Por favor, tente novamente mais tarde ou contacte o suporte técnico.\n\n` +
-            `Detalhes do erro: ${error.message}`,
-        );
-    } finally {
-        // Limpar conversa após o processamento
-        activeConversations.delete(phoneNumber);
-    }
-}
-
-// Função para lidar com seleção de obra
-async function handleObraSelection(message, userState) {
-    const phoneNumber = message.from;
-    const selection = message.body.trim();
-    const obrasInfo = userState.obrasInfo;
-    const userId = userState.userId;
-
-    // Verificar se o utilizador quer cancelar
-    if (selection.toLowerCase() === 'cancelar' || selection.toLowerCase() === 'cancel') {
-        clearUserState(phoneNumber);
-        await message.reply("❌ *Registo Cancelado*\n\nO registo de ponto foi cancelado. Envie 'ponto' novamente quando quiser registar.");
         return;
     }
 
     // Verificar se é um número válido
     const selectedIndex = parseInt(selection) - 1;
 
-    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= obrasInfo.length) {
-        const errorMessage = `❌ *Seleção Inválida*\n\n` +
+    if (
+        isNaN(selectedIndex) ||
+        selectedIndex < 0 ||
+        selectedIndex >= obrasInfo.length
+    ) {
+        const errorMessage =
+            `❌ *Seleção Inválida*\n\n` +
             `Por favor, responda com um número entre 1 e ${obrasInfo.length}.\n\n` +
             `Ou envie "cancelar" para cancelar o registo.`;
-        await message.reply(errorMessage);
+        await client.sendMessage(phoneNumber, errorMessage);
         return;
     }
 
@@ -2230,25 +2253,19 @@ async function handleObraSelection(message, userState) {
     const obraSelecionada = obrasInfo[selectedIndex];
 
     // Armazenar a obra selecionada no estado da conversa
-    const conversation = activeConversations.get(phoneNumber);
-    if (conversation) {
-        conversation.data.obraId = obraSelecionada.id;
-        conversation.data.obraNome = obraSelecionada.nome;
-        conversation.state = CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION; // Próximo passo: confirmar tipo de registo
-        activeConversations.set(phoneNumber, conversation);
+    conversation.data.obraId = obraSelecionada.id;
+    conversation.data.obraNome = obraSelecionada.nome;
+    conversation.state = CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION; // Próximo passo: confirmar tipo de registo
+    activeConversations.set(phoneNumber, conversation); // Update the conversation state
 
-        let response = `✅ *Obra Selecionada:* ${obraSelecionada.nome}\n`;
-        response += `📍 *Localização:* ${obraSelecionada.localizacao || 'N/A'}\n\n`;
-        response += `Escolha o tipo de registo:\n`;
-        response += `• Digite "1" para ENTRADA\n`;
-        response += `• Digite "2" para SAÍDA\n\n`;
-        response += `Digite sua escolha (1 ou 2):`;
+    let response = `✅ *Obra Selecionada:* ${obraSelecionada.nome}\n`;
+    response += `📍 *Localização:* ${obraSelecionada.localizacao || "N/A"}\n\n`;
+    response += `Escolha o tipo de registo:\n`;
+    response += `• Digite "1" para ENTRADA\n`;
+    response += `• Digite "2" para SAÍDA\n\n`;
+    response += `Digite sua escolha (1 ou 2):`;
 
-        await message.reply(response);
-    } else {
-        // Se não houver conversa ativa, informar e pedir para iniciar novamente
-        await message.reply("❌ Erro: Não foi possível continuar o registo. Por favor, inicie novamente enviando 'ponto'.");
-    }
+    await client.sendMessage(phoneNumber, response);
 }
 
 // Função para lidar com confirmação de ponto (tipo de registo: entrada/saída)
@@ -2257,7 +2274,9 @@ async function handlePontoConfirmationInput(
     message,
     conversation,
 ) {
-    const escolha = message.trim();
+    const escolha = (
+        typeof message === "string" ? message : message.body || ""
+    ).trim();
     let tipo;
 
     if (escolha === "1" || escolha.toLowerCase() === "entrada") {
@@ -2281,18 +2300,34 @@ async function handlePontoConfirmationInput(
 
     // Atualizar o estado do utilizador para aguardar localização
     setUserState(phoneNumber, {
-        type: 'awaiting_location',
+        type: "awaiting_location",
         userId: conversation.data.userId,
         obraId: conversation.data.obraId,
         obraNome: conversation.data.obraNome,
-        tipoRegisto: tipo
+        tipoRegisto: tipo,
     });
 
-    // Solicitar localização ao utilizador
-    await client.sendMessage(
-        phoneNumber,
-        "📍 Por favor, partilhe a sua localização atual clicando no ícone de anexo (📎) e selecionando 'Localização'.",
-    );
+    // Solicitar localização ao utilizador com várias opções
+    const locationInstructions = `📍 **Preciso da sua localização para registar o ponto**\n\n` +
+        `🎯 **Opção 1 - Localização GPS (Recomendado):**\n` +
+        `1. Clique no ícone de anexo (📎)\n` +
+        `2. Selecione "Localização"\n` +
+        `3. Toque em "Localização atual"\n` +
+        `4. Confirme o envio\n\n` +
+
+        `🗺️ **Opção 2 - Link do Google Maps:**\n` +
+        `1. Abra o Google Maps\n` +
+        `2. Toque no ponto azul (sua localização)\n` +
+        `3. Toque em "Partilhar"\n` +
+        `4. Envie o link aqui\n\n` +
+
+        `📋 **Opção 3 - Coordenadas:**\n` +
+        `Digite suas coordenadas no formato:\n` +
+        `41.1234, -8.5678\n\n` +
+
+        `💡 **Importante:** A localização deve aparecer como um pequeno mapa no chat!`;
+
+    await client.sendMessage(phoneNumber, locationInstructions);
 }
 
 // Função para processar o registo de ponto com localização
@@ -2308,7 +2343,10 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
     // Obter dados da conversa anterior
     const conversation = activeConversations.get(phoneNumber);
     if (!conversation) {
-        await message.reply("❌ Erro: Não foi possível encontrar o seu registo em andamento.");
+        await client.sendMessage(
+            phoneNumber,
+            "❌ Erro: Não foi possível encontrar o seu registo em andamento.",
+        );
         return;
     }
 
@@ -2319,7 +2357,10 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
     const tipoRegisto = userState.tipoRegisto || conversation.data.tipoRegisto; // Usa do estado se disponível
 
     if (!userId || !tipoRegisto) {
-        await message.reply("❌ Erro: Informações incompletas para registar o ponto.");
+        await client.sendMessage(
+            phoneNumber,
+            "❌ Erro: Informações incompletas para registar o ponto.",
+        );
         return;
     }
 
@@ -2361,29 +2402,36 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
         await registoPontoObraController.registarPonto(mockReq, mockRes);
 
         // Verificar se o registo foi bem-sucedido
-        if (!controllerResult || (controllerResult.status !== 200 && controllerResult.status !== 201)) {
-            throw new Error('Controller não retornou sucesso');
+        if (
+            !controllerResult ||
+            (controllerResult.status !== 200 && controllerResult.status !== 201)
+        ) {
+            throw new Error("Controller não retornou sucesso");
         }
 
-        console.log('✅ Ponto registado com sucesso na base de dados:', controllerResult);
+        console.log(
+            "✅ Ponto registado com sucesso na base de dados:",
+            controllerResult,
+        );
 
         // Mensagem de sucesso
         const tipoTexto = tipoRegisto === "entrada" ? "ENTRADA" : "SAÍDA";
         const emoji = tipoRegisto === "entrada" ? "🟢" : "🔴";
 
-        const successMessage = `${emoji} *PONTO REGISTADO COM SUCESSO*\n\n` +
+        const successMessage =
+            `${emoji} *PONTO REGISTADO COM SUCESSO*\n\n` +
             `👤 **Utilizador:** ${userId}\n` +
-            `🏗️ **Obra:** ${obraNome || 'N/A'}\n` +
+            `🏗️ **Obra:** ${obraNome || "N/A"}\n` +
             `📍 **Localização:** ${endereco}\n` +
-            `⏰ **Data/Hora:** ${new Date().toLocaleString('pt-PT')}\n\n` +
+            `⏰ **Data/Hora:** ${new Date().toLocaleString("pt-PT")}\n\n` +
             `O seu registo foi efetuado com sucesso no sistema AdvirLink.`;
 
-        await message.reply(successMessage);
-
+        await client.sendMessage(phoneNumber, successMessage);
     } catch (error) {
         console.error("Erro ao registar ponto:", error);
 
-        await message.reply(
+        await client.sendMessage(
+            phoneNumber,
             `❌ *Erro ao Registar Ponto*\n\n` +
             `Ocorreu um erro ao registar o seu ponto. Por favor, tente novamente mais tarde ou contacte o suporte técnico.\n\n` +
             `Detalhes do erro: ${error.message}`,
@@ -2394,6 +2442,127 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
     }
 }
 
+// Função para tentar extrair coordenadas de dados de localização
+function tryParseLocationData(messageText) {
+    try {
+        console.log(`🔍 Tentando extrair localização do texto: ${messageText.substring(0, 100)}...`);
+
+        // **Método 1: URLs do Google Maps (vários formatos)**
+        const googleMapsPatterns = [
+            // https://maps.google.com/?q=lat,lng
+            /maps\.google\.com\/?\?q=(-?\d+\.?\d*),(-?\d+\.?\d*)/i,
+            // https://maps.google.com/maps?q=lat,lng
+            /maps\.google\.com\/maps\?q=(-?\d+\.?\d*),(-?\d+\.?\d*)/i,
+            // https://www.google.com/maps/@lat,lng
+            /google\.com\/maps\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/i,
+            // https://goo.gl/maps/... (encurtado)
+            /goo\.gl\/maps/i,
+            // https://maps.app.goo.gl/...
+            /maps\.app\.goo\.gl/i
+        ];
+
+        for (const pattern of googleMapsPatterns) {
+            const match = messageText.match(pattern);
+            if (match && match[1] && match[2]) {
+                const lat = parseFloat(match[1]);
+                const lng = parseFloat(match[2]);
+                if (!isNaN(lat) && !isNaN(lng) && isValidCoordinate(lat, lng)) {
+                    console.log(`✅ Coordenadas extraídas do Google Maps: ${lat}, ${lng}`);
+                    return { latitude: lat, longitude: lng };
+                }
+            }
+        }
+
+        // **Método 2: Formato geo: URI**
+        const geoPattern = /geo:(-?\d+\.?\d*),(-?\d+\.?\d*)/i;
+        const geoMatch = messageText.match(geoPattern);
+        if (geoMatch) {
+            const lat = parseFloat(geoMatch[1]);
+            const lng = parseFloat(geoMatch[2]);
+            if (!isNaN(lat) && !isNaN(lng) && isValidCoordinate(lat, lng)) {
+                console.log(`✅ Coordenadas extraídas do formato geo: ${lat}, ${lng}`);
+                return { latitude: lat, longitude: lng };
+            }
+        }
+
+        // **Método 3: Coordenadas simples separadas por vírgula**
+        const latLongPattern = /(-?\d+\.?\d{4,})\s*,\s*(-?\d+\.?\d{4,})/g;
+        const matches = messageText.match(latLongPattern);
+
+        if (matches) {
+            for (const match of matches) {
+                const coordMatch = match.match(/(-?\d+\.?\d+)\s*,\s*(-?\d+\.?\d+)/);
+                if (coordMatch) {
+                    const lat = parseFloat(coordMatch[1]);
+                    const lng = parseFloat(coordMatch[2]);
+                    if (!isNaN(lat) && !isNaN(lng) && isValidCoordinate(lat, lng)) {
+                        console.log(`✅ Coordenadas extraídas do texto: ${lat}, ${lng}`);
+                        return { latitude: lat, longitude: lng };
+                    }
+                }
+            }
+        }
+
+        // **Método 4: Formato nomeado (lat: X, lng: Y)**
+        const namedPatterns = [
+            /lat(?:itude)?[:\s]*(-?\d+\.?\d*)[,\s]+lng|lon(?:gitude)?[:\s]*(-?\d+\.?\d*)/i,
+            /latitude[:\s]*(-?\d+\.?\d*)[,\s]+longitude[:\s]*(-?\d+\.?\d*)/i,
+            /lat[:\s]*(-?\d+\.?\d*)[,\s]+lon[:\s]*(-?\d+\.?\d*)/i
+        ];
+
+        for (const pattern of namedPatterns) {
+            const namedMatch = messageText.match(pattern);
+            if (namedMatch && namedMatch[1] && namedMatch[2]) {
+                const lat = parseFloat(namedMatch[1]);
+                const lng = parseFloat(namedMatch[2]);
+                if (!isNaN(lat) && !isNaN(lng) && isValidCoordinate(lat, lng)) {
+                    console.log(`✅ Coordenadas extraídas do formato nomeado: ${lat}, ${lng}`);
+                    return { latitude: lat, longitude: lng };
+                }
+            }
+        }
+
+        // **Método 5: Links do WhatsApp Web (quando partilhado)**
+        const whatsappPattern = /wa\.me.*text=.*?(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/i;
+        const whatsappMatch = messageText.match(whatsappPattern);
+        if (whatsappMatch) {
+            const lat = parseFloat(whatsappMatch[1]);
+            const lng = parseFloat(whatsappMatch[2]);
+            if (!isNaN(lat) && !isNaN(lng) && isValidCoordinate(lat, lng)) {
+                console.log(`✅ Coordenadas extraídas do link WhatsApp: ${lat}, ${lng}`);
+                return { latitude: lat, longitude: lng };
+            }
+        }
+
+        console.log(`❌ Nenhuma coordenada válida encontrada no texto`);
+        return null;
+    } catch (error) {
+        console.error("Erro ao analisar dados de localização:", error);
+        return null;
+    }
+}
+
+// Função auxiliar para validar coordenadas
+function isValidCoordinate(lat, lng) {
+    return (
+        lat >= -90 && lat <= 90 &&
+        lng >= -180 && lng <= 180 &&
+        (Math.abs(lat) > 0.001 || Math.abs(lng) > 0.001) // Evitar coordenadas 0,0
+    );
+}
+
+// Função para extrair localização de imagens (EXIF)
+async function extractLocationFromImage(imageData) {
+    try {
+        // Esta é uma implementação básica - pode precisar de uma biblioteca específica para EXIF
+        // Por agora, retornar null
+        console.log(`📷 Tentativa de extrair localização EXIF (não implementado completamente)`);
+        return null;
+    } catch (error) {
+        console.error("Erro ao extrair localização de imagem:", error);
+        return null;
+    }
+}
 
 // Função para lidar com entrada do cliente
 async function handleClientInput(phoneNumber, message, conversation) {
@@ -2533,7 +2702,6 @@ Por favor, descreva detalhadamente o problema ou situação que necessita de ass
 
     await client.sendMessage(phoneNumber, response);
 }
-
 
 // Handler para input do problema
 async function handleProblemInput(phoneNumber, message, conversation) {
@@ -2781,11 +2949,12 @@ async function createAssistenceRequest(phoneNumber, conversation) {
 
         // envia SEMPRE a mensagem de sucesso aqui
         const prioridadeTxt =
-            payload.prioridade === "1"
+            payload &&
+            (payload.prioridade === "1"
                 ? "Baixa"
-                : payload.prioridade === "2"
+                : payload?.prioridade === "2"
                     ? "Média"
-                    : "Alta";
+                    : "Alta");
         const successMessage = `✅ *PEDIDO DE ASSISTÊNCIA CRIADO COM SUCESSO*
 
 **Cliente:** ${payload.cliente}
