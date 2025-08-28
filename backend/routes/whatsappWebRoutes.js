@@ -1608,22 +1608,38 @@ async function handleIncomingMessage(message) {
     let conversation = activeConversations.get(phoneNumber);
     let userState = getUserState(phoneNumber);
 
-    // Se a mensagem contém palavras-chave para iniciar pedido (mesmo com conversa ativa)
-    if (isRequestKeyword(messageText)) {
-        // Se já existe uma conversa, cancela-la primeiro
-        if (conversation) {
-            activeConversations.delete(phoneNumber);
-            console.log(
-                `🔄 Conversa anterior cancelada para ${phoneNumber} - iniciando novo pedido`,
-            );
-        }
-        if (userState) {
-            clearUserState(phoneNumber);
-            console.log(
-                `🔄 Estado anterior limpo para ${phoneNumber} - iniciando novo pedido`,
-            );
-        }
+    // Se existe conversa ativa, continuar o fluxo normal sem verificar palavras-chave
+    if (conversation) {
+        await continueConversation(phoneNumber, messageText, conversation);
+        return;
+    }
 
+    // Se existe estado de utilizador (ex: a selecionar obra), continuar
+    if (userState) {
+        if (userState.type === "selecting_obra") {
+            await handleObraSelection(phoneNumber, messageText, { data: userState }); // Passa o estado como data da conversa
+        } else if (userState.type === "awaiting_location") {
+            // Se está à espera de localização mas recebeu texto, dar instruções
+            await client.sendMessage(
+                phoneNumber,
+                "📍 *Aguardando Localização GPS*\n\n" +
+                "Por favor, envie a sua localização através de:\n" +
+                "• Anexo (📎) → 'Localização' → 'Localização atual'\n" +
+                "🌐 Ou envie um link do Google Maps\n" +
+                "📱 Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n" +
+                "💡 Se pretende cancelar o registo, digite 'cancelar'"
+            );
+        } else {
+            // Se o estado não é reconhecido, limpar e enviar mensagem padrão
+            clearUserState(phoneNumber);
+            await sendWelcomeMessage(phoneNumber);
+        }
+        return;
+    }
+
+    // Só agora verificar palavras-chave se NÃO há conversa ativa
+    // Se a mensagem contém palavras-chave para iniciar pedido
+    if (isRequestKeyword(messageText)) {
         // Verificar autorização antes de iniciar o pedido
         const authResult = await checkContactAuthorization(phoneNumber);
 
@@ -1641,20 +1657,6 @@ async function handleIncomingMessage(message) {
 
     // Se a mensagem contém palavras-chave para registo de ponto
     if (isPontoKeyword(messageText)) {
-        // Se já existe uma conversa, cancela-la primeiro
-        if (conversation) {
-            activeConversations.delete(phoneNumber);
-            console.log(
-                `🔄 Conversa anterior cancelada para ${phoneNumber} - iniciando registo de ponto`,
-            );
-        }
-        if (userState) {
-            clearUserState(phoneNumber);
-            console.log(
-                `🔄 Estado anterior limpo para ${phoneNumber} - iniciando registo de ponto`,
-            );
-        }
-
         // Verificar autorização antes de iniciar o registo de ponto
         const pontoAuthResult = await checkPontoAuthorization(phoneNumber);
 
@@ -1713,23 +1715,7 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // Se existe conversa ativa, continuar o fluxo
-    if (conversation) {
-        await continueConversation(phoneNumber, messageText, conversation);
-        return;
-    }
 
-    // Se existe estado de utilizador (ex: a selecionar obra), continuar
-    if (userState) {
-        if (userState.type === "selecting_obra") {
-            await handleObraSelection(phoneNumber, messageText, { data: userState }); // Passa o estado como data da conversa
-        } else {
-            // Se o estado não é reconhecido, limpar e enviar mensagem padrão
-            clearUserState(phoneNumber);
-            await sendWelcomeMessage(phoneNumber);
-        }
-        return;
-    }
 
     // Verificar se o contacto tem alguma autorização antes de mostrar mensagem
     const pedidoAuth = await checkContactAuthorization(phoneNumber);
