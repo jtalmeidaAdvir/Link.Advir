@@ -119,6 +119,33 @@ const RegistoPontoFacial = (props) => {
         await registarPontoParaUtilizador('entrada', obraId, nomeObra, userId, userName);
     };
 
+    const processarPontoComValidacaoParaUtilizador = async (obraId, nomeObra, userId, userName, registosDoUtilizador) => {
+        console.log(`Processando ponto para ${userName} na obra ${nomeObra}`);
+        console.log('Registos do utilizador:', registosDoUtilizador);
+
+        // 1) Se já houver entrada ativa na MESMA obra → fazer SAÍDA
+        const ativaMesmaObra = getEntradaAtivaPorObra(obraId, registosDoUtilizador);
+        if (ativaMesmaObra) {
+            console.log(`${userName} já tem entrada ativa na obra ${nomeObra}. Registando saída.`);
+            await registarPontoParaUtilizador('saida', obraId, nomeObra, userId, userName);
+            return;
+        }
+
+        // 2) Se houver entrada ativa noutra obra → fechar essa e abrir ENTRADA nesta
+        const ultimaAtiva = getUltimaEntradaAtiva(registosDoUtilizador);
+        if (ultimaAtiva && String(ultimaAtiva.obra_id) !== String(obraId)) {
+            const nomeAnterior = ultimaAtiva.Obra?.nome || 'Obra anterior';
+            console.log(`${userName} tem entrada ativa noutra obra (${nomeAnterior}). Fechando e abrindo nova entrada.`);
+            await registarPontoParaUtilizador('saida', ultimaAtiva.obra_id, nomeAnterior, userId, userName);
+            // Aguardar um pouco antes de registar a nova entrada
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        // 3) Sem ativa ou após fechar anterior → ENTRADA nesta obra
+        console.log(`Registando entrada para ${userName} na obra ${nomeObra}`);
+        await registarPontoParaUtilizador('entrada', obraId, nomeObra, userId, userName);
+    };
+
     // Carregar obras disponíveis
     useEffect(() => {
         const fetchObras = async () => {
@@ -177,7 +204,9 @@ const RegistoPontoFacial = (props) => {
             setLoading(true);
             setStatusMessage('A autenticar utilizador pelo reconhecimento facial...');
 
-            // Primeiro, autenticar o utilizador com os dados faciais
+            console.log('🔍 Iniciando autenticação facial com dados:', facialData);
+
+            // Primeiro, autenticar o utilizador com os dados faciais (sem token)
             const authRes = await fetch('https://backend.advir.pt/api/auth/biometric/authenticate-facial', {
                 method: 'POST',
                 headers: {
@@ -186,8 +215,11 @@ const RegistoPontoFacial = (props) => {
                 body: JSON.stringify({ facialData })
             });
 
+            console.log('📡 Resposta da autenticação facial:', authRes.status);
+
             if (!authRes.ok) {
                 const authError = await authRes.json();
+                console.error('❌ Erro na autenticação facial:', authError);
                 setStatusMessage(`Falha na autenticação facial: ${authError.message || 'Utilizador não reconhecido'}`);
                 return;
             }
@@ -196,26 +228,35 @@ const RegistoPontoFacial = (props) => {
             const userId = authData.userId;
             const userName = authData.userNome || authData.username;
 
+            console.log('✅ Utilizador identificado:', { userId, userName });
             setStatusMessage(`Utilizador identificado: ${userName}. A verificar estado atual...`);
 
-            // Obter registos do utilizador identificado para o dia
+            // Obter registos do utilizador identificado para o dia usando o token do admin logado
             const token = localStorage.getItem('loginToken');
             const hoje = new Date().toISOString().split('T')[0];
 
-            const registosRes = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}&userId=${userId}`, {
+            console.log('📅 A obter registos para a data:', hoje, 'do utilizador identificado:', userId);
+
+            // Usar endpoint que aceita parâmetro userId para obter registos do utilizador identificado
+            const registosRes = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-dia?data=${hoje}&user_id=${userId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
-            let registosUtilizador = [];
+            let registosUtilizadorIdentificado = [];
             if (registosRes.ok) {
-                registosUtilizador = await registosRes.json();
+                registosUtilizadorIdentificado = await registosRes.json();
+                console.log(`📊 ${registosUtilizadorIdentificado.length} registos encontrados para o utilizador identificado ${userName} (ID: ${userId})`);
+            } else {
+                console.warn('⚠️ Não foi possível obter registos do utilizador identificado:', registosRes.status);
             }
 
-            // Processar com validação automática
-            await processarPontoComValidacao(obraId, nomeObra, userId, userName, registosUtilizador);
+            console.log(`Registos do utilizador identificado ${userName} (ID: ${userId}):`, registosUtilizadorIdentificado);
+
+            // Processar com validação automática usando os registos do utilizador identificado
+            await processarPontoComValidacaoParaUtilizador(obraId, nomeObra, userId, userName, registosUtilizadorIdentificado);
 
         } catch (err) {
-            console.error('Erro na autenticação facial e registo de ponto:', err);
+            console.error('❌ Erro na autenticação facial e registo de ponto:', err);
             setStatusMessage('Erro ao processar reconhecimento facial e registo de ponto');
         } finally {
             setLoading(false);
