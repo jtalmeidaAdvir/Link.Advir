@@ -75,7 +75,7 @@ const loginPOS = async (req, res) => {
 
         // Buscar POS por email
         const pos = await POS.findOne({
-            where: { email, isActive: true },
+            where: { email, ativo: true },
             include: [
                 { model: Obra, as: 'ObraPredefinida' },
                 { model: Empresa }
@@ -115,7 +115,7 @@ const loginPOS = async (req, res) => {
             empresa_id: pos.empresa_id,
             empresa_areacliente: pos.Empresa.empresa,
             obra_predefinida_id: pos.obra_predefinida_id,
-            obra_predefinida_nome: pos.ObraPredefinida.nome
+            obra_predefinida_nome: pos.ObraPredefinida ? pos.ObraPredefinida.nome : null
         });
     } catch (error) {
         console.error('Erro no login do POS:', error);
