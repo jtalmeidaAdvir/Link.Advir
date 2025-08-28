@@ -235,22 +235,21 @@ const RegistoPontoFacial = (props) => {
             const token = localStorage.getItem('loginToken');
             const hoje = new Date().toISOString().split('T')[0];
 
-            console.log('📅 A obter registos para a data:', hoje, 'do utilizador identificado:', userId);
+            console.log('📅 A obter registos para a data:', hoje, 'do utilizador:', userId);
 
-            // Usar endpoint que aceita parâmetro userId para obter registos do utilizador identificado
-            const registosRes = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-dia?data=${hoje}&user_id=${userId}`, {
+            const registosRes = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}&userId=${userId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             let registosUtilizadorIdentificado = [];
             if (registosRes.ok) {
                 registosUtilizadorIdentificado = await registosRes.json();
-                console.log(`📊 ${registosUtilizadorIdentificado.length} registos encontrados para o utilizador identificado ${userName} (ID: ${userId})`);
+                console.log(`📊 ${registosUtilizadorIdentificado.length} registos encontrados para ${userName}`);
             } else {
-                console.warn('⚠️ Não foi possível obter registos do utilizador identificado:', registosRes.status);
+                console.warn('⚠️ Não foi possível obter registos:', registosRes.status);
             }
 
-            console.log(`Registos do utilizador identificado ${userName} (ID: ${userId}):`, registosUtilizadorIdentificado);
+            console.log(`Registos encontrados para ${userName}:`, registosUtilizadorIdentificado);
 
             // Processar com validação automática usando os registos do utilizador identificado
             await processarPontoComValidacaoParaUtilizador(obraId, nomeObra, userId, userName, registosUtilizadorIdentificado);
