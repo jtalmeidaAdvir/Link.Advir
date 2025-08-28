@@ -61,6 +61,64 @@ const RegistoPontoFacial = (props) => {
             .sort((a, b) => dataRegisto(b) - dataRegisto(a))
             .find(e => !temSaidaPosterior(e, lista));
 
+    const registarPontoParaUtilizador = async (tipo, obraId, nomeObra, userId, userName) => {
+        try {
+            setStatusMessage(`A registar ponto ${tipo} para ${userName} na obra "${nomeObra}"...`);
+
+            // Obter localização
+            const loc = await getCurrentLocation();
+            const token = localStorage.getItem('loginToken');
+            const empresaNome = localStorage.getItem('empresa_areacliente');
+
+            // Registar ponto para o utilizador identificado
+            const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    tipo,
+                    obra_id: obraId,
+                    latitude: loc.coords.latitude,
+                    longitude: loc.coords.longitude,
+                    targetUserId: userId,
+                    empresa: empresaNome
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setStatusMessage(`Ponto "${tipo}" registado com sucesso para ${userName} na obra "${nomeObra}"`);
+            } else {
+                const errorData = await res.json();
+                setStatusMessage(`Erro ao registar ponto: ${errorData.message || 'Erro desconhecido'}`);
+            }
+        } catch (err) {
+            console.error('Erro ao registar ponto:', err);
+            setStatusMessage('Erro ao registar ponto');
+        }
+    };
+
+    const processarPontoComValidacao = async (obraId, nomeObra, userId, userName, registosUtilizador) => {
+        // 1) Se já houver entrada ativa na MESMA obra → fazer SAÍDA
+        const ativaMesmaObra = getEntradaAtivaPorObra(obraId, registosUtilizador);
+        if (ativaMesmaObra) {
+            await registarPontoParaUtilizador('saida', obraId, nomeObra, userId, userName);
+            return;
+        }
+
+        // 2) Se houver entrada ativa noutra obra → fechar essa e abrir ENTRADA nesta
+        const ultimaAtiva = getUltimaEntradaAtiva(registosUtilizador);
+        if (ultimaAtiva && String(ultimaAtiva.obra_id) !== String(obraId)) {
+            const nomeAnterior = ultimaAtiva.Obra?.nome || 'Obra anterior';
+            await registarPontoParaUtilizador('saida', ultimaAtiva.obra_id, nomeAnterior, userId, userName);
+        }
+
+        // 3) Sem ativa → ENTRADA nesta obra
+        await registarPontoParaUtilizador('entrada', obraId, nomeObra, userId, userName);
+    };
+
     // Carregar obras disponíveis
     useEffect(() => {
         const fetchObras = async () => {
@@ -92,46 +150,7 @@ const RegistoPontoFacial = (props) => {
         fetchObras();
     }, []);
 
-    // Carregar registos do dia
-    useEffect(() => {
-        const carregarRegistosHoje = async () => {
-            try {
-                setLoading(true);
-                const token = localStorage.getItem('loginToken');
-                const hoje = new Date().toISOString().split('T')[0];
-
-                const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (res.ok) {
-                    const dados = await res.json();
-                    // Inicializa com morada por carregar
-                    const registosIniciais = dados.map(r => ({
-                        ...r,
-                        morada: 'A carregar localização...'
-                    }));
-                    setRegistos(registosIniciais);
-
-                    // Vai buscar as moradas individualmente depois
-                    dados.forEach(async (r) => {
-                        const morada = await obterMoradaPorCoordenadas(r.latitude, r.longitude);
-                        setRegistos(prev =>
-                            prev.map(item =>
-                                item.id === r.id ? { ...item, morada } : item
-                            )
-                        );
-                    });
-                }
-            } catch (err) {
-                console.error('Erro ao carregar registos de hoje:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        carregarRegistosHoje();
-    }, []);
+    // Não carregamos registos para exibição - apenas processamos quando necessário
 
     const obterMoradaPorCoordenadas = async (lat, lon) => {
         try {
@@ -153,7 +172,7 @@ const RegistoPontoFacial = (props) => {
         });
     };
 
-    const autenticarERegistarPonto = async (tipo, obraId, nomeObra, facialData) => {
+    const autenticarERegistarPonto = async (obraId, nomeObra, facialData) => {
         try {
             setLoading(true);
             setStatusMessage('A autenticar utilizador pelo reconhecimento facial...');
@@ -177,41 +196,24 @@ const RegistoPontoFacial = (props) => {
             const userId = authData.userId;
             const userName = authData.userNome || authData.username;
 
-            setStatusMessage(`Utilizador identificado: ${userName}. A registar ponto...`);
+            setStatusMessage(`Utilizador identificado: ${userName}. A verificar estado atual...`);
 
-            // Obter localização
-            const loc = await getCurrentLocation();
+            // Obter registos do utilizador identificado para o dia
             const token = localStorage.getItem('loginToken');
-            const empresaNome = localStorage.getItem('empresa_areacliente');
+            const hoje = new Date().toISOString().split('T')[0];
 
-            // Registar ponto para o utilizador identificado
-            const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    tipo,
-                    obra_id: obraId,
-                    latitude: loc.coords.latitude,
-                    longitude: loc.coords.longitude,
-                    biometricData: facialData,
-                    biometricType: 'facial',
-                    targetUserId: userId, // Adicionar o ID do utilizador identificado
-                    empresa: empresaNome
-                })
+            const registosRes = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}&userId=${userId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
 
-            if (res.ok) {
-                const data = await res.json();
-                const morada = await obterMoradaPorCoordenadas(data.latitude, data.longitude);
-                setRegistos(prev => [...prev, { ...data, Obra: { nome: nomeObra }, morada, User: { nome: userName } }]);
-                setStatusMessage(`Ponto "${tipo}" registado com sucesso para ${userName} na obra "${nomeObra}"`);
-            } else {
-                const errorData = await res.json();
-                setStatusMessage(`Erro ao registar ponto: ${errorData.message || 'Erro desconhecido'}`);
+            let registosUtilizador = [];
+            if (registosRes.ok) {
+                registosUtilizador = await registosRes.json();
             }
+
+            // Processar com validação automática
+            await processarPontoComValidacao(obraId, nomeObra, userId, userName, registosUtilizador);
+
         } catch (err) {
             console.error('Erro na autenticação facial e registo de ponto:', err);
             setStatusMessage('Erro ao processar reconhecimento facial e registo de ponto');
@@ -232,10 +234,8 @@ const RegistoPontoFacial = (props) => {
             return;
         }
 
-        // Primeiro identificar o utilizador, depois determinar que tipo de registo fazer
-        // Por simplicidade, vamos fazer entrada por defeito
-        // Nota: A lógica de entrada/saída pode ser melhorada no futuro para verificar o estado atual do utilizador identificado
-        await autenticarERegistarPonto('entrada', obraSelecionada, obra.nome, facialData);
+        // Usar a nova lógica de validação automática
+        await autenticarERegistarPonto(obraSelecionada, obra.nome, facialData);
     };
 
     const handleStartFacialScan = () => {
@@ -371,9 +371,9 @@ const RegistoPontoFacial = (props) => {
                             </div>
                         </div>
 
-                        <div className="row g-3" style={{ marginBottom: '50px' }}>
+                        <div className="row g-3 justify-content-center" style={{ marginBottom: '50px' }}>
                             {/* Scanner Facial Section */}
-                            <div className="col-12 col-lg-8">
+                            <div className="col-12 col-lg-8 col-xl-6">
                                 <div className="card card-moderno">
                                     <div className="card-body p-3 p-md-4">
                                         {/* Seleção de Obra */}
@@ -435,9 +435,10 @@ const RegistoPontoFacial = (props) => {
                                 </div>
                             </div>
 
-                            {/* Today's Records */}
                             
+
                         </div>
+                        
                     </div>
                 </div>
             </div>
