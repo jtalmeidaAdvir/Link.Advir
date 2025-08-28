@@ -59,4 +59,15 @@ const POS = sequelize.define('POS', {
     tableName: 'pos',
 });
 
+// Definir associações
+POS.associate = (models) => {
+    POS.belongsTo(models.Obra, {
+        foreignKey: 'obra_predefinida_id',
+        as: 'ObraPredefinida'
+    });
+    POS.belongsTo(models.Empresa, {
+        foreignKey: 'empresa_id'
+    });
+};
+
 module.exports = POS;

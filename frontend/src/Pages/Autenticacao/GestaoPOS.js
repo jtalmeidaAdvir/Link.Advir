@@ -28,7 +28,7 @@ const GestaoPOS = () => {
         email: '',
         password: '',
         obra_predefinida_id: '',
-        isActive: true
+        ativo: true
     });
 
     useEffect(() => {
@@ -132,7 +132,7 @@ const GestaoPOS = () => {
             email: pos.email,
             password: '',
             obra_predefinida_id: pos.obra_predefinida_id,
-            isActive: pos.isActive
+            ativo: pos.ativo
         });
         setShowModal(true);
     };
@@ -166,7 +166,7 @@ const GestaoPOS = () => {
             email: '',
             password: '',
             obra_predefinida_id: '',
-            isActive: true
+            ativo: true
         });
         setEditingPOS(null);
     };
@@ -234,7 +234,7 @@ const GestaoPOS = () => {
                                                     {pos.ObraPredefinida?.nome || 'N/A'}
                                                 </td>
                                                 <td>
-                                                    {pos.isActive ? (
+                                                    {pos.ativo ? (
                                                         <span className="badge bg-success">
                                                             <FaToggleOn className="me-1" />
                                                             Ativo
@@ -360,8 +360,8 @@ const GestaoPOS = () => {
                                         <input
                                             className="form-check-input"
                                             type="checkbox"
-                                            checked={formData.isActive}
-                                            onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
+                                            checked={formData.ativo}
+                                            onChange={(e) => setFormData({...formData, ativo: e.target.checked})}
                                         />
                                         <label className="form-check-label">
                                             POS Ativo

@@ -1,36 +1,48 @@
 
 const jwt = require('jsonwebtoken');
+const User = require('../models/user');
+const POS = require('../models/pos');
 
-const posMiddleware = (req, res, next) => {
-    const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
-
-    if (!token) {
-        console.log('❌ POS Middleware: Token não fornecido');
-        return res.status(401).json({ message: 'Token não fornecido' });
-    }
-
+const posMiddleware = async (req, res, next) => {
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const token = req.header('Authorization')?.replace('Bearer ', '');
         
-        // Verificar se é um token POS
-        if (!decoded.isPOS) {
-            console.log('❌ POS Middleware: Token não é de POS');
-            return res.status(403).json({ message: 'Acesso restrito a POS' });
+        if (!token) {
+            return res.status(401).json({ message: 'Token de acesso requerido' });
         }
 
-        console.log('✅ POS Middleware: Token POS válido:', decoded.posId);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret');
         
-        req.pos = {
-            id: decoded.posId,
-            empresa_id: decoded.empresa_id,
-            obra_predefinida_id: decoded.obra_predefinida_id
-        };
-
+        // Verificar se é um POS ou um utilizador admin
+        if (decoded.isPOS) {
+            const pos = await POS.findByPk(decoded.posId);
+            if (!pos || !pos.ativo) {
+                return res.status(401).json({ message: 'POS não encontrado ou inativo' });
+            }
+            req.pos = pos;
+            req.empresa_id = pos.empresa_id;
+        } else if (decoded.userId) {
+            const user = await User.findByPk(decoded.userId);
+            if (!user || !user.ativo) {
+                return res.status(401).json({ message: 'Utilizador não encontrado ou inativo' });
+            }
+            
+            // Verificar se o utilizador é admin ou tem permissões adequadas
+            if (!user.isAdmin && user.role !== 'admin') {
+                return res.status(403).json({ message: 'Sem permissões para esta operação' });
+            }
+            
+            req.user = user;
+            req.empresa_id = user.empresa_id;
+        } else {
+            return res.status(401).json({ message: 'Token inválido' });
+        }
+        
         next();
     } catch (error) {
-        console.log('❌ POS Middleware: Token inválido:', error.message);
+        console.error('Erro no middleware POS:', error);
         return res.status(401).json({ message: 'Token inválido' });
     }
 };
 
-module.exports = posMiddleware;
+module.exports = { posMiddleware };

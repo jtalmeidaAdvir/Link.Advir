@@ -97,9 +97,18 @@ ParteDiariaItem.belongsTo(ParteDiariaCabecalho, { foreignKey: 'DocumentoID' });
 BiometricCredential.belongsTo(User, { foreignKey: 'userId' });
 User.hasMany(BiometricCredential, { foreignKey: 'userId' });
 
+// Associações Schedule
+Schedule.belongsTo(Contact, { foreignKey: 'contactId' });
+Contact.hasMany(Schedule, { foreignKey: 'contactId' });
+
 // Associações POS
-POS.belongsTo(Obra, { foreignKey: 'obra_predefinida_id', as: 'ObraPredefinida' });
-POS.belongsTo(Empresa, { foreignKey: 'empresa_id' });
+POS.belongsTo(Obra, {
+    foreignKey: 'obra_predefinida_id',
+    as: 'ObraPredefinida'
+});
+POS.belongsTo(Empresa, {
+    foreignKey: 'empresa_id'
+});
 Obra.hasMany(POS, { foreignKey: 'obra_predefinida_id' });
 Empresa.hasMany(POS, { foreignKey: 'empresa_id' });
 
