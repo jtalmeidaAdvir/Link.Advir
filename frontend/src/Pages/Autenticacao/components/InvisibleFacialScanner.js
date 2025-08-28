@@ -1,6 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import * as faceapi from 'face-api.js';
+import { createPortal } from 'react-dom';
+
 
 const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onStopScan, t }) => {
     const [scanProgress, setScanProgress] = useState(0);
@@ -30,6 +32,54 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
       if (onStopScan) onStopScan();
     }, ms);
   };
+
+
+  // HUD minimalista no topo (estilo Android)
+const FaceHUD = ({ progress = 0, onCancel }) => {
+  if (typeof document === 'undefined') return null; // SSR safe
+  return createPortal(
+    <>
+      <style>{`
+        .hud-wrap{position:fixed; top:calc(env(safe-area-inset-top, 0px) + 8px); left:50%; transform:translateX(-50%); z-index:2147483647;}
+        .hud-badge{
+          width:44px; height:44px; border-radius:9999px;
+          background:rgba(0,0,0,.65); backdrop-filter:blur(6px);
+          display:flex; align-items:center; justify-content:center;
+          box-shadow:0 2px 12px rgba(0,0,0,.3); position:relative; cursor:pointer;
+        }
+        .hud-face{font-size:22px; line-height:1; animation:pulse 1.2s ease-in-out infinite}
+        .hud-ring{
+          position:absolute; inset:-3px; border-radius:inherit;
+          background: conic-gradient(#1792FE ${(progress || 0) * 3.6}deg, rgba(255,255,255,.2) ${(progress || 0) * 3.6}deg);
+          mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+          -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+        @media (prefers-reduced-motion: reduce){ .hud-face, .hud-ring{ animation:none } }
+      `}</style>
+      <div className="hud-wrap" role="status" aria-live="polite" aria-busy="true">
+        <div className="hud-badge" title="Cancelar" onClick={onCancel}>
+          <div className="hud-ring" />
+          <div className="hud-face" aria-hidden="true">
+  <svg width="20" height="20" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor"/>
+    <circle cx="9"  cy="10" r="1" fill="currentColor"/>
+    <circle cx="15" cy="10" r="1" fill="currentColor"/>
+    <line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" stroke-linecap="round"/>
+  </svg>
+</div>
+
+
+        </div>
+      </div>
+    </>,
+    document.body
+  );
+};
+
+
 
  // 1) Repor o efeito que arranca/paralisa o scanner
  useEffect(() => {
@@ -558,6 +608,7 @@ useEffect(() => {
 
     return (
         <div>
+            
             {/* Video e canvas ocultos */}
             <video
                 ref={videoRef}
@@ -572,76 +623,14 @@ useEffect(() => {
             />
 
             {/* Status do scan */}
-            {isScanning && (
-                <div style={{
-                    padding: '15px',
-                    backgroundColor: 'rgba(23, 146, 254, 0.1)',
-                    borderRadius: '8px',
-                    marginTop: '10px',
-                    textAlign: 'center',
-                    border: '1px solid rgba(23, 146, 254, 0.3)'
-                }}>
-                    <div style={{
-                        color: '#1792FE',
-                        fontSize: '14px',
-                        marginBottom: '8px',
-                        fontWeight: 'bold',
-                        minHeight: '20px'
-                    }}>
-                        {statusMessage || 'Preparando sistema...'}
-                    </div>
-                    
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginTop: '8px'
-                    }}>
-                        <div style={{
-                            flexGrow: 1,
-                            height: '8px',
-                            backgroundColor: 'rgba(23, 146, 254, 0.2)',
-                            borderRadius: '4px',
-                            marginRight: '8px',
-                            overflow: 'hidden'
-                        }}>
-                            <div style={{
-                                height: '100%',
-                                backgroundColor: scanProgress < 100 ? '#1792FE' : '#4CAF50',
-                                borderRadius: '4px',
-                                width: `${Math.max(5, scanProgress)}%`,
-                                transition: 'all 0.3s ease-in-out'
-                            }} />
-                        </div>
-                        <span style={{
-                            color: '#1792FE',
-                            fontSize: '12px',
-                            fontWeight: 'bold',
-                            minWidth: '35px'
-                        }}>
-                            {Math.round(scanProgress)}%
-                        </span>
-                    </div>
+            {/* HUD no topo: só aparece enquanto está a fazer scan */}
+{isScanning && (
+  <FaceHUD
+    progress={Math.round(scanProgress)}
+    onCancel={() => onStopScan && onStopScan()}
+  />
+)}
 
-                    <button
-                        onClick={() => {
-                            if (onStopScan) onStopScan();
-                        }}
-                        style={{
-                            marginTop: '10px',
-                            padding: '5px 15px',
-                            backgroundColor: '#f44336',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Cancelar
-                    </button>
-                </div>
-            )}
         </div>
     );
 };
