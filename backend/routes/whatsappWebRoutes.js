@@ -1441,7 +1441,7 @@ async function handleIncomingMessage(message) {
     }
 
     // **MÉTODO 2: Verificar se é mensagem do tipo location**
-    if (message.type === 'location') {
+    if (message.type === "location") {
         console.log(`📍 Mensagem tipo location detectada`);
 
         // Tentar extrair coordenadas de diferentes formas
@@ -1450,9 +1450,11 @@ async function handleIncomingMessage(message) {
         if (message.location) {
             latitude = message.location.latitude;
             longitude = message.location.longitude;
-        } else if (message.body && message.body.includes('geo:')) {
+        } else if (message.body && message.body.includes("geo:")) {
             // Formato geo:lat,lng
-            const geoMatch = message.body.match(/geo:(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+            const geoMatch = message.body.match(
+                /geo:(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+            );
             if (geoMatch) {
                 latitude = parseFloat(geoMatch[1]);
                 longitude = parseFloat(geoMatch[2]);
@@ -1462,7 +1464,16 @@ async function handleIncomingMessage(message) {
         if (latitude && longitude) {
             console.log(`📍 Coordenadas extraídas: ${latitude}, ${longitude}`);
             const userState = getUserState(phoneNumber);
-            if (userState && userState.type === "awaiting_location") {
+            const conversation = activeConversations.get(phoneNumber);
+
+            if ((userState && userState.type === "awaiting_location") ||
+                (conversation && conversation.data && conversation.data.userId)) {
+
+                console.log(`📍 Processando registo de ponto com localização...`);
+
+                // Usar dados do estado ou da conversa
+                const registoData = userState || conversation.data;
+
                 const simulatedMessage = {
                     from: phoneNumber,
                     location: {
@@ -1472,7 +1483,18 @@ async function handleIncomingMessage(message) {
                     },
                     body: message.body,
                 };
-                await processarRegistoPontoComLocalizacao(simulatedMessage, userState);
+
+                await processarRegistoPontoComLocalizacao(
+                    simulatedMessage,
+                    registoData,
+                );
+                return;
+            } else {
+                console.log(`❌ Nenhum estado válido encontrado para processar localização`);
+                await client.sendMessage(
+                    phoneNumber,
+                    "📍 Localização recebida, mas não foi encontrado um registo de ponto em andamento. Envie 'ponto' primeiro para iniciar o registo.",
+                );
                 return;
             }
         }
@@ -1495,7 +1517,10 @@ async function handleIncomingMessage(message) {
                 },
                 body: messageText,
             };
-            await processarRegistoPontoComLocalizacao(simulatedMessage, userState);
+            await processarRegistoPontoComLocalizacao(
+                simulatedMessage,
+                userState,
+            );
             return;
         } else {
             await client.sendMessage(
@@ -1516,22 +1541,33 @@ async function handleIncomingMessage(message) {
                 console.log(`📎 Tipo de média: ${media.mimetype}`);
 
                 // Se for imagem, verificar metadados EXIF para GPS
-                if (media.mimetype && media.mimetype.startsWith('image/')) {
-                    const locationFromExif = await extractLocationFromImage(media.data);
+                if (media.mimetype && media.mimetype.startsWith("image/")) {
+                    const locationFromExif = await extractLocationFromImage(
+                        media.data,
+                    );
                     if (locationFromExif) {
-                        console.log(`📍 Localização extraída de EXIF: ${locationFromExif.latitude}, ${locationFromExif.longitude}`);
+                        console.log(
+                            `📍 Localização extraída de EXIF: ${locationFromExif.latitude}, ${locationFromExif.longitude}`,
+                        );
                         const userState = getUserState(phoneNumber);
-                        if (userState && userState.type === "awaiting_location") {
+                        if (
+                            userState &&
+                            userState.type === "awaiting_location"
+                        ) {
                             const simulatedMessage = {
                                 from: phoneNumber,
                                 location: {
                                     latitude: locationFromExif.latitude,
                                     longitude: locationFromExif.longitude,
-                                    description: "Localização extraída de imagem EXIF",
+                                    description:
+                                        "Localização extraída de imagem EXIF",
                                 },
                                 body: "Imagem com localização",
                             };
-                            await processarRegistoPontoComLocalizacao(simulatedMessage, userState);
+                            await processarRegistoPontoComLocalizacao(
+                                simulatedMessage,
+                                userState,
+                            );
                             return;
                         }
                     }
@@ -2086,45 +2122,82 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                         `⚠️ Nenhuma obra ativa encontrada para utilizador ${user.nome}`,
                     );
 
-                    // Continuar sem obra específica
-                    let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
-                    response += `⚠️ *Nota:* Não foram encontradas obras ativas nas suas autorizações.\n`;
-                    response += `O registo será efetuado sem obra específica.\n\n`;
-                    response += `Escolha o tipo de registo:\n`;
-                    response += `• Digite "1" para ENTRADA\n`;
-                    response += `• Digite "2" para SAÍDA\n\n`;
-                    response += `Digite sua escolha (1 ou 2):`;
+                    // Determinar tipo automaticamente mesmo sem obra específica
+                    const tipoRegisto = await determinarTipoRegisto(
+                        contactData.userId,
+                        null // sem obra específica
+                    );
 
                     conversationData.obraId = null;
                     conversationData.obraNome = "Sem obra específica";
+                    conversationData.tipoRegisto = tipoRegisto;
 
-                    const conversation = {
-                        state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
-                        data: conversationData,
-                        lastActivity: Date.now(),
-                    };
-                    activeConversations.set(phoneNumber, conversation);
+                    const tipoTexto = tipoRegisto === 'entrada' ? 'ENTRADA' : 'SAÍDA';
+                    const emoji = tipoRegisto === 'entrada' ? '🟢' : '🔴';
+
+                    // Definir estado para aguardar localização
+                    setUserState(phoneNumber, {
+                        type: "awaiting_location",
+                        userId: conversationData.userId,
+                        obraId: null,
+                        obraNome: "Sem obra específica",
+                        tipoRegisto: tipoRegisto,
+                    });
+
+                    let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
+                    response += `⚠️ *Nota:* Não foram encontradas obras ativas nas suas autorizações.\n`;
+                    response += `O registo será efetuado sem obra específica.\n\n`;
+                    response += `${emoji} *Tipo de registo detetado automaticamente:* ${tipoTexto}\n\n`;
+                    response += `📱 O sistema detetou automaticamente que deve fazer **${tipoTexto}** baseado no seu estado atual.\n\n`;
+
+                    // Solicitar localização diretamente
+                    response += `📍 **Para registar o ponto, preciso da sua localização.**\n\n`;
+                    response += `**Como partilhar:**\n`;
+                    response += `• Clique no anexo (📎) → "Localização" → "Localização atual"\n`;
+                    response += `• Ou envie um link do Google Maps\n`;
+                    response += `• Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n`;
+                    response += `A localização deve aparecer como um mapa no chat.`;
+
                     await client.sendMessage(phoneNumber, response);
                     return;
                 } else if (obrasInfo.length === 1) {
-                    // Uma única obra - selecionar automaticamente
+                    // Uma única obra - selecionar automaticamente e determinar tipo
                     const obra = obrasInfo[0];
                     conversationData.obraId = obra.id;
                     conversationData.obraNome = obra.nome;
 
+                    // Determinar automaticamente o tipo de registo
+                    const tipoRegisto = await determinarTipoRegisto(
+                        contactData.userId,
+                        obra.id
+                    );
+
+                    conversationData.tipoRegisto = tipoRegisto;
+                    const tipoTexto = tipoRegisto === 'entrada' ? 'ENTRADA' : 'SAÍDA';
+                    const emoji = tipoRegisto === 'entrada' ? '🟢' : '🔴';
+
+                    // Definir estado para aguardar localização
+                    setUserState(phoneNumber, {
+                        type: "awaiting_location",
+                        userId: conversationData.userId,
+                        obraId: obra.id,
+                        obraNome: obra.nome,
+                        tipoRegisto: tipoRegisto,
+                    });
+
                     let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
                     response += `🏗️ *Obra:* ${obra.codigo} - ${obra.nome}\n\n`;
-                    response += `Escolha o tipo de registo:\n`;
-                    response += `• Digite "1" para ENTRADA\n`;
-                    response += `• Digite "2" para SAÍDA\n\n`;
-                    response += `Digite sua escolha (1 ou 2):`;
+                    response += `${emoji} *Tipo de registo detetado automaticamente:* ${tipoTexto}\n\n`;
+                    response += `📱 O sistema detetou automaticamente que deve fazer **${tipoTexto}** baseado no seu estado atual.\n\n`;
 
-                    const conversation = {
-                        state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
-                        data: conversationData,
-                        lastActivity: Date.now(),
-                    };
-                    activeConversations.set(phoneNumber, conversation);
+                    // Solicitar localização diretamente
+                    response += `📍 **Para registar o ponto, preciso da sua localização.**\n\n`;
+                    response += `**Como partilhar:**\n`;
+                    response += `• Clique no anexo (📎) → "Localização" → "Localização atual"\n`;
+                    response += `• Ou envie um link do Google Maps\n`;
+                    response += `• Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n`;
+                    response += `A localização deve aparecer como um mapa no chat.`;
+
                     await client.sendMessage(phoneNumber, response);
                     return;
                 } else {
@@ -2258,45 +2331,105 @@ async function handleObraSelection(phoneNumber, message, conversation) {
     conversation.state = CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION; // Próximo passo: confirmar tipo de registo
     activeConversations.set(phoneNumber, conversation); // Update the conversation state
 
+    // Determinar automaticamente o tipo de registo
+    const tipoRegisto = await determinarTipoRegisto(
+        conversation.data.userId,
+        obraSelecionada.id
+    );
+
+    const tipoTexto = tipoRegisto === 'entrada' ? 'ENTRADA' : 'SAÍDA';
+    const emoji = tipoRegisto === 'entrada' ? '🟢' : '🔴';
+
+    // Armazenar o tipo e avançar diretamente para solicitar localização
+    conversation.data.tipoRegisto = tipoRegisto;
+
+    // Definir estado para aguardar localização
+    setUserState(phoneNumber, {
+        type: "awaiting_location",
+        userId: conversation.data.userId,
+        obraId: obraSelecionada.id,
+        obraNome: obraSelecionada.nome,
+        tipoRegisto: tipoRegisto,
+    });
+
     let response = `✅ *Obra Selecionada:* ${obraSelecionada.nome}\n`;
     response += `📍 *Localização:* ${obraSelecionada.localizacao || "N/A"}\n\n`;
-    response += `Escolha o tipo de registo:\n`;
-    response += `• Digite "1" para ENTRADA\n`;
-    response += `• Digite "2" para SAÍDA\n\n`;
-    response += `Digite sua escolha (1 ou 2):`;
+    response += `${emoji} *Tipo de registo detetado automaticamente:* ${tipoTexto}\n\n`;
+    response += `📱 O sistema detetou automaticamente que deve fazer **${tipoTexto}** baseado no seu estado atual.\n\n`;
+
+    // Solicitar localização diretamente
+    response += `📍 **Para registar o ponto, preciso da sua localização.**\n\n`;
+    response += `**Como partilhar:**\n`;
+    response += `• Clique no anexo (📎) → "Localização" → "Localização atual"\n`;
+    response += `• Ou envie um link do Google Maps\n`;
+    response += `• Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n`;
+    response += `A localização deve aparecer como um mapa no chat.`;
 
     await client.sendMessage(phoneNumber, response);
 }
 
-// Função para lidar com confirmação de ponto (tipo de registo: entrada/saída)
+// Função para determinar automaticamente o tipo de registo baseado no estado atual
+async function determinarTipoRegisto(userId, obraId) {
+    try {
+        const { Op } = require('sequelize');
+
+        // Buscar registos do utilizador para a obra na data atual
+        const dataAtual = new Date();
+        const inicioHoje = new Date(dataAtual.getFullYear(), dataAtual.getMonth(), dataAtual.getDate());
+        const fimHoje = new Date(dataAtual.getFullYear(), dataAtual.getMonth(), dataAtual.getDate(), 23, 59, 59);
+
+        const whereClause = {
+            user_id: userId,
+            createdAt: {
+                [Op.between]: [inicioHoje, fimHoje]
+            }
+        };
+
+        // Adicionar obra_id apenas se não for null
+        if (obraId !== null) {
+            whereClause.obra_id = obraId;
+        }
+
+        const registosHoje = await require('../models/registoPontoObra').findAll({
+            where: whereClause,
+            order: [['createdAt', 'ASC']],
+        });
+
+        // Se não há registos hoje, é entrada
+        if (registosHoje.length === 0) {
+            return 'entrada';
+        }
+
+        // Verificar se há entrada ativa (sem saída correspondente)
+        const entradas = registosHoje.filter(r => r.tipo === 'entrada');
+        const saidas = registosHoje.filter(r => r.tipo === 'saida');
+
+        // Se há mais entradas que saídas, o próximo é saída
+        if (entradas.length > saidas.length) {
+            return 'saida';
+        } else {
+            return 'entrada';
+        }
+    } catch (error) {
+        console.error('Erro ao determinar tipo de registo:', error);
+        return 'entrada'; // Default para entrada em caso de erro
+    }
+}
+
+// Função para lidar com confirmação automática de ponto
 async function handlePontoConfirmationInput(
     phoneNumber,
     message,
     conversation,
 ) {
-    const escolha = (
-        typeof message === "string" ? message : message.body || ""
-    ).trim();
-    let tipo;
-
-    if (escolha === "1" || escolha.toLowerCase() === "entrada") {
-        tipo = "entrada";
-    } else if (
-        escolha === "2" ||
-        escolha.toLowerCase() === "saida" ||
-        escolha.toLowerCase() === "saída"
-    ) {
-        tipo = "saida";
-    } else {
-        await client.sendMessage(
-            phoneNumber,
-            `❌ Escolha inválida. Digite "1" para ENTRADA ou "2" para SAÍDA:`,
-        );
-        return;
-    }
+    // Determinar automaticamente o tipo de registo
+    const tipoRegisto = await determinarTipoRegisto(
+        conversation.data.userId,
+        conversation.data.obraId
+    );
 
     // Armazenar tipo de registo na conversa
-    conversation.data.tipoRegisto = tipo;
+    conversation.data.tipoRegisto = tipoRegisto;
 
     // Atualizar o estado do utilizador para aguardar localização
     setUserState(phoneNumber, {
@@ -2304,28 +2437,21 @@ async function handlePontoConfirmationInput(
         userId: conversation.data.userId,
         obraId: conversation.data.obraId,
         obraNome: conversation.data.obraNome,
-        tipoRegisto: tipo,
+        tipoRegisto: tipoRegisto,
     });
 
-    // Solicitar localização ao utilizador com várias opções
-    const locationInstructions = `📍 **Preciso da sua localização para registar o ponto**\n\n` +
-        `🎯 **Opção 1 - Localização GPS (Recomendado):**\n` +
-        `1. Clique no ícone de anexo (📎)\n` +
-        `2. Selecione "Localização"\n` +
-        `3. Toque em "Localização atual"\n` +
-        `4. Confirme o envio\n\n` +
+    const tipoTexto = tipoRegisto === 'entrada' ? 'ENTRADA' : 'SAÍDA';
+    const emoji = tipoRegisto === 'entrada' ? '🟢' : '🔴';
 
-        `🗺️ **Opção 2 - Link do Google Maps:**\n` +
-        `1. Abra o Google Maps\n` +
-        `2. Toque no ponto azul (sua localização)\n` +
-        `3. Toque em "Partilhar"\n` +
-        `4. Envie o link aqui\n\n` +
-
-        `📋 **Opção 3 - Coordenadas:**\n` +
-        `Digite suas coordenadas no formato:\n` +
-        `41.1234, -8.5678\n\n` +
-
-        `💡 **Importante:** A localização deve aparecer como um pequeno mapa no chat!`;
+    // Solicitar localização ao utilizador
+    const locationInstructions =
+        `${emoji} **Tipo de registo detetado automaticamente: ${tipoTexto}**\n\n` +
+        `📍 **Para registar o ponto, preciso da sua localização.**\n\n` +
+        `**Como partilhar:**\n` +
+        `• Clique no anexo (📎) → "Localização" → "Localização atual"\n` +
+        `• Ou envie um link do Google Maps\n` +
+        `• Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n` +
+        `A localização deve aparecer como um mapa no chat.`;
 
     await client.sendMessage(phoneNumber, locationInstructions);
 }
@@ -2337,42 +2463,60 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
     const longitude = message.location.longitude;
     const endereco = message.location.description || "Localização partilhada";
 
+    console.log(`🔄 Processando registo de ponto com localização para ${phoneNumber}`);
+    console.log(`📍 Coordenadas: ${latitude}, ${longitude}`);
+    console.log(`📊 Estado do utilizador:`, userState);
+
     // Limpar estado do utilizador após a obtenção da localização
     clearUserState(phoneNumber);
 
     // Obter dados da conversa anterior
     const conversation = activeConversations.get(phoneNumber);
-    if (!conversation) {
+    console.log(`💬 Conversa ativa:`, conversation ? "Sim" : "Não");
+
+    // Obter user_id e obra_id do estado ou da conversa
+    const userId = userState.userId || (conversation && conversation.data && conversation.data.userId);
+    const obraId = userState.obraId || (conversation && conversation.data && conversation.data.obraId);
+    const obraNome = userState.obraNome || (conversation && conversation.data && conversation.data.obraNome);
+    const tipoRegisto = userState.tipoRegisto || (conversation && conversation.data && conversation.data.tipoRegisto);
+
+    console.log(`👤 User ID: ${userId}`);
+    console.log(`🏗️ Obra ID: ${obraId}`);
+    console.log(`📝 Tipo de registo: ${tipoRegisto}`);
+
+    if (!userId) {
+        console.log(`❌ User ID não encontrado`);
         await client.sendMessage(
             phoneNumber,
-            "❌ Erro: Não foi possível encontrar o seu registo em andamento.",
+            "❌ Erro: Não foi possível identificar o utilizador para o registo.",
         );
         return;
     }
 
-    // Obter user_id e obra_id do estado ou da conversa
-    const userId = userState.userId || conversation.data.userId;
-    const obraId = userState.obraId || conversation.data.obraId;
-    const obraNome = userState.obraNome || conversation.data.obraNome;
-    const tipoRegisto = userState.tipoRegisto || conversation.data.tipoRegisto; // Usa do estado se disponível
-
-    if (!userId || !tipoRegisto) {
-        await client.sendMessage(
-            phoneNumber,
-            "❌ Erro: Informações incompletas para registar o ponto.",
-        );
-        return;
+    // Se não temos tipo de registo, determinar automaticamente
+    let finalTipoRegisto = tipoRegisto;
+    if (!finalTipoRegisto) {
+        console.log(`🔍 Determinando tipo de registo automaticamente...`);
+        finalTipoRegisto = await determinarTipoRegisto(userId, obraId);
+        console.log(`📋 Tipo determinado: ${finalTipoRegisto}`);
     }
 
     try {
         // Chamar o controller de registo de ponto obra existente
         const registoPontoObraController = require("../controllers/registoPontoObraControllers");
+        const RegistoPontoObra = require("../models/registoPontoObra");
+
+        console.log(`🎯 Criando registo com dados:`);
+        console.log(`   - User ID: ${userId}`);
+        console.log(`   - Obra ID: ${obraId}`);
+        console.log(`   - Tipo: ${finalTipoRegisto}`);
+        console.log(`   - Coordenadas: ${latitude}, ${longitude}`);
 
         // Simular um request object para o controller
         const mockReq = {
             user: { id: userId }, // Assumindo que o controller espera user.id
             body: {
-                tipo: tipoRegisto,
+                tipo: finalTipoRegisto,
                 obra_id: obraId, // Pode ser null se não houver obra específica
                 latitude: latitude.toString(),
                 longitude: longitude.toString(),
@@ -2415,17 +2559,18 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
         );
 
         // Mensagem de sucesso
-        const tipoTexto = tipoRegisto === "entrada" ? "ENTRADA" : "SAÍDA";
-        const emoji = tipoRegisto === "entrada" ? "🟢" : "🔴";
+        const tipoTexto = finalTipoRegisto === "entrada" ? "ENTRADA" : "SAÍDA";
+        const emoji = finalTipoRegisto === "entrada" ? "🟢" : "🔴";
 
         const successMessage =
             `${emoji} *PONTO REGISTADO COM SUCESSO*\n\n` +
-            `👤 **Utilizador:** ${userId}\n` +
-            `🏗️ **Obra:** ${obraNome || "N/A"}\n` +
+            `📋 **Tipo:** ${tipoTexto}\n` +
+            `🏗️ **Obra:** ${obraNome || "Sem obra específica"}\n` +
             `📍 **Localização:** ${endereco}\n` +
             `⏰ **Data/Hora:** ${new Date().toLocaleString("pt-PT")}\n\n` +
-            `O seu registo foi efetuado com sucesso no sistema AdvirLink.`;
+            `✅ O seu registo foi efetuado com sucesso no sistema AdvirLink.`;
 
+        console.log(`✅ Enviando mensagem de sucesso para ${phoneNumber}`);
         await client.sendMessage(phoneNumber, successMessage);
     } catch (error) {
         console.error("Erro ao registar ponto:", error);
@@ -2445,7 +2590,9 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
 // Função para tentar extrair coordenadas de dados de localização
 function tryParseLocationData(messageText) {
     try {
-        console.log(`🔍 Tentando extrair localização do texto: ${messageText.substring(0, 100)}...`);
+        console.log(
+            `🔍 Tentando extrair localização do texto: ${messageText.substring(0, 100)}...`,
+        );
 
         // **Método 1: URLs do Google Maps (vários formatos)**
         const googleMapsPatterns = [
@@ -2458,7 +2605,7 @@ function tryParseLocationData(messageText) {
             // https://goo.gl/maps/... (encurtado)
             /goo\.gl\/maps/i,
             // https://maps.app.goo.gl/...
-            /maps\.app\.goo\.gl/i
+            /maps\.app\.goo\.gl/i,
         ];
 
         for (const pattern of googleMapsPatterns) {
@@ -2467,7 +2614,9 @@ function tryParseLocationData(messageText) {
                 const lat = parseFloat(match[1]);
                 const lng = parseFloat(match[2]);
                 if (!isNaN(lat) && !isNaN(lng) && isValidCoordinate(lat, lng)) {
-                    console.log(`✅ Coordenadas extraídas do Google Maps: ${lat}, ${lng}`);
+                    console.log(
+                        `✅ Coordenadas extraídas do Google Maps: ${lat}, ${lng}`,
+                    );
                     return { latitude: lat, longitude: lng };
                 }
             }
@@ -2480,7 +2629,9 @@ function tryParseLocationData(messageText) {
             const lat = parseFloat(geoMatch[1]);
             const lng = parseFloat(geoMatch[2]);
             if (!isNaN(lat) && !isNaN(lng) && isValidCoordinate(lat, lng)) {
-                console.log(`✅ Coordenadas extraídas do formato geo: ${lat}, ${lng}`);
+                console.log(
+                    `✅ Coordenadas extraídas do formato geo: ${lat}, ${lng}`,
+                );
                 return { latitude: lat, longitude: lng };
             }
         }
@@ -2491,12 +2642,20 @@ function tryParseLocationData(messageText) {
 
         if (matches) {
             for (const match of matches) {
-                const coordMatch = match.match(/(-?\d+\.?\d+)\s*,\s*(-?\d+\.?\d+)/);
+                const coordMatch = match.match(
+                    /(-?\d+\.?\d+)\s*,\s*(-?\d+\.?\d+)/,
+                );
                 if (coordMatch) {
                     const lat = parseFloat(coordMatch[1]);
                     const lng = parseFloat(coordMatch[2]);
-                    if (!isNaN(lat) && !isNaN(lng) && isValidCoordinate(lat, lng)) {
-                        console.log(`✅ Coordenadas extraídas do texto: ${lat}, ${lng}`);
+                    if (
+                        !isNaN(lat) &&
+                        !isNaN(lng) &&
+                        isValidCoordinate(lat, lng)
+                    ) {
+                        console.log(
+                            `✅ Coordenadas extraídas do texto: ${lat}, ${lng}`,
+                        );
                         return { latitude: lat, longitude: lng };
                     }
                 }
@@ -2507,7 +2666,7 @@ function tryParseLocationData(messageText) {
         const namedPatterns = [
             /lat(?:itude)?[:\s]*(-?\d+\.?\d*)[,\s]+lng|lon(?:gitude)?[:\s]*(-?\d+\.?\d*)/i,
             /latitude[:\s]*(-?\d+\.?\d*)[,\s]+longitude[:\s]*(-?\d+\.?\d*)/i,
-            /lat[:\s]*(-?\d+\.?\d*)[,\s]+lon[:\s]*(-?\d+\.?\d*)/i
+            /lat[:\s]*(-?\d+\.?\d*)[,\s]+lon[:\s]*(-?\d+\.?\d*)/i,
         ];
 
         for (const pattern of namedPatterns) {
@@ -2516,20 +2675,25 @@ function tryParseLocationData(messageText) {
                 const lat = parseFloat(namedMatch[1]);
                 const lng = parseFloat(namedMatch[2]);
                 if (!isNaN(lat) && !isNaN(lng) && isValidCoordinate(lat, lng)) {
-                    console.log(`✅ Coordenadas extraídas do formato nomeado: ${lat}, ${lng}`);
+                    console.log(
+                        `✅ Coordenadas extraídas do formato nomeado: ${lat}, ${lng}`,
+                    );
                     return { latitude: lat, longitude: lng };
                 }
             }
         }
 
         // **Método 5: Links do WhatsApp Web (quando partilhado)**
-        const whatsappPattern = /wa\.me.*text=.*?(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/i;
+        const whatsappPattern =
+            /wa\.me.*text=.*?(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/i;
         const whatsappMatch = messageText.match(whatsappPattern);
         if (whatsappMatch) {
             const lat = parseFloat(whatsappMatch[1]);
             const lng = parseFloat(whatsappMatch[2]);
             if (!isNaN(lat) && !isNaN(lng) && isValidCoordinate(lat, lng)) {
-                console.log(`✅ Coordenadas extraídas do link WhatsApp: ${lat}, ${lng}`);
+                console.log(
+                    `✅ Coordenadas extraídas do link WhatsApp: ${lat}, ${lng}`,
+                );
                 return { latitude: lat, longitude: lng };
             }
         }
@@ -2545,8 +2709,10 @@ function tryParseLocationData(messageText) {
 // Função auxiliar para validar coordenadas
 function isValidCoordinate(lat, lng) {
     return (
-        lat >= -90 && lat <= 90 &&
-        lng >= -180 && lng <= 180 &&
+        lat >= -90 &&
+        lat <= 90 &&
+        lng >= -180 &&
+        lng <= 180 &&
         (Math.abs(lat) > 0.001 || Math.abs(lng) > 0.001) // Evitar coordenadas 0,0
     );
 }
@@ -2556,7 +2722,9 @@ async function extractLocationFromImage(imageData) {
     try {
         // Esta é uma implementação básica - pode precisar de uma biblioteca específica para EXIF
         // Por agora, retornar null
-        console.log(`📷 Tentativa de extrair localização EXIF (não implementado completamente)`);
+        console.log(
+            `📷 Tentativa de extrair localização EXIF (não implementado completamente)`,
+        );
         return null;
     } catch (error) {
         console.error("Erro ao extrair localização de imagem:", error);
