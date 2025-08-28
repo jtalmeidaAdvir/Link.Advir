@@ -1595,18 +1595,10 @@ async function handleIncomingMessage(message) {
         if (userState && userState.type === "awaiting_location") {
             await client.sendMessage(
                 phoneNumber,
-                "❌ **Localização GPS Necessária**\n\n" +
-                "🔍 Recebi dados de imagem, mas preciso da **localização GPS real**.\n\n" +
-                "📍 **Como partilhar:**\n" +
-                "1. Clique no ícone de anexo (📎)\n" +
-                "2. Selecione **'Localização'**\n" +
-                "3. Toque em **'Localização atual'**\n" +
-                "4. Confirme o envio\n\n" +
-                "🌐 **Alternativas:**\n" +
-                "• Envie um link do Google Maps\n" +
-                "• Digite coordenadas (ex: 41.1234, -8.5678)\n" +
-                "• Toque em **'Partilhar'** numa localização no Google Maps e cole o link aqui\n\n" +
-                "💡 A localização deve aparecer como um **pequeno mapa** no chat!",
+                "❌ *Localização GPS Necessária*\n\n" +
+                "📍 Clique em anexo (📎) → 'Localização' → 'Localização atual'\n" +
+                "🌐 Ou envie um link do Google Maps\n" +
+                "📱 Ou digite coordenadas (ex: 41.1234, -8.5678)",
             );
         }
         return;
@@ -1730,7 +1722,7 @@ async function handleIncomingMessage(message) {
     // Se existe estado de utilizador (ex: a selecionar obra), continuar
     if (userState) {
         if (userState.type === "selecting_obra") {
-            await handleObraSelection(message, userState);
+            await handleObraSelection(phoneNumber, messageText, { data: userState }); // Passa o estado como data da conversa
         } else {
             // Se o estado não é reconhecido, limpar e enviar mensagem padrão
             clearUserState(phoneNumber);
@@ -1950,7 +1942,7 @@ async function continueConversation(phoneNumber, message, conversation) {
             break;
         // Estados para registo de ponto
         case CONVERSATION_STATES.PONTO_WAITING_OBRA:
-            await handleObraSelection(phoneNumber, message, conversation); // Corrigido para chamar handleObraSelection
+            await handleObraSelection(phoneNumber, message, conversation);
             break;
         case CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION:
             await handlePontoConfirmationInput(
@@ -2156,17 +2148,19 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                     );
 
                     // Determinar tipo automaticamente mesmo sem obra específica
-                    const tipoRegisto = await determinarTipoRegisto(
+                    const registoInfo = await determinarTipoRegisto(
                         contactData.userId,
                         null // sem obra específica
                     );
 
                     conversationData.obraId = null;
                     conversationData.obraNome = "Sem obra específica";
-                    conversationData.tipoRegisto = tipoRegisto;
+                    conversationData.tipoRegisto = registoInfo.tipo;
+                    conversationData.precisaSaidaAutomatica = registoInfo.precisaSaidaAutomatica;
+                    conversationData.obraAnterior = registoInfo.obraAnterior;
 
-                    const tipoTexto = tipoRegisto === 'entrada' ? 'ENTRADA' : 'SAÍDA';
-                    const emoji = tipoRegisto === 'entrada' ? '🟢' : '🔴';
+                    const tipoTexto = registoInfo.tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA';
+                    const emoji = registoInfo.tipo === 'entrada' ? '🟢' : '🔴';
 
                     // Definir estado para aguardar localização
                     setUserState(phoneNumber, {
@@ -2174,22 +2168,18 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                         userId: conversationData.userId,
                         obraId: null,
                         obraNome: "Sem obra específica",
-                        tipoRegisto: tipoRegisto,
+                        tipoRegisto: registoInfo.tipo,
+                        precisaSaidaAutomatica: registoInfo.precisaSaidaAutomatica,
+                        obraAnterior: registoInfo.obraAnterior,
                     });
 
-                    let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
-                    response += `⚠️ *Nota:* Não foram encontradas obras ativas nas suas autorizações.\n`;
-                    response += `O registo será efetuado sem obra específica.\n\n`;
-                    response += `${emoji} *Tipo de registo detetado automaticamente:* ${tipoTexto}\n\n`;
-                    response += `📱 O sistema detetou automaticamente que deve fazer **${tipoTexto}** baseado no seu estado atual.\n\n`;
-
-                    // Solicitar localização diretamente
-                    response += `📍 **Para registar o ponto, preciso da sua localização.**\n\n`;
-                    response += `**Como partilhar:**\n`;
-                    response += `• Clique no anexo (📎) → "Localização" → "Localização atual"\n`;
-                    response += `• Ou envie um link do Google Maps\n`;
-                    response += `• Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n`;
-                    response += `A localização deve aparecer como um mapa no chat.`;
+                    let response = `✅ *Utilizador:* ${user.nome}\n`;
+                    response += `⚠️ *Nota:* Sem obra específica autorizada\n`;
+                    response += `${emoji} *Registo:* ${tipoTexto}\n\n`;
+                    response += `📍 *Envie a sua localização:*\n`;
+                    response += `• Anexo (📎) → "Localização"\n`;
+                    response += `• Link do Google Maps\n`;
+                    response += `• Coordenadas GPS`;
 
                     await client.sendMessage(phoneNumber, response);
                     return;
@@ -2199,15 +2189,18 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                     conversationData.obraId = obra.id;
                     conversationData.obraNome = obra.nome;
 
-                    // Determinar automaticamente o tipo de registo
-                    const tipoRegisto = await determinarTipoRegisto(
+                    // Determinar automaticamente o tipo de registo (agora retorna objeto)
+                    const registoInfo = await determinarTipoRegisto(
                         contactData.userId,
                         obra.id
                     );
 
-                    conversationData.tipoRegisto = tipoRegisto;
-                    const tipoTexto = tipoRegisto === 'entrada' ? 'ENTRADA' : 'SAÍDA';
-                    const emoji = tipoRegisto === 'entrada' ? '🟢' : '🔴';
+                    conversationData.tipoRegisto = registoInfo.tipo;
+                    conversationData.precisaSaidaAutomatica = registoInfo.precisaSaidaAutomatica;
+                    conversationData.obraAnterior = registoInfo.obraAnterior;
+
+                    const tipoTexto = registoInfo.tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA';
+                    const emoji = registoInfo.tipo === 'entrada' ? '🟢' : '🔴';
 
                     // Definir estado para aguardar localização
                     setUserState(phoneNumber, {
@@ -2215,41 +2208,42 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                         userId: conversationData.userId,
                         obraId: obra.id,
                         obraNome: obra.nome,
-                        tipoRegisto: tipoRegisto,
+                        tipoRegisto: registoInfo.tipo,
+                        precisaSaidaAutomatica: registoInfo.precisaSaidaAutomatica,
+                        obraAnterior: registoInfo.obraAnterior,
                     });
 
-                    let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
-                    response += `🏗️ *Obra:* ${obra.codigo} - ${obra.nome}\n\n`;
-                    response += `${emoji} *Tipo de registo detetado automaticamente:* ${tipoTexto}\n\n`;
-                    response += `📱 O sistema detetou automaticamente que deve fazer **${tipoTexto}** baseado no seu estado atual.\n\n`;
+                    let response = `✅ *Utilizador:* ${user.nome}\n`;
+                    response += `🏗️ *Obra:* ${obra.codigo} - ${obra.nome}\n`;
 
-                    // Solicitar localização diretamente
-                    response += `📍 **Para registar o ponto, preciso da sua localização.**\n\n`;
-                    response += `**Como partilhar:**\n`;
-                    response += `• Clique no anexo (📎) → "Localização" → "Localização atual"\n`;
-                    response += `• Ou envie um link do Google Maps\n`;
-                    response += `• Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n`;
-                    response += `A localização deve aparecer como um mapa no chat.`;
+                    // Se precisa de saída automática, informar
+                    if (registoInfo.precisaSaidaAutomatica) {
+                        response += `🔄 *Mudança de obra detectada*\n`;
+                        response += `📤 Será dada saída automática da obra anterior\n`;
+                        response += `📥 Seguida de entrada nesta obra\n\n`;
+                    }
+
+                    response += `${emoji} *Registo:* ${tipoTexto}\n\n`;
+                    response += `📍 *Envie a sua localização:*\n`;
+                    response += `• Anexo (📎) → "Localização"\n`;
+                    response += `• Link do Google Maps\n`;
+                    response += `• Coordenadas GPS`;
 
                     await client.sendMessage(phoneNumber, response);
                     return;
                 } else {
                     // Múltiplas obras - pedir para escolher
                     conversationData.obrasDisponiveis = obrasInfo;
+                    conversationData.userName = user.nome;
 
-                    let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
-                    response += `🏗️ Foram encontradas múltiplas obras. Por favor, escolha digitando o número correspondente:\n\n`;
+                    let response = `✅ *Utilizador:* ${user.nome}\n\n`;
+                    response += `🏗️ *Selecione uma obra:*\n\n`;
 
                     obrasInfo.forEach((obra, index) => {
-                        response += `*${index + 1}.* ${obra.nome}\n`;
-                        if (obra.localizacao) {
-                            response += `   📍 ${obra.localizacao}\n`;
-                        }
-                        response += `\n`;
+                        response += `*${index + 1}.* ${obra.codigo} - ${obra.nome}\n`;
                     });
 
-                    response += `📝 **Responda com o número da obra (1-${obrasInfo.length})**\n`;
-                    response += `Ou envie "cancelar" para cancelar o registo.`;
+                    response += `\n📝 Digite o número da obra (1-${obrasInfo.length}) ou "cancelar"`;
 
                     const conversation = {
                         state: CONVERSATION_STATES.PONTO_WAITING_OBRA,
@@ -2320,7 +2314,7 @@ const userStates = {};
 // Função para selecionar obra
 async function handleObraSelection(phoneNumber, message, conversation) {
     // Alterado para aceitar phoneNumber e message
-    const selection = message.body.trim(); // Use message.body
+    const selection = typeof message === 'string' ? message.trim() : message.body.trim(); // Handle both string and object
     const obrasInfo = conversation.data.obrasDisponiveis; // Get from conversation data
     const userId = conversation.data.userId;
 
@@ -2361,20 +2355,22 @@ async function handleObraSelection(phoneNumber, message, conversation) {
     // Armazenar a obra selecionada no estado da conversa
     conversation.data.obraId = obraSelecionada.id;
     conversation.data.obraNome = obraSelecionada.nome;
-    conversation.state = CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION; // Próximo passo: confirmar tipo de registo
-    activeConversations.set(phoneNumber, conversation); // Update the conversation state
+    conversation.state = CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION;
+    activeConversations.set(phoneNumber, conversation);
 
-    // Determinar automaticamente o tipo de registo
-    const tipoRegisto = await determinarTipoRegisto(
+    // Determinar automaticamente o tipo de registo (agora retorna objeto)
+    const registoInfo = await determinarTipoRegisto(
         conversation.data.userId,
         obraSelecionada.id
     );
 
-    const tipoTexto = tipoRegisto === 'entrada' ? 'ENTRADA' : 'SAÍDA';
-    const emoji = tipoRegisto === 'entrada' ? '🟢' : '🔴';
+    const tipoTexto = registoInfo.tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA';
+    const emoji = registoInfo.tipo === 'entrada' ? '🟢' : '🔴';
 
-    // Armazenar o tipo e avançar diretamente para solicitar localização
-    conversation.data.tipoRegisto = tipoRegisto;
+    // Armazenar o tipo e informações de saída automática
+    conversation.data.tipoRegisto = registoInfo.tipo;
+    conversation.data.precisaSaidaAutomatica = registoInfo.precisaSaidaAutomatica;
+    conversation.data.obraAnterior = registoInfo.obraAnterior;
 
     // Definir estado para aguardar localização
     setUserState(phoneNumber, {
@@ -2382,21 +2378,25 @@ async function handleObraSelection(phoneNumber, message, conversation) {
         userId: conversation.data.userId,
         obraId: obraSelecionada.id,
         obraNome: obraSelecionada.nome,
-        tipoRegisto: tipoRegisto,
+        tipoRegisto: registoInfo.tipo,
+        precisaSaidaAutomatica: registoInfo.precisaSaidaAutomatica,
+        obraAnterior: registoInfo.obraAnterior,
     });
 
-    let response = `✅ *Obra Selecionada:* ${obraSelecionada.nome}\n`;
-    response += `📍 *Localização:* ${obraSelecionada.localizacao || "N/A"}\n\n`;
-    response += `${emoji} *Tipo de registo detetado automaticamente:* ${tipoTexto}\n\n`;
-    response += `📱 O sistema detetou automaticamente que deve fazer **${tipoTexto}** baseado no seu estado atual.\n\n`;
+    let response = `✅ *Obra:* ${obraSelecionada.codigo} - ${obraSelecionada.nome}\n`;
 
-    // Solicitar localização diretamente
-    response += `📍 **Para registar o ponto, preciso da sua localização.**\n\n`;
-    response += `**Como partilhar:**\n`;
-    response += `• Clique no anexo (📎) → "Localização" → "Localização atual"\n`;
-    response += `• Ou envie um link do Google Maps\n`;
-    response += `• Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n`;
-    response += `A localização deve aparecer como um mapa no chat.`;
+    // Se precisa de saída automática, informar o utilizador
+    if (registoInfo.precisaSaidaAutomatica) {
+        response += `🔄 *Mudança de obra detectada*\n`;
+        response += `📤 Será dada saída automática da obra anterior\n`;
+        response += `📥 Seguida de entrada nesta obra\n\n`;
+    }
+
+    response += `${emoji} *Registo:* ${tipoTexto}\n\n`;
+    response += `📍 *Envie a sua localização:*\n`;
+    response += `• Anexo (📎) → "Localização"\n`;
+    response += `• Link do Google Maps\n`;
+    response += `• Coordenadas GPS`;
 
     await client.sendMessage(phoneNumber, response);
 }
@@ -2405,53 +2405,72 @@ async function handleObraSelection(phoneNumber, message, conversation) {
 async function determinarTipoRegisto(userId, obraId) {
     try {
         const { Op } = require('sequelize');
+        const RegistoPontoObra = require('../models/registoPontoObra');
 
         // Buscar registos do utilizador na data atual
         const dataAtual = new Date();
         const inicioHoje = new Date(dataAtual.getFullYear(), dataAtual.getMonth(), dataAtual.getDate());
         const fimHoje = new Date(dataAtual.getFullYear(), dataAtual.getMonth(), dataAtual.getDate(), 23, 59, 59);
 
-        const whereClause = {
-            user_id: userId,
-            createdAt: {
-                [Op.between]: [inicioHoje, fimHoje]
-            }
-        };
-
-        // Se temos obra específica, filtrar só por essa obra
-        if (obraId !== null && obraId !== undefined) {
-            whereClause.obra_id = obraId;
-        }
-
-        const registosHoje = await require('../models/registoPontoObra').findAll({
-            where: whereClause,
-            order: [['createdAt', 'DESC']], // Ordem decrescente para pegar o mais recente
+        // 1. Buscar o último registo geral do utilizador hoje (qualquer obra)
+        const ultimoRegistoGeral = await RegistoPontoObra.findOne({
+            where: {
+                user_id: userId,
+                createdAt: {
+                    [Op.between]: [inicioHoje, fimHoje]
+                }
+            },
+            order: [['createdAt', 'DESC']]
         });
 
-        console.log(`🔍 Registos encontrados hoje para user ${userId}, obra ${obraId}:`, registosHoje.length);
+        console.log(`🔍 Último registo geral encontrado:`, ultimoRegistoGeral ?
+            `${ultimoRegistoGeral.tipo} na obra ${ultimoRegistoGeral.obra_id} às ${ultimoRegistoGeral.createdAt}` : 'Nenhum');
 
-        // Se não há registos hoje, é entrada
-        if (registosHoje.length === 0) {
+        // 2. Se não há registos hoje, é entrada
+        if (!ultimoRegistoGeral) {
             console.log(`✅ Nenhum registo hoje -> ENTRADA`);
-            return 'entrada';
+            return { tipo: 'entrada', precisaSaidaAutomatica: false };
         }
 
-        // Verificar o último registo
-        const ultimoRegisto = registosHoje[0]; // Primeiro da lista (mais recente)
-        console.log(`📋 Último registo: ${ultimoRegisto.tipo} às ${ultimoRegisto.createdAt}`);
+        // 3. Verificar se o último registo foi numa obra diferente
+        const obraAnterior = ultimoRegistoGeral.obra_id;
+        const mudouDeObra = obraId !== null && obraAnterior !== null && obraId !== obraAnterior;
 
-        // Se o último registo foi entrada, o próximo deve ser saída
-        // Se o último registo foi saída, o próximo deve ser entrada
-        if (ultimoRegisto.tipo === 'entrada') {
-            console.log(`✅ Último foi entrada -> próximo será SAÍDA`);
-            return 'saida';
-        } else {
-            console.log(`✅ Último foi saída -> próximo será ENTRADA`);
-            return 'entrada';
+        console.log(`🏗️ Obra anterior: ${obraAnterior}, Obra atual: ${obraId}, Mudou de obra: ${mudouDeObra}`);
+
+        // 4. Se mudou de obra e o último registo foi entrada, precisa dar saída automática
+        if (mudouDeObra && ultimoRegistoGeral.tipo === 'entrada') {
+            console.log(`🔄 Mudança de obra detectada - vai dar saída da obra ${obraAnterior} e entrada na obra ${obraId}`);
+            return {
+                tipo: 'entrada',
+                precisaSaidaAutomatica: true,
+                obraAnterior: obraAnterior,
+                ultimoRegistoId: ultimoRegistoGeral.id
+            };
         }
+
+        // 5. Se é na mesma obra, verificar o tipo normal
+        if (obraId === null || obraId === undefined || obraId === obraAnterior) {
+            if (ultimoRegistoGeral.tipo === 'entrada') {
+                console.log(`✅ Último foi entrada na mesma obra -> próximo será SAÍDA`);
+                return { tipo: 'saida', precisaSaidaAutomatica: false };
+            } else {
+                console.log(`✅ Último foi saída -> próximo será ENTRADA`);
+                return { tipo: 'entrada', precisaSaidaAutomatica: false };
+            }
+        }
+
+        // 6. Se mudou de obra mas o último registo foi saída, pode dar entrada diretamente
+        if (mudouDeObra && ultimoRegistoGeral.tipo === 'saida') {
+            console.log(`✅ Mudança de obra mas último registo foi saída -> ENTRADA direta`);
+            return { tipo: 'entrada', precisaSaidaAutomatica: false };
+        }
+
+        // Default
+        return { tipo: 'entrada', precisaSaidaAutomatica: false };
     } catch (error) {
         console.error('Erro ao determinar tipo de registo:', error);
-        return 'entrada'; // Default para entrada em caso de erro
+        return { tipo: 'entrada', precisaSaidaAutomatica: false };
     }
 }
 
@@ -2484,13 +2503,11 @@ async function handlePontoConfirmationInput(
 
     // Solicitar localização ao utilizador
     const locationInstructions =
-        `${emoji} **Tipo de registo detetado automaticamente: ${tipoTexto}**\n\n` +
-        `📍 **Para registar o ponto, preciso da sua localização.**\n\n` +
-        `**Como partilhar:**\n` +
-        `• Clique no anexo (📎) → "Localização" → "Localização atual"\n` +
-        `• Ou envie um link do Google Maps\n` +
-        `• Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n` +
-        `A localização deve aparecer como um mapa no chat.`;
+        `${emoji} *Registo:* ${tipoTexto}\n\n` +
+        `📍 *Envie a sua localização:*\n` +
+        `• Anexo (📎) → "Localização"\n` +
+        `• Link do Google Maps\n` +
+        `• Coordenadas GPS`;
 
     await client.sendMessage(phoneNumber, locationInstructions);
 }
@@ -2541,11 +2558,46 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
     }
 
     try {
-        // Chamar o controller de registo de ponto obra existente
-        const registoPontoObraController = require("../controllers/registoPontoObraControllers");
-        const RegistoPontoObra = require("../models/registoPontoObra");
+        // Verificar se precisa dar saída automática primeiro
+        const precisaSaidaAutomatica = userState.precisaSaidaAutomatica ||
+            (conversation && conversation.data && conversation.data.precisaSaidaAutomatica);
+        const obraAnterior = userState.obraAnterior ||
+            (conversation && conversation.data && conversation.data.obraAnterior);
 
-        console.log(`🎯 Criando registo com dados:`);
+        let mensagensRegisto = [];
+
+        // 1. Se precisa de saída automática, fazer primeiro
+        if (precisaSaidaAutomatica && obraAnterior) {
+            console.log(`🔄 Executando saída automática da obra ${obraAnterior}`);
+
+            const RegistoPontoObra = require("../models/registoPontoObra");
+
+            // Criar registo de saída da obra anterior
+            const registoSaida = await RegistoPontoObra.create({
+                user_id: userId,
+                obra_id: obraAnterior,
+                tipo: 'saida',
+                timestamp: new Date(),
+                latitude: latitude.toString(),
+                longitude: longitude.toString()
+            });
+
+            console.log(`✅ Saída automática registada:`, registoSaida.toJSON());
+
+            // Buscar informações da obra anterior para a mensagem
+            const Obra = require("../models/obra");
+            const obraAnteriorInfo = await Obra.findByPk(obraAnterior);
+            const obraAnteriorNome = obraAnteriorInfo ?
+                `${obraAnteriorInfo.codigo} - ${obraAnteriorInfo.nome}` :
+                `Obra ${obraAnterior}`;
+
+            mensagensRegisto.push(`🔴 **SAÍDA AUTOMÁTICA**\n🏗️ **Obra:** ${obraAnteriorNome}\n⏰ **Data/Hora:** ${new Date().toLocaleString("pt-PT")}\n`);
+        }
+
+        // 2. Agora registar entrada/saída na obra atual
+        const registoPontoObraController = require("../controllers/registoPontoObraControllers");
+
+        console.log(`🎯 Criando registo principal com dados:`);
         console.log(`   - User ID: ${userId}`);
         console.log(`   - Obra ID: ${obraId}`);
         console.log(`   - Tipo: ${finalTipoRegisto}`);
@@ -2553,24 +2605,22 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
 
         // Simular um request object para o controller
         const mockReq = {
-            user: { id: userId }, // Assumindo que o controller espera user.id
+            user: { id: userId },
             body: {
                 tipo: finalTipoRegisto,
-                obra_id: obraId, // Pode ser null se não houver obra específica
+                obra_id: obraId,
                 latitude: latitude.toString(),
                 longitude: longitude.toString(),
-                // Adicionar outros campos se necessário, como IP, etc.
             },
         };
 
         // Simular response object que captura o resultado
         let controllerResult = null;
-        let controllerError = null;
         const mockRes = {
             status: (code) => ({
                 json: (data) => {
                     controllerResult = { status: code, data: data };
-                    console.log(`Controller response - Status: ${code}`, data);
+                    console.log("Controller response - Status:", code, data);
                     return data;
                 },
             }),
@@ -2593,7 +2643,7 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
         }
 
         console.log(
-            "✅ Ponto registado com sucesso na base de dados:",
+            "✅ Ponto principal registado com sucesso na base de dados:",
             controllerResult,
         );
 
@@ -2601,13 +2651,21 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
         const tipoTexto = finalTipoRegisto === "entrada" ? "ENTRADA" : "SAÍDA";
         const emoji = finalTipoRegisto === "entrada" ? "🟢" : "🔴";
 
-        const successMessage =
-            `${emoji} *PONTO REGISTADO COM SUCESSO*\n\n` +
-            `📋 **Tipo:** ${tipoTexto}\n` +
-            `🏗️ **Obra:** ${obraNome || "Sem obra específica"}\n` +
-            `📍 **Localização:** ${endereco}\n` +
-            `⏰ **Data/Hora:** ${new Date().toLocaleString("pt-PT")}\n\n` +
-            `✅ O seu registo foi efetuado com sucesso no sistema AdvirLink.`;
+        // Montar mensagem simplificada
+        let successMessage = `✅ *Registo Efetuado*\n\n`;
+
+        // Se houve saída automática, mostrar apenas que foi processada
+        if (mensagensRegisto.length > 0) {
+            successMessage += `🔄 Saída automática da obra anterior\n`;
+        }
+
+        // Registo principal (apenas o último)
+        successMessage += `${emoji} *${tipoTexto}*\n`;
+        successMessage += `⏰ ${new Date().toLocaleString("pt-PT")}\n`;
+        if (obraNome && obraNome !== "Sem obra específica") {
+            successMessage += `🏗️ ${obraNome}\n`;
+        }
+        successMessage += `\nRegisto confirmado no sistema.`;
 
         console.log(`✅ Enviando mensagem de sucesso para ${phoneNumber}`);
         await client.sendMessage(phoneNumber, successMessage);
