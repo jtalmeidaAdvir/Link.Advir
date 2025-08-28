@@ -42,7 +42,7 @@ const POS = sequelize.define('POS', {
             key: 'id',
         },
     },
-    isActive: {
+    ativo: {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
     },
