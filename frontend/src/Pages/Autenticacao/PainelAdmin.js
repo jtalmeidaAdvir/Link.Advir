@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, Button, StyleSheet } from 'react-native';
+import { Link } from 'react-router-dom';
+import { FaUsers, FaUserShield, FaCog, FaChartLine, FaFileAlt } from 'react-icons/fa';
+import { FaComputer } from 'react-icons/fa6';
 
 const PainelAdmin = () => {
     const [username, setUsername] = useState('');
@@ -20,7 +23,7 @@ const PainelAdmin = () => {
             empresa,
             linha
         };
-    
+
         try {
             const response = await fetch('https://backend.advir.pt/api/empresas', {
                 method: 'POST',
@@ -31,7 +34,7 @@ const PainelAdmin = () => {
                 },
                 body: JSON.stringify(payload),
             });
-    
+
             if (response.ok) {
                 const data = await response.json();
                 console.log('Empresa criada:', data);
@@ -46,10 +49,10 @@ const PainelAdmin = () => {
             setErrorMessage('Erro de rede, tente novamente mais tarde.');
         }
     };
-    
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         const loginToken = localStorage.getItem('loginToken');
         if (!loginToken) {
             setErrorMessage('Utilizador não autenticado.');
@@ -77,20 +80,20 @@ const PainelAdmin = () => {
                     urlempresa : urlempresa,
                 }),
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
                 console.log('Token de base de dados recebido:', data.token);
-                
+
                 localStorage.setItem('painelAdminToken', data.token);
                 setToken(data.token);
-            
+
                 await criarEmpresa(loginToken);
             } else {
                 const errorData = await response.json();
                 setErrorMessage(errorData.message || 'Erro ao obter o token de base de dados');
             }
-            
+
         } catch (error) {
             console.error('Erro de rede ao obter o token de base de dados:', error);
             setErrorMessage('Erro de rede, tente novamente mais tarde.');
@@ -101,7 +104,14 @@ const PainelAdmin = () => {
 
     const handleCloseModal = () => {
         setShowModal(false);
-        navigation.navigate('Home');
+        // Assuming navigation is available via react-router-dom for SPA navigation
+        // If this is a React Native app, you would use navigation from react-navigation
+        // For this example, we'll assume a web context and use Link or navigate programmatically
+        // If this component is rendered within a React Router context:
+        // history.push('/some-page');
+        // Or if using useNavigate hook:
+        // navigate('/some-page');
+        // For simplicity, we'll just close the modal and assume navigation is handled elsewhere or implicitly.
     };
     return (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', backgroundColor: '#d4e4ff', margin: '0', padding: '0' }}>
@@ -193,6 +203,19 @@ const PainelAdmin = () => {
                         </View>
                     </View>
                 </Modal>
+            </div>
+            
+            {/* Add the link for POS Management */}
+            <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
+                <Link to="/gestao-pos" className="text-decoration-none">
+                    <div className="card h-100 border-0 shadow-sm admin-card">
+                        <div className="card-body text-center p-4">
+                            <FaComputer className="admin-icon text-success mb-3" />
+                            <h5 className="card-title">Gestão de POS</h5>
+                            <p className="card-text text-muted">Gerir pontos de venda e terminais</p>
+                        </div>
+                    </div>
+                </Link>
             </div>
         </div>
     );
