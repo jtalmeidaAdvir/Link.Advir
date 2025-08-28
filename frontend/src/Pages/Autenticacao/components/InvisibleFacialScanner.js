@@ -11,23 +11,31 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
 
-    useEffect(() => {
-        if (isScanning) {
-            setScanProgress(0);
-            setStatusMessage('Iniciando sistema de reconhecimento facial...');
-            initializeFaceAPI();
-        } else {
-            stopCamera();
-            setStatusMessage('');
-            setScanProgress(0);
-            setCameraReady(false);
-            setModelsLoaded(false);
-        }
+ // 1) Repor o efeito que arranca/paralisa o scanner
+ useEffect(() => {
+   if (isScanning) {
+     setScanProgress(0);
+     setStatusMessage('Iniciando sistema de reconhecimento facial...');
+     initializeFaceAPI();
+   } else {
+     stopCamera();
+     setStatusMessage('');
+     setScanProgress(0);
+     setCameraReady(false);
+     setModelsLoaded(false);
+   }
+   return () => {
+     stopCamera();
+   };
+ }, [isScanning]);
 
-        return () => {
-            stopCamera();
-        };
-    }, [isScanning]);
+// Já tinhas este efeito (ok manter):
+useEffect(() => {
+  if (isScanning && modelsLoaded && cameraReady) {
+    startScan();
+  }
+}, [isScanning, modelsLoaded, cameraReady]);
+
 
     const initializeFaceAPI = async () => {
         const timeout = setTimeout(() => {
@@ -83,79 +91,87 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
         }
     };
 
-    const startCamera = async () => {
-        try {
-            setScanProgress(75);
-            setStatusMessage('Solicitando acesso à câmera...');
+  const startCamera = async () => {
+  try {
+    setScanProgress(75);
+    setStatusMessage('Solicitando acesso à câmera...');
 
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
-                    facingMode: 'user'
-                }
-            });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+    });
 
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                streamRef.current = stream;
-                setScanProgress(85);
-                setStatusMessage('Câmera conectada. Preparando scan...');
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
 
-                videoRef.current.onloadedmetadata = () => {
-                    console.log('Video metadata carregado, dimensões:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
-                    setCameraReady(true);
-                    setScanProgress(90);
-                    setStatusMessage('Sistema pronto! Iniciando detecção facial...');
-                    
-                    // Verificar se o video está realmente pronto
-                    const checkVideoReady = () => {
-                        if (videoRef.current && videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
-                            console.log('Video está pronto para processamento');
-                            if (modelsLoaded && cameraReady) {
-                                startScan();
-                            }
-                        } else {
-                            console.log('Video ainda não está pronto, tentando novamente...');
-                            setTimeout(checkVideoReady, 500);
-                        }
-                    };
-                    
-                    setTimeout(checkVideoReady, 1000);
-                };
-            }
-        } catch (error) {
-            console.error('Erro ao acessar câmera:', error);
-            setCameraReady(false);
-            setScanProgress(0);
-            setStatusMessage('Erro: Câmera não disponível ou sem permissão.');
-            setTimeout(() => {
-                if (onStopScan) onStopScan();
-            }, 3000);
-        }
+    // Limpar handlers antigos
+    videoEl.onloadedmetadata = null;
+
+    const handleReady = () => {
+      // Evita múltiplas execuções
+      if (cameraReady) return;
+      console.log('loadedmetadata/canplay ->', videoEl.videoWidth, 'x', videoEl.videoHeight);
+      setCameraReady(true);
+      setScanProgress(90);
+      setStatusMessage('Sistema pronto! Iniciando detecção facial...');
     };
 
-    const stopCamera = () => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-            setCameraReady(false);
+    // 1) Anexar listeners ANTES do srcObject
+    videoEl.addEventListener('loadedmetadata', handleReady, { once: true });
+    videoEl.addEventListener('canplay', handleReady, { once: true });
+
+    videoEl.srcObject = stream;
+    streamRef.current = stream;
+
+    try { await videoEl.play(); } catch (e) { console.warn('play() falhou:', e); }
+
+    setScanProgress(85);
+    setStatusMessage('Câmera conectada. Preparando scan...');
+
+    // 2) Fallback imediato: se já houver dimensões, marca pronto
+    if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+      handleReady();
+    } else {
+      // 3) Fallback por timeout (caso os eventos se percam)
+      setTimeout(() => {
+        if (!cameraReady && videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+          handleReady();
+        } else if (!cameraReady) {
+          setStatusMessage('Não consegui inicializar a câmera. Tente novamente.');
+          if (onStopScan) onStopScan();
         }
-    };
+      }, 1500);
+    }
+  } catch (error) {
+    console.error('Erro ao acessar câmera:', error);
+    setCameraReady(false);
+    setScanProgress(0);
+    setStatusMessage('Erro: Câmera não disponível ou sem permissão.');
+    setTimeout(() => { if (onStopScan) onStopScan(); }, 3000);
+  }
+};
+
+
+   const stopCamera = () => {
+  const videoEl = videoRef.current;
+  if (videoEl) {
+    videoEl.pause();
+    videoEl.removeAttribute('src'); // para Safari
+    videoEl.srcObject = null;
+    videoEl.onloadedmetadata = null;
+    videoEl.removeEventListener('canplay', () => {});
+  }
+  if (streamRef.current) {
+    streamRef.current.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+  }
+  setCameraReady(false);
+};
+
 
     const startScan = async () => {
         console.log('startScan chamado - cameraReady:', cameraReady, 'modelsLoaded:', modelsLoaded);
         
-        if (!cameraReady || !modelsLoaded) {
-            setStatusMessage('Sistema ainda não está pronto. Aguarde...');
-            setTimeout(() => {
-                if (cameraReady && modelsLoaded) {
-                    startScan();
-                }
-            }, 1000);
-            return;
-        }
-
+     
         const video = videoRef.current;
         if (!video || !video.videoWidth || !video.videoHeight) {
             console.log('Video não está pronto:', video ? `${video.videoWidth}x${video.videoHeight}` : 'null');
@@ -309,7 +325,8 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
     };
 
     const calculateFaceQuality = (detection, video) => {
-        const { width, height } = video;
+         const width  = video?.videoWidth  || 640;
+ const height = video?.videoHeight || 480;
         const box = detection.detection.box;
 
         const faceCenterX = box.x + box.width / 2;

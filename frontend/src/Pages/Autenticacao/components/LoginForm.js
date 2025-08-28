@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import RecuperarPasswordLink from "./RecuperarPasswordLink";
 import FacialScannerModal from "./FacialScannerModal";
 import InvisibleFacialScanner from "./InvisibleFacialScanner";
@@ -26,25 +26,21 @@ const LoginForm = ({
     const [isFacialLoading, setIsFacialLoading] = useState(false);
     const [isCameraAvailable, setIsCameraAvailable] = useState(false);
     const [isInvisibleScanning, setIsInvisibleScanning] = useState(false);
+    const autoScanTriedRef = useRef(false); // Ref para evitar múltiplas tentativas automáticas
 
-    // Verificar disponibilidade da câmera
-    useEffect(() => {
-        const checkCameraAvailability = async () => {
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                try {
-                    await navigator.mediaDevices.getUserMedia({ video: true });
-                    setIsCameraAvailable(true);
-                } catch (error) {
-                    console.error("Erro ao acessar a câmera:", error);
-                    setIsCameraAvailable(false);
-                }
-            } else {
-                setIsCameraAvailable(false);
-            }
-        };
 
-        checkCameraAvailability();
-    }, []);
+
+// 1) Disponibilidade: apenas detetar API; a permissão é pedida no scanner
+useEffect(() => {
+  setIsCameraAvailable(!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+}, []);
+
+// 2) (Opcional) Pré-preencher email com o último usado — ajuda se quiseres manter a verificação de biometria
+useEffect(() => {
+  const cached = localStorage.getItem('userEmail') || localStorage.getItem('email');
+  if (cached) setEmail(cached);
+}, [setEmail]);
+
 
     // Verificar se o utilizador tem biometria registada quando o email muda
     useEffect(() => {
@@ -68,6 +64,34 @@ const LoginForm = ({
         const timeoutId = setTimeout(checkBiometric, 500); // Debounce de 500ms
         return () => clearTimeout(timeoutId);
     }, [email]);
+
+
+      // AUTO-START: arranca o scan invisível assim que houver câmara e biometria
+  useEffect(() => {
+    if (!isCameraAvailable || isInvisibleScanning || autoScanTriedRef.current) return;
+
+    const kickOff = () => {
+      autoScanTriedRef.current = true;
+      setIsInvisibleScanning(true);
+    };
+
+    // iOS/Safari às vezes exige gesto do utilizador para media
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      const once = { once: true };
+      const handler = () => { kickOff(); };
+      window.addEventListener('pointerdown', handler, once);
+      window.addEventListener('keydown', handler, once);
+      // Se já houver dimensões/câmara pronta, tenta logo:
+      setTimeout(() => { if (!autoScanTriedRef.current) kickOff(); }, 800);
+      return () => {
+        window.removeEventListener('pointerdown', handler);
+        window.removeEventListener('keydown', handler);
+      };
+    } else {
+      kickOff(); // Chrome/Edge/Firefox: pode arrancar já
+    }
+  }, [isCameraAvailable, isInvisibleScanning]);
 
     const handleSmartLogin = async (e) => {
         e.preventDefault();
@@ -315,7 +339,7 @@ const LoginForm = ({
             </div>
 
             {/* Mostrar campo da password apenas se não tiver biometria ou se estiver a verificar */}
-            {(!hasBiometric || isCheckingBiometric) && (
+           
                 <div style={{ marginBottom: "20px" }}>
                     <input
                         type="password"
@@ -326,7 +350,7 @@ const LoginForm = ({
                         style={inputStyle}
                     />
                 </div>
-            )}
+          
 
             {errorMessage && <div style={errorStyle}>{errorMessage}</div>}
 
@@ -353,36 +377,9 @@ const LoginForm = ({
                 )}
             </button>
 
-            {/* Botão de Autenticação Facial - Modal */}
-            {isCameraAvailable && (
-                <button 
-                    type="button"
-                    onClick={handleFacialLogin}
-                    disabled={isFacialLoading || isInvisibleScanning}
-                    style={{
-                        ...buttonStyle,
-                        backgroundColor: "#4CAF50",
-                        marginTop: "10px",
-                        opacity: (isFacialLoading || isInvisibleScanning) ? 0.6 : 1,
-                        cursor: (isFacialLoading || isInvisibleScanning) ? "not-allowed" : "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "10px"
-                    }}
-                >
-                    {(isFacialLoading || isInvisibleScanning) ? (
-                        "A processar..."
-                    ) : (
-                        <>
-                            <span>👤</span>
-                            Entrar com Reconhecimento Facial
-                        </>
-                    )}
-                </button>
-            )}
+        
 
-            {/* Botão de Autenticação Facial - Invisível */}
+            {/* Botão de Autenticação Facial - Invisível 
             {isCameraAvailable && (
                 <button 
                     type="button"
@@ -390,7 +387,7 @@ const LoginForm = ({
                     disabled={isFacialLoading || isInvisibleScanning}
                     style={{
                         ...buttonStyle,
-                        backgroundColor: "#FF9800",
+                        backgroundColor: "#1792FE",
                         marginTop: "10px",
                         opacity: (isFacialLoading || isInvisibleScanning) ? 0.6 : 1,
                         cursor: (isFacialLoading || isInvisibleScanning) ? "not-allowed" : "pointer",
@@ -404,12 +401,14 @@ const LoginForm = ({
                         "A processar..."
                     ) : (
                         <>
-                            <span>🚀</span>
-                            Login Facial Rápido
+                            <span></span>
+                            Reconhecimento Facial
                         </>
                     )}
                 </button>
             )}
+
+            */}
 
             {/* Scanner Facial Invisível */}
             <InvisibleFacialScanner
