@@ -11,6 +11,26 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
 
+
+    const noFaceTimeoutRef = useRef(null);
+
+  const clearNoFaceTimeout = () => {
+    if (noFaceTimeoutRef.current) {
+      clearTimeout(noFaceTimeoutRef.current);
+      noFaceTimeoutRef.current = null;
+    }
+  };
+  const startNoFaceTimeoutOnce = (ms = 10000) => {
+    // não reinicia se já existir — conta 10s acumulados desde o arranque
+    if (noFaceTimeoutRef.current) return;
+    noFaceTimeoutRef.current = setTimeout(() => {
+      setStatusMessage('Nenhuma face detetada em 10s. A fechar...');
+      setScanProgress(0);
+      // fecha/cancela o scan
+      if (onStopScan) onStopScan();
+    }, ms);
+  };
+
  // 1) Repor o efeito que arranca/paralisa o scanner
  useEffect(() => {
    if (isScanning) {
@@ -18,6 +38,7 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
      setStatusMessage('Iniciando sistema de reconhecimento facial...');
      initializeFaceAPI();
    } else {
+    clearNoFaceTimeout();
      stopCamera();
      setStatusMessage('');
      setScanProgress(0);
@@ -25,6 +46,7 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
      setModelsLoaded(false);
    }
    return () => {
+    clearNoFaceTimeout();
      stopCamera();
    };
  }, [isScanning]);
@@ -152,6 +174,7 @@ useEffect(() => {
 
 
    const stopCamera = () => {
+    clearNoFaceTimeout();
   const videoEl = videoRef.current;
   if (videoEl) {
     videoEl.pause();
@@ -170,7 +193,7 @@ useEffect(() => {
 
     const startScan = async () => {
         console.log('startScan chamado - cameraReady:', cameraReady, 'modelsLoaded:', modelsLoaded);
-        
+        if (!isScanning) return; // se o utilizador cancelou mean-time
      
         const video = videoRef.current;
         if (!video || !video.videoWidth || !video.videoHeight) {
@@ -183,6 +206,7 @@ useEffect(() => {
         console.log('Iniciando detecção facial...');
         setScanProgress(95);
         setStatusMessage('Posicione-se em frente à câmera e aguarde...');
+        startNoFaceTimeoutOnce(10000);
 
         // Adicionar timeout para evitar bloqueios
         const scanTimeout = setTimeout(() => {
@@ -230,6 +254,7 @@ useEffect(() => {
             setTimeout(startScan, 1500);
             return;
         }
+        clearNoFaceTimeout(); // Limpar timeout de "nenhuma face" se uma face foi detectada
         if (detections.length > 1) {
             console.log('Múltiplas faces detectadas:', detections.length);
             setStatusMessage('Múltiplas faces detectadas. Apenas uma pessoa permitida.');
@@ -353,6 +378,7 @@ useEffect(() => {
 
     const completeScan = async (scans) => {
         try {
+            clearNoFaceTimeout();
             const avgMetrics = calculateAverageDetections(scans);
             const overallConfidence = avgMetrics.avgConfidence;
 
