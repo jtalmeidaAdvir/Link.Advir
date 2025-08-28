@@ -1289,6 +1289,7 @@ async function checkPontoAuthorization(phoneNumber) {
                             contact.dataFimAutorizacao;
                         const hoje = new Date().toISOString().split("T")[0];
 
+                        // Se tem data de início e ainda não chegou, não está autorizado
                         if (dataInicio && hoje < dataInicio) {
                             return {
                                 authorized: false,
@@ -1297,6 +1298,7 @@ async function checkPontoAuthorization(phoneNumber) {
                             };
                         }
 
+                        // Se tem data de fim e já passou, não está autorizado
                         if (dataFim && hoje > dataFim) {
                             return {
                                 authorized: false,
@@ -1304,6 +1306,8 @@ async function checkPontoAuthorization(phoneNumber) {
                                 error: `Autorização expirou em ${new Date(dataFim).toLocaleDateString("pt-PT")}`,
                             };
                         }
+
+                        // Se não tem nenhuma das datas ou está dentro do período válido, tem autorização
 
                         // Obter obras autorizadas
                         let obrasAutorizadas =
@@ -1735,7 +1739,36 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // Mensagem não relacionada com pedidos - resposta padrão
+    // Verificar se o contacto tem alguma autorização antes de mostrar mensagem
+    const pedidoAuth = await checkContactAuthorization(phoneNumber);
+    const pontoAuth = await checkPontoAuthorization(phoneNumber);
+
+    // Se não tem nenhuma autorização, não mostrar nada (ignorar mensagem)
+    if (!pedidoAuth.authorized && !pontoAuth.authorized) {
+        console.log(`📵 Contacto ${phoneNumber} sem autorizações - ignorando mensagem: "${messageText}"`);
+        return;
+    }
+
+    // Se tem apenas uma autorização, dar dica específica
+    if (!pedidoAuth.authorized && pontoAuth.authorized) {
+        // Só pode registar ponto
+        await client.sendMessage(
+            phoneNumber,
+            `📍 **Registo de Ponto**\n\nPara registar o seu ponto, envie a palavra "ponto".\n\nObrigado!`
+        );
+        return;
+    }
+
+    if (pedidoAuth.authorized && !pontoAuth.authorized) {
+        // Só pode criar pedidos
+        await client.sendMessage(
+            phoneNumber,
+            `🛠️ **Pedidos de Assistência**\n\nPara criar um pedido de assistência, envie a palavra "pedido".\n\nObrigado!`
+        );
+        return;
+    }
+
+    // Se tem ambas as autorizações, mostrar mensagem completa
     await sendWelcomeMessage(phoneNumber);
 }
 
@@ -2373,7 +2406,7 @@ async function determinarTipoRegisto(userId, obraId) {
     try {
         const { Op } = require('sequelize');
 
-        // Buscar registos do utilizador para a obra na data atual
+        // Buscar registos do utilizador na data atual
         const dataAtual = new Date();
         const inicioHoje = new Date(dataAtual.getFullYear(), dataAtual.getMonth(), dataAtual.getDate());
         const fimHoje = new Date(dataAtual.getFullYear(), dataAtual.getMonth(), dataAtual.getDate(), 23, 59, 59);
@@ -2385,29 +2418,35 @@ async function determinarTipoRegisto(userId, obraId) {
             }
         };
 
-        // Adicionar obra_id apenas se não for null
-        if (obraId !== null) {
+        // Se temos obra específica, filtrar só por essa obra
+        if (obraId !== null && obraId !== undefined) {
             whereClause.obra_id = obraId;
         }
 
         const registosHoje = await require('../models/registoPontoObra').findAll({
             where: whereClause,
-            order: [['createdAt', 'ASC']],
+            order: [['createdAt', 'DESC']], // Ordem decrescente para pegar o mais recente
         });
+
+        console.log(`🔍 Registos encontrados hoje para user ${userId}, obra ${obraId}:`, registosHoje.length);
 
         // Se não há registos hoje, é entrada
         if (registosHoje.length === 0) {
+            console.log(`✅ Nenhum registo hoje -> ENTRADA`);
             return 'entrada';
         }
 
-        // Verificar se há entrada ativa (sem saída correspondente)
-        const entradas = registosHoje.filter(r => r.tipo === 'entrada');
-        const saidas = registosHoje.filter(r => r.tipo === 'saida');
+        // Verificar o último registo
+        const ultimoRegisto = registosHoje[0]; // Primeiro da lista (mais recente)
+        console.log(`📋 Último registo: ${ultimoRegisto.tipo} às ${ultimoRegisto.createdAt}`);
 
-        // Se há mais entradas que saídas, o próximo é saída
-        if (entradas.length > saidas.length) {
+        // Se o último registo foi entrada, o próximo deve ser saída
+        // Se o último registo foi saída, o próximo deve ser entrada
+        if (ultimoRegisto.tipo === 'entrada') {
+            console.log(`✅ Último foi entrada -> próximo será SAÍDA`);
             return 'saida';
         } else {
+            console.log(`✅ Último foi saída -> próximo será ENTRADA`);
             return 'entrada';
         }
     } catch (error) {
@@ -3320,20 +3359,52 @@ router.post("/schedule", async (req, res) => {
 
 // Enviar mensagem de boas-vindas para mensagens não relacionadas com pedidos
 async function sendWelcomeMessage(phoneNumber) {
-    const welcomeMessage = `👋 Bem-vindo!
-
-This is the automated assistant for Advir Plan Consultoria.
-
-Available services:
-• To create an *assistance request*, send: "pedido"
-• To register *attendance*, send: "ponto"
-
-How can we help you today?`;
-
     try {
+        // Verificar autorizações do contacto
+        const pedidoAuth = await checkContactAuthorization(phoneNumber);
+        const pontoAuth = await checkPontoAuthorization(phoneNumber);
+
+        let welcomeMessage = `👋 Bem-vindo!\n\nEste é o assistente automático da Advir Plan Consultoria.\n\n`;
+
+        // Verificar que serviços estão disponíveis
+        const canCreateRequests = pedidoAuth.authorized;
+        const canRegisterPonto = pontoAuth.authorized;
+
+        if (canCreateRequests && canRegisterPonto) {
+            // Tem ambas as autorizações
+            welcomeMessage += `**Serviços disponíveis:**\n`;
+            welcomeMessage += `• Para criar um *pedido de assistência*, envie: "pedido"\n`;
+            welcomeMessage += `• Para registar *ponto*, envie: "ponto"\n\n`;
+            welcomeMessage += `Como posso ajudá-lo hoje?`;
+        } else if (canCreateRequests && !canRegisterPonto) {
+            // Só pode criar pedidos
+            welcomeMessage += `**Serviço disponível:**\n`;
+            welcomeMessage += `• Para criar um *pedido de assistência*, envie: "pedido"\n\n`;
+            welcomeMessage += `Como posso ajudá-lo hoje?`;
+        } else if (!canCreateRequests && canRegisterPonto) {
+            // Só pode registar ponto
+            welcomeMessage += `**Serviço disponível:**\n`;
+            welcomeMessage += `• Para registar *ponto*, envie: "ponto"\n\n`;
+            welcomeMessage += `Como posso ajudá-lo hoje?`;
+        } else {
+            // Não tem nenhuma autorização
+            welcomeMessage = `👋 Olá!\n\n`;
+            welcomeMessage += `❌ **Acesso Restrito**\n\n`;
+            welcomeMessage += `Lamentamos, mas o seu contacto não tem autorização para utilizar os serviços automáticos deste sistema.\n\n`;
+            welcomeMessage += `📞 Para obter assistência, entre em contacto com a nossa equipa através dos canais habituais.\n\n`;
+            welcomeMessage += `Obrigado pela compreensão.`;
+        }
+
         await client.sendMessage(phoneNumber, welcomeMessage);
     } catch (error) {
         console.error("Erro ao enviar mensagem de boas-vindas:", error);
+        // Fallback para mensagem genérica em caso de erro
+        const fallbackMessage = `👋 Bem-vindo!\n\nEste é o assistente automático da Advir Plan Consultoria.\n\nPara assistência, contacte a nossa equipa.`;
+        try {
+            await client.sendMessage(phoneNumber, fallbackMessage);
+        } catch (fallbackError) {
+            console.error("Erro ao enviar mensagem de fallback:", fallbackError);
+        }
     }
 }
 

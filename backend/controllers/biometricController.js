@@ -427,18 +427,17 @@ const authenticateWithFacialData = async (req, res) => {
         const faceDescriptor = parsedFacialData.biometricTemplate.descriptor;
 
         // Buscar todas as credenciais faciais da empresa
-        let whereClause = { biometricType: 'facial' }; // Corrigido para biometricType
+        let whereClause = { biometricType: 'facial' };
         if (empresa) {
             // Buscar utilizadores da empresa específica
-            const User = require('../models/user');
             const users = await User.findAll({
-                where: { empresa_id: empresa },
+                where: { empresa_areacliente: empresa },
                 attributes: ['id']
             });
             const userIds = users.map(u => u.id);
 
             if (userIds.length > 0) {
-                whereClause.userId = { [require('sequelize').Op.in]: userIds }; // Corrigido para userId
+                whereClause.userId = { [require('sequelize').Op.in]: userIds };
             } else {
                 return res.status(404).json({
                     success: false,
@@ -450,8 +449,8 @@ const authenticateWithFacialData = async (req, res) => {
         const credentials = await BiometricCredential.findAll({
             where: whereClause,
             include: [{
-                model: require('../models/user'),
-                attributes: ['id', 'nome', 'email', 'empresa_id']
+                model: User,
+                attributes: ['id', 'nome', 'email', 'empresa_areacliente']
             }]
         });
 
@@ -524,7 +523,7 @@ const authenticateWithFacialData = async (req, res) => {
                 id: user.id,
                 nome: user.nome,
                 email: user.email,
-                empresa_id: user.empresa_id
+                empresa_areacliente: user.empresa_areacliente
             },
             confidence: confidence,
             biometricType: 'facial'

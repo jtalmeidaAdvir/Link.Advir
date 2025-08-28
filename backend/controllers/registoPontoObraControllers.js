@@ -1,6 +1,7 @@
 const RegistoPontoObra = require('../models/registoPontoObra');
 const Obra = require('../models/obra');
 const User = require('../models/user');
+const User = require('../models/user');
 const { Op } = require('sequelize');
 
 
