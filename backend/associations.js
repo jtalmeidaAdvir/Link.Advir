@@ -97,23 +97,11 @@ ParteDiariaItem.belongsTo(ParteDiariaCabecalho, { foreignKey: 'DocumentoID' });
 BiometricCredential.belongsTo(User, { foreignKey: 'userId' });
 User.hasMany(BiometricCredential, { foreignKey: 'userId' });
 
-// RegistoPontoObra - User
-RegistoPontoObra.belongsTo(User, { foreignKey: 'user_id', as: 'User' });
-User.hasMany(RegistoPontoObra, { foreignKey: 'user_id', as: 'RegistosPontoObra' });
-
-// RegistoPontoObra - Obra
-RegistoPontoObra.belongsTo(Obra, { foreignKey: 'obra_id', as: 'Obra' });
-Obra.hasMany(RegistoPontoObra, { foreignKey: 'obra_id', as: 'RegistosPontoObra' });
-
-// POS - Empresa
-POS.belongsTo(Empresa, { foreignKey: 'empresa_id', as: 'Empresa' });
-Empresa.hasMany(POS, { foreignKey: 'empresa_id', as: 'POSList' });
-
-// POS - Obra (obra predefinida)
+// Associações POS
 POS.belongsTo(Obra, { foreignKey: 'obra_predefinida_id', as: 'ObraPredefinida' });
-Obra.hasMany(POS, { foreignKey: 'obra_predefinida_id', as: 'POSList' });
-
-console.log('✅ Todas as associações foram definidas com sucesso!');
+POS.belongsTo(Empresa, { foreignKey: 'empresa_id' });
+Obra.hasMany(POS, { foreignKey: 'obra_predefinida_id' });
+Empresa.hasMany(POS, { foreignKey: 'empresa_id' });
 
 // Exportar os modelos para que as associações sejam aplicadas
 module.exports = {
