@@ -519,6 +519,9 @@ const authenticateWithFacialData = async (req, res) => {
         res.json({
             success: true,
             message: `Utilizador identificado com ${confidence}% de confiança`,
+            userId: user.id,
+            userNome: user.nome,
+            username: user.nome,
             user: {
                 id: user.id,
                 nome: user.nome,
