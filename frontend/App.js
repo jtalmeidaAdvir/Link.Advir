@@ -47,6 +47,7 @@ import VerificaConta from "./src/Pages/Autenticacao/VerificaConta";
 import SelecaoEmpresa from "./src/Pages/Autenticacao/pages/SelecaoEmpresa";
 import RecuperarPassword from "./src/Pages/Autenticacao/RecuperarPassword";
 import RedefinirPassword from "./src/Pages/Autenticacao/RedefinirPassword";
+import GestaoPOS from "./src/Pages/Autenticacao/GestaoPOS";
 
 import ContratosList from "./src/Pages/BackOffice/ContratosList";
 
@@ -364,6 +365,11 @@ const obrasSubmodulesOrder = [
         hasRegistarUtilizadorModule ||
         hasRegistoPontoAdminModule ||
         hasPedidosAlteracaoAdminModule;
+    const hasGestaoPOSModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "GestaoPOS"),
+    );
 
     const userNome = localStorage.getItem("userNome") || "";
     const empresa = localStorage.getItem("empresaSelecionada") || "";
@@ -1010,6 +1016,27 @@ const obrasSubmodulesOrder = [
                                         </Text>
                                     </TouchableOpacity>
                                 )}
+                                {hasGestaoPOSModule && (
+                                    <TouchableOpacity
+                                        style={drawerStyles.submoduleItem}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "GestaoPOS",
+                                            )
+                                        }
+                                    >
+                                        <FontAwesome
+                                            name="computer"
+                                            size={16}
+                                            color="#1792FE"
+                                        />
+                                        <Text
+                                            style={drawerStyles.submoduleText}
+                                        >
+                                            Gestão POS
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         )}
                     </View>
@@ -1112,9 +1139,12 @@ const AppNavigator = () => {
     const hasPedidosAlteracaoAdminModule = modules.some(
         (module) =>
             module.nome === "Administrador" &&
-            module.submodulos.some(
-                (sub) => sub.nome === "PedidosAlteracaoAdmin",
-            ),
+            module.submodulos.some((sub) => sub.nome === "PedidosAlteracaoAdmin"),
+    );
+    const hasGestaoPOSModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "GestaoPOS"),
     );
 
     // Dentro de AppNavigator:
@@ -1124,31 +1154,27 @@ const AppNavigator = () => {
         const empresaLs = localStorage.getItem("empresaSelecionada");
         let tipoUserLs = localStorage.getItem("tipoUser");
 
-        // Verificar se tipoUser é um token JWT em vez do valor correto
+        // Verificar se tipoUser é um token JWT e tentar corrigir
         if (tipoUserLs && tipoUserLs.includes('.')) {
-            console.log(`⚠️ tipoUser parece ser um token JWT, tentando recuperar o valor correto...`);
-            // Tentar recuperar de outras fontes ou limpar
+            console.log(`🔧 Detectado tipoUser como JWT, tentando recuperar valor correto...`);
             tipoUserLs = localStorage.getItem("userTipo") || localStorage.getItem("tipo_user") || "";
-            if (!tipoUserLs) {
-                console.log(`🔧 Tentando decodificar informações do token...`);
-                try {
-                    // Se ainda não temos o tipo, podemos tentar recuperar do token de login
-                    const payload = JSON.parse(atob(token.split(".")[1]));
-                    // Note: normalmente o tipo não está no token, mas vamos verificar
-                    console.log(`📋 Payload do token:`, payload);
-                } catch (error) {
-                    console.error("Erro ao decodificar token:", error);
-                }
+
+            // Se ainda não encontramos, definir como vazio para forçar nova seleção
+            if (!tipoUserLs || tipoUserLs.includes('.')) {
+                console.log(`❌ Não foi possível recuperar tipoUser válido, limpando...`);
+                localStorage.removeItem("tipoUser");
+                tipoUserLs = "";
             }
         }
 
-        console.log(`👤 fetchUserData - Dados do localStorage:`, {
+        console.log(`🔍 fetchUserData - valores após verificação:`, {
             token: token ? "exists" : "null",
             empresa: empresaLs,
             tipoUser: tipoUserLs,
-            tipoUserOriginal: localStorage.getItem("tipoUser")
+            originalTipoUser: localStorage.getItem("tipoUser")
         });
 
+        // Verificar se o token existe e é válido
         if (token && isTokenValid(token)) {
             setIsLoggedIn(true);
             setIsSuperAdmin(localStorage.getItem("superAdmin") === "true");
@@ -1158,25 +1184,21 @@ const AppNavigator = () => {
             setEmpresa(empresaLs || "");
             setTipoUser(tipoUserLs || "");
 
-            console.log(`✅ Estado definido - tipoUser: "${tipoUserLs}"`);
-
-            // buscar módulos (agora com filtro por empresa)
             await fetchUserModules();
 
-            // definir rota inicial
+            // Definir a rota inicial baseada no estado
             if (localStorage.getItem("superAdmin") === "true") {
                 setInitialRoute("ADHome");
             } else if (tipoUserLs && empresaLs) {
+                // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra (padrão)
                 setInitialRoute("RegistoPontoObra");
             } else if (empresaLs) {
                 setInitialRoute("Home");
             } else {
                 setInitialRoute("SelecaoEmpresa");
             }
-
-            // Configurar notificações após login
-            //setupNotifications();
         } else {
+            // Token inválido ou inexistente - limpar localStorage e ir para login
             localStorage.clear();
             setIsLoggedIn(false);
             setInitialRoute("Login");
@@ -1184,25 +1206,6 @@ const AppNavigator = () => {
 
         setLoading(false);
     };
-
-    /* const setupNotifications = async () => {
-        try {
-            // Solicitar permissão para notificações se ainda não foi concedida
-            if (!isPermissionGranted) {
-                await requestNotificationPermission();
-            }
-
-            // Agendar lembrete de registo de ponto
-            await scheduleRegistoPontoReminder();
-        } catch (error) {
-            console.error('Erro ao configurar notificações:', error);
-        }
-    };
-
-    useEffect(() => {
-        fetchUserData();
-    }, []);
-*/
 
     const fetchUserModules = async () => {
         const token = localStorage.getItem("loginToken");
@@ -1262,66 +1265,9 @@ const AppNavigator = () => {
     };
 
     useEffect(() => {
-        const fetchUserData = async () => {
-            const token = localStorage.getItem("loginToken");
-            const empresa = localStorage.getItem("empresaSelecionada");
-            let tipoUser = localStorage.getItem("tipoUser");
-
-            // Verificar se tipoUser é um token JWT e tentar corrigir
-            if (tipoUser && tipoUser.includes('.')) {
-                console.log(`🔧 Detectado tipoUser como JWT, tentando recuperar valor correto...`);
-                tipoUser = localStorage.getItem("userTipo") || localStorage.getItem("tipo_user") || "";
-
-                // Se ainda não encontramos, definir como vazio para forçar nova seleção
-                if (!tipoUser || tipoUser.includes('.')) {
-                    console.log(`❌ Não foi possível recuperar tipoUser válido, limpando...`);
-                    localStorage.removeItem("tipoUser");
-                    tipoUser = "";
-                }
-            }
-
-            console.log(`🔍 fetchUserData - valores após verificação:`, {
-                token: token ? "exists" : "null",
-                empresa,
-                tipoUser,
-                originalTipoUser: localStorage.getItem("tipoUser")
-            });
-
-            // Verificar se o token existe e é válido
-            if (token && isTokenValid(token)) {
-                setIsLoggedIn(true);
-                setIsSuperAdmin(localStorage.getItem("superAdmin") === "true");
-                setIsAdmin(localStorage.getItem("isAdmin") === "true");
-                setUsername(localStorage.getItem("username") || "");
-                setUserNome(localStorage.getItem("userNome") || "");
-                setEmpresa(empresa || "");
-                setTipoUser(tipoUser || "");
-
-                await fetchUserModules();
-
-                // Definir a rota inicial baseada no estado
-                if (localStorage.getItem("superAdmin") === "true") {
-                    setInitialRoute("ADHome");
-                } else if (tipoUser && empresa) {
-                    // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra (padrão)
-                    setInitialRoute("RegistoPontoObra");
-                } else if (empresa) {
-                    setInitialRoute("Home");
-                } else {
-                    setInitialRoute("SelecaoEmpresa");
-                }
-            } else {
-                // Token inválido ou inexistente - limpar localStorage e ir para login
-                localStorage.clear();
-                setIsLoggedIn(false);
-                setInitialRoute("Login");
-            }
-
-            setLoading(false);
-        };
-
         fetchUserData();
     }, []);
+
 
     const toggleLanguageSelector = () => {
         setLanguageSelectorVisible(!languageSelectorVisible); // Alterna a visibilidade do combobox de idiomas
@@ -2022,6 +1968,15 @@ const AppNavigator = () => {
                         <Drawer.Screen
                             name="RegistoUser"
                             component={RegistoUser}
+                        />
+                    )}
+                    {hasGestaoPOSModule && (
+                        <Drawer.Screen
+                            name="GestaoPOS"
+                            component={GestaoPOS}
+                            options={{
+                                title: "AdvirLink - Gestão POS"
+                            }}
                         />
                     )}
                 </Drawer.Navigator>

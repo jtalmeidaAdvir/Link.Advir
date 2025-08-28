@@ -93,15 +93,9 @@ Obra.belongsTo(Empresa, { foreignKey: 'empresa_id' });
 ParteDiariaCabecalho.hasMany(ParteDiariaItem, { foreignKey: 'DocumentoID' });
 ParteDiariaItem.belongsTo(ParteDiariaCabecalho, { foreignKey: 'DocumentoID' });
 
-// Relação User -> BiometricCredential (1:N)
-User.hasMany(BiometricCredential, { foreignKey: 'userId' });
+// Associações BiometricCredential
 BiometricCredential.belongsTo(User, { foreignKey: 'userId' });
-
-// Associações RegistoPontoObra
-RegistoPontoObra.belongsTo(User, { foreignKey: 'user_id' });
-RegistoPontoObra.belongsTo(Obra, { foreignKey: 'obra_id' });
-User.hasMany(RegistoPontoObra, { foreignKey: 'user_id' });
-Obra.hasMany(RegistoPontoObra, { foreignKey: 'obra_id' });
+User.hasMany(BiometricCredential, { foreignKey: 'userId' });
 
 // Associações POS
 POS.belongsTo(Obra, { foreignKey: 'obra_predefinida_id', as: 'ObraPredefinida' });
