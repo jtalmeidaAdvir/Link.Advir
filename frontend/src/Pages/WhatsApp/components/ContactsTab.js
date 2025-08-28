@@ -25,6 +25,7 @@ const ContactsTab = ({
     styles,
 }) => {
     const [users, setUsers] = useState([]);
+    const [obras, setObras] = useState([]);
     // Assume these functions are defined elsewhere or passed as props,
     // but for the sake of completeness, let's mock them if they are missing context.
     // If these are indeed passed via props, this is fine.
@@ -77,17 +78,116 @@ const ContactsTab = ({
         }
     };
 
+    const loadObras = async () => {
+        try {
+            const token = localStorage.getItem("loginToken");
+            const response = await fetch(
+                `https://backend.advir.pt/api/obra/por-empresa?empresa_id=${empresaId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                },
+            );
+            if (response.ok) {
+                const data = await response.json();
+                // Filtrar apenas obras ativas
+                const obrasAtivas = data.filter(obra => obra.estado === 'Ativo');
+                setObras(obrasAtivas || []);
+            }
+        } catch (error) {
+            console.error("Erro ao carregar obras:", error);
+        }
+    };
+
     useEffect(() => {
         loadContactLists();
         loadUsers();
+        loadObras();
     }, []);
+
+    // Function to save edited contacts
+    const saveEditedContacts = async (contactListData) => {
+        try {
+            const token = localStorage.getItem("loginToken");
+
+            // Preparar dados dos contactos individuais
+            const contactsToSave = contactListData.contacts.map(contact => {
+                const contactData = {
+                    name: contactListData.name,
+                    contacts: JSON.stringify([{
+                        phone: contact.phone || contact,
+                        numeroTecnico: contact.numeroTecnico || "",
+                        numeroCliente: contact.numeroCliente || "",
+                        canCreateTickets: contact.canCreateTickets || false,
+                        canRegisterPonto: contact.canRegisterPonto || false,
+                        userID: contact.userID || contact.user_id || "",
+                        obrasAutorizadas: contact.obrasAutorizadas || [],
+                        dataInicioAutorizacao: contact.dataInicioAutorizacao || "",
+                        dataFimAutorizacao: contact.dataFimAutorizacao || ""
+                    }]),
+                    can_create_tickets: contact.canCreateTickets || false,
+                    can_register_ponto: contact.canRegisterPonto || false,
+                    numero_tecnico: contact.numeroTecnico || null,
+                    numero_cliente: contact.numeroCliente || null,
+                    user_id: contact.userID || contact.user_id || null,
+                    // Adicionar os novos campos específicos
+                    obrasAutorizadas: contact.obrasAutorizadas || [],
+                    dataInicioAutorizacao: contact.dataInicioAutorizacao || null,
+                    dataFimAutorizacao: contact.dataFimAutorizacao || null
+                };
+
+                return contactData;
+            });
+
+            // Salvar cada contacto individualmente
+            for (const contactData of contactsToSave) {
+                const response = await fetch(`https://backend.advir.pt/api/contacts`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(contactData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erro ao salvar contacto: ${response.statusText}`);
+                }
+            }
+
+            console.log('Contactos salvos com sucesso');
+
+        } catch (error) {
+            console.error('Erro ao salvar contactos editados:', error);
+            throw error;
+        }
+    };
+
 
     return (
         <div style={styles.grid}>
             {/* Create Contact List */}
             <div style={styles.card}>
                 <h3 style={styles.cardTitle}>👥 Criar Lista de Contactos</h3>
-                <form onSubmit={handleCreateContactList}>
+                <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    // Preparar dados para salvar no novo formato
+                    const contactsForSaving = {
+                        ...newContactList,
+                        contacts: newContactList.contacts.map(contact => ({
+                            ...contact,
+                            obrasAutorizadas: contact.obrasAutorizadas || [],
+                            dataInicioAutorizacao: contact.dataInicioAutorizacao || null,
+                            dataFimAutorizacao: contact.dataFimAutorizacao || null
+                        }))
+                    };
+
+                    await saveEditedContacts(contactsForSaving);
+                    await loadContactLists(); // Recarregar listas após criar
+                    setNewContactList({ name: "", contacts: [{ phone: "" }] }); // Limpar formulário
+                }}>
                     <div style={styles.formGroup}>
                         <label style={styles.label}>Nome da Lista *</label>
                         <input
@@ -151,63 +251,6 @@ const ContactsTab = ({
                                 </div>
 
                                 <div style={styles.formGroup}>
-                                    <label style={styles.label}>
-                                        Número do Técnico (opcional)
-                                    </label>
-                                    <input
-                                        type="tel"
-                                        style={styles.input}
-                                        value={contact.numeroTecnico}
-                                        onChange={(e) =>
-                                            updateContactIfMissing(
-                                                index,
-                                                "numeroTecnico",
-                                                e.target.value,
-                                            )
-                                        }
-                                        placeholder="351912345678"
-                                    />
-                                </div>
-
-                                <div style={styles.formGroup}>
-                                    <label style={styles.label}>
-                                        Número do Cliente (opcional)
-                                    </label>
-                                    <input
-                                        type="tel"
-                                        style={styles.input}
-                                        value={contact.numeroCliente}
-                                        onChange={(e) =>
-                                            updateContactIfMissing(
-                                                index,
-                                                "numeroCliente",
-                                                e.target.value,
-                                            )
-                                        }
-                                        placeholder="351912345678"
-                                    />
-                                </div>
-
-                                <div style={styles.formGroup}>
-                                    <label style={styles.label}>
-                                        Código do Utilizador (opcional)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        style={styles.input}
-                                        value={contact.userID || ""}
-                                        onChange={(e) =>
-                                            updateContactIfMissing(
-                                                index,
-                                                "userID",
-                                                e.target.value,
-                                            )
-                                        }
-                                        placeholder="Digite o ID do utilizador"
-                                    />
-                                </div>
-
-                                <div style={styles.formGroup}>
                                     <label
                                         style={{
                                             ...styles.label,
@@ -261,6 +304,48 @@ const ContactsTab = ({
                                         </div>
                                     </label>
                                 </div>
+
+                                {contact.canCreateTickets && (
+                                    <>
+                                        <div style={styles.formGroup}>
+                                            <label style={styles.label}>
+                                                Número do Técnico (opcional)
+                                            </label>
+                                            <input
+                                                type="tel"
+                                                style={styles.input}
+                                                value={contact.numeroTecnico}
+                                                onChange={(e) =>
+                                                    updateContactIfMissing(
+                                                        index,
+                                                        "numeroTecnico",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder="351912345678"
+                                            />
+                                        </div>
+
+                                        <div style={styles.formGroup}>
+                                            <label style={styles.label}>
+                                                Número do Cliente (opcional)
+                                            </label>
+                                            <input
+                                                type="tel"
+                                                style={styles.input}
+                                                value={contact.numeroCliente}
+                                                onChange={(e) =>
+                                                    updateContactIfMissing(
+                                                        index,
+                                                        "numeroCliente",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder="351912345678"
+                                            />
+                                        </div>
+                                    </>
+                                )}
 
                                 <div style={styles.formGroup}>
                                     <label
@@ -316,6 +401,181 @@ const ContactsTab = ({
                                         </div>
                                     </label>
                                 </div>
+
+                                {contact.canRegisterPonto && (
+                                    <>
+                                        <div style={styles.formGroup}>
+                                            <label style={styles.label}>
+                                                Código do Utilizador (opcional)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                style={styles.input}
+                                                value={contact.userID || ""}
+                                                onChange={(e) =>
+                                                    updateContactIfMissing(
+                                                        index,
+                                                        "userID",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder="Digite o ID do utilizador"
+                                            />
+                                        </div>
+
+                                        <div style={styles.formGroup}>
+                                            <label style={styles.label}>
+                                                Obras Autorizadas (opcional)
+                                            </label>
+                                            <div style={{
+                                                ...styles.input,
+                                                height: "auto",
+                                                maxHeight: "200px",
+                                                overflowY: "auto",
+                                                padding: "12px",
+                                                backgroundColor: "#f8f9fa"
+                                            }}>
+                                                <div style={{
+                                                    marginBottom: "8px",
+                                                    padding: "8px",
+                                                    backgroundColor: "white",
+                                                    borderRadius: "4px",
+                                                    border: "1px solid #e9ecef"
+                                                }}>
+                                                    <label style={{
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        cursor: "pointer",
+                                                        fontWeight: "600",
+                                                        color: "#495057"
+                                                    }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={!contact.obrasAutorizadas || contact.obrasAutorizadas.length === 0}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    updateContactIfMissing(
+                                                                        index,
+                                                                        "obrasAutorizadas",
+                                                                        []
+                                                                    );
+                                                                }
+                                                            }}
+                                                            style={{
+                                                                marginRight: "8px",
+                                                                transform: "scale(1.1)"
+                                                            }}
+                                                        />
+                                                        🏗️ Todas as obras
+                                                    </label>
+                                                </div>
+                                                {obras.map((obra) => (
+                                                    <div key={obra.id} style={{
+                                                        marginBottom: "4px",
+                                                        padding: "6px",
+                                                        backgroundColor: "white",
+                                                        borderRadius: "4px",
+                                                        border: "1px solid #e9ecef"
+                                                    }}>
+                                                        <label style={{
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            cursor: "pointer",
+                                                            fontSize: "0.9rem"
+                                                        }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={(contact.obrasAutorizadas || []).includes(obra.id.toString())}
+                                                                onChange={(e) => {
+                                                                    const currentObras = contact.obrasAutorizadas || [];
+                                                                    let newObras;
+                                                                    if (e.target.checked) {
+                                                                        newObras = [...currentObras, obra.id.toString()];
+                                                                    } else {
+                                                                        newObras = currentObras.filter(id => id !== obra.id.toString());
+                                                                    }
+                                                                    updateContactIfMissing(
+                                                                        index,
+                                                                        "obrasAutorizadas",
+                                                                        newObras
+                                                                    );
+                                                                }}
+                                                                style={{
+                                                                    marginRight: "8px",
+                                                                    transform: "scale(1.1)"
+                                                                }}
+                                                            />
+                                                            <span style={{
+                                                                fontWeight: "500",
+                                                                color: "#343a40"
+                                                            }}>
+                                                                {obra.codigo}
+                                                            </span>
+                                                            <span style={{
+                                                                marginLeft: "4px",
+                                                                color: "#6c757d"
+                                                            }}>
+                                                                - {obra.nome}
+                                                            </span>
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <small
+                                                style={{
+                                                    color: "#6c757d",
+                                                    marginTop: "4px",
+                                                    display: "block",
+                                                }}
+                                            >
+                                                Selecione as obras específicas ou escolha "Todas as obras"
+                                            </small>
+                                        </div>
+
+                                        <div style={styles.formGroup}>
+                                            <label style={styles.label}>
+                                                Data Início Autorização
+                                                (opcional)
+                                            </label>
+                                            <input
+                                                type="date"
+                                                style={styles.input}
+                                                value={
+                                                    contact.dataInicioAutorizacao ||
+                                                    ""
+                                                }
+                                                onChange={(e) =>
+                                                    updateContactIfMissing(
+                                                        index,
+                                                        "dataInicioAutorizacao",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </div>
+
+                                        <div style={styles.formGroup}>
+                                            <label style={styles.label}>
+                                                Data Fim Autorização (opcional)
+                                            </label>
+                                            <input
+                                                type="date"
+                                                style={styles.input}
+                                                value={
+                                                    contact.dataFimAutorizacao ||
+                                                    ""
+                                                }
+                                                onChange={(e) =>
+                                                    updateContactIfMissing(
+                                                        index,
+                                                        "dataFimAutorizacao",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         ))}
 
@@ -588,7 +848,17 @@ const ContactsTab = ({
                         <form
                             onSubmit={(e) => {
                                 e.preventDefault();
-                                handleEditContactList(editingContactList);
+                                // Preparar dados para salvar no novo formato
+                                const contactsForSaving = {
+                                    ...editingContactList,
+                                    contacts: editingContactList.contacts.map(contact => ({
+                                        ...contact,
+                                        obrasAutorizadas: contact.obrasAutorizadas || [],
+                                        dataInicioAutorizacao: contact.dataInicioAutorizacao || null,
+                                        dataFimAutorizacao: contact.dataFimAutorizacao || null
+                                    }))
+                                };
+                                handleEditContactList(contactsForSaving);
                             }}
                         >
                             <div style={styles.formGroup}>
@@ -670,70 +940,6 @@ const ContactsTab = ({
                                             </div>
 
                                             <div style={styles.formGroup}>
-                                                <label style={styles.label}>
-                                                    Número do Técnico (opcional)
-                                                </label>
-                                                <input
-                                                    type="tel"
-                                                    style={styles.input}
-                                                    value={
-                                                        contact.numeroTecnico ||
-                                                        ""
-                                                    }
-                                                    onChange={(e) =>
-                                                        updateEditContactIfMissing(
-                                                            index,
-                                                            "numeroTecnico",
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    placeholder="351912345678"
-                                                />
-                                            </div>
-
-                                            <div style={styles.formGroup}>
-                                                <label style={styles.label}>
-                                                    Número do Cliente (opcional)
-                                                </label>
-                                                <input
-                                                    type="tel"
-                                                    style={styles.input}
-                                                    value={
-                                                        contact.numeroCliente ||
-                                                        ""
-                                                    }
-                                                    onChange={(e) =>
-                                                        updateEditContactIfMissing(
-                                                            index,
-                                                            "numeroCliente",
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    placeholder="351912345678"
-                                                />
-                                            </div>
-
-                                            <div style={styles.formGroup}>
-                                                <label style={styles.label}>
-                                                    Código do Utilizador
-                                                    (opcional)
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    style={styles.input}
-                                                    value={contact.userID || contact.user_id || ""}
-                                                    onChange={(e) =>
-                                                        updateEditContactIfMissing(
-                                                            index,
-                                                            "userID",
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    placeholder="User ID"
-                                                />
-                                            </div>
-
-                                            <div style={styles.formGroup}>
                                                 <label
                                                     style={{
                                                         ...styles.label,
@@ -798,6 +1004,66 @@ const ContactsTab = ({
                                                     </div>
                                                 </label>
                                             </div>
+
+                                            {contact.canCreateTickets && (
+                                                <>
+                                                    <div
+                                                        style={styles.formGroup}
+                                                    >
+                                                        <label
+                                                            style={styles.label}
+                                                        >
+                                                            Número do Técnico
+                                                            (opcional)
+                                                        </label>
+                                                        <input
+                                                            type="tel"
+                                                            style={styles.input}
+                                                            value={
+                                                                contact.numeroTecnico ||
+                                                                ""
+                                                            }
+                                                            onChange={(e) =>
+                                                                updateEditContactIfMissing(
+                                                                    index,
+                                                                    "numeroTecnico",
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            placeholder="351912345678"
+                                                        />
+                                                    </div>
+
+                                                    <div
+                                                        style={styles.formGroup}
+                                                    >
+                                                        <label
+                                                            style={styles.label}
+                                                        >
+                                                            Número do Cliente
+                                                            (opcional)
+                                                        </label>
+                                                        <input
+                                                            type="tel"
+                                                            style={styles.input}
+                                                            value={
+                                                                contact.numeroCliente ||
+                                                                ""
+                                                            }
+                                                            onChange={(e) =>
+                                                                updateEditContactIfMissing(
+                                                                    index,
+                                                                    "numeroCliente",
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            placeholder="351912345678"
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
 
                                             <div style={styles.formGroup}>
                                                 <label
@@ -865,6 +1131,208 @@ const ContactsTab = ({
                                                     </div>
                                                 </label>
                                             </div>
+
+                                            {contact.canRegisterPonto && (
+                                                <>
+                                                    <div
+                                                        style={styles.formGroup}
+                                                    >
+                                                        <label
+                                                            style={styles.label}
+                                                        >
+                                                            Código do Utilizador
+                                                            (opcional)
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            style={styles.input}
+                                                            value={
+                                                                contact.userID ||
+                                                                contact.user_id ||
+                                                                ""
+                                                            }
+                                                            onChange={(e) =>
+                                                                updateEditContactIfMissing(
+                                                                    index,
+                                                                    "userID",
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            placeholder="User ID"
+                                                        />
+                                                    </div>
+
+                                                    <div
+                                                        style={styles.formGroup}
+                                                    >
+                                                        <label
+                                                            style={styles.label}
+                                                        >
+                                                            Obras Autorizadas
+                                                            (opcional)
+                                                        </label>
+                                                        <div style={{
+                                                            ...styles.input,
+                                                            height: "auto",
+                                                            maxHeight: "200px",
+                                                            overflowY: "auto",
+                                                            padding: "12px",
+                                                            backgroundColor: "#f8f9fa"
+                                                        }}>
+                                                            <div style={{
+                                                                marginBottom: "8px",
+                                                                padding: "8px",
+                                                                backgroundColor: "white",
+                                                                borderRadius: "4px",
+                                                                border: "1px solid #e9ecef"
+                                                            }}>
+                                                                <label style={{
+                                                                    display: "flex",
+                                                                    alignItems: "center",
+                                                                    cursor: "pointer",
+                                                                    fontWeight: "600",
+                                                                    color: "#495057"
+                                                                }}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={!contact.obrasAutorizadas || contact.obrasAutorizadas.length === 0}
+                                                                        onChange={(e) => {
+                                                                            if (e.target.checked) {
+                                                                                updateEditContactIfMissing(
+                                                                                    index,
+                                                                                    "obrasAutorizadas",
+                                                                                    []
+                                                                                );
+                                                                            }
+                                                                        }}
+                                                                        style={{
+                                                                            marginRight: "8px",
+                                                                            transform: "scale(1.1)"
+                                                                        }}
+                                                                    />
+                                                                    🏗️ Todas as obras
+                                                                </label>
+                                                            </div>
+                                                            {obras.map((obra) => (
+                                                                <div key={obra.id} style={{
+                                                                    marginBottom: "4px",
+                                                                    padding: "6px",
+                                                                    backgroundColor: "white",
+                                                                    borderRadius: "4px",
+                                                                    border: "1px solid #e9ecef"
+                                                                }}>
+                                                                    <label style={{
+                                                                        display: "flex",
+                                                                        alignItems: "center",
+                                                                        cursor: "pointer",
+                                                                        fontSize: "0.9rem"
+                                                                    }}>
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={(contact.obrasAutorizadas || []).includes(obra.id.toString())}
+                                                                            onChange={(e) => {
+                                                                                const currentObras = contact.obrasAutorizadas || [];
+                                                                                let newObras;
+                                                                                if (e.target.checked) {
+                                                                                    newObras = [...currentObras, obra.id.toString()];
+                                                                                } else {
+                                                                                    newObras = currentObras.filter(id => id !== obra.id.toString());
+                                                                                }
+                                                                                updateEditContactIfMissing(
+                                                                                    index,
+                                                                                    "obrasAutorizadas",
+                                                                                    newObras
+                                                                                );
+                                                                            }}
+                                                                            style={{
+                                                                                marginRight: "8px",
+                                                                                transform: "scale(1.1)"
+                                                                            }}
+                                                                        />
+                                                                        <span style={{
+                                                                            fontWeight: "500",
+                                                                            color: "#343a40"
+                                                                        }}>
+                                                                            {obra.codigo}
+                                                                        </span>
+                                                                        <span style={{
+                                                                            marginLeft: "4px",
+                                                                            color: "#6c757d"
+                                                                        }}>
+                                                                            - {obra.nome}
+                                                                        </span>
+                                                                    </label>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <small
+                                                            style={{
+                                                                color: "#6c757d",
+                                                                marginTop: "4px",
+                                                                display: "block",
+                                                            }}
+                                                        >
+                                                            Selecione as obras específicas ou escolha "Todas as obras"
+                                                        </small>
+                                                    </div>
+
+                                                    <div
+                                                        style={styles.formGroup}
+                                                    >
+                                                        <label
+                                                            style={styles.label}
+                                                        >
+                                                            Data Início
+                                                            Autorização
+                                                            (opcional)
+                                                        </label>
+                                                        <input
+                                                            type="date"
+                                                            style={styles.input}
+                                                            value={
+                                                                contact.dataInicioAutorizacao ||
+                                                                ""
+                                                            }
+                                                            onChange={(e) =>
+                                                                updateEditContactIfMissing(
+                                                                    index,
+                                                                    "dataInicioAutorizacao",
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+
+                                                    <div
+                                                        style={styles.formGroup}
+                                                    >
+                                                        <label
+                                                            style={styles.label}
+                                                        >
+                                                            Data Fim Autorização
+                                                            (opcional)
+                                                        </label>
+                                                        <input
+                                                            type="date"
+                                                            style={styles.input}
+                                                            value={
+                                                                contact.dataFimAutorizacao ||
+                                                                ""
+                                                            }
+                                                            onChange={(e) =>
+                                                                updateEditContactIfMissing(
+                                                                    index,
+                                                                    "dataFimAutorizacao",
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     ),
                                 )}

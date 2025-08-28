@@ -65,7 +65,18 @@ const Contact = sequelize.define('Contact', {
         allowNull: true
 
     },
-
+    obrasAutorizadas: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    dataInicioAutorizacao: {
+        type: DataTypes.DATEONLY,
+        allowNull: true
+    },
+    dataFimAutorizacao: {
+        type: DataTypes.DATEONLY,
+        allowNull: true
+    },
     created_at: {
 
         type: DataTypes.DATE,

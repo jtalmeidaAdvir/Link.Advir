@@ -379,10 +379,7 @@ router.post("/disconnect", async (req, res) => {
                             await Promise.race([
                                 client.pupPage.close(),
                                 new Promise((_, reject) =>
-                                    setTimeout(
-                                        () => reject(new Error("Timeout")),
-                                        1000,
-                                    ),
+                                    setTimeout(() => reject(new Error("Timeout")), 1000),
                                 ),
                             ]).catch(() => { });
                         }
@@ -395,10 +392,7 @@ router.post("/disconnect", async (req, res) => {
                             await Promise.race([
                                 client.pupBrowser.close(),
                                 new Promise((_, reject) =>
-                                    setTimeout(
-                                        () => reject(new Error("Timeout")),
-                                        1000,
-                                    ),
+                                    setTimeout(() => reject(new Error("Timeout")), 1000),
                                 ),
                             ]).catch(() => { });
                         }
@@ -1217,109 +1211,157 @@ async function checkContactAuthorization(phoneNumber) {
     }
 }
 
-// Função para verificar se o contacto tem autorização para registo de ponto
+// Função para verificar autorização de ponto do contacto
 async function checkPontoAuthorization(phoneNumber) {
     try {
-        // Remover formatação do número
-        const cleanPhoneNumber = phoneNumber
-            .replace("@c.us", "")
-            .replace(/\D/g, "");
+        const cleanPhoneNumber = phoneNumber.replace('@c.us', '').replace(/\D/g, '');
+        console.log(`🔍 Verificando autorização para ${cleanPhoneNumber}`);
 
-        console.log(
-            `🔍 Verificando autorização para número: ${cleanPhoneNumber}`,
-        );
+        const contacts = await Contact.findAll();
 
-        // Buscar em todas as listas de contactos
-        const contactLists = await Contact.findAll();
+        for (const contact of contacts) {
+            let contactsData;
+            try {
+                contactsData = typeof contact.contacts === 'string'
+                    ? JSON.parse(contact.contacts)
+                    : contact.contacts;
+            } catch (parseError) {
+                console.error('Erro ao parsear contactos:', parseError);
+                continue;
+            }
 
-        for (const list of contactLists) {
-            console.log(`📋 Verificando lista: ${list.name}`);
-            const contacts = JSON.parse(list.contacts);
+            if (Array.isArray(contactsData)) {
+                for (const contactData of contactsData) {
+                    const contactPhone = contactData.phone?.replace(/\D/g, '');
+                    console.log(`📱 Verificando contacto: ${contactPhone} vs ${cleanPhoneNumber}`);
 
-            // Verificar se é formato novo (objetos) ou antigo (strings)
-            for (const contact of contacts) {
-                let contactPhone, contactData;
+                    // Verificar se o número coincide (comparação mais flexível)
+                    const phoneMatch = contactPhone &&
+                        (contactPhone === cleanPhoneNumber ||
+                            contactPhone.includes(cleanPhoneNumber) ||
+                            cleanPhoneNumber.includes(contactPhone) ||
+                            contactPhone.endsWith(cleanPhoneNumber.slice(-9)) || // Últimos 9 dígitos
+                            cleanPhoneNumber.endsWith(contactPhone.slice(-9)));
 
-                if (typeof contact === "object") {
-                    // Formato novo - cada contacto tem dados individuais
-                    contactPhone = contact.phone?.replace(/\D/g, "");
-                    contactData = {
-                        listName: list.name,
-                        canRegisterPonto: contact.canRegisterPonto,
-                        userId: contact.user_id, // Importante: extrair user_id
-                    };
-                    console.log(
-                        `🔍 Contacto objeto - Phone: ${contactPhone}, UserID: ${contact.user_id}, CanRegisterPonto: ${contact.canRegisterPonto}`,
-                    );
-                } else {
-                    // Formato antigo - dados globais da lista
-                    contactPhone = contact.replace(/\D/g, "");
-                    contactData = {
-                        listName: list.name,
-                        canRegisterPonto: list.can_register_ponto,
-                        userId: list.user_id, // Usar user_id da lista como fallback
-                    };
-                    console.log(
-                        `🔍 Contacto string - Phone: ${contactPhone}, ListUserID: ${list.user_id}, CanRegisterPonto: ${list.can_register_ponto}`,
-                    );
-                }
+                    console.log(`📞 Comparando phones: ${contactPhone} vs ${cleanPhoneNumber} = ${phoneMatch}`);
 
-                // Verificar se o número coincide (comparação mais flexível)
-                const phoneMatch =
-                    contactPhone &&
-                    (contactPhone === cleanPhoneNumber ||
-                        contactPhone.includes(cleanPhoneNumber) ||
-                        cleanPhoneNumber.includes(contactPhone) ||
-                        contactPhone.endsWith(cleanPhoneNumber.slice(-9)) || // Últimos 9 dígitos
-                        cleanPhoneNumber.endsWith(contactPhone.slice(-9)));
+                    if (phoneMatch && contactData.canRegisterPonto) {
+                        console.log(`✅ Contacto encontrado! Verificando autorização...`);
 
-                console.log(
-                    `📞 Comparando phones: ${contactPhone} vs ${cleanPhoneNumber} = ${phoneMatch}`,
-                );
+                        // Verificar se tem user_id válido
+                        const userId = contactData.userID || contactData.user_id || contact.user_id;
+                        if (!userId) {
+                            console.error(`❌ Contacto encontrado mas sem user_id configurado`);
+                            return {
+                                authorized: false,
+                                contactData: null,
+                                error: "Contacto não tem user_id configurado",
+                            };
+                        }
 
-                if (phoneMatch && contactData.canRegisterPonto) {
-                    console.log(
-                        `✅ Autorização encontrada! UserID: ${contactData.userId}`,
-                    );
+                        // Verificar datas de autorização se existirem
+                        const dataInicio = contactData.dataInicioAutorizacao || contact.dataInicioAutorizacao;
+                        const dataFim = contactData.dataFimAutorizacao || contact.dataFimAutorizacao;
+                        const hoje = new Date().toISOString().split('T')[0];
 
-                    // Verificar se tem user_id válido
-                    if (!contactData.userId) {
-                        console.error(
-                            `❌ Contacto encontrado mas sem user_id válido`,
-                        );
+                        if (dataInicio && hoje < dataInicio) {
+                            return {
+                                authorized: false,
+                                contactData: null,
+                                error: `Autorização só é válida a partir de ${new Date(dataInicio).toLocaleDateString('pt-PT')}`,
+                            };
+                        }
+
+                        if (dataFim && hoje > dataFim) {
+                            return {
+                                authorized: false,
+                                contactData: null,
+                                error: `Autorização expirou em ${new Date(dataFim).toLocaleDateString('pt-PT')}`,
+                            };
+                        }
+
+                        // Obter obras autorizadas
+                        let obrasAutorizadas = contactData.obrasAutorizadas || contact.obrasAutorizadas;
+                        if (typeof obrasAutorizadas === 'string') {
+                            try {
+                                obrasAutorizadas = JSON.parse(obrasAutorizadas);
+                            } catch (e) {
+                                obrasAutorizadas = [];
+                            }
+                        }
+
                         return {
-                            authorized: false,
-                            contactData: null,
-                            error: "Contacto não tem user_id configurado",
+                            authorized: true,
+                            contactData: {
+                                userId: userId,
+                                obrasAutorizadas: obrasAutorizadas || [],
+                                dataInicio: dataInicio,
+                                dataFim: dataFim
+                            },
                         };
                     }
-
-                    return {
-                        authorized: true,
-                        contactData: contactData,
-                    };
                 }
             }
         }
 
-        console.log(
-            `❌ Nenhuma autorização encontrada para ${cleanPhoneNumber}`,
-        );
+        console.log(`❌ Nenhuma autorização encontrada para ${cleanPhoneNumber}`);
         return {
             authorized: false,
             contactData: null,
             error: "Número não encontrado nas listas de contactos ou sem autorização",
         };
     } catch (error) {
-        console.error(
-            "Erro ao verificar autorização de ponto do contacto:",
-            error,
-        );
+        console.error("Erro ao verificar autorização de ponto do contacto:", error);
         return {
             authorized: false,
             contactData: null,
             error: error.message,
         };
+    }
+}
+
+// Função para obter detalhes das obras autorizadas da base de dados local
+async function getObrasAutorizadas(obrasIds) {
+    if (!obrasIds || !Array.isArray(obrasIds) || obrasIds.length === 0) {
+        console.log("❌ Nenhuma obra autorizada fornecida ou array vazio");
+        return [];
+    }
+
+    try {
+        console.log(`🔍 Buscando obras autorizadas pelos IDs: [${obrasIds.join(', ')}]`);
+
+        // Importar o modelo Obra
+        const Obra = require("../models/obra");
+        const { Op } = require("sequelize");
+
+        // Buscar obras na base de dados local que estão na lista de autorizadas e são ativas
+        const obras = await Obra.findAll({
+            where: {
+                id: {
+                    [Op.in]: obrasIds.map(id => parseInt(id)) // Converter para números
+                },
+                estado: 'Ativo'
+            },
+            attributes: ['id', 'codigo', 'nome', 'localizacao'],
+            order: [['nome', 'ASC']]
+        });
+
+        console.log(`✅ Encontradas ${obras.length} obras autorizadas e ativas`);
+
+        // Converter para formato esperado
+        const obrasDetails = obras.map(obra => ({
+            id: obra.id,
+            nome: obra.nome,
+            codigo: obra.codigo,
+            localizacao: obra.localizacao,
+        }));
+
+        console.log('📋 Obras autorizadas:', obrasDetails.map(o => `${o.codigo} - ${o.nome}`).join(', '));
+
+        return obrasDetails;
+    } catch (error) {
+        console.error("❌ Erro ao obter obras autorizadas da base de dados local:", error);
+        return [];
     }
 }
 
@@ -1340,12 +1382,23 @@ async function handleIncomingMessage(message) {
         console.log(
             `📍 Localização recebida de ${phoneNumber}: ${message.location.latitude}, ${message.location.longitude}`,
         );
-        // A localização será tratada pelo listener específico em processarRegistoPonto
+        // Verificar se o utilizador está no estado de espera por localização
+        const userState = getUserState(phoneNumber);
+        if (userState && userState.type === 'awaiting_location') {
+            await processarRegistoPontoComLocalizacao(message, userState);
+            return; // Importante: retornar aqui para não continuar processamento
+        }
+        // Se não está à espera de localização, enviar mensagem informativa
+        await client.sendMessage(
+            phoneNumber,
+            "📍 Localização recebida, mas não estava a ser esperada. Se pretende registar ponto, envie 'ponto' primeiro."
+        );
         return;
     }
 
-    // Verificar se existe uma conversa ativa
+    // Verificar se existe uma conversa ativa ou um estado de utilizador
     let conversation = activeConversations.get(phoneNumber);
+    let userState = getUserState(phoneNumber);
 
     // Se a mensagem contém palavras-chave para iniciar pedido (mesmo com conversa ativa)
     if (isRequestKeyword(messageText)) {
@@ -1354,6 +1407,12 @@ async function handleIncomingMessage(message) {
             activeConversations.delete(phoneNumber);
             console.log(
                 `🔄 Conversa anterior cancelada para ${phoneNumber} - iniciando novo pedido`,
+            );
+        }
+        if (userState) {
+            clearUserState(phoneNumber);
+            console.log(
+                `🔄 Estado anterior limpo para ${phoneNumber} - iniciando novo pedido`,
             );
         }
 
@@ -1381,30 +1440,32 @@ async function handleIncomingMessage(message) {
                 `🔄 Conversa anterior cancelada para ${phoneNumber} - iniciando registo de ponto`,
             );
         }
+        if (userState) {
+            clearUserState(phoneNumber);
+            console.log(
+                `🔄 Estado anterior limpo para ${phoneNumber} - iniciando registo de ponto`,
+            );
+        }
 
         // Verificar autorização antes de iniciar o registo de ponto
         const pontoAuthResult = await checkPontoAuthorization(phoneNumber);
 
         if (!pontoAuthResult.authorized) {
-            let errorMessage = "❌ *Erro de Configuração*\n\n";
+            let errorMessage = "❌ *Erro de Autorização*\n\n";
 
-            if (
-                pontoAuthResult.error === "Contacto não tem user_id configurado"
-            ) {
-                errorMessage +=
-                    "O seu contacto foi encontrado mas não tem um utilizador (user_id) configurado.\n\n";
+            if (pontoAuthResult.error === "Contacto não tem user_id configurado") {
+                errorMessage += "O seu contacto foi encontrado mas não tem um utilizador (user_id) configurado.\n\n";
                 errorMessage += "📋 **Detalhes do problema:**\n";
                 errorMessage += "• O contacto existe nas listas\n";
                 errorMessage += "• Tem autorização para registo de ponto\n";
                 errorMessage += "• **MAS** não tem user_id associado\n\n";
-                errorMessage +=
-                    "👨‍💻 **Solução:** Contacte o administrador para configurar o user_id no seu contacto.";
-            } else if (
-                pontoAuthResult.error ===
-                "Número não encontrado nas listas de contactos ou sem autorização"
-            ) {
-                errorMessage +=
-                    "O seu número não foi encontrado nas listas de contactos ou não tem autorização para registo de ponto.\n\n";
+                errorMessage += "👨‍💻 **Solução:** Contacte o administrador para configurar o user_id no seu contacto.";
+            } else if (pontoAuthResult.error.includes("Autorização só é válida") || pontoAuthResult.error.includes("Autorização expirou")) {
+                errorMessage += pontoAuthResult.error + "\n\n";
+                errorMessage += "📅 **Período de autorização:**\n";
+                errorMessage += "• Contacte o administrador para verificar/atualizar as suas datas de autorização.";
+            } else if (pontoAuthResult.error === "Número não encontrado nas listas de contactos ou sem autorização") {
+                errorMessage += "O seu número não foi encontrado nas listas de contactos ou não tem autorização para registo de ponto.\n\n";
                 errorMessage += "📋 **Verifique se:**\n";
                 errorMessage +=
                     "• O número está registado nas listas de contactos\n";
@@ -1438,13 +1499,25 @@ async function handleIncomingMessage(message) {
         return;
     }
 
+    // Se existe estado de utilizador (ex: a selecionar obra), continuar
+    if (userState) {
+        if (userState.type === 'selecting_obra') {
+            await handleObraSelection(message, userState);
+        } else {
+            // Se o estado não é reconhecido, limpar e enviar mensagem padrão
+            clearUserState(phoneNumber);
+            await sendWelcomeMessage(phoneNumber);
+        }
+        return;
+    }
+
     // Mensagem não relacionada com pedidos - resposta padrão
     await sendWelcomeMessage(phoneNumber);
 }
 
 // Verificar se a mensagem contém palavras-chave para iniciar um pedido
 function isRequestKeyword(message) {
-    const keywords = ["pedido"];
+    const keywords = ["pedido", "assistência", "suporte", "problema"];
 
     const lowerMessage = message.toLowerCase();
     return keywords.some((keyword) => lowerMessage.includes(keyword));
@@ -1452,7 +1525,7 @@ function isRequestKeyword(message) {
 
 // Verificar se a mensagem contém palavras-chave para registo de ponto
 function isPontoKeyword(message) {
-    const keywords = ["ponto", "entrada", "saida", "picar"];
+    const keywords = ["ponto", "entrada", "saida", "saída", "picar", "horas"];
 
     const lowerMessage = message.toLowerCase();
     return keywords.some((keyword) => lowerMessage.includes(keyword));
@@ -1569,6 +1642,12 @@ Indique o código do cliente para podermos proceder com o registo.`;
 
 // Continuar a conversa baseado no estado atual
 async function continueConversation(phoneNumber, message, conversation) {
+    // Se for uma mensagem de localização, não processar como texto
+    if (message.hasLocation) {
+        console.log("⚠️ Localização recebida durante conversa, mas será processada em handleIncomingMessage");
+        return;
+    }
+
     if (message.toLowerCase() === "cancelar") {
         activeConversations.delete(phoneNumber);
         await client.sendMessage(
@@ -1791,103 +1870,18 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                     `✅ Utilizador encontrado: ${user.nome} (ID: ${contactData.userId})`,
                 );
 
-                // Buscar obras disponíveis do backend local
-                try {
-                    const Obra = require("../models/obra");
+                // Buscar obras autorizadas do contacto
+                const obrasAutorizadasIds = contactData.obrasAutorizadas;
+                const obrasInfo = await getObrasAutorizadas(obrasAutorizadasIds);
 
+                if (obrasInfo.length === 0) {
                     console.log(
-                        `🔍 Buscando obras do backend local para utilizador: ${user.nome}`,
+                        `⚠️ Nenhuma obra ativa encontrada para utilizador ${user.nome}`,
                     );
 
-                    // Buscar obras ativas da base de dados local
-                    const obras = await Obra.findAll({
-                        where: {
-                            estado: 'Ativo'
-                        },
-                        attributes: ['id', 'codigo', 'nome', 'localizacao'],
-                        order: [['nome', 'ASC']]
-                    });
-
-                    console.log(`📋 Encontradas ${obras.length} obras ativas no backend local`);
-
-                    if (!obras || obras.length === 0) {
-                        console.log(
-                            `⚠️ Nenhuma obra ativa encontrada para utilizador ${user.nome}`,
-                        );
-
-                        // Continuar sem obra específica
-                        let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
-                        response += `⚠️ *Nota:* Não foram encontradas obras ativas no sistema.\n`;
-                        response += `O registo será efetuado sem obra específica.\n\n`;
-                        response += `Escolha o tipo de registo:\n`;
-                        response += `• Digite "1" para ENTRADA\n`;
-                        response += `• Digite "2" para SAÍDA\n\n`;
-                        response += `Digite sua escolha (1 ou 2):`;
-
-                        conversationData.obraId = null;
-                        conversationData.obraNome = "Sem obra específica";
-
-                        const conversation = {
-                            state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
-                            data: conversationData,
-                            lastActivity: Date.now(),
-                        };
-                        activeConversations.set(phoneNumber, conversation);
-                        await client.sendMessage(phoneNumber, response);
-                        return;
-                    }
-
+                    // Continuar sem obra específica
                     let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
-
-                    if (obras.length === 1) {
-                        // Uma única obra - selecionar automaticamente
-                        conversationData.obraId = obras[0].id; // Usar id (inteiro) da base de dados local
-                        conversationData.obraNome = obras[0].nome;
-
-                        response += `🏗️ *Obra:* ${obras[0].codigo} - ${obras[0].nome}\n\n`;
-                        response += `Escolha o tipo de registo:\n`;
-                        response += `• Digite "1" para ENTRADA\n`;
-                        response += `• Digite "2" para SAÍDA\n\n`;
-                        response += `Digite sua escolha (1 ou 2):`;
-
-                        const conversation = {
-                            state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
-                            data: conversationData,
-                            lastActivity: Date.now(),
-                        };
-                        activeConversations.set(phoneNumber, conversation);
-                    } else {
-                        // Múltiplas obras - pedir para escolher
-                        conversationData.obrasDisponiveis = obras;
-
-                        response += `🏗️ Foram encontradas múltiplas obras. Por favor, escolha digitando o número correspondente:\n\n`;
-
-                        obras.forEach((obra, index) => {
-                            response += `*${index + 1}.* ${obra.codigo} - ${obra.nome}\n`;
-                            if (obra.localizacao) {
-                                response += `   📍 ${obra.localizacao}\n`;
-                            }
-                            response += `\n`;
-                        });
-
-                        response += `Digite o número da obra pretendida (1-${obras.length}):`;
-
-                        const conversation = {
-                            state: CONVERSATION_STATES.PONTO_WAITING_OBRA,
-                            data: conversationData,
-                            lastActivity: Date.now(),
-                        };
-                        activeConversations.set(phoneNumber, conversation);
-                    }
-
-                    await client.sendMessage(phoneNumber, response);
-                    return;
-                } catch (obrasError) {
-                    console.error("❌ Erro ao buscar obras do backend local:", obrasError);
-
-                    // Continuar sem obra específica em caso de erro
-                    let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
-                    response += `⚠️ *Nota:* Erro ao obter lista de obras do sistema.\n`;
+                    response += `⚠️ *Nota:* Não foram encontradas obras ativas nas suas autorizações.\n`;
                     response += `O registo será efetuado sem obra específica.\n\n`;
                     response += `Escolha o tipo de registo:\n`;
                     response += `• Digite "1" para ENTRADA\n`;
@@ -1905,21 +1899,359 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                     activeConversations.set(phoneNumber, conversation);
                     await client.sendMessage(phoneNumber, response);
                     return;
+
+                } else if (obrasInfo.length === 1) {
+                    // Uma única obra - selecionar automaticamente
+                    const obra = obrasInfo[0];
+                    conversationData.obraId = obra.id;
+                    conversationData.obraNome = obra.nome;
+
+                    let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
+                    response += `🏗️ *Obra:* ${obra.codigo} - ${obra.nome}\n\n`;
+                    response += `Escolha o tipo de registo:\n`;
+                    response += `• Digite "1" para ENTRADA\n`;
+                    response += `• Digite "2" para SAÍDA\n\n`;
+                    response += `Digite sua escolha (1 ou 2):`;
+
+                    const conversation = {
+                        state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
+                        data: conversationData,
+                        lastActivity: Date.now(),
+                    };
+                    activeConversations.set(phoneNumber, conversation);
+                    await client.sendMessage(phoneNumber, response);
+                    return;
+
+                } else {
+                    // Múltiplas obras - pedir para escolher
+                    conversationData.obrasDisponiveis = obrasInfo;
+
+                    let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
+                    response += `🏗️ Foram encontradas múltiplas obras. Por favor, escolha digitando o número correspondente:\n\n`;
+
+                    obrasInfo.forEach((obra, index) => {
+                        response += `*${index + 1}.* ${obra.nome}\n`;
+                        if (obra.localizacao) {
+                            response += `   📍 ${obra.localizacao}\n`;
+                        }
+                        response += `\n`;
+                    });
+
+                    response += `📝 **Responda com o número da obra (1-${obrasInfo.length})**\n`;
+                    response += `Ou envie "cancelar" para cancelar o registo.`;
+
+                    const conversation = {
+                        state: CONVERSATION_STATES.PONTO_WAITING_OBRA,
+                        data: conversationData,
+                        lastActivity: Date.now(),
+                    };
+                    activeConversations.set(phoneNumber, conversation);
+                    await client.sendMessage(phoneNumber, response);
+                    return;
                 }
             }
         } catch (error) {
-            console.error("Erro ao buscar dados do utilizador:", error);
+            console.error("Erro ao buscar dados do utilizador ou obras:", error);
         }
     }
 
-    // Se não conseguiu obter o user_id do contacto, mostrar erro
+    // Se não conseguiu obter o user_id do contacto ou obras, mostrar erro
     await client.sendMessage(
         phoneNumber,
-        `❌ *Erro de Configuração*\n\nNão foi possível identificar o utilizador associado a este contacto.\n\nContacte o administrador para verificar se o seu contacto tem um user_id configurado.`,
+        `❌ *Erro de Configuração*\n\nNão foi possível identificar o utilizador ou as suas autorizações de obra.\n\n` +
+        `Por favor, contacte o administrador para verificar a sua configuração.`,
     );
 }
-// Função removida - já não é necessária pois o user_id vem do contacto
 
+// Função para definir o estado do utilizador
+function setUserState(phoneNumber, state) {
+    // Armazena o estado do utilizador, substituindo qualquer estado anterior
+    // Pode ser usado para lembrar o contexto da conversa, como a obra selecionada
+    // ou o tipo de registo em andamento.
+    if (!userStates[phoneNumber]) {
+        userStates[phoneNumber] = {};
+    }
+    userStates[phoneNumber] = { ...state, timestamp: Date.now() };
+}
+
+// Função para obter o estado do utilizador
+function getUserState(phoneNumber) {
+    // Retorna o estado atual do utilizador ou null se não houver estado definido.
+    // Pode incluir expiração de estado após um certo tempo de inatividade.
+    const state = userStates[phoneNumber];
+    if (!state) {
+        return null;
+    }
+
+    // Exemplo: Expiração de estado após 30 minutos
+    const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutos
+    if (Date.now() - state.timestamp > INACTIVITY_TIMEOUT) {
+        delete userStates[phoneNumber]; // Limpa estado expirado
+        return null;
+    }
+
+    return state;
+}
+
+// Função para limpar o estado do utilizador
+function clearUserState(phoneNumber) {
+    // Remove o estado do utilizador, indicando que a conversa ou fluxo atual terminou.
+    delete userStates[phoneNumber];
+}
+
+// Estrutura para armazenar estados temporários dos utilizadores
+// Poderia ser um Map para melhor performance com muitos utilizadores
+const userStates = {};
+
+// Função para selecionar obra
+async function handleObraSelection(message, userState) {
+    const phoneNumber = message.from;
+    const selection = message.body.trim();
+    const obrasInfo = userState.obrasInfo; // Obtenha as obras do estado
+    const userId = userState.userId;
+
+    // Verificar se o utilizador quer cancelar
+    if (selection.toLowerCase() === 'cancelar' || selection.toLowerCase() === 'cancel') {
+        clearUserState(phoneNumber);
+        await message.reply("❌ *Registo Cancelado*\n\nO registo de ponto foi cancelado. Envie 'ponto' novamente quando quiser registar.");
+        return;
+    }
+
+    // Verificar se é um número válido
+    const selectedIndex = parseInt(selection) - 1;
+
+    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= obrasInfo.length) {
+        const errorMessage = `❌ *Seleção Inválida*\n\n` +
+            `Por favor, responda com um número entre 1 e ${obrasInfo.length}.\n\n` +
+            `Ou envie "cancelar" para cancelar o registo.`;
+        await message.reply(errorMessage);
+        return;
+    }
+
+    // Limpar estado do utilizador após a seleção
+    clearUserState(phoneNumber);
+
+    const obraSelecionada = obrasInfo[selectedIndex];
+
+    // Armazenar a obra selecionada no estado da conversa
+    const conversation = activeConversations.get(phoneNumber);
+    if (conversation) {
+        conversation.data.obraId = obraSelecionada.id;
+        conversation.data.obraNome = obraSelecionada.nome;
+        conversation.state = CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION; // Próximo passo: confirmar tipo de registo
+        activeConversations.set(phoneNumber, conversation);
+
+        let response = `✅ *Obra Selecionada:* ${obraSelecionada.nome}\n`;
+        response += `📍 *Localização:* ${obraSelecionada.localizacao || 'N/A'}\n\n`;
+        response += `Escolha o tipo de registo:\n`;
+        response += `• Digite "1" para ENTRADA\n`;
+        response += `• Digite "2" para SAÍDA\n\n`;
+        response += `Digite sua escolha (1 ou 2):`;
+
+        await message.reply(response);
+    } else {
+        // Se não houver conversa ativa, informar e pedir para iniciar novamente
+        await message.reply("❌ Erro: Não foi possível continuar o registo. Por favor, inicie novamente enviando 'ponto'.");
+    }
+}
+
+// Função para lidar com confirmação de ponto (tipo de registo: ENTRADA/SAÍDA)
+async function handlePontoConfirmationInput(
+    phoneNumber,
+    message,
+    conversation,
+) {
+    console.log(`🔧 handlePontoConfirmationInput chamada - Mensagem: "${message}", Tipo: ${typeof message}`);
+    const escolha = message.trim();
+    let tipo;
+
+    if (escolha === "1" || escolha.toLowerCase() === "entrada") {
+        tipo = "entrada";
+    } else if (
+        escolha === "2" ||
+        escolha.toLowerCase() === "saida" ||
+        escolha.toLowerCase() === "saída"
+    ) {
+        tipo = "saida";
+    } else {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Escolha inválida. Digite "1" para ENTRADA ou "2" para SAÍDA:`,
+        );
+        return;
+    }
+
+    // Armazenar tipo de registo na conversa
+    conversation.data.tipoRegisto = tipo;
+
+    // Atualizar o estado do utilizador para aguardar localização
+    setUserState(phoneNumber, {
+        type: 'awaiting_location',
+        userId: conversation.data.userId,
+        obraId: conversation.data.obraId,
+        obraNome: conversation.data.obraNome,
+        tipoRegisto: tipo
+    });
+
+    // Solicitar localização ao utilizador
+    await client.sendMessage(
+        phoneNumber,
+        "📍 Por favor, partilhe a sua localização atual clicando no ícone de anexo (📎) e selecionando 'Localização'.",
+    );
+}
+
+// Função para processar o registo de ponto com localização
+async function processarRegistoPontoComLocalizacao(message, userState) {
+    const phoneNumber = message.from;
+    const latitude = message.location.latitude;
+    const longitude = message.location.longitude;
+    const endereco = message.location.description || "Localização partilhada";
+
+    // Limpar estado do utilizador após obter a localização
+    clearUserState(phoneNumber);
+
+    // Obter dados da conversa anterior
+    const conversation = activeConversations.get(phoneNumber);
+    if (!conversation) {
+        await message.reply("❌ Erro: Não foi possível encontrar o seu registo em andamento.");
+        return;
+    }
+
+    // Obter user_id e obra_id do estado ou da conversa
+    const userId = userState.userId || conversation.data.userId;
+    const obraId = userState.obraId || conversation.data.obraId;
+    const obraNome = userState.obraNome || conversation.data.obraNome;
+    const tipoRegisto = userState.tipoRegisto || conversation.data.tipoRegisto; // Usa do estado se disponível
+
+    if (!userId || !tipoRegisto) {
+        await message.reply("❌ Erro: Informações incompletas para registar o ponto.");
+        return;
+    }
+
+    try {
+        // Chamar o controller de registo de ponto obra existente
+        const registoPontoObraController = require("../controllers/registoPontoObraControllers");
+
+        // Simular um request object para o controller
+        const mockReq = {
+            user: { id: userId }, // Assumindo que o controller espera user.id
+            body: {
+                tipo: tipoRegisto,
+                obra_id: obraId, // Pode ser null se não houver obra específica
+                latitude: latitude.toString(),
+                longitude: longitude.toString(),
+                // Adicionar outros campos se necessário, como IP, etc.
+            },
+        };
+
+        // Simular response object que captura o resultado
+        let controllerResult = null;
+        let controllerError = null;
+        const mockRes = {
+            status: (code) => ({
+                json: (data) => {
+                    controllerResult = { status: code, data: data };
+                    console.log(`Controller response - Status: ${code}`, data);
+                    return data;
+                },
+            }),
+            json: (data) => {
+                controllerResult = { status: 200, data: data };
+                console.log("Controller response:", data);
+                return data;
+            },
+        };
+
+        // Chamar o controller de registo de ponto obra
+        await registoPontoObraController.registarPonto(mockReq, mockRes);
+
+        // Verificar se o registo foi bem-sucedido
+        if (!controllerResult || (controllerResult.status !== 200 && controllerResult.status !== 201)) {
+            throw new Error('Controller não retornou sucesso');
+        }
+
+        console.log('✅ Ponto registado com sucesso na base de dados:', controllerResult);
+
+        // Mensagem de sucesso
+        const tipoTexto = tipoRegisto === "entrada" ? "ENTRADA" : "SAÍDA";
+        const emoji = tipoRegisto === "entrada" ? "🟢" : "🔴";
+
+        const successMessage = `${emoji} *PONTO REGISTADO COM SUCESSO*\n\n` +
+            `👤 **Utilizador:** ${userId}\n` +
+            `🏗️ **Obra:** ${obraNome || 'N/A'}\n` +
+            `📍 **Localização:** ${endereco}\n` +
+            `⏰ **Data/Hora:** ${new Date().toLocaleString('pt-PT')}\n\n` +
+            `O seu registo foi efetuado com sucesso no sistema AdvirLink.`;
+
+        await message.reply(successMessage);
+
+    } catch (error) {
+        console.error("Erro ao registar ponto:", error);
+
+        await message.reply(
+            `❌ *Erro ao Registar Ponto*\n\n` +
+            `Ocorreu um erro ao registar o seu ponto. Por favor, tente novamente mais tarde ou contacte o suporte técnico.\n\n` +
+            `Detalhes do erro: ${error.message}`,
+        );
+    } finally {
+        // Limpar conversa após o processamento
+        activeConversations.delete(phoneNumber);
+    }
+}
+
+// Função para lidar com seleção de obra
+async function handleObraSelection(message, userState) {
+    const phoneNumber = message.from;
+    const selection = message.body.trim();
+    const obrasInfo = userState.obrasInfo;
+    const userId = userState.userId;
+
+    // Verificar se o utilizador quer cancelar
+    if (selection.toLowerCase() === 'cancelar' || selection.toLowerCase() === 'cancel') {
+        clearUserState(phoneNumber);
+        await message.reply("❌ *Registo Cancelado*\n\nO registo de ponto foi cancelado. Envie 'ponto' novamente quando quiser registar.");
+        return;
+    }
+
+    // Verificar se é um número válido
+    const selectedIndex = parseInt(selection) - 1;
+
+    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= obrasInfo.length) {
+        const errorMessage = `❌ *Seleção Inválida*\n\n` +
+            `Por favor, responda com um número entre 1 e ${obrasInfo.length}.\n\n` +
+            `Ou envie "cancelar" para cancelar o registo.`;
+        await message.reply(errorMessage);
+        return;
+    }
+
+    // Limpar estado do utilizador após a seleção
+    clearUserState(phoneNumber);
+
+    const obraSelecionada = obrasInfo[selectedIndex];
+
+    // Armazenar a obra selecionada no estado da conversa
+    const conversation = activeConversations.get(phoneNumber);
+    if (conversation) {
+        conversation.data.obraId = obraSelecionada.id;
+        conversation.data.obraNome = obraSelecionada.nome;
+        conversation.state = CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION; // Próximo passo: confirmar tipo de registo
+        activeConversations.set(phoneNumber, conversation);
+
+        let response = `✅ *Obra Selecionada:* ${obraSelecionada.nome}\n`;
+        response += `📍 *Localização:* ${obraSelecionada.localizacao || 'N/A'}\n\n`;
+        response += `Escolha o tipo de registo:\n`;
+        response += `• Digite "1" para ENTRADA\n`;
+        response += `• Digite "2" para SAÍDA\n\n`;
+        response += `Digite sua escolha (1 ou 2):`;
+
+        await message.reply(response);
+    } else {
+        // Se não houver conversa ativa, informar e pedir para iniciar novamente
+        await message.reply("❌ Erro: Não foi possível continuar o registo. Por favor, inicie novamente enviando 'ponto'.");
+    }
+}
+
+// Função para lidar com confirmação de ponto (tipo de registo: entrada/saída)
 async function handlePontoConfirmationInput(
     phoneNumber,
     message,
@@ -1947,235 +2279,63 @@ async function handlePontoConfirmationInput(
     // Armazenar tipo de registo na conversa
     conversation.data.tipoRegisto = tipo;
 
-    const tipoTexto = tipo === "entrada" ? "ENTRADA" : "SAÍDA";
+    // Atualizar o estado do utilizador para aguardar localização
+    setUserState(phoneNumber, {
+        type: 'awaiting_location',
+        userId: conversation.data.userId,
+        obraId: conversation.data.obraId,
+        obraNome: conversation.data.obraNome,
+        tipoRegisto: tipo
+    });
 
+    // Solicitar localização ao utilizador
     await client.sendMessage(
         phoneNumber,
-        `✅ Tipo de registo selecionado: **${tipoTexto}**\n\n📍 Agora vou solicitar a sua localização para registar o ponto com precisão.\n\n⏰ Por favor aguarde...`,
+        "📍 Por favor, partilhe a sua localização atual clicando no ícone de anexo (📎) e selecionando 'Localização'.",
     );
-
-    // Registar o ponto (que agora solicita localização real)
-    await processarRegistoPonto(phoneNumber, conversation, tipo);
-
-    // Limpar conversa
-    activeConversations.delete(phoneNumber);
 }
 
-// Nota: Handlers de localização removidos - localização é agora automática
+// Função para processar o registo de ponto com localização
+async function processarRegistoPontoComLocalizacao(message, userState) {
+    const phoneNumber = message.from;
+    const latitude = message.location.latitude;
+    const longitude = message.location.longitude;
+    const endereco = message.location.description || "Localização partilhada";
 
-async function processarRegistoPonto(phoneNumber, conversation, tipo) {
+    // Limpar estado do utilizador após a obtenção da localização
+    clearUserState(phoneNumber);
+
+    // Obter dados da conversa anterior
+    const conversation = activeConversations.get(phoneNumber);
+    if (!conversation) {
+        await message.reply("❌ Erro: Não foi possível encontrar o seu registo em andamento.");
+        return;
+    }
+
+    // Obter user_id e obra_id do estado ou da conversa
+    const userId = userState.userId || conversation.data.userId;
+    const obraId = userState.obraId || conversation.data.obraId;
+    const obraNome = userState.obraNome || conversation.data.obraNome;
+    const tipoRegisto = userState.tipoRegisto || conversation.data.tipoRegisto; // Usa do estado se disponível
+
+    if (!userId || !tipoRegisto) {
+        await message.reply("❌ Erro: Informações incompletas para registar o ponto.");
+        return;
+    }
+
     try {
-        // Verificar se temos o user_id necessário
-        if (!conversation.data.userId) {
-            throw new Error("ID do utilizador não encontrado");
-        }
-
-        // Obter localização automaticamente com múltiplos métodos
-        let latitude = 38.736946; // Fallback para Lisboa
-        let longitude = -9.142685;
-        let endereco = "Localização automática";
-        let localizacaoObtida = false;
-
-        console.log(
-            `🔍 Tentando obter localização automática para ${phoneNumber}`,
-        );
-
-        // Método 1: Tentar obter localização do perfil do WhatsApp
-        try {
-            const contact = await client.getContactById(phoneNumber);
-            if (contact && contact.profilePicUrl) {
-                // Se tem foto de perfil, verificar se tem dados de localização
-                const chat = await client.getChatById(phoneNumber);
-                if (chat && chat.lastMessage && chat.lastMessage.location) {
-                    latitude = chat.lastMessage.location.latitude;
-                    longitude = chat.lastMessage.location.longitude;
-                    endereco = "Localização da última mensagem";
-                    localizacaoObtida = true;
-                    console.log(
-                        `✅ Localização obtida da última mensagem: ${latitude}, ${longitude}`,
-                    );
-                }
-            }
-        } catch (profileError) {
-            console.log("📱 Não foi possível obter localização do perfil/chat");
-        }
-
-        // Método 2: Se não conseguiu pelo método 1, tentar IP geolocation
-        if (!localizacaoObtida) {
-            try {
-                // Simular obtenção de localização via IP (em ambiente real, usaria a API do WhatsApp Business)
-                const response = await fetch("http://ip-api.com/json/", {
-                    timeout: 5000,
-                });
-
-                if (response.ok) {
-                    const geoData = await response.json();
-                    if (geoData.status === "success") {
-                        latitude = geoData.lat;
-                        longitude = geoData.lon;
-                        endereco = `${geoData.city}, ${geoData.country}`;
-                        localizacaoObtida = true;
-                        console.log(
-                            `🌍 Localização obtida por IP: ${endereco} (${latitude}, ${longitude})`,
-                        );
-                    }
-                }
-            } catch (ipError) {
-                console.log(
-                    "🌐 Erro ao obter localização por IP:",
-                    ipError.message,
-                );
-            }
-        }
-
-        // Método 3: Se ainda não conseguiu, solicitar localização manual (mais rápido)
-        if (!localizacaoObtida) {
-            try {
-                await client.sendMessage(
-                    phoneNumber,
-                    "📍 A solicitar localização atual...",
-                );
-
-                // Aguardar pela localização (timeout reduzido para 15 segundos)
-                const locationPromise = new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                        reject(
-                            new Error("Timeout - usando localização padrão"),
-                        );
-                    }, 15000);
-
-                    // Listener temporário para localização
-                    const locationHandler = (message) => {
-                        if (
-                            message.from === phoneNumber &&
-                            message.hasLocation
-                        ) {
-                            clearTimeout(timeout);
-                            client.removeListener("message", locationHandler);
-                            resolve({
-                                latitude: message.location.latitude,
-                                longitude: message.location.longitude,
-                                description:
-                                    message.location.description ||
-                                    "Localização partilhada",
-                            });
-                        }
-                    };
-
-                    client.on("message", locationHandler);
-
-                    // Auto-request location if WhatsApp Web supports it
-                    setTimeout(async () => {
-                        try {
-                            await client.sendMessage(
-                                phoneNumber,
-                                "📲 Por favor, partilhe a sua localização atual para registar o ponto com precisão.",
-                            );
-                        } catch (e) { }
-                    }, 2000);
-                });
-
-                const location = await locationPromise;
-                latitude = location.latitude;
-                longitude = location.longitude;
-                endereco = location.description;
-                localizacaoObtida = true;
-                console.log(
-                    `📍 Localização obtida manualmente: ${latitude}, ${longitude} - ${endereco}`,
-                );
-            } catch (locationError) {
-                console.log(
-                    `⚠️ Falhou obtenção manual: ${locationError.message}`,
-                );
-            }
-        }
-
-        // Se ainda não conseguiu obter localização, usar coordenadas da empresa/obra se disponível
-        if (!localizacaoObtida && conversation.data.obraId) {
-            try {
-                // Buscar coordenadas da obra se disponível
-                const token = await getAuthToken(
-                    {
-                        username: "AdvirWeb",
-                        password: "Advir2506##",
-                        company: "Advir",
-                        instance: "DEFAULT",
-                        line: "Evolution",
-                    },
-                    "151.80.149.159:2018",
-                );
-
-                const obraResponse = await fetch(
-                    `http://151.80.149.159:2018/WebApi/Obras/ObterObra/${conversation.data.obraId}`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                            "Content-Type": "application/json",
-                        },
-                    },
-                );
-
-                if (obraResponse.ok) {
-                    const obraData = await obraResponse.json();
-                    if (obraData && obraData.Latitude && obraData.Longitude) {
-                        latitude = obraData.Latitude;
-                        longitude = obraData.Longitude;
-                        endereco = `Localização da obra: ${conversation.data.obraNome}`;
-                        localizacaoObtida = true;
-                        console.log(
-                            `🏗️ Localização obtida da obra: ${endereco}`,
-                        );
-                    }
-                }
-            } catch (obraError) {
-                console.log(
-                    "🏗️ Erro ao obter localização da obra:",
-                    obraError.message,
-                );
-            }
-        }
-
-        // Método final: Usar coordenadas padrão se nada funcionou
-        if (!localizacaoObtida) {
-            endereco = "Localização padrão (Lisboa)";
-            console.log("📍 Usando localização padrão de Lisboa");
-        }
-
-        console.log(
-            `📍 Localização final: ${endereco} (${latitude}, ${longitude})`,
-        );
-
-        // Informar o utilizador sobre a localização usada
-        const tipoLocalizacao = localizacaoObtida
-            ? "obtida automaticamente"
-            : "padrão";
-        await client.sendMessage(
-            phoneNumber,
-            `📍 Localização ${tipoLocalizacao}: ${endereco}`,
-        );
-
-        // Aguardar um pouco para o utilizador ver a mensagem
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Usar o controller de registo de ponto obra existente
+        // Chamar o controller de registo de ponto obra existente
         const registoPontoObraController = require("../controllers/registoPontoObraControllers");
-
-        // Buscar dados do utilizador
-        const User = require("../models/user");
-        const user = await User.findByPk(conversation.data.userId);
-
-        if (!user) {
-            throw new Error("Utilizador não encontrado");
-        }
 
         // Simular um request object para o controller
         const mockReq = {
-            user: { id: conversation.data.userId },
+            user: { id: userId }, // Assumindo que o controller espera user.id
             body: {
-                tipo: tipo,
-                obra_id: conversation.data.obraId,
+                tipo: tipoRegisto,
+                obra_id: obraId, // Pode ser null se não houver obra específica
                 latitude: latitude.toString(),
                 longitude: longitude.toString(),
+                // Adicionar outros campos se necessário, como IP, etc.
             },
         };
 
@@ -2198,91 +2358,44 @@ async function processarRegistoPonto(phoneNumber, conversation, tipo) {
         };
 
         // Chamar o controller de registo de ponto obra
-        try {
-            await registoPontoObraController.registarPonto(mockReq, mockRes);
+        await registoPontoObraController.registarPonto(mockReq, mockRes);
 
-            // Verificar se o registo foi bem-sucedido
-            if (!controllerResult || (controllerResult.status !== 200 && controllerResult.status !== 201)) {
-                throw new Error('Controller não retornou sucesso');
-            }
-
-            console.log('✅ Ponto registado com sucesso na base de dados:', controllerResult);
-        } catch (controllerErr) {
-            console.error('❌ Erro no controller de registo de ponto:', controllerErr);
-            controllerError = controllerErr;
-            throw new Error(`Erro ao registar na base de dados: ${controllerErr.message}`);
+        // Verificar se o registo foi bem-sucedido
+        if (!controllerResult || (controllerResult.status !== 200 && controllerResult.status !== 201)) {
+            throw new Error('Controller não retornou sucesso');
         }
 
+        console.log('✅ Ponto registado com sucesso na base de dados:', controllerResult);
+
         // Mensagem de sucesso
-        const tipoTexto = tipo === "entrada" ? "ENTRADA" : "SAÍDA";
-        const emoji = tipo === "entrada" ? "🟢" : "🔴";
+        const tipoTexto = tipoRegisto === "entrada" ? "ENTRADA" : "SAÍDA";
+        const emoji = tipoRegisto === "entrada" ? "🟢" : "🔴";
 
-        const successMessage = `${emoji} *PONTO REGISTADO COM SUCESSO*
+        const successMessage = `${emoji} *PONTO REGISTADO COM SUCESSO*\n\n` +
+            `👤 **Utilizador:** ${userId}\n` +
+            `🏗️ **Obra:** ${obraNome || 'N/A'}\n` +
+            `📍 **Localização:** ${endereco}\n` +
+            `⏰ **Data/Hora:** ${new Date().toLocaleString('pt-PT')}\n\n` +
+            `O seu registo foi efetuado com sucesso no sistema AdvirLink.`;
 
-**Utilizador:** ${conversation.data.userName} (ID: ${conversation.data.userId})
-**Empresa:** ${user.empresaPredefinida || "Advir"}
-**Obra:** ${conversation.data.obraNome || "N/A"}
-**Tipo:** ${tipoTexto}
-**Data/Hora:** ${new Date().toLocaleString("pt-PT")}
-**Localização:** ${endereco}
+        await message.reply(successMessage);
 
-O seu registo foi efetuado com sucesso no sistema AdvirLink.
-
-Obrigado por utilizar o sistema.`;
-
-        await client.sendMessage(phoneNumber, successMessage);
-
-        // Log para debug
-        console.log(
-            `✅ Ponto registado via WhatsApp: ${conversation.data.userName} (ID: ${conversation.data.userId}) - ${tipoTexto} - Obra: ${conversation.data.obraNome || "N/A"} - Localização: ${latitude}, ${longitude}`,
-        );
-
-        return { success: true };
     } catch (error) {
         console.error("Erro ao registar ponto:", error);
 
-        await client.sendMessage(
-            phoneNumber,
-            `❌ *Erro ao Registar Ponto*
-
-Ocorreu um erro ao registar o seu ponto. Por favor, tente novamente mais tarde ou contacte o suporte técnico.
-
-Detalhes do erro: ${error.message}
-
-ID do utilizador: ${conversation.data.userId || "Não encontrado"}`,
+        await message.reply(
+            `❌ *Erro ao Registar Ponto*\n\n` +
+            `Ocorreu um erro ao registar o seu ponto. Por favor, tente novamente mais tarde ou contacte o suporte técnico.\n\n` +
+            `Detalhes do erro: ${error.message}`,
         );
-
-        return { success: false, error: error.message };
     } finally {
-        // Limpar conversa
+        // Limpar conversa após o processamento
         activeConversations.delete(phoneNumber);
     }
 }
-async function handlePontoObraInput(phoneNumber, message, conversation) {
-    const escolha = parseInt(message.trim());
-    const obras = conversation.data.obrasDisponiveis;
 
-    if (isNaN(escolha) || escolha < 1 || escolha > obras.length) {
-        await client.sendMessage(
-            phoneNumber,
-            `❌ Escolha inválida. Por favor, digite um número entre 1 e ${obras.length}:`,
-        );
-        return;
-    }
 
-    // Obra selecionada
-    const obraSelecionada = obras[escolha - 1];
-    conversation.data.obraId = obraSelecionada.id; // Usar id (inteiro) em vez de ID
-    conversation.data.obraNome = obraSelecionada.nome; // Usar nome em vez de Descricao
-    conversation.state = CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION;
-
-    const response = `✅ Obra selecionada: *${obraSelecionada.codigo} - ${obraSelecionada.nome}*\n\n*Confirmar Registo de Ponto*\nEscolha o tipo de registo:\n• Digite "1" para ENTRADA\n• Digite "2" para SAÍDA\n\nDigite sua escolha (1 ou 2):`;
-
-    await client.sendMessage(phoneNumber, response);
-
-    // Limpar lista de obras para economizar memória
-    delete conversation.data.obrasDisponiveis;
-}
+// Função para lidar com entrada do cliente
 async function handleClientInput(phoneNumber, message, conversation) {
     const nomeCliente = message.trim();
 
@@ -2408,7 +2521,7 @@ Por favor, descreva detalhadamente o problema ou situação que necessita de ass
     delete conversation.data.contratosDisponiveis;
 }
 
-// Handler para input do contacto
+// Handler para input do contacto - removido pois já é tratado na autorização
 async function handleContactInput(phoneNumber, message, conversation) {
     if (message.toLowerCase() !== "pular") {
         conversation.data.contacto = message.trim();
@@ -2420,6 +2533,7 @@ Por favor, descreva detalhadamente o problema ou situação que necessita de ass
 
     await client.sendMessage(phoneNumber, response);
 }
+
 
 // Handler para input do problema
 async function handleProblemInput(phoneNumber, message, conversation) {
@@ -2449,32 +2563,6 @@ Por favor, seleccione a prioridade do seu pedido:
 • ALTA (3) - Requer atenção prioritária
 
 Digite a opção pretendida:`;
-
-    await client.sendMessage(phoneNumber, response);
-}
-
-// Handler para input de como reproduzir - REMOVIDO, agora vai direto para confirmação
-async function handleReproduceInput(phoneNumber, message, conversation) {
-    if (message.toLowerCase() !== "pular") {
-        conversation.data.comoReproduzir = message.trim();
-    }
-
-    // Definir valores por defeito
-    conversation.data.tecnico = "000";
-    conversation.data.origem = "TEL";
-    conversation.data.objeto = "ASS\\SUP";
-    conversation.data.secao = "SD";
-    conversation.data.tipoProcesso = "PASI";
-
-    conversation.state = CONVERSATION_STATES.WAITING_PRIORITY;
-
-    const response = `*4. Prioridade*
-Escolha uma das opções:
-• BAIXA (1)
-• MÉDIA (2)
-• ALTA (3)
-
-Digite sua escolha:`;
 
     await client.sendMessage(phoneNumber, response);
 }
@@ -2539,22 +2627,22 @@ Digite "SIM" para confirmar ou "NÃO" para cancelar:`;
     await client.sendMessage(phoneNumber, summary);
 }
 
-// Handler para input do estado - REMOVIDO, não é mais usado
-async function handleStateInput(phoneNumber, message, conversation) {
-    // Esta função não é mais usada pois o estado fica predefinido como 2
-}
-
 // Handler para confirmação
 async function handleConfirmationInput(phoneNumber, message, conversation) {
     const response = message.toLowerCase();
 
     if (response === "sim" || response === "s") {
         await createAssistenceRequest(phoneNumber, conversation);
-    } else {
+    } else if (response === "não" || response === "nao" || response === "n") {
         activeConversations.delete(phoneNumber);
         await client.sendMessage(
             phoneNumber,
             "❌ Pedido cancelado com sucesso. Para iniciar um novo pedido de assistência, envie uma mensagem contendo 'pedido' ou 'assistência'.",
+        );
+    } else {
+        await client.sendMessage(
+            phoneNumber,
+            "❌ Resposta inválida. Por favor, digite 'SIM' para confirmar ou 'NÃO' para cancelar.",
         );
     }
 }
@@ -2895,15 +2983,15 @@ router.post("/schedule", async (req, res) => {
 
 // Enviar mensagem de boas-vindas para mensagens não relacionadas com pedidos
 async function sendWelcomeMessage(phoneNumber) {
-    const welcomeMessage = `👋 Bem-vindo! 
+    const welcomeMessage = `👋 Bem-vindo!
 
-Este é o assistente automático da Advir Plan Consultoria.
+This is the automated assistant for Advir Plan Consultoria.
 
-Serviços disponíveis:
-• Para criar um *pedido de assistência*, envie: "pedido"
-• Para registar *ponto*, envie: "ponto"
+Available services:
+• To create an *assistance request*, send: "pedido"
+• To register *attendance*, send: "ponto"
 
-Como podemos ajudá-lo hoje?`;
+How can we help you today?`;
 
     try {
         await client.sendMessage(phoneNumber, welcomeMessage);
