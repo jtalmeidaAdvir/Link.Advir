@@ -427,17 +427,18 @@ const authenticateWithFacialData = async (req, res) => {
         const faceDescriptor = parsedFacialData.biometricTemplate.descriptor;
 
         // Buscar todas as credenciais faciais da empresa
-        let whereClause = { biometricType: 'facial' };
+        let whereClause = { biometricType: 'facial' }; // Corrigido para biometricType
         if (empresa) {
             // Buscar utilizadores da empresa específica
+            const User = require('../models/user');
             const users = await User.findAll({
-                where: { empresa_areacliente: empresa },
+                where: { empresa_id: empresa },
                 attributes: ['id']
             });
             const userIds = users.map(u => u.id);
 
             if (userIds.length > 0) {
-                whereClause.userId = { [require('sequelize').Op.in]: userIds };
+                whereClause.userId = { [require('sequelize').Op.in]: userIds }; // Corrigido para userId
             } else {
                 return res.status(404).json({
                     success: false,
@@ -449,8 +450,8 @@ const authenticateWithFacialData = async (req, res) => {
         const credentials = await BiometricCredential.findAll({
             where: whereClause,
             include: [{
-                model: User,
-                attributes: ['id', 'nome', 'email', 'empresa_areacliente']
+                model: require('../models/user'),
+                attributes: ['id', 'nome', 'email', 'empresa_id']
             }]
         });
 
@@ -519,14 +520,11 @@ const authenticateWithFacialData = async (req, res) => {
         res.json({
             success: true,
             message: `Utilizador identificado com ${confidence}% de confiança`,
-            userId: user.id,
-            userNome: user.nome,
-            username: user.nome,
             user: {
                 id: user.id,
                 nome: user.nome,
                 email: user.email,
-                empresa_areacliente: user.empresa_areacliente
+                empresa_id: user.empresa_id
             },
             confidence: confidence,
             biometricType: 'facial'
