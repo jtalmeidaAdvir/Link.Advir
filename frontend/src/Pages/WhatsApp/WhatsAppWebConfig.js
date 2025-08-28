@@ -10,7 +10,6 @@ import { getWhatsAppStyles } from "./styles/whatsAppStyles";
 const WhatsAppWebConfig = () => {
     // API base URL
     const API_BASE_URL = "https://backend.advir.pt/api/whatsapp-web";
-
     // Estados principais
     const [activeTab, setActiveTab] = useState("connection");
     const [testMessage, setTestMessage] = useState({
@@ -40,6 +39,8 @@ const WhatsAppWebConfig = () => {
                 numeroTecnico: "",
                 numeroCliente: "",
                 canCreateTickets: false,
+                canRegisterPonto: false,
+                userID: "",
             },
         ],
     });
@@ -209,22 +210,28 @@ const WhatsAppWebConfig = () => {
         ) {
             setLoading(true);
             try {
-                const clearResponse = await fetch(`${API_BASE_URL}/clear-session`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
+                const clearResponse = await fetch(
+                    `${API_BASE_URL}/clear-session`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
                     },
-                });
+                );
 
                 if (clearResponse.ok) {
                     setTimeout(async () => {
                         try {
-                            const connectResponse = await fetch(`${API_BASE_URL}/connect`, {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
+                            const connectResponse = await fetch(
+                                `${API_BASE_URL}/connect`,
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
                                 },
-                            });
+                            );
 
                             if (connectResponse.ok) {
                                 alert(
@@ -236,7 +243,10 @@ const WhatsAppWebConfig = () => {
                                 alert("Erro ao iniciar nova conexão");
                             }
                         } catch (error) {
-                            console.error("Erro ao conectar após limpeza:", error);
+                            console.error(
+                                "Erro ao conectar após limpeza:",
+                                error,
+                            );
                             alert("Erro ao iniciar nova conexão");
                         } finally {
                             setLoading(false);
@@ -295,6 +305,8 @@ const WhatsAppWebConfig = () => {
                     numeroTecnico: "",
                     numeroCliente: "",
                     canCreateTickets: false,
+                    canRegisterPonto: false,
+                    userID: "",
                 },
             ],
         }));
@@ -339,6 +351,8 @@ const WhatsAppWebConfig = () => {
             numeroTecnico: contact.numeroTecnico,
             numeroCliente: contact.numeroCliente,
             canCreateTickets: contact.canCreateTickets,
+            canRegisterPonto: contact.canRegisterPonto,
+            user_id: contact.userID || contact.user_id || null
         }));
 
         try {
@@ -350,9 +364,18 @@ const WhatsAppWebConfig = () => {
                 body: JSON.stringify({
                     name: newContactList.name,
                     contacts: processedContacts.map((c) => c.phone),
-                    canCreateTickets: processedContacts.some((c) => c.canCreateTickets),
-                    numeroTecnico: processedContacts.find((c) => c.numeroTecnico)?.numeroTecnico || "",
-                    numeroCliente: processedContacts.find((c) => c.numeroCliente)?.numeroCliente || "",
+                    canCreateTickets: processedContacts.some(
+                        (c) => c.canCreateTickets,
+                    ),
+                    canRegisterPonto: processedContacts.some(
+                        (c) => c.canRegisterPonto,
+                    ),
+                    numeroTecnico:
+                        processedContacts.find((c) => c.numeroTecnico)
+                            ?.numeroTecnico || "",
+                    numeroCliente:
+                        processedContacts.find((c) => c.numeroCliente)
+                            ?.numeroCliente || "",
                     individualContacts: processedContacts,
                 }),
             });
@@ -366,6 +389,8 @@ const WhatsAppWebConfig = () => {
                             numeroTecnico: "",
                             numeroCliente: "",
                             canCreateTickets: false,
+                            canRegisterPonto: false,
+                            userID: "",
                         },
                     ],
                 });
@@ -383,19 +408,23 @@ const WhatsAppWebConfig = () => {
 
     const handleEditContactList = async (listToUpdate) => {
         const processedContacts = listToUpdate.contacts.map((contact) => {
-            if (typeof contact === "string") {
+            if (typeof contact === "object" && contact.phone) {
                 return {
-                    phone: contact.replace(/\D/g, ""),
-                    numeroTecnico: "",
-                    numeroCliente: "",
-                    canCreateTickets: false,
+                    phone: contact.phone,
+                    numeroTecnico: contact.numeroTecnico || "",
+                    numeroCliente: contact.numeroCliente || "",
+                    canCreateTickets: contact.canCreateTickets || false,
+                    canRegisterPonto: contact.canRegisterPonto || false,
+                    user_id: contact.userID || contact.user_id || null
                 };
             }
             return {
-                phone: contact.phone.replace(/\D/g, ""),
-                numeroTecnico: contact.numeroTecnico || "",
-                numeroCliente: contact.numeroCliente || "",
-                canCreateTickets: contact.canCreateTickets || false,
+                phone: contact,
+                numeroTecnico: "",
+                numeroCliente: "",
+                canCreateTickets: false,
+                canRegisterPonto: false,
+                user_id: null
             };
         });
 
@@ -404,22 +433,54 @@ const WhatsAppWebConfig = () => {
             name: listToUpdate.name,
             contacts: processedContacts.map((c) => c.phone),
             canCreateTickets: processedContacts.some((c) => c.canCreateTickets),
-            numeroTecnico: processedContacts.find((c) => c.numeroTecnico)?.numeroTecnico || "",
-            numeroCliente: processedContacts.find((c) => c.numeroCliente)?.numeroCliente || "",
+            canRegisterPonto: processedContacts.some((c) => c.canRegisterPonto),
+            numeroTecnico:
+                processedContacts.find((c) => c.numeroTecnico)?.numeroTecnico ||
+                "",
+            numeroCliente:
+                processedContacts.find((c) => c.numeroCliente)?.numeroCliente ||
+                "",
             individualContacts: processedContacts,
         };
 
         try {
-            const response = await fetch(`${API_BASE_URL}/contact-lists/${formattedList.id}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
+            const response = await fetch(
+                `${API_BASE_URL}/contact-lists/${formattedList.id}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        name: editingContactList.name,
+                        contacts: editingContactList.contacts.map((c) =>
+                            typeof c === "string" ? c : c.phone,
+                        ),
+                        canCreateTickets: editingContactList.contacts.some(
+                            (c) =>
+                                typeof c === "object" ? c.canCreateTickets : false,
+                        ),
+                        canRegisterPonto: editingContactList.contacts.some(
+                            (c) =>
+                                typeof c === "object" ? c.canRegisterPonto : false,
+                        ),
+                        numeroTecnico:
+                            editingContactList.contacts.find(
+                                (c) =>
+                                    typeof c === "object" && c.numeroTecnico,
+                            )?.numeroTecnico || "",
+                        numeroCliente:
+                            editingContactList.contacts.find(
+                                (c) =>
+                                    typeof c === "object" && c.numeroCliente,
+                            )?.numeroCliente || "",
+                        individualContacts: editingContactList.contacts.map(contact => ({
+                            ...contact,
+                            user_id: contact.userID || contact.user_id || null // Map userID to user_id
+                        })),
+                    }),
                 },
-                body: JSON.stringify({
-                    ...formattedList,
-                    individualContacts: processedContacts,
-                }),
-            });
+            );
 
             if (response.ok) {
                 loadContactLists();
@@ -458,6 +519,8 @@ const WhatsAppWebConfig = () => {
                 numeroTecnico: list.numeroTecnico || "",
                 numeroCliente: list.numeroCliente || "",
                 canCreateTickets: list.canCreateTickets || false,
+                canRegisterPonto: list.canRegisterPonto || false,
+                user_id: list.userID || list.user_id || null // Ensure user_id is also considered if present in original list structure
             }));
         }
 
@@ -477,6 +540,9 @@ const WhatsAppWebConfig = () => {
                     numeroTecnico: "",
                     numeroCliente: "",
                     canCreateTickets: false,
+                    canRegisterPonto: false,
+                    userID: "",
+                    user_id: null
                 },
             ],
         }));
@@ -501,11 +567,16 @@ const WhatsAppWebConfig = () => {
     };
 
     const deleteContactList = async (id) => {
-        if (confirm("Tem certeza que deseja eliminar esta lista de contactos?")) {
+        if (
+            confirm("Tem certeza que deseja eliminar esta lista de contactos?")
+        ) {
             try {
-                const response = await fetch(`${API_BASE_URL}/contact-lists/${id}`, {
-                    method: "DELETE",
-                });
+                const response = await fetch(
+                    `${API_BASE_URL}/contact-lists/${id}`,
+                    {
+                        method: "DELETE",
+                    },
+                );
 
                 if (response.ok) {
                     loadContactLists();
@@ -623,9 +694,12 @@ const WhatsAppWebConfig = () => {
 
     const forceScheduleExecution = async (scheduleId) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/schedule/${scheduleId}/execute`, {
-                method: "POST",
-            });
+            const response = await fetch(
+                `${API_BASE_URL}/schedule/${scheduleId}/execute`,
+                {
+                    method: "POST",
+                },
+            );
 
             const result = await response.json();
 
@@ -660,7 +734,9 @@ const WhatsAppWebConfig = () => {
             const result = await response.json();
 
             if (response.ok) {
-                alert(`Simulação para ${time} concluída! Verificar logs para detalhes.`);
+                alert(
+                    `Simulação para ${time} concluída! Verificar logs para detalhes.`,
+                );
                 loadLogs(logFilter);
             } else {
                 alert(`Erro na simulação: ${result.error}`);
@@ -706,7 +782,9 @@ const WhatsAppWebConfig = () => {
             return;
         }
 
-        const existe = externosContactos.find((ec) => ec.externoId === novoExternoContacto.externoId);
+        const existe = externosContactos.find(
+            (ec) => ec.externoId === novoExternoContacto.externoId,
+        );
         if (existe) {
             alert("Já existe um contacto para este externo");
             return;
@@ -719,14 +797,21 @@ const WhatsAppWebConfig = () => {
         const novoContacto = {
             ...novoExternoContacto,
             id: Date.now(),
-            externoNome: externoSelecionado ? externoSelecionado.funcionario : "",
-            externoEmpresa: externoSelecionado ? externoSelecionado.empresa : "",
+            externoNome: externoSelecionado
+                ? externoSelecionado.funcionario
+                : "",
+            externoEmpresa: externoSelecionado
+                ? externoSelecionado.empresa
+                : "",
         };
 
         const novosContactos = [...externosContactos, novoContacto];
         setExternosContactos(novosContactos);
 
-        localStorage.setItem("externosContactos", JSON.stringify(novosContactos));
+        localStorage.setItem(
+            "externosContactos",
+            JSON.stringify(novosContactos),
+        );
 
         setNovoExternoContacto({
             externoId: "",
@@ -742,9 +827,14 @@ const WhatsAppWebConfig = () => {
 
     const deleteExternoContacto = (id) => {
         if (confirm("Tem certeza que deseja eliminar este contacto externo?")) {
-            const novosContactos = externosContactos.filter((ec) => ec.id !== id);
+            const novosContactos = externosContactos.filter(
+                (ec) => ec.id !== id,
+            );
             setExternosContactos(novosContactos);
-            localStorage.setItem("externosContactos", JSON.stringify(novosContactos));
+            localStorage.setItem(
+                "externosContactos",
+                JSON.stringify(novosContactos),
+            );
         }
     };
 
@@ -864,7 +954,9 @@ const WhatsAppWebConfig = () => {
             {/* Header */}
             <div style={styles.header}>
                 <h1 style={styles.title}>WhatsApp Web API</h1>
-                <p style={styles.subtitle}>Sistema completo de gestão de mensagens WhatsApp</p>
+                <p style={styles.subtitle}>
+                    Sistema completo de gestão de mensagens WhatsApp
+                </p>
             </div>
 
             {/* Navigation Tabs */}
@@ -900,6 +992,5 @@ const WhatsAppWebConfig = () => {
         </div>
     );
 };
-
 
 export default WhatsAppWebConfig;

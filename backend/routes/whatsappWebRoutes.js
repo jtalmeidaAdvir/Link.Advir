@@ -16,7 +16,9 @@ const { getAuthToken } = require("../../webPrimaveraApi/servives/tokenService");
 let isInitializing = false;
 let isShuttingDown = false;
 // Função para inicializar o cliente WhatsApp Web
-const initializeWhatsAppWeb = async () => {
+const initializeWhatsAppWeb = async (retryCount = 0) => {
+    const maxRetries = 3;
+
     if (client) {
         console.log("Cliente WhatsApp já existe, destruindo primeiro...");
         try {
@@ -33,14 +35,15 @@ const initializeWhatsAppWeb = async () => {
                 error.message,
             );
 
-            // Handle specific Puppeteer errors
+            // Handle specific Puppeteer errors including ExecutionContext errors
             if (
                 error.message.includes("Target closed") ||
                 error.message.includes("Protocol error") ||
+                error.message.includes("Execution context was destroyed") ||
                 error.name === "ProtocolError"
             ) {
                 console.log(
-                    "🎯 Erro de protocolo detectado - fazendo limpeza silenciosa",
+                    "🎯 Erro de protocolo/contexto detectado - fazendo limpeza silenciosa",
                 );
             }
 
@@ -60,7 +63,7 @@ const initializeWhatsAppWeb = async () => {
                                 2000,
                             ),
                         ),
-                    ]).catch(() => {});
+                    ]).catch(() => { });
                 }
                 if (
                     client &&
@@ -77,7 +80,7 @@ const initializeWhatsAppWeb = async () => {
                                 2000,
                             ),
                         ),
-                    ]).catch(() => {});
+                    ]).catch(() => { });
                 }
             } catch (forceError) {
                 console.log(
@@ -93,89 +96,140 @@ const initializeWhatsAppWeb = async () => {
         clientStatus = "disconnected";
         qrCodeData = null;
     }
-    // Configuração específica para produção/servidor
-    const isProduction =
-        process.env.NODE_ENV === "production" || process.env.REPLIT_DEV_DOMAIN;
 
-    client = new Client({
-        authStrategy: new LocalAuth({
-            dataPath: "./whatsapp-session",
-        }),
-        puppeteer: {
-            headless: true,
-            executablePath: isProduction
-                ? "/usr/bin/chromium-browser"
-                : undefined,
-            args: [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-accelerated-2d-canvas",
-                "--no-first-run",
-                "--no-zygote",
-                "--single-process",
-                "--disable-gpu",
-                "--disable-web-security",
-                "--disable-features=VizDisplayCompositor",
-                "--disable-extensions",
-                "--disable-plugins",
-                "--disable-default-apps",
-                "--no-default-browser-check",
-                "--disable-background-timer-throttling",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-renderer-backgrounding",
-                ...(isProduction
-                    ? [
-                          "--disable-blink-features=AutomationControlled",
-                          "--disable-software-rasterizer",
-                          "--disable-background-networking",
-                          "--disable-default-apps",
-                          "--disable-sync",
-                          "--metrics-recording-only",
-                          "--no-first-run",
-                          "--safebrowsing-disable-auto-update",
-                          "--disable-crash-reporter",
-                      ]
-                    : []),
-            ],
-        },
-    });
-    client.on("qr", (qr) => {
-        qrCodeData = qr;
-        clientStatus = "qr_received";
-        console.log("📱 QR Code recebido! Tamanho:", qr.length);
-        console.log("📱 Primeiros 100 caracteres:", qr.substring(0, 100));
-        qrcode.generate(qr, { small: true });
-    });
-    client.on("ready", () => {
-        console.log("WhatsApp Web Cliente conectado!");
-        isClientReady = true;
-        clientStatus = "ready";
-        qrCodeData = null;
-        // Inicializar agendamentos ao estar pronto
-        initializeSchedules();
-    });
+    try {
+        // Configuração específica para produção/servidor
+        const isProduction =
+            process.env.NODE_ENV === "production" ||
+            process.env.REPLIT_DEV_DOMAIN;
 
-    // Adicionar listener para mensagens recebidas
-    client.on("message", async (message) => {
-        try {
-            await handleIncomingMessage(message);
-        } catch (error) {
-            console.error("Erro ao processar mensagem recebida:", error);
+        client = new Client({
+            authStrategy: new LocalAuth({
+                dataPath: "./whatsapp-session",
+            }),
+            puppeteer: {
+                headless: true,
+                executablePath: isProduction
+                    ? "/usr/bin/chromium-browser"
+                    : undefined,
+                args: [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-accelerated-2d-canvas",
+                    "--no-first-run",
+                    "--no-zygote",
+                    "--single-process",
+                    "--disable-gpu",
+                    "--disable-web-security",
+                    "--disable-features=VizDisplayCompositor",
+                    "--disable-extensions",
+                    "--disable-plugins",
+                    "--disable-default-apps",
+                    "--no-default-browser-check",
+                    "--disable-background-timer-throttling",
+                    "--disable-backgrounding-occluded-windows",
+                    "--disable-renderer-backgrounding",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-component-update",
+                    "--disable-ipc-flooding-protection",
+                    ...(isProduction
+                        ? [
+                            "--disable-software-rasterizer",
+                            "--disable-background-networking",
+                            "--disable-sync",
+                            "--metrics-recording-only",
+                            "--safebrowsing-disable-auto-update",
+                            "--disable-crash-reporter",
+                        ]
+                        : []),
+                ],
+                timeout: 60000, // Aumentar timeout
+            },
+        });
+        client.on("qr", (qr) => {
+            qrCodeData = qr;
+            clientStatus = "qr_received";
+            console.log("📱 QR Code recebido! Tamanho:", qr.length);
+            console.log("📱 Primeiros 100 caracteres:", qr.substring(0, 100));
+            qrcode.generate(qr, { small: true });
+        });
+
+        client.on("ready", () => {
+            console.log("WhatsApp Web Cliente conectado!");
+            isClientReady = true;
+            clientStatus = "ready";
+            qrCodeData = null;
+            // Inicializar agendamentos ao estar pronto
+            initializeSchedules();
+        });
+
+        // Adicionar listener para mensagens recebidas
+        client.on("message", async (message) => {
+            try {
+                await handleIncomingMessage(message);
+            } catch (error) {
+                console.error("Erro ao processar mensagem recebida:", error);
+
+                // Se for erro de ExecutionContext, tentar reinicializar
+                if (error.message.includes("Execution context was destroyed")) {
+                    console.log(
+                        "🔄 Erro de ExecutionContext detectado, reinicializando cliente...",
+                    );
+                    setTimeout(() => initializeWhatsAppWeb(), 3000);
+                }
+            }
+        });
+
+        client.on("authenticated", () => {
+            console.log("WhatsApp Web autenticado!");
+            clientStatus = "authenticated";
+        });
+
+        client.on("disconnected", (reason) => {
+            console.log("WhatsApp Web desconectado:", reason);
+            isClientReady = false;
+            clientStatus = "disconnected";
+            // Reiniciar o cliente após a desconexão
+            setTimeout(() => initializeWhatsAppWeb(), 5000);
+        });
+
+        // Adicionar handler para erros não capturados
+        client.on("auth_failure", (msg) => {
+            console.error("Falha na autenticação:", msg);
+            clientStatus = "auth_failure";
+        });
+
+        await client.initialize();
+    } catch (error) {
+        console.error("❌ Erro ao inicializar cliente WhatsApp:", error);
+
+        // Se for erro de ExecutionContext e ainda temos tentativas, retry
+        if (
+            error.message.includes("Execution context was destroyed") &&
+            retryCount < maxRetries
+        ) {
+            console.log(
+                `🔄 Tentativa ${retryCount + 1}/${maxRetries} - Tentando novamente em 5 segundos...`,
+            );
+            setTimeout(() => initializeWhatsAppWeb(retryCount + 1), 5000);
+            return;
         }
-    });
-    client.on("authenticated", () => {
-        console.log("WhatsApp Web autenticado!");
-        clientStatus = "authenticated";
-    });
-    client.on("disconnected", (reason) => {
-        console.log("WhatsApp Web desconectado:", reason);
+
+        // Reset do estado em caso de erro
+        client = null;
         isClientReady = false;
-        clientStatus = "disconnected";
-        // Reiniciar o cliente após a desconexão
-        setTimeout(initializeWhatsAppWeb, 5000); // Reinicia após 5 segundos
-    });
-    client.initialize();
+        clientStatus = "error";
+        qrCodeData = null;
+
+        // Tentar novamente após um tempo maior se esgotar as tentativas
+        if (retryCount >= maxRetries) {
+            console.log(
+                "❌ Máximo de tentativas atingido. Tentando novamente em 30 segundos...",
+            );
+            setTimeout(() => initializeWhatsAppWeb(0), 30000);
+        }
+    }
 };
 // Chamar a função de inicialização no início do script
 (async () => {
@@ -330,7 +384,7 @@ router.post("/disconnect", async (req, res) => {
                                         1000,
                                     ),
                                 ),
-                            ]).catch(() => {});
+                            ]).catch(() => { });
                         }
                         if (
                             client &&
@@ -346,7 +400,7 @@ router.post("/disconnect", async (req, res) => {
                                         1000,
                                     ),
                                 ),
-                            ]).catch(() => {});
+                            ]).catch(() => { });
                         }
                     } catch (forceError) {
                         console.log(
@@ -357,7 +411,7 @@ router.post("/disconnect", async (req, res) => {
                 }
             }
 
-            // Always reset regardless of errors
+            // Always reset state
             client = null;
             isClientReady = false;
             clientStatus = "disconnected";
@@ -431,7 +485,7 @@ router.post("/clear-session", async (req, res) => {
                                         1000,
                                     ),
                                 ),
-                            ]).catch(() => {});
+                            ]).catch(() => { });
                         }
                         if (
                             client &&
@@ -452,7 +506,7 @@ router.post("/clear-session", async (req, res) => {
                                         1000,
                                     ),
                                 ),
-                            ]).catch(() => {});
+                            ]).catch(() => { });
                         }
                     } catch (forceError) {
                         console.log(
@@ -559,7 +613,7 @@ router.post("/clear-session", async (req, res) => {
         // Mesmo com erro, tentar resetar as variáveis
         try {
             if (client) {
-                await client.destroy().catch(() => {});
+                await client.destroy().catch(() => { });
             }
         } catch (finalError) {
             console.error("Erro final:", finalError);
@@ -612,19 +666,49 @@ router.post("/send", async (req, res) => {
             phoneNumber = phoneNumber + "@c.us";
         }
 
-        // Verificar se o número é válido
-        const isValidNumber = await client.isRegisteredUser(phoneNumber);
+        // Verificar se o número é válido com retry em caso de erro de contexto
+        let isValidNumber;
+        try {
+            isValidNumber = await client.isRegisteredUser(phoneNumber);
+        } catch (validationError) {
+            if (
+                validationError.message.includes(
+                    "Execution context was destroyed",
+                )
+            ) {
+                console.log(
+                    "🔄 Erro de ExecutionContext na validação, tentando reinicializar...",
+                );
+                setTimeout(() => initializeWhatsAppWeb(), 1000);
+                return res.status(503).json({
+                    error: "Serviço temporariamente indisponível. Cliente WhatsApp sendo reinicializado.",
+                });
+            }
+            throw validationError;
+        }
+
         if (!isValidNumber) {
             return res.status(400).json({
                 error: "Número não está registrado no WhatsApp",
             });
         }
 
-        // Enviar mensagem
-        const response = await client.sendMessage(
-            phoneNumber,
-            formattedMessage,
-        );
+        // Enviar mensagem com retry em caso de erro de contexto
+        let response;
+        try {
+            response = await client.sendMessage(phoneNumber, formattedMessage);
+        } catch (sendError) {
+            if (sendError.message.includes("Execution context was destroyed")) {
+                console.log(
+                    "🔄 Erro de ExecutionContext no envio, tentando reinicializar...",
+                );
+                setTimeout(() => initializeWhatsAppWeb(), 1000);
+                return res.status(503).json({
+                    error: "Serviço temporariamente indisponível. Cliente WhatsApp sendo reinicializado.",
+                });
+            }
+            throw sendError;
+        }
 
         res.json({
             message: "Mensagem enviada com sucesso!",
@@ -633,6 +717,18 @@ router.post("/send", async (req, res) => {
         });
     } catch (error) {
         console.error("Erro ao enviar mensagem:", error);
+
+        // Verificar se é erro de ExecutionContext
+        if (error.message.includes("Execution context was destroyed")) {
+            console.log(
+                "🔄 Reinicializando cliente devido a erro de ExecutionContext...",
+            );
+            setTimeout(() => initializeWhatsAppWeb(), 1000);
+            return res.status(503).json({
+                error: "Serviço temporariamente indisponível. Cliente sendo reinicializado.",
+            });
+        }
+
         res.status(500).json({
             error: "Erro ao enviar mensagem",
             details: error.message,
@@ -781,9 +877,11 @@ router.post("/contact-lists", async (req, res) => {
             name,
             contacts,
             canCreateTickets = false,
+            canRegisterPonto = false,
             numeroTecnico,
             numeroCliente,
             individualContacts,
+            user_id, // Added user_id
         } = req.body;
 
         if (!name || !contacts || contacts.length === 0) {
@@ -795,7 +893,13 @@ router.post("/contact-lists", async (req, res) => {
         // Se individualContacts está presente, usar esse formato (novo sistema)
         let contactsToStore;
         if (individualContacts && Array.isArray(individualContacts)) {
-            contactsToStore = individualContacts;
+            contactsToStore = individualContacts.map((contact) => {
+                return {
+                    ...contact,
+                    user_id:
+                        contact.user_id || contact.userID || user_id || null, // Support both user_id and userID fields
+                };
+            });
         } else {
             // Formato antigo - converter strings para objetos
             contactsToStore = contacts.map((contact) => {
@@ -804,10 +908,16 @@ router.post("/contact-lists", async (req, res) => {
                         phone: contact,
                         numeroTecnico: numeroTecnico || "",
                         numeroCliente: numeroCliente || "",
-                        canCreateTickets: canCreateTickets,
+                        canCreateTickets: canCreateTickets || false,
+                        canRegisterPonto: canRegisterPonto || false,
+                        user_id: user_id || null,
                     };
                 }
-                return contact;
+                return {
+                    ...contact,
+                    user_id:
+                        contact.user_id || contact.userID || user_id || null, // Support both field names
+                };
             });
         }
 
@@ -815,8 +925,10 @@ router.post("/contact-lists", async (req, res) => {
             name,
             contacts: JSON.stringify(contactsToStore),
             can_create_tickets: canCreateTickets,
+            can_register_ponto: canRegisterPonto,
             numero_tecnico: numeroTecnico || null,
             numero_cliente: numeroCliente || null,
+            user_id: user_id || null,
         });
 
         res.json({
@@ -826,9 +938,11 @@ router.post("/contact-lists", async (req, res) => {
                 name: newContactList.name,
                 contacts: JSON.parse(newContactList.contacts),
                 canCreateTickets: newContactList.can_create_tickets,
+                canRegisterPonto: newContactList.can_register_ponto,
                 numeroTecnico: newContactList.numero_tecnico,
                 numeroCliente: newContactList.numero_cliente,
                 createdAt: newContactList.created_at,
+                user_id: newContactList.user_id,
             },
         });
     } catch (error) {
@@ -860,9 +974,11 @@ router.get("/contacts", async (req, res) => {
             name: contact.name,
             contacts: JSON.parse(contact.contacts),
             canCreateTickets: contact.can_create_tickets,
+            canRegisterPonto: contact.can_register_ponto,
             numeroTecnico: contact.numero_tecnico,
             numeroCliente: contact.numero_cliente,
             createdAt: contact.created_at,
+            user_id: contact.user_id,
         }));
 
         res.json(formattedContacts);
@@ -883,9 +999,11 @@ router.put("/contact-lists/:id", async (req, res) => {
             name,
             contacts,
             canCreateTickets,
+            canRegisterPonto,
             numeroTecnico,
             numeroCliente,
             individualContacts,
+            user_id, // Added user_id
         } = req.body;
 
         if (!name || !contacts || contacts.length === 0) {
@@ -897,7 +1015,13 @@ router.put("/contact-lists/:id", async (req, res) => {
         // Se individualContacts está presente, usar esse formato (novo sistema)
         let contactsToStore;
         if (individualContacts && Array.isArray(individualContacts)) {
-            contactsToStore = individualContacts;
+            contactsToStore = individualContacts.map((contact) => {
+                return {
+                    ...contact,
+                    user_id:
+                        contact.user_id || contact.userID || user_id || null, // Support both field names and preserve existing
+                };
+            });
         } else {
             // Formato antigo - converter strings para objetos
             contactsToStore = contacts.map((contact) => {
@@ -906,10 +1030,16 @@ router.put("/contact-lists/:id", async (req, res) => {
                         phone: contact,
                         numeroTecnico: numeroTecnico || "",
                         numeroCliente: numeroCliente || "",
-                        canCreateTickets: canCreateTickets || false,
+                        canCreateTickets: canCreateTickets,
+                        canRegisterPonto: canRegisterPonto,
+                        user_id: user_id || null,
                     };
                 }
-                return contact;
+                return {
+                    ...contact,
+                    user_id:
+                        contact.user_id || contact.userID || user_id || null, // Support both field names
+                };
             });
         }
 
@@ -919,12 +1049,13 @@ router.put("/contact-lists/:id", async (req, res) => {
                 contacts: JSON.stringify(contactsToStore),
                 can_create_tickets:
                     canCreateTickets !== undefined ? canCreateTickets : false,
+                can_register_ponto:
+                    canRegisterPonto !== undefined ? canRegisterPonto : false,
                 numero_tecnico: numeroTecnico || null,
                 numero_cliente: numeroCliente || null,
+                user_id: user_id || null, // Ensure user_id is updated at contact list level too
             },
-            {
-                where: { id },
-            },
+            { where: { id } },
         );
 
         if (updated) {
@@ -936,9 +1067,11 @@ router.put("/contact-lists/:id", async (req, res) => {
                     name: updatedContactList.name,
                     contacts: JSON.parse(updatedContactList.contacts),
                     canCreateTickets: updatedContactList.can_create_tickets,
+                    canRegisterPonto: updatedContactList.can_register_ponto,
                     numeroTecnico: updatedContactList.numero_tecnico,
                     numeroCliente: updatedContactList.numero_cliente,
                     createdAt: updatedContactList.created_at,
+                    user_id: updatedContactList.user_id,
                 },
             });
         } else {
@@ -1015,6 +1148,10 @@ const CONVERSATION_STATES = {
     WAITING_PRIORITY: "waiting_priority",
     WAITING_STATE: "waiting_state",
     WAITING_CONFIRMATION: "waiting_confirmation",
+    // Estados para registo de ponto
+    PONTO_WAITING_OBRA: "ponto_waiting_obra",
+    PONTO_WAITING_CONFIRMATION: "ponto_waiting_confirmation",
+    PONTO_WAITING_LOCATION: "ponto_waiting_location",
 };
 
 // Função para verificar se o contacto tem autorização para criar pedidos e obter dados do contacto
@@ -1045,6 +1182,7 @@ async function checkContactAuthorization(phoneNumber) {
                             contact.numeroTecnico || list.numero_tecnico,
                         listName: list.name,
                         canCreateTickets: contact.canCreateTickets,
+                        userId: contact.user_id || list.user_id,
                     };
                 } else {
                     // Formato antigo - dados globais da lista
@@ -1054,6 +1192,7 @@ async function checkContactAuthorization(phoneNumber) {
                         numeroTecnico: list.numero_tecnico,
                         listName: list.name,
                         canCreateTickets: list.can_create_tickets,
+                        userId: list.user_id,
                     };
                 }
 
@@ -1078,6 +1217,112 @@ async function checkContactAuthorization(phoneNumber) {
     }
 }
 
+// Função para verificar se o contacto tem autorização para registo de ponto
+async function checkPontoAuthorization(phoneNumber) {
+    try {
+        // Remover formatação do número
+        const cleanPhoneNumber = phoneNumber
+            .replace("@c.us", "")
+            .replace(/\D/g, "");
+
+        console.log(
+            `🔍 Verificando autorização para número: ${cleanPhoneNumber}`,
+        );
+
+        // Buscar em todas as listas de contactos
+        const contactLists = await Contact.findAll();
+
+        for (const list of contactLists) {
+            console.log(`📋 Verificando lista: ${list.name}`);
+            const contacts = JSON.parse(list.contacts);
+
+            // Verificar se é formato novo (objetos) ou antigo (strings)
+            for (const contact of contacts) {
+                let contactPhone, contactData;
+
+                if (typeof contact === "object") {
+                    // Formato novo - cada contacto tem dados individuais
+                    contactPhone = contact.phone?.replace(/\D/g, "");
+                    contactData = {
+                        listName: list.name,
+                        canRegisterPonto: contact.canRegisterPonto,
+                        userId: contact.user_id, // Importante: extrair user_id
+                    };
+                    console.log(
+                        `🔍 Contacto objeto - Phone: ${contactPhone}, UserID: ${contact.user_id}, CanRegisterPonto: ${contact.canRegisterPonto}`,
+                    );
+                } else {
+                    // Formato antigo - dados globais da lista
+                    contactPhone = contact.replace(/\D/g, "");
+                    contactData = {
+                        listName: list.name,
+                        canRegisterPonto: list.can_register_ponto,
+                        userId: list.user_id, // Usar user_id da lista como fallback
+                    };
+                    console.log(
+                        `🔍 Contacto string - Phone: ${contactPhone}, ListUserID: ${list.user_id}, CanRegisterPonto: ${list.can_register_ponto}`,
+                    );
+                }
+
+                // Verificar se o número coincide (comparação mais flexível)
+                const phoneMatch =
+                    contactPhone &&
+                    (contactPhone === cleanPhoneNumber ||
+                        contactPhone.includes(cleanPhoneNumber) ||
+                        cleanPhoneNumber.includes(contactPhone) ||
+                        contactPhone.endsWith(cleanPhoneNumber.slice(-9)) || // Últimos 9 dígitos
+                        cleanPhoneNumber.endsWith(contactPhone.slice(-9)));
+
+                console.log(
+                    `📞 Comparando phones: ${contactPhone} vs ${cleanPhoneNumber} = ${phoneMatch}`,
+                );
+
+                if (phoneMatch && contactData.canRegisterPonto) {
+                    console.log(
+                        `✅ Autorização encontrada! UserID: ${contactData.userId}`,
+                    );
+
+                    // Verificar se tem user_id válido
+                    if (!contactData.userId) {
+                        console.error(
+                            `❌ Contacto encontrado mas sem user_id válido`,
+                        );
+                        return {
+                            authorized: false,
+                            contactData: null,
+                            error: "Contacto não tem user_id configurado",
+                        };
+                    }
+
+                    return {
+                        authorized: true,
+                        contactData: contactData,
+                    };
+                }
+            }
+        }
+
+        console.log(
+            `❌ Nenhuma autorização encontrada para ${cleanPhoneNumber}`,
+        );
+        return {
+            authorized: false,
+            contactData: null,
+            error: "Número não encontrado nas listas de contactos ou sem autorização",
+        };
+    } catch (error) {
+        console.error(
+            "Erro ao verificar autorização de ponto do contacto:",
+            error,
+        );
+        return {
+            authorized: false,
+            contactData: null,
+            error: error.message,
+        };
+    }
+}
+
 // Função para lidar com mensagens recebidas
 async function handleIncomingMessage(message) {
     // Ignorar mensagens de grupos e mensagens enviadas por nós
@@ -1089,6 +1334,13 @@ async function handleIncomingMessage(message) {
     const messageText = message.body.trim();
 
     console.log(`📥 Mensagem recebida de ${phoneNumber}: ${messageText}`);
+
+    // Verificar se é uma mensagem de localização
+    if (message.hasLocation) {
+        console.log(`📍 Localização recebida de ${phoneNumber}: ${message.location.latitude}, ${message.location.longitude}`);
+        // A localização será tratada pelo listener específico em processarRegistoPonto
+        return;
+    }
 
     // Verificar se existe uma conversa ativa
     let conversation = activeConversations.get(phoneNumber);
@@ -1118,6 +1370,66 @@ async function handleIncomingMessage(message) {
         return;
     }
 
+    // Se a mensagem contém palavras-chave para registo de ponto
+    if (isPontoKeyword(messageText)) {
+        // Se já existe uma conversa, cancela-la primeiro
+        if (conversation) {
+            activeConversations.delete(phoneNumber);
+            console.log(
+                `🔄 Conversa anterior cancelada para ${phoneNumber} - iniciando registo de ponto`,
+            );
+        }
+
+        // Verificar autorização antes de iniciar o registo de ponto
+        const pontoAuthResult = await checkPontoAuthorization(phoneNumber);
+
+        if (!pontoAuthResult.authorized) {
+            let errorMessage = "❌ *Erro de Configuração*\n\n";
+
+            if (
+                pontoAuthResult.error === "Contacto não tem user_id configurado"
+            ) {
+                errorMessage +=
+                    "O seu contacto foi encontrado mas não tem um utilizador (user_id) configurado.\n\n";
+                errorMessage += "📋 **Detalhes do problema:**\n";
+                errorMessage += "• O contacto existe nas listas\n";
+                errorMessage += "• Tem autorização para registo de ponto\n";
+                errorMessage += "• **MAS** não tem user_id associado\n\n";
+                errorMessage +=
+                    "👨‍💻 **Solução:** Contacte o administrador para configurar o user_id no seu contacto.";
+            } else if (
+                pontoAuthResult.error ===
+                "Número não encontrado nas listas de contactos ou sem autorização"
+            ) {
+                errorMessage +=
+                    "O seu número não foi encontrado nas listas de contactos ou não tem autorização para registo de ponto.\n\n";
+                errorMessage += "📋 **Verifique se:**\n";
+                errorMessage +=
+                    "• O número está registado nas listas de contactos\n";
+                errorMessage +=
+                    "• Tem a opção 'Autorizar registo de ponto' ativada\n\n";
+                errorMessage +=
+                    "👨‍💻 **Solução:** Contacte o administrador para verificar as suas permissões.";
+            } else {
+                errorMessage +=
+                    "Não foi possível identificar o utilizador associado a este contacto.\n\n";
+                errorMessage += `**Erro técnico:** ${pontoAuthResult.error || "Erro desconhecido"}\n\n`;
+                errorMessage +=
+                    "👨‍💻 **Solução:** Contacte o administrador para verificar a configuração do seu contacto.";
+            }
+
+            await client.sendMessage(phoneNumber, errorMessage);
+            return;
+        }
+
+        await startPontoRegistration(
+            phoneNumber,
+            messageText,
+            pontoAuthResult.contactData,
+        );
+        return;
+    }
+
     // Se existe conversa ativa, continuar o fluxo
     if (conversation) {
         await continueConversation(phoneNumber, messageText, conversation);
@@ -1131,6 +1443,14 @@ async function handleIncomingMessage(message) {
 // Verificar se a mensagem contém palavras-chave para iniciar um pedido
 function isRequestKeyword(message) {
     const keywords = ["pedido"];
+
+    const lowerMessage = message.toLowerCase();
+    return keywords.some((keyword) => lowerMessage.includes(keyword));
+}
+
+// Verificar se a mensagem contém palavras-chave para registo de ponto
+function isPontoKeyword(message) {
+    const keywords = ["ponto", "entrada", "saida", "picar"];
 
     const lowerMessage = message.toLowerCase();
     return keywords.some((keyword) => lowerMessage.includes(keyword));
@@ -1154,6 +1474,9 @@ async function startNewRequest(
     // Pré-preencher dados do contacto se disponível
     if (contactData && contactData.numeroTecnico) {
         conversationData.tecnico = contactData.numeroTecnico;
+    }
+    if (contactData && contactData.userId) {
+        conversationData.userId = contactData.userId;
     }
 
     let welcomeMessage = `🤖 *Sistema de Pedidos de Assistência Técnica*
@@ -1207,7 +1530,7 @@ Por favor, descreva detalhadamente o problema ou situação que necessita de ass
 
             welcomeMessage += `\n\n✅ Cliente identificado: *${contactData.numeroCliente}*
 
-e��� Foram encontrados múltiplos contratos ativos. Por favor, escolha um dos contratos abaixo digitando o número correspondente:
+e Foram encontrados múltiplos contratos ativos. Por favor, escolha um dos contratos abaixo digitando o número correspondente:
 
 `;
 
@@ -1268,6 +1591,20 @@ async function continueConversation(phoneNumber, message, conversation) {
             break;
         case CONVERSATION_STATES.WAITING_CONFIRMATION:
             await handleConfirmationInput(phoneNumber, message, conversation);
+            break;
+        // Estados para registo de ponto
+        case CONVERSATION_STATES.PONTO_WAITING_OBRA:
+            await handlePontoObraInput(phoneNumber, message, conversation);
+            break;
+        case CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION:
+            await handlePontoConfirmationInput(
+                phoneNumber,
+                message,
+                conversation,
+            );
+            break;
+        case CONVERSATION_STATES.PONTO_WAITING_LOCATION:
+            await handlePontoLocationInput(phoneNumber, message, conversation);
             break;
     }
 
@@ -1412,34 +1749,544 @@ const buscarContratosCliente = async (clienteId) => {
         return { contratos: [], contratosAtivos: [] };
     }
 };
+async function startPontoRegistration(
+    phoneNumber,
+    initialMessage,
+    contactData = null,
+) {
+    let conversationData = {
+        initialMessage: initialMessage,
+        timestamp: new Date().toISOString(),
+        userId: contactData?.userId, // Predefinir com o user_id do contacto
+        userName: null,
+        obrasDisponiveis: [],
+        obraId: null,
+        obraNome: null,
+    };
 
-// Após chamar a função, exiba as sugestões
-async function handleClientInput(phoneNumber, message, conversation) {
-    const resultadoValidacao = await validarCliente(message.trim());
-    if (!resultadoValidacao.existe) {
-        const sugestoesMensagem =
-            resultadoValidacao.sugestoes.length > 0
-                ? `⚠️ Cliente não encontrado. Sugestões:\n${resultadoValidacao.sugestoes.join("\n")}`
-                : "⚠️ Cliente não encontrado. Nenhuma sugestão disponível.";
-        await client.sendMessage(phoneNumber, sugestoesMensagem);
-        conversation.state = CONVERSATION_STATES.WAITING_CLIENT_NAME; // ou o estado apropriado
-    } else {
-        // Continue com o fluxo normal
+    let welcomeMessage = `🕐 *Sistema de Registo de Ponto*
+
+Bem-vindo ao sistema automático de registo de ponto da Advir.`;
+
+    // Verificar se havia uma conversa anterior
+    const hadPreviousConversation = activeConversations.has(phoneNumber);
+    if (hadPreviousConversation) {
+        welcomeMessage += `\n\n🔄 *Conversa anterior cancelada* - Iniciando registo de ponto.`;
     }
+
+    welcomeMessage += `\n\n💡 _Pode digitar "cancelar" a qualquer momento para interromper o processo_`;
+
+    // Se temos o user_id do contacto, buscar as obras diretamente
+    if (contactData?.userId) {
+        try {
+            // Buscar utilizador na base de dados
+            const User = require("../models/user");
+            const user = await User.findByPk(contactData.userId);
+
+            if (user) {
+                conversationData.userName = user.nome;
+                console.log(
+                    `✅ Utilizador encontrado: ${user.nome} (ID: ${contactData.userId})`,
+                );
+
+                // Buscar obras disponíveis para o utilizador
+                try {
+                    const token = await getAuthToken(
+                        {
+                            username: "AdvirWeb",
+                            password: "Advir2506##",
+                            company: "Advir",
+                            instance: "DEFAULT",
+                            line: "Evolution",
+                        },
+                        "151.80.149.159:2018",
+                    );
+
+                    console.log(
+                        `🔍 Buscando obras para utilizador ID: ${user.id_tecnico || user.id}`,
+                    );
+
+                    const obrasResponse = await fetch(
+                        `http://151.80.149.159:2018/WebApi/Obras/ListaObras`,
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                "Content-Type": "application/json",
+                            },
+                        },
+                    );
+
+                    console.log(
+                        `📡 Status da resposta de obras: ${obrasResponse.status}`,
+                    );
+
+                    if (obrasResponse.ok) {
+                        const obrasData = await obrasResponse.json();
+                        console.log(`📋 Dados de obras recebidos:`, obrasData);
+
+                        // A API retorna um DataSet com Table contendo as obras
+                        const obras =
+                            obrasData?.DataSet?.Table || obrasData || [];
+
+                        if (!Array.isArray(obras) || obras.length === 0) {
+                            console.log(
+                                `⚠️ Nenhuma obra encontrada para utilizador ${user.nome}`,
+                            );
+
+                            // Continuar sem obra específica
+                            let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
+                            response += `⚠️ *Nota:* Não foram encontradas obras específicas associadas.\n`;
+                            response += `O registo será efetuado sem obra específica.\n\n`;
+                            response += `Escolha o tipo de registo:\n`;
+                            response += `• Digite "1" para ENTRADA\n`;
+                            response += `• Digite "2" para SAÍDA\n\n`;
+                            response += `Digite sua escolha (1 ou 2):`;
+
+                            conversationData.obraId = null;
+                            conversationData.obraNome = "Sem obra específica";
+
+                            const conversation = {
+                                state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
+                                data: conversationData,
+                                lastActivity: Date.now(),
+                            };
+                            activeConversations.set(phoneNumber, conversation);
+                            await client.sendMessage(phoneNumber, response);
+                            return;
+                        }
+
+                        let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
+
+                        if (obras.length === 1) {
+                            // Uma única obra - selecionar automaticamente
+                            conversationData.obraId = obras[0].ID;
+                            conversationData.obraNome = obras[0].Descricao;
+
+                            response += `🏗️ *Obra:* ${obras[0].Descricao}\n\n`;
+                            response += `Escolha o tipo de registo:\n`;
+                            response += `• Digite "1" para ENTRADA\n`;
+                            response += `• Digite "2" para SAÍDA\n\n`;
+                            response += `Digite sua escolha (1 ou 2):`;
+
+                            const conversation = {
+                                state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
+                                data: conversationData,
+                                lastActivity: Date.now(),
+                            };
+                            activeConversations.set(phoneNumber, conversation);
+                        } else {
+                            // Múltiplas obras - pedir para escolher
+                            conversationData.obrasDisponiveis = obras;
+
+                            response += `🏗️ Foram encontradas múltiplas obras. Por favor, escolha digitando o número correspondente:\n\n`;
+
+                            obras.forEach((obra, index) => {
+                                response += `*${index + 1}.* ${obra.Descricao}\n`;
+                                if (obra.Local) {
+                                    response += `   📍 ${obra.Local}\n`;
+                                }
+                                response += `\n`;
+                            });
+
+                            response += `Digite o número da obra pretendida (1-${obras.length}):`;
+
+                            const conversation = {
+                                state: CONVERSATION_STATES.PONTO_WAITING_OBRA,
+                                data: conversationData,
+                                lastActivity: Date.now(),
+                            };
+                            activeConversations.set(phoneNumber, conversation);
+                        }
+
+                        await client.sendMessage(phoneNumber, response);
+                        return;
+                    } else {
+                        // Se API de obras falhar, continuar sem obra específica
+                        const responseText = await obrasResponse.text();
+                        console.error(
+                            `❌ Erro na API de obras: ${obrasResponse.status} - ${responseText}`,
+                        );
+
+                        let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
+                        response += `⚠️ *Nota:* Não foi possível obter a lista de obras.\n`;
+                        response += `O registo será efetuado sem obra específica.\n\n`;
+                        response += `Escolha o tipo de registo:\n`;
+                        response += `• Digite "1" para ENTRADA\n`;
+                        response += `• Digite "2" para SAÍDA\n\n`;
+                        response += `Digite sua escolha (1 ou 2):`;
+
+                        conversationData.obraId = null;
+                        conversationData.obraNome = "Sem obra específica";
+
+                        const conversation = {
+                            state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
+                            data: conversationData,
+                            lastActivity: Date.now(),
+                        };
+                        activeConversations.set(phoneNumber, conversation);
+                        await client.sendMessage(phoneNumber, response);
+                        return;
+                    }
+                } catch (obrasError) {
+                    console.error("❌ Erro ao buscar obras:", obrasError);
+
+                    // Continuar sem obra específica em caso de erro
+                    let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
+                    response += `⚠️ *Nota:* Erro ao obter lista de obras.\n`;
+                    response += `O registo será efetuado sem obra específica.\n\n`;
+                    response += `Escolha o tipo de registo:\n`;
+                    response += `• Digite "1" para ENTRADA\n`;
+                    response += `• Digite "2" para SAÍDA\n\n`;
+                    response += `Digite sua escolha (1 ou 2):`;
+
+                    conversationData.obraId = null;
+                    conversationData.obraNome = "Sem obra específica";
+
+                    const conversation = {
+                        state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
+                        data: conversationData,
+                        lastActivity: Date.now(),
+                    };
+                    activeConversations.set(phoneNumber, conversation);
+                    await client.sendMessage(phoneNumber, response);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error("Erro ao buscar dados do utilizador:", error);
+        }
+    }
+
+    // Se não conseguiu obter o user_id do contacto, mostrar erro
+    await client.sendMessage(
+        phoneNumber,
+        `❌ *Erro de Configuração*\n\nNão foi possível identificar o utilizador associado a este contacto.\n\nContacte o administrador para verificar se o seu contacto tem um user_id configurado.`,
+    );
+}
+// Função removida - já não é necessária pois o user_id vem do contacto
+
+async function handlePontoConfirmationInput(
+    phoneNumber,
+    message,
+    conversation,
+) {
+    const escolha = message.trim();
+    let tipo;
+
+    if (escolha === "1" || escolha.toLowerCase() === "entrada") {
+        tipo = "entrada";
+    } else if (
+        escolha === "2" ||
+        escolha.toLowerCase() === "saida" ||
+        escolha.toLowerCase() === "saída"
+    ) {
+        tipo = "saida";
+    } else {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Escolha inválida. Digite "1" para ENTRADA ou "2" para SAÍDA:`,
+        );
+        return;
+    }
+
+    // Armazenar tipo de registo na conversa
+    conversation.data.tipoRegisto = tipo;
+
+    const tipoTexto = tipo === "entrada" ? "ENTRADA" : "SAÍDA";
+
+    await client.sendMessage(
+        phoneNumber,
+        `✅ Tipo de registo selecionado: **${tipoTexto}**\n\n📍 Agora vou solicitar a sua localização para registar o ponto com precisão.\n\n⏰ Por favor aguarde...`
+    );
+
+    // Registar o ponto (que agora solicita localização real)
+    await processarRegistoPonto(phoneNumber, conversation, tipo);
+
+    // Limpar conversa
+    activeConversations.delete(phoneNumber);
 }
 
-// Handler para input do cliente
+// Nota: Handlers de localização removidos - localização é agora automática
+
+async function processarRegistoPonto(phoneNumber, conversation, tipo) {
+    try {
+        // Verificar se temos o user_id necessário
+        if (!conversation.data.userId) {
+            throw new Error("ID do utilizador não encontrado");
+        }
+
+        // Obter localização automaticamente com múltiplos métodos
+        let latitude = 38.736946; // Fallback para Lisboa
+        let longitude = -9.142685;
+        let endereco = "Localização automática";
+        let localizacaoObtida = false;
+
+        console.log(`🔍 Tentando obter localização automática para ${phoneNumber}`);
+
+        // Método 1: Tentar obter localização do perfil do WhatsApp
+        try {
+            const contact = await client.getContactById(phoneNumber);
+            if (contact && contact.profilePicUrl) {
+                // Se tem foto de perfil, verificar se tem dados de localização
+                const chat = await client.getChatById(phoneNumber);
+                if (chat && chat.lastMessage && chat.lastMessage.location) {
+                    latitude = chat.lastMessage.location.latitude;
+                    longitude = chat.lastMessage.location.longitude;
+                    endereco = "Localização da última mensagem";
+                    localizacaoObtida = true;
+                    console.log(`✅ Localização obtida da última mensagem: ${latitude}, ${longitude}`);
+                }
+            }
+        } catch (profileError) {
+            console.log("📱 Não foi possível obter localização do perfil/chat");
+        }
+
+        // Método 2: Se não conseguiu pelo método 1, tentar IP geolocation
+        if (!localizacaoObtida) {
+            try {
+                // Simular obtenção de localização via IP (em ambiente real, usaria a API do WhatsApp Business)
+                const response = await fetch('http://ip-api.com/json/', {
+                    timeout: 5000
+                });
+
+                if (response.ok) {
+                    const geoData = await response.json();
+                    if (geoData.status === 'success') {
+                        latitude = geoData.lat;
+                        longitude = geoData.lon;
+                        endereco = `${geoData.city}, ${geoData.country}`;
+                        localizacaoObtida = true;
+                        console.log(`🌍 Localização obtida por IP: ${endereco} (${latitude}, ${longitude})`);
+                    }
+                }
+            } catch (ipError) {
+                console.log("🌐 Erro ao obter localização por IP:", ipError.message);
+            }
+        }
+
+        // Método 3: Se ainda não conseguiu, solicitar localização manual (mais rápido)
+        if (!localizacaoObtida) {
+            try {
+                await client.sendMessage(phoneNumber, "📍 A solicitar localização atual...");
+
+                // Aguardar pela localização (timeout reduzido para 15 segundos)
+                const locationPromise = new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error("Timeout - usando localização padrão"));
+                    }, 15000);
+
+                    // Listener temporário para localização
+                    const locationHandler = (message) => {
+                        if (message.from === phoneNumber && message.hasLocation) {
+                            clearTimeout(timeout);
+                            client.removeListener('message', locationHandler);
+                            resolve({
+                                latitude: message.location.latitude,
+                                longitude: message.location.longitude,
+                                description: message.location.description || "Localização partilhada"
+                            });
+                        }
+                    };
+
+                    client.on('message', locationHandler);
+
+                    // Auto-request location if WhatsApp Web supports it
+                    setTimeout(async () => {
+                        try {
+                            await client.sendMessage(phoneNumber, "📲 Por favor, partilhe a sua localização atual para registar o ponto com precisão.");
+                        } catch (e) { }
+                    }, 2000);
+                });
+
+                const location = await locationPromise;
+                latitude = location.latitude;
+                longitude = location.longitude;
+                endereco = location.description;
+                localizacaoObtida = true;
+                console.log(`📍 Localização obtida manualmente: ${latitude}, ${longitude} - ${endereco}`);
+
+            } catch (locationError) {
+                console.log(`⚠️ Falhou obtenção manual: ${locationError.message}`);
+            }
+        }
+
+        // Se ainda não conseguiu obter localização, usar coordenadas da empresa/obra se disponível
+        if (!localizacaoObtida && conversation.data.obraId) {
+            try {
+                // Buscar coordenadas da obra se disponível
+                const token = await getAuthToken({
+                    username: "AdvirWeb",
+                    password: "Advir2506##",
+                    company: "Advir",
+                    instance: "DEFAULT",
+                    line: "Evolution",
+                }, "151.80.149.159:2018");
+
+                const obraResponse = await fetch(
+                    `http://151.80.149.159:2018/WebApi/Obras/ObterObra/${conversation.data.obraId}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+
+                if (obraResponse.ok) {
+                    const obraData = await obraResponse.json();
+                    if (obraData && obraData.Latitude && obraData.Longitude) {
+                        latitude = obraData.Latitude;
+                        longitude = obraData.Longitude;
+                        endereco = `Localização da obra: ${conversation.data.obraNome}`;
+                        localizacaoObtida = true;
+                        console.log(`🏗️ Localização obtida da obra: ${endereco}`);
+                    }
+                }
+            } catch (obraError) {
+                console.log("🏗️ Erro ao obter localização da obra:", obraError.message);
+            }
+        }
+
+        // Método final: Usar coordenadas padrão se nada funcionou
+        if (!localizacaoObtida) {
+            endereco = "Localização padrão (Lisboa)";
+            console.log("📍 Usando localização padrão de Lisboa");
+        }
+
+        console.log(`📍 Localização final: ${endereco} (${latitude}, ${longitude})`);
+
+        // Informar o utilizador sobre a localização usada
+        const tipoLocalizacao = localizacaoObtida ? "obtida automaticamente" : "padrão";
+        await client.sendMessage(phoneNumber, `📍 Localização ${tipoLocalizacao}: ${endereco}`);
+
+        // Aguardar um pouco para o utilizador ver a mensagem
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Usar o controller de registo de ponto existente
+        const registoPontoController = require("../controllers/registoPontoController");
+
+        // Buscar dados do utilizador
+        const User = require("../models/user");
+        const user = await User.findByPk(conversation.data.userId);
+
+        if (!user) {
+            throw new Error("Utilizador não encontrado");
+        }
+
+        // Simular um request object para o controller
+        const mockReq = {
+            user: { id: conversation.data.userId },
+            body: {
+                empresa: user.empresaPredefinida || "Advir", // Usar empresa predefinida do user
+                latitude: latitude,
+                longitude: longitude,
+                endereco: endereco,
+                obra_id: conversation.data.obraId,
+            },
+        };
+
+        // Simular response object
+        const mockRes = {
+            status: (code) => ({
+                json: (data) => {
+                    console.log(`Status: ${code}`, data);
+                    return data;
+                },
+            }),
+            json: (data) => {
+                console.log("Response:", data);
+                return data;
+            },
+        };
+
+        // Chamar o controller de registo de ponto
+        const result = await registoPontoController.registarPontoComBotao(
+            mockReq,
+            mockRes,
+        );
+
+        // Mensagem de sucesso
+        const tipoTexto = tipo === "entrada" ? "ENTRADA" : "SAÍDA";
+        const emoji = tipo === "entrada" ? "🟢" : "🔴";
+
+        const successMessage = `${emoji} *PONTO REGISTADO COM SUCESSO*
+
+**Utilizador:** ${conversation.data.userName} (ID: ${conversation.data.userId})
+**Empresa:** ${user.empresaPredefinida || "Advir"}
+**Obra:** ${conversation.data.obraNome || "N/A"}
+**Tipo:** ${tipoTexto}
+**Data/Hora:** ${new Date().toLocaleString("pt-PT")}
+**Localização:** ${endereco}
+
+O seu registo foi efetuado com sucesso no sistema AdvirLink.
+
+Obrigado por utilizar o sistema.`;
+
+        await client.sendMessage(phoneNumber, successMessage);
+
+        // Log para debug
+        console.log(
+            `✅ Ponto registado via WhatsApp: ${conversation.data.userName} (ID: ${conversation.data.userId}) - ${tipoTexto} - Obra: ${conversation.data.obraNome || "N/A"} - Localização: ${latitude}, ${longitude}`,
+        );
+
+        return { success: true };
+    } catch (error) {
+        console.error("Erro ao registar ponto:", error);
+
+        await client.sendMessage(
+            phoneNumber,
+            `❌ *Erro ao Registar Ponto*
+
+Ocorreu um erro ao registar o seu ponto. Por favor, tente novamente mais tarde ou contacte o suporte técnico.
+
+Detalhes do erro: ${error.message}
+
+ID do utilizador: ${conversation.data.userId || "Não encontrado"}`,
+        );
+
+        return { success: false, error: error.message };
+    } finally {
+        // Limpar conversa
+        activeConversations.delete(phoneNumber);
+    }
+}
+async function handlePontoObraInput(phoneNumber, message, conversation) {
+    const escolha = parseInt(message.trim());
+    const obras = conversation.data.obrasDisponiveis;
+
+    if (isNaN(escolha) || escolha < 1 || escolha > obras.length) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Escolha inválida. Por favor, digite um número entre 1 e ${obras.length}:`,
+        );
+        return;
+    }
+
+    // Obra selecionada
+    const obraSelecionada = obras[escolha - 1];
+    conversation.data.obraId = obraSelecionada.ID;
+    conversation.data.obraNome = obraSelecionada.Descricao;
+    conversation.state = CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION;
+
+    const response = `✅ Obra selecionada: *${obraSelecionada.Descricao}*\n\n*Confirmar Registo de Ponto*\nEscolha o tipo de registo:\n• Digite "1" para ENTRADA\n• Digite "2" para SAÍDA\n\nDigite sua escolha (1 ou 2):`;
+
+    await client.sendMessage(phoneNumber, response);
+
+    // Limpar lista de obras para economizar memória
+    delete conversation.data.obrasDisponiveis;
+}
 async function handleClientInput(phoneNumber, message, conversation) {
     const nomeCliente = message.trim();
 
     // Validar se o cliente existe
     const validacao = await validarCliente(nomeCliente);
-
     if (validacao.existe) {
         // Cliente encontrado - buscar contratos
         conversation.data.cliente = validacao.cliente.Cliente;
         conversation.data.nomeCliente = validacao.cliente.Nome;
         conversation.data.contacto = null; // por defeito
+        conversation.data.userId = validacao.cliente.userId; // Tenta obter userId do cliente
 
         // Buscar contratos do cliente
         const resultadoContratos = await buscarContratosCliente(
@@ -1617,7 +2464,7 @@ async function handleReproduceInput(phoneNumber, message, conversation) {
     const response = `*4. Prioridade*
 Escolha uma das opções:
 • BAIXA (1)
-• MÉDIA (2) 
+• MÉDIA (2)
 • ALTA (3)
 
 Digite sua escolha:`;
@@ -1666,8 +2513,8 @@ async function handlePriorityInput(phoneNumber, message, conversation) {
         prioridadeNumero === "1"
             ? "Baixa"
             : prioridadeNumero === "2"
-              ? "Média"
-              : "Alta";
+                ? "Média"
+                : "Alta";
 
     let summary = `📋 *RESUMO DO PEDIDO DE ASSISTÊNCIA TÉCNICA*
 
@@ -1842,8 +2689,8 @@ async function createAssistenceRequest(phoneNumber, conversation) {
             payload.prioridade === "1"
                 ? "Baixa"
                 : payload.prioridade === "2"
-                  ? "Média"
-                  : "Alta";
+                    ? "Média"
+                    : "Alta";
         const successMessage = `✅ *PEDIDO DE ASSISTÊNCIA CRIADO COM SUCESSO*
 
 **Cliente:** ${payload.cliente}
@@ -1873,8 +2720,8 @@ Obrigado por contactar a Advir.`;
                 (payload.prioridade === "1"
                     ? "Baixa"
                     : payload?.prioridade === "2"
-                      ? "Média"
-                      : "Alta");
+                        ? "Média"
+                        : "Alta");
             const successMessage = `✅ *PEDIDO DE ASSISTÊNCIA CRIADO COM SUCESSO*
 
 **Número do Pedido:** ${pedidoID}
@@ -1892,14 +2739,14 @@ O seu pedido foi registado no nosso sistema e será processado pela nossa equipa
 Obrigado por contactar a Advir.`;
             try {
                 await client.sendMessage(phoneNumber, successMessage);
-            } catch (_) {}
+            } catch (_) { }
         }
 
         return { success: true, pedidoId: pedidoID, data: null }; // força sucesso
     } finally {
         try {
             activeConversations.delete(phoneNumber);
-        } catch (_) {}
+        } catch (_) { }
     }
 }
 
@@ -1975,14 +2822,6 @@ router.post("/schedule", async (req, res) => {
             return /^(\d{2}):(\d{2})(?::(\d{2}))?$/.test(timeStr);
         }
 
-        // Função para completar o tempo para HH:MM:SS (se for HH:MM adiciona :00)
-        function normalizeTimeFormat(timeStr) {
-            if (/^\d{2}:\d{2}$/.test(timeStr)) {
-                return timeStr + ":00";
-            }
-            return timeStr;
-        }
-
         // Função para converter hora em objeto Date com base em 1970-01-01
         function parseTimeToDate(timeStr) {
             const [hours, minutes, seconds] = timeStr.split(":").map(Number);
@@ -1997,10 +2836,6 @@ router.post("/schedule", async (req, res) => {
                 error: "Formato de hora inválido. Utilize o formato HH:MM ou HH:MM:SS.",
             });
         }
-
-        formattedTimeStr = normalizeTimeFormat(formattedTimeStr);
-
-        console.log("⏰ Horário formatado para salvar:", formattedTimeStr);
 
         const parsedTime = parseTimeToDate(formattedTimeStr);
 
@@ -2055,10 +2890,11 @@ router.post("/schedule", async (req, res) => {
 async function sendWelcomeMessage(phoneNumber) {
     const welcomeMessage = `👋 Bem-vindo! 
 
-Este é o assistente automático de suporte técnico da Advir Plan Consultoria.
+Este é o assistente automático da Advir Plan Consultoria.
 
-Para iniciar um pedido de assistência, envie uma mensagem com uma destas palavras:
-• pedido
+Serviços disponíveis:
+• Para criar um *pedido de assistência*, envie: "pedido"
+• Para registar *ponto*, envie: "ponto"
 
 Como podemos ajudá-lo hoje?`;
 
@@ -2369,7 +3205,7 @@ router.get("/schedule-status", (req, res) => {
         activeSchedules: activeSchedules.size,
         schedules: scheduledMessages.map((schedule) => ({
             id: schedule.id,
-            message: schedule.message.substring(0, 50) + "...",
+            message: schedule.message,
             frequency: schedule.frequency,
             time: schedule.time,
             enabled: schedule.enabled,
@@ -2846,9 +3682,9 @@ function initializeSchedules() {
                     frequency: schedule.frequency,
                     time: schedule.time
                         ? new Date(schedule.time).toLocaleTimeString("pt-PT", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                          })
+                            hour: "2-digit",
+                            minute: "2-digit",
+                        })
                         : "09:00", // Default time if not set
                     days: schedule.days
                         ? JSON.parse(schedule.days)
@@ -3026,7 +3862,7 @@ router.get("/next-executions", (req, res) => {
 
         executions.push({
             scheduleId: schedule.id,
-            message: schedule.message.substring(0, 50) + "...",
+            message: schedule.message,
             frequency: schedule.frequency,
             time: schedule.time,
             nextExecution: nextExecution.toISOString(),

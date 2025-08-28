@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 
 const { sequelize } = require('../config/db');
- 
+
 const Contact = sequelize.define('Contact', {
 
     id: {
@@ -40,6 +40,16 @@ const Contact = sequelize.define('Contact', {
 
     },
 
+    can_register_ponto: {
+
+        type: DataTypes.BOOLEAN,
+
+        defaultValue: false,
+
+        allowNull: false
+
+    },
+
     numero_tecnico: {
 
         type: DataTypes.STRING,
@@ -61,16 +71,15 @@ const Contact = sequelize.define('Contact', {
         type: DataTypes.DATE,
 
         defaultValue: DataTypes.NOW
-
+    },
+    user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: { model: 'users', key: 'id' }
     }
-
 }, {
-
     tableName: 'contacts',
-
     timestamps: false
-
 });
- 
+
 module.exports = Contact;
- 

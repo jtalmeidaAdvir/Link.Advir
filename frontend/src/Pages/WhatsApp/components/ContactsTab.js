@@ -1,10 +1,13 @@
+import React, { useState, useEffect } from "react";
 
-import React from "react";
-
+// Assuming API_BASE_URL is defined elsewhere, e.g., in a config file
+const API_BASE_URL = "https://backend.advir.pt/api";
+const empresaId = localStorage.getItem("empresa_id");
 const ContactsTab = ({
     newContactList,
     setNewContactList,
     contactLists,
+    setContactLists, // Added setContactLists prop
     contactListsLoaded,
     editingContactList,
     setEditingContactList,
@@ -21,6 +24,64 @@ const ContactsTab = ({
     updateEditContact,
     styles,
 }) => {
+    const [users, setUsers] = useState([]);
+    // Assume these functions are defined elsewhere or passed as props,
+    // but for the sake of completeness, let's mock them if they are missing context.
+    // If these are indeed passed via props, this is fine.
+    // If they are meant to be defined here, they would need proper implementation.
+    const removeContactIfMissing = removeContact || (() => { });
+    const updateContactIfMissing = updateContact || (() => { });
+    const addNewContactIfMissing = addNewContact || (() => { });
+    const removeEditContactIfMissing = removeEditContact || (() => { });
+    const updateEditContactIfMissing = updateEditContact || (() => { });
+    const addEditContactIfMissing = addEditContact || (() => { });
+
+    const loadContactLists = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/contact-lists`);
+            if (response.ok) {
+                const data = await response.json();
+                setContactLists(data.contactLists || []);
+            }
+        } catch (error) {
+            console.error("Erro ao carregar listas:", error);
+        }
+    };
+
+    const loadUsers = async () => {
+        try {
+            const token = localStorage.getItem("loginToken");
+            const response = await fetch(
+                `https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                },
+            );
+            if (response.ok) {
+                const data = await response.json();
+                // Agrupar utilizadores únicos
+                const uniqueUsers = data.reduce((acc, curr) => {
+                    const existing = acc.find((u) => u.id === curr.id);
+                    if (!existing) {
+                        acc.push(curr);
+                    }
+                    return acc;
+                }, []);
+                setUsers(uniqueUsers || []);
+            }
+        } catch (error) {
+            console.error("Erro ao carregar utilizadores:", error);
+        }
+    };
+
+    useEffect(() => {
+        loadContactLists();
+        loadUsers();
+    }, []);
+
     return (
         <div style={styles.grid}>
             {/* Create Contact List */}
@@ -49,11 +110,15 @@ const ContactsTab = ({
                         {newContactList.contacts.map((contact, index) => (
                             <div key={index} style={styles.contactItem}>
                                 <div style={styles.contactItemHeader}>
-                                    <span style={{ fontWeight: "600" }}>Contacto #{index + 1}</span>
+                                    <span style={{ fontWeight: "600" }}>
+                                        Contacto #{index + 1}
+                                    </span>
                                     {newContactList.contacts.length > 1 && (
                                         <button
                                             type="button"
-                                            onClick={() => removeContact(index)}
+                                            onClick={() =>
+                                                removeContactIfMissing(index)
+                                            }
                                             style={{
                                                 ...styles.button,
                                                 ...styles.buttonDanger,
@@ -66,13 +131,19 @@ const ContactsTab = ({
                                 </div>
 
                                 <div style={styles.formGroup}>
-                                    <label style={styles.label}>Número de Telefone *</label>
+                                    <label style={styles.label}>
+                                        Número de Telefone *
+                                    </label>
                                     <input
                                         type="tel"
                                         style={styles.input}
                                         value={contact.phone}
                                         onChange={(e) =>
-                                            updateContact(index, "phone", e.target.value)
+                                            updateContactIfMissing(
+                                                index,
+                                                "phone",
+                                                e.target.value,
+                                            )
                                         }
                                         placeholder="351912345678"
                                         required
@@ -80,28 +151,59 @@ const ContactsTab = ({
                                 </div>
 
                                 <div style={styles.formGroup}>
-                                    <label style={styles.label}>Número do Técnico (opcional)</label>
+                                    <label style={styles.label}>
+                                        Número do Técnico (opcional)
+                                    </label>
                                     <input
                                         type="tel"
                                         style={styles.input}
                                         value={contact.numeroTecnico}
                                         onChange={(e) =>
-                                            updateContact(index, "numeroTecnico", e.target.value)
+                                            updateContactIfMissing(
+                                                index,
+                                                "numeroTecnico",
+                                                e.target.value,
+                                            )
                                         }
                                         placeholder="351912345678"
                                     />
                                 </div>
 
                                 <div style={styles.formGroup}>
-                                    <label style={styles.label}>Número do Cliente (opcional)</label>
+                                    <label style={styles.label}>
+                                        Número do Cliente (opcional)
+                                    </label>
                                     <input
                                         type="tel"
                                         style={styles.input}
                                         value={contact.numeroCliente}
                                         onChange={(e) =>
-                                            updateContact(index, "numeroCliente", e.target.value)
+                                            updateContactIfMissing(
+                                                index,
+                                                "numeroCliente",
+                                                e.target.value,
+                                            )
                                         }
                                         placeholder="351912345678"
+                                    />
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>
+                                        Código do Utilizador (opcional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        style={styles.input}
+                                        value={contact.userID || ""}
+                                        onChange={(e) =>
+                                            updateContactIfMissing(
+                                                index,
+                                                "userID",
+                                                e.target.value,
+                                            )
+                                        }
+                                        placeholder="Digite o ID do utilizador"
                                     />
                                 </div>
 
@@ -113,7 +215,10 @@ const ContactsTab = ({
                                             alignItems: "center",
                                             cursor: "pointer",
                                             padding: "12px 16px",
-                                            backgroundColor: contact.canCreateTickets ? "#e3f2fd" : "#f8f9fa",
+                                            backgroundColor:
+                                                contact.canCreateTickets
+                                                    ? "#e3f2fd"
+                                                    : "#f8f9fa",
                                             borderRadius: "8px",
                                             border: `2px solid ${contact.canCreateTickets ? "#007bff" : "#e9ecef"}`,
                                             transition: "all 0.3s ease",
@@ -123,7 +228,11 @@ const ContactsTab = ({
                                             type="checkbox"
                                             checked={contact.canCreateTickets}
                                             onChange={(e) =>
-                                                updateContact(index, "canCreateTickets", e.target.checked)
+                                                updateContactIfMissing(
+                                                    index,
+                                                    "canCreateTickets",
+                                                    e.target.checked,
+                                                )
                                             }
                                             style={{
                                                 marginRight: "12px",
@@ -131,15 +240,78 @@ const ContactsTab = ({
                                             }}
                                         />
                                         <div>
-                                            <span style={{ fontWeight: "600", color: "#343a40" }}>
+                                            <span
+                                                style={{
+                                                    fontWeight: "600",
+                                                    color: "#343a40",
+                                                }}
+                                            >
                                                 🎫 Autorizar criação de pedidos
                                             </span>
-                                            <div style={{
-                                                fontSize: "0.85rem",
-                                                color: "#6c757d",
-                                                marginTop: "4px",
-                                            }}>
-                                                Este contacto pode criar pedidos via WhatsApp
+                                            <div
+                                                style={{
+                                                    fontSize: "0.85rem",
+                                                    color: "#6c757d",
+                                                    marginTop: "4px",
+                                                }}
+                                            >
+                                                Este contacto pode criar pedidos
+                                                via WhatsApp
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label
+                                        style={{
+                                            ...styles.label,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            padding: "12px 16px",
+                                            backgroundColor:
+                                                contact.canRegisterPonto
+                                                    ? "#e8f5e8"
+                                                    : "#f8f9fa",
+                                            borderRadius: "8px",
+                                            border: `2px solid ${contact.canRegisterPonto ? "#28a745" : "#e9ecef"}`,
+                                            transition: "all 0.3s ease",
+                                        }}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={contact.canRegisterPonto}
+                                            onChange={(e) =>
+                                                updateContactIfMissing(
+                                                    index,
+                                                    "canRegisterPonto",
+                                                    e.target.checked,
+                                                )
+                                            }
+                                            style={{
+                                                marginRight: "12px",
+                                                transform: "scale(1.2)",
+                                            }}
+                                        />
+                                        <div>
+                                            <span
+                                                style={{
+                                                    fontWeight: "600",
+                                                    color: "#343a40",
+                                                }}
+                                            >
+                                                ⏰ Autorizar registo de ponto
+                                            </span>
+                                            <div
+                                                style={{
+                                                    fontSize: "0.85rem",
+                                                    color: "#6c757d",
+                                                    marginTop: "4px",
+                                                }}
+                                            >
+                                                Este contacto pode registar
+                                                entrada/saída via WhatsApp
                                             </div>
                                         </div>
                                     </label>
@@ -149,7 +321,7 @@ const ContactsTab = ({
 
                         <button
                             type="button"
-                            onClick={addNewContact}
+                            onClick={addNewContactIfMissing}
                             style={{
                                 ...styles.button,
                                 ...styles.buttonSecondary,
@@ -177,28 +349,47 @@ const ContactsTab = ({
             {/* Contact Lists */}
             <div style={styles.card}>
                 <h3 style={styles.cardTitle}>
-                    📋 Listas de Contactos ({Array.isArray(contactLists) ? contactLists.length : 0})
+                    📋 Listas de Contactos (
+                    {Array.isArray(contactLists) ? contactLists.length : 0})
                 </h3>
                 {!contactListsLoaded ? (
-                    <p style={{ textAlign: "center", color: "#6c757d", padding: "20px" }}>
+                    <p
+                        style={{
+                            textAlign: "center",
+                            color: "#6c757d",
+                            padding: "20px",
+                        }}
+                    >
                         Carregando listas de contactos...
                     </p>
-                ) : !Array.isArray(contactLists) || contactLists.length === 0 ? (
-                    <p style={{ textAlign: "center", color: "#6c757d", padding: "20px" }}>
+                ) : !Array.isArray(contactLists) ||
+                    contactLists.length === 0 ? (
+                    <p
+                        style={{
+                            textAlign: "center",
+                            color: "#6c757d",
+                            padding: "20px",
+                        }}
+                    >
                         Nenhuma lista de contactos criada ainda.
                     </p>
                 ) : (
                     <div style={{ maxHeight: "400px", overflowY: "auto" }}>
                         {Array.isArray(contactLists) &&
                             contactLists.map((list) => {
-                                const hasAuthorizedContacts = list.contacts &&
+                                const hasAuthorizedContacts =
+                                    list.contacts &&
                                     (Array.isArray(list.contacts)
                                         ? list.contacts.some((c) =>
-                                            typeof c === "object" ? c.canCreateTickets : false
+                                            typeof c === "object"
+                                                ? c.canCreateTickets
+                                                : false,
                                         )
                                         : list.canCreateTickets);
 
-                                const contactCount = Array.isArray(list.contacts)
+                                const contactCount = Array.isArray(
+                                    list.contacts,
+                                )
                                     ? list.contacts.length
                                     : typeof list.contacts === "string"
                                         ? JSON.parse(list.contacts).length
@@ -210,24 +401,42 @@ const ContactsTab = ({
                                         style={{
                                             ...styles.listItem,
                                             border: `2px solid ${hasAuthorizedContacts ? "#28a745" : "#e9ecef"}`,
-                                            backgroundColor: hasAuthorizedContacts ? "#f8fff8" : styles.listItem.backgroundColor,
+                                            backgroundColor:
+                                                hasAuthorizedContacts
+                                                    ? "#f8fff8"
+                                                    : styles.listItem
+                                                        .backgroundColor,
                                         }}
                                     >
                                         <div style={styles.listContent}>
                                             <div style={styles.listTitle}>
                                                 {hasAuthorizedContacts && (
-                                                    <span style={{ color: "#28a745", marginRight: "8px" }}>🎫</span>
+                                                    <span
+                                                        style={{
+                                                            color: "#28a745",
+                                                            marginRight: "8px",
+                                                        }}
+                                                    >
+                                                        🎫
+                                                    </span>
                                                 )}
                                                 {list.name}
                                             </div>
-                                            <div style={styles.listMeta}>👥 {contactCount} contactos</div>
                                             <div style={styles.listMeta}>
-                                                📅 {new Date(list.createdAt).toLocaleDateString("pt-PT")}
+                                                👥 {contactCount} contactos
+                                            </div>
+                                            <div style={styles.listMeta}>
+                                                📅{" "}
+                                                {new Date(
+                                                    list.createdAt,
+                                                ).toLocaleDateString("pt-PT")}
                                             </div>
                                             <div
                                                 style={{
                                                     ...styles.listMeta,
-                                                    color: hasAuthorizedContacts ? "#28a745" : "#dc3545",
+                                                    color: hasAuthorizedContacts
+                                                        ? "#28a745"
+                                                        : "#dc3545",
                                                     fontWeight: "600",
                                                 }}
                                             >
@@ -241,32 +450,61 @@ const ContactsTab = ({
                                                 onClick={() => {
                                                     let displayText = `Lista: ${list.name}\n\nContactos:\n`;
                                                     if (
-                                                        Array.isArray(list.contacts) &&
-                                                        list.contacts.length > 0 &&
-                                                        typeof list.contacts[0] === "object"
+                                                        Array.isArray(
+                                                            list.contacts,
+                                                        ) &&
+                                                        list.contacts.length >
+                                                        0 &&
+                                                        typeof list
+                                                            .contacts[0] ===
+                                                        "object"
                                                     ) {
-                                                        list.contacts.forEach((contact, index) => {
-                                                            displayText += `\n${index + 1}. ${contact.phone}`;
-                                                            if (contact.numeroTecnico)
-                                                                displayText += `\n   Técnico: ${contact.numeroTecnico}`;
-                                                            if (contact.numeroCliente)
-                                                                displayText += `\n   Cliente: ${contact.numeroCliente}`;
-                                                            displayText += `\n   Pode criar pedidos: ${contact.canCreateTickets ? "Sim" : "Não"}`;
-                                                            displayText += "\n";
-                                                        });
+                                                        list.contacts.forEach(
+                                                            (
+                                                                contact,
+                                                                index,
+                                                            ) => {
+                                                                displayText += `\n${index + 1}. ${contact.phone}`;
+                                                                if (
+                                                                    contact.numeroTecnico
+                                                                )
+                                                                    displayText += `\n   Técnico: ${contact.numeroTecnico}`;
+                                                                if (
+                                                                    contact.numeroCliente
+                                                                )
+                                                                    displayText += `\n   Cliente: ${contact.numeroCliente}`;
+                                                                if (
+                                                                    contact.userID
+                                                                )
+                                                                    displayText += `\n   Utilizador ID: ${contact.userID}`;
+                                                                displayText += `\n   Pode criar pedidos: ${contact.canCreateTickets ? "Sim" : "Não"}`;
+                                                                displayText +=
+                                                                    "\n";
+                                                            },
+                                                        );
                                                     } else {
-                                                        const phones = Array.isArray(list.contacts)
-                                                            ? list.contacts
-                                                            : typeof list.contacts === "string"
-                                                                ? JSON.parse(list.contacts)
-                                                                : [];
-                                                        phones.forEach((phone, index) => {
-                                                            displayText += `${index + 1}. ${phone}\n`;
-                                                        });
+                                                        const phones =
+                                                            Array.isArray(
+                                                                list.contacts,
+                                                            )
+                                                                ? list.contacts
+                                                                : typeof list.contacts ===
+                                                                    "string"
+                                                                    ? JSON.parse(
+                                                                        list.contacts,
+                                                                    )
+                                                                    : [];
+                                                        phones.forEach(
+                                                            (phone, index) => {
+                                                                displayText += `${index + 1}. ${phone}\n`;
+                                                            },
+                                                        );
                                                         if (list.numeroTecnico)
                                                             displayText += `\nTécnico geral: ${list.numeroTecnico}`;
                                                         if (list.numeroCliente)
                                                             displayText += `\nCliente geral: ${list.numeroCliente}`;
+                                                        if (list.userID)
+                                                            displayText += `\nID de Utilizador geral: ${list.userID}`;
                                                         displayText += `\nTodos podem criar pedidos: ${list.canCreateTickets ? "Sim" : "Não"}`;
                                                     }
                                                     alert(displayText);
@@ -280,7 +518,11 @@ const ContactsTab = ({
                                                 👁️ Ver
                                             </button>
                                             <button
-                                                onClick={() => startEditingContactList(list)}
+                                                onClick={() =>
+                                                    startEditingContactList(
+                                                        list,
+                                                    )
+                                                }
                                                 style={{
                                                     ...styles.button,
                                                     ...styles.buttonWarning,
@@ -291,7 +533,9 @@ const ContactsTab = ({
                                                 ✏️ Editar
                                             </button>
                                             <button
-                                                onClick={() => deleteContactList(list.id)}
+                                                onClick={() =>
+                                                    deleteContactList(list.id)
+                                                }
                                                 style={{
                                                     ...styles.button,
                                                     ...styles.buttonDanger,
@@ -337,7 +581,9 @@ const ContactsTab = ({
                             boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
                         }}
                     >
-                        <h3 style={styles.cardTitle}>✏️ Editar Lista de Contactos</h3>
+                        <h3 style={styles.cardTitle}>
+                            ✏️ Editar Lista de Contactos
+                        </h3>
 
                         <form
                             onSubmit={(e) => {
@@ -346,7 +592,9 @@ const ContactsTab = ({
                             }}
                         >
                             <div style={styles.formGroup}>
-                                <label style={styles.label}>Nome da Lista *</label>
+                                <label style={styles.label}>
+                                    Nome da Lista *
+                                </label>
                                 <input
                                     type="text"
                                     style={styles.input}
@@ -363,110 +611,267 @@ const ContactsTab = ({
 
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Contactos</label>
-                                {editingContactList.contacts.map((contact, index) => (
-                                    <div key={index} style={styles.contactItem}>
-                                        <div style={styles.contactItemHeader}>
-                                            <span style={{ fontWeight: "600" }}>Contacto #{index + 1}</span>
-                                            {editingContactList.contacts.length > 1 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeEditContact(index)}
+                                {editingContactList.contacts.map(
+                                    (contact, index) => (
+                                        <div
+                                            key={index}
+                                            style={styles.contactItem}
+                                        >
+                                            <div
+                                                style={styles.contactItemHeader}
+                                            >
+                                                <span
                                                     style={{
-                                                        ...styles.button,
-                                                        ...styles.buttonDanger,
-                                                        ...styles.smallButton,
+                                                        fontWeight: "600",
                                                     }}
                                                 >
-                                                    🗑️ Remover
-                                                </button>
-                                            )}
-                                        </div>
+                                                    Contacto #{index + 1}
+                                                </span>
+                                                {editingContactList.contacts
+                                                    .length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                removeEditContactIfMissing(
+                                                                    index,
+                                                                )
+                                                            }
+                                                            style={{
+                                                                ...styles.button,
+                                                                ...styles.buttonDanger,
+                                                                ...styles.smallButton,
+                                                            }}
+                                                        >
+                                                            🗑️ Remover
+                                                        </button>
+                                                    )}
+                                            </div>
 
-                                        <div style={styles.formGroup}>
-                                            <label style={styles.label}>Número de Telefone *</label>
-                                            <input
-                                                type="tel"
-                                                style={styles.input}
-                                                value={contact.phone || contact}
-                                                onChange={(e) =>
-                                                    updateEditContact(index, "phone", e.target.value)
-                                                }
-                                                placeholder="351912345678"
-                                                required
-                                            />
-                                        </div>
-
-                                        <div style={styles.formGroup}>
-                                            <label style={styles.label}>Número do Técnico (opcional)</label>
-                                            <input
-                                                type="tel"
-                                                style={styles.input}
-                                                value={contact.numeroTecnico || ""}
-                                                onChange={(e) =>
-                                                    updateEditContact(index, "numeroTecnico", e.target.value)
-                                                }
-                                                placeholder="351912345678"
-                                            />
-                                        </div>
-
-                                        <div style={styles.formGroup}>
-                                            <label style={styles.label}>Número do Cliente (opcional)</label>
-                                            <input
-                                                type="tel"
-                                                style={styles.input}
-                                                value={contact.numeroCliente || ""}
-                                                onChange={(e) =>
-                                                    updateEditContact(index, "numeroCliente", e.target.value)
-                                                }
-                                                placeholder="351912345678"
-                                            />
-                                        </div>
-
-                                        <div style={styles.formGroup}>
-                                            <label
-                                                style={{
-                                                    ...styles.label,
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    cursor: "pointer",
-                                                    padding: "12px 16px",
-                                                    backgroundColor: contact.canCreateTickets ? "#e3f2fd" : "#f8f9fa",
-                                                    borderRadius: "8px",
-                                                    border: `2px solid ${contact.canCreateTickets ? "#007bff" : "#e9ecef"}`,
-                                                    transition: "all 0.3s ease",
-                                                }}
-                                            >
+                                            <div style={styles.formGroup}>
+                                                <label style={styles.label}>
+                                                    Número de Telefone *
+                                                </label>
                                                 <input
-                                                    type="checkbox"
-                                                    checked={contact.canCreateTickets || false}
-                                                    onChange={(e) =>
-                                                        updateEditContact(index, "canCreateTickets", e.target.checked)
+                                                    type="tel"
+                                                    style={styles.input}
+                                                    value={
+                                                        contact.phone || contact
                                                     }
-                                                    style={{
-                                                        marginRight: "12px",
-                                                        transform: "scale(1.2)",
-                                                    }}
+                                                    onChange={(e) =>
+                                                        updateEditContactIfMissing(
+                                                            index,
+                                                            "phone",
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="351912345678"
+                                                    required
                                                 />
-                                                <div>
-                                                    <span style={{ fontWeight: "600", color: "#343a40" }}>
-                                                        🎫 Autorizar criação de pedidos
-                                                    </span>
-                                                    <div style={{
-                                                        fontSize: "0.85rem",
-                                                        color: "#6c757d",
-                                                        marginTop: "4px",
-                                                    }}>
-                                                        Este contacto pode criar pedidos via WhatsApp
+                                            </div>
+
+                                            <div style={styles.formGroup}>
+                                                <label style={styles.label}>
+                                                    Número do Técnico (opcional)
+                                                </label>
+                                                <input
+                                                    type="tel"
+                                                    style={styles.input}
+                                                    value={
+                                                        contact.numeroTecnico ||
+                                                        ""
+                                                    }
+                                                    onChange={(e) =>
+                                                        updateEditContactIfMissing(
+                                                            index,
+                                                            "numeroTecnico",
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="351912345678"
+                                                />
+                                            </div>
+
+                                            <div style={styles.formGroup}>
+                                                <label style={styles.label}>
+                                                    Número do Cliente (opcional)
+                                                </label>
+                                                <input
+                                                    type="tel"
+                                                    style={styles.input}
+                                                    value={
+                                                        contact.numeroCliente ||
+                                                        ""
+                                                    }
+                                                    onChange={(e) =>
+                                                        updateEditContactIfMissing(
+                                                            index,
+                                                            "numeroCliente",
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="351912345678"
+                                                />
+                                            </div>
+
+                                            <div style={styles.formGroup}>
+                                                <label style={styles.label}>
+                                                    Código do Utilizador
+                                                    (opcional)
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    style={styles.input}
+                                                    value={contact.userID || contact.user_id || ""}
+                                                    onChange={(e) =>
+                                                        updateEditContactIfMissing(
+                                                            index,
+                                                            "userID",
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="User ID"
+                                                />
+                                            </div>
+
+                                            <div style={styles.formGroup}>
+                                                <label
+                                                    style={{
+                                                        ...styles.label,
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        cursor: "pointer",
+                                                        padding: "12px 16px",
+                                                        backgroundColor:
+                                                            contact.canCreateTickets
+                                                                ? "#e3f2fd"
+                                                                : "#f8f9fa",
+                                                        borderRadius: "8px",
+                                                        border: `2px solid ${contact.canCreateTickets ? "#007bff" : "#e9ecef"}`,
+                                                        transition:
+                                                            "all 0.3s ease",
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={
+                                                            contact.canCreateTickets ||
+                                                            false
+                                                        }
+                                                        onChange={(e) =>
+                                                            updateEditContactIfMissing(
+                                                                index,
+                                                                "canCreateTickets",
+                                                                e.target
+                                                                    .checked,
+                                                            )
+                                                        }
+                                                        style={{
+                                                            marginRight: "12px",
+                                                            transform:
+                                                                "scale(1.2)",
+                                                        }}
+                                                    />
+                                                    <div>
+                                                        <span
+                                                            style={{
+                                                                fontWeight:
+                                                                    "600",
+                                                                color: "#343a40",
+                                                            }}
+                                                        >
+                                                            🎫 Autorizar criação
+                                                            de pedidos
+                                                        </span>
+                                                        <div
+                                                            style={{
+                                                                fontSize:
+                                                                    "0.85rem",
+                                                                color: "#6c757d",
+                                                                marginTop:
+                                                                    "4px",
+                                                            }}
+                                                        >
+                                                            Este contacto pode
+                                                            criar pedidos via
+                                                            WhatsApp
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </label>
+                                                </label>
+                                            </div>
+
+                                            <div style={styles.formGroup}>
+                                                <label
+                                                    style={{
+                                                        ...styles.label,
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        cursor: "pointer",
+                                                        padding: "12px 16px",
+                                                        backgroundColor:
+                                                            contact.canRegisterPonto
+                                                                ? "#e8f5e8"
+                                                                : "#f8f9fa",
+                                                        borderRadius: "8px",
+                                                        border: `2px solid ${contact.canRegisterPonto ? "#28a745" : "#e9ecef"}`,
+                                                        transition:
+                                                            "all 0.3s ease",
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={
+                                                            contact.canRegisterPonto ||
+                                                            false
+                                                        }
+                                                        onChange={(e) =>
+                                                            updateEditContactIfMissing(
+                                                                index,
+                                                                "canRegisterPonto",
+                                                                e.target
+                                                                    .checked,
+                                                            )
+                                                        }
+                                                        style={{
+                                                            marginRight: "12px",
+                                                            transform:
+                                                                "scale(1.2)",
+                                                        }}
+                                                    />
+                                                    <div>
+                                                        <span
+                                                            style={{
+                                                                fontWeight:
+                                                                    "600",
+                                                                color: "#343a40",
+                                                            }}
+                                                        >
+                                                            ⏰ Autorizar registo
+                                                            de ponto
+                                                        </span>
+                                                        <div
+                                                            style={{
+                                                                fontSize:
+                                                                    "0.85rem",
+                                                                color: "#6c757d",
+                                                                marginTop:
+                                                                    "4px",
+                                                            }}
+                                                        >
+                                                            Este contacto pode
+                                                            registar
+                                                            entrada/saída via
+                                                            WhatsApp
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ),
+                                )}
 
                                 <button
                                     type="button"
-                                    onClick={addEditContact}
+                                    onClick={addEditContactIfMissing}
                                     style={{
                                         ...styles.button,
                                         ...styles.buttonSecondary,

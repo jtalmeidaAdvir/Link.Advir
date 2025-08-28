@@ -1,48 +1,34 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import * as faceapi from 'face-api.js';
 
-const InvisibleFacialScanner = ({ isActive, onScanComplete, onError }) => {
-    const [modelsLoaded, setModelsLoaded] = useState(false);
+const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onStopScan, t }) => {
+    const [scanProgress, setScanProgress] = useState(0);
+    const [statusMessage, setStatusMessage] = useState('');
     const [cameraReady, setCameraReady] = useState(false);
-    const [isScanning, setIsScanning] = useState(false);
+    const [modelsLoaded, setModelsLoaded] = useState(false);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
-    const scanningRef = useRef(false);
 
     useEffect(() => {
-        if (isActive && !modelsLoaded) {
+        if (isScanning) {
             initializeFaceAPI();
-        } else if (!isActive) {
+        } else {
             stopCamera();
-            resetState();
+            setStatusMessage('');
+            setScanProgress(0);
         }
 
         return () => {
             stopCamera();
         };
-    }, [isActive]);
-
-    // Auto-iniciar scan quando tudo estiver pronto
-    useEffect(() => {
-        if (modelsLoaded && cameraReady && isActive && !scanningRef.current) {
-            // Aguardar um pouco para câmera estabilizar e então iniciar scan automaticamente
-            setTimeout(() => {
-                startScan();
-            }, 2000);
-        }
-    }, [modelsLoaded, cameraReady, isActive]);
-
-    const resetState = () => {
-        setIsScanning(false);
-        setModelsLoaded(false);
-        setCameraReady(false);
-        scanningRef.current = false;
-    };
+    }, [isScanning]);
 
     const initializeFaceAPI = async () => {
         try {
-            console.log('🔄 Carregando modelos invisíveis...');
+            setStatusMessage('Carregando modelos de detecção facial...');
+
             const CDN_MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
 
             await Promise.all([
@@ -52,25 +38,32 @@ const InvisibleFacialScanner = ({ isActive, onScanComplete, onError }) => {
             ]);
 
             setModelsLoaded(true);
-            console.log('✅ Modelos carregados! Iniciando câmera invisível...');
+            setStatusMessage('Modelos carregados! Iniciando câmera...');
             await startCamera();
 
         } catch (error) {
-            console.error('❌ Erro ao carregar modelos:', error);
+            console.error('Erro ao carregar modelos face-api.js:', error);
+            setStatusMessage('Erro ao carregar modelos de detecção facial.');
+            
             try {
+                setStatusMessage('Tentando modo básico de detecção...');
+                
                 await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_MODEL_URL);
+                
                 setModelsLoaded(true);
+                setStatusMessage('Modo básico carregado! Iniciando câmera...');
                 await startCamera();
+                
             } catch (fallbackError) {
-                console.error('❌ Erro no fallback:', fallbackError);
-                if (onError) onError('Não foi possível carregar os modelos de detecção facial.');
+                console.error('Erro no fallback:', fallbackError);
+                setStatusMessage('Não foi possível carregar os modelos de detecção facial. Verifique sua conexão.');
+                if (onStopScan) onStopScan();
             }
         }
     };
 
     const startCamera = async () => {
         try {
-            console.log('📷 Iniciando câmera invisível...');
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     width: { ideal: 640 },
@@ -84,14 +77,18 @@ const InvisibleFacialScanner = ({ isActive, onScanComplete, onError }) => {
                 streamRef.current = stream;
 
                 videoRef.current.onloadedmetadata = () => {
-                    console.log('✅ Câmera invisível iniciada');
                     setCameraReady(true);
+                    setStatusMessage('Câmera ativa. Iniciando scan facial...');
+                    if (modelsLoaded) {
+                        startScan();
+                    }
                 };
             }
         } catch (error) {
-            console.error('❌ Erro ao acessar câmera invisível:', error);
+            console.error('Erro ao acessar câmera:', error);
             setCameraReady(false);
-            if (onError) onError('Erro ao acessar a câmera invisível.');
+            setStatusMessage('Erro ao acessar a câmera. Verifique as permissões.');
+            if (onStopScan) onStopScan();
         }
     };
 
@@ -100,18 +97,15 @@ const InvisibleFacialScanner = ({ isActive, onScanComplete, onError }) => {
             streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
             setCameraReady(false);
-            scanningRef.current = false;
         }
     };
 
     const startScan = async () => {
-        if (!cameraReady || !modelsLoaded || scanningRef.current) {
+        if (!cameraReady || !modelsLoaded) {
+            setStatusMessage('Sistema ainda não está pronto. Aguarde o carregamento.');
             return;
         }
 
-        console.log('🔬 Iniciando scan facial invisível...');
-
-        // Fazer uma detecção inicial para verificar se está tudo pronto
         const video = videoRef.current;
         if (!video) return;
 
@@ -132,16 +126,14 @@ const InvisibleFacialScanner = ({ isActive, onScanComplete, onError }) => {
             }
         }
 
-        // Se não há faces, aguardar um pouco e tentar novamente
         if (detections.length === 0) {
-            console.log('👤 Aguardando face ser detectada...');
-            setTimeout(startScan, 2000);
+            setStatusMessage('Face não detectada. Posicione-se em frente à câmera.');
+            setTimeout(startScan, 1000);
             return;
         }
-
         if (detections.length > 1) {
-            console.log('👥 Múltiplas faces detectadas. Aguardando...');
-            setTimeout(startScan, 2000);
+            setStatusMessage('Múltiplas faces detectadas. Apenas uma pessoa permitida.');
+            setTimeout(startScan, 1000);
             return;
         }
 
@@ -150,15 +142,12 @@ const InvisibleFacialScanner = ({ isActive, onScanComplete, onError }) => {
         const qualityScore = calculateFaceQuality(detection, video);
 
         if (confidence < 0.6 || qualityScore < 0.4) {
-            console.log(`🔄 Qualidade insuficiente (Confiança: ${Math.round(confidence * 100)}%, Qualidade: ${Math.round(qualityScore * 100)}%). Tentando novamente...`);
-            setTimeout(startScan, 2000);
+            setStatusMessage(`Qualidade insuficiente (${Math.round(confidence * 100)}%). Ajuste seu posicionamento.`);
+            setTimeout(startScan, 1000);
             return;
         }
 
-        // Agora iniciar o processo de captura múltipla
-        scanningRef.current = true;
-        setIsScanning(true);
-        console.log('✅ Face detectada! Iniciando captura biométrica invisível...');
+        setStatusMessage('Face detectada! Iniciando captura biométrica...');
 
         const scans = [];
         const totalScans = 8;
@@ -198,27 +187,37 @@ const InvisibleFacialScanner = ({ isActive, onScanComplete, onError }) => {
                     });
                     currentScan++;
 
-                    console.log(`✅ Scan invisível ${currentScan}/${totalScans} capturado - Confiança: ${Math.round(currentConfidence * 100)}%`);
+                    const progress = (currentScan / totalScans) * 100;
+                    setScanProgress(progress);
+
+                    if (progress < 25) {
+                        setStatusMessage(`Capturando dados biométricos ${currentScan}/${totalScans}`);
+                    } else if (progress < 50) {
+                        setStatusMessage(`Analisando características faciais... ${currentScan}/${totalScans}`);
+                    } else if (progress < 75) {
+                        setStatusMessage(`Gerando template biométrico... ${currentScan}/${totalScans}`);
+                    } else {
+                        setStatusMessage(`Finalizando captura... ${currentScan}/${totalScans}`);
+                    }
 
                     if (currentScan >= totalScans) {
                         clearInterval(interval);
-                        completeScanWithFaceAPI(scans);
+                        completeScan(scans);
                     }
                 } else {
                     failedScans++;
-                    console.log(`🔄 Ajustando captura invisível... (Confiança: ${Math.round(currentConfidence * 100)}%)`);
+                    setStatusMessage(`Ajustando captura... (${Math.round(currentConfidence * 100)}%)`);
                 }
             } else {
                 failedScans++;
-                console.log('❌ Face não detectada nesta amostra invisível');
+                setStatusMessage('Face não detectada nesta amostra. Ajustando...');
             }
 
-            if (failedScans > 3) {
+            if (failedScans > 5) {
                 clearInterval(interval);
-                scanningRef.current = false;
-                setIsScanning(false);
-                console.log('❌ Muitas falhas no scan invisível - Tentando novamente...');
-                setTimeout(startScan, 3000);
+                setStatusMessage('Qualidade da captura insuficiente. Clique para tentar novamente.');
+                setScanProgress(0);
+                if (onStopScan) onStopScan();
             }
         }, 500);
     };
@@ -249,48 +248,45 @@ const InvisibleFacialScanner = ({ isActive, onScanComplete, onError }) => {
         return Math.max(0.4, (centeringScore * 0.2 + sizeScore * 0.3 + landmarkQuality * 0.2 + confidenceScore * 0.3));
     };
 
-    const completeScanWithFaceAPI = async (scans) => {
+    const completeScan = async (scans) => {
         try {
-            console.log('🧮 Processando template biométrico invisível...');
             const avgMetrics = calculateAverageDetections(scans);
             const overallConfidence = avgMetrics.avgConfidence;
 
-            console.log(`📊 Confiança final invisível: ${Math.round(overallConfidence * 100)}%`);
-
             if (overallConfidence < 0.75) {
-                setIsScanning(false);
-                scanningRef.current = false;
-                console.log(`❌ Confiança insuficiente (${Math.round(overallConfidence * 100)}%). Tentando novamente...`);
-                setTimeout(startScan, 3000);
+                setStatusMessage(`Confiança insuficiente (${Math.round(overallConfidence * 100)}%). Clique para tentar novamente.`);
+                setScanProgress(0);
+                if (onStopScan) onStopScan();
                 return;
             }
+
+            setStatusMessage(`Processando template biométrico... (${Math.round(overallConfidence * 100)}%)`);
 
             const canvas = canvasRef.current;
             const video = videoRef.current;
 
             if (canvas && video) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
                 const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
 
-                const facialData = await processFacialBiometricsWithAPI(imageDataUrl, avgMetrics, overallConfidence);
+                const facialData = await processFacialBiometrics(imageDataUrl, avgMetrics, overallConfidence);
 
-                setIsScanning(false);
-                scanningRef.current = false;
+                setStatusMessage(`Captura concluída! Confiança: ${Math.round(overallConfidence * 100)}%`);
+                setScanProgress(100);
 
-                console.log('🎉 Scan facial invisível concluído com sucesso!');
-                console.log('📤 Enviando dados para autenticação...');
-
-                if (onScanComplete) {
+                setTimeout(() => {
                     onScanComplete(facialData);
-                }
+                    if (onStopScan) onStopScan();
+                }, 1500);
             }
         } catch (error) {
-            console.error('❌ Erro ao completar scan invisível:', error);
-            setIsScanning(false);
-            scanningRef.current = false;
-            if (onError) onError('Erro ao processar dados faciais invisível.');
+            console.error('Erro ao completar scan:', error);
+            setStatusMessage('Erro ao processar dados faciais. Clique para tentar novamente.');
+            setScanProgress(0);
+            if (onStopScan) onStopScan();
         }
     };
 
@@ -373,45 +369,38 @@ const InvisibleFacialScanner = ({ isActive, onScanComplete, onError }) => {
         return Math.max(0, Math.min(1, 1 - (avgVariance / 10)));
     };
 
-    const processFacialBiometricsWithAPI = async (imageDataUrl, avgMetrics, overallConfidence) => {
-        const img = new Image();
-        img.src = imageDataUrl;
+    const processFacialBiometrics = async (imageDataUrl, avgMetrics, overallConfidence) => {
+        const features = {
+            faceDetected: true,
+            confidence: overallConfidence,
+            qualityScore: avgMetrics.avgQuality,
+            algorithm: 'face-api.js',
+            version: '1.0.0',
+            biometricTemplate: {
+                descriptor: avgMetrics.avgDescriptor,
+                landmarks: avgMetrics.avgLandmarks,
+                consistency: avgMetrics.consistency,
+                sampleCount: avgMetrics.sampleCount
+            },
+            scanQuality: {
+                confidence: overallConfidence,
+                qualityScore: avgMetrics.avgQuality,
+                consistency: avgMetrics.consistency,
+                sampleCount: avgMetrics.sampleCount,
+                securityLevel: avgMetrics.consistency > 0.8 ? 'HIGH' : avgMetrics.consistency > 0.6 ? 'MEDIUM' : 'LOW'
+            },
+            timestamp: new Date().toISOString(),
+            validationPassed: true,
+            captureMethod: 'face-api.js',
+            encoding: avgMetrics.avgDescriptor,
+            landmarks: convertLandmarksToLegacyFormat(avgMetrics.avgLandmarks)
+        };
 
-        return new Promise((resolve, reject) => {
-            img.onload = () => {
-                const features = {
-                    faceDetected: true,
-                    confidence: overallConfidence,
-                    qualityScore: avgMetrics.avgQuality,
-                    algorithm: 'face-api.js',
-                    version: '1.0.0',
-                    biometricTemplate: {
-                        descriptor: avgMetrics.avgDescriptor,
-                        landmarks: avgMetrics.avgLandmarks,
-                        consistency: avgMetrics.consistency,
-                        sampleCount: avgMetrics.sampleCount
-                    },
-                    scanQuality: {
-                        confidence: overallConfidence,
-                        qualityScore: avgMetrics.avgQuality,
-                        consistency: avgMetrics.consistency,
-                        sampleCount: avgMetrics.sampleCount,
-                        securityLevel: avgMetrics.consistency > 0.8 ? 'HIGH' : avgMetrics.consistency > 0.6 ? 'MEDIUM' : 'LOW'
-                    },
-                    timestamp: new Date().toISOString(),
-                    validationPassed: true,
-                    captureMethod: 'face-api.js-invisible',
-                    encoding: avgMetrics.avgDescriptor,
-                    landmarks: convertLandmarksToLegacyFormat(avgMetrics.avgLandmarks)
-                };
-                resolve({
-                    type: 'facial',
-                    data: JSON.stringify(features),
-                    imageData: imageDataUrl.includes(',') ? imageDataUrl.split(',')[1] : imageDataUrl
-                });
-            };
-            img.onerror = () => reject(new Error('Erro ao processar imagem invisível'));
-        });
+        return {
+            type: 'facial',
+            data: JSON.stringify(features),
+            imageData: imageDataUrl.includes(',') ? imageDataUrl.split(',')[1] : imageDataUrl
+        };
     };
 
     const convertLandmarksToLegacyFormat = (landmarks) => {
@@ -439,21 +428,72 @@ const InvisibleFacialScanner = ({ isActive, onScanComplete, onError }) => {
     };
 
     return (
-        <div style={{ display: 'none' }}>
-            {/* Elementos completamente ocultos para captura */}
+        <div>
+            {/* Video e canvas ocultos */}
             <video
                 ref={videoRef}
-                style={{ width: '320px', height: '240px', visibility: 'hidden', position: 'absolute', left: '-9999px' }}
+                style={{ display: 'none' }}
                 autoPlay
                 playsInline
                 muted
             />
             <canvas
                 ref={canvasRef}
-                width={320}
-                height={240}
-                style={{ visibility: 'hidden', position: 'absolute', left: '-9999px' }}
+                style={{ display: 'none' }}
             />
+
+            {/* Status do scan */}
+            {isScanning && (
+                <div style={{
+                    padding: '15px',
+                    backgroundColor: 'rgba(23, 146, 254, 0.1)',
+                    borderRadius: '8px',
+                    marginTop: '10px',
+                    textAlign: 'center'
+                }}>
+                    <div style={{
+                        color: '#1792FE',
+                        fontSize: '14px',
+                        marginBottom: '8px',
+                        fontWeight: 'bold'
+                    }}>
+                        {statusMessage}
+                    </div>
+                    
+                    {scanProgress > 0 && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginTop: '8px'
+                        }}>
+                            <div style={{
+                                flexGrow: 1,
+                                height: '6px',
+                                backgroundColor: 'rgba(23, 146, 254, 0.2)',
+                                borderRadius: '3px',
+                                marginRight: '8px',
+                                overflow: 'hidden'
+                            }}>
+                                <div style={{
+                                    height: '100%',
+                                    backgroundColor: '#1792FE',
+                                    borderRadius: '3px',
+                                    width: `${scanProgress}%`,
+                                    transition: 'width 0.2s ease-in-out'
+                                }} />
+                            </div>
+                            <span style={{
+                                color: '#1792FE',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                            }}>
+                                {Math.round(scanProgress)}%
+                            </span>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
