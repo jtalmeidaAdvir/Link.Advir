@@ -78,7 +78,7 @@ const loginPOS = async (req, res) => {
             where: { email, ativo: true },
             include: [
                 { model: Obra, as: 'ObraPredefinida' },
-                { model: Empresa }
+                { model: Empresa, as: 'Empresa' }
             ]
         });
 
@@ -129,7 +129,7 @@ const listarPOS = async (req, res) => {
         const posList = await POS.findAll({
             include: [
                 { model: Obra, as: 'ObraPredefinida' },
-                { model: Empresa }
+                { model: Empresa, as: 'Empresa' }
             ],
             order: [['nome', 'ASC']]
         });

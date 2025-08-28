@@ -99,7 +99,7 @@ User.hasMany(BiometricCredential, { foreignKey: 'userId' });
 
 // Associações POS
 POS.belongsTo(Obra, { foreignKey: 'obra_predefinida_id', as: 'ObraPredefinida' });
-POS.belongsTo(Empresa, { foreignKey: 'empresa_id' });
+POS.belongsTo(Empresa, { foreignKey: 'empresa_id', as: 'Empresa' });
 Obra.hasMany(POS, { foreignKey: 'obra_predefinida_id' });
 Empresa.hasMany(POS, { foreignKey: 'empresa_id' });
 
