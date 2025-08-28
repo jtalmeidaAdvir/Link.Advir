@@ -66,6 +66,7 @@ import PedidosAlteracaoAdmin from "./src/Pages/Assiduidade/PedidosAlteracaoAdmin
 import ListarRegistos from "./src/Pages/Assiduidade/ListarRegistos";
 
 import RegistoPontoObra from "./src/Pages/Assiduidade/RegistoPontoObra";
+import RegistoPontoFacial from "./src/Pages/Assiduidade/RegistoPontoFacial";
 import CalendarioHorasTrabalho from "./src/Pages/Assiduidade/CalendarioHorasTrabalho";
 
 import AprovacaoFaltaFerias from "./src/Pages/Assiduidade/AprovacaoFaltaFerias";
@@ -676,6 +677,7 @@ const obrasSubmodulesOrder = [
                                                         GestaoPartes:
                                                             "GestaoPartesDiarias",
                                                         Ponto: "RegistoPontoObra",
+                                                        Ponto: "RegistoPontoFacial",
                                                         MapaRegistos:
                                                             "MapaRegistos",
                                                         QrCode: "LeitorQRCode",
@@ -1743,6 +1745,14 @@ const AppNavigator = () => {
                         component={RegistoPontoObra}
                         options={{
                             title: "AdvirLink - Ponto",
+                            drawerItemStyle: { display: "none" },
+                        }}
+                    />
+                    <Drawer.Screen
+                        name="RegistoPontoFacial"
+                        component={RegistoPontoFacial}
+                        options={{
+                            title: "AdvirLink - RegistoPontoFacial",
                             drawerItemStyle: { display: "none" },
                         }}
                     />

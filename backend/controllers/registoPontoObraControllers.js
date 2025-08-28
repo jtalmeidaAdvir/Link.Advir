@@ -6,14 +6,15 @@ const { Op } = require('sequelize');
 
 const registarPonto = async (req, res) => {
   try {
+    // Se for fornecido targetUserId (para registo biométrico), usar esse; caso contrário, usar o utilizador logado
+    const userId = req.body.targetUserId || req.user.id;
     const { tipo, obra_id, latitude, longitude } = req.body;
-    const user_id = req.user.id;
 
     const novoRegisto = await RegistoPontoObra.create({
-      user_id,
+      user_id: userId,
       obra_id,
       tipo,
-      timestamp: new Date(), 
+      timestamp: new Date(),
       latitude,
       longitude
     });
@@ -281,15 +282,15 @@ const cancelarPonto = async (req, res) => {
 const listarPendentes = async (req, res) => {
   try {
     const { empresa_id } = req.query;
-    
+
     let whereClause = { is_confirmed: false };
     let includeObra = { model: Obra, attributes: ['id', 'nome', 'localizacao'] };
-    
+
     // Se foi especificado empresa_id, filtrar pelas obras dessa empresa
     if (empresa_id) {
       includeObra.where = { empresa_id: empresa_id };
     }
-    
+
     const pendentes = await RegistoPontoObra.findAll({
       where: whereClause,
       include: [
@@ -483,7 +484,7 @@ module.exports = {
   listarRegistosPorDia,
   resumoMensalPorUser,
   registarPontoEsquecido,
-  listarPorObraEDia, 
+  listarPorObraEDia,
   registarPontoEquipa,
   listarRegistosHojeEquipa,
   confirmarPonto,
@@ -494,6 +495,3 @@ module.exports = {
   registarPontoEsquecidoPorOutro,
   eliminarRegisto
 };
-
-
-
