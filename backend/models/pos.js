@@ -66,7 +66,8 @@ POS.associate = (models) => {
         as: 'ObraPredefinida'
     });
     POS.belongsTo(models.Empresa, {
-        foreignKey: 'empresa_id'
+        foreignKey: 'empresa_id',
+        as: 'Empresa'
     });
 };
 
