@@ -23,7 +23,6 @@ const biometricRoutes = require('./routes/biometricRoutes');
 const trabalhadoresExternosRoutes = require('./routes/trabalhadoresExternosRoutes');
 const mapaRegistosRoutes = require('./routes/mapaRegistosRoutes');
 const contactRoutes = require('./routes/contactRoutes');
-const posRoutes = require('./routes/posRoutes');
 
 
 const fileUpload = require('express-fileupload');
@@ -292,7 +291,6 @@ app.post('/api/fix-whatsapp-tables', async (req, res) => {
 
 app.use('/api/mapa-registos', mapaRegistosRoutes);
 app.use('/api/contacts', contactRoutes);
-app.use('/api/pos', posRoutes);
 app.use('/api', newsRoutes);
 
 const PORT = process.env.PORT || 3000;
