@@ -1,15 +1,21 @@
-
 const POS = require('../models/pos');
 const Obra = require('../models/obra');
 const Empresa = require('../models/empresa');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
 
 // Criar novo POS
 const criarPOS = async (req, res) => {
     try {
-        const { nome, codigo, email, password, obra_predefinida_id, empresa_id } = req.body;
+        const { nome, codigo, email, password, empresa_id, obra_predefinida_id } = req.body;
+
+        // Validar dados obrigatórios
+        if (!nome || !codigo || !email || !password || !empresa_id) {
+            return res.status(400).json({
+                message: 'Todos os campos obrigatórios devem ser preenchidos'
+            });
+        }
 
         // Verificar se já existe um POS com o mesmo código ou email
         const posExistente = await POS.findOne({
@@ -22,31 +28,23 @@ const criarPOS = async (req, res) => {
         });
 
         if (posExistente) {
-            return res.status(400).json({ message: 'Já existe um POS com este código ou email' });
+            return res.status(400).json({
+                message: 'Já existe um POS com este código ou email'
+            });
         }
 
-        // Verificar se a obra existe
-        const obra = await Obra.findByPk(obra_predefinida_id);
-        if (!obra) {
-            return res.status(404).json({ message: 'Obra não encontrada' });
-        }
+        // Hash da password usando a mesma encriptação do User
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Verificar se a empresa existe
-        const empresa = await Empresa.findByPk(empresa_id);
-        if (!empresa) {
-            return res.status(404).json({ message: 'Empresa não encontrada' });
-        }
-
-        // Hash da password
-        const hashedPassword = await bcrypt.hash(password, 12);
-
+        // Criar o POS
         const novoPOS = await POS.create({
             nome,
             codigo,
             email,
             password: hashedPassword,
-            obra_predefinida_id,
-            empresa_id
+            empresa_id,
+            obra_predefinida_id: obra_predefinida_id || null,
+            ativo: true
         });
 
         res.status(201).json({
@@ -56,13 +54,17 @@ const criarPOS = async (req, res) => {
                 nome: novoPOS.nome,
                 codigo: novoPOS.codigo,
                 email: novoPOS.email,
+                empresa_id: novoPOS.empresa_id,
                 obra_predefinida_id: novoPOS.obra_predefinida_id,
-                empresa_id: novoPOS.empresa_id
+                ativo: novoPOS.ativo
             }
         });
     } catch (error) {
         console.error('Erro ao criar POS:', error);
-        res.status(500).json({ message: 'Erro interno do servidor' });
+        res.status(500).json({
+            message: 'Erro interno do servidor',
+            error: error.message
+        });
     }
 };
 
@@ -143,31 +145,50 @@ const listarPOS = async (req, res) => {
 const atualizarPOS = async (req, res) => {
     try {
         const { id } = req.params;
-        const { nome, codigo, email, password, obra_predefinida_id, isActive } = req.body;
+        const { nome, codigo, email, password, empresa_id, obra_predefinida_id, ativo } = req.body;
 
         const pos = await POS.findByPk(id);
         if (!pos) {
-            return res.status(404).json({ message: 'POS não encontrado' });
+            return res.status(404).json({
+                message: 'POS não encontrado'
+            });
         }
 
-        const updateData = {
+        // Se uma nova password foi fornecida, fazer hash dela usando a mesma encriptação do User
+        let hashedPassword = pos.password;
+        if (password && password.trim() !== '') {
+            hashedPassword = await bcrypt.hash(password, 10);
+        }
+
+        // Atualizar o POS
+        await pos.update({
             nome: nome || pos.nome,
             codigo: codigo || pos.codigo,
             email: email || pos.email,
-            obra_predefinida_id: obra_predefinida_id || pos.obra_predefinida_id,
-            isActive: isActive !== undefined ? isActive : pos.isActive
-        };
+            password: hashedPassword,
+            empresa_id: empresa_id || pos.empresa_id,
+            obra_predefinida_id: obra_predefinida_id !== undefined ? obra_predefinida_id : pos.obra_predefinida_id,
+            ativo: ativo !== undefined ? ativo : pos.ativo
+        });
 
-        if (password) {
-            updateData.password = await bcrypt.hash(password, 12);
-        }
-
-        await pos.update(updateData);
-
-        res.json({ message: 'POS atualizado com sucesso' });
+        res.json({
+            message: 'POS atualizado com sucesso',
+            pos: {
+                id: pos.id,
+                nome: pos.nome,
+                codigo: pos.codigo,
+                email: pos.email,
+                empresa_id: pos.empresa_id,
+                obra_predefinida_id: pos.obra_predefinida_id,
+                ativo: pos.ativo
+            }
+        });
     } catch (error) {
         console.error('Erro ao atualizar POS:', error);
-        res.status(500).json({ message: 'Erro interno do servidor' });
+        res.status(500).json({
+            message: 'Erro interno do servidor',
+            error: error.message
+        });
     }
 };
 
