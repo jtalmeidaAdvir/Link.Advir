@@ -28,38 +28,51 @@ const registarPonto = async (req, res) => {
 
 const listarRegistosPorDia = async (req, res) => {
   try {
-    const user_id = req.user.id;
-    const { data } = req.query;
+    const { data, userId, user_id } = req.query;
 
-if (!data || isNaN(Date.parse(data))) {
-  return res.status(400).json({ message: 'Data inválida.' });
-}
+    if (!data || isNaN(Date.parse(data))) {
+      return res.status(400).json({ message: 'Data inválida.' });
+    }
 
-const dataInicio = new Date(`${data}T00:00:00.000Z`);
-const dataFim = new Date(`${data}T23:59:59.999Z`);
+    // Utilizador alvo: query > logado
+    const alvoId = Number(userId ?? user_id ?? req.user.id);
 
-    dataFim.setHours(23, 59, 59, 999);
+    // Se o alvo for diferente do logado, verificar permissões
+    const mesmoUser = alvoId === req.user.id;
+    const tipo = (req.user.tipoUser || '').toString();
+    const isPrivileged =
+      !!req.user.isAdmin ||
+      !!req.user.superAdmin ||
+      ['Administrador', 'Encarregado', 'Diretor'].includes(tipo);
+
+    if (!mesmoUser && !isPrivileged) {
+      return res.status(403).json({ message: 'Sem permissões para consultar registos de outro utilizador.' });
+    }
+
+    // Opcional: validar se pertence à mesma empresa
+    // if (req.user.empresa_id && userExiste.empresa_id && req.user.empresa_id !== userExiste.empresa_id) {
+    //   return res.status(403).json({ message: 'Utilizador alvo não pertence à mesma empresa.' });
+    // }
+
+    const dataInicio = new Date(`${data}T00:00:00.000Z`);
+    const dataFim    = new Date(`${data}T23:59:59.999Z`);
 
     const registos = await RegistoPontoObra.findAll({
       where: {
-        user_id,
-        timestamp: {
-        [Op.between]: [dataInicio, dataFim]
-        }
-
+        user_id: alvoId,
+        timestamp: { [Op.between]: [dataInicio, dataFim] }
       },
-      include: [
-        { model: Obra, attributes: ['id', 'nome', 'localizacao'] }
-      ],
+      include: [{ model: Obra, attributes: ['id', 'nome', 'localizacao'] }],
       order: [['timestamp', 'ASC']]
     });
 
-    res.status(200).json(registos);
+    return res.status(200).json(registos);
   } catch (error) {
     console.error('Erro ao listar registos:', error);
-    res.status(500).json({ message: 'Erro interno ao listar registos.' });
+    return res.status(500).json({ message: 'Erro interno ao listar registos.' });
   }
 };
+
 
 
 const resumoMensalPorUser = async (req, res) => {
