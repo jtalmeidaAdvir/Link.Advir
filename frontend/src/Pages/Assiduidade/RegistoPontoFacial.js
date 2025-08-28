@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import {
@@ -153,37 +152,42 @@ const RegistoPontoFacial = (props) => {
         });
     };
 
+    // Modified autenticarERegistarPonto to include validation parameters in the authentication fetch
     const autenticarERegistarPonto = async (tipo, obraId, nomeObra, facialData) => {
         try {
-            setLoading(true);
-            setStatusMessage('A autenticar utilizador pelo reconhecimento facial...');
+            setLoading(true); // Use original setLoading
+            setStatusMessage('A autenticar utilizador pelo reconhecimento facial...'); // Original message
 
-            // Primeiro, autenticar o utilizador com os dados faciais
+            // Primeiro, autenticar o utilizador com os dados faciais, incluindo obra e tipo para validação
             const authRes = await fetch('https://backend.advir.pt/api/auth/biometric/authenticate-facial', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ facialData })
+                body: JSON.stringify({ // Modified body to include obra_id, tipo, and empresa
+                    facialData,
+                    obra_id: obraId, // From original function parameter
+                    tipo: tipo, // From original function parameter
+                    empresa: localStorage.getItem('empresa_areacliente') // From original scope
+                })
             });
 
-            if (!authRes.ok) {
+            if (!authRes.ok) { // Original success check
                 const authError = await authRes.json();
                 setStatusMessage(`Falha na autenticação facial: ${authError.message || 'Utilizador não reconhecido'}`);
                 return;
             }
 
             const authData = await authRes.json();
-            const userId = authData.userId;
+            const userId = authData.userId; // Original userId
             const userName = authData.userNome || authData.username;
 
-            setStatusMessage(`Utilizador identificado: ${userName}. A registar ponto...`);
+            setStatusMessage(`Utilizador identificado: ${userName}. A registar ponto...`); // Original message
 
             // Obter localização
             const loc = await getCurrentLocation();
             const token = localStorage.getItem('loginToken');
-            const empresaNome = localStorage.getItem('empresa_areacliente');
-
+            
             // Registar ponto para o utilizador identificado
             const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra', {
                 method: 'POST',
@@ -192,14 +196,14 @@ const RegistoPontoFacial = (props) => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    tipo,
-                    obra_id: obraId,
-                    latitude: loc.coords.latitude,
-                    longitude: loc.coords.longitude,
-                    biometricData: facialData,
-                    biometricType: 'facial',
-                    targetUserId: userId, // Adicionar o ID do utilizador identificado
-                    empresa: empresaNome
+                    tipo, // Original
+                    obra_id: obraId, // Original
+                    latitude: loc.coords.latitude, // Original
+                    longitude: loc.coords.longitude, // Original
+                    biometricData: facialData, // Original
+                    biometricType: 'facial', // Original
+                    targetUserId: userId, // Original
+                    empresa: localStorage.getItem('empresa_areacliente') // Original
                 })
             });
 
@@ -214,9 +218,9 @@ const RegistoPontoFacial = (props) => {
             }
         } catch (err) {
             console.error('Erro na autenticação facial e registo de ponto:', err);
-            setStatusMessage('Erro ao processar reconhecimento facial e registo de ponto');
+            setStatusMessage('Erro ao processar reconhecimento facial e registo de ponto'); // Original message
         } finally {
-            setLoading(false);
+            setLoading(false); // Use original setLoading
         }
     };
 
@@ -258,7 +262,7 @@ const RegistoPontoFacial = (props) => {
         console.log('Scan facial completo:', facialData);
         setFacialScanResult(facialData);
         setIsFacialScanning(false);
-        
+
         // Processar o registo automaticamente
         await processarEntradaComFacial(facialData);
     };
@@ -285,7 +289,7 @@ const RegistoPontoFacial = (props) => {
                     margin-bottom: 1rem;
                 }
                 .btn-facial {
-                    background: linear-gradient(45deg, #1792FE, #0D7EFE);
+                    background: linear-gradient(45deg, #1792FE, #0D7FE);
                     border: none;
                     border-radius: 12px;
                     padding: 1rem 2rem;
@@ -436,7 +440,82 @@ const RegistoPontoFacial = (props) => {
                             </div>
 
                             {/* Today's Records */}
-                            
+                            <div className="col-12 col-lg-4" style={{ marginBottom: '50px' }}>
+                                <div className="card card-moderno">
+                                    <div className="card-body p-3 p-md-4">
+                                        <h5 className="card-title d-flex align-items-center mb-3 mb-md-4" style={{ fontSize: 'clamp(1rem, 3vw, 1.25rem)' }}>
+                                            <FaClock className="text-primary me-2 flex-shrink-0" />
+                                            <span className="d-none d-sm-inline">Registos de Hoje</span>
+                                            <span className="d-sm-none">Hoje</span>
+                                        </h5>
+
+                                        <div style={{ maxHeight: '400px', overflowY: 'auto' }} className="custom-scroll">
+                                            {registos.length === 0 ? (
+                                                <div className="text-center py-4">
+                                                    <FaExclamationCircle className="text-muted mb-3" size={32} />
+                                                    <p className="text-muted mb-0">Nenhum registo encontrado para hoje</p>
+                                                </div>
+                                            ) : (
+                                                [...registos]
+                                                    .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt))
+                                                    .map((r, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className={`registro-item ${r.tipo === 'saida' ? 'registro-saida' : ''}`}
+                                                    >
+                                                        <div className="d-flex justify-content-between align-items-start mb-2">
+                                                            <div className="flex-grow-1">
+                                                                <div className="d-flex align-items-center mb-1">
+                                                                    {r.tipo === 'entrada' ? (
+                                                                        <FaPlay className="text-success me-2" />
+                                                                    ) : (
+                                                                        <FaStop className="text-danger me-2" />
+                                                                    )}
+                                                                    <span className="fw-bold text-uppercase small">
+                                                                        {r.tipo}
+                                                                    </span>
+                                                                    {r.biometricType === 'facial' && (
+                                                                        <FaUserCheck className="text-info ms-2" title="Reconhecimento Facial" />
+                                                                    )}
+                                                                </div>
+                                                                <small className="text-muted d-block">
+                                                                    {new Date(r.timestamp || r.createdAt).toLocaleString('pt-PT', {
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit',
+                                                                        day: '2-digit',
+                                                                        month: '2-digit'
+                                                                    })}
+                                                                </small>
+                                                            </div>
+                                                            <FaCheckCircle className="text-success" />
+                                                        </div>
+
+                                                        <div className="mb-2">
+                                                            <span className="fw-semibold text-primary">
+                                                                {r.Obra?.nome}
+                                                            </span>
+                                                            {r.User && (
+                                                                <div className="small text-muted">
+                                                                    Utilizador: {r.User.nome}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {r.morada && (
+                                                            <div className="d-flex align-items-start">
+                                                                <FaMapMarkerAlt className="text-muted me-2 mt-1 flex-shrink-0" size={12} />
+                                                                <small className="text-muted text-truncate">
+                                                                    {r.morada}
+                                                                </small>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

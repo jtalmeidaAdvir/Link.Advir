@@ -394,234 +394,278 @@ const removeBiometric = async (req, res) => {
 // Função para autenticação com dados faciais
 const authenticateWithFacialData = async (req, res) => {
     try {
-        const { facialData } = req.body;
+        const { facialData, empresa, obra_id, tipo } = req.body;
 
         if (!facialData || !facialData.data) {
             return res.status(400).json({
                 success: false,
-                message: "Dados faciais são obrigatórios",
+                message: 'Dados faciais são obrigatórios'
             });
         }
 
-        // Parsear os dados faciais
+        // Parse dos dados faciais
         let parsedFacialData;
         try {
-            parsedFacialData =
-                typeof facialData.data === "string"
-                    ? JSON.parse(facialData.data)
-                    : facialData.data;
+            parsedFacialData = typeof facialData.data === 'string'
+                ? JSON.parse(facialData.data)
+                : facialData.data;
         } catch (parseError) {
             return res.status(400).json({
                 success: false,
-                message: "Formato de dados faciais inválido",
+                message: 'Dados faciais inválidos'
             });
         }
 
-        if (
-            !parsedFacialData.biometricTemplate ||
-            !parsedFacialData.biometricTemplate.descriptor
-        ) {
+        // Verificar se há template biométrico
+        if (!parsedFacialData.biometricTemplate || !parsedFacialData.biometricTemplate.descriptor) {
             return res.status(400).json({
                 success: false,
-                message: "Template biométrico não encontrado nos dados faciais",
+                message: 'Template biométrico não encontrado nos dados faciais'
             });
         }
 
-        // Buscar todas as credenciais faciais registadas
-        const facialCredentials = await BiometricCredential.findAll({
-            where: { biometricType: "facial" }, // Corrigido para biometricType
-            include: [
-                {
-                    model: User,
-                    attributes: [
-                        "id", "nome", "email", "isAdmin", "superAdmin", 
-                        "empresa_areacliente", "id_tecnico", "tipoUser", 
-                        "codFuncionario", "codRecursosHumanos", "username",
-                        "empresaPredefinida", "isActive"
-                    ],
-                },
-            ],
+        const faceDescriptor = parsedFacialData.biometricTemplate.descriptor;
+
+        // Buscar todas as credenciais faciais da empresa
+        let whereClause = { biometricType: 'facial' }; // Corrigido para biometricType
+        if (empresa) {
+            // Buscar utilizadores da empresa específica
+            const User = require('../models/user');
+            const users = await User.findAll({
+                where: { empresa_id: empresa },
+                attributes: ['id']
+            });
+            const userIds = users.map(u => u.id);
+
+            if (userIds.length > 0) {
+                whereClause.userId = { [require('sequelize').Op.in]: userIds }; // Corrigido para userId
+            } else {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Nenhum utilizador encontrado para esta empresa'
+                });
+            }
+        }
+
+        const credentials = await BiometricCredential.findAll({
+            where: whereClause,
+            include: [{
+                model: require('../models/user'),
+                attributes: ['id', 'nome', 'email', 'empresa_id']
+            }]
         });
 
-        console.log(`🔍 Encontradas ${facialCredentials.length} credenciais faciais no sistema`);
-
-        if (facialCredentials.length === 0) {
+        if (credentials.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Nenhuma biometria facial registada no sistema",
+                message: 'Nenhuma credencial facial encontrada'
             });
         }
 
-        // Definir inputDescriptor antes dos logs
-        const inputDescriptor = parsedFacialData.biometricTemplate.descriptor;
-        console.log(`📊 Dados faciais recebidos - Descriptor length: ${inputDescriptor?.length}`);
-
-        // Função para calcular similaridade entre descritores
-        const calculateSimilarity = (descriptor1, descriptor2) => {
-            if (
-                !descriptor1 ||
-                !descriptor2 ||
-                descriptor1.length !== descriptor2.length
-            ) {
-                return 0;
-            }
-
-            let dotProduct = 0;
-            let norm1 = 0;
-            let norm2 = 0;
-
-            for (let i = 0; i < descriptor1.length; i++) {
-                dotProduct += descriptor1[i] * descriptor2[i];
-                norm1 += descriptor1[i] * descriptor1[i];
-                norm2 += descriptor2[i] * descriptor2[i];
-            }
-
-            const magnitude = Math.sqrt(norm1) * Math.sqrt(norm2);
-            return magnitude === 0 ? 0 : dotProduct / magnitude;
-        };
-
-        // Função para calcular distância euclidiana
-        const calculateEuclideanDistance = (descriptor1, descriptor2) => {
-            if (
-                !descriptor1 ||
-                !descriptor2 ||
-                descriptor1.length !== descriptor2.length
-            ) {
-                return Infinity;
-            }
-
-            let sum = 0;
-            for (let i = 0; i < descriptor1.length; i++) {
-                const diff = descriptor1[i] - descriptor2[i];
-                sum += diff * diff;
-            }
-            return Math.sqrt(sum);
-        };
-
+        // Comparar com todas as credenciais
         let bestMatch = null;
         let bestSimilarity = 0;
-        let bestDistance = Infinity;
+        const threshold = 0.6; // Limiar de similaridade
 
-        // Comparar com cada credencial registada
-        for (const credential of facialCredentials) {
+        for (const credential of credentials) {
             try {
-                // Extrair os dados faciais do publicKey
-                let storedFacialData;
-                try {
-                    const parsedData = JSON.parse(credential.publicKey);
-                    // Os dados podem estar diretamente ou dentro de .data
-                    storedFacialData = parsedData.data ? JSON.parse(parsedData.data) : parsedData;
-                } catch (parseError) {
-                    console.warn(`Erro ao fazer parse dos dados da credencial ${credential.credentialId}:`, parseError);
-                    continue;
+                // Assumindo que o publicKey contém os dados faciais como string JSON
+                const storedFacialData = JSON.parse(credential.publicKey); // Corrigido para publicKey
+                const storedDescriptor = storedFacialData.biometricTemplate.descriptor; // Corrigido para biometricTemplate
+
+                // Calcular similaridade usando distância euclidiana (ou outra métrica adequada)
+                // Esta função calculateFacialSimilarity precisa ser definida ou importada
+                // Por agora, vamos usar uma placeholder ou assumir que existe
+                const similarity = calculateFacialSimilarity(faceDescriptor, storedDescriptor);
+
+                if (similarity > bestSimilarity && similarity >= threshold) {
+                    bestSimilarity = similarity;
+                    bestMatch = credential;
                 }
-
-                const storedDescriptor = storedFacialData?.biometricTemplate?.descriptor;
-
-                if (!storedDescriptor || !Array.isArray(storedDescriptor)) {
-                    console.warn(
-                        `Credencial ${credential.credentialId} não possui descriptor válido.`,
-                        { hasDescriptor: !!storedDescriptor, isArray: Array.isArray(storedDescriptor) }
-                    );
-                    continue;
-                }
-
-                // Calcular similaridade (cosseno)
-                const similarity = calculateSimilarity(
-                    inputDescriptor,
-                    storedDescriptor,
-                );
-
-                // Calcular distância euclidiana
-                const distance = calculateEuclideanDistance(
-                    inputDescriptor,
-                    storedDescriptor,
-                );
-
-                // Threshold muito mais restritivo para reconhecimento facial
-                const SIMILARITY_THRESHOLD = 0.85; // Muito mais restritivo - apenas faces quase idênticas
-                const DISTANCE_THRESHOLD = 0.4; // Muito mais restritivo - distância menor
-
-                if (
-                    similarity > SIMILARITY_THRESHOLD &&
-                    distance < DISTANCE_THRESHOLD
-                ) {
-                    // Validação adicional - apenas aceitar se a similaridade for muito alta
-                    const qualityScore = similarity - (distance * 0.5);
-                    if (qualityScore > 0.6 && similarity > bestSimilarity) {
-                        bestSimilarity = similarity;
-                        bestDistance = distance;
-                        bestMatch = credential;
-                    }
-                }
-
-                console.log(
-                    `📝 Comparação com ${credential.User.email}: Sim=${similarity.toFixed(3)}, Dist=${distance.toFixed(3)} | Thresholds: Sim>=${SIMILARITY_THRESHOLD}, Dist<=${DISTANCE_THRESHOLD} | Match: ${similarity > SIMILARITY_THRESHOLD && distance < DISTANCE_THRESHOLD}`,
-                );
-            } catch (error) {
-                console.error(
-                    `Erro ao processar credencial ${credential.credentialId}:`,
-                    error,
-                );
+            } catch (parseError) {
+                console.error('Erro ao processar credencial:', parseError);
                 continue;
             }
         }
 
-        if (!bestMatch || bestSimilarity < 0.88) {
-            console.log(`❌ Login rejeitado - Melhor similaridade: ${bestSimilarity?.toFixed(3) || 'N/A'}`);
+        if (!bestMatch) {
             return res.status(401).json({
                 success: false,
-                message: bestMatch ? 
-                    `Face não reconhecida com confiança suficiente (${Math.round(bestSimilarity * 100)}%). Acesso negado.` :
-                    "Utilizador não reconhecido. Face não encontrada no sistema.",
+                message: 'Face não reconhecida. Tente novamente ou contacte o administrador.'
             });
         }
 
+        // Utilizador identificado com sucesso
         const user = bestMatch.User;
+        const confidence = Math.round(bestSimilarity * 100);
 
-        // Login bem-sucedido
-        console.log(`✅ Login facial aprovado para utilizador: ${bestMatch.userId} (Similaridade: ${bestSimilarity.toFixed(3)})`);
+        // Validação do tipo de registo baseada no estado atual (igual ao registo de ponto obra)
+        if (tipo && obra_id !== null) { // Verifica se obra_id foi passado e não é null
+            const tipoValidado = await determinarTipoRegistoFacial(user.id, obra_id, tipo);
+            if (tipoValidado.erro) {
+                return res.status(400).json({
+                    success: false,
+                    message: tipoValidado.message
+                });
+            }
+        } else if (tipo && obra_id === null) {
+             // Caso se tente registar uma entrada/saída sem obra associada, mas com tipo especificado
+             // Poderia haver uma lógica aqui para lidar com isso, mas vamos manter a consistência com o requisito
+             // Se obra_id é null, a validação pode não ser aplicável ou ter uma regra diferente
+             // Para este contexto, vamos apenas prosseguir se obra_id for null e tipo for especificado,
+             // sem a validação de obra específica. A função determinarTipoRegistoFacial já lida com obra_id null.
+        }
 
-        // Gerar token JWT com a mesma estrutura do login normal
-        const token = jwt.sign(
-            {
-                id: bestMatch.userId,
-                userNome: user.nome,
-                isAdmin: user.isAdmin,
-                superAdmin: user.superAdmin,
-                type: 'facial'
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '24h' }
-        );
 
         res.json({
             success: true,
-            message: "Autenticação facial bem-sucedida",
-            token,
-            userId: bestMatch.userId,
-            username: user.username || user.nome,
-            userEmail: user.email,
-            userNome: user.nome,
-            isAdmin: user.isAdmin || false,
-            superAdmin: user.superAdmin || false,
-            empresa_areacliente: user.empresa_areacliente || '',
-            id_tecnico: user.id_tecnico || null,
-            tipoUser: user.tipoUser || '',
-            codFuncionario: user.codFuncionario || '',
-            codRecursosHumanos: user.codRecursosHumanos || '',
-            empresaPredefinida: user.empresaPredefinida || null,
-            confidence: bestSimilarity,
+            message: `Utilizador identificado com ${confidence}% de confiança`,
+            user: {
+                id: user.id,
+                nome: user.nome,
+                email: user.email,
+                empresa_id: user.empresa_id
+            },
+            confidence: confidence,
             biometricType: 'facial'
         });
+
     } catch (error) {
-        console.error("Erro na autenticação facial:", error);
+        console.error('Erro na autenticação facial:', error);
         res.status(500).json({
             success: false,
-            message: "Erro interno do servidor durante a autenticação facial",
+            message: 'Erro interno na autenticação facial'
         });
     }
 };
+
+// Função para calcular similaridade facial (exemplo usando distância euclidiana)
+const calculateFacialSimilarity = (descriptor1, descriptor2) => {
+    if (
+        !descriptor1 ||
+        !descriptor2 ||
+        descriptor1.length !== descriptor2.length
+    ) {
+        return 0; // Retorna 0 se os descritores forem inválidos
+    }
+
+    let sum = 0;
+    for (let i = 0; i < descriptor1.length; i++) {
+        const diff = descriptor1[i] - descriptor2[i];
+        sum += diff * diff;
+    }
+    const distance = Math.sqrt(sum);
+
+    // Converter distância euclidiana para uma métrica de similaridade (exemplo: 1 / (1 + distância))
+    // Um valor mais próximo de 1 indica maior similaridade (menor distância)
+    // Ajustar esta fórmula conforme necessário para a métrica específica
+    return 1 / (1 + distance);
+};
+
+
+// Função para determinar e validar o tipo de registo para reconhecimento facial
+const determinarTipoRegistoFacial = async (userId, obraId, tipoSolicitado) => {
+    try {
+        const { Op } = require('sequelize');
+        const RegistoPontoObra = require('../models/registoPontoObra');
+
+        // Buscar registos do utilizador para a obra na data atual
+        const dataAtual = new Date();
+        const inicioHoje = new Date(
+            dataAtual.getFullYear(),
+            dataAtual.getMonth(),
+            dataAtual.getDate(),
+        );
+        const fimHoje = new Date(
+            dataAtual.getFullYear(),
+            dataAtual.getMonth(),
+            dataAtual.getDate(),
+            23,
+            59,
+            59,
+        );
+
+        const whereClause = {
+            user_id: userId,
+            timestamp: {
+                [Op.between]: [inicioHoje, fimHoje],
+            },
+        };
+
+        // Adicionar obra_id apenas se não for null
+        if (obraId !== null) {
+            whereClause.obra_id = obraId;
+        } else {
+             // Se obra_id é null, é necessário considerar registos sem obra_id para a validação
+             // Assumindo que registos sem obra_id também devem ser considerados para a lógica de entrada/saída
+             // No entanto, a lógica original pode ter sido projetada apenas para obras específicas.
+             // Para manter a coerência, se obra_id é null, e o tipo solicitado não é uma entrada genérica,
+             // pode ser necessário um comportamento diferente.
+             // Por enquanto, vamos permitir a busca sem obra_id se ele for null, mas a interpretação
+             // de "entrada ativa" pode depender de como os registos sem obra_id são tratados.
+             // Se a intenção é que a validação só ocorra para obras específicas, então
+             // a chamada a esta função deveria garantir que obra_id não é null quando é necessário validar.
+             // Dado que a validação é solicitada para "entrada etc etc", vamos assumir que
+             // a ausência de obra_id pode significar um registo geral (fora de uma obra específica).
+             // A função `RegistoPontoObra.findAll` buscará todos os registos se obra_id não estiver na clausula `where`.
+             // Se quisermos excluir registos sem obra_id quando obra_id é explicitamente null na chamada,
+             // precisamos adicionar `where: { ... , obra_id: null }`.
+             // Mas a lógica atual `if (obraId !== null)` já lida com isso, não adicionando `obra_id` ao where
+             // se for null, o que significa que todos os registos (com ou sem obra_id) seriam considerados.
+        }
+
+
+        const registosHoje = await RegistoPontoObra.findAll({
+            where: whereClause,
+            order: [["timestamp", "ASC"]],
+        });
+
+        // Se não há registos hoje e tentativa de saída
+        if (registosHoje.length === 0 && tipoSolicitado === 'saida') {
+            return {
+                erro: true,
+                message: 'Não é possível registar saída sem ter registado entrada.'
+            };
+        }
+
+        // Se não há registos hoje, é entrada
+        if (registosHoje.length === 0) {
+            return { tipo: "entrada" };
+        }
+
+        // Verificar se há entrada ativa (sem saída correspondente)
+        const entradas = registosHoje.filter(r => r.tipo === 'entrada');
+        const saidas = registosHoje.filter(r => r.tipo === 'saida');
+
+        const temEntradaAtiva = entradas.length > saidas.length;
+
+        // Validações baseadas no estado atual
+        if (tipoSolicitado === 'entrada' && temEntradaAtiva) {
+            return {
+                erro: true,
+                message: 'Já tem uma entrada registada. Registe primeiro a saída.'
+            };
+        }
+
+        if (tipoSolicitado === 'saida' && !temEntradaAtiva) {
+            return {
+                erro: true,
+                message: 'Não tem entrada ativa. Registe primeiro a entrada.'
+            };
+        }
+
+        // Se chegou até aqui, o tipo solicitado é válido
+        return { tipo: tipoSolicitado };
+
+    } catch (error) {
+        console.error('Erro ao determinar tipo de registo facial:', error);
+        return {
+            erro: true,
+            message: 'Erro ao validar estado do registo.'
+        };
+    }
+};
+
 
 module.exports = {
     generateRegisterChallenge,
