@@ -13,11 +13,15 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
 
     useEffect(() => {
         if (isScanning) {
+            setScanProgress(0);
+            setStatusMessage('Iniciando sistema de reconhecimento facial...');
             initializeFaceAPI();
         } else {
             stopCamera();
             setStatusMessage('');
             setScanProgress(0);
+            setCameraReady(false);
+            setModelsLoaded(false);
         }
 
         return () => {
@@ -26,44 +30,64 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
     }, [isScanning]);
 
     const initializeFaceAPI = async () => {
+        const timeout = setTimeout(() => {
+            setStatusMessage('Carregamento está demorando... Verifique sua conexão.');
+        }, 10000);
+
         try {
             setStatusMessage('Carregando modelos de detecção facial...');
+            setScanProgress(10);
 
             const CDN_MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
 
-            await Promise.all([
-                faceapi.nets.tinyFaceDetector.loadFromUri(CDN_MODEL_URL),
-                faceapi.nets.faceLandmark68Net.loadFromUri(CDN_MODEL_URL),
-                faceapi.nets.faceRecognitionNet.loadFromUri(CDN_MODEL_URL)
-            ]);
+            // Carregar modelos com progress feedback
+            await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_MODEL_URL);
+            setScanProgress(25);
+            setStatusMessage('Carregando detector facial...');
 
+            await faceapi.nets.faceLandmark68Net.loadFromUri(CDN_MODEL_URL);
+            setScanProgress(40);
+            setStatusMessage('Carregando detector de pontos faciais...');
+
+            await faceapi.nets.faceRecognitionNet.loadFromUri(CDN_MODEL_URL);
+            setScanProgress(55);
+            setStatusMessage('Carregando reconhecimento facial...');
+
+            clearTimeout(timeout);
             setModelsLoaded(true);
+            setScanProgress(70);
             setStatusMessage('Modelos carregados! Iniciando câmera...');
             await startCamera();
 
         } catch (error) {
+            clearTimeout(timeout);
             console.error('Erro ao carregar modelos face-api.js:', error);
-            setStatusMessage('Erro ao carregar modelos de detecção facial.');
+            setStatusMessage('Erro ao carregar modelos. Tentando modo básico...');
+            setScanProgress(20);
             
             try {
-                setStatusMessage('Tentando modo básico de detecção...');
-                
                 await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_MODEL_URL);
-                
+                setScanProgress(50);
                 setModelsLoaded(true);
                 setStatusMessage('Modo básico carregado! Iniciando câmera...');
                 await startCamera();
                 
             } catch (fallbackError) {
                 console.error('Erro no fallback:', fallbackError);
-                setStatusMessage('Não foi possível carregar os modelos de detecção facial. Verifique sua conexão.');
-                if (onStopScan) onStopScan();
+                setStatusMessage('Falha no carregamento. Clique para tentar novamente.');
+                setScanProgress(0);
+                setTimeout(() => {
+                    if (onStopScan) onStopScan();
+                }, 3000);
             }
         }
     };
 
     const startCamera = async () => {
         try {
+            setScanProgress(75);
+            setStatusMessage('Solicitando acesso à câmera...');
+
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     width: { ideal: 640 },
@@ -75,20 +99,39 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 streamRef.current = stream;
+                setScanProgress(85);
+                setStatusMessage('Câmera conectada. Preparando scan...');
 
                 videoRef.current.onloadedmetadata = () => {
+                    console.log('Video metadata carregado, dimensões:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
                     setCameraReady(true);
-                    setStatusMessage('Câmera ativa. Iniciando scan facial...');
-                    if (modelsLoaded) {
-                        startScan();
-                    }
+                    setScanProgress(90);
+                    setStatusMessage('Sistema pronto! Iniciando detecção facial...');
+                    
+                    // Verificar se o video está realmente pronto
+                    const checkVideoReady = () => {
+                        if (videoRef.current && videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
+                            console.log('Video está pronto para processamento');
+                            if (modelsLoaded && cameraReady) {
+                                startScan();
+                            }
+                        } else {
+                            console.log('Video ainda não está pronto, tentando novamente...');
+                            setTimeout(checkVideoReady, 500);
+                        }
+                    };
+                    
+                    setTimeout(checkVideoReady, 1000);
                 };
             }
         } catch (error) {
             console.error('Erro ao acessar câmera:', error);
             setCameraReady(false);
-            setStatusMessage('Erro ao acessar a câmera. Verifique as permissões.');
-            if (onStopScan) onStopScan();
+            setScanProgress(0);
+            setStatusMessage('Erro: Câmera não disponível ou sem permissão.');
+            setTimeout(() => {
+                if (onStopScan) onStopScan();
+            }, 3000);
         }
     };
 
@@ -101,39 +144,80 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
     };
 
     const startScan = async () => {
+        console.log('startScan chamado - cameraReady:', cameraReady, 'modelsLoaded:', modelsLoaded);
+        
         if (!cameraReady || !modelsLoaded) {
-            setStatusMessage('Sistema ainda não está pronto. Aguarde o carregamento.');
+            setStatusMessage('Sistema ainda não está pronto. Aguarde...');
+            setTimeout(() => {
+                if (cameraReady && modelsLoaded) {
+                    startScan();
+                }
+            }, 1000);
             return;
         }
 
         const video = videoRef.current;
-        if (!video) return;
+        if (!video || !video.videoWidth || !video.videoHeight) {
+            console.log('Video não está pronto:', video ? `${video.videoWidth}x${video.videoHeight}` : 'null');
+            setStatusMessage('Aguardando inicialização da câmera...');
+            setTimeout(startScan, 500);
+            return;
+        }
+
+        console.log('Iniciando detecção facial...');
+        setScanProgress(95);
+        setStatusMessage('Posicione-se em frente à câmera e aguarde...');
+
+        // Adicionar timeout para evitar bloqueios
+        const scanTimeout = setTimeout(() => {
+            console.log('Timeout na detecção inicial');
+            setStatusMessage('Tempo esgotado. Clique para tentar novamente.');
+            setScanProgress(0);
+            if (onStopScan) onStopScan();
+        }, 10000); // 10 segundos timeout
 
         let detections;
         try {
+            console.log('Tentando detecção facial completa...');
             detections = await faceapi
                 .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
                 .withFaceLandmarks()
                 .withFaceDescriptors();
         } catch (error) {
+            console.log('Erro na detecção completa, tentando com landmarks:', error);
             try {
                 detections = await faceapi
                     .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
                     .withFaceLandmarks();
             } catch (landmarkError) {
-                detections = await faceapi
-                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+                console.log('Erro com landmarks, tentando detecção básica:', landmarkError);
+                try {
+                    detections = await faceapi
+                        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
+                } catch (basicError) {
+                    console.error('Erro em todas as tentativas de detecção:', basicError);
+                    clearTimeout(scanTimeout);
+                    setStatusMessage('Erro na detecção facial. Clique para tentar novamente.');
+                    setScanProgress(0);
+                    if (onStopScan) onStopScan();
+                    return;
+                }
             }
         }
+        
+        clearTimeout(scanTimeout); // Limpar timeout se chegou até aqui
+        console.log('Detecções encontradas:', detections.length);
 
         if (detections.length === 0) {
+            console.log('Nenhuma face detectada');
             setStatusMessage('Face não detectada. Posicione-se em frente à câmera.');
-            setTimeout(startScan, 1000);
+            setTimeout(startScan, 1500);
             return;
         }
         if (detections.length > 1) {
+            console.log('Múltiplas faces detectadas:', detections.length);
             setStatusMessage('Múltiplas faces detectadas. Apenas uma pessoa permitida.');
-            setTimeout(startScan, 1000);
+            setTimeout(startScan, 1500);
             return;
         }
 
@@ -141,9 +225,11 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
         const confidence = detection.detection.score;
         const qualityScore = calculateFaceQuality(detection, video);
 
-        if (confidence < 0.6 || qualityScore < 0.4) {
+        console.log('Detecção inicial - Confiança:', confidence, 'Qualidade:', qualityScore);
+
+        if (confidence < 0.5 || qualityScore < 0.3) { // Reduzir requisitos iniciais
             setStatusMessage(`Qualidade insuficiente (${Math.round(confidence * 100)}%). Ajuste seu posicionamento.`);
-            setTimeout(startScan, 1000);
+            setTimeout(startScan, 1500);
             return;
         }
 
@@ -449,49 +535,68 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
                     backgroundColor: 'rgba(23, 146, 254, 0.1)',
                     borderRadius: '8px',
                     marginTop: '10px',
-                    textAlign: 'center'
+                    textAlign: 'center',
+                    border: '1px solid rgba(23, 146, 254, 0.3)'
                 }}>
                     <div style={{
                         color: '#1792FE',
                         fontSize: '14px',
                         marginBottom: '8px',
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
+                        minHeight: '20px'
                     }}>
-                        {statusMessage}
+                        {statusMessage || 'Preparando sistema...'}
                     </div>
                     
-                    {scanProgress > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginTop: '8px'
+                    }}>
                         <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginTop: '8px'
+                            flexGrow: 1,
+                            height: '8px',
+                            backgroundColor: 'rgba(23, 146, 254, 0.2)',
+                            borderRadius: '4px',
+                            marginRight: '8px',
+                            overflow: 'hidden'
                         }}>
                             <div style={{
-                                flexGrow: 1,
-                                height: '6px',
-                                backgroundColor: 'rgba(23, 146, 254, 0.2)',
-                                borderRadius: '3px',
-                                marginRight: '8px',
-                                overflow: 'hidden'
-                            }}>
-                                <div style={{
-                                    height: '100%',
-                                    backgroundColor: '#1792FE',
-                                    borderRadius: '3px',
-                                    width: `${scanProgress}%`,
-                                    transition: 'width 0.2s ease-in-out'
-                                }} />
-                            </div>
-                            <span style={{
-                                color: '#1792FE',
-                                fontSize: '12px',
-                                fontWeight: 'bold'
-                            }}>
-                                {Math.round(scanProgress)}%
-                            </span>
+                                height: '100%',
+                                backgroundColor: scanProgress < 100 ? '#1792FE' : '#4CAF50',
+                                borderRadius: '4px',
+                                width: `${Math.max(5, scanProgress)}%`,
+                                transition: 'all 0.3s ease-in-out'
+                            }} />
                         </div>
-                    )}
+                        <span style={{
+                            color: '#1792FE',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            minWidth: '35px'
+                        }}>
+                            {Math.round(scanProgress)}%
+                        </span>
+                    </div>
+
+                    <button
+                        onClick={() => {
+                            if (onStopScan) onStopScan();
+                        }}
+                        style={{
+                            marginTop: '10px',
+                            padding: '5px 15px',
+                            backgroundColor: '#f44336',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Cancelar
+                    </button>
                 </div>
             )}
         </div>

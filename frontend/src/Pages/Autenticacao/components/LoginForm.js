@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import RecuperarPasswordLink from "./RecuperarPasswordLink";
 import FacialScannerModal from "./FacialScannerModal";
+import InvisibleFacialScanner from "./InvisibleFacialScanner";
 import { hasBiometricRegistered, authenticateWithBiometric } from "../utils/biometricAuth";
 import { inputStyle, buttonStyle, errorStyle } from "../styles/LoginFormStyles";
 
@@ -24,6 +25,7 @@ const LoginForm = ({
     const [facialScannerVisible, setFacialScannerVisible] = useState(false);
     const [isFacialLoading, setIsFacialLoading] = useState(false);
     const [isCameraAvailable, setIsCameraAvailable] = useState(false);
+    const [isInvisibleScanning, setIsInvisibleScanning] = useState(false);
 
     // Verificar disponibilidade da câmera
     useEffect(() => {
@@ -101,6 +103,105 @@ const LoginForm = ({
             return;
         }
         setFacialScannerVisible(true);
+    };
+
+    const handleInvisibleFacialLogin = () => {
+        if (!isCameraAvailable) {
+            alert("Câmera não disponível neste dispositivo");
+            return;
+        }
+        setIsInvisibleScanning(true);
+    };
+
+    const handleInvisibleFacialScanComplete = async (facialData) => {
+        if (!facialData) {
+            alert("Nenhum dado facial capturado.");
+            setIsInvisibleScanning(false);
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const response = await fetch('https://backend.advir.pt/api/auth/biometric/facial/authenticate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    facialData: facialData
+                }),
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                // Guardar dados no localStorage como no login normal
+                localStorage.setItem('loginToken', result.token);
+                localStorage.setItem('isAdmin', result.isAdmin ? 'true' : 'false');
+                localStorage.setItem('superAdmin', result.superAdmin ? 'true' : 'false');
+                localStorage.setItem('username', result.username);
+                localStorage.setItem('email', result.userEmail);
+                localStorage.setItem('userId', result.userId);
+                localStorage.setItem('userNome', result.userNome);
+                localStorage.setItem('userEmail', result.userEmail);
+                localStorage.setItem('empresa_areacliente', result.empresa_areacliente || '');
+                localStorage.setItem('id_tecnico', result.id_tecnico || '');
+                localStorage.setItem('tipoUser', result.tipoUser || '');
+                localStorage.setItem('codFuncionario', result.codFuncionario || '');
+                localStorage.setItem('codRecursosHumanos', result.codRecursosHumanos || '');
+
+                // Atualizar estados como no login normal
+                if (setUsername && typeof setUsername === 'function') {
+                    setUsername(result.username);
+                }
+                if (setEmail && typeof setEmail === 'function') {
+                    setEmail(result.userEmail);
+                }
+                if (setIsAdmin && typeof setIsAdmin === 'function') {
+                    setIsAdmin(result.isAdmin);
+                }
+                if (setIsLoggedIn && typeof setIsLoggedIn === 'function') {
+                    setIsLoggedIn(true);
+                }
+                
+                if (onLoginComplete && typeof onLoginComplete === 'function') {
+                    onLoginComplete();
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                setTimeout(async () => {
+                    try {
+                        const token = localStorage.getItem('loginToken');
+                        console.log('🔍 Token após login facial invisível:', token ? 'encontrado' : 'não encontrado');
+
+                        if (!token) {
+                            console.error('Token não encontrado após login facial');
+                            navigation.navigate('SelecaoEmpresa', { autoLogin: true });
+                            return;
+                        }
+
+                        const { handleAutoCompanySelection } = await import('../utils/autoCompanySelection');
+                        const autoSelectionSuccess = await handleAutoCompanySelection(navigation);
+
+                        if (!autoSelectionSuccess) {
+                            navigation.navigate('SelecaoEmpresa', { autoLogin: true });
+                        }
+                    } catch (error) {
+                        console.error('Erro na seleção automática:', error);
+                        navigation.navigate('SelecaoEmpresa', { autoLogin: true });
+                    }
+                }, 1000);
+            } else {
+                alert(result.message || 'Erro na autenticação facial');
+            }
+        } catch (error) {
+            console.error('Erro no login facial invisível:', error);
+            alert('Erro na autenticação facial. Tente novamente.');
+        } finally {
+            setIsLoading(false);
+            setIsInvisibleScanning(false);
+        }
     };
 
     const handleFacialScanComplete = async (facialData) => {
@@ -252,25 +353,25 @@ const LoginForm = ({
                 )}
             </button>
 
-            {/* Botão de Autenticação Facial */}
+            {/* Botão de Autenticação Facial - Modal */}
             {isCameraAvailable && (
                 <button 
                     type="button"
                     onClick={handleFacialLogin}
-                    disabled={isFacialLoading}
+                    disabled={isFacialLoading || isInvisibleScanning}
                     style={{
                         ...buttonStyle,
                         backgroundColor: "#4CAF50",
                         marginTop: "10px",
-                        opacity: isFacialLoading ? 0.6 : 1,
-                        cursor: isFacialLoading ? "not-allowed" : "pointer",
+                        opacity: (isFacialLoading || isInvisibleScanning) ? 0.6 : 1,
+                        cursor: (isFacialLoading || isInvisibleScanning) ? "not-allowed" : "pointer",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         gap: "10px"
                     }}
                 >
-                    {isFacialLoading ? (
+                    {(isFacialLoading || isInvisibleScanning) ? (
                         "A processar..."
                     ) : (
                         <>
@@ -280,6 +381,44 @@ const LoginForm = ({
                     )}
                 </button>
             )}
+
+            {/* Botão de Autenticação Facial - Invisível */}
+            {isCameraAvailable && (
+                <button 
+                    type="button"
+                    onClick={handleInvisibleFacialLogin}
+                    disabled={isFacialLoading || isInvisibleScanning}
+                    style={{
+                        ...buttonStyle,
+                        backgroundColor: "#FF9800",
+                        marginTop: "10px",
+                        opacity: (isFacialLoading || isInvisibleScanning) ? 0.6 : 1,
+                        cursor: (isFacialLoading || isInvisibleScanning) ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "10px"
+                    }}
+                >
+                    {(isFacialLoading || isInvisibleScanning) ? (
+                        "A processar..."
+                    ) : (
+                        <>
+                            <span>🚀</span>
+                            Login Facial Rápido
+                        </>
+                    )}
+                </button>
+            )}
+
+            {/* Scanner Facial Invisível */}
+            <InvisibleFacialScanner
+                onScanComplete={handleInvisibleFacialScanComplete}
+                isScanning={isInvisibleScanning}
+                onStartScan={() => setIsInvisibleScanning(true)}
+                onStopScan={() => setIsInvisibleScanning(false)}
+                t={t}
+            />
 
             {/* Modal do Scanner Facial */}
             <FacialScannerModal

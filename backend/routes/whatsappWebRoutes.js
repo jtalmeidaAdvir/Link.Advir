@@ -1337,7 +1337,9 @@ async function handleIncomingMessage(message) {
 
     // Verificar se é uma mensagem de localização
     if (message.hasLocation) {
-        console.log(`📍 Localização recebida de ${phoneNumber}: ${message.location.latitude}, ${message.location.longitude}`);
+        console.log(
+            `📍 Localização recebida de ${phoneNumber}: ${message.location.latitude}, ${message.location.longitude}`,
+        );
         // A localização será tratada pelo listener específico em processarRegistoPonto
         return;
     }
@@ -1789,127 +1791,33 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                     `✅ Utilizador encontrado: ${user.nome} (ID: ${contactData.userId})`,
                 );
 
-                // Buscar obras disponíveis para o utilizador
+                // Buscar obras disponíveis do backend local
                 try {
-                    const token = await getAuthToken(
-                        {
-                            username: "AdvirWeb",
-                            password: "Advir2506##",
-                            company: "Advir",
-                            instance: "DEFAULT",
-                            line: "Evolution",
-                        },
-                        "151.80.149.159:2018",
-                    );
+                    const Obra = require("../models/obra");
 
                     console.log(
-                        `🔍 Buscando obras para utilizador ID: ${user.id_tecnico || user.id}`,
+                        `🔍 Buscando obras do backend local para utilizador: ${user.nome}`,
                     );
 
-                    const obrasResponse = await fetch(
-                        `http://151.80.149.159:2018/WebApi/Obras/ListaObras`,
-                        {
-                            method: "GET",
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                                "Content-Type": "application/json",
-                            },
+                    // Buscar obras ativas da base de dados local
+                    const obras = await Obra.findAll({
+                        where: {
+                            estado: 'Ativo'
                         },
-                    );
+                        attributes: ['id', 'codigo', 'nome', 'localizacao'],
+                        order: [['nome', 'ASC']]
+                    });
 
-                    console.log(
-                        `📡 Status da resposta de obras: ${obrasResponse.status}`,
-                    );
+                    console.log(`📋 Encontradas ${obras.length} obras ativas no backend local`);
 
-                    if (obrasResponse.ok) {
-                        const obrasData = await obrasResponse.json();
-                        console.log(`📋 Dados de obras recebidos:`, obrasData);
-
-                        // A API retorna um DataSet com Table contendo as obras
-                        const obras =
-                            obrasData?.DataSet?.Table || obrasData || [];
-
-                        if (!Array.isArray(obras) || obras.length === 0) {
-                            console.log(
-                                `⚠️ Nenhuma obra encontrada para utilizador ${user.nome}`,
-                            );
-
-                            // Continuar sem obra específica
-                            let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
-                            response += `⚠️ *Nota:* Não foram encontradas obras específicas associadas.\n`;
-                            response += `O registo será efetuado sem obra específica.\n\n`;
-                            response += `Escolha o tipo de registo:\n`;
-                            response += `• Digite "1" para ENTRADA\n`;
-                            response += `• Digite "2" para SAÍDA\n\n`;
-                            response += `Digite sua escolha (1 ou 2):`;
-
-                            conversationData.obraId = null;
-                            conversationData.obraNome = "Sem obra específica";
-
-                            const conversation = {
-                                state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
-                                data: conversationData,
-                                lastActivity: Date.now(),
-                            };
-                            activeConversations.set(phoneNumber, conversation);
-                            await client.sendMessage(phoneNumber, response);
-                            return;
-                        }
-
-                        let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
-
-                        if (obras.length === 1) {
-                            // Uma única obra - selecionar automaticamente
-                            conversationData.obraId = obras[0].ID;
-                            conversationData.obraNome = obras[0].Descricao;
-
-                            response += `🏗️ *Obra:* ${obras[0].Descricao}\n\n`;
-                            response += `Escolha o tipo de registo:\n`;
-                            response += `• Digite "1" para ENTRADA\n`;
-                            response += `• Digite "2" para SAÍDA\n\n`;
-                            response += `Digite sua escolha (1 ou 2):`;
-
-                            const conversation = {
-                                state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
-                                data: conversationData,
-                                lastActivity: Date.now(),
-                            };
-                            activeConversations.set(phoneNumber, conversation);
-                        } else {
-                            // Múltiplas obras - pedir para escolher
-                            conversationData.obrasDisponiveis = obras;
-
-                            response += `🏗️ Foram encontradas múltiplas obras. Por favor, escolha digitando o número correspondente:\n\n`;
-
-                            obras.forEach((obra, index) => {
-                                response += `*${index + 1}.* ${obra.Descricao}\n`;
-                                if (obra.Local) {
-                                    response += `   📍 ${obra.Local}\n`;
-                                }
-                                response += `\n`;
-                            });
-
-                            response += `Digite o número da obra pretendida (1-${obras.length}):`;
-
-                            const conversation = {
-                                state: CONVERSATION_STATES.PONTO_WAITING_OBRA,
-                                data: conversationData,
-                                lastActivity: Date.now(),
-                            };
-                            activeConversations.set(phoneNumber, conversation);
-                        }
-
-                        await client.sendMessage(phoneNumber, response);
-                        return;
-                    } else {
-                        // Se API de obras falhar, continuar sem obra específica
-                        const responseText = await obrasResponse.text();
-                        console.error(
-                            `❌ Erro na API de obras: ${obrasResponse.status} - ${responseText}`,
+                    if (!obras || obras.length === 0) {
+                        console.log(
+                            `⚠️ Nenhuma obra ativa encontrada para utilizador ${user.nome}`,
                         );
 
+                        // Continuar sem obra específica
                         let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
-                        response += `⚠️ *Nota:* Não foi possível obter a lista de obras.\n`;
+                        response += `⚠️ *Nota:* Não foram encontradas obras ativas no sistema.\n`;
                         response += `O registo será efetuado sem obra específica.\n\n`;
                         response += `Escolha o tipo de registo:\n`;
                         response += `• Digite "1" para ENTRADA\n`;
@@ -1928,12 +1836,58 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                         await client.sendMessage(phoneNumber, response);
                         return;
                     }
+
+                    let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
+
+                    if (obras.length === 1) {
+                        // Uma única obra - selecionar automaticamente
+                        conversationData.obraId = obras[0].id; // Usar id (inteiro) da base de dados local
+                        conversationData.obraNome = obras[0].nome;
+
+                        response += `🏗️ *Obra:* ${obras[0].codigo} - ${obras[0].nome}\n\n`;
+                        response += `Escolha o tipo de registo:\n`;
+                        response += `• Digite "1" para ENTRADA\n`;
+                        response += `• Digite "2" para SAÍDA\n\n`;
+                        response += `Digite sua escolha (1 ou 2):`;
+
+                        const conversation = {
+                            state: CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION,
+                            data: conversationData,
+                            lastActivity: Date.now(),
+                        };
+                        activeConversations.set(phoneNumber, conversation);
+                    } else {
+                        // Múltiplas obras - pedir para escolher
+                        conversationData.obrasDisponiveis = obras;
+
+                        response += `🏗️ Foram encontradas múltiplas obras. Por favor, escolha digitando o número correspondente:\n\n`;
+
+                        obras.forEach((obra, index) => {
+                            response += `*${index + 1}.* ${obra.codigo} - ${obra.nome}\n`;
+                            if (obra.localizacao) {
+                                response += `   📍 ${obra.localizacao}\n`;
+                            }
+                            response += `\n`;
+                        });
+
+                        response += `Digite o número da obra pretendida (1-${obras.length}):`;
+
+                        const conversation = {
+                            state: CONVERSATION_STATES.PONTO_WAITING_OBRA,
+                            data: conversationData,
+                            lastActivity: Date.now(),
+                        };
+                        activeConversations.set(phoneNumber, conversation);
+                    }
+
+                    await client.sendMessage(phoneNumber, response);
+                    return;
                 } catch (obrasError) {
-                    console.error("❌ Erro ao buscar obras:", obrasError);
+                    console.error("❌ Erro ao buscar obras do backend local:", obrasError);
 
                     // Continuar sem obra específica em caso de erro
                     let response = `✅ *Utilizador identificado:* ${user.nome}\n\n`;
-                    response += `⚠️ *Nota:* Erro ao obter lista de obras.\n`;
+                    response += `⚠️ *Nota:* Erro ao obter lista de obras do sistema.\n`;
                     response += `O registo será efetuado sem obra específica.\n\n`;
                     response += `Escolha o tipo de registo:\n`;
                     response += `• Digite "1" para ENTRADA\n`;
@@ -1997,7 +1951,7 @@ async function handlePontoConfirmationInput(
 
     await client.sendMessage(
         phoneNumber,
-        `✅ Tipo de registo selecionado: **${tipoTexto}**\n\n📍 Agora vou solicitar a sua localização para registar o ponto com precisão.\n\n⏰ Por favor aguarde...`
+        `✅ Tipo de registo selecionado: **${tipoTexto}**\n\n📍 Agora vou solicitar a sua localização para registar o ponto com precisão.\n\n⏰ Por favor aguarde...`,
     );
 
     // Registar o ponto (que agora solicita localização real)
@@ -2022,7 +1976,9 @@ async function processarRegistoPonto(phoneNumber, conversation, tipo) {
         let endereco = "Localização automática";
         let localizacaoObtida = false;
 
-        console.log(`🔍 Tentando obter localização automática para ${phoneNumber}`);
+        console.log(
+            `🔍 Tentando obter localização automática para ${phoneNumber}`,
+        );
 
         // Método 1: Tentar obter localização do perfil do WhatsApp
         try {
@@ -2035,7 +1991,9 @@ async function processarRegistoPonto(phoneNumber, conversation, tipo) {
                     longitude = chat.lastMessage.location.longitude;
                     endereco = "Localização da última mensagem";
                     localizacaoObtida = true;
-                    console.log(`✅ Localização obtida da última mensagem: ${latitude}, ${longitude}`);
+                    console.log(
+                        `✅ Localização obtida da última mensagem: ${latitude}, ${longitude}`,
+                    );
                 }
             }
         } catch (profileError) {
@@ -2046,55 +2004,73 @@ async function processarRegistoPonto(phoneNumber, conversation, tipo) {
         if (!localizacaoObtida) {
             try {
                 // Simular obtenção de localização via IP (em ambiente real, usaria a API do WhatsApp Business)
-                const response = await fetch('http://ip-api.com/json/', {
-                    timeout: 5000
+                const response = await fetch("http://ip-api.com/json/", {
+                    timeout: 5000,
                 });
 
                 if (response.ok) {
                     const geoData = await response.json();
-                    if (geoData.status === 'success') {
+                    if (geoData.status === "success") {
                         latitude = geoData.lat;
                         longitude = geoData.lon;
                         endereco = `${geoData.city}, ${geoData.country}`;
                         localizacaoObtida = true;
-                        console.log(`🌍 Localização obtida por IP: ${endereco} (${latitude}, ${longitude})`);
+                        console.log(
+                            `🌍 Localização obtida por IP: ${endereco} (${latitude}, ${longitude})`,
+                        );
                     }
                 }
             } catch (ipError) {
-                console.log("🌐 Erro ao obter localização por IP:", ipError.message);
+                console.log(
+                    "🌐 Erro ao obter localização por IP:",
+                    ipError.message,
+                );
             }
         }
 
         // Método 3: Se ainda não conseguiu, solicitar localização manual (mais rápido)
         if (!localizacaoObtida) {
             try {
-                await client.sendMessage(phoneNumber, "📍 A solicitar localização atual...");
+                await client.sendMessage(
+                    phoneNumber,
+                    "📍 A solicitar localização atual...",
+                );
 
                 // Aguardar pela localização (timeout reduzido para 15 segundos)
                 const locationPromise = new Promise((resolve, reject) => {
                     const timeout = setTimeout(() => {
-                        reject(new Error("Timeout - usando localização padrão"));
+                        reject(
+                            new Error("Timeout - usando localização padrão"),
+                        );
                     }, 15000);
 
                     // Listener temporário para localização
                     const locationHandler = (message) => {
-                        if (message.from === phoneNumber && message.hasLocation) {
+                        if (
+                            message.from === phoneNumber &&
+                            message.hasLocation
+                        ) {
                             clearTimeout(timeout);
-                            client.removeListener('message', locationHandler);
+                            client.removeListener("message", locationHandler);
                             resolve({
                                 latitude: message.location.latitude,
                                 longitude: message.location.longitude,
-                                description: message.location.description || "Localização partilhada"
+                                description:
+                                    message.location.description ||
+                                    "Localização partilhada",
                             });
                         }
                     };
 
-                    client.on('message', locationHandler);
+                    client.on("message", locationHandler);
 
                     // Auto-request location if WhatsApp Web supports it
                     setTimeout(async () => {
                         try {
-                            await client.sendMessage(phoneNumber, "📲 Por favor, partilhe a sua localização atual para registar o ponto com precisão.");
+                            await client.sendMessage(
+                                phoneNumber,
+                                "📲 Por favor, partilhe a sua localização atual para registar o ponto com precisão.",
+                            );
                         } catch (e) { }
                     }, 2000);
                 });
@@ -2104,10 +2080,13 @@ async function processarRegistoPonto(phoneNumber, conversation, tipo) {
                 longitude = location.longitude;
                 endereco = location.description;
                 localizacaoObtida = true;
-                console.log(`📍 Localização obtida manualmente: ${latitude}, ${longitude} - ${endereco}`);
-
+                console.log(
+                    `📍 Localização obtida manualmente: ${latitude}, ${longitude} - ${endereco}`,
+                );
             } catch (locationError) {
-                console.log(`⚠️ Falhou obtenção manual: ${locationError.message}`);
+                console.log(
+                    `⚠️ Falhou obtenção manual: ${locationError.message}`,
+                );
             }
         }
 
@@ -2115,13 +2094,16 @@ async function processarRegistoPonto(phoneNumber, conversation, tipo) {
         if (!localizacaoObtida && conversation.data.obraId) {
             try {
                 // Buscar coordenadas da obra se disponível
-                const token = await getAuthToken({
-                    username: "AdvirWeb",
-                    password: "Advir2506##",
-                    company: "Advir",
-                    instance: "DEFAULT",
-                    line: "Evolution",
-                }, "151.80.149.159:2018");
+                const token = await getAuthToken(
+                    {
+                        username: "AdvirWeb",
+                        password: "Advir2506##",
+                        company: "Advir",
+                        instance: "DEFAULT",
+                        line: "Evolution",
+                    },
+                    "151.80.149.159:2018",
+                );
 
                 const obraResponse = await fetch(
                     `http://151.80.149.159:2018/WebApi/Obras/ObterObra/${conversation.data.obraId}`,
@@ -2130,7 +2112,7 @@ async function processarRegistoPonto(phoneNumber, conversation, tipo) {
                             Authorization: `Bearer ${token}`,
                             "Content-Type": "application/json",
                         },
-                    }
+                    },
                 );
 
                 if (obraResponse.ok) {
@@ -2140,11 +2122,16 @@ async function processarRegistoPonto(phoneNumber, conversation, tipo) {
                         longitude = obraData.Longitude;
                         endereco = `Localização da obra: ${conversation.data.obraNome}`;
                         localizacaoObtida = true;
-                        console.log(`🏗️ Localização obtida da obra: ${endereco}`);
+                        console.log(
+                            `🏗️ Localização obtida da obra: ${endereco}`,
+                        );
                     }
                 }
             } catch (obraError) {
-                console.log("🏗️ Erro ao obter localização da obra:", obraError.message);
+                console.log(
+                    "🏗️ Erro ao obter localização da obra:",
+                    obraError.message,
+                );
             }
         }
 
@@ -2154,17 +2141,24 @@ async function processarRegistoPonto(phoneNumber, conversation, tipo) {
             console.log("📍 Usando localização padrão de Lisboa");
         }
 
-        console.log(`📍 Localização final: ${endereco} (${latitude}, ${longitude})`);
+        console.log(
+            `📍 Localização final: ${endereco} (${latitude}, ${longitude})`,
+        );
 
         // Informar o utilizador sobre a localização usada
-        const tipoLocalizacao = localizacaoObtida ? "obtida automaticamente" : "padrão";
-        await client.sendMessage(phoneNumber, `📍 Localização ${tipoLocalizacao}: ${endereco}`);
+        const tipoLocalizacao = localizacaoObtida
+            ? "obtida automaticamente"
+            : "padrão";
+        await client.sendMessage(
+            phoneNumber,
+            `📍 Localização ${tipoLocalizacao}: ${endereco}`,
+        );
 
         // Aguardar um pouco para o utilizador ver a mensagem
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        // Usar o controller de registo de ponto existente
-        const registoPontoController = require("../controllers/registoPontoController");
+        // Usar o controller de registo de ponto obra existente
+        const registoPontoObraController = require("../controllers/registoPontoObraControllers");
 
         // Buscar dados do utilizador
         const User = require("../models/user");
@@ -2178,33 +2172,46 @@ async function processarRegistoPonto(phoneNumber, conversation, tipo) {
         const mockReq = {
             user: { id: conversation.data.userId },
             body: {
-                empresa: user.empresaPredefinida || "Advir", // Usar empresa predefinida do user
-                latitude: latitude,
-                longitude: longitude,
-                endereco: endereco,
+                tipo: tipo,
                 obra_id: conversation.data.obraId,
+                latitude: latitude.toString(),
+                longitude: longitude.toString(),
             },
         };
 
-        // Simular response object
+        // Simular response object que captura o resultado
+        let controllerResult = null;
+        let controllerError = null;
         const mockRes = {
             status: (code) => ({
                 json: (data) => {
-                    console.log(`Status: ${code}`, data);
+                    controllerResult = { status: code, data: data };
+                    console.log(`Controller response - Status: ${code}`, data);
                     return data;
                 },
             }),
             json: (data) => {
-                console.log("Response:", data);
+                controllerResult = { status: 200, data: data };
+                console.log("Controller response:", data);
                 return data;
             },
         };
 
-        // Chamar o controller de registo de ponto
-        const result = await registoPontoController.registarPontoComBotao(
-            mockReq,
-            mockRes,
-        );
+        // Chamar o controller de registo de ponto obra
+        try {
+            await registoPontoObraController.registarPonto(mockReq, mockRes);
+
+            // Verificar se o registo foi bem-sucedido
+            if (!controllerResult || (controllerResult.status !== 200 && controllerResult.status !== 201)) {
+                throw new Error('Controller não retornou sucesso');
+            }
+
+            console.log('✅ Ponto registado com sucesso na base de dados:', controllerResult);
+        } catch (controllerErr) {
+            console.error('❌ Erro no controller de registo de ponto:', controllerErr);
+            controllerError = controllerErr;
+            throw new Error(`Erro ao registar na base de dados: ${controllerErr.message}`);
+        }
 
         // Mensagem de sucesso
         const tipoTexto = tipo === "entrada" ? "ENTRADA" : "SAÍDA";
@@ -2265,11 +2272,11 @@ async function handlePontoObraInput(phoneNumber, message, conversation) {
 
     // Obra selecionada
     const obraSelecionada = obras[escolha - 1];
-    conversation.data.obraId = obraSelecionada.ID;
-    conversation.data.obraNome = obraSelecionada.Descricao;
+    conversation.data.obraId = obraSelecionada.id; // Usar id (inteiro) em vez de ID
+    conversation.data.obraNome = obraSelecionada.nome; // Usar nome em vez de Descricao
     conversation.state = CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION;
 
-    const response = `✅ Obra selecionada: *${obraSelecionada.Descricao}*\n\n*Confirmar Registo de Ponto*\nEscolha o tipo de registo:\n• Digite "1" para ENTRADA\n• Digite "2" para SAÍDA\n\nDigite sua escolha (1 ou 2):`;
+    const response = `✅ Obra selecionada: *${obraSelecionada.codigo} - ${obraSelecionada.nome}*\n\n*Confirmar Registo de Ponto*\nEscolha o tipo de registo:\n• Digite "1" para ENTRADA\n• Digite "2" para SAÍDA\n\nDigite sua escolha (1 ou 2):`;
 
     await client.sendMessage(phoneNumber, response);
 
