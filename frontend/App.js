@@ -254,6 +254,7 @@ const CustomDrawerContent = ({
 // Define a ordem que queres para os submódulos de Obras
 const obrasSubmodulesOrder = [
   "Ponto",          // RegistoPontoObra
+  "PontoFacial",    // RegistoPontoFacial
   "Agenda",         // Calendário
   "Obras",         // Obras
   "Escritório",     // Escritório
@@ -261,11 +262,9 @@ const obrasSubmodulesOrder = [
   "PartesDiarias",   // Partes Diárias
   "GestaoPontos",   // GestaoPontos
   "GestaoFaltas",   // GestaoFaltas
-  "PartesDiarias",   // PartesDiarias
   "GestaoExternos", // GestaoTrabalhadoresExternos
   "GestaoPartes",   // GestaoPartesDiarias
-    "MapaRegistos"    // MapaRegistos
-
+  "MapaRegistos"    // MapaRegistos
 ];
 
 
@@ -294,6 +293,7 @@ const obrasSubmodulesOrder = [
             GestaoExternos: "user-plus",
             GestaoPartes: "clipboard",
             Ponto: "map-marker",
+            PontoFacial: "user-secret",
             MapaRegistos: "map",
             QrCode: "qrcode",
             Botao: "clock-o",
@@ -677,7 +677,7 @@ const obrasSubmodulesOrder = [
                                                         GestaoPartes:
                                                             "GestaoPartesDiarias",
                                                         Ponto: "RegistoPontoObra",
-                                                        Ponto: "RegistoPontoFacial",
+                                                        PontoFacial: "RegistoPontoFacial",
                                                         MapaRegistos:
                                                             "MapaRegistos",
                                                         QrCode: "LeitorQRCode",
@@ -718,6 +718,12 @@ const obrasSubmodulesOrder = [
                                                         return null;
                                                     }
 
+                                                    // PontoFacial só aparece se o utilizador tiver o submódulo específico
+                                                    if (submodulo.nome === "PontoFacial") {
+                                                        // O submódulo já está filtrado pelo backend baseado nas permissões do utilizador
+                                                        // Se chegou aqui, o utilizador tem acesso
+                                                    }
+
                                                     // Trabalhadores têm acesso APENAS aos submódulos Ponto e Agenda
                                                     if (tipoUser === "Trabalhador") {
                                                         if (!(submodulo.nome === "Ponto" || submodulo.nome === "Agenda")) {
@@ -751,7 +757,8 @@ const obrasSubmodulesOrder = [
 
                                                     const displayName =
                                                         {
-                                                            
+                                                            PontoFacial:
+                                                                "Ponto Facial",
                                                             PartesDiarias:
                                                                 "Partes Diárias",
                                                             GestaoFaltas:
@@ -1296,7 +1303,7 @@ const AppNavigator = () => {
                 if (localStorage.getItem("superAdmin") === "true") {
                     setInitialRoute("ADHome");
                 } else if (tipoUser && empresa) {
-                    // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra
+                    // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra (padrão)
                     setInitialRoute("RegistoPontoObra");
                 } else if (empresa) {
                     setInitialRoute("Home");
@@ -1446,7 +1453,7 @@ const AppNavigator = () => {
                                         letterSpacing: 0.5,
                                     }}
                                 >
-                                    
+
                                 </Text>
                             </View>
                         ),
@@ -2155,7 +2162,7 @@ const styles = StyleSheet.create({
             alignItems: "center",
             borderRadius: 16,            
             shadowOpacity: 0.08,
-            
+
             shadowRadius: 8,
             justifyContent: "space-between",
             paddingVertical: 16,

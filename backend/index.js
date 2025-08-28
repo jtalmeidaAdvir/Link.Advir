@@ -23,6 +23,7 @@ const biometricRoutes = require('./routes/biometricRoutes');
 const trabalhadoresExternosRoutes = require('./routes/trabalhadoresExternosRoutes');
 const mapaRegistosRoutes = require('./routes/mapaRegistosRoutes');
 const contactRoutes = require('./routes/contactRoutes');
+const posRoutes = require('./routes/posRoutes');
 
 
 const fileUpload = require('express-fileupload');
@@ -138,6 +139,7 @@ app.use('/api', notificacaoRoutes);
 app.use('/api/parte-diaria', parteRoutes);
 app.use('/api/whatsapp-web', whatsappWebRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/pos', posRoutes);
 
 app.use('/api/trabalhadores-externos', trabalhadoresExternosRoutes);
 

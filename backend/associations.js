@@ -20,6 +20,7 @@ const Notificacao = require('./models/notificacao');
 const ParteDiariaCabecalho = require('./models/parteDiariaCabecalho');
 const ParteDiariaItem = require('./models/parteDiariaItem');
 const AnexoPedido = require('./models/anexoPedido');
+const POS = require('./models/pos');
 
 // Nota: Contact e Schedule são tabelas independentes para o WhatsApp Web
 // sem relações diretas com outras tabelas
@@ -96,6 +97,18 @@ ParteDiariaItem.belongsTo(ParteDiariaCabecalho, { foreignKey: 'DocumentoID' });
 User.hasMany(BiometricCredential, { foreignKey: 'userId' });
 BiometricCredential.belongsTo(User, { foreignKey: 'userId' });
 
+// Associações RegistoPontoObra
+RegistoPontoObra.belongsTo(User, { foreignKey: 'user_id' });
+RegistoPontoObra.belongsTo(Obra, { foreignKey: 'obra_id' });
+User.hasMany(RegistoPontoObra, { foreignKey: 'user_id' });
+Obra.hasMany(RegistoPontoObra, { foreignKey: 'obra_id' });
+
+// Associações POS
+POS.belongsTo(Obra, { foreignKey: 'obra_predefinida_id', as: 'ObraPredefinida' });
+POS.belongsTo(Empresa, { foreignKey: 'empresa_id' });
+Obra.hasMany(POS, { foreignKey: 'obra_predefinida_id' });
+Empresa.hasMany(POS, { foreignKey: 'empresa_id' });
+
 // Exportar os modelos para que as associações sejam aplicadas
 module.exports = {
     User,
@@ -120,4 +133,5 @@ module.exports = {
     ParteDiariaItem,
     AnexoPedido,
     BiometricCredential,
+    POS
 };

@@ -98,7 +98,13 @@ useEffect(() => {
         setIsLoading(true);
 
         try {
-            if (hasBiometric) {
+            // Verificar se é login POS (emails que contenham "pos" ou terminam com "@pos.local")
+            const isPOSLogin = email.toLowerCase().includes('pos') || email.toLowerCase().endsWith('@pos.local');
+            
+            if (isPOSLogin) {
+                // Login POS
+                await handlePOSLogin();
+            } else if (hasBiometric) {
                 // Login com biometria
                 const result = await authenticateWithBiometric(email);
 
@@ -118,6 +124,64 @@ useEffect(() => {
             }
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handlePOSLogin = async () => {
+        try {
+            const response = await fetch('https://backend.advir.pt/api/pos/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email,
+                    password,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                // Guardar dados no localStorage
+                localStorage.setItem('loginToken', result.token);
+                localStorage.setItem('isPOS', 'true');
+                localStorage.setItem('posId', result.posId);
+                localStorage.setItem('posNome', result.posNome);
+                localStorage.setItem('posCodigo', result.posCodigo);
+                localStorage.setItem('email', result.email);
+                localStorage.setItem('empresa_id', result.empresa_id);
+                localStorage.setItem('empresa_areacliente', result.empresa_areacliente);
+                localStorage.setItem('obra_predefinida_id', result.obra_predefinida_id);
+                localStorage.setItem('obra_predefinida_nome', result.obra_predefinida_nome);
+
+                // Atualizar estados
+                if (setEmail && typeof setEmail === 'function') {
+                    setEmail(result.email);
+                }
+                if (setIsLoggedIn && typeof setIsLoggedIn === 'function') {
+                    setIsLoggedIn(true);
+                }
+                
+                if (onLoginComplete && typeof onLoginComplete === 'function') {
+                    onLoginComplete();
+                }
+
+                // Navegar diretamente para a página de ponto facial
+                setTimeout(() => {
+                    if (navigation && navigation.navigate) {
+                        navigation.navigate('RegistoPontoFacial');
+                    } else {
+                        // Para web, usar window.location
+                        window.location.href = '/registo-ponto-facial';
+                    }
+                }, 500);
+            } else {
+                alert(result.message || 'Erro no login do POS');
+            }
+        } catch (error) {
+            console.error('Erro no login POS:', error);
+            alert('Erro na conexão. Tente novamente.');
         }
     };
 
