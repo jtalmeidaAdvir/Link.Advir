@@ -6,9 +6,9 @@ const { Op } = require('sequelize');
 
 const registarPonto = async (req, res) => {
   try {
-    // Se targetUserId for fornecido (reconhecimento facial), usar esse ID
+    // Se for fornecido targetUserId (para registo biométrico), usar esse; caso contrário, usar o utilizador logado
     const userId = req.body.targetUserId || req.user.id;
-    const { tipo, obra_id, latitude, longitude, biometricData, biometricType, empresa } = req.body;
+    const { tipo, obra_id, latitude, longitude } = req.body;
 
     const novoRegisto = await RegistoPontoObra.create({
       user_id: userId,
@@ -19,22 +19,7 @@ const registarPonto = async (req, res) => {
       longitude
     });
 
-    // Buscar informações da obra e do utilizador para a resposta
-    const obra = await Obra.findByPk(obra_id, {
-      attributes: ['id', 'nome']
-    });
-
-    const user = await User.findByPk(userId, {
-      attributes: ['id', 'nome', 'email']
-    });
-
-    const response = {
-      ...novoRegisto.toJSON(),
-      Obra: obra ? { nome: obra.nome } : null,
-      User: user ? { nome: user.nome } : null
-    };
-
-    res.status(201).json(response);
+    res.status(201).json(novoRegisto);
   } catch (error) {
     console.error('Erro ao registar ponto:', error);
     res.status(500).json({ message: 'Erro interno ao registar ponto.' });
