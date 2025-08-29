@@ -138,6 +138,7 @@ const CustomDrawerContent = ({
     hasRegistarUtilizadorModule,
     hasRegistoPontoAdminModule,
     hasPedidosAlteracaoAdminModule,
+    isPOS, // Recebe a prop isPOS
     ...props
 }) => {
     const [expandedModules, setExpandedModules] = useState({ Geral: true, Administrador: false });
@@ -158,7 +159,7 @@ const CustomDrawerContent = ({
         }, 500);
     };
 
-    // Se for superAdmin, mostra apenas opções específicas
+    // Se for superAdmin ou POS, mostra apenas opções específicas
     if (isSuperAdmin) {
         return (
             <View style={drawerStyles.container}>
@@ -242,6 +243,61 @@ const CustomDrawerContent = ({
             </View>
         );
     }
+
+    // Se for POS, retorna um drawer content mais restrito
+    if (isPOS) {
+        return (
+            <View style={drawerStyles.container}>
+                <View style={drawerStyles.header}>
+                    <View style={drawerStyles.logoContainer}>
+                        <Image source={logo} style={drawerStyles.logo} />
+                        <Text style={drawerStyles.appName}>AdvirLink</Text>
+                    </View>
+                    <Text style={drawerStyles.userRole}>POS</Text>
+                </View>
+                <DrawerContentScrollView
+                    {...props}
+                    contentContainerStyle={{ flexGrow: 1, paddingTop: 0 }}
+                >
+                    <DrawerItem
+                        label="Registo Ponto Facial"
+                        onPress={() => props.navigation.navigate("RegistoPontoFacial")}
+                        icon={() => (
+                            <FontAwesome
+                                name="user-secret" // Ícone para reconhecimento facial
+                                size={18}
+                                color="#1792FE"
+                            />
+                        )}
+                        labelStyle={drawerStyles.menuItemLabel}
+                        style={drawerStyles.menuItem}
+                    />
+                    <View style={drawerStyles.bottomSection}>
+                        <DrawerItem
+                            label="Sair"
+                            onPress={handleLogout}
+                            icon={() => (
+                                <FontAwesome
+                                    name="sign-out"
+                                    size={18}
+                                    color="#4A9EFF"
+                                />
+                            )}
+                            labelStyle={[
+                                drawerStyles.menuItemLabel,
+                                { color: "#4A9EFF" },
+                            ]}
+                            style={[
+                                drawerStyles.menuItem,
+                                drawerStyles.logoutItem,
+                            ]}
+                        />
+                    </View>
+                </DrawerContentScrollView>
+            </View>
+        );
+    }
+
 
     const moduleDisplayNames = {
   Obras: "Ponto",
@@ -431,6 +487,11 @@ const obrasSubmodulesOrder = [
                             const hasVisibleSubmodules =
                                 module.submodulos &&
                                 module.submodulos.length > 0;
+
+                            // Não renderiza o módulo "Administrador" diretamente aqui, pois ele é tratado separadamente
+                            if (module.nome === "Administrador") {
+                                return null;
+                            }
 
                             if (
                                 !hasVisibleSubmodules &&
@@ -1104,6 +1165,7 @@ const AppNavigator = () => {
     const [initialRoute, setInitialRoute] = useState("Login"); // Define a rota inicial com Login por padrão
     const [tipoUser, setTipoUser] = useState("");
     const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+    const [isPOS, setIsPOS] = useState(false); // Estado para verificar se é POS
 
     // Filtros para submódulos do módulo Administrador
     const hasContratosAtivosModule = modules.some(
@@ -1176,18 +1238,30 @@ const AppNavigator = () => {
 
         // Verificar se o token existe e é válido
         if (token && isTokenValid(token)) {
-            setIsLoggedIn(true);
-            setIsSuperAdmin(localStorage.getItem("superAdmin") === "true");
-            setIsAdmin(localStorage.getItem("isAdmin") === "true");
-            setUsername(localStorage.getItem("username") || "");
-            setUserNome(localStorage.getItem("userNome") || "");
-            setEmpresa(empresaLs || "");
+            const adminStatus = localStorage.getItem("isAdmin") === "true";
+            const superAdminStatus = localStorage.getItem("isSuperAdmin") === "true";
+            const userUsername = localStorage.getItem("username");
+            const userModules = JSON.parse(localStorage.getItem("userModules") || "[]");
+            const posStatus = localStorage.getItem("isPOS") === "true"; // Verifica se é POS
+            const userNomeFromStorage = localStorage.getItem("userNome");
+            const empresaFromStorage = localStorage.getItem("empresaSelecionada") || localStorage.getItem("empresa_areacliente");
+
+            setIsLoggedIn(!!token);
+            setIsAdmin(adminStatus);
+            setIsSuperAdmin(superAdminStatus);
+            setUsername(userUsername || "");
+            setUserNome(userNomeFromStorage || "");
+            setEmpresa(empresaFromStorage || "");
+            setModules(userModules);
             setTipoUser(tipoUserLs || "");
+            setIsPOS(posStatus); // Define o estado isPOS
 
             await fetchUserModules();
 
             // Definir a rota inicial baseada no estado
-            if (localStorage.getItem("superAdmin") === "true") {
+            if (posStatus) { // Se for POS, a rota inicial é RegistoPontoFacial
+                setInitialRoute("RegistoPontoFacial");
+            } else if (superAdminStatus) {
                 setInitialRoute("ADHome");
             } else if (tipoUserLs && empresaLs) {
                 // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra (padrão)
@@ -1321,6 +1395,9 @@ const AppNavigator = () => {
         );
     }
 
+    // Determina se o drawer deve ser habilitado
+    const enableDrawer = !isPOS;
+
     return (
         <ThemeProvider>
             <TokenManager>
@@ -1331,7 +1408,8 @@ const AppNavigator = () => {
                         isLoggedIn +
                         isAdmin +
                         isSuperAdmin +
-                        modules
+                        modules +
+                        isPOS // Inclui isPOS na chave para re-renderizar quando o tipo muda
                     } // Adiciona uma chave única para forçar a atualização do Drawer
                     initialRouteName={initialRoute}
                     drawerContent={(props) => (
@@ -1359,13 +1437,14 @@ const AppNavigator = () => {
                             hasPedidosAlteracaoAdminModule={
                                 hasPedidosAlteracaoAdminModule
                             }
+                            isPOS={isPOS} // Passa o estado isPOS para o CustomDrawerContent
                         />
                     )}
                     screenOptions={({ navigation }) => ({
                         headerStyle: {
                             backgroundColor: "#FFFFFF",
                             elevation: 8,
-                            shadowColor: "#E5E7EB",
+                            shadowColor: "#E57EB",
                             shadowOffset: { width: 0, height: 4 },
                             shadowOpacity: 0.1,
                             shadowRadius: 12,
@@ -1657,6 +1736,14 @@ const AppNavigator = () => {
                             </View>
                         ),
                     })}
+                    // Desabilita o drawer se for POS
+                    screenListeners={({ route }) => ({
+                        drawerActive: (e) => {
+                            if (isPOS && route.name !== "RegistoPontoFacial") {
+                                e.preventDefault(); // Impede a abertura do drawer para rotas que não sejam RegistoPontoFacial
+                            }
+                        },
+                    })}
                 >
                     <Drawer.Screen name="Login">
                         {(props) => (
@@ -1666,6 +1753,7 @@ const AppNavigator = () => {
                                 setIsAdmin={setIsAdmin}
                                 setUsername={setUsername}
                                 setUserNome={setUserNome}
+                                setIsPOS={setIsPOS} // Passa setIsPOS para o Login
                                 onLoginComplete={fetchUserData}
                             />
                         )}
@@ -2175,7 +2263,7 @@ const profileMenuStyles = StyleSheet.create({
         zIndex: 1000,
         marginTop: 12,
         borderWidth: 1,
-        borderColor: "#E5E7EB",
+        borderColor: "#E57EB",
         overflow: "hidden",
     },
     menuItem: {

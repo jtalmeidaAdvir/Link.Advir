@@ -1,8 +1,6 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import * as faceapi from 'face-api.js';
 import { createPortal } from 'react-dom';
-
 
 const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onStopScan, t }) => {
     const [scanProgress, setScanProgress] = useState(0);
@@ -12,435 +10,264 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
-
-
+    const scanIntervalRef = useRef(null);
     const noFaceTimeoutRef = useRef(null);
 
-  const clearNoFaceTimeout = () => {
-    if (noFaceTimeoutRef.current) {
-      clearTimeout(noFaceTimeoutRef.current);
-      noFaceTimeoutRef.current = null;
-    }
-  };
-  const startNoFaceTimeoutOnce = (ms = 10000) => {
-    // não reinicia se já existir — conta 10s acumulados desde o arranque
-    if (noFaceTimeoutRef.current) return;
-    noFaceTimeoutRef.current = setTimeout(() => {
-      setStatusMessage('Nenhuma face detetada em 10s. A fechar...');
-      setScanProgress(0);
-      // fecha/cancela o scan
-      if (onStopScan) onStopScan();
-    }, ms);
-  };
-
-
-  // HUD minimalista no topo (estilo Android)
-const FaceHUD = ({ progress = 0, onCancel }) => {
-  if (typeof document === 'undefined') return null; // SSR safe
-  return createPortal(
-    <>
-      <style>{`
-        .hud-wrap{position:fixed; top:calc(env(safe-area-inset-top, 0px) + 8px); left:50%; transform:translateX(-50%); z-index:2147483647;}
-        .hud-badge{
-          width:44px; height:44px; border-radius:9999px;
-          background:rgba(0,0,0,.65); backdrop-filter:blur(6px);
-          display:flex; align-items:center; justify-content:center;
-          box-shadow:0 2px 12px rgba(0,0,0,.3); position:relative; cursor:pointer;
+    const clearNoFaceTimeout = () => {
+        if (noFaceTimeoutRef.current) {
+            clearTimeout(noFaceTimeoutRef.current);
+            noFaceTimeoutRef.current = null;
         }
-        .hud-face{font-size:22px; line-height:1; animation:pulse 1.2s ease-in-out infinite}
-        .hud-ring{
-          position:absolute; inset:-3px; border-radius:inherit;
-          background: conic-gradient(#1792FE ${(progress || 0) * 3.6}deg, rgba(255,255,255,.2) ${(progress || 0) * 3.6}deg);
-          mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
-          -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
-          animation: spin 1s linear infinite;
+    };
+
+    const startNoFaceTimeout = () => {
+        clearNoFaceTimeout();
+        noFaceTimeoutRef.current = setTimeout(() => {
+            setStatusMessage('Tempo esgotado. Nenhuma face detectada.');
+            setScanProgress(0);
+            if (onStopScan) onStopScan();
+        }, 8000); // Reduzido para 8 segundos
+    };
+
+    // HUD minimalista
+    const FaceHUD = ({ progress = 0, onCancel }) => {
+        if (typeof document === 'undefined') return null;
+        return createPortal(
+            <>
+                <style>{`
+                    .hud-wrap{position:fixed; top:calc(env(safe-area-inset-top, 0px) + 8px); left:50%; transform:translateX(-50%); z-index:2147483647;}
+                    .hud-badge{
+                        width:44px; height:44px; border-radius:9999px;
+                        background:rgba(0,0,0,.65); backdrop-filter:blur(6px);
+                        display:flex; align-items:center; justify-content:center;
+                        box-shadow:0 2px 12px rgba(0,0,0,.3); position:relative; cursor:pointer;
+                    }
+                    .hud-face{font-size:22px; line-height:1; animation:pulse 1.2s ease-in-out infinite}
+                    .hud-ring{
+                        position:absolute; inset:-3px; border-radius:inherit;
+                        background: conic-gradient(#1792FE ${(progress || 0) * 3.6}deg, rgba(255,255,255,.2) ${(progress || 0) * 3.6}deg);
+                        mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+                        -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+                        animation: spin 1s linear infinite;
+                    }
+                    @keyframes spin { to { transform: rotate(360deg); } }
+                    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+                    @media (prefers-reduced-motion: reduce){ .hud-face, .hud-ring{ animation:none } }
+                `}</style>
+                <div className="hud-wrap" role="status" aria-live="polite" aria-busy="true">
+                    <div className="hud-badge" title="Cancelar" onClick={onCancel}>
+                        <div className="hud-ring" />
+                        <div className="hud-face" aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor"/>
+                                <circle cx="9"  cy="10" r="1" fill="currentColor"/>
+                                <circle cx="15" cy="10" r="1" fill="currentColor"/>
+                                <line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" strokeLinecap="round"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </>,
+            document.body
+        );
+    };
+
+    useEffect(() => {
+        if (isScanning) {
+            setScanProgress(0);
+            setStatusMessage('Iniciando reconhecimento facial...');
+            initializeFaceAPI();
+        } else {
+            cleanup();
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
-        @media (prefers-reduced-motion: reduce){ .hud-face, .hud-ring{ animation:none } }
-      `}</style>
-      <div className="hud-wrap" role="status" aria-live="polite" aria-busy="true">
-        <div className="hud-badge" title="Cancelar" onClick={onCancel}>
-          <div className="hud-ring" />
-          <div className="hud-face" aria-hidden="true">
-  <svg width="20" height="20" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor"/>
-    <circle cx="9"  cy="10" r="1" fill="currentColor"/>
-    <circle cx="15" cy="10" r="1" fill="currentColor"/>
-    <line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" stroke-linecap="round"/>
-  </svg>
-</div>
+        return cleanup;
+    }, [isScanning]);
 
+    useEffect(() => {
+        if (isScanning && modelsLoaded && cameraReady) {
+            startFastScan();
+        }
+    }, [isScanning, modelsLoaded, cameraReady]);
 
-        </div>
-      </div>
-    </>,
-    document.body
-  );
-};
-
-
-
- // 1) Repor o efeito que arranca/paralisa o scanner
- useEffect(() => {
-   if (isScanning) {
-     setScanProgress(0);
-     setStatusMessage('Iniciando sistema de reconhecimento facial...');
-     initializeFaceAPI();
-   } else {
-    clearNoFaceTimeout();
-     stopCamera();
-     setStatusMessage('');
-     setScanProgress(0);
-     setCameraReady(false);
-     setModelsLoaded(false);
-   }
-   return () => {
-    clearNoFaceTimeout();
-     stopCamera();
-   };
- }, [isScanning]);
-
-// Já tinhas este efeito (ok manter):
-useEffect(() => {
-  if (isScanning && modelsLoaded && cameraReady) {
-    startScan();
-  }
-}, [isScanning, modelsLoaded, cameraReady]);
-
+    const cleanup = () => {
+        clearNoFaceTimeout();
+        if (scanIntervalRef.current) {
+            clearInterval(scanIntervalRef.current);
+            scanIntervalRef.current = null;
+        }
+        stopCamera();
+        setStatusMessage('');
+        setScanProgress(0);
+        setCameraReady(false);
+        setModelsLoaded(false);
+    };
 
     const initializeFaceAPI = async () => {
-        const timeout = setTimeout(() => {
-            setStatusMessage('Carregamento está demorando... Verifique sua conexão.');
-        }, 10000);
-
         try {
-            setStatusMessage('Carregando modelos de detecção facial...');
-            setScanProgress(10);
+            setStatusMessage('Carregando sistema...');
+            setScanProgress(20);
 
             const CDN_MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
 
-            // Carregar modelos com progress feedback
-            await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_MODEL_URL);
-            setScanProgress(25);
-            setStatusMessage('Carregando detector facial...');
+            // Carregar apenas modelos essenciais em paralelo
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri(CDN_MODEL_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(CDN_MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(CDN_MODEL_URL)
+            ]);
 
-            await faceapi.nets.faceLandmark68Net.loadFromUri(CDN_MODEL_URL);
-            setScanProgress(40);
-            setStatusMessage('Carregando detector de pontos faciais...');
-
-            await faceapi.nets.faceRecognitionNet.loadFromUri(CDN_MODEL_URL);
-            setScanProgress(55);
-            setStatusMessage('Carregando reconhecimento facial...');
-
-            clearTimeout(timeout);
+            setScanProgress(60);
             setModelsLoaded(true);
-            setScanProgress(70);
-            setStatusMessage('Modelos carregados! Iniciando câmera...');
+            setStatusMessage('Iniciando câmera...');
             await startCamera();
 
         } catch (error) {
-            clearTimeout(timeout);
-            console.error('Erro ao carregar modelos face-api.js:', error);
-            setStatusMessage('Erro ao carregar modelos. Tentando modo básico...');
-            setScanProgress(20);
-            
-            try {
-                await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_MODEL_URL);
-                setScanProgress(50);
-                setModelsLoaded(true);
-                setStatusMessage('Modo básico carregado! Iniciando câmera...');
-                await startCamera();
-                
-            } catch (fallbackError) {
-                console.error('Erro no fallback:', fallbackError);
-                setStatusMessage('Falha no carregamento. Clique para tentar novamente.');
-                setScanProgress(0);
-                setTimeout(() => {
-                    if (onStopScan) onStopScan();
-                }, 3000);
-            }
+            console.error('Erro ao carregar modelos:', error);
+            setStatusMessage('Erro no carregamento. Tente novamente.');
+            setTimeout(() => { if (onStopScan) onStopScan(); }, 2000);
         }
     };
 
-  const startCamera = async () => {
-  try {
-    setScanProgress(75);
-    setStatusMessage('Solicitando acesso à câmera...');
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
-    });
-
-    const videoEl = videoRef.current;
-    if (!videoEl) return;
-
-    // Limpar handlers antigos
-    videoEl.onloadedmetadata = null;
-
-    const handleReady = () => {
-      // Evita múltiplas execuções
-      if (cameraReady) return;
-      console.log('loadedmetadata/canplay ->', videoEl.videoWidth, 'x', videoEl.videoHeight);
-      setCameraReady(true);
-      setScanProgress(90);
-      setStatusMessage('Sistema pronto! Iniciando detecção facial...');
-    };
-
-    // 1) Anexar listeners ANTES do srcObject
-    videoEl.addEventListener('loadedmetadata', handleReady, { once: true });
-    videoEl.addEventListener('canplay', handleReady, { once: true });
-
-    videoEl.srcObject = stream;
-    streamRef.current = stream;
-
-    try { await videoEl.play(); } catch (e) { console.warn('play() falhou:', e); }
-
-    setScanProgress(85);
-    setStatusMessage('Câmera conectada. Preparando scan...');
-
-    // 2) Fallback imediato: se já houver dimensões, marca pronto
-    if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
-      handleReady();
-    } else {
-      // 3) Fallback por timeout (caso os eventos se percam)
-      setTimeout(() => {
-        if (!cameraReady && videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
-          handleReady();
-        } else if (!cameraReady) {
-          setStatusMessage('Não consegui inicializar a câmera. Tente novamente.');
-          if (onStopScan) onStopScan();
-        }
-      }, 1500);
-    }
-  } catch (error) {
-    console.error('Erro ao acessar câmera:', error);
-    setCameraReady(false);
-    setScanProgress(0);
-    setStatusMessage('Erro: Câmera não disponível ou sem permissão.');
-    setTimeout(() => { if (onStopScan) onStopScan(); }, 3000);
-  }
-};
-
-
-   const stopCamera = () => {
-    clearNoFaceTimeout();
-  const videoEl = videoRef.current;
-  if (videoEl) {
-    videoEl.pause();
-    videoEl.removeAttribute('src'); // para Safari
-    videoEl.srcObject = null;
-    videoEl.onloadedmetadata = null;
-    videoEl.removeEventListener('canplay', () => {});
-  }
-  if (streamRef.current) {
-    streamRef.current.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
-  }
-  setCameraReady(false);
-};
-
-
-    const startScan = async () => {
-        console.log('startScan chamado - cameraReady:', cameraReady, 'modelsLoaded:', modelsLoaded);
-        if (!isScanning) return; // se o utilizador cancelou mean-time
-     
-        const video = videoRef.current;
-        if (!video || !video.videoWidth || !video.videoHeight) {
-            console.log('Video não está pronto:', video ? `${video.videoWidth}x${video.videoHeight}` : 'null');
-            setStatusMessage('Aguardando inicialização da câmera...');
-            setTimeout(startScan, 500);
-            return;
-        }
-
-        console.log('Iniciando detecção facial...');
-        setScanProgress(95);
-        setStatusMessage('Posicione-se em frente à câmera e aguarde...');
-        startNoFaceTimeoutOnce(10000);
-
-        // Adicionar timeout para evitar bloqueios
-        const scanTimeout = setTimeout(() => {
-            console.log('Timeout na detecção inicial');
-            setStatusMessage('Tempo esgotado. Clique para tentar novamente.');
-            setScanProgress(0);
-            if (onStopScan) onStopScan();
-        }, 10000); // 10 segundos timeout
-
-        let detections;
+    const startCamera = async () => {
         try {
-            console.log('Tentando detecção facial completa...');
-            detections = await faceapi
-                .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-                .withFaceLandmarks()
-                .withFaceDescriptors();
-        } catch (error) {
-            console.log('Erro na detecção completa, tentando com landmarks:', error);
-            try {
-                detections = await faceapi
-                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-                    .withFaceLandmarks();
-            } catch (landmarkError) {
-                console.log('Erro com landmarks, tentando detecção básica:', landmarkError);
-                try {
-                    detections = await faceapi
-                        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
-                } catch (basicError) {
-                    console.error('Erro em todas as tentativas de detecção:', basicError);
-                    clearTimeout(scanTimeout);
-                    setStatusMessage('Erro na detecção facial. Clique para tentar novamente.');
-                    setScanProgress(0);
-                    if (onStopScan) onStopScan();
-                    return;
+            setScanProgress(70);
+            setStatusMessage('Conectando câmera...');
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    width: { ideal: 480 }, // Reduzida para melhor performance
+                    height: { ideal: 360 }, 
+                    facingMode: 'user' 
                 }
-            }
+            });
+
+            const videoEl = videoRef.current;
+            if (!videoEl) return;
+
+            const handleReady = () => {
+                if (cameraReady) return;
+                setCameraReady(true);
+                setScanProgress(90);
+                setStatusMessage('Sistema pronto!');
+            };
+
+            videoEl.addEventListener('loadedmetadata', handleReady, { once: true });
+            videoEl.srcObject = stream;
+            streamRef.current = stream;
+
+            await videoEl.play();
+            setScanProgress(85);
+
+            // Fallback rápido
+            setTimeout(() => {
+                if (!cameraReady && videoEl.videoWidth > 0) {
+                    handleReady();
+                }
+            }, 500);
+
+        } catch (error) {
+            console.error('Erro na câmera:', error);
+            setStatusMessage('Erro: Câmera indisponível.');
+            setTimeout(() => { if (onStopScan) onStopScan(); }, 2000);
         }
-        
-        clearTimeout(scanTimeout); // Limpar timeout se chegou até aqui
-        console.log('Detecções encontradas:', detections.length);
+    };
 
-        if (detections.length === 0) {
-            console.log('Nenhuma face detectada');
-            setStatusMessage('Face não detectada. Posicione-se em frente à câmera.');
-            setTimeout(startScan, 1500);
-            return;
+    const stopCamera = () => {
+        const videoEl = videoRef.current;
+        if (videoEl) {
+            videoEl.pause();
+            videoEl.srcObject = null;
         }
-        clearNoFaceTimeout(); // Limpar timeout de "nenhuma face" se uma face foi detectada
-        if (detections.length > 1) {
-            console.log('Múltiplas faces detectadas:', detections.length);
-            setStatusMessage('Múltiplas faces detectadas. Apenas uma pessoa permitida.');
-            setTimeout(startScan, 1500);
-            return;
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(t => t.stop());
+            streamRef.current = null;
         }
+        setCameraReady(false);
+    };
 
-        const detection = detections[0];
-        const confidence = detection.detection.score;
-        const qualityScore = calculateFaceQuality(detection, video);
-
-        console.log('Detecção inicial - Confiança:', confidence, 'Qualidade:', qualityScore);
-
-        if (confidence < 0.5 || qualityScore < 0.3) { // Reduzir requisitos iniciais
-            setStatusMessage(`Qualidade insuficiente (${Math.round(confidence * 100)}%). Ajuste seu posicionamento.`);
-            setTimeout(startScan, 1500);
-            return;
-        }
-
-        setStatusMessage('Face detectada! Iniciando captura biométrica...');
+    const startFastScan = async () => {
+        console.log('Iniciando scan rápido...');
+        setScanProgress(95);
+        setStatusMessage('Procurando face...');
+        startNoFaceTimeout();
 
         const scans = [];
-        const totalScans = 8;
+        const maxScans = 5; // Reduzido de 8 para 5
         let currentScan = 0;
-        let failedScans = 0;
+        let consecutiveFailures = 0;
 
-        const interval = setInterval(async () => {
-            let scanDetection;
-            try {
-                scanDetection = await faceapi
-                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-                    .withFaceLandmarks()
-                    .withFaceDescriptors();
-            } catch (error) {
-                try {
-                    scanDetection = await faceapi
-                        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-                        .withFaceLandmarks();
-                } catch (landmarkError) {
-                    scanDetection = await faceapi
-                        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
-                }
-            }
-
-            if (scanDetection.length > 0) {
-                const currentDetection = scanDetection[0];
-                const currentConfidence = currentDetection.detection.score;
-                const currentQuality = calculateFaceQuality(currentDetection, video);
-
-                if (currentConfidence > 0.6 && currentQuality > 0.4) {
-                    scans.push({
-                        confidence: currentConfidence,
-                        qualityScore: currentQuality,
-                        landmarks: currentDetection.landmarks,
-                        descriptor: currentDetection.descriptor,
-                        expressions: currentDetection.expressions
-                    });
-                    currentScan++;
-
-                    const progress = (currentScan / totalScans) * 100;
-                    setScanProgress(progress);
-
-                    if (progress < 25) {
-                        setStatusMessage(`Capturando dados biométricos ${currentScan}/${totalScans}`);
-                    } else if (progress < 50) {
-                        setStatusMessage(`Analisando características faciais... ${currentScan}/${totalScans}`);
-                    } else if (progress < 75) {
-                        setStatusMessage(`Gerando template biométrico... ${currentScan}/${totalScans}`);
-                    } else {
-                        setStatusMessage(`Finalizando captura... ${currentScan}/${totalScans}`);
-                    }
-
-                    if (currentScan >= totalScans) {
-                        clearInterval(interval);
-                        completeScan(scans);
-                    }
-                } else {
-                    failedScans++;
-                    setStatusMessage(`Ajustando captura... (${Math.round(currentConfidence * 100)}%)`);
-                }
-            } else {
-                failedScans++;
-                setStatusMessage('Face não detectada nesta amostra. Ajustando...');
-            }
-
-            if (failedScans > 5) {
-                clearInterval(interval);
-                setStatusMessage('Qualidade da captura insuficiente. Clique para tentar novamente.');
-                setScanProgress(0);
-                if (onStopScan) onStopScan();
-            }
-        }, 500);
-    };
-
-    const calculateFaceQuality = (detection, video) => {
-         const width  = video?.videoWidth  || 640;
- const height = video?.videoHeight || 480;
-        const box = detection.detection.box;
-
-        const faceCenterX = box.x + box.width / 2;
-        const faceCenterY = box.y + box.height / 2;
-        const imageCenterX = width / 2;
-        const imageCenterY = height / 2;
-        const centerDistance = Math.sqrt(Math.pow(faceCenterX - imageCenterX, 2) + Math.pow(faceCenterY - imageCenterY, 2));
-        const maxDistance = Math.sqrt(Math.pow(width / 2, 2) + Math.pow(height / 2, 2));
-        const centeringScore = Math.max(0.3, 1 - (centerDistance / maxDistance));
-
-        const faceArea = box.width * box.height;
-        const videoArea = width * height;
-        const faceRatio = faceArea / videoArea;
-        let sizeScore = 0;
-        if (faceRatio > 0.02 && faceRatio < 0.8) sizeScore = 1.0;
-        else if (faceRatio > 0.01 && faceRatio < 0.9) sizeScore = 0.8;
-        else sizeScore = 0.5;
-
-        const landmarkQuality = detection.landmarks ? 1.0 : 0.7;
-        const confidenceScore = detection.detection.score;
-
-        return Math.max(0.4, (centeringScore * 0.2 + sizeScore * 0.3 + landmarkQuality * 0.2 + confidenceScore * 0.3));
-    };
-
-    const completeScan = async (scans) => {
-        try {
-            clearNoFaceTimeout();
-            const avgMetrics = calculateAverageDetections(scans);
-            const overallConfidence = avgMetrics.avgConfidence;
-
-            if (overallConfidence < 0.75) {
-                setStatusMessage(`Confiança insuficiente (${Math.round(overallConfidence * 100)}%). Clique para tentar novamente.`);
-                setScanProgress(0);
-                if (onStopScan) onStopScan();
+        scanIntervalRef.current = setInterval(async () => {
+            const video = videoRef.current;
+            if (!video || !isScanning) {
+                clearInterval(scanIntervalRef.current);
                 return;
             }
 
-            setStatusMessage(`Processando template biométrico... (${Math.round(overallConfidence * 100)}%)`);
+            try {
+                // Detecção mais simples e rápida
+                const detections = await faceapi
+                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 })) // Tamanho menor
+                    .withFaceLandmarks()
+                    .withFaceDescriptors();
 
+                if (detections.length === 1) {
+                    clearNoFaceTimeout();
+                    consecutiveFailures = 0;
+
+                    const detection = detections[0];
+                    const confidence = detection.detection.score;
+
+                    if (confidence > 0.5) { // Threshold reduzido
+                        scans.push({
+                            confidence,
+                            descriptor: detection.descriptor,
+                            landmarks: detection.landmarks
+                        });
+
+                        currentScan++;
+                        const progress = 95 + (currentScan / maxScans) * 5;
+                        setScanProgress(progress);
+                        setStatusMessage(`Capturando... ${currentScan}/${maxScans}`);
+
+                        if (currentScan >= maxScans) {
+                            clearInterval(scanIntervalRef.current);
+                            completeFastScan(scans);
+                            return;
+                        }
+                    }
+                } else {
+                    consecutiveFailures++;
+                    if (consecutiveFailures > 8) { // Reduzido de mais tentativas
+                        clearInterval(scanIntervalRef.current);
+                        setStatusMessage('Face não detectada consistentemente.');
+                        setTimeout(() => { if (onStopScan) onStopScan(); }, 1500);
+                        return;
+                    }
+                }
+
+            } catch (error) {
+                console.error('Erro na detecção:', error);
+                consecutiveFailures++;
+            }
+        }, 200); // Intervalo reduzido de 500ms para 200ms
+    };
+
+    const completeFastScan = async (scans) => {
+        try {
+            clearNoFaceTimeout();
+
+            if (scans.length === 0) {
+                setStatusMessage('Nenhuma face capturada.');
+                setTimeout(() => { if (onStopScan) onStopScan(); }, 1500);
+                return;
+            }
+
+            const avgConfidence = scans.reduce((sum, s) => sum + s.confidence, 0) / scans.length;
+
+            setStatusMessage(`Processando... (${Math.round(avgConfidence * 100)}%)`);
+            setScanProgress(100);
+
+            // Capturar imagem rapidamente
             const canvas = canvasRef.current;
             const video = videoRef.current;
 
@@ -449,130 +276,43 @@ useEffect(() => {
                 canvas.height = video.videoHeight;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8); // Qualidade reduzida
 
-                const facialData = await processFacialBiometrics(imageDataUrl, avgMetrics, overallConfidence);
-
-                setStatusMessage(`Captura concluída! Confiança: ${Math.round(overallConfidence * 100)}%`);
-                setScanProgress(100);
+                const facialData = createBiometricData(imageDataUrl, scans, avgConfidence);
 
                 setTimeout(() => {
                     onScanComplete(facialData);
                     if (onStopScan) onStopScan();
-                }, 1500);
+                }, 500); // Delay reduzido
             }
+
         } catch (error) {
             console.error('Erro ao completar scan:', error);
-            setStatusMessage('Erro ao processar dados faciais. Clique para tentar novamente.');
-            setScanProgress(0);
-            if (onStopScan) onStopScan();
+            setStatusMessage('Erro no processamento.');
+            setTimeout(() => { if (onStopScan) onStopScan(); }, 1500);
         }
     };
 
-    const calculateAverageDetections = (scans) => {
-        if (scans.length === 0) return null;
+    const createBiometricData = (imageDataUrl, scans, avgConfidence) => {
+        const avgDescriptor = calculateAvgDescriptor(scans);
 
-        let totalConfidence = 0;
-        let totalQuality = 0;
-        const allDescriptors = [];
-        const allLandmarks = [];
-
-        scans.forEach(scan => {
-            totalConfidence += scan.confidence;
-            totalQuality += scan.qualityScore;
-            if (scan.descriptor) allDescriptors.push(scan.descriptor);
-            if (scan.landmarks) allLandmarks.push(scan.landmarks);
-        });
-
-        const count = scans.length;
-        const avgDescriptor = calculateAverageDescriptor(allDescriptors);
-        const avgLandmarks = calculateAverageLandmarks(allLandmarks);
-
-        return {
-            avgConfidence: totalConfidence / count,
-            avgQuality: totalQuality / count,
-            sampleCount: count,
-            consistency: calculateDescriptorConsistency(allDescriptors),
-            avgDescriptor: avgDescriptor,
-            avgLandmarks: avgLandmarks
-        };
-    };
-
-    const calculateAverageDescriptor = (descriptors) => {
-        if (descriptors.length === 0) return null;
-        const descriptorLength = descriptors[0].length;
-        const avgDescriptor = new Array(descriptorLength).fill(0);
-
-        descriptors.forEach(descriptor => {
-            descriptor.forEach((value, index) => {
-                avgDescriptor[index] += value;
-            });
-        });
-
-        return avgDescriptor.map(sum => sum / descriptors.length);
-    };
-
-    const calculateAverageLandmarks = (landmarksArray) => {
-        if (landmarksArray.length === 0) return null;
-
-        const landmarkCount = landmarksArray[0].positions.length;
-        const avgLandmarks = Array.from({ length: landmarkCount }, () => ({ x: 0, y: 0 }));
-
-        landmarksArray.forEach(landmarks => {
-            landmarks.positions.forEach((pos, index) => {
-                avgLandmarks[index].x += pos.x;
-                avgLandmarks[index].y += pos.y;
-            });
-        });
-
-        return {
-            positions: avgLandmarks.map(p => ({ x: p.x / landmarksArray.length, y: p.y / landmarksArray.length }))
-        };
-    };
-
-    const calculateDescriptorConsistency = (descriptors) => {
-        if (descriptors.length < 2) return 1.0;
-
-        const avgDescriptor = calculateAverageDescriptor(descriptors);
-        let totalVariance = 0;
-
-        descriptors.forEach(descriptor => {
-            let variance = 0;
-            descriptor.forEach((value, index) => {
-                variance += Math.pow(value - avgDescriptor[index], 2);
-            });
-            totalVariance += variance / descriptor.length;
-        });
-
-        const avgVariance = totalVariance / descriptors.length;
-        return Math.max(0, Math.min(1, 1 - (avgVariance / 10)));
-    };
-
-    const processFacialBiometrics = async (imageDataUrl, avgMetrics, overallConfidence) => {
         const features = {
             faceDetected: true,
-            confidence: overallConfidence,
-            qualityScore: avgMetrics.avgQuality,
+            confidence: avgConfidence,
             algorithm: 'face-api.js',
             version: '1.0.0',
             biometricTemplate: {
-                descriptor: avgMetrics.avgDescriptor,
-                landmarks: avgMetrics.avgLandmarks,
-                consistency: avgMetrics.consistency,
-                sampleCount: avgMetrics.sampleCount
+                descriptor: avgDescriptor,
+                sampleCount: scans.length
             },
             scanQuality: {
-                confidence: overallConfidence,
-                qualityScore: avgMetrics.avgQuality,
-                consistency: avgMetrics.consistency,
-                sampleCount: avgMetrics.sampleCount,
-                securityLevel: avgMetrics.consistency > 0.8 ? 'HIGH' : avgMetrics.consistency > 0.6 ? 'MEDIUM' : 'LOW'
+                confidence: avgConfidence,
+                sampleCount: scans.length,
+                securityLevel: avgConfidence > 0.7 ? 'HIGH' : 'MEDIUM'
             },
             timestamp: new Date().toISOString(),
             validationPassed: true,
-            captureMethod: 'face-api.js',
-            encoding: avgMetrics.avgDescriptor,
-            landmarks: convertLandmarksToLegacyFormat(avgMetrics.avgLandmarks)
+            encoding: avgDescriptor
         };
 
         return {
@@ -582,34 +322,25 @@ useEffect(() => {
         };
     };
 
-    const convertLandmarksToLegacyFormat = (landmarks) => {
-        if (!landmarks || !landmarks.positions || landmarks.positions.length === 0) {
-            const video = videoRef.current;
-            if (!video) return null;
-            const centerX = video.videoWidth / 2;
-            const centerY = video.videoHeight / 2;
-            return {
-                eyes: { left: [centerX - video.videoWidth * 0.1, centerY - video.videoHeight * 0.1], right: [centerX + video.videoWidth * 0.1, centerY - video.videoHeight * 0.1] },
-                nose: [centerX, centerY],
-                mouth: [centerX, centerY + video.videoHeight * 0.1]
-            };
-        }
+    const calculateAvgDescriptor = (scans) => {
+        if (scans.length === 0 || !scans[0].descriptor) return null;
 
-        const positions = landmarks.positions;
-        return {
-            eyes: {
-                left: [positions[36].x, positions[36].y],
-                right: [positions[45].x, positions[45].y]
-            },
-            nose: [positions[30].x, positions[30].y],
-            mouth: [positions[51].x, positions[51].y]
-        };
+        const descriptorLength = scans[0].descriptor.length;
+        const avgDescriptor = new Array(descriptorLength).fill(0);
+
+        scans.forEach(scan => {
+            if (scan.descriptor) {
+                scan.descriptor.forEach((value, index) => {
+                    avgDescriptor[index] += value;
+                });
+            }
+        });
+
+        return avgDescriptor.map(sum => sum / scans.length);
     };
 
     return (
         <div>
-            
-            {/* Video e canvas ocultos */}
             <video
                 ref={videoRef}
                 style={{ display: 'none' }}
@@ -622,15 +353,12 @@ useEffect(() => {
                 style={{ display: 'none' }}
             />
 
-            {/* Status do scan */}
-            {/* HUD no topo: só aparece enquanto está a fazer scan */}
-{isScanning && (
-  <FaceHUD
-    progress={Math.round(scanProgress)}
-    onCancel={() => onStopScan && onStopScan()}
-  />
-)}
-
+            {isScanning && (
+                <FaceHUD
+                    progress={Math.round(scanProgress)}
+                    onCancel={() => onStopScan && onStopScan()}
+                />
+            )}
         </div>
     );
 };

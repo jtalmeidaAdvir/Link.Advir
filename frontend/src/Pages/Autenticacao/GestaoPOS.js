@@ -32,7 +32,9 @@ const GestaoPOS = () => {
             
             if (response.ok) {
                 const data = await response.json();
-                setPosList(data);
+                 const empresaId = localStorage.getItem('empresa_id');
+                const posDaEmpresa = data.filter(pos => pos.empresa_id == empresaId);
+                setPosList(posDaEmpresa);
             }
         } catch (error) {
             console.error('Erro ao carregar POS:', error);

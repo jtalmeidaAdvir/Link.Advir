@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import {
     FaQrcode,
@@ -17,6 +17,8 @@ import InvisibleFacialScanner from '../Autenticacao/components/InvisibleFacialSc
 import { useAppStateRefresh } from '../Autenticacao/utils/useAppStateRefresh';
 import { useEnsureValidTokens } from '../../utils/useEnsureValidTokens';
 import backgroundImage from '../../../images/ImagemFundo.png';
+import { useNavigation } from '@react-navigation/native';
+
 
 const RegistoPontoFacial = (props) => {
     const [registos, setRegistos] = useState([]);
@@ -27,6 +29,8 @@ const RegistoPontoFacial = (props) => {
     const [facialScanResult, setFacialScanResult] = useState(null);
     const [statusMessage, setStatusMessage] = useState('');
     const [resumoObra, setResumoObra] = useState({ pessoasAConsultar: 0, entradasSaidas: [] });
+    const [showResultModal, setShowResultModal] = useState(false);
+    const [modalData, setModalData] = useState({ type: '', message: '', userName: '', action: '' });
 
     const opcoesObras = obras.map(obra => ({
         value: obra.id,
@@ -89,16 +93,35 @@ const RegistoPontoFacial = (props) => {
 
             if (res.ok) {
                 const data = await res.json();
-                setStatusMessage(`Ponto "${tipo}" registado com sucesso para ${userName} na obra "${nomeObra}"`);
+                const actionText = tipo === 'entrada' ? 'Entrada' : 'Saída';
+                setModalData({
+                    type: 'success',
+                    message: `${actionText} registada com sucesso!`,
+                    userName: userName,
+                    action: actionText
+                });
+                setShowResultModal(true);
                 return true; // Indica sucesso
             } else {
                 const errorData = await res.json();
-                setStatusMessage(`Erro ao registar ponto: ${errorData.message || 'Erro desconhecido'}`);
+                setModalData({
+                    type: 'error',
+                    message: errorData.message || 'Erro desconhecido',
+                    userName: userName,
+                    action: 'Erro'
+                });
+                setShowResultModal(true);
                 return false; // Indica falha
             }
         } catch (err) {
             console.error('Erro ao registar ponto:', err);
-            setStatusMessage('Erro ao registar ponto');
+            setModalData({
+                type: 'error',
+                message: 'Erro ao registar ponto',
+                userName: userName,
+                action: 'Erro'
+            });
+            setShowResultModal(true);
             return false; // Indica falha
         }
     };
@@ -199,12 +222,12 @@ const RegistoPontoFacial = (props) => {
             setLoading(true);
             const token = localStorage.getItem('loginToken');
             const url = `https://backend.advir.pt/api/registo-ponto-obra/resumo-obra/${obraId}`;
-            
+
             console.log('🔄 Carregando resumo da obra...');
             console.log('📡 URL:', url);
             console.log('🎯 Obra ID:', obraId);
             console.log('🔑 Token exists:', !!token);
-            
+
             const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -356,10 +379,72 @@ const RegistoPontoFacial = (props) => {
         await processarEntradaComFacial(facialData);
     };
 
+    const handleScanFace = () => {
+        setShowInstructions(false);
+        setScanning(true);
+        setCountdown(3);
+
+        const timer = setInterval(() => {
+            setCountdown((prev) => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    setScanning(false);
+                    startCapture();
+                    return 0;
+                } else {
+                    return prev - 1;
+                }
+            });
+        }, 1000);
+    };
+
+    const handleLogoutPOS = () => {
+        localStorage.clear();
+        if (navigation) {
+            navigation.navigate('LoginPOS');
+        } else {
+            window.location.href = '/login-pos';
+        }
+    };
+
+    const handleCloseModal = () => {
+        setShowResultModal(false);
+        setModalData({ type: '', message: '', userName: '', action: '' });
+        setStatusMessage('');
+        
+        // Refresh da página após fechar o modal
+        setTimeout(() => {
+            window.location.reload();
+        }, 300);
+    };
+
+    const isPOS = localStorage.getItem('isPOS') === 'true';
+
     return (
         <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{
             overflowX: 'hidden',
+            position: 'relative'
         }}>
+            {isPOS && (
+                <button
+                    onClick={handleLogoutPOS}
+                    style={{
+                        position: 'absolute',
+                        top: '20px',
+                        right: '20px',
+                        backgroundColor: '#dc3545',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 20px',
+                        borderRadius: '5px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        zIndex: 1000
+                    }}
+                >
+                    Sair POS
+                </button>
+            )}
             <div style={{
                 position: 'absolute',
                 top: 0,
@@ -432,10 +517,93 @@ const RegistoPontoFacial = (props) => {
                     justify-content: center;
                     z-index: 9999;
                 }
+                .result-modal-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0,0,0,0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                }
+                .result-modal {
+                    background: white;
+                    border-radius: 15px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                    max-width: 400px;
+                    width: 90%;
+                    padding: 0;
+                    overflow: hidden;
+                    animation: modalAppear 0.3s ease-out;
+                }
+                .result-modal-header {
+                    padding: 2rem 2rem 1rem 2rem;
+                    text-align: center;
+                    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+                }
+                .result-modal-body {
+                    padding: 1rem 2rem 2rem 2rem;
+                    text-align: center;
+                }
+                .success-icon {
+                    font-size: 3rem;
+                    color: #28a745;
+                    margin-bottom: 1rem;
+                }
+                .error-icon {
+                    font-size: 3rem;
+                    color: #dc3545;
+                    margin-bottom: 1rem;
+                }
+                .modal-title {
+                    font-size: 1.5rem;
+                    font-weight: 600;
+                    margin-bottom: 0.5rem;
+                }
+                .modal-subtitle {
+                    color: #6c757d;
+                    margin-bottom: 1rem;
+                }
+                .modal-close-btn {
+                    background: linear-gradient(45deg, #1792FE, #0D7EFE);
+                    border: none;
+                    border-radius: 25px;
+                    padding: 0.75rem 2rem;
+                    color: white;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    min-width: 120px;
+                }
+                .modal-close-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(23, 146, 254, 0.4);
+                }
+                @keyframes modalAppear {
+                    from {
+                        opacity: 0;
+                        transform: scale(0.9) translateY(-20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: scale(1) translateY(0);
+                    }
+                }
                 @media (max-width: 767px) {
                     .container-fluid {
                         padding-left: 0.75rem;
                         padding-right: 0.75rem;
+                    }
+                    .result-modal {
+                        width: 95%;
+                        margin: 1rem;
+                    }
+                    .result-modal-header,
+                    .result-modal-body {
+                        padding: 1.5rem 1rem;
                     }
                 }
             `}</style>
@@ -576,6 +744,45 @@ const RegistoPontoFacial = (props) => {
                 onStopScan={handleStopFacialScan}
                 t={(key) => key} // Placeholder para traduções
             />
+
+            {/* Modal de Resultado */}
+            {showResultModal && (
+                <div className="result-modal-overlay" onClick={handleCloseModal}>
+                    <div className="result-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="result-modal-header">
+                            <div className={modalData.type === 'success' ? 'success-icon' : 'error-icon'}>
+                                {modalData.type === 'success' ? (
+                                    <FaCheckCircle />
+                                ) : (
+                                    <FaExclamationCircle />
+                                )}
+                            </div>
+                            <h3 className="modal-title">
+                                {modalData.type === 'success' ? 'Sucesso!' : 'Erro!'}
+                            </h3>
+                            <p className="modal-subtitle">
+                                {modalData.userName}
+                            </p>
+                        </div>
+                        <div className="result-modal-body">
+                            <p style={{ 
+                                fontSize: '1.1rem', 
+                                marginBottom: '1.5rem',
+                                color: modalData.type === 'success' ? '#28a745' : '#dc3545',
+                                fontWeight: '500'
+                            }}>
+                                {modalData.message}
+                            </p>
+                            <button 
+                                className="modal-close-btn"
+                                onClick={handleCloseModal}
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
