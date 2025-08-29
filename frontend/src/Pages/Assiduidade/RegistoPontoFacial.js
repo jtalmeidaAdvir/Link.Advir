@@ -32,6 +32,8 @@ const RegistoPontoFacial = (props) => {
     const [showResultModal, setShowResultModal] = useState(false);
     const [modalData, setModalData] = useState({ type: '', message: '', userName: '', action: '' });
     const [isRegistering, setIsRegistering] = useState(false); // Bloqueio para evitar registos duplicados
+    const [lastScanTime, setLastScanTime] = useState(0); // Timestamp do último scan
+    const [isProcessingScan, setIsProcessingScan] = useState(false); // Estado específico para processamento de scan
 
     const opcoesObras = obras.map(obra => ({
         value: obra.id,
@@ -314,7 +316,7 @@ const RegistoPontoFacial = (props) => {
     const autenticarERegistarPonto = async (obraId, nomeObra, facialData) => {
         try {
             // Verificar se já está a processar um registo
-            if (isRegistering) {
+            if (isRegistering || isProcessingScan) {
                 console.log('⚠️ Já está a processar um registo, ignorando nova tentativa');
                 return;
             }
@@ -446,8 +448,8 @@ const RegistoPontoFacial = (props) => {
             return;
         }
 
-        // Verificar se já está a registar
-        if (isRegistering) {
+        // Verificar se já está a registar ou a processar scan
+        if (isRegistering || isProcessingScan) {
             alert('Aguarde, ainda está a processar o registo anterior...');
             return;
         }
@@ -466,18 +468,34 @@ const RegistoPontoFacial = (props) => {
     const handleFacialScanComplete = async (facialData) => {
         console.log('Scan facial completo:', facialData);
         
-        // Verificar se já está a processar
-        if (isRegistering) {
-            console.log('⚠️ Já está a processar um registo, ignorando scan completo');
+        const now = Date.now();
+        const timeSinceLastScan = now - lastScanTime;
+        
+        // Verificar se já está a processar ou se foi muito recente (debounce de 3 segundos)
+        if (isRegistering || isProcessingScan || timeSinceLastScan < 3000) {
+            console.log('⚠️ Já está a processar um registo ou scan muito recente, ignorando scan completo');
+            console.log(`Time since last scan: ${timeSinceLastScan}ms`);
             setIsFacialScanning(false);
             return;
         }
 
+        // Marcar que estamos a processar este scan
+        setIsProcessingScan(true);
+        setLastScanTime(now);
         setFacialScanResult(facialData);
         setIsFacialScanning(false);
 
-        // Processar o registo automaticamente
-        await processarEntradaComFacial(facialData);
+        try {
+            // Processar o registo automaticamente
+            await processarEntradaComFacial(facialData);
+        } catch (error) {
+            console.error('Erro ao processar entrada com facial:', error);
+        } finally {
+            // Libertar o estado de processamento após um delay para evitar scans duplicados
+            setTimeout(() => {
+                setIsProcessingScan(false);
+            }, 2000);
+        }
     };
 
     const handleScanFace = () => {
@@ -513,6 +531,7 @@ const RegistoPontoFacial = (props) => {
         setModalData({ type: '', message: '', userName: '', action: '' });
         setStatusMessage('');
         setIsRegistering(false); // Garantir que o bloqueio é removido
+        setIsProcessingScan(false); // Garantir que o processamento é limpo
         
         // Refresh da página após fechar o modal
         setTimeout(() => {
@@ -758,7 +777,7 @@ const RegistoPontoFacial = (props) => {
                                                 <button
                                                     className="btn btn-facial w-100 w-md-auto"
                                                     onClick={handleStartFacialScan}
-                                                    disabled={!obraSelecionada || loading || isRegistering}
+                                                    disabled={!obraSelecionada || loading || isRegistering || isProcessingScan}
                                                 >
                                                     <FaCamera className="me-2" />
                                                     <span className="d-none d-sm-inline">
@@ -772,7 +791,7 @@ const RegistoPontoFacial = (props) => {
                                                 <button
                                                     className="btn btn-facial w-100 w-md-auto"
                                                     onClick={handleStopFacialScan}
-                                                    disabled={loading || isRegistering}
+                                                    disabled={loading || isRegistering || isProcessingScan}
                                                 >
                                                     <FaStop className="me-2" />
                                                     Cancelar Identificação

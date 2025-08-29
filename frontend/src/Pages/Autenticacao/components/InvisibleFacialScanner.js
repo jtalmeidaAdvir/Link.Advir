@@ -12,6 +12,8 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
     const streamRef = useRef(null);
     const scanIntervalRef = useRef(null);
     const noFaceTimeoutRef = useRef(null);
+    const scanCompletedRef = useRef(false); // Flag para evitar scans duplicados
+    const lastScanTimeRef = useRef(0); // Timestamp do último scan completo
 
     const clearNoFaceTimeout = () => {
         if (noFaceTimeoutRef.current) {
@@ -126,6 +128,8 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
         setScanProgress(0);
         setCameraReady(false);
         setModelsLoaded(false);
+        scanCompletedRef.current = false; // Reset da flag
+        lastScanTimeRef.current = 0; // Reset do timestamp
     };
 
     const initializeFaceAPI = async () => {
@@ -315,6 +319,15 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
 
     const completeFastScan = async (scans) => {
         try {
+            // Verificar se o scan já foi completado (evitar duplicados)
+            const now = Date.now();
+            if (scanCompletedRef.current || (now - lastScanTimeRef.current) < 2000) {
+                console.log('⚠️ Scan já completado ou muito recente, ignorando');
+                return;
+            }
+
+            scanCompletedRef.current = true;
+            lastScanTimeRef.current = now;
             clearNoFaceTimeout();
 
             if (scans.length === 0) {
@@ -342,14 +355,18 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
                 const facialData = createBiometricData(imageDataUrl, scans, avgConfidence);
 
                 setTimeout(() => {
-                    onScanComplete(facialData);
-                    if (onStopScan) onStopScan();
+                    // Verificar novamente antes de chamar onScanComplete para evitar chamadas duplicadas
+                    if (scanCompletedRef.current && facialData) {
+                        onScanComplete(facialData);
+                        if (onStopScan) onStopScan();
+                    }
                 }, 500); // Delay reduzido
             }
 
         } catch (error) {
             console.error('Erro ao completar scan:', error);
             setStatusMessage('Erro no processamento.');
+            scanCompletedRef.current = false; // Reset da flag em caso de erro
             setTimeout(() => { if (onStopScan) onStopScan(); }, 1500);
         }
     };
