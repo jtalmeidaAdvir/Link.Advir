@@ -1,20 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import {
-    FaPlus,
-    FaEdit,
-    FaTrash,
-    FaEye,
-    FaEyeSlash,
-    FaComputer,
-    FaBuilding,
-    FaUser,
-    FaEnvelope,
-    FaKey,
-    FaToggleOn,
-    FaToggleOff
-} from 'react-icons/fa6';
 
 const GestaoPOS = () => {
     const [posList, setPosList] = useState([]);
@@ -93,7 +79,6 @@ const GestaoPOS = () => {
                 empresa_id: empresaId
             };
 
-            // Se estamos editando e não há nova password, remover do body
             if (editingPOS && !formData.password) {
                 delete body.password;
             }
@@ -182,16 +167,12 @@ const GestaoPOS = () => {
                 <div className="col-12">
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center">
-                            <h4 className="mb-0">
-                                <FaComputer className="me-2" />
-                                Gestão de POS
-                            </h4>
+                            <h4 className="mb-0">Gestão de POS</h4>
                             <button
                                 className="btn btn-primary"
                                 onClick={() => setShowModal(true)}
                             >
-                                <FaPlus className="me-2" />
-                                Novo POS
+                                + Novo POS
                             </button>
                         </div>
                         <div className="card-body">
@@ -218,32 +199,15 @@ const GestaoPOS = () => {
                                     <tbody>
                                         {posList.map(pos => (
                                             <tr key={pos.id}>
-                                                <td>
-                                                    <FaUser className="me-2 text-muted" />
-                                                    {pos.nome}
-                                                </td>
-                                                <td>
-                                                    <code>{pos.codigo}</code>
-                                                </td>
-                                                <td>
-                                                    <FaEnvelope className="me-2 text-muted" />
-                                                    {pos.email}
-                                                </td>
-                                                <td>
-                                                    <FaBuilding className="me-2 text-muted" />
-                                                    {pos.ObraPredefinida?.nome || 'N/A'}
-                                                </td>
+                                                <td>{pos.nome}</td>
+                                                <td><code>{pos.codigo}</code></td>
+                                                <td>{pos.email}</td>
+                                                <td>{pos.ObraPredefinida?.nome || 'N/A'}</td>
                                                 <td>
                                                     {pos.ativo ? (
-                                                        <span className="badge bg-success">
-                                                            <FaToggleOn className="me-1" />
-                                                            Ativo
-                                                        </span>
+                                                        <span className="badge bg-success">Ativo</span>
                                                     ) : (
-                                                        <span className="badge bg-danger">
-                                                            <FaToggleOff className="me-1" />
-                                                            Inativo
-                                                        </span>
+                                                        <span className="badge bg-danger">Inativo</span>
                                                     )}
                                                 </td>
                                                 <td>
@@ -251,13 +215,13 @@ const GestaoPOS = () => {
                                                         className="btn btn-sm btn-outline-primary me-2"
                                                         onClick={() => handleEdit(pos)}
                                                     >
-                                                        <FaEdit />
+                                                        Editar
                                                     </button>
                                                     <button
                                                         className="btn btn-sm btn-outline-danger"
                                                         onClick={() => handleDelete(pos.id)}
                                                     >
-                                                        <FaTrash />
+                                                        Eliminar
                                                     </button>
                                                 </td>
                                             </tr>
