@@ -330,7 +330,7 @@ router.post("/connect", async (req, res) => {
             qrCodeData = null;
         }
 
-        // Limpar sessão existente para forçar novo QR Code
+        // Limpar sessão existente para forçar QR Code novo
         const fs = require("fs");
         const path = require("path");
         const sessionPath = path.join(process.cwd(), "whatsapp-session");
@@ -677,7 +677,7 @@ router.post("/clear-session", async (req, res) => {
     }
 });
 
-// Endpoint específico para trocar de conta WhatsApp
+// Endpoint para trocar de conta WhatsApp
 router.post("/change-account", async (req, res) => {
     try {
         console.log("🔄 Iniciando processo de troca de conta WhatsApp...");
@@ -1808,7 +1808,45 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // TERCEIRO: Se existe conversa ativa e não é palavra-chave, continuar o fluxo normal
+    // TERCEIRO: Verificar se é cancelamento de processo
+    if (messageText.toLowerCase().includes('cancelar') || messageText.toLowerCase().includes('sair')) {
+        console.log(`❌ Cancelamento solicitado por ${phoneNumber}`);
+
+        // Limpar estado do utilizador
+        clearUserState(phoneNumber);
+
+        // Limpar conversa ativa se existir
+        if (conversation) {
+            activeConversations.delete(phoneNumber);
+        }
+
+        await client.sendMessage(
+            phoneNumber,
+            "❌ *Processo Cancelado*\n\nO registo de ponto foi cancelado.\n\nPara iniciar um novo registo, envie 'ponto'."
+        );
+        return;
+    }
+
+    // QUARTO: Verificar se é uma palavra-chave para iniciar nova conversa
+    if (isRequestKeyword(messageText) && !conversation) {
+        console.log(`🎯 Palavra-chave de início detectada: "${messageText}"`);
+
+        // Verificar autorização
+        const authResult = await checkContactAuthorization(phoneNumber);
+
+        if (!authResult.authorized) {
+            await client.sendMessage(
+                phoneNumber,
+                "❌ *Acesso Restrito*\n\nLamentamos, mas o seu contacto não tem autorização para criar pedidos de assistência técnica através deste sistema.\n\nPara obter acesso, entre em contacto com a nossa equipa através dos canais habituais.\n\n📞 Obrigado pela compreensão.",
+            );
+            return;
+        }
+
+        await startNewRequest(phoneNumber, messageText, authResult.contactData);
+        return;
+    }
+
+    // Se existe conversa ativa e não é palavra-chave, continuar o fluxo normal
     if (conversation) {
         await continueConversation(phoneNumber, messageText, conversation);
         return;
@@ -1817,7 +1855,7 @@ async function handleIncomingMessage(message) {
     // Se existe estado de utilizador (ex: a selecionar obra), continuar
     if (userState) {
         if (userState.type === "selecting_obra") {
-            await handleObraSelection(phoneNumber, messageText, { data: userState }); // Passa o estado como data da conversa
+            await handleObraSelection(phoneNumber, message, { data: userState }); // Passa o estado como data da conversa
         } else if (userState.type === "awaiting_location") {
             // Se está à espera de localização mas recebeu texto, dar instruções
             await client.sendMessage(
@@ -1825,8 +1863,8 @@ async function handleIncomingMessage(message) {
                 "📍 *Aguardando Localização GPS*\n\n" +
                 "Por favor, envie a sua localização através de:\n" +
                 "• Anexo (📎) → 'Localização' → 'Localização atual'\n" +
-                "🌐 Ou envie um link do Google Maps\n" +
-                "📱 Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n" +
+                "• Link do Google Maps\n" +
+                "• Coordenadas GPS\n\n" +
                 "💡 Se pretende cancelar o registo, digite 'cancelar'"
             );
         } else {
@@ -1924,6 +1962,8 @@ Bem-vindo ao sistema automático de criação de pedidos de assistência técnic
         // Cliente já está definido - buscar contratos
         conversationData.cliente = contactData.numeroCliente;
         conversationData.nomeCliente = contactData.numeroCliente;
+        conversationData.contacto = null; // por defeito
+        conversationData.userId = contactData.userId; // Tenta obter userId do cliente
 
         // Buscar contratos do cliente
         const resultadoContratos = await buscarContratosCliente(
@@ -2003,68 +2043,100 @@ async function continueConversation(phoneNumber, message, conversation) {
     );
 
     // Se for uma mensagem de localização, não processar como texto
-    if (message.hasLocation) {
+    if (message.hasLocation || message.type === "location") {
         console.log(
-            "⚠️ Localização recebida durante conversa, mas será processada em handleIncomingMessage",
+            "⚠️ Localização recebida durante conversa, será processada em handleIncomingMessage",
         );
+        // Chamar handleIncomingMessage para processar a localização corretamente
+        await handleIncomingMessage({ from: phoneNumber, ...message });
         return;
     }
 
-    if (message.toLowerCase() === "cancelar") {
-        activeConversations.delete(phoneNumber);
+    // Obter o texto da mensagem
+    const messageText = typeof message === 'string' ? message : (message.body || message);
+
+    // TERCEIRO: Verificar se é cancelamento de processo
+    if (messageText.toLowerCase().includes('cancelar') || messageText.toLowerCase().includes('sair')) {
+        console.log(`❌ Cancelamento solicitado por ${phoneNumber}`);
+
+        // Limpar estado do utilizador
+        clearUserState(phoneNumber);
+
+        // Limpar conversa ativa se existir
+        if (conversation) {
+            activeConversations.delete(phoneNumber);
+        }
+
         await client.sendMessage(
             phoneNumber,
-            "❌ Processo cancelado com sucesso. Para iniciar um novo pedido de assistência técnica, envie uma mensagem contendo 'pedido' ou 'assistência'.",
+            "❌ *Processo Cancelado*\n\nO registo de ponto foi cancelado.\n\nPara iniciar um novo registo, envie 'ponto'."
         );
         return;
     }
 
-    // Verificar se a mensagem não está vazia
-    if (!message || message.trim() === "") {
-        console.log(
-            `⚠️ Mensagem vazia recebida no estado: ${conversation.state}`,
-        );
-        await client.sendMessage(
-            phoneNumber,
-            "❓ Não consegui processar a sua mensagem. Por favor, tente novamente ou digite 'cancelar' para sair.",
-        );
-        return;
-    }
-
+    // QUARTO: Processar baseado no estado da conversa
     switch (conversation.state) {
         case CONVERSATION_STATES.WAITING_CLIENT:
-            await handleClientInput(phoneNumber, message, conversation);
+            await handleClientInput(phoneNumber, messageText, conversation);
             break;
         case CONVERSATION_STATES.WAITING_CONTRACT:
-            await handleContractInput(phoneNumber, message, conversation);
+            await handleContractInput(phoneNumber, messageText, conversation);
             break;
         case CONVERSATION_STATES.WAITING_PROBLEM:
-            await handleProblemInput(phoneNumber, message, conversation);
+            await handleProblemInput(phoneNumber, messageText, conversation);
             break;
         case CONVERSATION_STATES.WAITING_PRIORITY:
-            await handlePriorityInput(phoneNumber, message, conversation);
+            await handlePriorityInput(phoneNumber, messageText, conversation);
             break;
         case CONVERSATION_STATES.WAITING_CONFIRMATION:
-            await handleConfirmationInput(phoneNumber, message, conversation);
+            await handleConfirmationInput(phoneNumber, messageText, conversation);
             break;
-        // Estados para registo de ponto
         case CONVERSATION_STATES.PONTO_WAITING_OBRA:
-            await handleObraSelection(phoneNumber, message, conversation);
+            await handleObraSelection(phoneNumber, messageText, conversation);
             break;
         case CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION:
-            await handlePontoConfirmationInput(
-                phoneNumber,
-                message,
-                conversation,
-            );
+            await handlePontoConfirmationInput(phoneNumber, messageText, conversation);
             break;
-        case CONVERSATION_STATES.PONTO_WAITING_LOCATION:
-            await handlePontoLocationInput(phoneNumber, message, conversation);
+        default:
+            console.log(`⚠️ Estado de conversa não reconhecido: ${conversation.state}`);
+            await client.sendMessage(
+                phoneNumber,
+                "❌ Ocorreu um erro no processamento da conversa. Por favor, inicie novamente enviando 'pedido' ou 'ponto'."
+            );
+            activeConversations.delete(phoneNumber);
             break;
     }
 
+    // Atualizar última atividade
     conversation.lastActivity = Date.now();
     activeConversations.set(phoneNumber, conversation);
+
+    // Se existe estado de utilizador (ex: a selecionar obra), continuar
+    if (userState) {
+        if (userState.type === "selecting_obra") {
+            await handleObraSelection(phoneNumber, message, { data: userState }); // Passa o estado como data da conversa
+        } else if (userState.type === "awaiting_location") {
+            // Se está à espera de localização mas recebeu texto, dar instruções
+            await client.sendMessage(
+                phoneNumber,
+                "📍 *Aguardando Localização GPS*\n\n" +
+                "Por favor, envie a sua localização através de:\n" +
+                "• Anexo (📎) → 'Localização' → 'Localização atual'\n" +
+                "• Link do Google Maps\n" +
+                "• Coordenadas GPS\n\n" +
+                "💡 Se pretende cancelar o registo, digite 'cancelar'"
+            );
+        } else {
+            // Se o estado não é reconhecido, limpar e enviar mensagem padrão
+            clearUserState(phoneNumber);
+            await sendWelcomeMessage(phoneNumber);
+        }
+        return;
+    }
+
+    // Se chegou aqui, e não há conversa nem estado, e a mensagem não é de cancelamento,
+    // envia a mensagem de boas-vindas
+    await sendWelcomeMessage(phoneNumber);
 }
 
 // Função para validar se o cliente existe no sistema Primavera
@@ -2593,7 +2665,7 @@ async function handlePontoConfirmationInput(
         conversation.data.obraId
     );
 
-    // Armazenar tipo de registo na conversa
+    // Armazenar o tipo de registo na conversa
     conversation.data.tipoRegisto = tipoRegisto;
 
     // Atualizar o estado do utilizador para aguardar localização
@@ -2779,11 +2851,14 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
     } catch (error) {
         console.error("Erro ao registar ponto:", error);
 
+        // Limpar estados em caso de erro
+        clearUserState(phoneNumber);
+        activeConversations.delete(phoneNumber);
+
         await client.sendMessage(
             phoneNumber,
-            `❌ *Erro ao Registar Ponto*\n\n` +
-            `Ocorreu um erro ao registar o seu ponto. Por favor, tente novamente mais tarde ou contacte o suporte técnico.\n\n` +
-            `Detalhes do erro: ${error.message}`,
+            `❌ *Erro no Registo*\n\nOcorreu um erro ao processar o seu registo de ponto.\n\n` +
+            `Para tentar novamente, envie: *ponto*`
         );
     } finally {
         // Limpar conversa após o processamento
@@ -4164,7 +4239,11 @@ function shouldExecuteToday(schedule, now) {
     ];
 
     // Verificar se já foi enviado hoje (usando data de Portugal)
-    if (schedule.lastSent && schedule.lastSent.startsWith(todayDate)) {
+    if (
+        schedule.lastSent &&
+        typeof schedule.lastSent === "string" &&
+        schedule.lastSent.startsWith(todayDate)
+    ) {
         addLog(schedule.id, "warning", `Já foi enviado hoje (${todayDate})`);
         return false;
     }
