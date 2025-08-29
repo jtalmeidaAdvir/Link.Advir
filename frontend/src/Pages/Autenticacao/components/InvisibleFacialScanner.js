@@ -83,6 +83,32 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
         return cleanup;
     }, [isScanning]);
 
+    // Adicionar listener para mudanças de orientação
+    useEffect(() => {
+        const handleOrientationChange = () => {
+            if (isScanning && cameraReady) {
+                console.log('Orientação mudou, reiniciando câmera...');
+                setTimeout(() => {
+                    // Reiniciar câmera após mudança de orientação
+                    if (videoRef.current && streamRef.current) {
+                        stopCamera();
+                        setTimeout(() => {
+                            startCamera();
+                        }, 500);
+                    }
+                }, 200);
+            }
+        };
+
+        window.addEventListener('orientationchange', handleOrientationChange);
+        window.addEventListener('resize', handleOrientationChange);
+
+        return () => {
+            window.removeEventListener('orientationchange', handleOrientationChange);
+            window.removeEventListener('resize', handleOrientationChange);
+        };
+    }, [isScanning, cameraReady]);
+
     useEffect(() => {
         if (isScanning && modelsLoaded && cameraReady) {
             startFastScan();
@@ -133,12 +159,29 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
             setScanProgress(70);
             setStatusMessage('Conectando câmera...');
 
+            // Configurações adaptáveis para diferentes dispositivos e orientações
+            const isTablet = /iPad|Tablet|Android.*(?!Mobile)/i.test(navigator.userAgent);
+            const isPortrait = window.innerHeight > window.innerWidth;
+            
+            let videoConstraints = {
+                facingMode: 'user',
+                // Configurações baseadas na orientação e tipo de dispositivo
+                ...(isTablet ? {
+                    width: { ideal: isPortrait ? 480 : 640 },
+                    height: { ideal: isPortrait ? 640 : 480 },
+                } : {
+                    width: { ideal: 480 },
+                    height: { ideal: 360 }
+                })
+            };
+
+            // Forçar orientação específica em tablets
+            if (isTablet) {
+                videoConstraints.aspectRatio = isPortrait ? (3/4) : (4/3);
+            }
+
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    width: { ideal: 480 }, // Reduzida para melhor performance
-                    height: { ideal: 360 }, 
-                    facingMode: 'user' 
-                }
+                video: videoConstraints
             });
 
             const videoEl = videoRef.current;
@@ -146,6 +189,24 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
 
             const handleReady = () => {
                 if (cameraReady) return;
+                
+                // Aplicar correção de orientação CSS se necessário
+                const videoWidth = videoEl.videoWidth;
+                const videoHeight = videoEl.videoHeight;
+                
+                console.log(`Dimensões do vídeo: ${videoWidth}x${videoHeight}`);
+                console.log(`Dimensões da tela: ${window.innerWidth}x${window.innerHeight}`);
+                
+                // Se as dimensões do vídeo não coincidem com a orientação esperada, aplicar rotação
+                const videoIsLandscape = videoWidth > videoHeight;
+                const screenIsLandscape = window.innerWidth > window.innerHeight;
+                
+                if (videoIsLandscape !== screenIsLandscape && isTablet) {
+                    console.log('Aplicando correção de orientação');
+                    videoEl.style.transform = 'rotate(90deg)';
+                    videoEl.style.transformOrigin = 'center center';
+                }
+                
                 setCameraReady(true);
                 setScanProgress(90);
                 setStatusMessage('Sistema pronto!');
@@ -343,7 +404,11 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
         <div>
             <video
                 ref={videoRef}
-                style={{ display: 'none' }}
+                style={{ 
+                    display: 'none',
+                    objectFit: 'cover',
+                    transition: 'transform 0.3s ease'
+                }}
                 autoPlay
                 playsInline
                 muted
