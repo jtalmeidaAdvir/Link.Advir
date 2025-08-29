@@ -17,6 +17,7 @@ const {
   registarPontoEsquecidoPorOutro,
   eliminarRegisto,
   obterRegistosObraPorDia,
+  obterResumoObra,
 } = require('../controllers/registoPontoObraControllers');
 
 router.post('/', authMiddleware, registarPonto);
@@ -47,5 +48,8 @@ router.delete('/eliminar/:id', authMiddleware, eliminarRegisto);
 
 // Adiciona rota para obter registos de entrada/saída de uma obra por dia
 router.get('/obra/:obraId/registos-dia', authMiddleware, obterRegistosObraPorDia);
+
+// Adiciona rota para obter resumo da obra (pessoas a trabalhar + últimos registos)
+router.get('/resumo-obra/:obraId', authMiddleware, obterResumoObra);
 
 module.exports = router;

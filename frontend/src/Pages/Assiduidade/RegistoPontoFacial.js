@@ -204,14 +204,17 @@ const RegistoPontoFacial = (props) => {
 
             if (res.ok) {
                 const data = await res.json();
+                console.log('Resumo da obra carregado:', data);
                 setResumoObra(data);
             } else {
                 console.error('Erro ao carregar resumo da obra:', res.status);
-                setResumoObra({ pessoasAConsultar: 0, entradasSaidas: [] }); // Limpar em caso de erro
+                const errorData = await res.text();
+                console.error('Detalhes do erro:', errorData);
+                setResumoObra({ pessoasAConsultar: 0, entradasSaidas: [] });
             }
         } catch (err) {
             console.error('Erro ao carregar resumo da obra:', err);
-            setResumoObra({ pessoasAConsultar: 0, entradasSaidas: [] }); // Limpar em caso de erro
+            setResumoObra({ pessoasAConsultar: 0, entradasSaidas: [] });
         } finally {
             setLoading(false);
         }

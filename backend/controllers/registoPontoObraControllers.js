@@ -532,6 +532,82 @@ const obterRegistosObraPorDia = async (req, res) => {
     }
 };
 
+const obterResumoObra = async (req, res) => {
+    try {
+        const { obraId } = req.params;
+        const dataHoje = new Date().toISOString().split('T')[0];
+        
+        console.log(`Obtendo resumo da obra ${obraId} para a data ${dataHoje}`);
+
+        // Obter todos os registos de hoje para esta obra
+        const registosHoje = await RegistoPontoObra.findAll({
+            where: {
+                obra_id: obraId,
+                [Op.and]: [
+                    Sequelize.where(
+                        Sequelize.fn('DATE', Sequelize.col('timestamp')),
+                        dataHoje
+                    )
+                ]
+            },
+            include: [
+                {
+                    model: User,
+                    attributes: ['id', 'nome', 'username', 'email']
+                }
+            ],
+            order: [['timestamp', 'DESC']]
+        });
+
+        console.log(`Encontrados ${registosHoje.length} registos para hoje`);
+
+        // Calcular quantas pessoas estão atualmente a trabalhar
+        const pessoasAtivas = new Set();
+        const registosPorUser = {};
+
+        // Organizar registos por utilizador
+        registosHoje.forEach(registo => {
+            const userId = registo.user_id;
+            if (!registosPorUser[userId]) {
+                registosPorUser[userId] = [];
+            }
+            registosPorUser[userId].push(registo);
+        });
+
+        // Para cada utilizador, verificar se tem entrada ativa
+        Object.keys(registosPorUser).forEach(userId => {
+            const registosUser = registosPorUser[userId].sort((a, b) => 
+                new Date(b.timestamp) - new Date(a.timestamp)
+            );
+            
+            // Se o registo mais recente é uma entrada, está ativo
+            if (registosUser.length > 0 && registosUser[0].tipo === 'entrada') {
+                pessoasAtivas.add(parseInt(userId));
+            }
+        });
+
+        const pessoasAConsultar = pessoasAtivas.size;
+
+        // Pegar os últimos 10 registos para mostrar na lista
+        const entradasSaidas = registosHoje.slice(0, 10);
+
+        console.log(`Pessoas a trabalhar: ${pessoasAConsultar}`);
+
+        const resultado = {
+            pessoasAConsultar,
+            entradasSaidas
+        };
+
+        res.json(resultado);
+    } catch (error) {
+        console.error('Erro ao obter resumo da obra:', error);
+        res.status(500).json({ 
+            message: 'Erro ao obter resumo da obra',
+            error: error.message 
+        });
+    }
+};
+
 
 module.exports = {
   registarPonto,
@@ -549,4 +625,5 @@ module.exports = {
   registarPontoEsquecidoPorOutro,
   eliminarRegisto,
   obterRegistosObraPorDia,
+  obterResumoObra,
 };
