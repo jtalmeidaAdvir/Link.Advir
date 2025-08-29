@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import * as faceapi from 'face-api.js';
 import { createPortal } from 'react-dom';
 
-const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onStopScan, t }) => {
+const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onStopScan, onCameraReady, t }) => {
     const [scanProgress, setScanProgress] = useState(0);
     const [statusMessage, setStatusMessage] = useState('');
     const [cameraReady, setCameraReady] = useState(false);
@@ -130,6 +130,8 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
         setModelsLoaded(false);
         scanCompletedRef.current = false; // Reset da flag
         lastScanTimeRef.current = 0; // Reset do timestamp
+        // Notificar o componente pai que a câmara não está pronta
+        if (onCameraReady) onCameraReady(false);
     };
 
     const initializeFaceAPI = async () => {
@@ -214,6 +216,8 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
                 setCameraReady(true);
                 setScanProgress(90);
                 setStatusMessage('Sistema pronto!');
+                // Notificar o componente pai que a câmara está pronta
+                if (onCameraReady) onCameraReady(true);
             };
 
             videoEl.addEventListener('loadedmetadata', handleReady, { once: true });
