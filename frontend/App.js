@@ -527,6 +527,27 @@ const obrasSubmodulesOrder = [
                                                         Dashboard Técnico
                                                     </Text>
                                                 </TouchableOpacity>
+                                                {hasContratosAtivosModule && (
+                                    <TouchableOpacity
+                                        style={drawerStyles.submoduleItem}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "ContratosList",
+                                            )
+                                        }
+                                    >
+                                        <FontAwesome
+                                            name="file-text-o"
+                                            size={16}
+                                            color="#1792FE"
+                                        />
+                                        <Text
+                                            style={drawerStyles.submoduleText}
+                                        >
+                                            Contratos Ativos
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                                             </View>
                                         )}
                                     </View>
@@ -854,27 +875,7 @@ const obrasSubmodulesOrder = [
 
                         {expandedModules["admin"] && (
                             <View style={drawerStyles.submoduleContainer}>
-                                {hasContratosAtivosModule && (
-                                    <TouchableOpacity
-                                        style={drawerStyles.submoduleItem}
-                                        onPress={() =>
-                                            props.navigation.navigate(
-                                                "ContratosList",
-                                            )
-                                        }
-                                    >
-                                        <FontAwesome
-                                            name="file-text-o"
-                                            size={16}
-                                            color="#1792FE"
-                                        />
-                                        <Text
-                                            style={drawerStyles.submoduleText}
-                                        >
-                                            Contratos Ativos
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
+                                
                                 {hasPainelAdministracaoModule && (
                                     <TouchableOpacity
                                         style={drawerStyles.submoduleItem}
@@ -1072,7 +1073,7 @@ const AppNavigator = () => {
     // Filtros para submódulos do módulo Administrador
     const hasContratosAtivosModule = modules.some(
         (module) =>
-            module.nome === "Administrador" &&
+            module.nome === "Servicos" &&
             module.submodulos.some((sub) => sub.nome === "ContratosAtivos"),
     );
     const hasPainelAdministracaoModule = modules.some(
