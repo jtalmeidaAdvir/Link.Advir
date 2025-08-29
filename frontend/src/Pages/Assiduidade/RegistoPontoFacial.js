@@ -574,26 +574,7 @@ const handleFacialScanComplete = async (facialData) => {
             overflowX: 'hidden',
             position: 'relative'
         }}>
-            {isPOS && (
-                <button
-                    onClick={handleLogoutPOS}
-                    style={{
-                        position: 'absolute',
-                        top: '20px',
-                        right: '20px',
-                        backgroundColor: '#dc3545',
-                        color: 'white',
-                        border: 'none',
-                        padding: '10px 20px',
-                        borderRadius: '5px',
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                        zIndex: 1000
-                    }}
-                >
-                    Sair POS
-                </button>
-            )}
+            
             <div style={{
                 position: 'absolute',
                 top: 0,
@@ -776,7 +757,7 @@ const handleFacialScanComplete = async (facialData) => {
                                         <FaUserCheck className="me-2" />
                                         Identificação Facial e Registo de Ponto
                                     </h1>
-                                    <p className="text-muted mb-0 small">Selecione a obra e use o reconhecimento facial para identificar o utilizador e registar o seu ponto</p>
+                                    <p className="text-muted mb-0 small">Selecione o local e use o reconhecimento facial para identificar o utilizador e registar o seu ponto</p>
                                 </div>
                             </div>
                         </div>
@@ -788,12 +769,12 @@ const handleFacialScanComplete = async (facialData) => {
                                     <div className="card-body p-3 p-md-4">
                                         {/* Seleção de Obra */}
                                         <div className="mb-4">
-                                            <label className="form-label fw-semibold">Selecionar Obra</label>
+                                            <label className="form-label fw-semibold">Selecionar Local</label>
                                             <Select
                                                 options={opcoesObras}
                                                 value={opcoesObras.find(o => o.value == obraSelecionada)}
                                                 onChange={(opcao) => setObraSelecionada(opcao?.value || '')}
-                                                placeholder="Escolha a obra para registar o ponto..."
+                                                placeholder="Escolha o local para registar o ponto..."
                                                 classNamePrefix="react-select"
                                                 isClearable
                                             />
@@ -838,7 +819,7 @@ const handleFacialScanComplete = async (facialData) => {
                                         {obraSelecionada && (
                                             <div className="alert alert-info">
                                                 <FaMapMarkerAlt className="me-2" />
-                                                <strong>Obra Selecionada:</strong> {obras.find(o => o.id == obraSelecionada)?.nome || 'Desconhecida'}
+                                                <strong>Local Selecionado:</strong> {obras.find(o => o.id == obraSelecionada)?.nome || 'Desconhecida'}
                                             </div>
                                         )}
                                     </div>
@@ -851,7 +832,7 @@ const handleFacialScanComplete = async (facialData) => {
                                     <div className="card card-moderno h-100">
                                         <div className="card-body">
                                             <h5 className="card-title text-primary fw-bold mb-3">
-                                                <FaUsers className="me-2" /> Resumo da Obra
+                                                <FaUsers className="me-2" /> Resumo
                                             </h5>
                                             <div className="d-flex justify-content-between align-items-center mb-3">
                                                 <span className="fw-semibold">Pessoas a Trabalhar:</span>
@@ -874,7 +855,7 @@ const handleFacialScanComplete = async (facialData) => {
                                                     ))}
                                                 </ul>
                                             ) : (
-                                                <p className="text-muted fst-italic">Sem registos recentes para esta obra.</p>
+                                                <p className="text-muted fst-italic">Sem registos recentes para este local.</p>
                                             )}
                                         </div>
                                     </div>

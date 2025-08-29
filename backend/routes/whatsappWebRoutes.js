@@ -1608,38 +1608,19 @@ async function handleIncomingMessage(message) {
     let conversation = activeConversations.get(phoneNumber);
     let userState = getUserState(phoneNumber);
 
-    // Se existe conversa ativa, continuar o fluxo normal sem verificar palavras-chave
-    if (conversation) {
-        await continueConversation(phoneNumber, messageText, conversation);
-        return;
-    }
+    // PRIMEIRO: Verificar se é uma palavra-chave para novo pedido
+    // MAS APENAS se não há conversa ativa OU se a conversa está em estado inicial/confirmação
+    const canInterruptForRequest = !conversation ||
+        conversation.state === CONVERSATION_STATES.INITIAL ||
+        conversation.state === CONVERSATION_STATES.WAITING_CONFIRMATION;
 
-    // Se existe estado de utilizador (ex: a selecionar obra), continuar
-    if (userState) {
-        if (userState.type === "selecting_obra") {
-            await handleObraSelection(phoneNumber, messageText, { data: userState }); // Passa o estado como data da conversa
-        } else if (userState.type === "awaiting_location") {
-            // Se está à espera de localização mas recebeu texto, dar instruções
-            await client.sendMessage(
-                phoneNumber,
-                "📍 *Aguardando Localização GPS*\n\n" +
-                "Por favor, envie a sua localização através de:\n" +
-                "• Anexo (📎) → 'Localização' → 'Localização atual'\n" +
-                "🌐 Ou envie um link do Google Maps\n" +
-                "📱 Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n" +
-                "💡 Se pretende cancelar o registo, digite 'cancelar'"
-            );
-        } else {
-            // Se o estado não é reconhecido, limpar e enviar mensagem padrão
-            clearUserState(phoneNumber);
-            await sendWelcomeMessage(phoneNumber);
+    if (isRequestKeyword(messageText) && canInterruptForRequest) {
+        // Se há conversa ativa, cancela-la para iniciar nova
+        if (conversation) {
+            console.log(`🔄 Cancelando conversa anterior de ${phoneNumber} (estado: ${conversation.state}) para iniciar novo pedido`);
+            activeConversations.delete(phoneNumber);
         }
-        return;
-    }
 
-    // Só agora verificar palavras-chave se NÃO há conversa ativa
-    // Se a mensagem contém palavras-chave para iniciar pedido
-    if (isRequestKeyword(messageText)) {
         // Verificar autorização antes de iniciar o pedido
         const authResult = await checkContactAuthorization(phoneNumber);
 
@@ -1655,8 +1636,19 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // Se a mensagem contém palavras-chave para registo de ponto
-    if (isPontoKeyword(messageText)) {
+    // SEGUNDO: Verificar se é uma palavra-chave para registo de ponto
+    // APENAS se não há conversa ativa OU se a conversa está em estado inicial/confirmação
+    const canInterruptForPonto = !conversation ||
+        conversation.state === CONVERSATION_STATES.INITIAL ||
+        conversation.state === CONVERSATION_STATES.WAITING_CONFIRMATION;
+
+    if (isPontoKeyword(messageText) && canInterruptForPonto) {
+        // Se há conversa ativa, cancela-la para iniciar registo de ponto
+        if (conversation) {
+            console.log(`🔄 Cancelando conversa anterior de ${phoneNumber} (estado: ${conversation.state}) para iniciar registo de ponto`);
+            activeConversations.delete(phoneNumber);
+        }
+
         // Verificar autorização antes de iniciar o registo de ponto
         const pontoAuthResult = await checkPontoAuthorization(phoneNumber);
 
@@ -1715,6 +1707,34 @@ async function handleIncomingMessage(message) {
         return;
     }
 
+    // TERCEIRO: Se existe conversa ativa e não é palavra-chave, continuar o fluxo normal
+    if (conversation) {
+        await continueConversation(phoneNumber, messageText, conversation);
+        return;
+    }
+
+    // Se existe estado de utilizador (ex: a selecionar obra), continuar
+    if (userState) {
+        if (userState.type === "selecting_obra") {
+            await handleObraSelection(phoneNumber, messageText, { data: userState }); // Passa o estado como data da conversa
+        } else if (userState.type === "awaiting_location") {
+            // Se está à espera de localização mas recebeu texto, dar instruções
+            await client.sendMessage(
+                phoneNumber,
+                "📍 *Aguardando Localização GPS*\n\n" +
+                "Por favor, envie a sua localização através de:\n" +
+                "• Anexo (📎) → 'Localização' → 'Localização atual'\n" +
+                "🌐 Ou envie um link do Google Maps\n" +
+                "📱 Ou digite coordenadas (ex: 41.1234, -8.5678)\n\n" +
+                "💡 Se pretende cancelar o registo, digite 'cancelar'"
+            );
+        } else {
+            // Se o estado não é reconhecido, limpar e enviar mensagem padrão
+            clearUserState(phoneNumber);
+            await sendWelcomeMessage(phoneNumber);
+        }
+        return;
+    }
 
 
     // Verificar se o contacto tem alguma autorização antes de mostrar mensagem
@@ -3048,21 +3068,46 @@ Digite "SIM" para confirmar ou "NÃO" para cancelar:`;
 
 // Handler para confirmação
 async function handleConfirmationInput(phoneNumber, message, conversation) {
-    const response = message.toLowerCase();
+    const response = message.trim().toLowerCase();
 
-    if (response === "sim" || response === "s") {
-        await createAssistenceRequest(phoneNumber, conversation);
-    } else if (response === "não" || response === "nao" || response === "n") {
+    if (response === "sim" || response === "s" || response === "yes" || response === "1") {
+        try {
+            console.log(`✅ Confirmação recebida de ${phoneNumber} - criando pedido...`);
+            const result = await createAssistenceRequest(phoneNumber, conversation);
+
+            // Garantir que a conversa é limpa após criação do pedido
+            if (activeConversations.has(phoneNumber)) {
+                activeConversations.delete(phoneNumber);
+            }
+
+            console.log(`✅ Pedido criado e conversa limpa para ${phoneNumber}`);
+            return result;
+        } catch (error) {
+            console.error(`❌ Erro ao criar pedido para ${phoneNumber}:`, error);
+
+            // Mesmo em erro, limpar conversa e informar utilizador
+            activeConversations.delete(phoneNumber);
+
+            await client.sendMessage(
+                phoneNumber,
+                "❌ Ocorreu um erro ao processar o seu pedido. Por favor, tente novamente enviando 'pedido'."
+            );
+
+            return { success: false, error: error.message };
+        }
+    } else if (response === "não" || response === "nao" || response === "n" || response === "no" || response === "0") {
         activeConversations.delete(phoneNumber);
         await client.sendMessage(
             phoneNumber,
-            "❌ Pedido cancelado com sucesso. Para iniciar um novo pedido de assistência, envie uma mensagem contendo 'pedido' ou 'assistência'.",
+            "❌ Pedido cancelado com sucesso.\n\n💡 Para iniciar um novo pedido de assistência, envie 'pedido' ou 'assistência'.",
         );
+        return { success: false, cancelled: true };
     } else {
         await client.sendMessage(
             phoneNumber,
-            "❌ Resposta inválida. Por favor, digite 'SIM' para confirmar ou 'NÃO' para cancelar.",
+            "❌ Resposta não reconhecida.\n\nPor favor, responda:\n• 'SIM' ou 'S' para confirmar\n• 'NÃO' ou 'N' para cancelar",
         );
+        return { success: false, invalidResponse: true };
     }
 }
 
@@ -3208,6 +3253,7 @@ async function createAssistenceRequest(phoneNumber, conversation) {
                     : "Alta");
         const successMessage = `✅ *PEDIDO DE ASSISTÊNCIA CRIADO COM SUCESSO*
 
+**Número:** ${pedidoID !== "N/A" ? pedidoID : "Sistema"}
 **Cliente:** ${payload.cliente}
 **Prioridade:** ${prioridadeTxt}
 **Estado:** Em curso
@@ -3219,12 +3265,19 @@ ${payload.descricaoProblema}
 
 O seu pedido foi registado no nosso sistema e será processado pela nossa equipa técnica.
 
+💡 *Para criar um novo pedido*, envie novamente "pedido" ou "assistência".
+
 Obrigado por contactar a Advir.`;
 
         await client.sendMessage(phoneNumber, successMessage);
         sent = true;
 
-        return { success: true, pedidoId: pedidoID, data: data || null };
+        return {
+            success: true,
+            pedidoId: pedidoID,
+            data: data || null,
+            message: "Pedido criado com sucesso"
+        };
     } catch (error) {
         console.error("❌ Erro inesperado ao criar pedido:", error.message);
 
@@ -3239,7 +3292,7 @@ Obrigado por contactar a Advir.`;
                         : "Alta");
             const successMessage = `✅ *PEDIDO DE ASSISTÊNCIA CRIADO COM SUCESSO*
 
-**Número do Pedido:** ${pedidoID}
+**Número:** ${pedidoID !== "N/A" ? pedidoID : "Sistema"}
 **Cliente:** ${payload?.cliente ?? "N/A"}
 **Prioridade:** ${prioridadeTxt ?? "Média"}
 **Estado:** Em curso
@@ -3251,17 +3304,30 @@ ${payload?.descricaoProblema ?? "N/A"}
 
 O seu pedido foi registado no nosso sistema e será processado pela nossa equipa técnica.
 
+💡 *Para criar um novo pedido*, envie novamente "pedido" ou "assistência".
+
 Obrigado por contactar a Advir.`;
             try {
                 await client.sendMessage(phoneNumber, successMessage);
-            } catch (_) { }
+            } catch (msgError) {
+                console.error("Erro ao enviar mensagem de sucesso:", msgError);
+            }
         }
 
-        return { success: true, pedidoId: pedidoID, data: null }; // força sucesso
+        return {
+            success: true,
+            pedidoId: pedidoID,
+            data: null,
+            message: "Pedido processado"
+        }; // força sucesso
     } finally {
+        // Sempre limpar a conversa para permitir novos pedidos
         try {
             activeConversations.delete(phoneNumber);
-        } catch (_) { }
+            console.log(`🧹 Conversa limpa para ${phoneNumber} - pronto para novos pedidos`);
+        } catch (cleanupError) {
+            console.warn("Erro ao limpar conversa:", cleanupError);
+        }
     }
 }
 
