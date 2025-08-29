@@ -146,29 +146,55 @@ const RegistoPontoFacial = (props) => {
     };
 
     const processarPontoComValidacaoParaUtilizador = async (obraId, nomeObra, userId, userName, registosDoUtilizador) => {
-        console.log(`Processando ponto para ${userName} na obra ${nomeObra}`);
-        console.log('Registos do utilizador:', registosDoUtilizador);
+        console.log(`🎯 Processando ponto para ${userName} na obra ${nomeObra}`);
+        console.log('📋 Registos do utilizador:', registosDoUtilizador);
+        console.log('🏗️ Obra ID atual:', obraId);
+
+        // Debug: mostrar todos os registos de entrada
+        const entradas = registosDoUtilizador.filter(r => r.tipo === 'entrada');
+        const saidas = registosDoUtilizador.filter(r => r.tipo === 'saida');
+        console.log(`🔍 ${entradas.length} entradas encontradas:`, entradas.map(e => ({
+            obra_id: e.obra_id,
+            timestamp: e.timestamp,
+            obra_nome: e.Obra?.nome
+        })));
+        console.log(`🔍 ${saidas.length} saídas encontradas:`, saidas.map(s => ({
+            obra_id: s.obra_id,
+            timestamp: s.timestamp,
+            obra_nome: s.Obra?.nome
+        })));
 
         // 1) Se já houver entrada ativa na MESMA obra → fazer SAÍDA
         const ativaMesmaObra = getEntradaAtivaPorObra(obraId, registosDoUtilizador);
+        console.log('🏗️ Entrada ativa na mesma obra:', ativaMesmaObra ? {
+            obra_id: ativaMesmaObra.obra_id,
+            timestamp: ativaMesmaObra.timestamp
+        } : 'Nenhuma');
+
         if (ativaMesmaObra) {
-            console.log(`${userName} já tem entrada ativa na obra ${nomeObra}. Registando saída.`);
+            console.log(`✅ ${userName} já tem entrada ativa na obra ${nomeObra}. Registando saída.`);
             await registarPontoParaUtilizador('saida', obraId, nomeObra, userId, userName);
             return;
         }
 
         // 2) Se houver entrada ativa noutra obra → fechar essa e abrir ENTRADA nesta
         const ultimaAtiva = getUltimaEntradaAtiva(registosDoUtilizador);
+        console.log('🔍 Última entrada ativa (qualquer obra):', ultimaAtiva ? {
+            obra_id: ultimaAtiva.obra_id,
+            timestamp: ultimaAtiva.timestamp,
+            obra_nome: ultimaAtiva.Obra?.nome
+        } : 'Nenhuma');
+
         if (ultimaAtiva && String(ultimaAtiva.obra_id) !== String(obraId)) {
             const nomeAnterior = ultimaAtiva.Obra?.nome || 'Obra anterior';
-            console.log(`${userName} tem entrada ativa noutra obra (${nomeAnterior}). Fechando e abrindo nova entrada.`);
+            console.log(`🔄 ${userName} tem entrada ativa noutra obra (${nomeAnterior}). Fechando e abrindo nova entrada.`);
             await registarPontoParaUtilizador('saida', ultimaAtiva.obra_id, nomeAnterior, userId, userName);
             // Aguardar um pouco antes de registar a nova entrada
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
         // 3) Sem ativa ou após fechar anterior → ENTRADA nesta obra
-        console.log(`Registando entrada para ${userName} na obra ${nomeObra}`);
+        console.log(`📝 Registando entrada para ${userName} na obra ${nomeObra}`);
         await registarPontoParaUtilizador('entrada', obraId, nomeObra, userId, userName);
 
         // Recarregar resumo da obra após registo
@@ -307,28 +333,72 @@ const RegistoPontoFacial = (props) => {
             console.log('✅ Utilizador identificado:', { userId, userName });
             setStatusMessage(`Utilizador identificado: ${userName}. A verificar estado atual...`);
 
-            // Obter registos do utilizador identificado para o dia usando o token do admin logado
+            // Obter registos do utilizador identificado para o dia
             const token = localStorage.getItem('loginToken');
             const hoje = new Date().toISOString().split('T')[0];
+            const isPOS = localStorage.getItem('isPOS') === 'true';
 
             console.log('📅 A obter registos para a data:', hoje, 'do utilizador:', userId);
+            console.log('🏪 Modo POS ativo:', isPOS);
 
-            const registosRes = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}&userId=${userId}`, {
+            // Para POS, usar endpoint específico que não requer permissões de admin
+            let registosUrl;
+            if (isPOS) {
+                registosUrl = `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?user_id=${userId}&ano=${new Date().getFullYear()}&mes=${String(new Date().getMonth() + 1).padStart(2, '0')}&data=${hoje}`;
+            } else {
+                registosUrl = `https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}&userId=${userId}`;
+            }
+
+            const registosRes = await fetch(registosUrl, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             let registosUtilizadorIdentificado = [];
             if (registosRes.ok) {
-                registosUtilizadorIdentificado = await registosRes.json();
+                const data = await registosRes.json();
+                // Para o endpoint de período, os dados vêm num formato diferente
+                registosUtilizadorIdentificado = isPOS ? (data.filter ? data.filter(r => r.timestamp && r.timestamp.startsWith(hoje)) : data) : data;
                 console.log(`📊 ${registosUtilizadorIdentificado.length} registos encontrados para ${userName}`);
             } else {
                 console.warn('⚠️ Não foi possível obter registos:', registosRes.status);
+                
+                // Fallback: tentar outro endpoint se o primeiro falhar
+                if (isPOS) {
+                    console.log('🔄 Tentando endpoint alternativo para POS...');
+                    try {
+                        const fallbackRes = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user?userId=${userId}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (fallbackRes.ok) {
+                            const fallbackData = await fallbackRes.json();
+                            registosUtilizadorIdentificado = fallbackData.filter(r => r.timestamp && r.timestamp.startsWith(hoje));
+                            console.log(`📊 Fallback: ${registosUtilizadorIdentificado.length} registos encontrados`);
+                        }
+                    } catch (fallbackErr) {
+                        console.error('❌ Fallback também falhou:', fallbackErr);
+                    }
+                }
             }
 
-            console.log(`Registos encontrados para ${userName}:`, registosUtilizadorIdentificado);
+            // Garantir que os registos estão no formato correto
+            const registosFormatados = registosUtilizadorIdentificado.map(reg => ({
+                ...reg,
+                obra_id: reg.obra_id || reg.obraId,
+                timestamp: reg.timestamp || reg.createdAt,
+                tipo: reg.tipo,
+                User: reg.User || { nome: userName },
+                Obra: reg.Obra || { nome: nomeObra }
+            }));
 
-            // Processar com validação automática usando os registos do utilizador identificado
-            await processarPontoComValidacaoParaUtilizador(obraId, nomeObra, userId, userName, registosUtilizadorIdentificado);
+            console.log(`Registos encontrados para ${userName}:`, registosFormatados);
+            console.log('🔍 Registos detalhados:', registosFormatados.map(r => ({
+                tipo: r.tipo,
+                obra_id: r.obra_id,
+                timestamp: r.timestamp
+            })));
+
+            // Processar com validação automática usando os registos formatados
+            await processarPontoComValidacaoParaUtilizador(obraId, nomeObra, userId, userName, registosFormatados);
 
         } catch (err) {
             console.error('❌ Erro na autenticação facial e registo de ponto:', err);
@@ -340,13 +410,13 @@ const RegistoPontoFacial = (props) => {
 
     const processarEntradaComFacial = async (facialData) => {
         if (!obraSelecionada) {
-            setStatusMessage('Por favor, selecione um local antes de iniciar o reconhecimento facial');
+            setStatusMessage('Por favor, selecione uma obra antes de iniciar o reconhecimento facial');
             return;
         }
 
         const obra = obras.find(o => o.id == obraSelecionada);
         if (!obra) {
-            setStatusMessage('Local selecionado não encontrada');
+            setStatusMessage('Obra selecionada não encontrada');
             return;
         }
 
@@ -356,7 +426,7 @@ const RegistoPontoFacial = (props) => {
 
     const handleStartFacialScan = () => {
         if (!obraSelecionada) {
-            alert('Por favor, selecione um local antes de iniciar o reconhecimento facial');
+            alert('Por favor, selecione uma obra antes de iniciar o reconhecimento facial');
             return;
         }
         setIsFacialScanning(true);
@@ -627,7 +697,7 @@ const RegistoPontoFacial = (props) => {
                                         <FaUserCheck className="me-2" />
                                         Identificação Facial e Registo de Ponto
                                     </h1>
-                                    <p className="text-muted mb-0 small">Selecione o local e use o reconhecimento facial para identificar o utilizador e registar o seu ponto</p>
+                                    <p className="text-muted mb-0 small">Selecione a obra e use o reconhecimento facial para identificar o utilizador e registar o seu ponto</p>
                                 </div>
                             </div>
                         </div>
@@ -639,12 +709,12 @@ const RegistoPontoFacial = (props) => {
                                     <div className="card-body p-3 p-md-4">
                                         {/* Seleção de Obra */}
                                         <div className="mb-4">
-                                            <label className="form-label fw-semibold">Selecionar Local</label>
+                                            <label className="form-label fw-semibold">Selecionar Obra</label>
                                             <Select
                                                 options={opcoesObras}
                                                 value={opcoesObras.find(o => o.value == obraSelecionada)}
                                                 onChange={(opcao) => setObraSelecionada(opcao?.value || '')}
-                                                placeholder="Escolha o local para registar o ponto..."
+                                                placeholder="Escolha a obra para registar o ponto..."
                                                 classNamePrefix="react-select"
                                                 isClearable
                                             />
@@ -689,7 +759,7 @@ const RegistoPontoFacial = (props) => {
                                         {obraSelecionada && (
                                             <div className="alert alert-info">
                                                 <FaMapMarkerAlt className="me-2" />
-                                                <strong>Local Selecionado:</strong> {obras.find(o => o.id == obraSelecionada)?.nome || 'Desconhecida'}
+                                                <strong>Obra Selecionada:</strong> {obras.find(o => o.id == obraSelecionada)?.nome || 'Desconhecida'}
                                             </div>
                                         )}
                                     </div>
@@ -702,7 +772,7 @@ const RegistoPontoFacial = (props) => {
                                     <div className="card card-moderno h-100">
                                         <div className="card-body">
                                             <h5 className="card-title text-primary fw-bold mb-3">
-                                                <FaUsers className="me-2" /> Resumo
+                                                <FaUsers className="me-2" /> Resumo da Obra
                                             </h5>
                                             <div className="d-flex justify-content-between align-items-center mb-3">
                                                 <span className="fw-semibold">Pessoas a Trabalhar:</span>
@@ -725,7 +795,7 @@ const RegistoPontoFacial = (props) => {
                                                     ))}
                                                 </ul>
                                             ) : (
-                                                <p className="text-muted fst-italic">Sem registos recentes para este local.</p>
+                                                <p className="text-muted fst-italic">Sem registos recentes para esta obra.</p>
                                             )}
                                         </div>
                                     </div>
