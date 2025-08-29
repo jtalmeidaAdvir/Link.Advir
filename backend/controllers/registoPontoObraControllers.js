@@ -508,12 +508,12 @@ const obterRegistosObraPorDia = async (req, res) => {
         const registos = await RegistoPontoObra.findAll({
             where: {
                 obra_id: obraId,
-                [Op.and]: [
-                    Sequelize.where(
-                        Sequelize.fn('DATE', Sequelize.col('timestamp')),
-                        dataConsulta
-                    )
-                ]
+                timestamp: {
+                    [Op.between]: [
+                        new Date(dataConsulta + 'T00:00:00.000Z'),
+                        new Date(dataConsulta + 'T23:59:59.999Z')
+                    ]
+                }
             },
             include: [
                 {
@@ -550,12 +550,12 @@ const obterResumoObra = async (req, res) => {
         const registosHoje = await RegistoPontoObra.findAll({
             where: {
                 obra_id: obraId,
-                [Op.and]: [
-                    Sequelize.where(
-                        Sequelize.fn('DATE', Sequelize.col('timestamp')),
-                        dataHoje
-                    )
-                ]
+                timestamp: {
+                    [Op.between]: [
+                        new Date(dataHoje + 'T00:00:00.000Z'),
+                        new Date(dataHoje + 'T23:59:59.999Z')
+                    ]
+                }
             },
             include: [
                 {
