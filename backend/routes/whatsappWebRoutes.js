@@ -316,19 +316,41 @@ router.get("/status", (req, res) => {
 // Endpoint para iniciar conexão
 router.post("/connect", async (req, res) => {
     try {
-        if (!client) {
-            await initializeWhatsAppWeb();
-            res.json({
-                message: "Iniciando conexão WhatsApp Web...",
-                status: clientStatus,
-            });
-        } else {
-            res.json({
-                message: "Cliente já iniciado",
-                status: clientStatus,
-                isReady: isClientReady,
-            });
+        // Se já existe um cliente, destruir primeiro para forçar nova autenticação
+        if (client) {
+            console.log("🔄 Cliente existente detectado, destruindo para nova autenticação...");
+            try {
+                await client.destroy();
+            } catch (destroyError) {
+                console.log("⚠️ Erro ao destruir cliente anterior:", destroyError.message);
+            }
+            client = null;
+            isClientReady = false;
+            clientStatus = "disconnected";
+            qrCodeData = null;
         }
+
+        // Limpar sessão existente para forçar novo QR Code
+        const fs = require("fs");
+        const path = require("path");
+        const sessionPath = path.join(process.cwd(), "whatsapp-session");
+
+        if (fs.existsSync(sessionPath)) {
+            try {
+                fs.rmSync(sessionPath, { recursive: true, force: true });
+                console.log("🧹 Sessão anterior removida para nova autenticação");
+            } catch (error) {
+                console.log("⚠️ Erro ao remover sessão anterior:", error.message);
+            }
+        }
+
+        // Inicializar novo cliente
+        await initializeWhatsAppWeb();
+
+        res.json({
+            message: "Iniciando nova conexão WhatsApp Web... Aguarde o QR Code aparecer!",
+            status: clientStatus,
+        });
     } catch (error) {
         console.error("Erro ao iniciar WhatsApp Web:", error);
         res.status(500).json({
@@ -340,6 +362,8 @@ router.post("/connect", async (req, res) => {
 // Endpoint para desconectar
 router.post("/disconnect", async (req, res) => {
     try {
+        console.log("🔌 Iniciando desconexão completa do WhatsApp Web...");
+
         if (client) {
             try {
                 // Shorter timeout for disconnect
@@ -352,6 +376,7 @@ router.post("/disconnect", async (req, res) => {
                 );
 
                 await Promise.race([destroyPromise, timeoutPromise]);
+                console.log("✅ Cliente WhatsApp destruído com sucesso");
             } catch (destroyError) {
                 console.error(
                     "⚠️ Erro ao destruir cliente:",
@@ -410,14 +435,33 @@ router.post("/disconnect", async (req, res) => {
                     }
                 }
             }
-
-            // Always reset state
-            client = null;
-            isClientReady = false;
-            clientStatus = "disconnected";
-            qrCodeData = null;
         }
-        res.json({ message: "WhatsApp Web desconectado com sucesso" });
+
+        // Always reset state
+        client = null;
+        isClientReady = false;
+        clientStatus = "disconnected";
+        qrCodeData = null;
+
+        // Limpar sessão guardada para evitar reconexão automática
+        const fs = require("fs");
+        const path = require("path");
+        const sessionPath = path.join(process.cwd(), "whatsapp-session");
+
+        if (fs.existsSync(sessionPath)) {
+            try {
+                fs.rmSync(sessionPath, { recursive: true, force: true });
+                console.log("🧹 Sessão WhatsApp removida completamente");
+            } catch (sessionError) {
+                console.log("⚠️ Erro ao remover sessão:", sessionError.message);
+            }
+        }
+
+        console.log("✅ Desconexão completa finalizada");
+        res.json({
+            message: "WhatsApp Web desconectado com sucesso",
+            sessionCleared: true
+        });
     } catch (error) {
         console.error("Erro ao desconectar:", error);
         // Force reset variables even on error
@@ -628,6 +672,63 @@ router.post("/clear-session", async (req, res) => {
             error: "Erro ao limpar sessão WhatsApp",
             details: error.message,
             clientReset: true,
+            timestamp: new Date().toISOString(),
+        });
+    }
+});
+
+// Endpoint específico para trocar de conta WhatsApp
+router.post("/change-account", async (req, res) => {
+    try {
+        console.log("🔄 Iniciando processo de troca de conta WhatsApp...");
+
+        // Primeiro limpar sessão atual
+        if (client) {
+            try {
+                await client.destroy();
+                console.log("✅ Cliente anterior desconectado");
+            } catch (error) {
+                console.log("⚠️ Erro ao desconectar cliente anterior (normal):", error.message);
+            }
+        }
+
+        // Reset completo do estado
+        client = null;
+        isClientReady = false;
+        clientStatus = "disconnected";
+        qrCodeData = null;
+
+        // Limpar arquivos de sessão
+        const fs = require("fs");
+        const path = require("path");
+        const sessionPath = path.join(process.cwd(), "whatsapp-session");
+
+        if (fs.existsSync(sessionPath)) {
+            try {
+                fs.rmSync(sessionPath, { recursive: true, force: true });
+                console.log("✅ Arquivos de sessão removidos");
+            } catch (error) {
+                console.log("⚠️ Erro ao remover arquivos de sessão:", error.message);
+            }
+        }
+
+        // Aguardar um momento antes de tentar reconectar
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Iniciar nova conexão
+        await initializeWhatsAppWeb();
+
+        res.json({
+            message: "Troca de conta iniciada. Aguarde o novo QR Code aparecer.",
+            success: true,
+            timestamp: new Date().toISOString(),
+        });
+
+    } catch (error) {
+        console.error("❌ Erro ao trocar conta WhatsApp:", error);
+        res.status(500).json({
+            error: "Erro ao trocar conta WhatsApp",
+            details: error.message,
             timestamp: new Date().toISOString(),
         });
     }

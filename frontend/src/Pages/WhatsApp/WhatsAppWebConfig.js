@@ -265,6 +265,39 @@ const WhatsAppWebConfig = () => {
         }
     };
 
+    const handleQuickChangeAccount = async () => {
+        if (
+            confirm(
+                "Deseja trocar para um número WhatsApp diferente? O processo será automático."
+            )
+        ) {
+            setLoading(true);
+            try {
+                const response = await fetch(`${API_BASE_URL}/change-account`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert("Troca iniciada! Aguarde o QR Code aparecer para escanear com o novo número.");
+                    setUserInfo(null);
+                    checkStatus();
+                } else {
+                    alert(`Erro: ${data.error}`);
+                }
+            } catch (error) {
+                console.error("Erro ao trocar conta:", error);
+                alert("Erro ao trocar conta WhatsApp");
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
     const handleTestMessage = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -866,6 +899,7 @@ const WhatsAppWebConfig = () => {
             handleConnect={handleConnect}
             handleDisconnect={handleDisconnect}
             handleChangeAccount={handleChangeAccount}
+            handleQuickChangeAccount={handleQuickChangeAccount}
             handleTestMessage={handleTestMessage}
             checkStatus={checkStatus}
             API_BASE_URL={API_BASE_URL}

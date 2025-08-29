@@ -1,4 +1,3 @@
-
 import React from "react";
 
 const ConnectionTab = ({
@@ -60,6 +59,29 @@ const ConnectionTab = ({
         }
     };
 
+    const handleQuickChangeAccount = async () => {
+        if (confirm("Isso irá desconectar a conta atual e permitir a conexão com um novo número. Continuar?")) {
+            setLoading(true);
+            try {
+                const response = await fetch(`${API_BASE_URL}/clear-session`, {
+                    method: "POST",
+                });
+
+                if (response.ok) {
+                    alert("Sessão limpa! Agora pode conectar com um novo número.");
+                    setTimeout(() => handleConnect(), 1000);
+                } else {
+                    alert("Erro ao limpar sessão");
+                }
+            } catch (error) {
+                alert("Erro ao limpar sessão");
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+
     return (
         <div>
             {/* Status Card */}
@@ -96,6 +118,46 @@ const ConnectionTab = ({
                                 disabled={loading}
                             >
                                 {loading ? "🔄 Conectando..." : "🔗 Conectar WhatsApp Web"}
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (confirm("Isto irá forçar uma nova conexão com QR Code. Continuar?")) {
+                                        setLoading(true);
+                                        try {
+                                            // Primeiro desconectar completamente
+                                            await fetch(`${API_BASE_URL}/disconnect`, {
+                                                method: "POST",
+                                            });
+
+                                            // Aguardar um momento
+                                            await new Promise(resolve => setTimeout(resolve, 1000));
+
+                                            // Depois conectar (que agora vai limpar a sessão automaticamente)
+                                            const response = await fetch(`${API_BASE_URL}/connect`, {
+                                                method: "POST",
+                                            });
+
+                                            if (response.ok) {
+                                                alert("Nova conexão iniciada! Aguarde o QR Code aparecer.");
+                                                checkStatus();
+                                            } else {
+                                                alert("Erro ao iniciar nova conexão");
+                                            }
+                                        } catch (error) {
+                                            alert("Erro ao iniciar nova conexão");
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    }
+                                }}
+                                style={{
+                                    ...styles.button,
+                                    backgroundColor: "#17a2b8",
+                                    ...(loading ? styles.buttonDisabled : {}),
+                                }}
+                                disabled={loading}
+                            >
+                                🆕 Nova Conexão
                             </button>
                             <button
                                 onClick={async () => {
@@ -195,14 +257,27 @@ const ConnectionTab = ({
                     </div>
                     <div style={{ textAlign: "center" }}>
                         <button
-                            onClick={handleChangeAccount}
                             style={{
                                 ...styles.button,
-                                ...styles.buttonWarning,
+                                backgroundColor: "#dc3545",
+                                marginLeft: "8px",
                             }}
+                            onClick={handleChangeAccount}
                             disabled={loading}
                         >
                             🔄 Trocar Conta
+                        </button>
+
+                        <button
+                            style={{
+                                ...styles.button,
+                                backgroundColor: "#17a2b8",
+                                marginLeft: "8px",
+                            }}
+                            onClick={handleQuickChangeAccount}
+                            disabled={loading}
+                        >
+                            📱 Trocar Número
                         </button>
                     </div>
                 </div>
