@@ -17,11 +17,19 @@ import {
     Pressable,
 } from "react-native";
 import { List } from "react-native-paper";
-
+import {
+    FaHome,
+    FaUser,
+    FaTool,
+    FaClock,
+    FaBriefcase,
+    FaSignOutAlt,
+    FaCog,
+} from "react-icons/fa";
 import { FontAwesome } from "@expo/vector-icons";
-
+import { useNavigation } from "@react-navigation/native"; // Importa o hook
 import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
-
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -39,7 +47,6 @@ import VerificaConta from "./src/Pages/Autenticacao/VerificaConta";
 import SelecaoEmpresa from "./src/Pages/Autenticacao/pages/SelecaoEmpresa";
 import RecuperarPassword from "./src/Pages/Autenticacao/RecuperarPassword";
 import RedefinirPassword from "./src/Pages/Autenticacao/RedefinirPassword";
-import GestaoPOS from "./src/Pages/Autenticacao/GestaoPOS";
 
 import ContratosList from "./src/Pages/BackOffice/ContratosList";
 
@@ -59,7 +66,6 @@ import PedidosAlteracaoAdmin from "./src/Pages/Assiduidade/PedidosAlteracaoAdmin
 import ListarRegistos from "./src/Pages/Assiduidade/ListarRegistos";
 
 import RegistoPontoObra from "./src/Pages/Assiduidade/RegistoPontoObra";
-import RegistoPontoFacial from "./src/Pages/Assiduidade/RegistoPontoFacial";
 import CalendarioHorasTrabalho from "./src/Pages/Assiduidade/CalendarioHorasTrabalho";
 
 import AprovacaoFaltaFerias from "./src/Pages/Assiduidade/AprovacaoFaltaFerias";
@@ -130,7 +136,6 @@ const CustomDrawerContent = ({
     hasRegistarUtilizadorModule,
     hasRegistoPontoAdminModule,
     hasPedidosAlteracaoAdminModule,
-    isPOS, // Recebe a prop isPOS
     ...props
 }) => {
     const [expandedModules, setExpandedModules] = useState({ Geral: true, Administrador: false });
@@ -151,7 +156,7 @@ const CustomDrawerContent = ({
         }, 500);
     };
 
-    // Se for superAdmin ou POS, mostra apenas opções específicas
+    // Se for superAdmin, mostra apenas opções específicas
     if (isSuperAdmin) {
         return (
             <View style={drawerStyles.container}>
@@ -236,61 +241,6 @@ const CustomDrawerContent = ({
         );
     }
 
-    // Se for POS, retorna um drawer content mais restrito
-    if (isPOS) {
-        return (
-            <View style={drawerStyles.container}>
-                <View style={drawerStyles.header}>
-                    <View style={drawerStyles.logoContainer}>
-                        <Image source={logo} style={drawerStyles.logo} />
-                        <Text style={drawerStyles.appName}>AdvirLink</Text>
-                    </View>
-                    <Text style={drawerStyles.userRole}>POS</Text>
-                </View>
-                <DrawerContentScrollView
-                    {...props}
-                    contentContainerStyle={{ flexGrow: 1, paddingTop: 0 }}
-                >
-                    <DrawerItem
-                        label="Registo Ponto Facial"
-                        onPress={() => props.navigation.navigate("RegistoPontoFacial")}
-                        icon={() => (
-                            <FontAwesome
-                                name="user-secret" // Ícone para reconhecimento facial
-                                size={18}
-                                color="#1792FE"
-                            />
-                        )}
-                        labelStyle={drawerStyles.menuItemLabel}
-                        style={drawerStyles.menuItem}
-                    />
-                    <View style={drawerStyles.bottomSection}>
-                        <DrawerItem
-                            label="Sair"
-                            onPress={handleLogout}
-                            icon={() => (
-                                <FontAwesome
-                                    name="sign-out"
-                                    size={18}
-                                    color="#4A9EFF"
-                                />
-                            )}
-                            labelStyle={[
-                                drawerStyles.menuItemLabel,
-                                { color: "#4A9EFF" },
-                            ]}
-                            style={[
-                                drawerStyles.menuItem,
-                                drawerStyles.logoutItem,
-                            ]}
-                        />
-                    </View>
-                </DrawerContentScrollView>
-            </View>
-        );
-    }
-
-
     const moduleDisplayNames = {
   Obras: "Ponto",
   Servicos: "Serviços",
@@ -303,7 +253,6 @@ const CustomDrawerContent = ({
 // Define a ordem que queres para os submódulos de Obras
 const obrasSubmodulesOrder = [
   "Ponto",          // RegistoPontoObra
-  "PontoFacial",    // RegistoPontoFacial
   "Agenda",         // Calendário
   "Obras",         // Obras
   "Escritório",     // Escritório
@@ -311,9 +260,11 @@ const obrasSubmodulesOrder = [
   "PartesDiarias",   // Partes Diárias
   "GestaoPontos",   // GestaoPontos
   "GestaoFaltas",   // GestaoFaltas
+  "PartesDiarias",   // PartesDiarias
   "GestaoExternos", // GestaoTrabalhadoresExternos
   "GestaoPartes",   // GestaoPartesDiarias
-  "MapaRegistos"    // MapaRegistos
+    "MapaRegistos"    // MapaRegistos
+
 ];
 
 
@@ -342,7 +293,6 @@ const obrasSubmodulesOrder = [
             GestaoExternos: "user-plus",
             GestaoPartes: "clipboard",
             Ponto: "map-marker",
-            PontoFacial: "user-secret",
             MapaRegistos: "map",
             QrCode: "qrcode",
             Botao: "clock-o",
@@ -413,11 +363,6 @@ const obrasSubmodulesOrder = [
         hasRegistarUtilizadorModule ||
         hasRegistoPontoAdminModule ||
         hasPedidosAlteracaoAdminModule;
-    const hasGestaoPOSModule = modules.some(
-        (module) =>
-            module.nome === "Administrador" &&
-            module.submodulos.some((sub) => sub.nome === "GestaoPOS"),
-    );
 
     const userNome = localStorage.getItem("userNome") || "";
     const empresa = localStorage.getItem("empresaSelecionada") || "";
@@ -479,11 +424,6 @@ const obrasSubmodulesOrder = [
                             const hasVisibleSubmodules =
                                 module.submodulos &&
                                 module.submodulos.length > 0;
-
-                            // Não renderiza o módulo "Administrador" diretamente aqui, pois ele é tratado separadamente
-                            if (module.nome === "Administrador") {
-                                return null;
-                            }
 
                             if (
                                 !hasVisibleSubmodules &&
@@ -736,7 +676,6 @@ const obrasSubmodulesOrder = [
                                                         GestaoPartes:
                                                             "GestaoPartesDiarias",
                                                         Ponto: "RegistoPontoObra",
-                                                        PontoFacial: "RegistoPontoFacial",
                                                         MapaRegistos:
                                                             "MapaRegistos",
                                                         QrCode: "LeitorQRCode",
@@ -777,12 +716,6 @@ const obrasSubmodulesOrder = [
                                                         return null;
                                                     }
 
-                                                    // PontoFacial só aparece se o utilizador tiver o submódulo específico
-                                                    if (submodulo.nome === "PontoFacial") {
-                                                        // O submódulo já está filtrado pelo backend baseado nas permissões do utilizador
-                                                        // Se chegou aqui, o utilizador tem acesso
-                                                    }
-
                                                     // Trabalhadores têm acesso APENAS aos submódulos Ponto e Agenda
                                                     if (tipoUser === "Trabalhador") {
                                                         if (!(submodulo.nome === "Ponto" || submodulo.nome === "Agenda")) {
@@ -816,8 +749,7 @@ const obrasSubmodulesOrder = [
 
                                                     const displayName =
                                                         {
-                                                            PontoFacial:
-                                                                "Ponto Facial",
+                                                            
                                                             PartesDiarias:
                                                                 "Partes Diárias",
                                                             GestaoFaltas:
@@ -1069,27 +1001,6 @@ const obrasSubmodulesOrder = [
                                         </Text>
                                     </TouchableOpacity>
                                 )}
-                                {hasGestaoPOSModule && (
-                                    <TouchableOpacity
-                                        style={drawerStyles.submoduleItem}
-                                        onPress={() =>
-                                            props.navigation.navigate(
-                                                "GestaoPOS",
-                                            )
-                                        }
-                                    >
-                                        <FontAwesome
-                                            name="desktop"
-                                            size={16}
-                                            color="#1792FE"
-                                        />
-                                        <Text
-                                            style={drawerStyles.submoduleText}
-                                        >
-                                            Gestão POS
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
                             </View>
                         )}
                     </View>
@@ -1141,6 +1052,8 @@ const obrasSubmodulesOrder = [
 };
 
 const AppNavigator = () => {
+    const navigation = useNavigation(); // Obtém o objeto de navegação
+
     const [isAdmin, setIsAdmin] = useState(false);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -1155,7 +1068,6 @@ const AppNavigator = () => {
     const [initialRoute, setInitialRoute] = useState("Login"); // Define a rota inicial com Login por padrão
     const [tipoUser, setTipoUser] = useState("");
     const [profileMenuVisible, setProfileMenuVisible] = useState(false);
-    const [isPOS, setIsPOS] = useState(false); // Estado para verificar se é POS
 
     // Filtros para submódulos do módulo Administrador
     const hasContratosAtivosModule = modules.some(
@@ -1191,12 +1103,9 @@ const AppNavigator = () => {
     const hasPedidosAlteracaoAdminModule = modules.some(
         (module) =>
             module.nome === "Administrador" &&
-            module.submodulos.some((sub) => sub.nome === "PedidosAlteracaoAdmin"),
-    );
-    const hasGestaoPOSModule = modules.some(
-        (module) =>
-            module.nome === "Administrador" &&
-            module.submodulos.some((sub) => sub.nome === "GestaoPOS"),
+            module.submodulos.some(
+                (sub) => sub.nome === "PedidosAlteracaoAdmin",
+            ),
     );
 
     // Dentro de AppNavigator:
@@ -1206,63 +1115,59 @@ const AppNavigator = () => {
         const empresaLs = localStorage.getItem("empresaSelecionada");
         let tipoUserLs = localStorage.getItem("tipoUser");
 
-        // Verificar se tipoUser é um token JWT e tentar corrigir
+        // Verificar se tipoUser é um token JWT em vez do valor correto
         if (tipoUserLs && tipoUserLs.includes('.')) {
-            console.log(`🔧 Detectado tipoUser como JWT, tentando recuperar valor correto...`);
+            console.log(`⚠️ tipoUser parece ser um token JWT, tentando recuperar o valor correto...`);
+            // Tentar recuperar de outras fontes ou limpar
             tipoUserLs = localStorage.getItem("userTipo") || localStorage.getItem("tipo_user") || "";
-
-            // Se ainda não encontramos, definir como vazio para forçar nova seleção
-            if (!tipoUserLs || tipoUserLs.includes('.')) {
-                console.log(`❌ Não foi possível recuperar tipoUser válido, limpando...`);
-                localStorage.removeItem("tipoUser");
-                tipoUserLs = "";
+            if (!tipoUserLs) {
+                console.log(`🔧 Tentando decodificar informações do token...`);
+                try {
+                    // Se ainda não temos o tipo, podemos tentar recuperar do token de login
+                    const payload = JSON.parse(atob(token.split(".")[1]));
+                    // Note: normalmente o tipo não está no token, mas vamos verificar
+                    console.log(`📋 Payload do token:`, payload);
+                } catch (error) {
+                    console.error("Erro ao decodificar token:", error);
+                }
             }
         }
 
-        console.log(`🔍 fetchUserData - valores após verificação:`, {
+        console.log(`👤 fetchUserData - Dados do localStorage:`, {
             token: token ? "exists" : "null",
             empresa: empresaLs,
             tipoUser: tipoUserLs,
-            originalTipoUser: localStorage.getItem("tipoUser")
+            tipoUserOriginal: localStorage.getItem("tipoUser")
         });
 
-        // Verificar se o token existe e é válido
         if (token && isTokenValid(token)) {
-            const adminStatus = localStorage.getItem("isAdmin") === "true";
-            const superAdminStatus = localStorage.getItem("isSuperAdmin") === "true";
-            const userUsername = localStorage.getItem("username");
-            const userModules = JSON.parse(localStorage.getItem("userModules") || "[]");
-            const posStatus = localStorage.getItem("isPOS") === "true"; // Verifica se é POS
-            const userNomeFromStorage = localStorage.getItem("userNome");
-            const empresaFromStorage = localStorage.getItem("empresaSelecionada") || localStorage.getItem("empresa_areacliente");
-
-            setIsLoggedIn(!!token);
-            setIsAdmin(adminStatus);
-            setIsSuperAdmin(superAdminStatus);
-            setUsername(userUsername || "");
-            setUserNome(userNomeFromStorage || "");
-            setEmpresa(empresaFromStorage || "");
-            setModules(userModules);
+            setIsLoggedIn(true);
+            setIsSuperAdmin(localStorage.getItem("superAdmin") === "true");
+            setIsAdmin(localStorage.getItem("isAdmin") === "true");
+            setUsername(localStorage.getItem("username") || "");
+            setUserNome(localStorage.getItem("userNome") || "");
+            setEmpresa(empresaLs || "");
             setTipoUser(tipoUserLs || "");
-            setIsPOS(posStatus); // Define o estado isPOS
 
+            console.log(`✅ Estado definido - tipoUser: "${tipoUserLs}"`);
+
+            // buscar módulos (agora com filtro por empresa)
             await fetchUserModules();
 
-            // Definir a rota inicial baseada no estado
-            if (posStatus) { // Se for POS, a rota inicial é RegistoPontoFacial
-                setInitialRoute("RegistoPontoFacial");
-            } else if (superAdminStatus) {
+            // definir rota inicial
+            if (localStorage.getItem("superAdmin") === "true") {
                 setInitialRoute("ADHome");
             } else if (tipoUserLs && empresaLs) {
-                // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra (padrão)
                 setInitialRoute("RegistoPontoObra");
             } else if (empresaLs) {
                 setInitialRoute("Home");
             } else {
                 setInitialRoute("SelecaoEmpresa");
             }
+
+            // Configurar notificações após login
+            //setupNotifications();
         } else {
-            // Token inválido ou inexistente - limpar localStorage e ir para login
             localStorage.clear();
             setIsLoggedIn(false);
             setInitialRoute("Login");
@@ -1270,6 +1175,25 @@ const AppNavigator = () => {
 
         setLoading(false);
     };
+
+    /* const setupNotifications = async () => {
+        try {
+            // Solicitar permissão para notificações se ainda não foi concedida
+            if (!isPermissionGranted) {
+                await requestNotificationPermission();
+            }
+
+            // Agendar lembrete de registo de ponto
+            await scheduleRegistoPontoReminder();
+        } catch (error) {
+            console.error('Erro ao configurar notificações:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchUserData();
+    }, []);
+*/
 
     const fetchUserModules = async () => {
         const token = localStorage.getItem("loginToken");
@@ -1329,9 +1253,66 @@ const AppNavigator = () => {
     };
 
     useEffect(() => {
+        const fetchUserData = async () => {
+            const token = localStorage.getItem("loginToken");
+            const empresa = localStorage.getItem("empresaSelecionada");
+            let tipoUser = localStorage.getItem("tipoUser");
+
+            // Verificar se tipoUser é um token JWT e tentar corrigir
+            if (tipoUser && tipoUser.includes('.')) {
+                console.log(`🔧 Detectado tipoUser como JWT, tentando recuperar valor correto...`);
+                tipoUser = localStorage.getItem("userTipo") || localStorage.getItem("tipo_user") || "";
+
+                // Se ainda não encontramos, definir como vazio para forçar nova seleção
+                if (!tipoUser || tipoUser.includes('.')) {
+                    console.log(`❌ Não foi possível recuperar tipoUser válido, limpando...`);
+                    localStorage.removeItem("tipoUser");
+                    tipoUser = "";
+                }
+            }
+
+            console.log(`🔍 fetchUserData - valores após verificação:`, {
+                token: token ? "exists" : "null",
+                empresa,
+                tipoUser,
+                originalTipoUser: localStorage.getItem("tipoUser")
+            });
+
+            // Verificar se o token existe e é válido
+            if (token && isTokenValid(token)) {
+                setIsLoggedIn(true);
+                setIsSuperAdmin(localStorage.getItem("superAdmin") === "true");
+                setIsAdmin(localStorage.getItem("isAdmin") === "true");
+                setUsername(localStorage.getItem("username") || "");
+                setUserNome(localStorage.getItem("userNome") || "");
+                setEmpresa(empresa || "");
+                setTipoUser(tipoUser || "");
+
+                await fetchUserModules();
+
+                // Definir a rota inicial baseada no estado
+                if (localStorage.getItem("superAdmin") === "true") {
+                    setInitialRoute("ADHome");
+                } else if (tipoUser && empresa) {
+                    // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra
+                    setInitialRoute("RegistoPontoObra");
+                } else if (empresa) {
+                    setInitialRoute("Home");
+                } else {
+                    setInitialRoute("SelecaoEmpresa");
+                }
+            } else {
+                // Token inválido ou inexistente - limpar localStorage e ir para login
+                localStorage.clear();
+                setIsLoggedIn(false);
+                setInitialRoute("Login");
+            }
+
+            setLoading(false);
+        };
+
         fetchUserData();
     }, []);
-
 
     const toggleLanguageSelector = () => {
         setLanguageSelectorVisible(!languageSelectorVisible); // Alterna a visibilidade do combobox de idiomas
@@ -1385,14 +1366,6 @@ const AppNavigator = () => {
         );
     }
 
-    // Determina se o drawer deve ser habilitado
-    const enableDrawer = !isPOS;
-
-    // Função para verificar se deve desabilitar o drawer para uma rota específica
-    const shouldDisableDrawer = (routeName) => {
-        return routeName === "RegistoPontoFacial" || routeName === "Login" || routeName === "SelecaoEmpresa" || isPOS;
-    };
-
     return (
         <ThemeProvider>
             <TokenManager>
@@ -1403,8 +1376,7 @@ const AppNavigator = () => {
                         isLoggedIn +
                         isAdmin +
                         isSuperAdmin +
-                        modules +
-                        isPOS // Inclui isPOS na chave para re-renderizar quando o tipo muda
+                        modules
                     } // Adiciona uma chave única para forçar a atualização do Drawer
                     initialRouteName={initialRoute}
                     drawerContent={(props) => (
@@ -1432,14 +1404,13 @@ const AppNavigator = () => {
                             hasPedidosAlteracaoAdminModule={
                                 hasPedidosAlteracaoAdminModule
                             }
-                            isPOS={isPOS} // Passa o estado isPOS para o CustomDrawerContent
                         />
                     )}
                     screenOptions={({ navigation }) => ({
                         headerStyle: {
                             backgroundColor: "#FFFFFF",
                             elevation: 8,
-                            shadowColor: "#E57EB",
+                            shadowColor: "#E5E7EB",
                             shadowOffset: { width: 0, height: 4 },
                             shadowOpacity: 0.1,
                             shadowRadius: 12,
@@ -1473,7 +1444,7 @@ const AppNavigator = () => {
                                         letterSpacing: 0.5,
                                     }}
                                 >
-
+                                    
                                 </Text>
                             </View>
                         ),
@@ -1731,26 +1702,8 @@ const AppNavigator = () => {
                             </View>
                         ),
                     })}
-                    // Desabilita o drawer se for POS ou se estiver em telas específicas
-                    screenListeners={({ route }) => ({
-                        drawerActive: (e) => {
-                            if (isPOS || route.name === "RegistoPontoFacial" || route.name === "Login" || route.name === "SelecaoEmpresa") {
-                                e.preventDefault(); // Impede a abertura do drawer para rotas específicas
-                            }
-                        },
-                    })}
                 >
-                    <Drawer.Screen 
-                        name="Login"
-                        options={{
-                            title: "AdvirLink - Login",
-                            drawerItemStyle: { display: "none" },
-                            swipeEnabled: false,
-                            gestureEnabled: false,
-                            headerLeft: () => null,
-                            drawerLockMode: 'locked-closed',
-                        }}
-                    >
+                    <Drawer.Screen name="Login">
                         {(props) => (
                             <Login
                                 {...props}
@@ -1758,7 +1711,6 @@ const AppNavigator = () => {
                                 setIsAdmin={setIsAdmin}
                                 setUsername={setUsername}
                                 setUserNome={setUserNome}
-                                setIsPOS={setIsPOS} // Passa setIsPOS para o Login
                                 onLoginComplete={fetchUserData}
                             />
                         )}
@@ -1792,18 +1744,6 @@ const AppNavigator = () => {
                         options={{
                             title: "AdvirLink - Ponto",
                             drawerItemStyle: { display: "none" },
-                        }}
-                    />
-                    <Drawer.Screen
-                        name="RegistoPontoFacial"
-                        component={RegistoPontoFacial}
-                        options={{
-                            title: "AdvirLink - RegistoPontoFacial",
-                            drawerItemStyle: { display: "none" },
-                            swipeEnabled: false,
-                            gestureEnabled: false,
-                            headerLeft: () => null,
-                            drawerLockMode: 'locked-closed',
                         }}
                     />
                     <Drawer.Screen
@@ -2016,14 +1956,7 @@ const AppNavigator = () => {
                     {isLoggedIn && (
                         <Drawer.Screen
                             name="SelecaoEmpresa"
-                            options={{ 
-                                title: "AdvirLink - Empresa",
-                                drawerItemStyle: { display: "none" },
-                                swipeEnabled: false,
-                                gestureEnabled: false,
-                                headerLeft: () => null,
-                                drawerLockMode: 'locked-closed',
-                            }}
+                            options={{ title: "AdvirLink - Empresa" }}
                         >
                             {(props) => (
                                 <SelecaoEmpresa
@@ -2072,15 +2005,6 @@ const AppNavigator = () => {
                         <Drawer.Screen
                             name="RegistoUser"
                             component={RegistoUser}
-                        />
-                    )}
-                    {hasGestaoPOSModule && (
-                        <Drawer.Screen
-                            name="GestaoPOS"
-                            component={GestaoPOS}
-                            options={{
-                                title: "AdvirLink - Gestão POS"
-                            }}
                         />
                     )}
                 </Drawer.Navigator>
@@ -2221,7 +2145,7 @@ const styles = StyleSheet.create({
             alignItems: "center",
             borderRadius: 16,            
             shadowOpacity: 0.08,
-
+            
             shadowRadius: 8,
             justifyContent: "space-between",
             paddingVertical: 16,
@@ -2279,7 +2203,7 @@ const profileMenuStyles = StyleSheet.create({
         zIndex: 1000,
         marginTop: 12,
         borderWidth: 1,
-        borderColor: "#E57EB",
+        borderColor: "#E5E7EB",
         overflow: "hidden",
     },
     menuItem: {
