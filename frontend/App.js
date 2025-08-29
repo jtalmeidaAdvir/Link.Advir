@@ -17,19 +17,11 @@ import {
     Pressable,
 } from "react-native";
 import { List } from "react-native-paper";
-import {
-    FaHome,
-    FaUser,
-    FaTool,
-    FaClock,
-    FaBriefcase,
-    FaSignOutAlt,
-    FaCog,
-} from "react-icons/fa";
+
 import { FontAwesome } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native"; // Importa o hook
+
 import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+
 
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -1087,7 +1079,7 @@ const obrasSubmodulesOrder = [
                                         }
                                     >
                                         <FontAwesome
-                                            name="computer"
+                                            name="desktop"
                                             size={16}
                                             color="#1792FE"
                                         />
@@ -1149,8 +1141,6 @@ const obrasSubmodulesOrder = [
 };
 
 const AppNavigator = () => {
-    const navigation = useNavigation(); // Obtém o objeto de navegação
-
     const [isAdmin, setIsAdmin] = useState(false);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -1397,6 +1387,11 @@ const AppNavigator = () => {
 
     // Determina se o drawer deve ser habilitado
     const enableDrawer = !isPOS;
+
+    // Função para verificar se deve desabilitar o drawer para uma rota específica
+    const shouldDisableDrawer = (routeName) => {
+        return routeName === "RegistoPontoFacial" || routeName === "Login" || routeName === "SelecaoEmpresa" || isPOS;
+    };
 
     return (
         <ThemeProvider>
@@ -1736,16 +1731,26 @@ const AppNavigator = () => {
                             </View>
                         ),
                     })}
-                    // Desabilita o drawer se for POS
+                    // Desabilita o drawer se for POS ou se estiver em telas específicas
                     screenListeners={({ route }) => ({
                         drawerActive: (e) => {
-                            if (isPOS && route.name !== "RegistoPontoFacial") {
-                                e.preventDefault(); // Impede a abertura do drawer para rotas que não sejam RegistoPontoFacial
+                            if (isPOS || route.name === "RegistoPontoFacial" || route.name === "Login" || route.name === "SelecaoEmpresa") {
+                                e.preventDefault(); // Impede a abertura do drawer para rotas específicas
                             }
                         },
                     })}
                 >
-                    <Drawer.Screen name="Login">
+                    <Drawer.Screen 
+                        name="Login"
+                        options={{
+                            title: "AdvirLink - Login",
+                            drawerItemStyle: { display: "none" },
+                            swipeEnabled: false,
+                            gestureEnabled: false,
+                            headerLeft: () => null,
+                            drawerLockMode: 'locked-closed',
+                        }}
+                    >
                         {(props) => (
                             <Login
                                 {...props}
@@ -1795,6 +1800,10 @@ const AppNavigator = () => {
                         options={{
                             title: "AdvirLink - RegistoPontoFacial",
                             drawerItemStyle: { display: "none" },
+                            swipeEnabled: false,
+                            gestureEnabled: false,
+                            headerLeft: () => null,
+                            drawerLockMode: 'locked-closed',
                         }}
                     />
                     <Drawer.Screen
@@ -2007,7 +2016,14 @@ const AppNavigator = () => {
                     {isLoggedIn && (
                         <Drawer.Screen
                             name="SelecaoEmpresa"
-                            options={{ title: "AdvirLink - Empresa" }}
+                            options={{ 
+                                title: "AdvirLink - Empresa",
+                                drawerItemStyle: { display: "none" },
+                                swipeEnabled: false,
+                                gestureEnabled: false,
+                                headerLeft: () => null,
+                                drawerLockMode: 'locked-closed',
+                            }}
                         >
                             {(props) => (
                                 <SelecaoEmpresa
