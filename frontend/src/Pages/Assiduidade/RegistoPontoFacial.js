@@ -198,22 +198,34 @@ const RegistoPontoFacial = (props) => {
         try {
             setLoading(true);
             const token = localStorage.getItem('loginToken');
-            const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/resumo-obra/${obraId}`, {
+            const url = `https://backend.advir.pt/api/registo-ponto-obra/resumo-obra/${obraId}`;
+            
+            console.log('🔄 Carregando resumo da obra...');
+            console.log('📡 URL:', url);
+            console.log('🎯 Obra ID:', obraId);
+            console.log('🔑 Token exists:', !!token);
+            
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
+            console.log('📥 Response status:', res.status);
+            console.log('📥 Response headers:', Object.fromEntries(res.headers.entries()));
+
             if (res.ok) {
                 const data = await res.json();
-                console.log('Resumo da obra carregado:', data);
+                console.log('✅ Resumo da obra carregado:', data);
+                console.log('👥 Pessoas a trabalhar:', data.pessoasAConsultar);
+                console.log('📋 Entradas/Saídas:', data.entradasSaidas?.length || 0);
                 setResumoObra(data);
             } else {
-                console.error('Erro ao carregar resumo da obra:', res.status);
+                console.error('❌ Erro ao carregar resumo da obra:', res.status);
                 const errorData = await res.text();
-                console.error('Detalhes do erro:', errorData);
+                console.error('📋 Detalhes do erro:', errorData);
                 setResumoObra({ pessoasAConsultar: 0, entradasSaidas: [] });
             }
         } catch (err) {
-            console.error('Erro ao carregar resumo da obra:', err);
+            console.error('❌ Erro de rede ao carregar resumo da obra:', err);
             setResumoObra({ pessoasAConsultar: 0, entradasSaidas: [] });
         } finally {
             setLoading(false);

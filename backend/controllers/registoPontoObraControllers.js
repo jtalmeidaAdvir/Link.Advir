@@ -4,6 +4,12 @@ const User = require('../models/user');
 const { Op } = require('sequelize');
 const Sequelize = require('sequelize');
 
+console.log('🔧 Models importados:', {
+    RegistoPontoObra: !!RegistoPontoObra,
+    Obra: !!Obra,
+    User: !!User
+});
+
 
 const registarPonto = async (req, res) => {
   try {
@@ -537,7 +543,8 @@ const obterResumoObra = async (req, res) => {
         const { obraId } = req.params;
         const dataHoje = new Date().toISOString().split('T')[0];
         
-        console.log(`Obtendo resumo da obra ${obraId} para a data ${dataHoje}`);
+        console.log(`📊 Obtendo resumo da obra ${obraId} para a data ${dataHoje}`);
+        console.log(`🔍 Query SQL: obra_id = ${obraId} AND DATE(timestamp) = '${dataHoje}'`);
 
         // Obter todos os registos de hoje para esta obra
         const registosHoje = await RegistoPontoObra.findAll({
@@ -559,7 +566,14 @@ const obterResumoObra = async (req, res) => {
             order: [['timestamp', 'DESC']]
         });
 
-        console.log(`Encontrados ${registosHoje.length} registos para hoje`);
+        console.log(`📋 Encontrados ${registosHoje.length} registos para hoje`);
+        
+        if (registosHoje.length > 0) {
+            console.log(`🔍 Primeiros registos:`);
+            registosHoje.slice(0, 3).forEach((reg, idx) => {
+                console.log(`  ${idx + 1}. ${reg.User?.nome || 'N/A'} - ${reg.tipo} - ${reg.timestamp}`);
+            });
+        }
 
         // Calcular quantas pessoas estão atualmente a trabalhar
         const pessoasAtivas = new Set();
@@ -574,15 +588,23 @@ const obterResumoObra = async (req, res) => {
             registosPorUser[userId].push(registo);
         });
 
+        console.log(`👥 Utilizadores únicos encontrados: ${Object.keys(registosPorUser).length}`);
+
         // Para cada utilizador, verificar se tem entrada ativa
         Object.keys(registosPorUser).forEach(userId => {
             const registosUser = registosPorUser[userId].sort((a, b) => 
                 new Date(b.timestamp) - new Date(a.timestamp)
             );
             
+            const ultimoRegisto = registosUser[0];
+            console.log(`👤 User ${userId} (${ultimoRegisto.User?.nome}): último registo = ${ultimoRegisto.tipo} às ${ultimoRegisto.timestamp}`);
+            
             // Se o registo mais recente é uma entrada, está ativo
             if (registosUser.length > 0 && registosUser[0].tipo === 'entrada') {
                 pessoasAtivas.add(parseInt(userId));
+                console.log(`✅ User ${userId} está ATIVO (última entrada sem saída)`);
+            } else {
+                console.log(`❌ User ${userId} NÃO está ativo (última ação: ${ultimoRegisto.tipo})`);
             }
         });
 
@@ -591,7 +613,8 @@ const obterResumoObra = async (req, res) => {
         // Pegar os últimos 10 registos para mostrar na lista
         const entradasSaidas = registosHoje.slice(0, 10);
 
-        console.log(`Pessoas a trabalhar: ${pessoasAConsultar}`);
+        console.log(`🎯 RESULTADO FINAL: ${pessoasAConsultar} pessoas a trabalhar`);
+        console.log(`📋 ${entradasSaidas.length} registos para mostrar na lista`);
 
         const resultado = {
             pessoasAConsultar,
@@ -600,7 +623,7 @@ const obterResumoObra = async (req, res) => {
 
         res.json(resultado);
     } catch (error) {
-        console.error('Erro ao obter resumo da obra:', error);
+        console.error('❌ Erro ao obter resumo da obra:', error);
         res.status(500).json({ 
             message: 'Erro ao obter resumo da obra',
             error: error.message 
