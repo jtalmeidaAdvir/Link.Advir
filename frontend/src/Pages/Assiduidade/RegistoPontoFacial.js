@@ -120,6 +120,12 @@ const RegistoPontoFacial = (props) => {
                     action: actionText
                 });
                 setShowResultModal(true);
+                
+                // Auto-fechar modal após 2 segundos
+                setTimeout(() => {
+                    handleCloseModal();
+                }, 2000);
+                
                 return true; // Indica sucesso
             } else {
                 const errorData = await res.json();
@@ -130,6 +136,12 @@ const RegistoPontoFacial = (props) => {
                     action: 'Erro'
                 });
                 setShowResultModal(true);
+                
+                // Auto-fechar modal após 2 segundos
+                setTimeout(() => {
+                    handleCloseModal();
+                }, 2000);
+                
                 return false; // Indica falha
             }
         } catch (err) {
@@ -141,9 +153,16 @@ const RegistoPontoFacial = (props) => {
                 action: 'Erro'
             });
             setShowResultModal(true);
+            
+            // Auto-fechar modal após 2 segundos
+            setTimeout(() => {
+                handleCloseModal();
+            }, 2000);
+            
             return false; // Indica falha
         } finally {
             setIsRegistering(false); // Libertar bloqueio sempre
+            registoLockRef.current = false; // Libertar lock
         }
     };
 
@@ -210,18 +229,13 @@ const RegistoPontoFacial = (props) => {
             const nomeAnterior = ultimaAtiva.Obra?.nome || 'Obra anterior';
             console.log(`🔄 ${userName} tem entrada ativa noutra obra (${nomeAnterior}). Fechando e abrindo nova entrada.`);
             await registarPontoParaUtilizador('saida', ultimaAtiva.obra_id, nomeAnterior, userId, userName);
-            // Aguardar um pouco antes de registar a nova entrada
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Reduzir tempo de espera para 500ms
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
 
         // 3) Sem ativa ou após fechar anterior → ENTRADA nesta obra
         console.log(`📝 Registando entrada para ${userName} na obra ${nomeObra}`);
         await registarPontoParaUtilizador('entrada', obraId, nomeObra, userId, userName);
-
-        // Recarregar resumo da obra após registo
-        setTimeout(() => {
-            carregarResumoObra(obraId);
-        }, 1500);
     };
 
     // Carregar obras disponíveis
@@ -498,11 +512,11 @@ const handleFacialScanComplete = async (facialData) => {
   } catch (error) {
     console.error('Erro ao processar entrada com facial:', error);
   } finally {
-    // pequena janela de refrigério para tablets lentos
+    // reduzir janela de refrigério para melhorar performance
     setTimeout(() => {
       scanLockRef.current = false;     // 🔓
       setIsProcessingScan(false);
-    }, 1500);
+    }, 500);
   }
 };
 
@@ -541,11 +555,16 @@ const handleFacialScanComplete = async (facialData) => {
         setStatusMessage('');
         setIsRegistering(false); // Garantir que o bloqueio é removido
         setIsProcessingScan(false); // Garantir que o processamento é limpo
+        registoLockRef.current = false; // Garantir que o lock é removido
+        scanLockRef.current = false; // Garantir que o scan lock é removido
         
-        // Refresh da página após fechar o modal
-        setTimeout(() => {
-            window.location.reload();
-        }, 300);
+        // Recarregar resumo da obra imediatamente
+        if (obraSelecionada) {
+            carregarResumoObra(obraSelecionada);
+        }
+        
+        // Refresh da página imediatamente
+        window.location.reload();
     };
 
     const isPOS = localStorage.getItem('isPOS') === 'true';
