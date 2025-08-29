@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import * as faceapi from 'face-api.js';
 import { createPortal } from 'react-dom';
 
-const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onStopScan, onCameraReady, t }) => {
+const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onStopScan, t }) => {
     const [scanProgress, setScanProgress] = useState(0);
     const [statusMessage, setStatusMessage] = useState('');
     const [cameraReady, setCameraReady] = useState(false);
@@ -14,6 +14,11 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
     const noFaceTimeoutRef = useRef(null);
     const scanCompletedRef = useRef(false); // Flag para evitar scans duplicados
     const lastScanTimeRef = useRef(0); // Timestamp do último scan completo
+
+    const detectingRef = useRef(false); // evita duas detecções ao mesmo tempo
+    const finishedRef  = useRef(false); // garante que só um completeFastScan corre
+    const restartTimeoutRef = useRef(null); // throttle a reinícios por orientação
+
 
     const clearNoFaceTimeout = () => {
         if (noFaceTimeoutRef.current) {
@@ -87,29 +92,29 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
 
     // Adicionar listener para mudanças de orientação
     useEffect(() => {
-        const handleOrientationChange = () => {
-            if (isScanning && cameraReady) {
-                console.log('Orientação mudou, reiniciando câmera...');
-                setTimeout(() => {
-                    // Reiniciar câmera após mudança de orientação
-                    if (videoRef.current && streamRef.current) {
-                        stopCamera();
-                        setTimeout(() => {
-                            startCamera();
-                        }, 500);
-                    }
-                }, 200);
-            }
-        };
+  const handleOrientationChange = () => {
+    if (!isScanning || !cameraReady || finishedRef.current) return;
+    if (restartTimeoutRef.current) return;
+    restartTimeoutRef.current = setTimeout(() => {
+      console.log('Orientação mudou, reiniciando câmera...');
+      stopCamera();
+      startCamera();
+      restartTimeoutRef.current = null;
+    }, 300);
+  };
 
-        window.addEventListener('orientationchange', handleOrientationChange);
-        window.addEventListener('resize', handleOrientationChange);
+  window.addEventListener('orientationchange', handleOrientationChange);
+  window.addEventListener('resize', handleOrientationChange);
+  return () => {
+    window.removeEventListener('orientationchange', handleOrientationChange);
+    window.removeEventListener('resize', handleOrientationChange);
+    if (restartTimeoutRef.current) {
+      clearTimeout(restartTimeoutRef.current);
+      restartTimeoutRef.current = null;
+    }
+  };
+}, [isScanning, cameraReady]);
 
-        return () => {
-            window.removeEventListener('orientationchange', handleOrientationChange);
-            window.removeEventListener('resize', handleOrientationChange);
-        };
-    }, [isScanning, cameraReady]);
 
     useEffect(() => {
         if (isScanning && modelsLoaded && cameraReady) {
@@ -118,21 +123,22 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
     }, [isScanning, modelsLoaded, cameraReady]);
 
     const cleanup = () => {
-        clearNoFaceTimeout();
-        if (scanIntervalRef.current) {
-            clearInterval(scanIntervalRef.current);
-            scanIntervalRef.current = null;
-        }
-        stopCamera();
-        setStatusMessage('');
-        setScanProgress(0);
-        setCameraReady(false);
-        setModelsLoaded(false);
-        scanCompletedRef.current = false; // Reset da flag
-        lastScanTimeRef.current = 0; // Reset do timestamp
-        // Notificar o componente pai que a câmara não está pronta
-        if (onCameraReady) onCameraReady(false);
-    };
+  clearNoFaceTimeout();
+  if (scanIntervalRef.current) {
+    clearInterval(scanIntervalRef.current);
+    scanIntervalRef.current = null;
+  }
+  stopCamera();
+  setStatusMessage('');
+  setScanProgress(0);
+  setCameraReady(false);
+  setModelsLoaded(false);
+  scanCompletedRef.current = false;
+  lastScanTimeRef.current = 0;
+  detectingRef.current = false;
+  finishedRef.current = false;
+};
+
 
     const initializeFaceAPI = async () => {
         try {
@@ -216,8 +222,6 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
                 setCameraReady(true);
                 setScanProgress(90);
                 setStatusMessage('Sistema pronto!');
-                // Notificar o componente pai que a câmara está pronta
-                if (onCameraReady) onCameraReady(true);
             };
 
             videoEl.addEventListener('loadedmetadata', handleReady, { once: true });
@@ -254,126 +258,124 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
         setCameraReady(false);
     };
 
-    const startFastScan = async () => {
-        console.log('Iniciando scan rápido...');
-        setScanProgress(95);
-        setStatusMessage('Procurando face...');
-        startNoFaceTimeout();
+ const startFastScan = async () => {
+  console.log('Iniciando scan rápido...');
+  setScanProgress(95);
+  setStatusMessage('Procurando face...');
+  startNoFaceTimeout();
 
-        const scans = [];
-        const maxScans = 5; // Reduzido de 8 para 5
-        let currentScan = 0;
-        let consecutiveFailures = 0;
+  // garante que só existe um intervalo
+  if (scanIntervalRef.current) {
+    clearInterval(scanIntervalRef.current);
+    scanIntervalRef.current = null;
+  }
+  finishedRef.current = false;
+  detectingRef.current = false;
 
-        scanIntervalRef.current = setInterval(async () => {
-            const video = videoRef.current;
-            if (!video || !isScanning) {
-                clearInterval(scanIntervalRef.current);
-                return;
-            }
+  const scans = [];
+  const maxScans = 5;
+  let currentScan = 0;
+  let consecutiveFailures = 0;
 
-            try {
-                // Detecção mais simples e rápida
-                const detections = await faceapi
-                    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 })) // Tamanho menor
-                    .withFaceLandmarks()
-                    .withFaceDescriptors();
+  scanIntervalRef.current = setInterval(async () => {
+    if (!isScanning || finishedRef.current) return;
+    if (detectingRef.current) return; // já há uma deteção em curso
+    detectingRef.current = true;
 
-                if (detections.length === 1) {
-                    clearNoFaceTimeout();
-                    consecutiveFailures = 0;
+    try {
+      const video = videoRef.current;
+      if (!video) return;
 
-                    const detection = detections[0];
-                    const confidence = detection.detection.score;
+      const detections = await faceapi
+        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 }))
+        .withFaceLandmarks()
+        .withFaceDescriptors();
 
-                    if (confidence > 0.5) { // Threshold reduzido
-                        scans.push({
-                            confidence,
-                            descriptor: detection.descriptor,
-                            landmarks: detection.landmarks
-                        });
+      if (detections.length === 1) {
+        clearNoFaceTimeout();
+        consecutiveFailures = 0;
 
-                        currentScan++;
-                        const progress = 95 + (currentScan / maxScans) * 5;
-                        setScanProgress(progress);
-                        setStatusMessage(`Capturando... ${currentScan}/${maxScans}`);
+        const d = detections[0];
+        if (d.detection.score > 0.5) {
+          scans.push({ confidence: d.detection.score, descriptor: d.descriptor, landmarks: d.landmarks });
+          currentScan++;
+          const progress = 95 + (currentScan / maxScans) * 5;
+          setScanProgress(progress);
+          setStatusMessage(`Capturando... ${currentScan}/${maxScans}`);
 
-                        if (currentScan >= maxScans) {
-                            clearInterval(scanIntervalRef.current);
-                            completeFastScan(scans);
-                            return;
-                        }
-                    }
-                } else {
-                    consecutiveFailures++;
-                    if (consecutiveFailures > 8) { // Reduzido de mais tentativas
-                        clearInterval(scanIntervalRef.current);
-                        setStatusMessage('Face não detectada consistentemente.');
-                        setTimeout(() => { if (onStopScan) onStopScan(); }, 1500);
-                        return;
-                    }
-                }
-
-            } catch (error) {
-                console.error('Erro na detecção:', error);
-                consecutiveFailures++;
-            }
-        }, 200); // Intervalo reduzido de 500ms para 200ms
-    };
-
-    const completeFastScan = async (scans) => {
-        try {
-            // Verificar se o scan já foi completado (evitar duplicados)
-            const now = Date.now();
-            if (scanCompletedRef.current || (now - lastScanTimeRef.current) < 2000) {
-                console.log('⚠️ Scan já completado ou muito recente, ignorando');
-                return;
-            }
-
-            scanCompletedRef.current = true;
-            lastScanTimeRef.current = now;
-            clearNoFaceTimeout();
-
-            if (scans.length === 0) {
-                setStatusMessage('Nenhuma face capturada.');
-                setTimeout(() => { if (onStopScan) onStopScan(); }, 1500);
-                return;
-            }
-
-            const avgConfidence = scans.reduce((sum, s) => sum + s.confidence, 0) / scans.length;
-
-            setStatusMessage(`Processando... (${Math.round(avgConfidence * 100)}%)`);
-            setScanProgress(100);
-
-            // Capturar imagem rapidamente
-            const canvas = canvasRef.current;
-            const video = videoRef.current;
-
-            if (canvas && video) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8); // Qualidade reduzida
-
-                const facialData = createBiometricData(imageDataUrl, scans, avgConfidence);
-
-                setTimeout(() => {
-                    // Verificar novamente antes de chamar onScanComplete para evitar chamadas duplicadas
-                    if (scanCompletedRef.current && facialData) {
-                        onScanComplete(facialData);
-                        if (onStopScan) onStopScan();
-                    }
-                }, 500); // Delay reduzido
-            }
-
-        } catch (error) {
-            console.error('Erro ao completar scan:', error);
-            setStatusMessage('Erro no processamento.');
-            scanCompletedRef.current = false; // Reset da flag em caso de erro
-            setTimeout(() => { if (onStopScan) onStopScan(); }, 1500);
+          if (currentScan >= maxScans && !finishedRef.current) {
+            finishedRef.current = true; // ✅ trava chamadas múltiplas
+            clearInterval(scanIntervalRef.current);
+            scanIntervalRef.current = null;
+            await completeFastScan(scans);
+            return;
+          }
         }
-    };
+      } else {
+        consecutiveFailures++;
+        if (consecutiveFailures > 8) {
+          clearInterval(scanIntervalRef.current);
+          scanIntervalRef.current = null;
+          setStatusMessage('Face não detectada consistentemente.');
+          setTimeout(() => { if (onStopScan) onStopScan(); }, 1500);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Erro na detecção:', e);
+    } finally {
+      detectingRef.current = false; // ✅ liberta o “tick”
+    }
+  }, 250);
+};
+
+
+ const completeFastScan = async (scans) => {
+  try {
+    const now = Date.now();
+    if (scanCompletedRef.current || (now - lastScanTimeRef.current) < 2000) {
+      console.log('⚠️ Scan já completado/muito recente – ignorado');
+      return;
+    }
+    scanCompletedRef.current = true;
+    lastScanTimeRef.current = now;
+    clearNoFaceTimeout();
+
+    if (!scans.length) {
+      setStatusMessage('Nenhuma face capturada.');
+      setTimeout(() => { if (onStopScan) onStopScan(); }, 1500);
+      return;
+    }
+
+    const avgConfidence = scans.reduce((s, x) => s + x.confidence, 0) / scans.length;
+    setStatusMessage(`Processando... (${Math.round(avgConfidence * 100)}%)`);
+    setScanProgress(100);
+
+    const canvas = canvasRef.current;
+    const video  = videoRef.current;
+    if (canvas && video) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+      const facialData = createBiometricData(imageDataUrl, scans, avgConfidence);
+
+      setTimeout(() => {
+        if (facialData) {
+          onScanComplete(facialData);
+          if (onStopScan) onStopScan();
+        }
+      }, 300);
+    }
+  } catch (e) {
+    console.error('Erro ao completar scan:', e);
+    scanCompletedRef.current = false; // permite nova tentativa se falhar
+    setTimeout(() => { if (onStopScan) onStopScan(); }, 1500);
+  }
+};
+
 
     const createBiometricData = (imageDataUrl, scans, avgConfidence) => {
         const avgDescriptor = calculateAvgDescriptor(scans);

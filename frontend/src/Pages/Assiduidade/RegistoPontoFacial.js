@@ -34,7 +34,11 @@ const RegistoPontoFacial = (props) => {
     const [isRegistering, setIsRegistering] = useState(false); // Bloqueio para evitar registos duplicados
     const [lastScanTime, setLastScanTime] = useState(0); // Timestamp do último scan
     const [isProcessingScan, setIsProcessingScan] = useState(false); // Estado específico para processamento de scan
-    const [cameraReady, setCameraReady] = useState(false); // Estado para indicar se a câmara está pronta
+
+    const registoLockRef = useRef(false);  // bloqueia POSTs duplicados
+    const scanLockRef = useRef(false);     // bloqueia processamentos duplicados do onScanComplete
+
+
 
     const opcoesObras = obras.map(obra => ({
         value: obra.id,
@@ -70,37 +74,41 @@ const RegistoPontoFacial = (props) => {
             .find(e => !temSaidaPosterior(e, lista));
 
     const registarPontoParaUtilizador = async (tipo, obraId, nomeObra, userId, userName) => {
-        try {
-            // Verificar se já está a registar
-            if (isRegistering) {
-                console.log('⚠️ Já está a processar um registo, ignorando pedido duplicado');
-                return false;
-            }
+  try {
+    // 🔒 lock síncrono (não depende de re-render)
+    if (registoLockRef.current) {
+      console.log('⚠️ Registo em curso – pedido ignorado');
+      return false;
+    }
+    registoLockRef.current = true;
 
-            setIsRegistering(true);
-            setStatusMessage(`A registar ponto ${tipo} para ${userName} na obra "${nomeObra}"...`);
+    if (isRegistering) return false; // redundante mas ok
+    setIsRegistering(true);
+    setStatusMessage(`A registar ponto ${tipo} para ${userName} na obra "${nomeObra}"...`);
 
-            // Obter localização
-            const loc = await getCurrentLocation();
-            const token = localStorage.getItem('loginToken');
-            const empresaNome = localStorage.getItem('empresa_areacliente');
+    const loc = await getCurrentLocation();
+    const token = localStorage.getItem('loginToken');
+    const empresaNome = localStorage.getItem('empresa_areacliente');
 
-            // Registar ponto para o utilizador identificado
-            const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    tipo,
-                    obra_id: obraId,
-                    latitude: loc.coords.latitude,
-                    longitude: loc.coords.longitude,
-                    targetUserId: userId,
-                    empresa: empresaNome
-                })
-            });
+    // (opcional) chave de idempotência por tentativa
+    const idemKey = `${userId}-${obraId}-${tipo}-${Date.now()}`;
+
+    const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-Idempotency-Key': idemKey // se suportar no backend
+      },
+      body: JSON.stringify({
+        tipo,
+        obra_id: obraId,
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        targetUserId: userId,
+        empresa: empresaNome
+      })
+    });
 
             if (res.ok) {
                 const data = await res.json();
@@ -380,7 +388,7 @@ const RegistoPontoFacial = (props) => {
                 console.log(`📊 ${registosUtilizadorIdentificado.length} registos encontrados para ${userName}`);
             } else {
                 console.warn('⚠️ Não foi possível obter registos:', registosRes.status);
-
+                
                 // Fallback: tentar outro endpoint se o primeiro falhar
                 if (isPOS) {
                     console.log('🔄 Tentando endpoint alternativo para POS...');
@@ -455,57 +463,67 @@ const RegistoPontoFacial = (props) => {
             return;
         }
 
-        setCameraReady(true); // Define a câmara como pronta ao iniciar
         setIsFacialScanning(true);
         setStatusMessage('Iniciando reconhecimento facial...');
         setFacialScanResult(null);
     };
 
     const handleStopFacialScan = () => {
-        setCameraReady(false); // Define a câmara como não pronta ao parar
         setIsFacialScanning(false);
         setStatusMessage('');
         setFacialScanResult(null);
     };
 
-    const handleFacialScanComplete = async (facialData) => {
-        console.log('Scan facial completo:', facialData);
+const handleFacialScanComplete = async (facialData) => {
+  console.log('Scan facial completo:', facialData);
 
-        const now = Date.now();
-        const timeSinceLastScan = now - lastScanTime;
+  const now = Date.now();
+  const timeSinceLastScan = now - lastScanTime;
 
-        // Verificar se já está a processar ou se foi muito recente (debounce de 3 segundos)
-        if (isRegistering || isProcessingScan || timeSinceLastScan < 3000) {
-            console.log('⚠️ Já está a processar um registo ou scan muito recente, ignorando scan completo');
-            console.log(`Time since last scan: ${timeSinceLastScan}ms`);
-            setIsFacialScanning(false);
-            return;
-        }
+  // 🔒 evita reentradas imediatas
+  if (scanLockRef.current || isRegistering || isProcessingScan || timeSinceLastScan < 3000) {
+    console.log('⚠️ Scan ignorado (já a processar ou demasiado recente)');
+    setIsFacialScanning(false);
+    return;
+  }
 
-        // Marcar que estamos a processar este scan
-        setIsProcessingScan(true);
-        setLastScanTime(now);
-        setFacialScanResult(facialData);
-        setIsFacialScanning(false);
+  scanLockRef.current = true;
+  setIsProcessingScan(true);
+  setLastScanTime(now);
+  setFacialScanResult(facialData);
+  setIsFacialScanning(false);
 
-        try {
-            // Processar o registo automaticamente
-            await processarEntradaComFacial(facialData);
-        } catch (error) {
-            console.error('Erro ao processar entrada com facial:', error);
-        } finally {
-            // Libertar o estado de processamento após um delay para evitar scans duplicados
-            setTimeout(() => {
-                setIsProcessingScan(false);
-            }, 2000);
-        }
-    };
+  try {
+    await processarEntradaComFacial(facialData);
+  } catch (error) {
+    console.error('Erro ao processar entrada com facial:', error);
+  } finally {
+    // pequena janela de refrigério para tablets lentos
+    setTimeout(() => {
+      scanLockRef.current = false;     // 🔓
+      setIsProcessingScan(false);
+    }, 1500);
+  }
+};
+
 
     const handleScanFace = () => {
-        // Esta função parece não ser usada diretamente no fluxo atual, mas pode ser mantida se houver planos futuros.
-        // setScanning(true);
-        // setCountdown(3);
-        // const timer = setInterval(() => { ... });
+        setShowInstructions(false);
+        setScanning(true);
+        setCountdown(3);
+
+        const timer = setInterval(() => {
+            setCountdown((prev) => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    setScanning(false);
+                    startCapture();
+                    return 0;
+                } else {
+                    return prev - 1;
+                }
+            });
+        }, 1000);
     };
 
     const handleLogoutPOS = () => {
@@ -523,8 +541,7 @@ const RegistoPontoFacial = (props) => {
         setStatusMessage('');
         setIsRegistering(false); // Garantir que o bloqueio é removido
         setIsProcessingScan(false); // Garantir que o processamento é limpo
-        setCameraReady(false); // Resetar estado da câmara ao fechar o modal
-
+        
         // Refresh da página após fechar o modal
         setTimeout(() => {
             window.location.reload();
@@ -763,54 +780,33 @@ const RegistoPontoFacial = (props) => {
                                             />
                                         </div>
 
-                                        {/* Indicador de Estado da Câmara e Botão de Controlo */}
+                                        {/* Botão de Reconhecimento Facial */}
                                         <div className="text-center mb-4">
-                                            <div className="d-flex justify-content-center align-items-center flex-wrap gap-3">
-                                                {/* Indicador de estado */}
-                                                <div className={`badge ${cameraReady ? 'bg-success' : 'bg-warning'} p-2`}>
-                                                    <FaCamera className="me-1" />
-                                                    {cameraReady ? 'Câmara Ativa' : 'A Inicializar...'}
-                                                </div>
-
-                                                {/* Botão de controlo */}
-                                                {obraSelecionada && (
-                                                    <button
-                                                        className={`btn ${isFacialScanning ? 'btn-warning' : 'btn-success'} px-3 py-2`}
-                                                        onClick={() => {
-                                                            if (isFacialScanning) {
-                                                                handleStopFacialScan();
-                                                            } else {
-                                                                handleStartFacialScan();
-                                                            }
-                                                        }}
-                                                        disabled={loading || isRegistering || isProcessingScan}
-                                                    >
-                                                        {isFacialScanning ? (
-                                                            <>
-                                                                <FaStop className="me-2" />
-                                                                Cancelar
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <FaPlay className="me-2" />
-                                                                Ponto
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            {/* Instruções */}
-                                            {obraSelecionada && cameraReady && (
-                                                <div className="mt-3">
-                                                    <p className="text-muted mb-0 small">
-                                                        <FaUserCheck className="me-1" />
-                                                        Posicione-se em frente à câmara para identificação automática
-                                                    </p>
-                                                </div>
+                                            {!isFacialScanning ? (
+                                                <button
+                                                    className="btn btn-facial w-100 w-md-auto"
+                                                    onClick={handleStartFacialScan}
+                                                    disabled={!obraSelecionada || loading || isRegistering || isProcessingScan}
+                                                >
+                                                    <FaCamera className="me-2" />
+                                                    <span className="d-none d-sm-inline">
+                                                        Identificar e Registar Ponto
+                                                    </span>
+                                                    <span className="d-sm-none">
+                                                        Identificar e Registar
+                                                    </span>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className="btn btn-facial w-100 w-md-auto"
+                                                    onClick={handleStopFacialScan}
+                                                    disabled={loading || isRegistering || isProcessingScan}
+                                                >
+                                                    <FaStop className="me-2" />
+                                                    Cancelar Identificação
+                                                </button>
                                             )}
                                         </div>
-
 
                                         {/* Status Message */}
                                         {statusMessage && (
@@ -899,15 +895,15 @@ const RegistoPontoFacial = (props) => {
                             </p>
                         </div>
                         <div className="result-modal-body">
-                            <p style={{
-                                fontSize: '1.1rem',
+                            <p style={{ 
+                                fontSize: '1.1rem', 
                                 marginBottom: '1.5rem',
                                 color: modalData.type === 'success' ? '#28a745' : '#dc3545',
                                 fontWeight: '500'
                             }}>
                                 {modalData.message}
                             </p>
-                            <button
+                            <button 
                                 className="modal-close-btn"
                                 onClick={handleCloseModal}
                             >
