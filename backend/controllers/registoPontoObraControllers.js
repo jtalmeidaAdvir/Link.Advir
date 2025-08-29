@@ -2,6 +2,7 @@ const RegistoPontoObra = require('../models/registoPontoObra');
 const Obra = require('../models/obra');
 const User = require('../models/user');
 const { Op } = require('sequelize');
+const Sequelize = require('sequelize');
 
 
 const registarPonto = async (req, res) => {
@@ -491,6 +492,46 @@ const eliminarRegisto = async (req, res) => {
   }
 };
 
+const obterRegistosObraPorDia = async (req, res) => {
+    try {
+        const { obraId } = req.params;
+        const { data } = req.query;
+
+        const dataConsulta = data || new Date().toISOString().split('T')[0];
+
+        const registos = await RegistoPontoObra.findAll({
+            where: {
+                obra_id: obraId,
+                [Op.and]: [
+                    Sequelize.where(
+                        Sequelize.fn('DATE', Sequelize.col('timestamp')),
+                        dataConsulta
+                    )
+                ]
+            },
+            include: [
+                {
+                    model: User,
+                    attributes: ['id', 'nome', 'username', 'email']
+                },
+                {
+                    model: Obra,
+                    attributes: ['id', 'nome']
+                }
+            ],
+            order: [['timestamp', 'DESC']]
+        });
+
+        res.json(registos);
+    } catch (error) {
+        console.error('Erro ao obter registos da obra por dia:', error);
+        res.status(500).json({ 
+            message: 'Erro ao obter registos da obra',
+            error: error.message 
+        });
+    }
+};
+
 
 module.exports = {
   registarPonto,
@@ -506,5 +547,6 @@ module.exports = {
   listarPorUserEDia,
   listarPorUserPeriodo,
   registarPontoEsquecidoPorOutro,
-  eliminarRegisto
+  eliminarRegisto,
+  obterRegistosObraPorDia,
 };

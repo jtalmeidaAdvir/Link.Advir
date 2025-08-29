@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import {
@@ -27,6 +26,7 @@ const RegistoPontoFacial = (props) => {
     const [isFacialScanning, setIsFacialScanning] = useState(false);
     const [facialScanResult, setFacialScanResult] = useState(null);
     const [statusMessage, setStatusMessage] = useState('');
+    const [resumoObra, setResumoObra] = useState({ pessoasAConsultar: 0, entradasSaidas: [] });
 
     const opcoesObras = obras.map(obra => ({
         value: obra.id,
@@ -90,13 +90,16 @@ const RegistoPontoFacial = (props) => {
             if (res.ok) {
                 const data = await res.json();
                 setStatusMessage(`Ponto "${tipo}" registado com sucesso para ${userName} na obra "${nomeObra}"`);
+                return true; // Indica sucesso
             } else {
                 const errorData = await res.json();
                 setStatusMessage(`Erro ao registar ponto: ${errorData.message || 'Erro desconhecido'}`);
+                return false; // Indica falha
             }
         } catch (err) {
             console.error('Erro ao registar ponto:', err);
             setStatusMessage('Erro ao registar ponto');
+            return false; // Indica falha
         }
     };
 
@@ -144,6 +147,11 @@ const RegistoPontoFacial = (props) => {
         // 3) Sem ativa ou após fechar anterior → ENTRADA nesta obra
         console.log(`Registando entrada para ${userName} na obra ${nomeObra}`);
         await registarPontoParaUtilizador('entrada', obraId, nomeObra, userId, userName);
+
+        // Recarregar resumo da obra após registo
+        setTimeout(() => {
+            carregarResumoObra(obraId);
+        }, 1500);
     };
 
     // Carregar obras disponíveis
@@ -177,7 +185,37 @@ const RegistoPontoFacial = (props) => {
         fetchObras();
     }, []);
 
-    // Não carregamos registos para exibição - apenas processamos quando necessário
+    // Carregar resumo da obra selecionada
+    useEffect(() => {
+        if (obraSelecionada) {
+            carregarResumoObra(obraSelecionada);
+        } else {
+            setResumoObra({ pessoasAConsultar: 0, entradasSaidas: [] });
+        }
+    }, [obraSelecionada]);
+
+    const carregarResumoObra = async (obraId) => {
+        try {
+            setLoading(true);
+            const token = localStorage.getItem('loginToken');
+            const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/resumo-obra/${obraId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setResumoObra(data);
+            } else {
+                console.error('Erro ao carregar resumo da obra:', res.status);
+                setResumoObra({ pessoasAConsultar: 0, entradasSaidas: [] }); // Limpar em caso de erro
+            }
+        } catch (err) {
+            console.error('Erro ao carregar resumo da obra:', err);
+            setResumoObra({ pessoasAConsultar: 0, entradasSaidas: [] }); // Limpar em caso de erro
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const obterMoradaPorCoordenadas = async (lat, lon) => {
         try {
@@ -298,13 +336,13 @@ const RegistoPontoFacial = (props) => {
         console.log('Scan facial completo:', facialData);
         setFacialScanResult(facialData);
         setIsFacialScanning(false);
-        
+
         // Processar o registo automaticamente
         await processarEntradaComFacial(facialData);
     };
 
     return (
-        <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{ 
+        <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{
             overflowX: 'hidden',
         }}>
             <div style={{
@@ -475,10 +513,42 @@ const RegistoPontoFacial = (props) => {
                                 </div>
                             </div>
 
-                            
-
+                            {/* Resumo da Obra */}
+                            {obraSelecionada && (
+                                <div className="col-12 col-lg-4 col-xl-6">
+                                    <div className="card card-moderno h-100">
+                                        <div className="card-body">
+                                            <h5 className="card-title text-primary fw-bold mb-3">
+                                                <FaUsers className="me-2" /> Resumo da Obra
+                                            </h5>
+                                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                                <span className="fw-semibold">Pessoas a Trabalhar:</span>
+                                                <span className="fs-4 fw-bold text-success">{resumoObra.pessoasAConsultar}</span>
+                                            </div>
+                                            <hr className="mb-3" />
+                                            <h6 className="fw-semibold mb-2">Entradas e Saídas Recentes:</h6>
+                                            {resumoObra.entradasSaidas.length > 0 ? (
+                                                <ul className="list-unstyled mb-0" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                                    {resumoObra.entradasSaidas.map((reg, index) => (
+                                                        <li key={index} className={`registro-item ${reg.tipo === 'saida' ? 'registro-saida' : ''} d-flex justify-content-between align-items-center p-2 mb-2`}>
+                                                            <div>
+                                                                <strong className="d-block">{reg.User?.nome || 'Utilizador Desconhecido'}</strong>
+                                                                <small className="text-muted">{new Date(reg.timestamp).toLocaleString()}</small>
+                                                            </div>
+                                                            <span className={`badge rounded-pill ${reg.tipo === 'entrada' ? 'bg-success' : 'bg-danger'}`}>
+                                                                {reg.tipo === 'entrada' ? 'Entrada' : 'Saída'}
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <p className="text-muted fst-italic">Sem registos recentes para esta obra.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        
                     </div>
                 </div>
             </div>

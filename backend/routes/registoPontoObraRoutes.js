@@ -15,7 +15,8 @@ const {
   listarPorUserEDia,
   listarPorUserPeriodo,
   registarPontoEsquecidoPorOutro,
-  eliminarRegisto
+  eliminarRegisto,
+  obterRegistosObraPorDia,
 } = require('../controllers/registoPontoObraControllers');
 
 router.post('/', authMiddleware, registarPonto);
@@ -32,7 +33,6 @@ router.post('/registar-esquecido-por-outro', authMiddleware, registarPontoEsquec
 
 router.get('/listar-dia-equipa', authMiddleware, listarRegistosHojeEquipa);
 
-
 router.patch('/confirmar/:id', authMiddleware, confirmarPonto);
 router.delete('/cancelar/:id', authMiddleware, cancelarPonto);
 
@@ -44,5 +44,8 @@ router.get('/listar-por-user-periodo', authMiddleware, listarPorUserPeriodo);
 
 // Eliminar registo de ponto (apenas admin)
 router.delete('/eliminar/:id', authMiddleware, eliminarRegisto);
+
+// Adiciona rota para obter registos de entrada/saída de uma obra por dia
+router.get('/obra/:obraId/registos-dia', authMiddleware, obterRegistosObraPorDia);
 
 module.exports = router;
