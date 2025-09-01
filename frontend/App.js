@@ -42,6 +42,7 @@ import PainelAdmin from "./src/Pages/Autenticacao/PainelAdmin";
 import WhatsAppWebConfig from "./src/Pages/WhatsApp/WhatsAppWebConfig";
 import UsersEmpresa from "./src/Pages/Autenticacao/UsersEmpresa";
 import RegistoUser from "./src/Pages/Autenticacao/RegistoUser";
+import GestaoPOS from "./src/Pages/Autenticacao/GestaoPOS";
 import RegistoAdmin from "./src/Pages/Autenticacao/RegistoAdmin";
 import VerificaConta from "./src/Pages/Autenticacao/VerificaConta";
 import SelecaoEmpresa from "./src/Pages/Autenticacao/pages/SelecaoEmpresa";
@@ -134,6 +135,7 @@ const CustomDrawerContent = ({
     hasWhatsappConfigsModule,
     hasGestaoUtilizadoresModule,
     hasRegistarUtilizadorModule,
+    hasGestaoPOSModule,
     hasRegistoPontoAdminModule,
     hasPedidosAlteracaoAdminModule,
     ...props
@@ -361,6 +363,7 @@ const obrasSubmodulesOrder = [
         hasWhatsappConfigsModule ||
         hasGestaoUtilizadoresModule ||
         hasRegistarUtilizadorModule ||
+        hasGestaoPOSModule ||
         hasRegistoPontoAdminModule ||
         hasPedidosAlteracaoAdminModule;
 
@@ -960,6 +963,27 @@ const obrasSubmodulesOrder = [
                                         </Text>
                                     </TouchableOpacity>
                                 )}
+                                {hasGestaoPOSModule && (
+                                    <TouchableOpacity
+                                        style={drawerStyles.submoduleItem}
+                                        onPress={() =>
+                                            props.navigation.navigate(
+                                                "GestaoPOS",
+                                            )
+                                        }
+                                    >
+                                        <FontAwesome
+                                            name="user-plus"
+                                            size={16}
+                                            color="#1792FE"
+                                        />
+                                        <Text
+                                            style={drawerStyles.submoduleText}
+                                        >
+                                            Gestão POS
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                                 {hasRegistoPontoAdminModule && (
                                     <TouchableOpacity
                                         style={drawerStyles.submoduleItem}
@@ -1095,6 +1119,11 @@ const AppNavigator = () => {
         (module) =>
             module.nome === "Administrador" &&
             module.submodulos.some((sub) => sub.nome === "RegistarUtilizador"),
+    );
+    const hasGestaoPOSModule = modules.some(
+        (module) =>
+            module.nome === "Administrador" &&
+            module.submodulos.some((sub) => sub.nome === "GestaoPOS"),
     );
     const hasRegistoPontoAdminModule = modules.some(
         (module) =>
@@ -1398,6 +1427,9 @@ const AppNavigator = () => {
                             }
                             hasRegistarUtilizadorModule={
                                 hasRegistarUtilizadorModule
+                            }
+                            hasGestaoPOSModule={
+                                hasGestaoPOSModule
                             }
                             hasRegistoPontoAdminModule={
                                 hasRegistoPontoAdminModule
@@ -2006,6 +2038,12 @@ const AppNavigator = () => {
                         <Drawer.Screen
                             name="RegistoUser"
                             component={RegistoUser}
+                        />
+                    )}
+                    {hasGestaoPOSModule && (
+                        <Drawer.Screen
+                            name="GestaoPOS"
+                            component={GestaoPOS}
                         />
                     )}
                 </Drawer.Navigator>
