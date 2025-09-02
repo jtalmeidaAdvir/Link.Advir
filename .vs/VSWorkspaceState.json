@@ -4,13 +4,14 @@
     "\\frontend",
     "\\frontend\\src",
     "\\frontend\\src\\Pages",
-    "\\frontend\\src\\Pages\\Concursos",
-    "\\frontend\\src\\Pages\\Concursos\\Componentes",
-    "\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao",
-    "\\frontend\\src\\Pages\\Concursos\\Styles",
+    "\\frontend\\src\\Pages\\WhatsApp",
+    "\\frontend\\src\\Pages\\WhatsApp\\components",
     "\\webPrimaveraApi",
     "\\webPrimaveraApi\\routes",
-    "\\webPrimaveraApi\\routes\\Concursos"
+    "\\webPrimaveraApi\\routes\\Concursos",
+    "\\whatsapp-backend",
+    "\\whatsapp-backend\\routes"
   ],
+  "SelectedNode": "\\frontend\\src\\Pages\\WhatsApp\\components\\ContactsTab.js",
   "PreviewInSolutionExplorer": false
 }
