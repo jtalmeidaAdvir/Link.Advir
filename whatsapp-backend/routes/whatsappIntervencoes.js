@@ -294,11 +294,8 @@ async function handleClienteInputIntervencao(
         let response_message = `✅ Cliente identificado: *${nomeCliente}*\n\n`;
         response_message += `📋 *Pedidos disponíveis:*\n\n`;
 
-        // Filtrar pedidos concluídos
-       /* const pedidosAtivos = pedidos.filter((pedido) => {
-            const estado = pedido.Estado?.toString();
-            return estado !== "2"; // Excluir estado "Concluído"
-        });*/
+        // Não filtrar pedidos, mostrar todos
+        const pedidosAtivos = pedidos;
 
         pedidosAtivos.forEach((pedido, index) => {
             // Usar campos corretos da API
@@ -317,7 +314,7 @@ async function handleClienteInputIntervencao(
             response_message += `\n`;
         });
 
-        // Atualizar a lista de pedidos disponíveis para refletir a filtragem
+        // Atualizar a lista de pedidos disponíveis
         conversation.data.pedidosDisponiveis = pedidosAtivos;
 
         if (pedidosAtivos.length === 0) {
@@ -326,11 +323,12 @@ async function handleClienteInputIntervencao(
             response_message += `Todos os pedidos deste cliente estão concluídos.\n`;
             response_message += `Para criar uma nova intervenção, contacte o suporte técnico.`;
 
-            // Limpar conversa se não há pedidos ativos
+            // Limpar conversa se não há pedidos
             activeIntervencaoConversations.delete(phoneNumber);
         } else {
             response_message += `*Selecione o pedido pretendido (1-${pedidosAtivos.length}):*`;
         }
+
 
         await client.sendMessage(phoneNumber, response_message);
     } catch (error) {

@@ -4,6 +4,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaCalendarCheck, FaClock, FaPlus, FaExclamationTriangle, FaCheckCircle } from 'react-icons/fa';
 
 const CalendarioHorasTrabalho = () => {
+    // NOVO: feriados (array de 'YYYY-MM-DD')
+    const [feriados, setFeriados] = useState([]);
+
     const [mesAtual, setMesAtual] = useState(new Date());
     const [resumo, setResumo] = useState({});
     const [diaSelecionado, setDiaSelecionado] = useState(null);
@@ -143,6 +146,127 @@ const CalendarioHorasTrabalho = () => {
             console.error("Erro ao carregar faltas pendentes:", err);
         }
     };
+
+    // NOVO: normalizador de feriados (aceita vários formatos do endpoint)
+    const normalizarFeriados = (data) => {
+        const isoSet = new Set();
+
+        // Caso seja um array simples (string ou objetos)
+        if (Array.isArray(data)) {
+            data.forEach(item => {
+                if (typeof item === 'string') {
+                    // 'YYYY-MM-DD' ou 'YYYY-MM-DDTHH:mm'
+                    isoSet.add(item.slice(0, 10));
+                } else if (item) {
+                    const d =
+                        item.Data || item.data || item.Date || item.date ||
+                        item.DataFeriado || item.dataFeriado || item.DataDia || item.dataDia ||
+                        item.DataInicio || item.dataInicio;
+
+                    const f =
+                        item.DataFim || item.dataFim;
+
+                    if (d && f) {
+                        // intervalo
+                        const inicio = new Date(d);
+                        const fim = new Date(f);
+                        const cur = new Date(inicio);
+                        while (cur <= fim) {
+                            isoSet.add(cur.toISOString().slice(0, 10));
+                            cur.setDate(cur.getDate() + 1);
+                        }
+                    } else if (d) {
+                        isoSet.add(new Date(d).toISOString().slice(0, 10));
+                    }
+                }
+            });
+            return Array.from(isoSet);
+        }
+
+        // Caso venha em DataSet.Table (formato típico da tua WebAPI)
+        const tabela = data?.DataSet?.Table ?? data?.DataSet?.table ?? null;
+        if (Array.isArray(tabela)) {
+            tabela.forEach(row => {
+                const d =
+                    row.Data || row.data || row.Date || row.date ||
+                    row.DataFeriado || row.dataFeriado || row.DataDia || row.dataDia ||
+                    row.DataInicio || row.dataInicio;
+
+                const f =
+                    row.DataFim || row.dataFim;
+
+                if (d && f) {
+                    const inicio = new Date(d);
+                    const fim = new Date(f);
+                    const cur = new Date(inicio);
+                    while (cur <= fim) {
+                        isoSet.add(cur.toISOString().slice(0, 10));
+                        cur.setDate(cur.getDate() + 1);
+                    }
+                } else if (d) {
+                    isoSet.add(new Date(d).toISOString().slice(0, 10));
+                }
+            });
+            return Array.from(isoSet);
+        }
+
+        // Último recurso: se for um único objeto com 'Data'
+        const possivel = data?.Data || data?.data || data?.Date || data?.date;
+        if (possivel) {
+            return [new Date(possivel).toISOString().slice(0, 10)];
+        }
+
+        return [];
+    };
+
+    // NOVO: carregar feriados da WebAPI
+    const carregarFeriados = async () => {
+        const token = localStorage.getItem("painelAdminToken");
+        const urlempresa = localStorage.getItem("urlempresa");
+
+        try {
+            const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/feriados`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                    urlempresa: urlempresa,
+                },
+            });
+
+            if (!res.ok) {
+                const msg = await res.text();
+                console.warn('Erro ao carregar feriados:', res.status, msg);
+                return;
+            }
+
+            const data = await res.json();
+            const listaISO = normalizarFeriados(data);
+            setFeriados(listaISO);
+        } catch (err) {
+            console.error('Erro ao buscar feriados:', err);
+        }
+    };
+
+
+    useEffect(() => {
+        const boot = async () => {
+            setLoading(true);
+            try {
+                const hojeISO = formatarData(new Date());
+                // NOVO: carrega feriados juntamente com o resto
+                await carregarFeriados();
+                await carregarTudoEmParalelo(hojeISO);
+            } catch (e) {
+                console.error('Erro no bootstrap:', e);
+                alert('Erro ao carregar dados iniciais.');
+            } finally {
+                setLoading(false);
+            }
+        };
+        boot();
+    }, [mesAtual]);
+
 
     const carregarDiasPendentes = async () => {
         const token = localStorage.getItem('loginToken');
@@ -1437,6 +1561,9 @@ const CalendarioHorasTrabalho = () => {
         const isSelecionado = diaSelecionado === dataFormatada;
         const isPendente = diasPendentes.includes(dataFormatada);
 
+        // NOVO: feriado
+        const isFeriado = feriados.includes(dataFormatada);
+
         const existeFalta = Array.isArray(faltas) && faltas.some(f => {
             const dataFalta = new Date(f.Data);
             return (
@@ -1448,6 +1575,14 @@ const CalendarioHorasTrabalho = () => {
 
         let classes = 'calendario-dia btn';
 
+        // NOVO: prioridade ao feriado (fica laranja)
+        if (isFeriado) {
+            classes += ' dia-feriado';
+            // se também estiver selecionado, mantém o realce visual subtil
+            if (isSelecionado) classes += ' border-2';
+            return classes;
+        }
+
         if (isSelecionado) classes += ' btn-primary';
         else if (existeFalta) classes += ' dia-falta';
         else if (isHoje) classes += ' btn-outline-primary';
@@ -1455,7 +1590,6 @@ const CalendarioHorasTrabalho = () => {
         else if (temRegisto) {
             const horasStr = resumo[dataFormatada]?.split('h')[0];
             const horasTrabalhadas = parseInt(horasStr, 10);
-
             if (horasTrabalhadas >= 8) {
                 classes += ' btn-success';
             } else {
@@ -1465,6 +1599,7 @@ const CalendarioHorasTrabalho = () => {
 
         return classes;
     };
+
 
     useEffect(() => {
         const boot = async () => {
@@ -1503,6 +1638,14 @@ const CalendarioHorasTrabalho = () => {
                     transition: all 0.3s ease;
                     cursor: pointer;
                 }
+                    /* NOVO: feriado a laranja */
+                .dia-feriado {
+                    background-color: #ffcc80 !important;   /* laranja suave */
+                    border: 1px solid #ffa726 !important;   /* laranja mais forte */
+                    color: #5d4037 !important;              /* castanho suave para legibilidade */
+                    position: relative;
+                }
+
                 .dia-falta {
                     position: relative;
                     background-image: repeating-linear-gradient(
@@ -1812,6 +1955,12 @@ const CalendarioHorasTrabalho = () => {
                                                 <small className="text-muted d-flex align-items-center justify-content-center">
                                                     <span className="badge bg-primary me-1 me-md-2">●</span>
                                                     <span>Hoje</span>
+                                                </small>
+                                            </div>
+                                            <div className="col-6 col-sm-3">
+                                                <small className="text-muted d-flex align-items-center justify-content-center">
+                                                    <span className="badge" style={{ backgroundColor: '#ffcc80', color: '#5d4037' }}>■</span>
+                                                    <span className="ms-1">Feriado</span>
                                                 </small>
                                             </div>
                                         </div>

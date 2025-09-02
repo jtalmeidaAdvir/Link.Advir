@@ -385,16 +385,16 @@ router.post("/InserirFalta", async (req, res) => {
 
         // Extraindo os parâmetros do corpo da requisição
         const {
-  Funcionario, Data, Falta, Horas, Tempo,
-  DescontaVenc, DescontaRem, ExcluiProc, ExcluiEstat,
-  Observacoes, CalculoFalta, DescontaSubsAlim, DataProc,
-  NumPeriodoProcessado, JaProcessado, InseridoBloco,
-  ValorDescontado, AnoProcessado, NumProc, Origem,
-  PlanoCurso, IdGDOC, CambioMBase, CambioMAlt, CotizaPeloMinimo,
-  Acerto, MotivoAcerto, NumLinhaDespesa, NumRelatorioDespesa,
-  FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional,
-  SubAlimProporcional
-} = req.body;
+            Funcionario, Data, Falta, Horas, Tempo,
+            DescontaVenc, DescontaRem, ExcluiProc, ExcluiEstat,
+            Observacoes, CalculoFalta, DescontaSubsAlim, DataProc,
+            NumPeriodoProcessado, JaProcessado, InseridoBloco,
+            ValorDescontado, AnoProcessado, NumProc, Origem,
+            PlanoCurso, IdGDOC, CambioMBase, CambioMAlt, CotizaPeloMinimo,
+            Acerto, MotivoAcerto, NumLinhaDespesa, NumRelatorioDespesa,
+            FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional,
+            SubAlimProporcional
+        } = req.body;
 
 
         const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InserirFalta`;
@@ -402,13 +402,13 @@ router.post("/InserirFalta", async (req, res) => {
         console.log("Enviando solicitação para a URL:", apiUrl);
 
         const requestData = {
-           Funcionario, Data, Falta, Horas, Tempo, DescontaVenc, DescontaRem,
-ExcluiProc, ExcluiEstat, Observacoes, CalculoFalta, DescontaSubsAlim,
-DataProc, NumPeriodoProcessado, JaProcessado, InseridoBloco,
-ValorDescontado, AnoProcessado, NumProc, Origem, PlanoCurso,
-IdGDOC, CambioMBase, CambioMAlt, CotizaPeloMinimo, Acerto,
-MotivoAcerto, NumLinhaDespesa, NumRelatorioDespesa,
-FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional, SubAlimProporcional
+            Funcionario, Data, Falta, Horas, Tempo, DescontaVenc, DescontaRem,
+            ExcluiProc, ExcluiEstat, Observacoes, CalculoFalta, DescontaSubsAlim,
+            DataProc, NumPeriodoProcessado, JaProcessado, InseridoBloco,
+            ValorDescontado, AnoProcessado, NumProc, Origem, PlanoCurso,
+            IdGDOC, CambioMBase, CambioMAlt, CotizaPeloMinimo, Acerto,
+            MotivoAcerto, NumLinhaDespesa, NumRelatorioDespesa,
+            FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional, SubAlimProporcional
         };
 
         console.log("Dados a serem enviados:", requestData);
@@ -444,7 +444,7 @@ FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional, SubAlimProporc
 });
 
 router.post("/InserirFeriasFuncionario", async (req, res) => {
-  try {
+    try {
         const dados = req.body;
         // Obter o token de autenticação do cabeçalho
         const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
@@ -462,333 +462,333 @@ router.post("/InserirFeriasFuncionario", async (req, res) => {
                 .json({ error: "URL da empresa não fornecida." });
         }
 
-    // Construir o endpoint da WebAPI
-    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InserirFeriasFuncionario`;
-    console.log("Enviando solicitação para a URL:", apiUrl);
+        // Construir o endpoint da WebAPI
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InserirFeriasFuncionario`;
+        console.log("Enviando solicitação para a URL:", apiUrl);
 
-    const {
-      Funcionario,
-      DataFeria,
-      EstadoGozo,
-      OriginouFalta,
-      TipoMarcacao,
-      OriginouFaltaSubAlim,
-      Duracao,
-      Acerto,
-      NumProc,
-      Origem
-    } = dados;
+        const {
+            Funcionario,
+            DataFeria,
+            EstadoGozo,
+            OriginouFalta,
+            TipoMarcacao,
+            OriginouFaltaSubAlim,
+            Duracao,
+            Acerto,
+            NumProc,
+            Origem
+        } = dados;
 
-    const requestData = {
-      Funcionario,
-      DataFeria,
-      EstadoGozo,
-      OriginouFalta,
-      TipoMarcacao,
-      OriginouFaltaSubAlim,
-      Duracao,
-      Acerto,
-      NumProc,
-      Origem
-    };
+        const requestData = {
+            Funcionario,
+            DataFeria,
+            EstadoGozo,
+            OriginouFalta,
+            TipoMarcacao,
+            OriginouFaltaSubAlim,
+            Duracao,
+            Acerto,
+            NumProc,
+            Origem
+        };
 
-    console.log("Dados a serem enviados:", requestData);
+        console.log("Dados a serem enviados:", requestData);
 
-    // Enviar para a WebAPI Primavera
-    const response = await axios.post(apiUrl, requestData, {
-      headers: {
-        Authorization: `Bearer ${painelAdminToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
+        // Enviar para a WebAPI Primavera
+        const response = await axios.post(apiUrl, requestData, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+        });
 
-    if (response.status === 200) {
-      return res.status(200).json({
-        mensagem: "Férias inseridas com sucesso.",
-        detalhes: response.data,
-      });
-    } else {
-      return res.status(response.status).json({
-        error: "Falha ao inserir férias.",
-        details: response.data,
-      });
+        if (response.status === 200) {
+            return res.status(200).json({
+                mensagem: "Férias inseridas com sucesso.",
+                detalhes: response.data,
+            });
+        } else {
+            return res.status(response.status).json({
+                error: "Falha ao inserir férias.",
+                details: response.data,
+            });
+        }
+    } catch (error) {
+        console.error(
+            "Erro ao Inserir Férias:",
+            error.response ? error.response.data : error.message
+        );
+        return res.status(500).json({
+            error: "Erro inesperado ao Inserir Férias.",
+            details: error.message,
+        });
     }
-  } catch (error) {
-    console.error(
-      "Erro ao Inserir Férias:",
-      error.response ? error.response.data : error.message
-    );
-    return res.status(500).json({
-      error: "Erro inesperado ao Inserir Férias.",
-      details: error.message,
-    });
-  }
 });
 
 // Novo editar Ferias Funcionario.
 router.put("/EditarFeriasFuncionario", async (req, res) => {
-  try {
-    const dados = req.body;
+    try {
+        const dados = req.body;
 
-    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
-    if (!painelAdminToken) {
-      return res.status(401).json({
-        error: "Token não encontrado. Faça login novamente.",
-      });
+        const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({
+                error: "Token não encontrado. Faça login novamente.",
+            });
+        }
+
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: "URL da empresa não fornecida." });
+        }
+
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/EditarFeriasFuncionario`;
+        console.log("Enviando solicitação para a URL:", apiUrl);
+
+        const {
+            Funcionario,
+            DataFeria,
+            EstadoGozo,
+            OriginouFalta,
+            TipoMarcacao,
+            OriginouFaltaSubAlim,
+            Duracao,
+            Acerto,
+            NumProc,
+            Origem
+        } = dados;
+
+        const requestData = {
+            Funcionario,
+            DataFeria,
+            EstadoGozo,
+            OriginouFalta,
+            TipoMarcacao,
+            OriginouFaltaSubAlim,
+            Duracao,
+            Acerto,
+            NumProc,
+            Origem
+        };
+
+        console.log("Dados a serem enviados (edição):", requestData);
+
+        const response = await axios.put(apiUrl, requestData, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+        });
+
+        if (response.status === 200) {
+            return res.status(200).json({
+                mensagem: "Férias atualizadas com sucesso.",
+                detalhes: response.data,
+            });
+        } else {
+            return res.status(response.status).json({
+                error: "Falha ao editar férias.",
+                details: response.data,
+            });
+        }
+    } catch (error) {
+        console.error(
+            "Erro ao editar férias:",
+            error.response ? error.response.data : error.message
+        );
+        return res.status(500).json({
+            error: "Erro inesperado ao editar férias.",
+            details: error.message,
+        });
     }
-
-    const urlempresa = await getEmpresaUrl(req);
-    if (!urlempresa) {
-      return res.status(400).json({ error: "URL da empresa não fornecida." });
-    }
-
-    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/EditarFeriasFuncionario`;
-    console.log("Enviando solicitação para a URL:", apiUrl);
-
-    const {
-      Funcionario,
-      DataFeria,
-      EstadoGozo,
-      OriginouFalta,
-      TipoMarcacao,
-      OriginouFaltaSubAlim,
-      Duracao,
-      Acerto,
-      NumProc,
-      Origem
-    } = dados;
-
-    const requestData = {
-      Funcionario,
-      DataFeria,
-      EstadoGozo,
-      OriginouFalta,
-      TipoMarcacao,
-      OriginouFaltaSubAlim,
-      Duracao,
-      Acerto,
-      NumProc,
-      Origem
-    };
-
-    console.log("Dados a serem enviados (edição):", requestData);
-
-    const response = await axios.put(apiUrl, requestData, {
-      headers: {
-        Authorization: `Bearer ${painelAdminToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
-
-    if (response.status === 200) {
-      return res.status(200).json({
-        mensagem: "Férias atualizadas com sucesso.",
-        detalhes: response.data,
-      });
-    } else {
-      return res.status(response.status).json({
-        error: "Falha ao editar férias.",
-        details: response.data,
-      });
-    }
-  } catch (error) {
-    console.error(
-      "Erro ao editar férias:",
-      error.response ? error.response.data : error.message
-    );
-    return res.status(500).json({
-      error: "Erro inesperado ao editar férias.",
-      details: error.message,
-    });
-  }
 });
 
 
 router.delete("/EliminarFeriasFuncionario/:codFuncionario/:dataFeria", async (req, res) => {
-  try {
-    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
-    if (!painelAdminToken) {
-      return res.status(401).json({
-        error: "Token não encontrado. Faça login novamente.",
-      });
+    try {
+        const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({
+                error: "Token não encontrado. Faça login novamente.",
+            });
+        }
+
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: "URL da empresa não fornecida." });
+        }
+
+        const { codFuncionario, dataFeria } = req.params;
+
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/EliminarFeriasFuncionario/${codFuncionario}/${dataFeria}`;
+        console.log("Enviando solicitação DELETE para:", apiUrl);
+
+        const response = await axios.delete(apiUrl, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+        });
+
+        return res.status(200).json({
+            mensagem: "Férias eliminadas com sucesso.",
+            detalhes: response.data,
+        });
+
+    } catch (error) {
+        const status = error.response?.status;
+
+        if (status === 404) {
+            // Férias já estavam eliminadas
+            console.warn("Férias já não existiam:", error.response?.data);
+            return res.status(200).json({
+                mensagem: "Férias já não existiam para esse dia.",
+                detalhes: error.response.data,
+            });
+        }
+
+        console.error(
+            "Erro ao eliminar férias:",
+            error.response ? error.response.data : error.message
+        );
+        return res.status(500).json({
+            error: "Erro inesperado ao eliminar férias.",
+            details: error.message,
+        });
     }
-
-    const urlempresa = await getEmpresaUrl(req);
-    if (!urlempresa) {
-      return res.status(400).json({ error: "URL da empresa não fornecida." });
-    }
-
-    const { codFuncionario, dataFeria } = req.params;
-
-    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/EliminarFeriasFuncionario/${codFuncionario}/${dataFeria}`;
-    console.log("Enviando solicitação DELETE para:", apiUrl);
-
-    const response = await axios.delete(apiUrl, {
-      headers: {
-        Authorization: `Bearer ${painelAdminToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
-
-    return res.status(200).json({
-      mensagem: "Férias eliminadas com sucesso.",
-      detalhes: response.data,
-    });
-
-  } catch (error) {
-    const status = error.response?.status;
-
-    if (status === 404) {
-      // Férias já estavam eliminadas
-      console.warn("Férias já não existiam:", error.response?.data);
-      return res.status(200).json({
-        mensagem: "Férias já não existiam para esse dia.",
-        detalhes: error.response.data,
-      });
-    }
-
-    console.error(
-      "Erro ao eliminar férias:",
-      error.response ? error.response.data : error.message
-    );
-    return res.status(500).json({
-      error: "Erro inesperado ao eliminar férias.",
-      details: error.message,
-    });
-  }
 });
 
 
 
 router.delete("/EliminarFalta/:codFuncionario/:dataFalta/:tipoFalta", async (req, res) => {
-  try {
-    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
-    if (!painelAdminToken) {
-      return res.status(401).json({
-        error: "Token não encontrado. Faça login novamente.",
-      });
+    try {
+        const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({
+                error: "Token não encontrado. Faça login novamente.",
+            });
+        }
+
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: "URL da empresa não fornecida." });
+        }
+
+        const { codFuncionario, dataFalta, tipoFalta } = req.params;
+
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/EliminarFalta/${codFuncionario}/${dataFalta}/${tipoFalta}`;
+        console.log("Enviando solicitação DELETE para:", apiUrl);
+
+        const response = await axios.delete(apiUrl, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+        });
+
+        return res.status(200).json({
+            mensagem: "Falta eliminada com sucesso.",
+            detalhes: response.data,
+        });
+
+    } catch (error) {
+        const status = error.response?.status;
+
+        if (status === 404) {
+            return res.status(200).json({
+                mensagem: "Falta já não existia, considerada eliminada.",
+                detalhes: error.response.data,
+            });
+        }
+
+        return res.status(500).json({
+            error: "Erro inesperado ao eliminar falta.",
+            details: error.message,
+        });
     }
-
-    const urlempresa = await getEmpresaUrl(req);
-    if (!urlempresa) {
-      return res.status(400).json({ error: "URL da empresa não fornecida." });
-    }
-
-    const { codFuncionario, dataFalta, tipoFalta } = req.params;
-
-    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/EliminarFalta/${codFuncionario}/${dataFalta}/${tipoFalta}`;
-    console.log("Enviando solicitação DELETE para:", apiUrl);
-
-    const response = await axios.delete(apiUrl, {
-      headers: {
-        Authorization: `Bearer ${painelAdminToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
-
-    return res.status(200).json({
-      mensagem: "Falta eliminada com sucesso.",
-      detalhes: response.data,
-    });
-
-  } catch (error) {
-    const status = error.response?.status;
-
-    if (status === 404) {
-      return res.status(200).json({
-        mensagem: "Falta já não existia, considerada eliminada.",
-        detalhes: error.response.data,
-      });
-    }
-
-    return res.status(500).json({
-      error: "Erro inesperado ao eliminar falta.",
-      details: error.message,
-    });
-  }
 });
 
 
 
 
 router.put("/EditarFalta", async (req, res) => {
-  try {
-    const dados = req.body;
+    try {
+        const dados = req.body;
 
-    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
-    if (!painelAdminToken) {
-      return res
-        .status(401)
-        .json({ error: "Token não encontrado. Faça login novamente." });
+        const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+        if (!painelAdminToken) {
+            return res
+                .status(401)
+                .json({ error: "Token não encontrado. Faça login novamente." });
+        }
+
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res
+                .status(400)
+                .json({ error: "URL da empresa não fornecida." });
+        }
+
+        const {
+            Funcionario, Data, Falta, Horas, Tempo,
+            DescontaVenc, DescontaRem, ExcluiProc, ExcluiEstat,
+            Observacoes, CalculoFalta, DescontaSubsAlim, DataProc,
+            NumPeriodoProcessado, JaProcessado, InseridoBloco,
+            ValorDescontado, AnoProcessado, NumProc, Origem,
+            PlanoCurso, IdGDOC, CambioMBase, CambioMAlt, CotizaPeloMinimo,
+            Acerto, MotivoAcerto, NumLinhaDespesa, NumRelatorioDespesa,
+            FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional,
+            SubAlimProporcional
+        } = req.body;
+
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/EditarFalta`;
+
+        const requestData = {
+            Funcionario, Data, Falta, Horas, Tempo, DescontaVenc, DescontaRem,
+            ExcluiProc, ExcluiEstat, Observacoes, CalculoFalta, DescontaSubsAlim,
+            DataProc, NumPeriodoProcessado, JaProcessado, InseridoBloco,
+            ValorDescontado, AnoProcessado, NumProc, Origem, PlanoCurso,
+            IdGDOC, CambioMBase, CambioMAlt, CotizaPeloMinimo, Acerto,
+            MotivoAcerto, NumLinhaDespesa, NumRelatorioDespesa,
+            FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional, SubAlimProporcional
+        };
+
+        console.log("Editando falta via:", apiUrl);
+        console.log("Dados enviados:", requestData);
+
+        const response = await axios.put(apiUrl, requestData, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+        });
+
+        if (response.status === 200) {
+            return res.status(200).json({
+                mensagem: "Falta editada com sucesso.",
+                detalhes: response.data,
+            });
+        } else {
+            return res.status(response.status).json({
+                error: "Falha ao editar falta.",
+                details: response.data,
+            });
+        }
+    } catch (error) {
+        console.error(
+            "Erro ao Editar Falta:",
+            error.response ? error.response.data : error.message
+        );
+        return res.status(500).json({
+            error: "Erro inesperado ao Editar Falta.",
+            details: error.message,
+        });
     }
-
-    const urlempresa = await getEmpresaUrl(req);
-    if (!urlempresa) {
-      return res
-        .status(400)
-        .json({ error: "URL da empresa não fornecida." });
-    }
-
-    const {
-      Funcionario, Data, Falta, Horas, Tempo,
-      DescontaVenc, DescontaRem, ExcluiProc, ExcluiEstat,
-      Observacoes, CalculoFalta, DescontaSubsAlim, DataProc,
-      NumPeriodoProcessado, JaProcessado, InseridoBloco,
-      ValorDescontado, AnoProcessado, NumProc, Origem,
-      PlanoCurso, IdGDOC, CambioMBase, CambioMAlt, CotizaPeloMinimo,
-      Acerto, MotivoAcerto, NumLinhaDespesa, NumRelatorioDespesa,
-      FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional,
-      SubAlimProporcional
-    } = req.body;
-
-    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/EditarFalta`;
-
-    const requestData = {
-      Funcionario, Data, Falta, Horas, Tempo, DescontaVenc, DescontaRem,
-      ExcluiProc, ExcluiEstat, Observacoes, CalculoFalta, DescontaSubsAlim,
-      DataProc, NumPeriodoProcessado, JaProcessado, InseridoBloco,
-      ValorDescontado, AnoProcessado, NumProc, Origem, PlanoCurso,
-      IdGDOC, CambioMBase, CambioMAlt, CotizaPeloMinimo, Acerto,
-      MotivoAcerto, NumLinhaDespesa, NumRelatorioDespesa,
-      FuncComplementosBaixaId, DescontaSubsTurno, SubTurnoProporcional, SubAlimProporcional
-    };
-
-    console.log("Editando falta via:", apiUrl);
-    console.log("Dados enviados:", requestData);
-
-    const response = await axios.put(apiUrl, requestData, {
-      headers: {
-        Authorization: `Bearer ${painelAdminToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
-
-    if (response.status === 200) {
-      return res.status(200).json({
-        mensagem: "Falta editada com sucesso.",
-        detalhes: response.data,
-      });
-    } else {
-      return res.status(response.status).json({
-        error: "Falha ao editar falta.",
-        details: response.data,
-      });
-    }
-  } catch (error) {
-    console.error(
-      "Erro ao Editar Falta:",
-      error.response ? error.response.data : error.message
-    );
-    return res.status(500).json({
-      error: "Erro inesperado ao Editar Falta.",
-      details: error.message,
-    });
-  }
 });
 
 
@@ -1139,94 +1139,134 @@ router.get("/GetObraId/:codObra", async (req, res) => {
 
 
 router.put("/InsertParteDiariaEquipamento", async (req, res) => {
-  try {
-    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
-    if (!painelAdminToken) {
-      return res.status(401).json({ error: "Token não encontrado. Faça login novamente." });
+    try {
+        const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: "Token não encontrado. Faça login novamente." });
+        }
+
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: "URL da empresa não fornecida." });
+        }
+
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InsertParteDiariaEquipamento`;
+
+        console.log("🔁 PUT Primavera (Equipamentos):", apiUrl);
+        console.log("📦 Body:", JSON.stringify(req.body, null, 2));
+
+        const response = await axios.put(apiUrl, req.body, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+        });
+
+        if (response.status === 200) {
+            return res.status(200).json({
+                mensagem: "Parte diária de equipamentos inserida com sucesso.",
+                detalhes: response.data,
+            });
+        } else {
+            return res.status(response.status).json({
+                error: "Falha ao inserir parte diária de equipamentos.",
+                detalhes: response.data,
+            });
+        }
+    } catch (error) {
+        console.error("❌ Erro ao inserir parte diária de equipamentos:",
+            error.response?.data || error.message
+        );
+        return res.status(500).json({
+            error: "Erro inesperado ao inserir parte diária de equipamentos.",
+            detalhes: error.response?.data || error.message,
+        });
     }
-
-    const urlempresa = await getEmpresaUrl(req);
-    if (!urlempresa) {
-      return res.status(400).json({ error: "URL da empresa não fornecida." });
-    }
-
-    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InsertParteDiariaEquipamento`;
-
-    console.log("🔁 PUT Primavera (Equipamentos):", apiUrl);
-    console.log("📦 Body:", JSON.stringify(req.body, null, 2));
-
-    const response = await axios.put(apiUrl, req.body, {
-      headers: {
-        Authorization: `Bearer ${painelAdminToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
-
-    if (response.status === 200) {
-      return res.status(200).json({
-        mensagem: "Parte diária de equipamentos inserida com sucesso.",
-        detalhes: response.data,
-      });
-    } else {
-      return res.status(response.status).json({
-        error: "Falha ao inserir parte diária de equipamentos.",
-        detalhes: response.data,
-      });
-    }
-  } catch (error) {
-    console.error("❌ Erro ao inserir parte diária de equipamentos:",
-      error.response?.data || error.message
-    );
-    return res.status(500).json({
-      error: "Erro inesperado ao inserir parte diária de equipamentos.",
-      detalhes: error.response?.data || error.message,
-    });
-  }
 });
 
 
 router.get("/ValidaSubEmpId/:subEmpId", async (req, res) => {
-  try {
-    const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
-    if (!painelAdminToken) {
-      return res.status(401).json({ error: "Token não encontrado. Faça login novamente." });
+    try {
+        const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: "Token não encontrado. Faça login novamente." });
+        }
+
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: "URL da empresa não fornecida." });
+        }
+
+        const { subEmpId } = req.params;
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/ValidaSubEmpId/${subEmpId}`;
+
+        console.log("🔎 GET Primavera (ValidaSubEmpId):", apiUrl);
+
+        const response = await axios.get(apiUrl, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+        });
+
+        // Se a tua WebAPI não tiver este endpoint, podes trocar por um SELECT direto no teu backend.
+        // Aqui devolvemos `exists: true/false`.
+        return res.status(200).json(response.data);
+    } catch (error) {
+        // Se a tua WebAPI não expuser ValidaSubEmpId, devolve 501 para não confundir o frontend
+        if (!error.response) {
+            return res.status(501).json({
+                error: "Validação remota de SubEmpId não suportada nesta instância.",
+            });
+        }
+        return res.status(error.response.status || 500).json({
+            error: "Erro ao validar SubEmpId.",
+            detalhes: error.response?.data || error.message,
+        });
     }
-
-    const urlempresa = await getEmpresaUrl(req);
-    if (!urlempresa) {
-      return res.status(400).json({ error: "URL da empresa não fornecida." });
-    }
-
-    const { subEmpId } = req.params;
-    const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/ValidaSubEmpId/${subEmpId}`;
-
-    console.log("🔎 GET Primavera (ValidaSubEmpId):", apiUrl);
-
-    const response = await axios.get(apiUrl, {
-      headers: {
-        Authorization: `Bearer ${painelAdminToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
-
-    // Se a tua WebAPI não tiver este endpoint, podes trocar por um SELECT direto no teu backend.
-    // Aqui devolvemos `exists: true/false`.
-    return res.status(200).json(response.data);
-  } catch (error) {
-    // Se a tua WebAPI não expuser ValidaSubEmpId, devolve 501 para não confundir o frontend
-    if (!error.response) {
-      return res.status(501).json({
-        error: "Validação remota de SubEmpId não suportada nesta instância.",
-      });
-    }
-    return res.status(error.response.status || 500).json({
-      error: "Erro ao validar SubEmpId.",
-      detalhes: error.response?.data || error.message,
-    });
-  }
 });
+
+router.get('/feriados', async (req, res) => {
+    try {
+        const painelAdminToken = req.headers['authorization']?.split(' ')[1];  // Obtendo o token do cabeçalho
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: 'Token de administrador não encontrado. Faça login novamente.' });
+        }
+
+        const urlempresa = await getEmpresaUrl(req);  // Usando a função para obter o urlempresa
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+        }
+
+        const apiUrl = `http://${urlempresa}/WebApi/Obras/feriados`;  // A URL completa da API
+        console.log('Enviando solicitação para a URL:', apiUrl);
+
+        const response = await axios.get(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${painelAdminToken}`,  // Envia o token para a autenticação
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            }
+        });
+
+        if (response.status === 200) {
+            const obras = response.data;  // Obter os obras da resposta
+            if (!obras || obras.length === 0) {
+                return res.status(404).json({ error: 'Nenhuma feriados encontrado.' });
+            }
+
+            return res.status(200).json(obras);  // Retorna os obras encontrados
+        } else {
+            return res.status(400).json({ error: 'Falha ao listar feriados.', details: response.data.ErrorMessage });
+        }
+    } catch (error) {
+        console.error('Erro ao listar obras:', error.message);
+        return res.status(500).json({ error: 'Erro inesperado ao listar feriados', details: error.message });
+    }
+});
+
 
 
 module.exports = router;

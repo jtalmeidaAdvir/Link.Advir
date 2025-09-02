@@ -1,12 +1,16 @@
 {
   "ExpandedNodes": [
     "",
+    "\\frontend",
+    "\\frontend\\src",
     "\\frontend\\src\\Pages",
-    "\\frontend\\src\\Pages\\WhatsApp",
+    "\\frontend\\src\\Pages\\Assiduidade",
     "\\frontend\\src\\Pages\\WhatsApp\\components",
-    "\\whatsapp-backend",
+    "\\webPrimaveraApi",
+    "\\webPrimaveraApi\\routes",
+    "\\webPrimaveraApi\\routes\\Faltas",
     "\\whatsapp-backend\\routes"
   ],
-  "SelectedNode": "\\whatsapp-backend\\routes\\whatsappIntervencoes.js",
+  "SelectedNode": "\\frontend\\src\\Pages\\Assiduidade\\CalendarioHorasTrabalho.js",
   "PreviewInSolutionExplorer": false
 }
