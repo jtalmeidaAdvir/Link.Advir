@@ -6,12 +6,8 @@
     "\\frontend\\src\\Pages",
     "\\frontend\\src\\Pages\\WhatsApp",
     "\\frontend\\src\\Pages\\WhatsApp\\components",
-    "\\webPrimaveraApi",
-    "\\webPrimaveraApi\\routes",
-    "\\webPrimaveraApi\\routes\\Concursos",
-    "\\whatsapp-backend",
     "\\whatsapp-backend\\routes"
   ],
-  "SelectedNode": "\\frontend\\src\\Pages\\WhatsApp\\components\\ContactsTab.js",
+  "SelectedNode": "\\frontend\\src\\Pages\\WhatsApp\\WhatsAppWebConfig.js",
   "PreviewInSolutionExplorer": false
 }
