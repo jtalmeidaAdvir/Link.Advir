@@ -1,0 +1,15 @@
+2025/09/02-15:25:40.025 4c90 Reusing MANIFEST C:\Users\jtalm\Desktop\LINK\Link.Advir\whatsapp-backend\whatsapp-session\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/09/02-15:25:40.026 4c90 Recovering log #105
+2025/09/02-15:25:40.233 4c90 Reusing old log C:\Users\jtalm\Desktop\LINK\Link.Advir\whatsapp-backend\whatsapp-session\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000105.log 
+2025/09/02-15:25:42.677 a928 Level-0 table #111: started
+2025/09/02-15:25:42.708 a928 Level-0 table #111: 642141 bytes OK
+2025/09/02-15:25:42.711 a928 Delete type=0 #105
+2025/09/02-15:25:42.712 a928 Manual compaction at level-0 from '\x00,\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00-\x00\x00\x00' @ 0 : 0; will stop at (end)
+2025/09/02-15:25:46.990 5044 Compacting 1@1 + 2@2 files
+2025/09/02-15:25:47.235 5044 Generated table #112@1: 47644 keys, 2205625 bytes
+2025/09/02-15:25:47.346 5044 Generated table #113@1: 32827 keys, 595074 bytes
+2025/09/02-15:25:47.346 5044 Compacted 1@1 + 2@2 files => 2800699 bytes
+2025/09/02-15:25:47.348 5044 compacted to: files[ 0 0 2 0 0 0 0 ]
+2025/09/02-15:25:47.348 5044 Delete type=2 #107
+2025/09/02-15:25:47.348 5044 Delete type=2 #108
+2025/09/02-15:25:47.349 5044 Delete type=2 #111
