@@ -161,7 +161,7 @@ const initializeWhatsAppWeb = async (retryCount = 0) => {
 
         client.on("ready", async () => {
             console.log("WhatsApp Web Cliente conectado!");
-            
+
             // Verificar se o cliente está realmente funcional
             try {
                 await client.getState();
@@ -169,7 +169,7 @@ const initializeWhatsAppWeb = async (retryCount = 0) => {
                 clientStatus = "ready";
                 qrCodeData = null;
                 console.log("✅ Cliente WhatsApp verificado e funcional");
-                
+
                 // Inicializar agendamentos ao estar pronto
                 initializeSchedules();
             } catch (error) {
@@ -311,13 +311,26 @@ router.get("/agendamentos/logs", (req, res) => {
 router.get("/status", async (req, res) => {
     let realStatus = clientStatus;
     let realIsReady = isClientReady;
+    let clientState = null;
 
     // Verificação adicional do estado real do cliente
-    if (client && isClientReady) {
+    if (client) {
         try {
-            const state = await client.getState();
-            if (state !== "CONNECTED") {
-                console.log("⚠️ Cliente reportado como ready mas estado real é:", state);
+            clientState = await client.getState();
+
+            // Se o cliente está CONNECTED mas nossas variáveis dizem que não está ready
+            if (clientState === "CONNECTED" && !isClientReady) {
+                console.log("🔄 Cliente está CONNECTED mas variáveis internas desatualizadas - sincronizando...");
+                realIsReady = true;
+                realStatus = "ready";
+                isClientReady = true;
+                clientStatus = "ready";
+                qrCodeData = null; // Limpar QR code se está conectado
+                console.log("✅ Estado sincronizado: Cliente está conectado e pronto");
+            }
+            // Se o cliente não está CONNECTED mas nossas variáveis dizem que está
+            else if (clientState !== "CONNECTED" && isClientReady) {
+                console.log("⚠️ Cliente reportado como ready mas estado real é:", clientState);
                 realIsReady = false;
                 realStatus = "disconnected";
                 isClientReady = false;
@@ -335,19 +348,20 @@ router.get("/status", async (req, res) => {
     const response = {
         status: realStatus,
         isReady: realIsReady,
-        qrCode: qrCodeData,
-        hasQrCode: !!qrCodeData,
+        qrCode: realStatus === "ready" ? null : qrCodeData, // Não mostrar QR se está conectado
+        hasQrCode: realStatus === "ready" ? false : !!qrCodeData,
         timestamp: new Date().toISOString(),
         clientExists: !!client,
         qrCodeLength: qrCodeData ? qrCodeData.length : 0,
-        clientState: client ? await client.getState().catch(() => "unknown") : null,
+        clientState: clientState,
     };
 
     console.log("📊 Status solicitado:", {
         status: realStatus,
-        hasQrCode: !!qrCodeData,
+        hasQrCode: realStatus === "ready" ? false : !!qrCodeData,
         qrLength: qrCodeData ? qrCodeData.length : 0,
-        clientState: response.clientState,
+        clientState: clientState,
+        wasUpdated: clientState === "CONNECTED" && realStatus === "ready",
     });
 
     res.json(response);
@@ -744,7 +758,7 @@ router.post("/force-reconnect", async (req, res) => {
                     isClientReady = true;
                     clientStatus = "ready";
                     qrCodeData = null;
-                    
+
                     res.json({
                         message: "Cliente já está conectado. Estado sincronizado.",
                         status: clientStatus,
@@ -875,12 +889,20 @@ router.post("/send", async (req, res) => {
             });
         }
 
-        if (clientState !== "CONNECTED" || !isClientReady) {
+        // Se o cliente está CONNECTED, sincronizar variáveis internas
+        if (clientState === "CONNECTED") {
+            if (!isClientReady) {
+                console.log("🔄 Sincronizando estado: Cliente está CONNECTED, atualizando variáveis...");
+                isClientReady = true;
+                clientStatus = "ready";
+                qrCodeData = null;
+            }
+        } else {
             console.log(`⚠️ Cliente não está CONNECTED. Estado atual: ${clientState}`);
             // Atualizar variáveis de estado
             isClientReady = false;
             clientStatus = "disconnected";
-            
+
             return res.status(400).json({
                 error: "WhatsApp Web não está conectado. Conecte primeiro!",
                 currentState: clientState,
