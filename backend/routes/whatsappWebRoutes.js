@@ -137,6 +137,10 @@ const initializeWhatsAppWeb = async (retryCount = 0) => {
                     "--disable-blink-features=AutomationControlled",
                     "--disable-component-update",
                     "--disable-ipc-flooding-protection",
+                    "--remote-debugging-address=0.0.0.0",
+                    "--remote-debugging-port=0",
+                    "--disable-features=Translate",
+                    "--disable-ipc-flooding-protection",
                     ...(isProduction
                         ? [
                             "--disable-software-rasterizer",
@@ -145,10 +149,12 @@ const initializeWhatsAppWeb = async (retryCount = 0) => {
                             "--metrics-recording-only",
                             "--safebrowsing-disable-auto-update",
                             "--disable-crash-reporter",
+                            "--disable-notifications",
+                            "--disable-popup-blocking",
                         ]
                         : []),
                 ],
-                timeout: 60000, // Aumentar timeout
+                timeout: 90000, // Aumentar timeout para servidor
             },
         });
         client.on("qr", (qr) => {
@@ -181,10 +187,19 @@ const initializeWhatsAppWeb = async (retryCount = 0) => {
 
         // Adicionar listener para mensagens recebidas
         client.on("message", async (message) => {
+            console.log("📨 MENSAGEM RECEBIDA:", {
+                from: message.from,
+                body: message.body,
+                type: message.type,
+                timestamp: new Date().toISOString(),
+                isGroup: message.from.includes("@g.us"),
+                fromMe: message.fromMe
+            });
+
             try {
                 await handleIncomingMessage(message);
             } catch (error) {
-                console.error("Erro ao processar mensagem recebida:", error);
+                console.error("❌ Erro ao processar mensagem recebida:", error);
 
                 // Se for erro de ExecutionContext, tentar reinicializar
                 if (error.message.includes("Execution context was destroyed")) {
@@ -194,6 +209,23 @@ const initializeWhatsAppWeb = async (retryCount = 0) => {
                     setTimeout(() => initializeWhatsAppWeb(), 3000);
                 }
             }
+        });
+
+        // Adicionar listeners adicionais para debug
+        client.on("message_create", (message) => {
+            console.log("📝 MESSAGE_CREATE:", message.from, message.body);
+        });
+
+        client.on("message_revoke_everyone", (after, before) => {
+            console.log("🗑️ MESSAGE_REVOKED:", before.from, before.body);
+        });
+
+        client.on("group_join", (notification) => {
+            console.log("👥 GROUP_JOIN:", notification);
+        });
+
+        client.on("contact_changed", (message, oldId, newId, isContact) => {
+            console.log("📞 CONTACT_CHANGED:", oldId, "->", newId);
         });
 
         client.on("authenticated", () => {
@@ -4337,7 +4369,7 @@ router.get("/schedule-status", (req, res) => {
 });
 
 // Endpoint para debug completo do WhatsApp Web
-router.get("/debug", (req, res) => {
+router.get("/debug", async (req, res) => {
     const fs = require("fs");
     const chromePaths = [
         "/usr/bin/chromium-browser",
@@ -4348,11 +4380,29 @@ router.get("/debug", (req, res) => {
 
     const availableChrome = chromePaths.find((path) => fs.existsSync(path));
 
+    let clientInfo = null;
+    if (client && isClientReady) {
+        try {
+            const info = client.info;
+            const state = await client.getState();
+            clientInfo = {
+                wid: info?.wid?._serialized || "N/A",
+                pushname: info?.pushname || "N/A",
+                platform: info?.platform || "N/A",
+                state: state,
+                isReady: isClientReady
+            };
+        } catch (error) {
+            clientInfo = { error: error.message };
+        }
+    }
+
     res.json({
         timestamp: new Date().toISOString(),
         status: clientStatus,
         isReady: isClientReady,
         hasClient: !!client,
+        clientInfo: clientInfo,
         qrCode: {
             exists: !!qrCodeData,
             length: qrCodeData ? qrCodeData.length : 0,
@@ -4361,13 +4411,59 @@ router.get("/debug", (req, res) => {
         environment: {
             nodeVersion: process.version,
             platform: process.platform,
+            nodeEnv: process.env.NODE_ENV || 'development',
+            replit: !!process.env.REPLIT_DEV_DOMAIN,
             availableChrome: availableChrome || "Nenhum Chrome encontrado",
             chromePaths: chromePaths.map((path) => ({
                 path,
                 exists: fs.existsSync(path),
             })),
         },
+        conversations: {
+            active: activeConversations.size,
+            list: Array.from(activeConversations.keys())
+        }
     });
+});
+
+// Endpoint para testar receção de mensagens manualmente
+router.post("/test-message-handler", async (req, res) => {
+    try {
+        const { phoneNumber, message } = req.body;
+
+        if (!phoneNumber || !message) {
+            return res.status(400).json({
+                error: "phoneNumber e message são obrigatórios"
+            });
+        }
+
+        // Simular uma mensagem recebida
+        const mockMessage = {
+            from: phoneNumber + "@c.us",
+            body: message,
+            type: "text",
+            fromMe: false,
+            hasMedia: false,
+            timestamp: Date.now()
+        };
+
+        console.log("🧪 TESTE: Simulando mensagem recebida:", mockMessage);
+
+        await handleIncomingMessage(mockMessage);
+
+        res.json({
+            success: true,
+            message: "Mensagem processada com sucesso",
+            mockMessage: mockMessage
+        });
+
+    } catch (error) {
+        console.error("Erro no teste de mensagem:", error);
+        res.status(500).json({
+            error: "Erro ao processar mensagem de teste",
+            details: error.message
+        });
+    }
 });
 
 // Endpoint para simular que é uma hora específica (para testes)
