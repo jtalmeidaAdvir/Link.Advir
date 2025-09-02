@@ -298,6 +298,41 @@ const WhatsAppWebConfig = () => {
         }
     };
 
+    const handleForceReconnect = async () => {
+        if (
+            confirm(
+                "Forçar reconexão do WhatsApp Web? Isso irá verificar e corrigir problemas de sincronização."
+            )
+        ) {
+            setLoading(true);
+            try {
+                const response = await fetch(`${API_BASE_URL}/force-reconnect`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert("Reconexão forçada iniciada! Aguarde alguns segundos e verifique o status.");
+                    setTimeout(() => {
+                        checkStatus();
+                        loadUserInfo();
+                    }, 3000);
+                } else {
+                    alert(`Erro: ${data.error}`);
+                }
+            } catch (error) {
+                console.error("Erro ao forçar reconexão:", error);
+                alert("Erro ao forçar reconexão WhatsApp");
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
     const handleTestMessage = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -900,6 +935,7 @@ const WhatsAppWebConfig = () => {
             handleDisconnect={handleDisconnect}
             handleChangeAccount={handleChangeAccount}
             handleQuickChangeAccount={handleQuickChangeAccount}
+            handleForceReconnect={handleForceReconnect}
             handleTestMessage={handleTestMessage}
             checkStatus={checkStatus}
             API_BASE_URL={API_BASE_URL}

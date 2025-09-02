@@ -9,6 +9,8 @@ const ConnectionTab = ({
     handleConnect,
     handleDisconnect,
     handleChangeAccount,
+    handleQuickChangeAccount,
+    handleForceReconnect,
     handleTestMessage,
     checkStatus,
     API_BASE_URL,
@@ -59,27 +61,7 @@ const ConnectionTab = ({
         }
     };
 
-    const handleQuickChangeAccount = async () => {
-        if (confirm("Isso irá desconectar a conta atual e permitir a conexão com um novo número. Continuar?")) {
-            setLoading(true);
-            try {
-                const response = await fetch(`${API_BASE_URL}/clear-session`, {
-                    method: "POST",
-                });
-
-                if (response.ok) {
-                    alert("Sessão limpa! Agora pode conectar com um novo número.");
-                    setTimeout(() => handleConnect(), 1000);
-                } else {
-                    alert("Erro ao limpar sessão");
-                }
-            } catch (error) {
-                alert("Erro ao limpar sessão");
-            } finally {
-                setLoading(false);
-            }
-        }
-    };
+    
 
 
     return (
@@ -271,13 +253,25 @@ const ConnectionTab = ({
                         <button
                             style={{
                                 ...styles.button,
-                                backgroundColor: "#17a2b8",
-                                marginLeft: "8px",
+                                backgroundColor: "#ff9800",
+                                marginRight: "10px",
                             }}
                             onClick={handleQuickChangeAccount}
                             disabled={loading}
                         >
-                            📱 Trocar Número
+                            🔄 Trocar Número
+                        </button>
+
+                        <button
+                            style={{
+                                ...styles.button,
+                                backgroundColor: "#2196f3",
+                                marginRight: "10px",
+                            }}
+                            onClick={handleForceReconnect}
+                            disabled={loading}
+                        >
+                            🔧 Forçar Reconexão
                         </button>
                     </div>
                 </div>

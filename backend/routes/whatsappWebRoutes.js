@@ -159,13 +159,24 @@ const initializeWhatsAppWeb = async (retryCount = 0) => {
             qrcode.generate(qr, { small: true });
         });
 
-        client.on("ready", () => {
+        client.on("ready", async () => {
             console.log("WhatsApp Web Cliente conectado!");
-            isClientReady = true;
-            clientStatus = "ready";
-            qrCodeData = null;
-            // Inicializar agendamentos ao estar pronto
-            initializeSchedules();
+            
+            // Verificar se o cliente está realmente funcional
+            try {
+                await client.getState();
+                isClientReady = true;
+                clientStatus = "ready";
+                qrCodeData = null;
+                console.log("✅ Cliente WhatsApp verificado e funcional");
+                
+                // Inicializar agendamentos ao estar pronto
+                initializeSchedules();
+            } catch (error) {
+                console.error("❌ Cliente reportou ready mas não está funcional:", error);
+                isClientReady = false;
+                clientStatus = "error";
+            }
         });
 
         // Adicionar listener para mensagens recebidas
@@ -297,21 +308,46 @@ router.get("/agendamentos/logs", (req, res) => {
     res.json(result);
 });
 // Endpoint para inicializar/obter status
-router.get("/status", (req, res) => {
+router.get("/status", async (req, res) => {
+    let realStatus = clientStatus;
+    let realIsReady = isClientReady;
+
+    // Verificação adicional do estado real do cliente
+    if (client && isClientReady) {
+        try {
+            const state = await client.getState();
+            if (state !== "CONNECTED") {
+                console.log("⚠️ Cliente reportado como ready mas estado real é:", state);
+                realIsReady = false;
+                realStatus = "disconnected";
+                isClientReady = false;
+                clientStatus = "disconnected";
+            }
+        } catch (error) {
+            console.log("⚠️ Erro ao verificar estado real do cliente:", error.message);
+            realIsReady = false;
+            realStatus = "error";
+            isClientReady = false;
+            clientStatus = "error";
+        }
+    }
+
     const response = {
-        status: clientStatus,
-        isReady: isClientReady,
+        status: realStatus,
+        isReady: realIsReady,
         qrCode: qrCodeData,
         hasQrCode: !!qrCodeData,
         timestamp: new Date().toISOString(),
         clientExists: !!client,
         qrCodeLength: qrCodeData ? qrCodeData.length : 0,
+        clientState: client ? await client.getState().catch(() => "unknown") : null,
     };
 
     console.log("📊 Status solicitado:", {
-        status: clientStatus,
+        status: realStatus,
         hasQrCode: !!qrCodeData,
         qrLength: qrCodeData ? qrCodeData.length : 0,
+        clientState: response.clientState,
     });
 
     res.json(response);
@@ -692,6 +728,69 @@ router.post("/clear-session", async (req, res) => {
     }
 });
 
+// Endpoint para forçar verificação e reconexão
+router.post("/force-reconnect", async (req, res) => {
+    try {
+        console.log("🔄 Forçando verificação e reconexão do WhatsApp Web...");
+
+        // Verificar estado atual
+        if (client) {
+            try {
+                const state = await client.getState();
+                console.log("📊 Estado atual do cliente:", state);
+
+                if (state === "CONNECTED") {
+                    // Cliente está conectado, atualizar variáveis
+                    isClientReady = true;
+                    clientStatus = "ready";
+                    qrCodeData = null;
+                    
+                    res.json({
+                        message: "Cliente já está conectado. Estado sincronizado.",
+                        status: clientStatus,
+                        clientState: state,
+                    });
+                    return;
+                } else {
+                    // Cliente não está conectado, forçar reinicialização
+                    console.log("🔄 Cliente não está CONNECTED, reinicializando...");
+                    isClientReady = false;
+                    clientStatus = "disconnected";
+                    qrCodeData = null;
+                }
+            } catch (error) {
+                console.log("⚠️ Erro ao verificar estado, reinicializando cliente...");
+                isClientReady = false;
+                clientStatus = "error";
+            }
+        }
+
+        // Destruir cliente atual se existir
+        if (client) {
+            try {
+                await client.destroy();
+            } catch (error) {
+                console.log("⚠️ Erro ao destruir cliente:", error.message);
+            }
+            client = null;
+        }
+
+        // Reinicializar cliente
+        await initializeWhatsAppWeb();
+
+        res.json({
+            message: "Reconexão forçada iniciada. Verifique o status em alguns segundos.",
+            status: clientStatus,
+        });
+    } catch (error) {
+        console.error("❌ Erro ao forçar reconexão:", error);
+        res.status(500).json({
+            error: "Erro ao forçar reconexão",
+            details: error.message,
+        });
+    }
+});
+
 // Endpoint para trocar de conta WhatsApp
 router.post("/change-account", async (req, res) => {
     try {
@@ -758,9 +857,33 @@ router.post("/change-account", async (req, res) => {
 // Endpoint para enviar mensagem
 router.post("/send", async (req, res) => {
     try {
-        if (!isClientReady || !client) {
+        // Verificação mais robusta do estado do cliente
+        if (!client) {
             return res.status(400).json({
                 error: "WhatsApp Web não está conectado. Conecte primeiro!",
+            });
+        }
+
+        // Verificar estado real do cliente
+        let clientState;
+        try {
+            clientState = await client.getState();
+        } catch (error) {
+            console.error("❌ Erro ao verificar estado do cliente:", error);
+            return res.status(400).json({
+                error: "WhatsApp Web não está conectado. Conecte primeiro!",
+            });
+        }
+
+        if (clientState !== "CONNECTED" || !isClientReady) {
+            console.log(`⚠️ Cliente não está CONNECTED. Estado atual: ${clientState}`);
+            // Atualizar variáveis de estado
+            isClientReady = false;
+            clientStatus = "disconnected";
+            
+            return res.status(400).json({
+                error: "WhatsApp Web não está conectado. Conecte primeiro!",
+                currentState: clientState,
             });
         }
 
