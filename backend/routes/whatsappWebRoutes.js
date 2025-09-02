@@ -137,10 +137,6 @@ const initializeWhatsAppWeb = async (retryCount = 0) => {
                     "--disable-blink-features=AutomationControlled",
                     "--disable-component-update",
                     "--disable-ipc-flooding-protection",
-                    "--remote-debugging-address=0.0.0.0",
-                    "--remote-debugging-port=0",
-                    "--disable-features=Translate",
-                    "--disable-ipc-flooding-protection",
                     ...(isProduction
                         ? [
                             "--disable-software-rasterizer",
@@ -149,12 +145,10 @@ const initializeWhatsAppWeb = async (retryCount = 0) => {
                             "--metrics-recording-only",
                             "--safebrowsing-disable-auto-update",
                             "--disable-crash-reporter",
-                            "--disable-notifications",
-                            "--disable-popup-blocking",
                         ]
                         : []),
                 ],
-                timeout: 90000, // Aumentar timeout para servidor
+                timeout: 60000, // Aumentar timeout
             },
         });
         client.on("qr", (qr) => {
@@ -187,19 +181,10 @@ const initializeWhatsAppWeb = async (retryCount = 0) => {
 
         // Adicionar listener para mensagens recebidas
         client.on("message", async (message) => {
-            console.log("📨 MENSAGEM RECEBIDA:", {
-                from: message.from,
-                body: message.body,
-                type: message.type,
-                timestamp: new Date().toISOString(),
-                isGroup: message.from.includes("@g.us"),
-                fromMe: message.fromMe
-            });
-
             try {
                 await handleIncomingMessage(message);
             } catch (error) {
-                console.error("❌ Erro ao processar mensagem recebida:", error);
+                console.error("Erro ao processar mensagem recebida:", error);
 
                 // Se for erro de ExecutionContext, tentar reinicializar
                 if (error.message.includes("Execution context was destroyed")) {
@@ -209,23 +194,6 @@ const initializeWhatsAppWeb = async (retryCount = 0) => {
                     setTimeout(() => initializeWhatsAppWeb(), 3000);
                 }
             }
-        });
-
-        // Adicionar listeners adicionais para debug
-        client.on("message_create", (message) => {
-            console.log("📝 MESSAGE_CREATE:", message.from, message.body);
-        });
-
-        client.on("message_revoke_everyone", (after, before) => {
-            console.log("🗑️ MESSAGE_REVOKED:", before.from, before.body);
-        });
-
-        client.on("group_join", (notification) => {
-            console.log("👥 GROUP_JOIN:", notification);
-        });
-
-        client.on("contact_changed", (message, oldId, newId, isContact) => {
-            console.log("📞 CONTACT_CHANGED:", oldId, "->", newId);
         });
 
         client.on("authenticated", () => {
@@ -343,26 +311,13 @@ router.get("/agendamentos/logs", (req, res) => {
 router.get("/status", async (req, res) => {
     let realStatus = clientStatus;
     let realIsReady = isClientReady;
-    let clientState = null;
 
     // Verificação adicional do estado real do cliente
-    if (client) {
+    if (client && isClientReady) {
         try {
-            clientState = await client.getState();
-
-            // Se o cliente está CONNECTED mas nossas variáveis dizem que não está ready
-            if (clientState === "CONNECTED" && !isClientReady) {
-                console.log("🔄 Cliente está CONNECTED mas variáveis internas desatualizadas - sincronizando...");
-                realIsReady = true;
-                realStatus = "ready";
-                isClientReady = true;
-                clientStatus = "ready";
-                qrCodeData = null; // Limpar QR code se está conectado
-                console.log("✅ Estado sincronizado: Cliente está conectado e pronto");
-            }
-            // Se o cliente não está CONNECTED mas nossas variáveis dizem que está
-            else if (clientState !== "CONNECTED" && isClientReady) {
-                console.log("⚠️ Cliente reportado como ready mas estado real é:", clientState);
+            const state = await client.getState();
+            if (state !== "CONNECTED") {
+                console.log("⚠️ Cliente reportado como ready mas estado real é:", state);
                 realIsReady = false;
                 realStatus = "disconnected";
                 isClientReady = false;
@@ -380,20 +335,19 @@ router.get("/status", async (req, res) => {
     const response = {
         status: realStatus,
         isReady: realIsReady,
-        qrCode: realStatus === "ready" ? null : qrCodeData, // Não mostrar QR se está conectado
-        hasQrCode: realStatus === "ready" ? false : !!qrCodeData,
+        qrCode: qrCodeData,
+        hasQrCode: !!qrCodeData,
         timestamp: new Date().toISOString(),
         clientExists: !!client,
         qrCodeLength: qrCodeData ? qrCodeData.length : 0,
-        clientState: clientState,
+        clientState: client ? await client.getState().catch(() => "unknown") : null,
     };
 
     console.log("📊 Status solicitado:", {
         status: realStatus,
-        hasQrCode: realStatus === "ready" ? false : !!qrCodeData,
+        hasQrCode: !!qrCodeData,
         qrLength: qrCodeData ? qrCodeData.length : 0,
-        clientState: clientState,
-        wasUpdated: clientState === "CONNECTED" && realStatus === "ready",
+        clientState: response.clientState,
     });
 
     res.json(response);
@@ -921,15 +875,7 @@ router.post("/send", async (req, res) => {
             });
         }
 
-        // Se o cliente está CONNECTED, sincronizar variáveis internas
-        if (clientState === "CONNECTED") {
-            if (!isClientReady) {
-                console.log("🔄 Sincronizando estado: Cliente está CONNECTED, atualizando variáveis...");
-                isClientReady = true;
-                clientStatus = "ready";
-                qrCodeData = null;
-            }
-        } else {
+        if (clientState !== "CONNECTED" || !isClientReady) {
             console.log(`⚠️ Cliente não está CONNECTED. Estado atual: ${clientState}`);
             // Atualizar variáveis de estado
             isClientReady = false;
@@ -995,11 +941,11 @@ router.post("/send", async (req, res) => {
         // Enviar mensagem com retry em caso de erro de contexto
         let response;
         try {
-            response = await sendMessageWithRetry(phoneNumber, formattedMessage);
+            response = await client.sendMessage(phoneNumber, formattedMessage);
         } catch (sendError) {
             if (sendError.message.includes("Execution context was destroyed")) {
                 console.log(
-                    "🔄 Reinicializando cliente devido a erro de ExecutionContext...",
+                    "🔄 Erro de ExecutionContext no envio, tentando reinicializar...",
                 );
                 setTimeout(() => initializeWhatsAppWeb(), 1000);
                 return res.status(503).json({
@@ -1073,7 +1019,7 @@ router.post("/send-batch", async (req, res) => {
                     continue;
                 }
 
-                const response = await sendMessageWithRetry(
+                const response = await client.sendMessage(
                     phoneNumber,
                     msg.text,
                 );
@@ -1113,13 +1059,6 @@ router.get("/me", async (req, res) => {
         }
 
         const info = client.info;
-
-        if (!info || !info.wid) {
-            return res.status(500).json({ 
-                error: "Informações do cliente não disponíveis",
-                suggestion: "Cliente precisa ser reinicializado" 
-            });
-        }
 
         // Formatar o número para exibição mais amigável
         let formattedNumber = info.wid._serialized;
@@ -1743,7 +1682,7 @@ async function handleIncomingMessage(message) {
             await processarRegistoPontoComLocalizacao(message, userState);
             return;
         }
-        await sendMessageWithRetry(
+        await client.sendMessage(
             phoneNumber,
             "📍 Localização GPS recebida, mas não estava a ser esperada. Se pretende registar ponto, envie 'ponto' primeiro.",
         );
@@ -1806,7 +1745,7 @@ async function handleIncomingMessage(message) {
                 console.log(
                     `❌ Nenhum estado válido encontrado para processar localização`,
                 );
-                await sendMessageWithRetry(
+                await client.sendMessage(
                     phoneNumber,
                     "📍 Localização recebida, mas não foi encontrado um registo de ponto em andamento. Envie 'ponto' primeiro para iniciar o registo.",
                 );
@@ -1838,7 +1777,7 @@ async function handleIncomingMessage(message) {
             );
             return;
         } else {
-            await sendMessageWithRetry(
+            await client.sendMessage(
                 phoneNumber,
                 "📍 Localização recebida via texto/link, mas não estava a ser esperada. Se pretende registar ponto, envie 'ponto' primeiro.",
             );
@@ -1904,7 +1843,7 @@ async function handleIncomingMessage(message) {
 
         const userState = getUserState(phoneNumber);
         if (userState && userState.type === "awaiting_location") {
-            await sendMessageWithRetry(
+            await client.sendMessage(
                 phoneNumber,
                 "❌ *Localização GPS Necessária*\n\n" +
                 "📍 Clique em anexo (📎) → 'Localização' → 'Localização atual'\n" +
@@ -1939,7 +1878,7 @@ async function handleIncomingMessage(message) {
         const authResult = await checkContactAuthorization(phoneNumber);
 
         if (!authResult.authorized) {
-            await sendMessageWithRetry(
+            await client.sendMessage(
                 phoneNumber,
                 "❌ *Acesso Restrito*\n\nLamentamos, mas o seu contacto não tem autorização para criar pedidos de assistência técnica através deste sistema.\n\nPara obter acesso, entre em contacto com a nossa equipa através dos canais habituais.\n\n📞 Obrigado pela compreensão.",
             );
@@ -2012,7 +1951,7 @@ async function handleIncomingMessage(message) {
                     "👨‍💻 **Solução:** Contacte o administrador para verificar a configuração do seu contacto.";
             }
 
-            await sendMessageWithRetry(phoneNumber, errorMessage);
+            await client.sendMessage(phoneNumber, errorMessage);
             return;
         }
 
@@ -2049,7 +1988,7 @@ async function handleIncomingMessage(message) {
             activeConversations.delete(phoneNumber);
         }
 
-        await sendMessageWithRetry(
+        await client.sendMessage(
             phoneNumber,
             "❌ *Processo Cancelado*\n\nO registo de ponto foi cancelado.\n\nPara iniciar um novo registo, envie 'ponto'.",
         );
@@ -2064,7 +2003,7 @@ async function handleIncomingMessage(message) {
         const authResult = await checkContactAuthorization(phoneNumber);
 
         if (!authResult.authorized) {
-            await sendMessageWithRetry(
+            await client.sendMessage(
                 phoneNumber,
                 "❌ *Acesso Restrito*\n\nLamentamos, mas o seu contacto não tem autorização para criar pedidos de assistência técnica através deste sistema.\n\nPara obter acesso, entre em contacto com a nossa equipa através dos canais habituais.\n\n📞 Obrigado pela compreensão.",
             );
@@ -2113,7 +2052,7 @@ async function handleIncomingMessage(message) {
             }); // Passa o estado como data da conversa
         } else if (userState.type === "awaiting_location") {
             // Se está à espera de localização mas recebeu texto, dar instruções
-            await sendMessageWithRetry(
+            await client.sendMessage(
                 phoneNumber,
                 "📍 *Aguardando Localização GPS*\n\n" +
                 "Por favor, envie a sua localização através de:\n" +
@@ -2145,7 +2084,7 @@ async function handleIncomingMessage(message) {
     // Se tem apenas uma autorização, dar dica específica
     if (!pedidoAuth.authorized && pontoAuth.authorized) {
         // Só pode registar ponto
-        await sendMessageWithRetry(
+        await client.sendMessage(
             phoneNumber,
             `📍 **Registo de Ponto**\n\nPara registar o seu ponto, envie a palavra "ponto".\n\nObrigado!`,
         );
@@ -2154,7 +2093,7 @@ async function handleIncomingMessage(message) {
 
     if (pedidoAuth.authorized && !pontoAuth.authorized) {
         // Só pode criar pedidos
-        await sendMessageWithRetry(
+        await client.sendMessage(
             phoneNumber,
             `🛠️ **Pedidos de Assistência**\n\nPara criar um pedido de assistência, envie a palavra "pedido".\n\nObrigado!`,
         );
@@ -2289,7 +2228,7 @@ Indique o código do cliente para podermos proceder com o registo.`;
     };
 
     activeConversations.set(phoneNumber, conversation);
-    await sendMessageWithRetry(phoneNumber, welcomeMessage);
+    await client.sendMessage(phoneNumber, welcomeMessage);
 }
 
 // Continuar a conversa baseado no estado atual
@@ -2337,7 +2276,7 @@ async function continueConversation(phoneNumber, message, conversation) {
             activeConversations.delete(phoneNumber);
         }
 
-        await sendMessageWithRetry(
+        await client.sendMessage(
             phoneNumber,
             "❌ *Processo Cancelado*\n\nO registo de ponto foi cancelado.\n\nPara iniciar um novo registo, envie 'ponto'.",
         );
@@ -2379,7 +2318,7 @@ async function continueConversation(phoneNumber, message, conversation) {
             console.log(
                 `⚠️ Estado de conversa não reconhecido: ${conversation.state}`,
             );
-            await sendMessageWithRetry(
+            await client.sendMessage(
                 phoneNumber,
                 "❌ Ocorreu um erro no processamento da conversa. Por favor, inicie novamente enviando 'pedido' ou 'ponto'.",
             );
@@ -2399,7 +2338,7 @@ async function continueConversation(phoneNumber, message, conversation) {
             }); // Passa o estado como data da conversa
         } else if (userState.type === "awaiting_location") {
             // Se está à espera de localização mas recebeu texto, dar instruções
-            await sendMessageWithRetry(
+            await client.sendMessage(
                 phoneNumber,
                 "📍 *Aguardando Localização GPS*\n\n" +
                 "Por favor, envie a sua localização através de:\n" +
@@ -2645,7 +2584,7 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                     response += `• Link do Google Maps\n`;
                     response += `• Coordenadas GPS`;
 
-                    await sendMessageWithRetry(phoneNumber, response);
+                    await client.sendMessage(phoneNumber, response);
                     return;
                 } else if (obrasInfo.length === 1) {
                     // Uma única obra - selecionar automaticamente e determinar tipo
@@ -2696,7 +2635,7 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                     response += `• Link do Google Maps\n`;
                     response += `• Coordenadas GPS`;
 
-                    await sendMessageWithRetry(phoneNumber, response);
+                    await client.sendMessage(phoneNumber, response);
                     return;
                 } else {
                     // Múltiplas obras - pedir para escolher
@@ -2718,7 +2657,7 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                         lastActivity: Date.now(),
                     };
                     activeConversations.set(phoneNumber, conversation);
-                    await sendMessageWithRetry(phoneNumber, response);
+                    await client.sendMessage(phoneNumber, response);
                     return;
                 }
             }
@@ -2731,7 +2670,7 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
     }
 
     // Se não conseguiu obter o user_id do contacto ou obras, mostrar erro
-    await sendMessageWithRetry(
+    await client.sendMessage(
         phoneNumber,
         `❌ *Erro de Configuração*\n\nNão foi possível identificar o utilizador ou as suas autorizações de obra.\n\n` +
         `Por favor, contacte o administrador para verificar a sua configuração.`,
@@ -2792,7 +2731,7 @@ async function handleObraSelection(phoneNumber, message, conversation) {
         selection.toLowerCase() === "cancel"
     ) {
         clearUserState(phoneNumber);
-        await sendMessageWithRetry(
+        await client.sendMessage(
             phoneNumber,
             "❌ *Registo Cancelado*\n\nO registo de ponto foi cancelado. Envie 'ponto' novamente quando quiser registar.",
         );
@@ -2811,7 +2750,7 @@ async function handleObraSelection(phoneNumber, message, conversation) {
             `❌ *Seleção Inválida*\n\n` +
             `Por favor, responda com um número entre 1 e ${obrasInfo.length}.\n\n` +
             `Ou envie "cancelar" para cancelar o registo.`;
-        await sendMessageWithRetry(phoneNumber, errorMessage);
+        await client.sendMessage(phoneNumber, errorMessage);
         return;
     }
 
@@ -2848,14 +2787,13 @@ async function handleObraSelection(phoneNumber, message, conversation) {
         obraId: obraSelecionada.id,
         obraNome: obraSelecionada.nome,
         tipoRegisto: registoInfo.tipo,
-        precisaSaidaAutomatica:
-            registoInfo.precisaSaidaAutomatica,
+        precisaSaidaAutomatica: registoInfo.precisaSaidaAutomatica,
         obraAnterior: registoInfo.obraAnterior,
     });
 
     let response = `✅ *Obra:* ${obraSelecionada.codigo} - ${obraSelecionada.nome}\n`;
 
-    // Se precisa de saída automática, informar
+    // Se precisa de saída automática, informar o utilizador
     if (registoInfo.precisaSaidaAutomatica) {
         response += `🔄 *Mudança de obra detectada*\n`;
         response += `📤 Será dada saída automática da obra anterior\n`;
@@ -2868,7 +2806,7 @@ async function handleObraSelection(phoneNumber, message, conversation) {
     response += `• Link do Google Maps\n`;
     response += `• Coordenadas GPS`;
 
-    await sendMessageWithRetry(phoneNumber, response);
+    await client.sendMessage(phoneNumber, response);
 }
 
 // Função para determinar automaticamente o tipo de registo baseado no estado atual
@@ -3007,7 +2945,7 @@ async function handlePontoConfirmationInput(
         `• Link do Google Maps\n` +
         `• Coordenadas GPS`;
 
-    await sendMessageWithRetry(phoneNumber, locationInstructions);
+    await client.sendMessage(phoneNumber, locationInstructions);
 }
 
 // Função para processar o registo de ponto com localização
@@ -3050,7 +2988,7 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
 
     if (!userId) {
         console.log(`❌ User ID não encontrado`);
-        await sendMessageWithRetry(
+        await client.sendMessage(
             phoneNumber,
             "❌ Erro: Não foi possível identificar o utilizador para o registo.",
         );
@@ -3189,7 +3127,7 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
         successMessage += `\nRegisto confirmado no sistema.`;
 
         console.log(`✅ Enviando mensagem de sucesso para ${phoneNumber}`);
-        await sendMessageWithRetry(phoneNumber, successMessage);
+        await client.sendMessage(phoneNumber, successMessage);
     } catch (error) {
         console.error("Erro ao registar ponto:", error);
 
@@ -3197,205 +3135,7 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
         clearUserState(phoneNumber);
         activeConversations.delete(phoneNumber);
 
-        await sendMessageWithRetry(
-            phoneNumber,
-            `❌ *Erro no Registo*\n\nOcorreu um erro ao processar o seu registo de ponto.\n\n` +
-            `Para tentar novamente, envie: *ponto*`,
-        );
-    } finally {
-        // Limpar conversa após o processamento
-        activeConversations.delete(phoneNumber);
-    }
-}
-
-// Função para processar o registo de ponto com localização
-async function processarRegistoPontoComLocalizacao(message, userState) {
-    const phoneNumber = message.from;
-    const latitude = message.location.latitude;
-    const longitude = message.location.longitude;
-    const endereco = message.location.description || "Localização partilhada";
-
-    console.log(
-        `🔄 Processando registo de ponto com localização para ${phoneNumber}`,
-    );
-    console.log(`📍 Coordenadas: ${latitude}, ${longitude}`);
-    console.log(`📊 Estado do utilizador:`, userState);
-
-    // Limpar estado do utilizador após a obtenção da localização
-    clearUserState(phoneNumber);
-
-    // Obter dados da conversa anterior
-    const conversation = activeConversations.get(phoneNumber);
-    console.log(`💬 Conversa ativa:`, conversation ? "Sim" : "Não");
-
-    // Obter user_id e obra_id do estado ou da conversa
-    const userId =
-        userState.userId ||
-        (conversation && conversation.data && conversation.data.userId);
-    const obraId =
-        userState.obraId ||
-        (conversation && conversation.data && conversation.data.obraId);
-    const obraNome =
-        userState.obraNome ||
-        (conversation && conversation.data && conversation.data.obraNome);
-    const tipoRegisto =
-        userState.tipoRegisto ||
-        (conversation && conversation.data && conversation.data.tipoRegisto);
-
-    console.log(`👤 User ID: ${userId}`);
-    console.log(`🏗️ Obra ID: ${obraId}`);
-    console.log(`📝 Tipo de registo: ${tipoRegisto}`);
-
-    if (!userId) {
-        console.log(`❌ User ID não encontrado`);
-        await sendMessageWithRetry(
-            phoneNumber,
-            "❌ Erro: Não foi possível identificar o utilizador para o registo.",
-        );
-        return;
-    }
-
-    // Se não temos tipo de registo, determinar automaticamente
-    let finalTipoRegisto = tipoRegisto;
-    if (!finalTipoRegisto) {
-        console.log(`🔍 Determinando tipo de registo automaticamente...`);
-        finalTipoRegisto = await determinarTipoRegisto(userId, obraId);
-        console.log(`📋 Tipo determinado: ${finalTipoRegisto}`);
-    }
-
-    try {
-        // Verificar se precisa dar saída automática primeiro
-        const precisaSaidaAutomatica =
-            userState.precisaSaidaAutomatica ||
-            (conversation &&
-                conversation.data &&
-                conversation.data.precisaSaidaAutomatica);
-        const obraAnterior =
-            userState.obraAnterior ||
-            (conversation &&
-                conversation.data &&
-                conversation.data.obraAnterior);
-
-        let mensagensRegisto = [];
-
-        // 1. Se precisa de saída automática, fazer primeiro
-        if (precisaSaidaAutomatica && obraAnterior) {
-            console.log(
-                `🔄 Executando saída automática da obra ${obraAnterior}`,
-            );
-
-            const RegistoPontoObra = require("../models/registoPontoObra");
-
-            // Criar registo de saída da obra anterior
-            const registoSaida = await RegistoPontoObra.create({
-                user_id: userId,
-                obra_id: obraAnterior,
-                tipo: "saida",
-                timestamp: new Date(),
-                latitude: latitude.toString(),
-                longitude: longitude.toString(),
-            });
-
-            console.log(
-                `✅ Saída automática registada:`,
-                registoSaida.toJSON(),
-            );
-
-            // Buscar informações da obra anterior para a mensagem
-            const Obra = require("../models/obra");
-            const obraAnteriorInfo = await Obra.findByPk(obraAnterior);
-            const obraAnteriorNome = obraAnteriorInfo
-                ? `${obraAnteriorInfo.codigo} - ${obraAnteriorInfo.nome}`
-                : `Obra ${obraAnterior}`;
-
-            mensagensRegisto.push(
-                `🔴 **SAÍDA AUTOMÁTICA**\n🏗️ **Obra:** ${obraAnteriorNome}\n⏰ **Data/Hora:** ${new Date().toLocaleString("pt-PT")}\n`,
-            );
-        }
-
-        // 2. Agora registar entrada/saída na obra atual
-        const registoPontoObraController = require("../controllers/registoPontoObraControllers");
-
-        console.log(`🎯 Criando registo principal com dados:`);
-        console.log(`   - User ID: ${userId}`);
-        console.log(`   - Obra ID: ${obraId}`);
-        console.log(`   - Tipo: ${finalTipoRegisto}`);
-        console.log(`   - Coordenadas: ${latitude}, ${longitude}`);
-
-        // Simular um request object para o controller
-        const mockReq = {
-            user: { id: userId },
-            body: {
-                tipo: finalTipoRegisto,
-                obra_id: obraId,
-                latitude: latitude.toString(),
-                longitude: longitude.toString(),
-            },
-        };
-
-        // Simular response object que captura o resultado
-        let controllerResult = null;
-        const mockRes = {
-            status: (code) => ({
-                json: (data) => {
-                    controllerResult = { status: code, data: data };
-                    console.log("Controller response - Status:", code, data);
-                    return data;
-                },
-            }),
-            json: (data) => {
-                controllerResult = { status: 200, data: data };
-                console.log("Controller response:", data);
-                return data;
-            },
-        };
-
-        // Chamar o controller de registo de ponto obra
-        await registoPontoObraController.registarPonto(mockReq, mockRes);
-
-        // Verificar se o registo foi bem-sucedido
-        if (
-            !controllerResult ||
-            (controllerResult.status !== 200 && controllerResult.status !== 201)
-        ) {
-            throw new Error("Controller não retornou sucesso");
-        }
-
-        console.log(
-            "✅ Ponto principal registado com sucesso na base de dados:",
-            controllerResult,
-        );
-
-        // Mensagem de sucesso
-        const tipoTexto = finalTipoRegisto === "entrada" ? "ENTRADA" : "SAÍDA";
-        const emoji = finalTipoRegisto === "entrada" ? "🟢" : "🔴";
-
-        // Montar mensagem simplificada
-        let successMessage = `✅ *Registo Efetuado*\n\n`;
-
-        // Se houve saída automática, mostrar apenas que foi processada
-        if (mensagensRegisto.length > 0) {
-            successMessage += `🔄 Saída automática da obra anterior\n`;
-        }
-
-        // Registo principal (apenas o último)
-        successMessage += `${emoji} *${tipoTexto}*\n`;
-        successMessage += `⏰ ${new Date().toLocaleString("pt-PT")}\n`;
-        if (obraNome && obraNome !== "Sem obra específica") {
-            successMessage += `🏗️ ${obraNome}\n`;
-        }
-        successMessage += `\nRegisto confirmado no sistema.`;
-
-        console.log(`✅ Enviando mensagem de sucesso para ${phoneNumber}`);
-        await sendMessageWithRetry(phoneNumber, successMessage);
-    } catch (error) {
-        console.error("Erro ao registar ponto:", error);
-
-        // Limpar estados em caso de erro
-        clearUserState(phoneNumber);
-        activeConversations.delete(phoneNumber);
-
-        await sendMessageWithRetry(
+        await client.sendMessage(
             phoneNumber,
             `❌ *Erro no Registo*\n\nOcorreu um erro ao processar o seu registo de ponto.\n\n` +
             `Para tentar novamente, envie: *ponto*`,
@@ -3579,7 +3319,7 @@ async function handleClientInput(phoneNumber, message, conversation) {
 *2. Descrição do Problema*
 Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
 
-            await sendMessageWithRetry(phoneNumber, response);
+            await client.sendMessage(phoneNumber, response);
         } else if (resultadoContratos.contratosAtivos.length === 1) {
             // Apenas um contrato ativo - selecionar automaticamente
             const contrato = resultadoContratos.contratosAtivos[0];
@@ -3597,7 +3337,7 @@ Por favor, descreva detalhadamente o problema ou situação que necessita de ass
 *2. Descrição do Problema*
 Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
 
-            await sendMessageWithRetry(phoneNumber, response);
+            await client.sendMessage(phoneNumber, response);
         } else {
             // Múltiplos contratos ativos - pedir para escolher
             conversation.data.contratosDisponiveis =
@@ -3621,7 +3361,7 @@ Por favor, descreva detalhadamente o problema ou situação que necessita de ass
 
             response += `Digite o número do contrato pretendido (1-${resultadoContratos.contratosAtivos.length}):`;
 
-            await sendMessageWithRetry(phoneNumber, response);
+            await client.sendMessage(phoneNumber, response);
         }
     } else {
         // Cliente não encontrado - pedir para tentar novamente
@@ -3638,7 +3378,7 @@ Por favor, verifique o nome do cliente e tente novamente.`;
 
         response += `\n🔄 Digite novamente o nome ou código do cliente:`;
 
-        await sendMessageWithRetry(phoneNumber, response);
+        await client.sendMessage(phoneNumber, response);
         // Manter o estado atual para tentar novamente
     }
 }
@@ -3649,7 +3389,7 @@ async function handleContractInput(phoneNumber, message, conversation) {
     const contratos = conversation.data.contratosDisponiveis;
 
     if (isNaN(escolha) || escolha < 1 || escolha > contratos.length) {
-        await sendMessageWithRetry(
+        await client.sendMessage(
             phoneNumber,
             `❌ Escolha inválida. Por favor, digite um número entre 1 e ${contratos.length}:`,
         );
@@ -3671,7 +3411,7 @@ async function handleContractInput(phoneNumber, message, conversation) {
 *2. Descrição do Problema*
 Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
 
-    await sendMessageWithRetry(phoneNumber, response);
+    await client.sendMessage(phoneNumber, response);
 
     // Limpar lista de contratos para economizar memória
     delete conversation.data.contratosDisponiveis;
@@ -3687,7 +3427,7 @@ async function handleContactInput(phoneNumber, message, conversation) {
     const response = `*3. Descrição do Problema*
 Por favor, descreva detalhadamente o problema ou situação que necessita de assistência técnica:`;
 
-    await sendMessageWithRetry(phoneNumber, response);
+    await client.sendMessage(phoneNumber, response);
 }
 
 // Handler para input do problema
@@ -3719,7 +3459,7 @@ Por favor, seleccione a prioridade do seu pedido:
 
 Digite a opção pretendida:`;
 
-    await sendMessageWithRetry(phoneNumber, response);
+    await client.sendMessage(phoneNumber, response);
 }
 
 // Handler para input da prioridade - Agora vai direto para confirmação
@@ -3779,7 +3519,7 @@ ${conversation.data.problema}
 *Por favor, confirme a criação deste pedido de assistência técnica.*
 Digite "SIM" para confirmar ou "NÃO" para cancelar:`;
 
-    await sendMessageWithRetry(phoneNumber, summary);
+    await client.sendMessage(phoneNumber, summary);
 }
 
 // Handler para confirmação
@@ -3819,9 +3559,9 @@ async function handleConfirmationInput(phoneNumber, message, conversation) {
             // Mesmo em erro, limpar conversa e informar utilizador
             activeConversations.delete(phoneNumber);
 
-            await sendMessageWithRetry(
+            await client.sendMessage(
                 phoneNumber,
-                "❌ Ocorreu um erro ao processar o seu pedido. Por favor, tente novamente enviando 'pedido' ou 'assistência'.",
+                "❌ Ocorreu um erro ao processar o seu pedido. Por favor, tente novamente enviando 'pedido'.",
             );
 
             return { success: false, error: error.message };
@@ -3834,13 +3574,13 @@ async function handleConfirmationInput(phoneNumber, message, conversation) {
         response === "0"
     ) {
         activeConversations.delete(phoneNumber);
-        await sendMessageWithRetry(
+        await client.sendMessage(
             phoneNumber,
             "❌ Pedido cancelado com sucesso.\n\n💡 Para iniciar um novo pedido de assistência, envie 'pedido' ou 'assistência'.",
         );
         return { success: false, cancelled: true };
     } else {
-        await sendMessageWithRetry(
+        await client.sendMessage(
             phoneNumber,
             "❌ Resposta não reconhecida.\n\nPor favor, responda:\n• 'SIM' ou 'S' para confirmar\n• 'NÃO' ou 'N' para cancelar",
         );
@@ -4006,7 +3746,7 @@ O seu pedido foi registado no nosso sistema e será processado pela nossa equipa
 
 Obrigado por contactar a Advir.`;
 
-        await sendMessageWithRetry(phoneNumber, successMessage);
+        await client.sendMessage(phoneNumber, successMessage);
         sent = true;
 
         return {
@@ -4045,7 +3785,7 @@ O seu pedido foi registado no nosso sistema e será processado pela nossa equipa
 
 Obrigado por contactar a Advir.`;
             try {
-                await sendMessageWithRetry(phoneNumber, successMessage);
+                await client.sendMessage(phoneNumber, successMessage);
             } catch (msgError) {
                 console.error("Erro ao enviar mensagem de sucesso:", msgError);
             }
@@ -4087,10 +3827,11 @@ setInterval(
         ] of activeConversations.entries()) {
             if (now - conversation.lastActivity > TIMEOUT) {
                 activeConversations.delete(phoneNumber);
-                sendMessageWithRetry(
-                    phoneNumber,
-                    "⏰ A sua sessão expirou por inactividade. Para iniciar um novo pedido de assistência técnica, envie uma mensagem contendo 'pedido' ou 'assistência'.",
-                )
+                client
+                    .sendMessage(
+                        phoneNumber,
+                        "⏰ A sua sessão expirou por inactividade. Para iniciar um novo pedido de assistência técnica, envie uma mensagem contendo 'pedido' ou 'assistência'.",
+                    )
                     .catch((err) =>
                         console.error(
                             "Erro ao enviar mensagem de timeout:",
@@ -4245,13 +3986,13 @@ async function sendWelcomeMessage(phoneNumber) {
             welcomeMessage += `Obrigado pela compreensão.`;
         }
 
-        await sendMessageWithRetry(phoneNumber, welcomeMessage);
+        await client.sendMessage(phoneNumber, welcomeMessage);
     } catch (error) {
         console.error("Erro ao enviar mensagem de boas-vindas:", error);
         // Fallback para mensagem genérica em caso de erro
         const fallbackMessage = `👋 Bem-vindo!\n\nEste é o assistente automático da Advir Plan Consultoria.\n\nPara assistência, contacte a nossa equipa.`;
         try {
-            await sendMessageWithRetry(phoneNumber, fallbackMessage);
+            await client.sendMessage(phoneNumber, fallbackMessage);
         } catch (fallbackError) {
             console.error(
                 "Erro ao enviar mensagem de fallback:",
@@ -4574,7 +4315,7 @@ router.get("/schedule-status", (req, res) => {
 });
 
 // Endpoint para debug completo do WhatsApp Web
-router.get("/debug", async (req, res) => {
+router.get("/debug", (req, res) => {
     const fs = require("fs");
     const chromePaths = [
         "/usr/bin/chromium-browser",
@@ -4585,29 +4326,11 @@ router.get("/debug", async (req, res) => {
 
     const availableChrome = chromePaths.find((path) => fs.existsSync(path));
 
-    let clientInfo = null;
-    if (client && isClientReady) {
-        try {
-            const info = client.info;
-            const state = await client.getState();
-            clientInfo = {
-                wid: info?.wid?._serialized || "N/A",
-                pushname: info?.pushname || "N/A",
-                platform: info?.platform || "N/A",
-                state: state,
-                isReady: isClientReady
-            };
-        } catch (error) {
-            clientInfo = { error: error.message };
-        }
-    }
-
     res.json({
         timestamp: new Date().toISOString(),
         status: clientStatus,
         isReady: isClientReady,
         hasClient: !!client,
-        clientInfo: clientInfo,
         qrCode: {
             exists: !!qrCodeData,
             length: qrCodeData ? qrCodeData.length : 0,
@@ -4616,116 +4339,13 @@ router.get("/debug", async (req, res) => {
         environment: {
             nodeVersion: process.version,
             platform: process.platform,
-            nodeEnv: process.env.NODE_ENV || 'development',
-            replit: !!process.env.REPLIT_DEV_DOMAIN,
             availableChrome: availableChrome || "Nenhum Chrome encontrado",
             chromePaths: chromePaths.map((path) => ({
                 path,
                 exists: fs.existsSync(path),
             })),
         },
-        conversations: {
-            active: activeConversations.size,
-            list: Array.from(activeConversations.keys())
-        }
     });
-});
-
-// Endpoint para testar receção de mensagens manualmente
-router.post("/test-message-handler", async (req, res) => {
-    try {
-        const { phoneNumber, message } = req.body;
-
-        if (!phoneNumber || !message) {
-            return res.status(400).json({
-                error: "phoneNumber e message são obrigatórios"
-            });
-        }
-
-        // Verificar estado do cliente antes do teste
-        let clientState = "unknown";
-        let clientValid = false;
-        
-        if (client) {
-            try {
-                clientState = await Promise.race([
-                    client.getState(),
-                    new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error("Timeout")), 3000)
-                    )
-                ]);
-                clientValid = clientState === "CONNECTED";
-            } catch (stateError) {
-                console.log("⚠️ Erro ao verificar estado do cliente:", stateError.message);
-                clientState = "error";
-                clientValid = false;
-            }
-        }
-
-        console.log(`🧪 TESTE: Estado do cliente - ${clientState}, Válido: ${clientValid}`);
-
-        // Simular uma mensagem recebida
-        const mockMessage = {
-            from: phoneNumber.includes("@") ? phoneNumber : phoneNumber + "@c.us",
-            body: message,
-            type: "text",
-            fromMe: false,
-            hasMedia: false,
-            timestamp: Date.now()
-        };
-
-        console.log("🧪 TESTE: Simulando mensagem recebida:", mockMessage);
-
-        // Se o cliente não está válido, apenas simular o processamento sem enviar resposta
-        if (!clientValid) {
-            console.log("⚠️ TESTE: Cliente não válido - simulando processamento apenas");
-            
-            // Processar a lógica da mensagem mas não tentar enviar resposta
-            const conversation = activeConversations.get(mockMessage.from);
-            if (conversation) {
-                console.log(`📋 TESTE: Conversa ativa encontrada - Estado: ${conversation.state}`);
-            } else {
-                console.log("📋 TESTE: Nenhuma conversa ativa");
-            }
-
-            return res.json({
-                success: true,
-                message: "Mensagem processada com sucesso (modo simulação)",
-                mockMessage: mockMessage,
-                clientState: clientState,
-                warning: "Cliente WhatsApp não está conectado - resposta não enviada"
-            });
-        }
-
-        // Cliente válido - processar normalmente
-        await handleIncomingMessage(mockMessage);
-
-        res.json({
-            success: true,
-            message: "Mensagem processada com sucesso",
-            mockMessage: mockMessage,
-            clientState: clientState
-        });
-
-    } catch (error) {
-        console.error("Erro no teste de mensagem:", error);
-        
-        // Se é erro de contexto, informar que o cliente precisa ser reinicializado
-        if (error.message.includes("Cannot read properties of undefined") ||
-            error.message.includes("Execution context was destroyed") ||
-            error.message.includes("getChat")) {
-            return res.status(503).json({
-                error: "Cliente WhatsApp perdeu contexto de execução",
-                details: error.message,
-                suggestion: "Cliente será reinicializado automaticamente"
-            });
-        }
-
-        res.status(500).json({
-            error: "Erro ao processar mensagem de teste",
-            details: error.message
-        });
-    }
 });
 
 // Endpoint para simular que é uma hora específica (para testes)
@@ -5068,7 +4688,7 @@ async function executeScheduledMessage(schedule) {
                     continue;
                 }
 
-                const response = await sendMessageWithRetry(
+                const response = await client.sendMessage(
                     phoneNumber,
                     formattedMessage,
                 );
@@ -5169,7 +4789,7 @@ function initializeSchedules() {
                         : "09:00", // Default time if not set
                     days: schedule.days
                         ? JSON.parse(schedule.days)
-                        : [],
+                        : [1, 2, 3, 4, 5],
                     startDate: schedule.start_date,
                     enabled: schedule.enabled,
                     priority: schedule.priority,
@@ -5390,156 +5010,4 @@ router.post("/init-whatsapp-tables", async (req, res) => {
     }
 });
 
-// Função para enviar mensagem com retry robusta
-async function sendMessageWithRetry(phoneNumber, message, maxRetries = 3) {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            console.log(`📤 Tentativa ${attempt}/${maxRetries} de envio para ${phoneNumber}`);
-
-            // Verificar se o cliente ainda está válido
-            if (!client) {
-                throw new Error("Cliente WhatsApp não está disponível");
-            }
-
-            // Verificação mais robusta do estado do cliente
-            let state;
-            try {
-                // Verificar se o cliente tem as propriedades necessárias
-                if (!client.pupPage || !client.info) {
-                    console.log("⚠️ Cliente não tem propriedades necessárias - marcando como inválido");
-                    isClientReady = false;
-                    clientStatus = "error";
-                    throw new Error("Cliente não tem propriedades necessárias");
-                }
-
-                state = await Promise.race([
-                    client.getState(),
-                    new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error("Timeout ao verificar estado")), 5000)
-                    )
-                ]);
-                
-                // Sincronizar variáveis internas com o estado real
-                if (state === "CONNECTED" && !isClientReady) {
-                    console.log("🔄 Sincronizando estado: Cliente CONNECTED, atualizando isClientReady...");
-                    isClientReady = true;
-                    clientStatus = "ready";
-                    qrCodeData = null;
-                } else if (state !== "CONNECTED" && isClientReady) {
-                    console.log(`⚠️ Sincronizando estado: Cliente não CONNECTED (${state}), atualizando isClientReady...`);
-                    isClientReady = false;
-                    clientStatus = "disconnected";
-                }
-                
-            } catch (stateError) {
-                console.log(`⚠️ Erro ao verificar estado (tentativa ${attempt}):`, stateError.message);
-                
-                // Se é erro de contexto, marcar cliente como não pronto e tentar reinicializar
-                if (stateError.message.includes("Cannot read properties of undefined") ||
-                    stateError.message.includes("Execution context was destroyed") ||
-                    stateError.message.includes("Target closed") ||
-                    stateError.message.includes("Protocol error")) {
-                    
-                    console.log("🔄 Contexto de execução perdido - marcando cliente como não pronto");
-                    isClientReady = false;
-                    clientStatus = "disconnected";
-                    
-                    // Agendar reinicialização do cliente após um delay
-                    setTimeout(() => {
-                        console.log("🔄 Iniciando reinicialização automática do cliente...");
-                        initializeWhatsAppWeb();
-                    }, 5000);
-                    
-                    throw new Error("Cliente WhatsApp perdeu contexto de execução - reinicializando");
-                }
-                
-                throw stateError;
-            }
-
-            if (state !== "CONNECTED") {
-                throw new Error(`Cliente não está CONNECTED (estado: ${state})`);
-            }
-
-            // Verificar se o cliente tem os métodos necessários
-            if (typeof client.isRegisteredUser !== 'function' || typeof client.sendMessage !== 'function') {
-                console.log("⚠️ Cliente não tem métodos necessários - reinicializando");
-                isClientReady = false;
-                clientStatus = "error";
-                throw new Error("Cliente não tem métodos necessários");
-            }
-
-            // Verificar se o número é válido antes de enviar
-            let isValidNumber;
-            try {
-                isValidNumber = await Promise.race([
-                    client.isRegisteredUser(phoneNumber),
-                    new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error("Timeout ao validar número")), 5000)
-                    )
-                ]);
-            } catch (validationError) {
-                console.log(`⚠️ Erro ao validar número:`, validationError.message);
-                if (validationError.message.includes("Cannot read properties of undefined") ||
-                    validationError.message.includes("Execution context was destroyed") ||
-                    validationError.message.includes("getChat")) {
-                    throw new Error("Contexto de execução perdido durante validação");
-                }
-                throw validationError;
-            }
-
-            if (!isValidNumber) {
-                throw new Error(`Número ${phoneNumber} não está registrado no WhatsApp`);
-            }
-
-            // Tentar enviar a mensagem com timeout
-            const result = await Promise.race([
-                client.sendMessage(phoneNumber, message),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error("Timeout ao enviar mensagem")), 10000)
-                )
-            ]);
-            
-            console.log(`✅ Mensagem enviada com sucesso na tentativa ${attempt}`);
-            return result;
-
-        } catch (error) {
-            console.log(`❌ Tentativa ${attempt} falhou:`, error.message);
-
-            // Se é erro de ExecutionContext ou contexto perdido
-            if (error.message.includes("Cannot read properties of undefined") || 
-                error.message.includes("Execution context was destroyed") ||
-                error.message.includes("getChat") ||
-                error.message.includes("Target closed") ||
-                error.message.includes("Protocol error") ||
-                error.message.includes("contexto de execução") ||
-                error.message.includes("Evaluation failed") ||
-                error.message.includes("Cliente não tem")) {
-
-                console.log("🔄 Erro de contexto detectado");
-                
-                // Marcar cliente como não pronto
-                isClientReady = false;
-                clientStatus = "error";
-
-                if (attempt < maxRetries) {
-                    console.log(`🔄 Aguardando ${attempt * 3} segundos antes da próxima tentativa...`);
-                    await new Promise(resolve => setTimeout(resolve, attempt * 3000));
-                    continue;
-                } else {
-                    // Na última tentativa, agendar reinicialização
-                    console.log("🔄 Agendando reinicialização do cliente após falha definitiva...");
-                    setTimeout(() => {
-                        initializeWhatsAppWeb();
-                    }, 5000);
-                }
-            }
-
-            // Se chegou ao máximo de tentativas
-            if (attempt === maxRetries) {
-                console.log(`❌ Falha definitiva após ${maxRetries} tentativas`);
-                throw error;
-            }
-        }
-    }
-}
 module.exports = router;
