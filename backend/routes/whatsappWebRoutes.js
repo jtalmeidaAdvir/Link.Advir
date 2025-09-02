@@ -11,8 +11,12 @@ let isClientReady = false;
 let qrCodeData = null;
 let clientStatus = "disconnected";
 
-// Importar o tokenService
+// Importar o tokenService e sistema de intervenções
 const { getAuthToken } = require("../../webPrimaveraApi/servives/tokenService");
+const {
+    processarMensagemIntervencao,
+    isIntervencaoKeyword,
+} = require("./whatsappIntervencoes");
 let isInitializing = false;
 let isShuttingDown = false;
 // Função para inicializar o cliente WhatsApp Web
@@ -318,11 +322,16 @@ router.post("/connect", async (req, res) => {
     try {
         // Se já existe um cliente, destruir primeiro para forçar nova autenticação
         if (client) {
-            console.log("🔄 Cliente existente detectado, destruindo para nova autenticação...");
+            console.log(
+                "🔄 Cliente existente detectado, destruindo para nova autenticação...",
+            );
             try {
                 await client.destroy();
             } catch (destroyError) {
-                console.log("⚠️ Erro ao destruir cliente anterior:", destroyError.message);
+                console.log(
+                    "⚠️ Erro ao destruir cliente anterior:",
+                    destroyError.message,
+                );
             }
             client = null;
             isClientReady = false;
@@ -338,9 +347,14 @@ router.post("/connect", async (req, res) => {
         if (fs.existsSync(sessionPath)) {
             try {
                 fs.rmSync(sessionPath, { recursive: true, force: true });
-                console.log("🧹 Sessão anterior removida para nova autenticação");
+                console.log(
+                    "🧹 Sessão anterior removida para nova autenticação",
+                );
             } catch (error) {
-                console.log("⚠️ Erro ao remover sessão anterior:", error.message);
+                console.log(
+                    "⚠️ Erro ao remover sessão anterior:",
+                    error.message,
+                );
             }
         }
 
@@ -348,7 +362,8 @@ router.post("/connect", async (req, res) => {
         await initializeWhatsAppWeb();
 
         res.json({
-            message: "Iniciando nova conexão WhatsApp Web... Aguarde o QR Code aparecer!",
+            message:
+                "Iniciando nova conexão WhatsApp Web... Aguarde o QR Code aparecer!",
             status: clientStatus,
         });
     } catch (error) {
@@ -460,7 +475,7 @@ router.post("/disconnect", async (req, res) => {
         console.log("✅ Desconexão completa finalizada");
         res.json({
             message: "WhatsApp Web desconectado com sucesso",
-            sessionCleared: true
+            sessionCleared: true,
         });
     } catch (error) {
         console.error("Erro ao desconectar:", error);
@@ -688,7 +703,10 @@ router.post("/change-account", async (req, res) => {
                 await client.destroy();
                 console.log("✅ Cliente anterior desconectado");
             } catch (error) {
-                console.log("⚠️ Erro ao desconectar cliente anterior (normal):", error.message);
+                console.log(
+                    "⚠️ Erro ao desconectar cliente anterior (normal):",
+                    error.message,
+                );
             }
         }
 
@@ -708,22 +726,25 @@ router.post("/change-account", async (req, res) => {
                 fs.rmSync(sessionPath, { recursive: true, force: true });
                 console.log("✅ Arquivos de sessão removidos");
             } catch (error) {
-                console.log("⚠️ Erro ao remover arquivos de sessão:", error.message);
+                console.log(
+                    "⚠️ Erro ao remover arquivos de sessão:",
+                    error.message,
+                );
             }
         }
 
         // Aguardar um momento antes de tentar reconectar
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
 
         // Iniciar nova conexão
         await initializeWhatsAppWeb();
 
         res.json({
-            message: "Troca de conta iniciada. Aguarde o novo QR Code aparecer.",
+            message:
+                "Troca de conta iniciada. Aguarde o novo QR Code aparecer.",
             success: true,
             timestamp: new Date().toISOString(),
         });
-
     } catch (error) {
         console.error("❌ Erro ao trocar conta WhatsApp:", error);
         res.status(500).json({
@@ -1571,10 +1592,13 @@ async function handleIncomingMessage(message) {
             const userState = getUserState(phoneNumber);
             const conversation = activeConversations.get(phoneNumber);
 
-            if ((userState && userState.type === "awaiting_location") ||
-                (conversation && conversation.data && conversation.data.userId)) {
-
-                console.log(`📍 Processando registo de ponto com localização...`);
+            if (
+                (userState && userState.type === "awaiting_location") ||
+                (conversation && conversation.data && conversation.data.userId)
+            ) {
+                console.log(
+                    `📍 Processando registo de ponto com localização...`,
+                );
 
                 // Usar dados do estado ou da conversa
                 const registoData = userState || conversation.data;
@@ -1595,7 +1619,9 @@ async function handleIncomingMessage(message) {
                 );
                 return;
             } else {
-                console.log(`❌ Nenhum estado válido encontrado para processar localização`);
+                console.log(
+                    `❌ Nenhum estado válido encontrado para processar localização`,
+                );
                 await client.sendMessage(
                     phoneNumber,
                     "📍 Localização recebida, mas não foi encontrado um registo de ponto em andamento. Envie 'ponto' primeiro para iniciar o registo.",
@@ -1711,14 +1737,17 @@ async function handleIncomingMessage(message) {
 
     // PRIMEIRO: Verificar se é uma palavra-chave para novo pedido
     // MAS APENAS se não há conversa ativa OU se a conversa está em estado inicial/confirmação
-    const canInterruptForRequest = !conversation ||
+    const canInterruptForRequest =
+        !conversation ||
         conversation.state === CONVERSATION_STATES.INITIAL ||
         conversation.state === CONVERSATION_STATES.WAITING_CONFIRMATION;
 
     if (isRequestKeyword(messageText) && canInterruptForRequest) {
         // Se há conversa ativa, cancela-la para iniciar nova
         if (conversation) {
-            console.log(`🔄 Cancelando conversa anterior de ${phoneNumber} (estado: ${conversation.state}) para iniciar novo pedido`);
+            console.log(
+                `🔄 Cancelando conversa anterior de ${phoneNumber} (estado: ${conversation.state}) para iniciar novo pedido`,
+            );
             activeConversations.delete(phoneNumber);
         }
 
@@ -1739,14 +1768,17 @@ async function handleIncomingMessage(message) {
 
     // SEGUNDO: Verificar se é uma palavra-chave para registo de ponto
     // APENAS se não há conversa ativa OU se a conversa está em estado inicial/confirmação
-    const canInterruptForPonto = !conversation ||
+    const canInterruptForPonto =
+        !conversation ||
         conversation.state === CONVERSATION_STATES.INITIAL ||
         conversation.state === CONVERSATION_STATES.WAITING_CONFIRMATION;
 
     if (isPontoKeyword(messageText) && canInterruptForPonto) {
         // Se há conversa ativa, cancela-la para iniciar registo de ponto
         if (conversation) {
-            console.log(`🔄 Cancelando conversa anterior de ${phoneNumber} (estado: ${conversation.state}) para iniciar registo de ponto`);
+            console.log(
+                `🔄 Cancelando conversa anterior de ${phoneNumber} (estado: ${conversation.state}) para iniciar registo de ponto`,
+            );
             activeConversations.delete(phoneNumber);
         }
 
@@ -1808,8 +1840,21 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // TERCEIRO: Verificar se é cancelamento de processo
-    if (messageText.toLowerCase().includes('cancelar') || messageText.toLowerCase().includes('sair')) {
+    // TERCEIRO: Verificar se há conversa de intervenção ativa primeiro
+    const whatsappIntervencoes = require("./whatsappIntervencoes");
+    if (
+        whatsappIntervencoes.activeIntervencaoConversations &&
+        whatsappIntervencoes.activeIntervencaoConversations.has(phoneNumber)
+    ) {
+        await processarMensagemIntervencao(phoneNumber, messageText, client);
+        return;
+    }
+
+    // QUARTO: Verificar se é cancelamento de processo (só para outras conversas)
+    if (
+        messageText.toLowerCase().includes("cancelar") ||
+        messageText.toLowerCase().includes("sair")
+    ) {
         console.log(`❌ Cancelamento solicitado por ${phoneNumber}`);
 
         // Limpar estado do utilizador
@@ -1822,12 +1867,12 @@ async function handleIncomingMessage(message) {
 
         await client.sendMessage(
             phoneNumber,
-            "❌ *Processo Cancelado*\n\nO registo de ponto foi cancelado.\n\nPara iniciar um novo registo, envie 'ponto'."
+            "❌ *Processo Cancelado*\n\nO registo de ponto foi cancelado.\n\nPara iniciar um novo registo, envie 'ponto'.",
         );
         return;
     }
 
-    // QUARTO: Verificar se é uma palavra-chave para iniciar nova conversa
+    // QUINTO: Verificar se é uma palavra-chave para iniciar nova conversa de pedidos
     if (isRequestKeyword(messageText) && !conversation) {
         console.log(`🎯 Palavra-chave de início detectada: "${messageText}"`);
 
@@ -1846,16 +1891,42 @@ async function handleIncomingMessage(message) {
         return;
     }
 
+    // Se é palavra-chave de intervenção, processar
+    if (isIntervencaoKeyword(messageText)) {
+        // Verificar autorização
+        const authResult = await checkContactAuthorization(phoneNumber);
+        if (authResult.authorized) {
+            await processarMensagemIntervencao(
+                phoneNumber,
+                messageText,
+                client,
+            );
+            return;
+        }
+    }
+
     // Se existe conversa ativa e não é palavra-chave, continuar o fluxo normal
     if (conversation) {
         await continueConversation(phoneNumber, messageText, conversation);
         return;
     }
 
+    // Verificar se existe conversa de intervenção ativa
+    // const whatsappIntervencoes = require("./whatsappIntervencoes"); // Already imported above
+    if (
+        whatsappIntervencoes.activeIntervencaoConversations &&
+        whatsappIntervencoes.activeIntervencaoConversations.has(phoneNumber)
+    ) {
+        await processarMensagemIntervencao(phoneNumber, messageText, client);
+        return;
+    }
+
     // Se existe estado de utilizador (ex: a selecionar obra), continuar
     if (userState) {
         if (userState.type === "selecting_obra") {
-            await handleObraSelection(phoneNumber, message, { data: userState }); // Passa o estado como data da conversa
+            await handleObraSelection(phoneNumber, message, {
+                data: userState,
+            }); // Passa o estado como data da conversa
         } else if (userState.type === "awaiting_location") {
             // Se está à espera de localização mas recebeu texto, dar instruções
             await client.sendMessage(
@@ -1865,7 +1936,7 @@ async function handleIncomingMessage(message) {
                 "• Anexo (📎) → 'Localização' → 'Localização atual'\n" +
                 "• Link do Google Maps\n" +
                 "• Coordenadas GPS\n\n" +
-                "💡 Se pretende cancelar o registo, digite 'cancelar'"
+                "💡 Se pretende cancelar o registo, digite 'cancelar'",
             );
         } else {
             // Se o estado não é reconhecido, limpar e enviar mensagem padrão
@@ -1875,14 +1946,15 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-
     // Verificar se o contacto tem alguma autorização antes de mostrar mensagem
     const pedidoAuth = await checkContactAuthorization(phoneNumber);
     const pontoAuth = await checkPontoAuthorization(phoneNumber);
 
     // Se não tem nenhuma autorização, não mostrar nada (ignorar mensagem)
     if (!pedidoAuth.authorized && !pontoAuth.authorized) {
-        console.log(`📵 Contacto ${phoneNumber} sem autorizações - ignorando mensagem: "${messageText}"`);
+        console.log(
+            `📵 Contacto ${phoneNumber} sem autorizações - ignorando mensagem: "${messageText}"`,
+        );
         return;
     }
 
@@ -1891,7 +1963,7 @@ async function handleIncomingMessage(message) {
         // Só pode registar ponto
         await client.sendMessage(
             phoneNumber,
-            `📍 **Registo de Ponto**\n\nPara registar o seu ponto, envie a palavra "ponto".\n\nObrigado!`
+            `📍 **Registo de Ponto**\n\nPara registar o seu ponto, envie a palavra "ponto".\n\nObrigado!`,
         );
         return;
     }
@@ -1900,7 +1972,7 @@ async function handleIncomingMessage(message) {
         // Só pode criar pedidos
         await client.sendMessage(
             phoneNumber,
-            `🛠️ **Pedidos de Assistência**\n\nPara criar um pedido de assistência, envie a palavra "pedido".\n\nObrigado!`
+            `🛠️ **Pedidos de Assistência**\n\nPara criar um pedido de assistência, envie a palavra "pedido".\n\nObrigado!`,
         );
         return;
     }
@@ -2053,10 +2125,24 @@ async function continueConversation(phoneNumber, message, conversation) {
     }
 
     // Obter o texto da mensagem
-    const messageText = typeof message === 'string' ? message : (message.body || message);
+    const messageText =
+        typeof message === "string" ? message : message.body || message;
 
-    // TERCEIRO: Verificar se é cancelamento de processo
-    if (messageText.toLowerCase().includes('cancelar') || messageText.toLowerCase().includes('sair')) {
+    // TERCEIRO: Verificar se há conversa de intervenção ativa primeiro
+    const whatsappIntervencoes = require("./whatsappIntervencoes");
+    if (
+        whatsappIntervencoes.activeIntervencaoConversations &&
+        whatsappIntervencoes.activeIntervencaoConversations.has(phoneNumber)
+    ) {
+        await processarMensagemIntervencao(phoneNumber, messageText, client);
+        return;
+    }
+
+    // QUARTO: Verificar se é cancelamento de processo (só para outras conversas)
+    if (
+        messageText.toLowerCase().includes("cancelar") ||
+        messageText.toLowerCase().includes("sair")
+    ) {
         console.log(`❌ Cancelamento solicitado por ${phoneNumber}`);
 
         // Limpar estado do utilizador
@@ -2069,12 +2155,12 @@ async function continueConversation(phoneNumber, message, conversation) {
 
         await client.sendMessage(
             phoneNumber,
-            "❌ *Processo Cancelado*\n\nO registo de ponto foi cancelado.\n\nPara iniciar um novo registo, envie 'ponto'."
+            "❌ *Processo Cancelado*\n\nO registo de ponto foi cancelado.\n\nPara iniciar um novo registo, envie 'ponto'.",
         );
         return;
     }
 
-    // QUARTO: Processar baseado no estado da conversa
+    // QUINTO: Processar baseado no estado da conversa
     switch (conversation.state) {
         case CONVERSATION_STATES.WAITING_CLIENT:
             await handleClientInput(phoneNumber, messageText, conversation);
@@ -2089,19 +2175,29 @@ async function continueConversation(phoneNumber, message, conversation) {
             await handlePriorityInput(phoneNumber, messageText, conversation);
             break;
         case CONVERSATION_STATES.WAITING_CONFIRMATION:
-            await handleConfirmationInput(phoneNumber, messageText, conversation);
+            await handleConfirmationInput(
+                phoneNumber,
+                messageText,
+                conversation,
+            );
             break;
         case CONVERSATION_STATES.PONTO_WAITING_OBRA:
             await handleObraSelection(phoneNumber, messageText, conversation);
             break;
         case CONVERSATION_STATES.PONTO_WAITING_CONFIRMATION:
-            await handlePontoConfirmationInput(phoneNumber, messageText, conversation);
+            await handlePontoConfirmationInput(
+                phoneNumber,
+                messageText,
+                conversation,
+            );
             break;
         default:
-            console.log(`⚠️ Estado de conversa não reconhecido: ${conversation.state}`);
+            console.log(
+                `⚠️ Estado de conversa não reconhecido: ${conversation.state}`,
+            );
             await client.sendMessage(
                 phoneNumber,
-                "❌ Ocorreu um erro no processamento da conversa. Por favor, inicie novamente enviando 'pedido' ou 'ponto'."
+                "❌ Ocorreu um erro no processamento da conversa. Por favor, inicie novamente enviando 'pedido' ou 'ponto'.",
             );
             activeConversations.delete(phoneNumber);
             break;
@@ -2114,7 +2210,9 @@ async function continueConversation(phoneNumber, message, conversation) {
     // Se existe estado de utilizador (ex: a selecionar obra), continuar
     if (userState) {
         if (userState.type === "selecting_obra") {
-            await handleObraSelection(phoneNumber, message, { data: userState }); // Passa o estado como data da conversa
+            await handleObraSelection(phoneNumber, message, {
+                data: userState,
+            }); // Passa o estado como data da conversa
         } else if (userState.type === "awaiting_location") {
             // Se está à espera de localização mas recebeu texto, dar instruções
             await client.sendMessage(
@@ -2124,7 +2222,7 @@ async function continueConversation(phoneNumber, message, conversation) {
                 "• Anexo (📎) → 'Localização' → 'Localização atual'\n" +
                 "• Link do Google Maps\n" +
                 "• Coordenadas GPS\n\n" +
-                "💡 Se pretende cancelar o registo, digite 'cancelar'"
+                "💡 Se pretende cancelar o registo, digite 'cancelar'",
             );
         } else {
             // Se o estado não é reconhecido, limpar e enviar mensagem padrão
@@ -2329,17 +2427,19 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                     // Determinar tipo automaticamente mesmo sem obra específica
                     const registoInfo = await determinarTipoRegisto(
                         contactData.userId,
-                        null // sem obra específica
+                        null, // sem obra específica
                     );
 
                     conversationData.obraId = null;
                     conversationData.obraNome = "Sem obra específica";
                     conversationData.tipoRegisto = registoInfo.tipo;
-                    conversationData.precisaSaidaAutomatica = registoInfo.precisaSaidaAutomatica;
+                    conversationData.precisaSaidaAutomatica =
+                        registoInfo.precisaSaidaAutomatica;
                     conversationData.obraAnterior = registoInfo.obraAnterior;
 
-                    const tipoTexto = registoInfo.tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA';
-                    const emoji = registoInfo.tipo === 'entrada' ? '🟢' : '🔴';
+                    const tipoTexto =
+                        registoInfo.tipo === "entrada" ? "ENTRADA" : "SAÍDA";
+                    const emoji = registoInfo.tipo === "entrada" ? "🟢" : "🔴";
 
                     // Definir estado para aguardar localização
                     setUserState(phoneNumber, {
@@ -2348,7 +2448,8 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                         obraId: null,
                         obraNome: "Sem obra específica",
                         tipoRegisto: registoInfo.tipo,
-                        precisaSaidaAutomatica: registoInfo.precisaSaidaAutomatica,
+                        precisaSaidaAutomatica:
+                            registoInfo.precisaSaidaAutomatica,
                         obraAnterior: registoInfo.obraAnterior,
                     });
 
@@ -2371,15 +2472,17 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                     // Determinar automaticamente o tipo de registo (agora retorna objeto)
                     const registoInfo = await determinarTipoRegisto(
                         contactData.userId,
-                        obra.id
+                        obra.id,
                     );
 
                     conversationData.tipoRegisto = registoInfo.tipo;
-                    conversationData.precisaSaidaAutomatica = registoInfo.precisaSaidaAutomatica;
+                    conversationData.precisaSaidaAutomatica =
+                        registoInfo.precisaSaidaAutomatica;
                     conversationData.obraAnterior = registoInfo.obraAnterior;
 
-                    const tipoTexto = registoInfo.tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA';
-                    const emoji = registoInfo.tipo === 'entrada' ? '🟢' : '🔴';
+                    const tipoTexto =
+                        registoInfo.tipo === "entrada" ? "ENTRADA" : "SAÍDA";
+                    const emoji = registoInfo.tipo === "entrada" ? "🟢" : "🔴";
 
                     // Definir estado para aguardar localização
                     setUserState(phoneNumber, {
@@ -2388,7 +2491,8 @@ Bem-vindo ao sistema automático de registo de ponto da Advir.`;
                         obraId: obra.id,
                         obraNome: obra.nome,
                         tipoRegisto: registoInfo.tipo,
-                        precisaSaidaAutomatica: registoInfo.precisaSaidaAutomatica,
+                        precisaSaidaAutomatica:
+                            registoInfo.precisaSaidaAutomatica,
                         obraAnterior: registoInfo.obraAnterior,
                     });
 
@@ -2493,7 +2597,8 @@ const userStates = {};
 // Função para selecionar obra
 async function handleObraSelection(phoneNumber, message, conversation) {
     // Alterado para aceitar phoneNumber e message
-    const selection = typeof message === 'string' ? message.trim() : message.body.trim(); // Handle both string and object
+    const selection =
+        typeof message === "string" ? message.trim() : message.body.trim(); // Handle both string and object
     const obrasInfo = conversation.data.obrasDisponiveis; // Get from conversation data
     const userId = conversation.data.userId;
 
@@ -2540,15 +2645,16 @@ async function handleObraSelection(phoneNumber, message, conversation) {
     // Determinar automaticamente o tipo de registo (agora retorna objeto)
     const registoInfo = await determinarTipoRegisto(
         conversation.data.userId,
-        obraSelecionada.id
+        obraSelecionada.id,
     );
 
-    const tipoTexto = registoInfo.tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA';
-    const emoji = registoInfo.tipo === 'entrada' ? '🟢' : '🔴';
+    const tipoTexto = registoInfo.tipo === "entrada" ? "ENTRADA" : "SAÍDA";
+    const emoji = registoInfo.tipo === "entrada" ? "🟢" : "🔴";
 
     // Armazenar o tipo e informações de saída automática
     conversation.data.tipoRegisto = registoInfo.tipo;
-    conversation.data.precisaSaidaAutomatica = registoInfo.precisaSaidaAutomatica;
+    conversation.data.precisaSaidaAutomatica =
+        registoInfo.precisaSaidaAutomatica;
     conversation.data.obraAnterior = registoInfo.obraAnterior;
 
     // Definir estado para aguardar localização
@@ -2583,73 +2689,101 @@ async function handleObraSelection(phoneNumber, message, conversation) {
 // Função para determinar automaticamente o tipo de registo baseado no estado atual
 async function determinarTipoRegisto(userId, obraId) {
     try {
-        const { Op } = require('sequelize');
-        const RegistoPontoObra = require('../models/registoPontoObra');
+        const { Op } = require("sequelize");
+        const RegistoPontoObra = require("../models/registoPontoObra");
 
         // Buscar registos do utilizador na data atual
         const dataAtual = new Date();
-        const inicioHoje = new Date(dataAtual.getFullYear(), dataAtual.getMonth(), dataAtual.getDate());
-        const fimHoje = new Date(dataAtual.getFullYear(), dataAtual.getMonth(), dataAtual.getDate(), 23, 59, 59);
+        const inicioHoje = new Date(
+            dataAtual.getFullYear(),
+            dataAtual.getMonth(),
+            dataAtual.getDate(),
+        );
+        const fimHoje = new Date(
+            dataAtual.getFullYear(),
+            dataAtual.getMonth(),
+            dataAtual.getDate(),
+            23,
+            59,
+            59,
+        );
 
         // 1. Buscar o último registo geral do utilizador hoje (qualquer obra)
         const ultimoRegistoGeral = await RegistoPontoObra.findOne({
             where: {
                 user_id: userId,
                 createdAt: {
-                    [Op.between]: [inicioHoje, fimHoje]
-                }
+                    [Op.between]: [inicioHoje, fimHoje],
+                },
             },
-            order: [['createdAt', 'DESC']]
+            order: [["createdAt", "DESC"]],
         });
 
-        console.log(`🔍 Último registo geral encontrado:`, ultimoRegistoGeral ?
-            `${ultimoRegistoGeral.tipo} na obra ${ultimoRegistoGeral.obra_id} às ${ultimoRegistoGeral.createdAt}` : 'Nenhum');
+        console.log(
+            `🔍 Último registo geral encontrado:`,
+            ultimoRegistoGeral
+                ? `${ultimoRegistoGeral.tipo} na obra ${ultimoRegistoGeral.obra_id} às ${ultimoRegistoGeral.createdAt}`
+                : "Nenhum",
+        );
 
         // 2. Se não há registos hoje, é entrada
         if (!ultimoRegistoGeral) {
             console.log(`✅ Nenhum registo hoje -> ENTRADA`);
-            return { tipo: 'entrada', precisaSaidaAutomatica: false };
+            return { tipo: "entrada", precisaSaidaAutomatica: false };
         }
 
         // 3. Verificar se o último registo foi numa obra diferente
         const obraAnterior = ultimoRegistoGeral.obra_id;
-        const mudouDeObra = obraId !== null && obraAnterior !== null && obraId !== obraAnterior;
+        const mudouDeObra =
+            obraId !== null && obraAnterior !== null && obraId !== obraAnterior;
 
-        console.log(`🏗️ Obra anterior: ${obraAnterior}, Obra atual: ${obraId}, Mudou de obra: ${mudouDeObra}`);
+        console.log(
+            `🏗️ Obra anterior: ${obraAnterior}, Obra atual: ${obraId}, Mudou de obra: ${mudouDeObra}`,
+        );
 
         // 4. Se mudou de obra e o último registo foi entrada, precisa dar saída automática
-        if (mudouDeObra && ultimoRegistoGeral.tipo === 'entrada') {
-            console.log(`🔄 Mudança de obra detectada - vai dar saída da obra ${obraAnterior} e entrada na obra ${obraId}`);
+        if (mudouDeObra && ultimoRegistoGeral.tipo === "entrada") {
+            console.log(
+                `🔄 Mudança de obra detectada - vai dar saída da obra ${obraAnterior} e entrada na obra ${obraId}`,
+            );
             return {
-                tipo: 'entrada',
+                tipo: "entrada",
                 precisaSaidaAutomatica: true,
                 obraAnterior: obraAnterior,
-                ultimoRegistoId: ultimoRegistoGeral.id
+                ultimoRegistoId: ultimoRegistoGeral.id,
             };
         }
 
         // 5. Se é na mesma obra, verificar o tipo normal
-        if (obraId === null || obraId === undefined || obraId === obraAnterior) {
-            if (ultimoRegistoGeral.tipo === 'entrada') {
-                console.log(`✅ Último foi entrada na mesma obra -> próximo será SAÍDA`);
-                return { tipo: 'saida', precisaSaidaAutomatica: false };
+        if (
+            obraId === null ||
+            obraId === undefined ||
+            obraId === obraAnterior
+        ) {
+            if (ultimoRegistoGeral.tipo === "entrada") {
+                console.log(
+                    `✅ Último foi entrada na mesma obra -> próximo será SAÍDA`,
+                );
+                return { tipo: "saida", precisaSaidaAutomatica: false };
             } else {
                 console.log(`✅ Último foi saída -> próximo será ENTRADA`);
-                return { tipo: 'entrada', precisaSaidaAutomatica: false };
+                return { tipo: "entrada", precisaSaidaAutomatica: false };
             }
         }
 
         // 6. Se mudou de obra mas o último registo foi saída, pode dar entrada diretamente
-        if (mudouDeObra && ultimoRegistoGeral.tipo === 'saida') {
-            console.log(`✅ Mudança de obra mas último registo foi saída -> ENTRADA direta`);
-            return { tipo: 'entrada', precisaSaidaAutomatica: false };
+        if (mudouDeObra && ultimoRegistoGeral.tipo === "saida") {
+            console.log(
+                `✅ Mudança de obra mas último registo foi saída -> ENTRADA direta`,
+            );
+            return { tipo: "entrada", precisaSaidaAutomatica: false };
         }
 
         // Default
-        return { tipo: 'entrada', precisaSaidaAutomatica: false };
+        return { tipo: "entrada", precisaSaidaAutomatica: false };
     } catch (error) {
-        console.error('Erro ao determinar tipo de registo:', error);
-        return { tipo: 'entrada', precisaSaidaAutomatica: false };
+        console.error("Erro ao determinar tipo de registo:", error);
+        return { tipo: "entrada", precisaSaidaAutomatica: false };
     }
 }
 
@@ -2662,7 +2796,7 @@ async function handlePontoConfirmationInput(
     // Determinar automaticamente o tipo de registo
     const tipoRegisto = await determinarTipoRegisto(
         conversation.data.userId,
-        conversation.data.obraId
+        conversation.data.obraId,
     );
 
     // Armazenar o tipo de registo na conversa
@@ -2677,8 +2811,8 @@ async function handlePontoConfirmationInput(
         tipoRegisto: tipoRegisto,
     });
 
-    const tipoTexto = tipoRegisto === 'entrada' ? 'ENTRADA' : 'SAÍDA';
-    const emoji = tipoRegisto === 'entrada' ? '🟢' : '🔴';
+    const tipoTexto = tipoRegisto === "entrada" ? "ENTRADA" : "SAÍDA";
+    const emoji = tipoRegisto === "entrada" ? "🟢" : "🔴";
 
     // Solicitar localização ao utilizador
     const locationInstructions =
@@ -2698,7 +2832,9 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
     const longitude = message.location.longitude;
     const endereco = message.location.description || "Localização partilhada";
 
-    console.log(`🔄 Processando registo de ponto com localização para ${phoneNumber}`);
+    console.log(
+        `🔄 Processando registo de ponto com localização para ${phoneNumber}`,
+    );
     console.log(`📍 Coordenadas: ${latitude}, ${longitude}`);
     console.log(`📊 Estado do utilizador:`, userState);
 
@@ -2710,10 +2846,18 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
     console.log(`💬 Conversa ativa:`, conversation ? "Sim" : "Não");
 
     // Obter user_id e obra_id do estado ou da conversa
-    const userId = userState.userId || (conversation && conversation.data && conversation.data.userId);
-    const obraId = userState.obraId || (conversation && conversation.data && conversation.data.obraId);
-    const obraNome = userState.obraNome || (conversation && conversation.data && conversation.data.obraNome);
-    const tipoRegisto = userState.tipoRegisto || (conversation && conversation.data && conversation.data.tipoRegisto);
+    const userId =
+        userState.userId ||
+        (conversation && conversation.data && conversation.data.userId);
+    const obraId =
+        userState.obraId ||
+        (conversation && conversation.data && conversation.data.obraId);
+    const obraNome =
+        userState.obraNome ||
+        (conversation && conversation.data && conversation.data.obraNome);
+    const tipoRegisto =
+        userState.tipoRegisto ||
+        (conversation && conversation.data && conversation.data.tipoRegisto);
 
     console.log(`👤 User ID: ${userId}`);
     console.log(`🏗️ Obra ID: ${obraId}`);
@@ -2738,16 +2882,24 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
 
     try {
         // Verificar se precisa dar saída automática primeiro
-        const precisaSaidaAutomatica = userState.precisaSaidaAutomatica ||
-            (conversation && conversation.data && conversation.data.precisaSaidaAutomatica);
-        const obraAnterior = userState.obraAnterior ||
-            (conversation && conversation.data && conversation.data.obraAnterior);
+        const precisaSaidaAutomatica =
+            userState.precisaSaidaAutomatica ||
+            (conversation &&
+                conversation.data &&
+                conversation.data.precisaSaidaAutomatica);
+        const obraAnterior =
+            userState.obraAnterior ||
+            (conversation &&
+                conversation.data &&
+                conversation.data.obraAnterior);
 
         let mensagensRegisto = [];
 
         // 1. Se precisa de saída automática, fazer primeiro
         if (precisaSaidaAutomatica && obraAnterior) {
-            console.log(`🔄 Executando saída automática da obra ${obraAnterior}`);
+            console.log(
+                `🔄 Executando saída automática da obra ${obraAnterior}`,
+            );
 
             const RegistoPontoObra = require("../models/registoPontoObra");
 
@@ -2755,22 +2907,27 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
             const registoSaida = await RegistoPontoObra.create({
                 user_id: userId,
                 obra_id: obraAnterior,
-                tipo: 'saida',
+                tipo: "saida",
                 timestamp: new Date(),
                 latitude: latitude.toString(),
-                longitude: longitude.toString()
+                longitude: longitude.toString(),
             });
 
-            console.log(`✅ Saída automática registada:`, registoSaida.toJSON());
+            console.log(
+                `✅ Saída automática registada:`,
+                registoSaida.toJSON(),
+            );
 
             // Buscar informações da obra anterior para a mensagem
             const Obra = require("../models/obra");
             const obraAnteriorInfo = await Obra.findByPk(obraAnterior);
-            const obraAnteriorNome = obraAnteriorInfo ?
-                `${obraAnteriorInfo.codigo} - ${obraAnteriorInfo.nome}` :
-                `Obra ${obraAnterior}`;
+            const obraAnteriorNome = obraAnteriorInfo
+                ? `${obraAnteriorInfo.codigo} - ${obraAnteriorInfo.nome}`
+                : `Obra ${obraAnterior}`;
 
-            mensagensRegisto.push(`🔴 **SAÍDA AUTOMÁTICA**\n🏗️ **Obra:** ${obraAnteriorNome}\n⏰ **Data/Hora:** ${new Date().toLocaleString("pt-PT")}\n`);
+            mensagensRegisto.push(
+                `🔴 **SAÍDA AUTOMÁTICA**\n🏗️ **Obra:** ${obraAnteriorNome}\n⏰ **Data/Hora:** ${new Date().toLocaleString("pt-PT")}\n`,
+            );
         }
 
         // 2. Agora registar entrada/saída na obra atual
@@ -2858,7 +3015,7 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
         await client.sendMessage(
             phoneNumber,
             `❌ *Erro no Registo*\n\nOcorreu um erro ao processar o seu registo de ponto.\n\n` +
-            `Para tentar novamente, envie: *ponto*`
+            `Para tentar novamente, envie: *ponto*`,
         );
     } finally {
         // Limpar conversa após o processamento
@@ -3246,32 +3403,53 @@ Digite "SIM" para confirmar ou "NÃO" para cancelar:`;
 async function handleConfirmationInput(phoneNumber, message, conversation) {
     const response = message.trim().toLowerCase();
 
-    if (response === "sim" || response === "s" || response === "yes" || response === "1") {
+    if (
+        response === "sim" ||
+        response === "s" ||
+        response === "yes" ||
+        response === "1"
+    ) {
         try {
-            console.log(`✅ Confirmação recebida de ${phoneNumber} - criando pedido...`);
-            const result = await createAssistenceRequest(phoneNumber, conversation);
+            console.log(
+                `✅ Confirmação recebida de ${phoneNumber} - criando pedido...`,
+            );
+            const result = await createAssistenceRequest(
+                phoneNumber,
+                conversation,
+            );
 
             // Garantir que a conversa é limpa após criação do pedido
             if (activeConversations.has(phoneNumber)) {
                 activeConversations.delete(phoneNumber);
             }
 
-            console.log(`✅ Pedido criado e conversa limpa para ${phoneNumber}`);
+            console.log(
+                `✅ Pedido criado e conversa limpa para ${phoneNumber}`,
+            );
             return result;
         } catch (error) {
-            console.error(`❌ Erro ao criar pedido para ${phoneNumber}:`, error);
+            console.error(
+                `❌ Erro ao criar pedido para ${phoneNumber}:`,
+                error,
+            );
 
             // Mesmo em erro, limpar conversa e informar utilizador
             activeConversations.delete(phoneNumber);
 
             await client.sendMessage(
                 phoneNumber,
-                "❌ Ocorreu um erro ao processar o seu pedido. Por favor, tente novamente enviando 'pedido'."
+                "❌ Ocorreu um erro ao processar o seu pedido. Por favor, tente novamente enviando 'pedido'.",
             );
 
             return { success: false, error: error.message };
         }
-    } else if (response === "não" || response === "nao" || response === "n" || response === "no" || response === "0") {
+    } else if (
+        response === "não" ||
+        response === "nao" ||
+        response === "n" ||
+        response === "no" ||
+        response === "0"
+    ) {
         activeConversations.delete(phoneNumber);
         await client.sendMessage(
             phoneNumber,
@@ -3452,7 +3630,7 @@ Obrigado por contactar a Advir.`;
             success: true,
             pedidoId: pedidoID,
             data: data || null,
-            message: "Pedido criado com sucesso"
+            message: "Pedido criado com sucesso",
         };
     } catch (error) {
         console.error("❌ Erro inesperado ao criar pedido:", error.message);
@@ -3494,13 +3672,15 @@ Obrigado por contactar a Advir.`;
             success: true,
             pedidoId: pedidoID,
             data: null,
-            message: "Pedido processado"
+            message: "Pedido processado",
         }; // força sucesso
     } finally {
         // Sempre limpar a conversa para permitir novos pedidos
         try {
             activeConversations.delete(phoneNumber);
-            console.log(`🧹 Conversa limpa para ${phoneNumber} - pronto para novos pedidos`);
+            console.log(
+                `🧹 Conversa limpa para ${phoneNumber} - pronto para novos pedidos`,
+            );
         } catch (cleanupError) {
             console.warn("Erro ao limpar conversa:", cleanupError);
         }
@@ -3660,12 +3840,14 @@ async function sendWelcomeMessage(phoneNumber) {
             // Tem ambas as autorizações
             welcomeMessage += `**Serviços disponíveis:**\n`;
             welcomeMessage += `• Para criar um *pedido de assistência*, envie: "pedido"\n`;
+            welcomeMessage += `• Para criar uma *intervenção*, envie: "intervenção"\n`;
             welcomeMessage += `• Para registar *ponto*, envie: "ponto"\n\n`;
             welcomeMessage += `Como posso ajudá-lo hoje?`;
         } else if (canCreateRequests && !canRegisterPonto) {
             // Só pode criar pedidos
-            welcomeMessage += `**Serviço disponível:**\n`;
-            welcomeMessage += `• Para criar um *pedido de assistência*, envie: "pedido"\n\n`;
+            welcomeMessage += `**Serviços disponíveis:**\n`;
+            welcomeMessage += `• Para criar um *pedido de assistência*, envie: "pedido"\n`;
+            welcomeMessage += `• Para criar uma *intervenção*, envie: "intervenção"\n\n`;
             welcomeMessage += `Como posso ajudá-lo hoje?`;
         } else if (!canCreateRequests && canRegisterPonto) {
             // Só pode registar ponto
@@ -3689,7 +3871,10 @@ async function sendWelcomeMessage(phoneNumber) {
         try {
             await client.sendMessage(phoneNumber, fallbackMessage);
         } catch (fallbackError) {
-            console.error("Erro ao enviar mensagem de fallback:", fallbackError);
+            console.error(
+                "Erro ao enviar mensagem de fallback:",
+                fallbackError,
+            );
         }
     }
 }
