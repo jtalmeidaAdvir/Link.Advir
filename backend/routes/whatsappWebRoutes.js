@@ -4635,9 +4635,31 @@ router.post("/test-message-handler", async (req, res) => {
             });
         }
 
+        // Verificar estado do cliente antes do teste
+        let clientState = "unknown";
+        let clientValid = false;
+
+        if (client) {
+            try {
+                clientState = await Promise.race([
+                    client.getState(),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error("Timeout")), 3000)
+                    )
+                ]);
+                clientValid = clientState === "CONNECTED";
+            } catch (stateError) {
+                console.log("⚠️ Erro ao verificar estado do cliente:", stateError.message);
+                clientState = "error";
+                clientValid = false;
+            }
+        }
+
+        console.log(`🧪 TESTE: Estado do cliente - ${clientState}, Válido: ${clientValid}`);
+
         // Simular uma mensagem recebida
         const mockMessage = {
-            from: phoneNumber + "@c.us",
+            from: phoneNumber.includes("@") ? phoneNumber : phoneNumber + "@c.us",
             body: message,
             type: "text",
             fromMe: false,
@@ -4647,16 +4669,51 @@ router.post("/test-message-handler", async (req, res) => {
 
         console.log("🧪 TESTE: Simulando mensagem recebida:", mockMessage);
 
+        // Se o cliente não está válido, apenas simular o processamento sem enviar resposta
+        if (!clientValid) {
+            console.log("⚠️ TESTE: Cliente não válido - simulando processamento apenas");
+
+            // Processar a lógica da mensagem mas não tentar enviar resposta
+            const conversation = activeConversations.get(mockMessage.from);
+            if (conversation) {
+                console.log(`📋 TESTE: Conversa ativa encontrada - Estado: ${conversation.state}`);
+            } else {
+                console.log("📋 TESTE: Nenhuma conversa ativa");
+            }
+
+            return res.json({
+                success: true,
+                message: "Mensagem processada com sucesso (modo simulação)",
+                mockMessage: mockMessage,
+                clientState: clientState,
+                warning: "Cliente WhatsApp não está conectado - resposta não enviada"
+            });
+        }
+
+        // Cliente válido - processar normalmente
         await handleIncomingMessage(mockMessage);
 
         res.json({
             success: true,
             message: "Mensagem processada com sucesso",
-            mockMessage: mockMessage
+            mockMessage: mockMessage,
+            clientState: clientState
         });
 
     } catch (error) {
         console.error("Erro no teste de mensagem:", error);
+
+        // Se é erro de contexto, informar que o cliente precisa ser reinicializado
+        if (error.message.includes("Cannot read properties of undefined") ||
+            error.message.includes("Execution context was destroyed") ||
+            error.message.includes("getChat")) {
+            return res.status(503).json({
+                error: "Cliente WhatsApp perdeu contexto de execução",
+                details: error.message,
+                suggestion: "Cliente será reinicializado automaticamente"
+            });
+        }
+
         res.status(500).json({
             error: "Erro ao processar mensagem de teste",
             details: error.message
@@ -5337,44 +5394,108 @@ async function sendMessageWithRetry(phoneNumber, message, maxRetries = 3) {
                 throw new Error("Cliente WhatsApp não está disponível");
             }
 
-            // Verificar estado do cliente
-            const state = await client.getState();
+            // Verificação mais robusta do estado do cliente
+            let state;
+            try {
+                state = await Promise.race([
+                    client.getState(),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error("Timeout ao verificar estado")), 5000)
+                    )
+                ]);
+            } catch (stateError) {
+                console.log(`⚠️ Erro ao verificar estado (tentativa ${attempt}):`, stateError.message);
+
+                // Se é erro de contexto, marcar cliente como não pronto e tentar reinicializar
+                if (stateError.message.includes("Cannot read properties of undefined") ||
+                    stateError.message.includes("Execution context was destroyed") ||
+                    stateError.message.includes("Target closed") ||
+                    stateError.message.includes("Protocol error")) {
+
+                    console.log("🔄 Contexto de execução perdido - marcando cliente como não pronto");
+                    isClientReady = false;
+                    clientStatus = "disconnected";
+
+                    // Agendar reinicialização do cliente após um delay
+                    setTimeout(() => {
+                        console.log("🔄 Iniciando reinicialização automática do cliente...");
+                        initializeWhatsAppWeb();
+                    }, 5000);
+
+                    throw new Error("Cliente WhatsApp perdeu contexto de execução - reinicializando");
+                }
+
+                throw stateError;
+            }
+
             if (state !== "CONNECTED") {
                 throw new Error(`Cliente não está CONNECTED (estado: ${state})`);
             }
 
-            // Tentar enviar a mensagem
-            const result = await client.sendMessage(phoneNumber, message);
+            // Verificar se o número é válido antes de enviar
+            let isValidNumber;
+            try {
+                isValidNumber = await Promise.race([
+                    client.isRegisteredUser(phoneNumber),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error("Timeout ao validar número")), 5000)
+                    )
+                ]);
+            } catch (validationError) {
+                console.log(`⚠️ Erro ao validar número:`, validationError.message);
+                if (validationError.message.includes("Cannot read properties of undefined") ||
+                    validationError.message.includes("Execution context was destroyed")) {
+                    throw new Error("Contexto de execução perdido durante validação");
+                }
+                throw validationError;
+            }
+
+            if (!isValidNumber) {
+                throw new Error(`Número ${phoneNumber} não está registrado no WhatsApp`);
+            }
+
+            // Tentar enviar a mensagem com timeout
+            const result = await Promise.race([
+                client.sendMessage(phoneNumber, message),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error("Timeout ao enviar mensagem")), 10000)
+                )
+            ]);
+
             console.log(`✅ Mensagem enviada com sucesso na tentativa ${attempt}`);
             return result;
 
         } catch (error) {
             console.log(`❌ Tentativa ${attempt} falhou:`, error.message);
 
-            // Se é erro de ExecutionContext e ainda temos tentativas
+            // Se é erro de ExecutionContext ou contexto perdido
             if (error.message.includes("Cannot read properties of undefined") ||
                 error.message.includes("Execution context was destroyed") ||
                 error.message.includes("getChat") ||
-                error.message.includes("Protocol error")) {
+                error.message.includes("Target closed") ||
+                error.message.includes("Protocol error") ||
+                error.message.includes("contexto de execução")) {
+
+                console.log("🔄 Erro de contexto detectado");
+
+                // Marcar cliente como não pronto
+                isClientReady = false;
+                clientStatus = "error";
 
                 if (attempt < maxRetries) {
-                    console.log(`🔄 Erro de contexto detectado, aguardando ${attempt * 2} segundos antes da próxima tentativa...`);
-                    await new Promise(resolve => setTimeout(resolve, attempt * 2000));
-
-                    // Se é a última tentativa antes do retry, tentar forçar refresh do estado
-                    if (attempt === maxRetries - 1) {
-                        console.log("🔧 Última tentativa - tentando refresh do cliente...");
-                        try {
-                            await client.getContacts(); // Operação simples para "acordar" o cliente
-                        } catch (refreshError) {
-                            console.log("⚠️ Refresh do cliente falhou:", refreshError.message);
-                        }
-                    }
+                    console.log(`🔄 Aguardando ${attempt * 3} segundos antes da próxima tentativa...`);
+                    await new Promise(resolve => setTimeout(resolve, attempt * 3000));
                     continue;
+                } else {
+                    // Na última tentativa, agendar reinicialização
+                    console.log("🔄 Agendando reinicialização do cliente após falha definitiva...");
+                    setTimeout(() => {
+                        initializeWhatsAppWeb();
+                    }, 5000);
                 }
             }
 
-            // Se chegou ao máximo de tentativas ou é outro tipo de erro
+            // Se chegou ao máximo de tentativas
             if (attempt === maxRetries) {
                 console.log(`❌ Falha definitiva após ${maxRetries} tentativas`);
                 throw error;
