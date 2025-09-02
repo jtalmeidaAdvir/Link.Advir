@@ -16,8 +16,6 @@ const registoPontoObraRoutes = require('./routes/registoPontoObraRoutes');
 const faltasFeriasRoutes = require('./routes/faltasFeriasRoutes');
 const notificacaoRoutes = require('./routes/notificacaoRoutes');
 const parteRoutes = require('./routes/parteDiariaRoutes');
-const whatsappWebRoutes = require('./routes/whatsappWebRoutes');
-const whatsappIntervencoes = require('./routes/whatsappIntervencoes');
 const newsRoutes = require('./routes/newsRoutes');
 const anexoPedidoRoutes = require('./routes/anexoPedidoRoutes');
 const biometricRoutes = require('./routes/biometricRoutes');
@@ -138,8 +136,6 @@ app.use('/api/registo-ponto-obra', registoPontoObraRoutes);
 app.use('/api/faltas-ferias', faltasFeriasRoutes);
 app.use('/api', notificacaoRoutes);
 app.use('/api/parte-diaria', parteRoutes);
-app.use('/api/whatsapp-web', whatsappWebRoutes);
-app.use('/api/whatsapp-intervencoes', whatsappIntervencoes);
 app.use('/api/news', newsRoutes);
 
 app.use('/api/trabalhadores-externos', trabalhadoresExternosRoutes);

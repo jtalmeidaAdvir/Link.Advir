@@ -9,7 +9,7 @@ import { getWhatsAppStyles } from "./styles/whatsAppStyles";
 
 const WhatsAppWebConfig = () => {
     // API base URL
-    const API_BASE_URL = "https://backend.advir.pt/api/whatsapp";
+    const API_BASE_URL = "https://backend.advir.pt/whatsapi/api/whatsapp";
     // Estados principais
     const [activeTab, setActiveTab] = useState("connection");
     const [testMessage, setTestMessage] = useState({

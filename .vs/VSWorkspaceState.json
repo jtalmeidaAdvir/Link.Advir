@@ -6,8 +6,9 @@
     "\\frontend\\src\\Pages",
     "\\frontend\\src\\Pages\\WhatsApp",
     "\\frontend\\src\\Pages\\WhatsApp\\components",
+    "\\whatsapp-backend",
     "\\whatsapp-backend\\routes"
   ],
-  "SelectedNode": "\\frontend\\src\\Pages\\WhatsApp\\WhatsAppWebConfig.js",
+  "SelectedNode": "\\frontend\\src\\Pages\\WhatsApp\\components\\ContactsTab.js",
   "PreviewInSolutionExplorer": false
 }
