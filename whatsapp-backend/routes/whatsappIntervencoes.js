@@ -295,10 +295,10 @@ async function handleClienteInputIntervencao(
         response_message += `📋 *Pedidos disponíveis:*\n\n`;
 
         // Filtrar pedidos concluídos
-        const pedidosAtivos = pedidos.filter((pedido) => {
+       /* const pedidosAtivos = pedidos.filter((pedido) => {
             const estado = pedido.Estado?.toString();
             return estado !== "2"; // Excluir estado "Concluído"
-        });
+        });*/
 
         pedidosAtivos.forEach((pedido, index) => {
             // Usar campos corretos da API
