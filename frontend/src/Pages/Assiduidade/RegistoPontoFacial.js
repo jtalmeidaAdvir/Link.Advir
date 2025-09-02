@@ -14,6 +14,7 @@ import {
 } from 'react-icons/fa';
 import Select from 'react-select';
 import InvisibleFacialScanner from '../Autenticacao/components/InvisibleFacialScanner';
+import VisibleFacialScanner from '../Autenticacao/components/VisibleFacialScanner';
 import { useAppStateRefresh } from '../Autenticacao/utils/useAppStateRefresh';
 import { useEnsureValidTokens } from '../../utils/useEnsureValidTokens';
 import backgroundImage from '../../../images/ImagemFundo.png';
@@ -866,8 +867,8 @@ const handleFacialScanComplete = async (facialData) => {
                 </div>
             </div>
 
-            {/* Scanner Facial Invisível */}
-            <InvisibleFacialScanner
+            {/* Scanner Facial Visível */}
+            <VisibleFacialScanner
                 onScanComplete={handleFacialScanComplete}
                 isScanning={isFacialScanning}
                 onStartScan={handleStartFacialScan}

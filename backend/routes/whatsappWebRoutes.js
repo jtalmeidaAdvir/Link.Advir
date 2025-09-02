@@ -1114,6 +1114,13 @@ router.get("/me", async (req, res) => {
 
         const info = client.info;
 
+        if (!info || !info.wid) {
+            return res.status(500).json({ 
+                error: "Informações do cliente não disponíveis",
+                suggestion: "Cliente precisa ser reinicializado" 
+            });
+        }
+
         // Formatar o número para exibição mais amigável
         let formattedNumber = info.wid._serialized;
         if (formattedNumber.includes("@")) {
@@ -4638,12 +4645,12 @@ router.post("/test-message-handler", async (req, res) => {
         // Verificar estado do cliente antes do teste
         let clientState = "unknown";
         let clientValid = false;
-
+        
         if (client) {
             try {
                 clientState = await Promise.race([
                     client.getState(),
-                    new Promise((_, reject) =>
+                    new Promise((_, reject) => 
                         setTimeout(() => reject(new Error("Timeout")), 3000)
                     )
                 ]);
@@ -4672,7 +4679,7 @@ router.post("/test-message-handler", async (req, res) => {
         // Se o cliente não está válido, apenas simular o processamento sem enviar resposta
         if (!clientValid) {
             console.log("⚠️ TESTE: Cliente não válido - simulando processamento apenas");
-
+            
             // Processar a lógica da mensagem mas não tentar enviar resposta
             const conversation = activeConversations.get(mockMessage.from);
             if (conversation) {
@@ -4702,7 +4709,7 @@ router.post("/test-message-handler", async (req, res) => {
 
     } catch (error) {
         console.error("Erro no teste de mensagem:", error);
-
+        
         // Se é erro de contexto, informar que o cliente precisa ser reinicializado
         if (error.message.includes("Cannot read properties of undefined") ||
             error.message.includes("Execution context was destroyed") ||
@@ -5397,13 +5404,21 @@ async function sendMessageWithRetry(phoneNumber, message, maxRetries = 3) {
             // Verificação mais robusta do estado do cliente
             let state;
             try {
+                // Verificar se o cliente tem as propriedades necessárias
+                if (!client.pupPage || !client.info) {
+                    console.log("⚠️ Cliente não tem propriedades necessárias - marcando como inválido");
+                    isClientReady = false;
+                    clientStatus = "error";
+                    throw new Error("Cliente não tem propriedades necessárias");
+                }
+
                 state = await Promise.race([
                     client.getState(),
-                    new Promise((_, reject) =>
+                    new Promise((_, reject) => 
                         setTimeout(() => reject(new Error("Timeout ao verificar estado")), 5000)
                     )
                 ]);
-
+                
                 // Sincronizar variáveis internas com o estado real
                 if (state === "CONNECTED" && !isClientReady) {
                     console.log("🔄 Sincronizando estado: Cliente CONNECTED, atualizando isClientReady...");
@@ -5415,29 +5430,29 @@ async function sendMessageWithRetry(phoneNumber, message, maxRetries = 3) {
                     isClientReady = false;
                     clientStatus = "disconnected";
                 }
-
+                
             } catch (stateError) {
                 console.log(`⚠️ Erro ao verificar estado (tentativa ${attempt}):`, stateError.message);
-
+                
                 // Se é erro de contexto, marcar cliente como não pronto e tentar reinicializar
                 if (stateError.message.includes("Cannot read properties of undefined") ||
                     stateError.message.includes("Execution context was destroyed") ||
                     stateError.message.includes("Target closed") ||
                     stateError.message.includes("Protocol error")) {
-
+                    
                     console.log("🔄 Contexto de execução perdido - marcando cliente como não pronto");
                     isClientReady = false;
                     clientStatus = "disconnected";
-
+                    
                     // Agendar reinicialização do cliente após um delay
                     setTimeout(() => {
                         console.log("🔄 Iniciando reinicialização automática do cliente...");
                         initializeWhatsAppWeb();
                     }, 5000);
-
+                    
                     throw new Error("Cliente WhatsApp perdeu contexto de execução - reinicializando");
                 }
-
+                
                 throw stateError;
             }
 
@@ -5445,19 +5460,28 @@ async function sendMessageWithRetry(phoneNumber, message, maxRetries = 3) {
                 throw new Error(`Cliente não está CONNECTED (estado: ${state})`);
             }
 
+            // Verificar se o cliente tem os métodos necessários
+            if (typeof client.isRegisteredUser !== 'function' || typeof client.sendMessage !== 'function') {
+                console.log("⚠️ Cliente não tem métodos necessários - reinicializando");
+                isClientReady = false;
+                clientStatus = "error";
+                throw new Error("Cliente não tem métodos necessários");
+            }
+
             // Verificar se o número é válido antes de enviar
             let isValidNumber;
             try {
                 isValidNumber = await Promise.race([
                     client.isRegisteredUser(phoneNumber),
-                    new Promise((_, reject) =>
+                    new Promise((_, reject) => 
                         setTimeout(() => reject(new Error("Timeout ao validar número")), 5000)
                     )
                 ]);
             } catch (validationError) {
                 console.log(`⚠️ Erro ao validar número:`, validationError.message);
                 if (validationError.message.includes("Cannot read properties of undefined") ||
-                    validationError.message.includes("Execution context was destroyed")) {
+                    validationError.message.includes("Execution context was destroyed") ||
+                    validationError.message.includes("getChat")) {
                     throw new Error("Contexto de execução perdido durante validação");
                 }
                 throw validationError;
@@ -5470,11 +5494,11 @@ async function sendMessageWithRetry(phoneNumber, message, maxRetries = 3) {
             // Tentar enviar a mensagem com timeout
             const result = await Promise.race([
                 client.sendMessage(phoneNumber, message),
-                new Promise((_, reject) =>
+                new Promise((_, reject) => 
                     setTimeout(() => reject(new Error("Timeout ao enviar mensagem")), 10000)
                 )
             ]);
-
+            
             console.log(`✅ Mensagem enviada com sucesso na tentativa ${attempt}`);
             return result;
 
@@ -5482,15 +5506,17 @@ async function sendMessageWithRetry(phoneNumber, message, maxRetries = 3) {
             console.log(`❌ Tentativa ${attempt} falhou:`, error.message);
 
             // Se é erro de ExecutionContext ou contexto perdido
-            if (error.message.includes("Cannot read properties of undefined") ||
+            if (error.message.includes("Cannot read properties of undefined") || 
                 error.message.includes("Execution context was destroyed") ||
                 error.message.includes("getChat") ||
                 error.message.includes("Target closed") ||
                 error.message.includes("Protocol error") ||
-                error.message.includes("contexto de execução")) {
+                error.message.includes("contexto de execução") ||
+                error.message.includes("Evaluation failed") ||
+                error.message.includes("Cliente não tem")) {
 
                 console.log("🔄 Erro de contexto detectado");
-
+                
                 // Marcar cliente como não pronto
                 isClientReady = false;
                 clientStatus = "error";
