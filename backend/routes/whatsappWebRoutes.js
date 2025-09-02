@@ -5390,7 +5390,7 @@ async function sendMessageWithRetry(phoneNumber, message, maxRetries = 3) {
             console.log(`📤 Tentativa ${attempt}/${maxRetries} de envio para ${phoneNumber}`);
 
             // Verificar se o cliente ainda está válido
-            if (!client || !isClientReady) {
+            if (!client) {
                 throw new Error("Cliente WhatsApp não está disponível");
             }
 
@@ -5403,6 +5403,19 @@ async function sendMessageWithRetry(phoneNumber, message, maxRetries = 3) {
                         setTimeout(() => reject(new Error("Timeout ao verificar estado")), 5000)
                     )
                 ]);
+
+                // Sincronizar variáveis internas com o estado real
+                if (state === "CONNECTED" && !isClientReady) {
+                    console.log("🔄 Sincronizando estado: Cliente CONNECTED, atualizando isClientReady...");
+                    isClientReady = true;
+                    clientStatus = "ready";
+                    qrCodeData = null;
+                } else if (state !== "CONNECTED" && isClientReady) {
+                    console.log(`⚠️ Sincronizando estado: Cliente não CONNECTED (${state}), atualizando isClientReady...`);
+                    isClientReady = false;
+                    clientStatus = "disconnected";
+                }
+
             } catch (stateError) {
                 console.log(`⚠️ Erro ao verificar estado (tentativa ${attempt}):`, stateError.message);
 
