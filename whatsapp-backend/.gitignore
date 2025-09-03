@@ -1,0 +1,3 @@
+# Ignorar sessões/cache do WhatsApp
+whatsapp-backend/whatsapp-session/
+whatsapp-backend/.wwebjs_cache/
