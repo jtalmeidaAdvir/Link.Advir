@@ -463,12 +463,13 @@ ${conversation.data.tecnicoNumero ? `✅ Técnico: *${tecnicoNome || conversatio
 *2. Estado da Intervenção*
 Selecione o estado:
 
-*1.* Pendente
-*2.* Em Curso
-*3.* Concluída
-*4.* Cancelada
+*1.* Terminado
+*2.* Aguardar intervenção equipa Advir
+*3.* Em curso equipa Advir
+*4.* Reportado para Parceiro
+*5.* Aguarda resposta Cliente
 
-Digite o número correspondente (1-4):`;
+Digite o número correspondente (1-5):`;
 
     await client.sendMessage(phoneNumber, response);
 }
@@ -481,7 +482,13 @@ async function handleEstadoInputIntervencao(
     client,
 ) {
     const escolha = parseInt(messageText.trim());
-    const estados = ["Pendente", "Em Curso", "Concluída", "Cancelada"];
+    const estados = [
+        "Terminado",
+        "Aguardar intervenção equipa Advir",
+        "Em curso equipa Advir",
+        "Reportado para Parceiro",
+        "Aguarda resposta Cliente"
+    ];
 
     if (isNaN(escolha) || escolha < 1 || escolha > estados.length) {
         await client.sendMessage(
@@ -944,13 +951,14 @@ Obrigado por utilizar o sistema da Advir.`;
 // Função auxiliar para mapear estado para número
 function mapEstadoParaNumero(estado) {
     const mapeamento = {
-        Pendente: "1",
-        "Em Curso": "2",
-        Concluída: "3",
-        Cancelada: "4",
+        "Terminado": "1",
+        "Aguardar intervenção equipa Advir": "2",
+        "Em curso equipa Advir": "3",
+        "Reportado para Parceiro": "4",
+        "Aguarda resposta Cliente": "5",
     };
 
-    return mapeamento[estado] || "2"; // Padrão: Em Curso
+    return mapeamento[estado] || "3"; // Padrão: Em curso equipa Advir
 }
 
 // Função auxiliar para obter descrição do estado

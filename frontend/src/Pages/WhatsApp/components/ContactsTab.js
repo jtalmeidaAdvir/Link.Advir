@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 // Assuming API_BASE_URL is defined elsewhere, e.g., in a config file
-const API_BASE_URL = "https://backend.advir.pt/whatsapi/api/whatsapp";
+const API_BASE_URL = "http://localhost:7001/api/whatsapp/api/whatsapp";
 const empresaId = localStorage.getItem("empresa_id");
 const ContactsTab = ({
     newContactList,
@@ -286,7 +286,7 @@ const ContactsTab = ({
 
             // Salvar cada contacto individualmente
             for (const contactData of contactsToSave) {
-                const response = await fetch(`https://backend.advir.pt/whatsapi/api/whatsapp/contacts`, {
+                const response = await fetch(`http://localhost:7001/api/whatsapp/api/whatsapp/contacts`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
