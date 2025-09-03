@@ -3,6 +3,14 @@
   "WorkspaceRootPath": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\CalendarioHorasTrabalho.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Assiduidade\\CalendarioHorasTrabalho.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:webPrimaveraApi\\routes\\Faltas\\routesFaltas.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\whatsapp-backend\\routes\\whatsappIntervencoes.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:whatsapp-backend\\routes\\whatsappIntervencoes.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
@@ -71,19 +79,45 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "CalendarioHorasTrabalho.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\CalendarioHorasTrabalho.js",
+              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\CalendarioHorasTrabalho.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\CalendarioHorasTrabalho.js",
+              "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\CalendarioHorasTrabalho.js",
+              "ViewState": "AgIAAOsJAAAAAAAAAAAgwAsKAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-02T17:09:54.182Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "routesFaltas.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "RelativeDocumentMoniker": "webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "RelativeToolTip": "webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "ViewState": "AgIAANcEAAAAAAAAAAAYwPcEAAAYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-02T17:09:23.883Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
               "Title": "whatsappIntervencoes.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\whatsapp-backend\\routes\\whatsappIntervencoes.js",
               "RelativeDocumentMoniker": "whatsapp-backend\\routes\\whatsappIntervencoes.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\whatsapp-backend\\routes\\whatsappIntervencoes.js",
               "RelativeToolTip": "whatsapp-backend\\routes\\whatsappIntervencoes.js",
-              "ViewState": "AgIAAJYBAAAAAAAAAAAYwKgBAAAOAAAAAAAAAA==",
+              "ViewState": "AgIAACgBAAAAAAAAAAAowEoBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-02T16:55:36.14Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
               "Title": "ContactsTab.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\WhatsApp\\components\\ContactsTab.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\WhatsApp\\components\\ContactsTab.js",
@@ -91,12 +125,11 @@
               "RelativeToolTip": "frontend\\src\\Pages\\WhatsApp\\components\\ContactsTab.js",
               "ViewState": "AgIAABcBAAAAAAAAAAAAACYBAAA1AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-02T15:45:57.286Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-09-02T15:45:57.286Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 5,
               "Title": "index.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\backend\\index.js",
               "RelativeDocumentMoniker": "backend\\index.js",
@@ -108,7 +141,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 6,
               "Title": "i18n.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\i18n.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\i18n.js",
@@ -120,7 +153,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 7,
               "Title": "index.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\whatsapp-backend\\index.js",
               "RelativeDocumentMoniker": "whatsapp-backend\\index.js",
@@ -132,7 +165,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 8,
               "Title": "whatsappRoutes.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\whatsapp-backend\\routes\\whatsappRoutes.js",
               "RelativeDocumentMoniker": "whatsapp-backend\\routes\\whatsappRoutes.js",
@@ -144,7 +177,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 4,
               "Title": "WhatsAppWebConfig.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\WhatsApp\\WhatsAppWebConfig.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\WhatsApp\\WhatsAppWebConfig.js",
@@ -156,7 +189,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 9,
               "Title": "ConcursosAprovacaoStyles.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\Styles\\ConcursosAprovacaoStyles.js",
@@ -168,7 +201,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 10,
               "Title": "routesConcursos.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\webPrimaveraApi\\routes\\Concursos\\routesConcursos.js",
               "RelativeDocumentMoniker": "webPrimaveraApi\\routes\\Concursos\\routesConcursos.js",
@@ -180,7 +213,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 11,
               "Title": "App.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\App.js",
               "RelativeDocumentMoniker": "frontend\\App.js",
@@ -192,7 +225,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 12,
               "Title": "Home.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Home.js",
               "RelativeDocumentMoniker": "frontend\\src\\Home.js",
@@ -204,7 +237,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 13,
               "Title": "ConcursoCard.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ConcursoCard.js",
@@ -216,7 +249,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 15,
               "Title": "ModalDetalhesConcurso.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ModalDetalhesConcurso.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\Componentes\\ConcursosAprovacao\\ModalDetalhesConcurso.js",
@@ -228,7 +261,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 14,
               "Title": "ConcursosAprovacao.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",

@@ -1,4 +1,15 @@
-2025/09/02-15:27:11.005 743c Reusing MANIFEST C:\Users\jtalm\Desktop\LINK\Link.Advir\whatsapp-backend\whatsapp-session\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
-2025/09/02-15:27:11.006 743c Recovering log #110
-2025/09/02-15:27:11.092 743c Reusing old log C:\Users\jtalm\Desktop\LINK\Link.Advir\whatsapp-backend\whatsapp-session\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000110.log 
-2025/09/02-15:27:13.597 7964 Manual compaction at level-0 from '\x00-\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00.\x00\x00\x00' @ 0 : 0; will stop at (end)
+2025/09/03-10:03:36.111 8840 Reusing MANIFEST C:\Users\jtalm\Desktop\New folder\Link.Advir\whatsapp-backend\whatsapp-session\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/09/03-10:03:36.112 8840 Recovering log #104
+2025/09/03-10:03:36.199 8840 Reusing old log C:\Users\jtalm\Desktop\New folder\Link.Advir\whatsapp-backend\whatsapp-session\session\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000104.log 
+2025/09/03-10:03:36.199 8840 Delete type=2 #102
+2025/09/03-10:03:36.199 8840 Delete type=2 #105
+2025/09/03-10:03:38.987 710c Level-0 table #109: started
+2025/09/03-10:03:39.018 710c Level-0 table #109: 347462 bytes OK
+2025/09/03-10:03:39.021 710c Delete type=0 #104
+2025/09/03-10:03:39.022 710c Manual compaction at level-0 from '\x00.\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00/\x00\x00\x00' @ 0 : 0; will stop at (end)
+2025/09/03-10:03:42.201 a270 Compacting 1@1 + 1@2 files
+2025/09/03-10:03:42.326 a270 Generated table #110@1: 36216 keys, 1318266 bytes
+2025/09/03-10:03:42.326 a270 Compacted 1@1 + 1@2 files => 1318266 bytes
+2025/09/03-10:03:42.329 a270 compacted to: files[ 0 0 1 0 0 0 0 ]
+2025/09/03-10:03:42.330 a270 Delete type=2 #106
+2025/09/03-10:03:42.330 a270 Delete type=2 #109

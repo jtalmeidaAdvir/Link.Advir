@@ -13,7 +13,10 @@ const INTERVENCAO_STATES = {
     WAITING_ESTADO: "waiting_estado",
     WAITING_TIPO_REMOTO: "waiting_tipo_remoto",
     WAITING_DESCRICAO: "waiting_descricao",
-    WAITING_DURACAO: "waiting_duracao",
+    WAITING_DATA_INICIO: "waiting_data_inicio",
+    WAITING_HORA_INICIO: "waiting_hora_inicio",
+    WAITING_DATA_FIM: "waiting_data_fim",
+    WAITING_HORA_FIM: "waiting_hora_fim",
     WAITING_CONFIRMATION: "waiting_confirmation",
 };
 
@@ -69,6 +72,19 @@ async function processarMensagemIntervencao(phoneNumber, messageText, client) {
 async function startNewIntervencao(phoneNumber, initialMessage, client) {
     console.log(`🔧 Iniciando nova intervenção para ${phoneNumber}`);
 
+    // Verificar autorização antes de iniciar
+    const authResult = await checkIntervencaoAuthorization(phoneNumber);
+
+    if (!authResult.authorized) {
+        await client.sendMessage(
+            phoneNumber,
+            "❌ *Acesso Negado*\n\nVocê não tem autorização para criar intervenções.\n\nApenas utilizadores com permissão para criar pedidos de assistência podem registar intervenções.\n\nPara obter acesso, contacte o administrador do sistema."
+        );
+        return;
+    }
+
+    console.log(`✅ Autorização confirmada para ${phoneNumber}`);
+
     const conversation = {
         state: INTERVENCAO_STATES.WAITING_CLIENT,
         data: {
@@ -77,6 +93,8 @@ async function startNewIntervencao(phoneNumber, initialMessage, client) {
                 .toISOString()
                 .replace("T", " ")
                 .slice(0, 19),
+            // Pré-preencher dados do contacto se disponível
+            contactData: authResult.contactData
         },
         lastActivity: Date.now(),
     };
@@ -159,8 +177,32 @@ async function continueIntervencaoConversation(
                 client,
             );
             break;
-        case INTERVENCAO_STATES.WAITING_DURACAO:
-            await handleDuracaoInputIntervencao(
+        case INTERVENCAO_STATES.WAITING_DATA_INICIO:
+            await handleDataInicioInputIntervencao(
+                phoneNumber,
+                messageText,
+                conversation,
+                client,
+            );
+            break;
+        case INTERVENCAO_STATES.WAITING_HORA_INICIO:
+            await handleHoraInicioInputIntervencao(
+                phoneNumber,
+                messageText,
+                conversation,
+                client,
+            );
+            break;
+        case INTERVENCAO_STATES.WAITING_DATA_FIM:
+            await handleDataFimInputIntervencao(
+                phoneNumber,
+                messageText,
+                conversation,
+                client,
+            );
+            break;
+        case INTERVENCAO_STATES.WAITING_HORA_FIM:
+            await handleHoraFimInputIntervencao(
                 phoneNumber,
                 messageText,
                 conversation,
@@ -329,7 +371,6 @@ async function handleClienteInputIntervencao(
             response_message += `*Selecione o pedido pretendido (1-${pedidosAtivos.length}):*`;
         }
 
-
         await client.sendMessage(phoneNumber, response_message);
     } catch (error) {
         console.error("Erro ao buscar pedidos do cliente:", error);
@@ -395,9 +436,13 @@ async function handlePedidoInputIntervencao(
                 },
             );
 
-            if (tecnicosResponse.data && tecnicosResponse.data.DataSet && tecnicosResponse.data.DataSet.Table) {
+            if (
+                tecnicosResponse.data &&
+                tecnicosResponse.data.DataSet &&
+                tecnicosResponse.data.DataSet.Table
+            ) {
                 const tecnico = tecnicosResponse.data.DataSet.Table.find(
-                    t => t.Numero === pedidoSelecionado.Tecnico
+                    (t) => t.Numero === pedidoSelecionado.Tecnico,
                 );
                 if (tecnico) {
                     tecnicoNome = tecnico.Nome;
@@ -499,41 +544,210 @@ async function handleDescricaoInputIntervencao(
     client,
 ) {
     conversation.data.descricao = messageText.trim();
-    conversation.state = INTERVENCAO_STATES.WAITING_DURACAO;
+    conversation.state = INTERVENCAO_STATES.WAITING_DATA_INICIO;
 
     const response = `✅ Descrição registada com sucesso.
 
-*5. Duração da Intervenção*
-Indique a duração da intervenção em horas (exemplo: 2 para 2 horas, 1.5 para 1 hora e 30 minutos):`;
+*5. Data de Início*
+Indique a data de início da intervenção no formato DD/MM/AAAA (exemplo: 15/12/2024):`;
 
     await client.sendMessage(phoneNumber, response);
 }
 
-// Handler para duração da intervenção
-async function handleDuracaoInputIntervencao(
+// Handler para data de início da intervenção
+async function handleDataInicioInputIntervencao(
     phoneNumber,
     messageText,
     conversation,
     client,
 ) {
-    const duracao = parseFloat(messageText.trim());
+    const dataTexto = messageText.trim();
+    const dataRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+    const match = dataTexto.match(dataRegex);
 
-    if (isNaN(duracao) || duracao <= 0) {
+    if (!match) {
         await client.sendMessage(
             phoneNumber,
-            `❌ Duração inválida. Por favor, indique um número válido de horas (exemplo: 2 ou 1.5):`,
+            `❌ Formato de data inválido. Por favor, use o formato DD/MM/AAAA (exemplo: 15/12/2024):`,
         );
         return;
     }
 
-    conversation.data.duracaoHoras = duracao;
+    const [, dia, mes, ano] = match;
+    const data = new Date(ano, mes - 1, dia);
 
-    // Calcular datas
-    const dataInicio = new Date();
-    const dataFim = new Date(dataInicio.getTime() + duracao * 60 * 60 * 1000);
+    // Verificar se a data é válida
+    if (
+        data.getDate() != dia ||
+        data.getMonth() != mes - 1 ||
+        data.getFullYear() != ano
+    ) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Data inválida. Por favor, verifique a data e tente novamente (formato: DD/MM/AAAA):`,
+        );
+        return;
+    }
 
-    conversation.data.dataInicio = dataInicio;
-    conversation.data.dataFim = dataFim;
+    conversation.data.dataInicio = dataTexto;
+    conversation.state = INTERVENCAO_STATES.WAITING_HORA_INICIO;
+
+    const response = `✅ Data de início: ${dataTexto}
+
+*6. Hora de Início*
+Indique a hora de início da intervenção no formato HH:MM (exemplo: 09:30 ou 14:15):`;
+
+    await client.sendMessage(phoneNumber, response);
+}
+
+// Handler para hora de início da intervenção
+async function handleHoraInicioInputIntervencao(
+    phoneNumber,
+    messageText,
+    conversation,
+    client,
+) {
+    const horaTexto = messageText.trim();
+    const horaRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+
+    if (!horaRegex.test(horaTexto)) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Formato de hora inválido. Por favor, use o formato HH:MM (exemplo: 09:30 ou 14:15):`,
+        );
+        return;
+    }
+
+    conversation.data.horaInicio = horaTexto;
+    conversation.state = INTERVENCAO_STATES.WAITING_DATA_FIM;
+
+    const response = `✅ Hora de início: ${horaTexto}
+
+*7. Data de Fim*
+Indique a data de fim da intervenção no formato DD/MM/AAAA (exemplo: 15/12/2024):`;
+
+    await client.sendMessage(phoneNumber, response);
+}
+
+// Handler para data de fim da intervenção
+async function handleDataFimInputIntervencao(
+    phoneNumber,
+    messageText,
+    conversation,
+    client,
+) {
+    const dataTexto = messageText.trim();
+    const dataRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+    const match = dataTexto.match(dataRegex);
+
+    if (!match) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Formato de data inválido. Por favor, use o formato DD/MM/AAAA (exemplo: 15/12/2024):`,
+        );
+        return;
+    }
+
+    const [, dia, mes, ano] = match;
+    const data = new Date(ano, mes - 1, dia);
+
+    // Verificar se a data é válida
+    if (
+        data.getDate() != dia ||
+        data.getMonth() != mes - 1 ||
+        data.getFullYear() != ano
+    ) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Data inválida. Por favor, verifique a data e tente novamente (formato: DD/MM/AAAA):`,
+        );
+        return;
+    }
+
+    // Verificar se a data de fim não é anterior à data de início
+    const [diaInicio, mesInicio, anoInicio] =
+        conversation.data.dataInicio.split("/");
+    const dataInicio = new Date(anoInicio, mesInicio - 1, diaInicio);
+
+    if (data < dataInicio) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ A data de fim não pode ser anterior à data de início (${conversation.data.dataInicio}). Por favor, indique uma data válida:`,
+        );
+        return;
+    }
+
+    conversation.data.dataFim = dataTexto;
+    conversation.state = INTERVENCAO_STATES.WAITING_HORA_FIM;
+
+    const response = `✅ Data de fim: ${dataTexto}
+
+*8. Hora de Fim*
+Indique a hora de fim da intervenção no formato HH:MM (exemplo: 17:30):`;
+
+    await client.sendMessage(phoneNumber, response);
+}
+
+// Handler para hora de fim da intervenção
+async function handleHoraFimInputIntervencao(
+    phoneNumber,
+    messageText,
+    conversation,
+    client,
+) {
+    const horaTexto = messageText.trim();
+    const horaRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+
+    if (!horaRegex.test(horaTexto)) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Formato de hora inválido. Por favor, use o formato HH:MM (exemplo: 17:30):`,
+        );
+        return;
+    }
+
+    // Construir datas completas para validação
+    const [diaInicio, mesInicio, anoInicio] =
+        conversation.data.dataInicio.split("/");
+    const [diaFim, mesFim, anoFim] = conversation.data.dataFim.split("/");
+    const [horaInicioH, horaInicioM] = conversation.data.horaInicio.split(":");
+    const [horaFimH, horaFimM] = horaTexto.split(":");
+
+    const dataHoraInicio = new Date(
+        anoInicio,
+        mesInicio - 1,
+        diaInicio,
+        horaInicioH,
+        horaInicioM,
+    );
+    const dataHoraFim = new Date(
+        anoFim,
+        mesFim - 1,
+        diaFim,
+        horaFimH,
+        horaFimM,
+    );
+
+    // Verificar se a hora de fim não é anterior à hora de início
+    if (dataHoraFim <= dataHoraInicio) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ A data/hora de fim deve ser posterior à data/hora de início (${conversation.data.dataInicio} ${conversation.data.horaInicio}). Por favor, indique uma hora válida:`,
+        );
+        return;
+    }
+
+    conversation.data.horaFim = horaTexto;
+    conversation.data.dataHoraInicio = dataHoraInicio;
+    conversation.data.dataHoraFim = dataHoraFim;
+
+    // Calcular duração em minutos
+    const duracaoMs = dataHoraFim.getTime() - dataHoraInicio.getTime();
+    const duracaoMinutos = Math.floor(duracaoMs / (1000 * 60));
+    const duracaoHoras = (duracaoMinutos / 60).toFixed(2);
+
+    conversation.data.duracaoMinutos = duracaoMinutos;
+    conversation.data.duracaoHoras = parseFloat(duracaoHoras);
     conversation.state = INTERVENCAO_STATES.WAITING_CONFIRMATION;
 
     // Resumo para confirmação
@@ -544,9 +758,10 @@ async function handleDuracaoInputIntervencao(
 ${conversation.data.tecnicoNumero ? `**Técnico:** ${conversation.data.tecnicoNome || conversation.data.tecnicoNumero}\n` : ""}**Tipo:** ${conversation.data.tipoIntervencao}
 **Estado:** ${conversation.data.estado}
 **Modalidade:** ${conversation.data.tipoRemotoPresencial}
-**Duração:** ${duracao} horas
-**Data/Hora Início:** ${dataInicio.toLocaleString("pt-PT")}
-**Data/Hora Fim:** ${dataFim.toLocaleString("pt-PT")}
+
+**Data/Hora Início:** ${conversation.data.dataInicio} às ${conversation.data.horaInicio}
+**Data/Hora Fim:** ${conversation.data.dataFim} às ${conversation.data.horaFim}
+**Duração:** ${duracaoHoras} horas (${duracaoMinutos} minutos)
 
 **Descrição:**
 ${conversation.data.descricao}
@@ -633,11 +848,14 @@ async function createIntervencao(phoneNumber, conversation, client) {
         // Preparar dados para envio
         const intervencaoData = {
             processoID: conversation.data.pedidoId,
-            tipoIntervencao: conversation.data.tipoRemotoPresencial === "Remoto" ? "REM" : "PRE",
-            duracao: conversation.data.duracaoHoras,
-            duracaoReal: conversation.data.duracaoHoras,
-            DataHoraInicio: formatarData(conversation.data.dataInicio),
-            DataHoraFim: formatarData(conversation.data.dataFim),
+            tipoIntervencao:
+                conversation.data.tipoRemotoPresencial === "Remoto"
+                    ? "REM"
+                    : "PRE",
+            duracao: conversation.data.duracaoMinutos,
+            duracaoReal: conversation.data.duracaoMinutos,
+            DataHoraInicio: formatarData(conversation.data.dataHoraInicio),
+            DataHoraFim: formatarData(conversation.data.dataHoraFim),
             tecnico: conversation.data.tecnicoNumero || "000",
             estadoAnt: "1", // Estado anterior padrão
             estado: mapEstadoParaNumero(conversation.data.estado),
@@ -672,7 +890,9 @@ async function createIntervencao(phoneNumber, conversation, client) {
             // A API retorna erro 500 mas a intervenção é criada com sucesso
             // Vamos tratar como sucesso se for erro 500
             if (apiError.response && apiError.response.status === 500) {
-                console.log("⚠️ API retornou erro 500 mas intervenção foi criada com sucesso");
+                console.log(
+                    "⚠️ API retornou erro 500 mas intervenção foi criada com sucesso",
+                );
                 console.log("📝 Resposta da API:", apiError.response.data);
             } else {
                 // Se for outro tipo de erro, relançar a exceção
@@ -691,8 +911,10 @@ async function createIntervencao(phoneNumber, conversation, client) {
 ${conversation.data.tecnicoNumero ? `**Técnico:** ${conversation.data.tecnicoNome || conversation.data.tecnicoNumero}\n` : ""}**Tipo:** ${conversation.data.tipoIntervencao}
 **Estado:** ${conversation.data.estado}
 **Modalidade:** ${conversation.data.tipoRemotoPresencial}
-**Duração:** ${conversation.data.duracaoHoras} horas
-**Data/Hora:** ${conversation.data.dataInicio.toLocaleString("pt-PT")} - ${conversation.data.dataFim.toLocaleString("pt-PT")}
+
+**Data/Hora Início:** ${conversation.data.dataInicio} às ${conversation.data.horaInicio}
+**Data/Hora Fim:** ${conversation.data.dataFim} às ${conversation.data.horaFim}
+**Duração:** ${conversation.data.duracaoHoras} horas (${conversation.data.duracaoMinutos} minutos)
 
 **Descrição:**
 ${conversation.data.descricao}
@@ -923,12 +1145,16 @@ router.post("/criar-intervencao", async (req, res) => {
         } catch (apiError) {
             // A API retorna erro 500 mas a intervenção é criada com sucesso
             if (apiError.response && apiError.response.status === 500) {
-                console.log("⚠️ API retornou erro 500 mas intervenção foi criada com sucesso");
+                console.log(
+                    "⚠️ API retornou erro 500 mas intervenção foi criada com sucesso",
+                );
 
                 res.json({
                     success: true,
-                    message: "Intervenção criada com sucesso via API (confirmado apesar do erro 500)",
-                    warning: "API retornou erro 500 mas a intervenção foi processada com sucesso",
+                    message:
+                        "Intervenção criada com sucesso via API (confirmado apesar do erro 500)",
+                    warning:
+                        "API retornou erro 500 mas a intervenção foi processada com sucesso",
                     apiError: apiError.response.data,
                     intervencao: {
                         ...intervencaoData,
@@ -993,6 +1219,58 @@ router.delete("/conversas-intervencao/:phoneNumber", async (req, res) => {
 module.exports = router;
 
 // Adicionar funções auxiliares como propriedades do router
+// **Função: Verificar Autorização para Criar Intervenções**
+async function checkIntervencaoAuthorization(phoneNumber) {
+    try {
+        // Usar a mesma lógica de autorização dos pedidos
+        const { checkContactAuthorization } = require('./whatsappRoutes');
+        const authResult = await checkContactAuthorization(phoneNumber);
+
+        console.log(`🔍 Verificando autorização de intervenção para ${phoneNumber}: ${authResult.authorized}`);
+
+        return authResult;
+    } catch (error) {
+        console.error("Erro ao verificar autorização de intervenção:", error);
+        return { authorized: false, contactData: null };
+    }
+}
+
+// Função para inicializar o processo de criação de intervenção
+async function initIntervencaoProcess(phoneNumber, client) {
+    console.log(`🔧 Iniciando processo de criação de intervenção para ${phoneNumber}`);
+
+    // Verificar autorização antes de iniciar o processo
+    const authResult = await checkIntervencaoAuthorization(phoneNumber);
+
+    if (!authResult.authorized) {
+        await client.sendMessage(
+            phoneNumber,
+            "❌ *Acesso Negado*\n\nVocê não tem autorização para criar intervenções.\n\nApenas utilizadores com permissão para criar pedidos de assistência podem registar intervenções.\n\nPara obter acesso, contacte o administrador do sistema."
+        );
+        return;
+    }
+
+    console.log(`✅ Autorização confirmada para ${phoneNumber} - dados do contacto:`, authResult.contactData);
+
+    const conversation = {
+        state: INTERVENCAO_STATES.WAITING_CLIENT,
+        data: {
+            // Pré-preencher dados do contacto se disponível
+            contactData: authResult.contactData
+        },
+        startTime: new Date()
+    };
+
+    activeIntervencaoConversations.set(phoneNumber, conversation);
+
+    await client.sendMessage(
+        phoneNumber,
+        "🔧 *CRIAÇÃO DE INTERVENÇÃO*\n\n*1. Cliente/Processo*\nDigite o número do cliente ou processo:"
+    );
+}
+
 module.exports.processarMensagemIntervencao = processarMensagemIntervencao;
 module.exports.isIntervencaoKeyword = isIntervencaoKeyword;
 module.exports.activeIntervencaoConversations = activeIntervencaoConversations;
+module.exports.checkIntervencaoAuthorization = checkIntervencaoAuthorization;
+module.exports.initIntervencaoProcess = initIntervencaoProcess;
