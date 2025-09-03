@@ -1,12 +1,13 @@
 {
   "ExpandedNodes": [
     "",
+    "\\frontend",
     "\\frontend\\src\\Pages",
-    "\\frontend\\src\\Pages\\WhatsApp",
+    "\\frontend\\src\\Pages\\WhatsApp\\components",
+    "\\frontend\\src\\Pages\\WhatsApp\\hooks",
     "\\webPrimaveraApi\\routes",
-    "\\webPrimaveraApi\\routes\\Faltas",
-    "\\whatsapp-backend\\routes"
+    "\\webPrimaveraApi\\routes\\Faltas"
   ],
-  "SelectedNode": "\\frontend",
+  "SelectedNode": "\\frontend\\App.js",
   "PreviewInSolutionExplorer": false
 }
