@@ -4,11 +4,11 @@
     "\\frontend",
     "\\frontend\\src",
     "\\frontend\\src\\Pages",
-    "\\frontend\\src\\Pages\\Assiduidade",
+    "\\frontend\\src\\Pages\\Concursos",
+    "\\frontend\\src\\Pages\\WhatsApp\\components",
     "\\webPrimaveraApi",
     "\\webPrimaveraApi\\routes",
     "\\webPrimaveraApi\\routes\\Faltas"
   ],
-  "SelectedNode": "\\frontend\\src\\Pages\\Assiduidade\\CalendarioHorasTrabalho.js",
   "PreviewInSolutionExplorer": false
 }

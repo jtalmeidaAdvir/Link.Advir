@@ -18,6 +18,8 @@ const ConcursosAprovacao = () => {
     const [confirmAction, setConfirmAction] = useState(null);
     const [actionType, setActionType] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [isApproving, setIsApproving] = useState(false);
+    const [isRejecting, setIsRejecting] = useState(false);
     const containerRef = useRef(null);
 
     const fetchConcursos = async (isRefresh = false) => {
@@ -147,6 +149,7 @@ const ConcursosAprovacao = () => {
     };
 
     const executeApprove = async (concurso) => {
+        setIsApproving(true);
         const token = localStorage.getItem("painelAdminToken");
         const urlempresa = localStorage.getItem("urlempresa");
 
@@ -180,10 +183,11 @@ const ConcursosAprovacao = () => {
         } catch (error) {
             console.error("Erro ao aprovar concurso:", error);
             setError("Erro ao aprovar concurso. Tente novamente.");
+        } finally {
+            setModalVisible(false);
+            setShowConfirmModal(false);
+            setIsApproving(false);
         }
-
-        setModalVisible(false);
-        setShowConfirmModal(false);
     };
 
     const handleReject = (concurso) => {
@@ -193,6 +197,7 @@ const ConcursosAprovacao = () => {
     };
 
     const executeReject = async (concurso) => {
+        setIsRejecting(true);
         const token = localStorage.getItem("painelAdminToken");
         const urlempresa = localStorage.getItem("urlempresa");
 
@@ -225,10 +230,11 @@ const ConcursosAprovacao = () => {
         } catch (error) {
             console.error("Erro ao recusar concurso:", error);
             setError("Erro ao recusar concurso. Tente novamente.");
+        } finally {
+            setModalVisible(false);
+            setShowConfirmModal(false);
+            setIsRejecting(false);
         }
-
-        setModalVisible(false);
-        setShowConfirmModal(false);
     };
 
     const handleSearchChange = (e) => {
@@ -486,6 +492,8 @@ const ConcursosAprovacao = () => {
                             key={`${concurso.codigo}-${index}`}
                             concurso={concurso}
                             onClick={() => abrirModal(concurso)}
+                            isApproving={isApproving}
+                            isRejecting={isRejecting}
                         />
                     ))}
                 </div>
@@ -498,6 +506,8 @@ const ConcursosAprovacao = () => {
                 concurso={concursoSelecionado}
                 onApprove={handleApprove}
                 onReject={handleReject}
+                isApproving={isApproving}
+                isRejecting={isRejecting}
             />
 
             {/* Confirmation Modal */}
@@ -529,6 +539,7 @@ const ConcursosAprovacao = () => {
                             <button
                                 style={styles.confirmCancelButton}
                                 onClick={() => setShowConfirmModal(false)}
+                                disabled={isApproving || isRejecting}
                             >
                                 Cancelar
                             </button>
@@ -538,6 +549,7 @@ const ConcursosAprovacao = () => {
                                     backgroundColor: actionType === 'approve' ? '#16a34a' : '#dc2626'
                                 }}
                                 onClick={confirmAction}
+                                disabled={isApproving || isRejecting}
                             >
                                 {actionType === 'approve' ? 'Aprovar' : 'Recusar'}
                             </button>
