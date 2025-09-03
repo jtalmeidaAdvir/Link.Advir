@@ -1,11 +1,11 @@
-
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaCalendarCheck, FaClock, FaPlus, FaExclamationTriangle, FaCheckCircle } from 'react-icons/fa';
 
 const CalendarioHorasTrabalho = () => {
     // NOVO: feriados (array de 'YYYY-MM-DD')
     const [feriados, setFeriados] = useState([]);
+    const feriadosSet = useMemo(() => new Set(feriados), [feriados]);
 
     const [mesAtual, setMesAtual] = useState(new Date());
     const [resumo, setResumo] = useState({});
@@ -148,103 +148,145 @@ const CalendarioHorasTrabalho = () => {
     };
 
     // NOVO: normalizador de feriados (aceita vários formatos do endpoint)
-    const normalizarFeriados = (data) => {
-        const isoSet = new Set();
+    // Substituir completamente:
+    const normalizarFeriados = (payload) => {
+        try {
+            const out = new Set();
 
-        // Caso seja um array simples (string ou objetos)
-        if (Array.isArray(data)) {
-            data.forEach(item => {
-                if (typeof item === 'string') {
-                    // 'YYYY-MM-DD' ou 'YYYY-MM-DDTHH:mm'
-                    isoSet.add(item.slice(0, 10));
-                } else if (item) {
-                    const d =
-                        item.Data || item.data || item.Date || item.date ||
-                        item.DataFeriado || item.dataFeriado || item.DataDia || item.dataDia ||
-                        item.DataInicio || item.dataInicio;
-
-                    const f =
-                        item.DataFim || item.dataFim;
-
-                    if (d && f) {
-                        // intervalo
-                        const inicio = new Date(d);
-                        const fim = new Date(f);
-                        const cur = new Date(inicio);
-                        while (cur <= fim) {
-                            isoSet.add(cur.toISOString().slice(0, 10));
-                            cur.setDate(cur.getDate() + 1);
-                        }
-                    } else if (d) {
-                        isoSet.add(new Date(d).toISOString().slice(0, 10));
-                    }
+            // Função melhorada para extrair data ISO (YYYY-MM-DD) de strings datetime
+            const extractDateISO = (v) => {
+                if (typeof v !== 'string') return null;
+                // Se a string contém 'T' (formato ISO datetime), pega apenas a parte da data
+                if (v.includes('T')) {
+                    return v.split('T')[0];
                 }
-            });
-            return Array.from(isoSet);
-        }
+                // Senão, assume que já está no formato YYYY-MM-DD e pega os primeiros 10 caracteres
+                return v.slice(0, 10);
+            };
 
-        // Caso venha em DataSet.Table (formato típico da tua WebAPI)
-        const tabela = data?.DataSet?.Table ?? data?.DataSet?.table ?? null;
-        if (Array.isArray(tabela)) {
-            tabela.forEach(row => {
-                const d =
-                    row.Data || row.data || row.Date || row.date ||
-                    row.DataFeriado || row.dataFeriado || row.DataDia || row.dataDia ||
-                    row.DataInicio || row.dataInicio;
+            const toLocalDate = (isoYYYYMMDD) => {
+                const [y, m, d] = isoYYYYMMDD.split('-').map(Number);
+                return new Date(y, m - 1, d); // local time, evita desvios por fuso/DST
+            };
 
-                const f =
-                    row.DataFim || row.dataFim;
+            const addISO = (s) => { if (s && s.match(/^\d{4}-\d{2}-\d{2}$/)) out.add(s); };
 
-                if (d && f) {
-                    const inicio = new Date(d);
-                    const fim = new Date(f);
-                    const cur = new Date(inicio);
-                    while (cur <= fim) {
-                        isoSet.add(cur.toISOString().slice(0, 10));
+            const handleRow = (row) => {
+                if (!row) return;
+
+                // Procura por diferentes propriedades de data
+                const dStr =
+                    extractDateISO(row.Feriado) ||
+                    extractDateISO(row.feriado) ||
+                    extractDateISO(row.Data) ||
+                    extractDateISO(row.data) ||
+                    extractDateISO(row.Date) ||
+                    extractDateISO(row.date) ||
+                    extractDateISO(row.DataFeriado) ||
+                    extractDateISO(row.dataFeriado) ||
+                    extractDateISO(row.DataDia) ||
+                    extractDateISO(row.dataDia) ||
+                    extractDateISO(row.DataInicio) ||
+                    extractDateISO(row.dataInicio);
+
+                const fStrRaw =
+                    row.DataFim || row.dataFim || row.Fim || row.fim;
+
+                if (dStr && fStrRaw) {
+                    // intervalo [dStr..fStr]
+                    const fStr = extractDateISO(typeof fStrRaw === 'string' ? fStrRaw : String(fStrRaw));
+                    if (!fStr) { addISO(dStr); return; }
+                    let cur = toLocalDate(dStr);
+                    const end = toLocalDate(fStr);
+                    while (cur <= end) {
+                        addISO(
+                            `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`
+                        );
                         cur.setDate(cur.getDate() + 1);
                     }
-                } else if (d) {
-                    isoSet.add(new Date(d).toISOString().slice(0, 10));
+                } else if (dStr) {
+                    addISO(dStr);
                 }
-            });
-            return Array.from(isoSet);
-        }
+            };
 
-        // Último recurso: se for um único objeto com 'Data'
-        const possivel = data?.Data || data?.data || data?.Date || data?.date;
-        if (possivel) {
-            return [new Date(possivel).toISOString().slice(0, 10)];
-        }
+            if (Array.isArray(payload)) {
+                payload.forEach((item) => {
+                    if (typeof item === 'string') addISO(extractDateISO(item));
+                    else handleRow(item);
+                });
+            } else if (payload?.DataSet?.Table) {
+                payload.DataSet.Table.forEach(handleRow);
+            } else {
+                handleRow(payload);
+            }
 
-        return [];
+            console.log(`Feriados normalizados: ${out.size} datas encontradas`, Array.from(out));
+            return out;
+
+        } catch (error) {
+            console.error('Erro na normalização de feriados:', error);
+            console.error('Payload que causou o erro:', payload);
+            return new Set(); // Retorna conjunto vazio em caso de erro
+        }
     };
 
+
     // NOVO: carregar feriados da WebAPI
-    const carregarFeriados = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
+    const carregarFeriados = async (tentativa = 1, maxTentativas = 3) => {
+        const painelAdminToken = localStorage.getItem('painelAdminToken');
+        const urlempresa = localStorage.getItem('urlempresa');
+        const ano = mesAtual.getFullYear();
+
+        if (!painelAdminToken || !urlempresa) {
+            console.warn('Token ou URL da empresa não encontrados para carregar feriados');
+            return;
+        }
 
         try {
-            const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/feriados`, {
-                method: 'GET',
+            console.log(`Carregando feriados para o ano ${ano}... (tentativa ${tentativa}/${maxTentativas})`);
+
+            const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/Feriados`, {
                 headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                    urlempresa: urlempresa,
-                },
+                    'Authorization': `Bearer ${painelAdminToken}`,
+                    'urlempresa': urlempresa,
+                    'Content-Type': 'application/json'
+                }
             });
 
+            console.log(`Resposta da API feriados: Status ${res.status}`);
+
             if (!res.ok) {
-                const msg = await res.text();
-                console.warn('Erro ao carregar feriados:', res.status, msg);
-                return;
+                const errorText = await res.text();
+                console.error('Erro na resposta da API feriados:', errorText);
+
+                // Se for erro 409 e ainda temos tentativas, aguardar e tentar novamente
+                if (res.status === 409 && tentativa < maxTentativas) {
+                    console.log(`Erro 409 detectado. Aguardando 2s antes da próxima tentativa...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return carregarFeriados(tentativa + 1, maxTentativas);
+                }
+
+                throw new Error(`HTTP ${res.status}: ${errorText}`);
             }
 
             const data = await res.json();
+            console.log('Dados feriados recebidos:', data);
             const listaISO = normalizarFeriados(data);
+            console.log('Feriados normalizados:', listaISO);
             setFeriados(listaISO);
+
         } catch (err) {
-            console.error('Erro ao buscar feriados:', err);
+            console.error(`Erro ao carregar feriados (tentativa ${tentativa}):`, err);
+
+            // Se ainda temos tentativas e não foi um erro de rede crítico
+            if (tentativa < maxTentativas && !err.message.includes('TypeError: Failed to fetch')) {
+                console.log(`Tentando novamente em 3s...`);
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                return carregarFeriados(tentativa + 1, maxTentativas);
+            }
+
+            console.warn('Usando conjunto vazio de feriados como fallback');
+            setFeriados(new Set()); // fallback para conjunto vazio
         }
     };
 
@@ -254,8 +296,7 @@ const CalendarioHorasTrabalho = () => {
             setLoading(true);
             try {
                 const hojeISO = formatarData(new Date());
-                // NOVO: carrega feriados juntamente com o resto
-                await carregarFeriados();
+                await carregarFeriados();             // <- carrega feriados primeiro
                 await carregarTudoEmParalelo(hojeISO);
             } catch (e) {
                 console.error('Erro no bootstrap:', e);
@@ -1207,15 +1248,15 @@ const CalendarioHorasTrabalho = () => {
         }
     };
 
-    useEffect(() => {
-        const atualizar = async () => {
-            const hoje = formatarData(new Date());
-            if (diaSelecionado === hoje) {
-                await carregarResumo();
-                await carregarDetalhes(hoje);
-            }
-        };
+    const atualizar = async () => {
+        const hoje = formatarData(new Date());
+        if (diaSelecionado === hoje) {
+            await carregarResumo();
+            await carregarDetalhes(hoje);
+        }
+    };
 
+    useEffect(() => {
         const intervalo = setInterval(atualizar, 60 * 1000);
         return () => clearInterval(intervalo);
     }, [diaSelecionado]);
@@ -1562,7 +1603,7 @@ const CalendarioHorasTrabalho = () => {
         const isPendente = diasPendentes.includes(dataFormatada);
 
         // NOVO: feriado
-        const isFeriado = feriados.includes(dataFormatada);
+        const isFeriado = feriadosSet.has(dataFormatada);
 
         const existeFalta = Array.isArray(faltas) && faltas.some(f => {
             const dataFalta = new Date(f.Data);
@@ -1872,6 +1913,8 @@ const CalendarioHorasTrabalho = () => {
                                             const dataFormatada = formatarData(date);
                                             const isPendente = diasPendentes.includes(dataFormatada);
 
+                                            const isFeriado = feriadosSet.has(dataFormatada);
+
                                             const existeFaltaF50 = Array.isArray(faltas) && faltas.some(f => {
                                                 const dataFalta = new Date(f.Data);
                                                 return (
@@ -1889,6 +1932,12 @@ const CalendarioHorasTrabalho = () => {
                                                     onClick={() => carregarDetalhes(dataFormatada)}
                                                 >
                                                     <span>{date.getDate()}</span>
+
+                                                    {isFeriado && (
+                                                        <span className="horas-dia" style={{ fontSize: '0.65rem', color: '#5d4037' }}>
+                                                            Feriado
+                                                        </span>
+                                                    )}
 
                                                     {existeFaltaF50 && (
                                                         <span
@@ -1918,13 +1967,14 @@ const CalendarioHorasTrabalho = () => {
                                                         </span>
                                                     )}
 
-                                                    {resumo[dataFormatada] && (
+                                                    {resumo[dataFormatada] && !isFeriado && (
                                                         <span className="horas-dia">
                                                             {resumo[dataFormatada].split('h')[0]}h
                                                         </span>
                                                     )}
 
                                                     {!resumo[dataFormatada] &&
+                                                        !isFeriado &&
                                                         date < new Date() &&
                                                         date.getDay() !== 0 &&
                                                         date.getDay() !== 6 && (
