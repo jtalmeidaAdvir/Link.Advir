@@ -151,6 +151,18 @@ const CustomDrawerContent = ({
         }, 500);
     };
 
+
+
+    // Helper: o user tem o submódulo X dentro do módulo Y?
+const hasSubmodule = (moduleName, subName) =>
+  modules?.some(
+    (m) =>
+      m?.nome === moduleName &&
+      Array.isArray(m?.submodulos) &&
+      m.submodulos.some((s) => s?.nome === subName)
+  );
+
+
     // Se for superAdmin ou POS, mostra apenas opções específicas
     if (isSuperAdmin) {
         return (
@@ -553,60 +565,49 @@ const obrasSubmodulesOrder = [
                                             />
                                         </TouchableOpacity>
 
-                                        {expandedModules[module.nome] && (
-                                            <View
-                                                style={
-                                                    drawerStyles.submoduleContainer
-                                                }
-                                            >
+                                            {expandedModules[module.nome] && (
+                                            <View style={drawerStyles.submoduleContainer}>
+
+                                                {/* Pedidos de Assistência */}
+                                                {(hasSubmodule("Servicos", "PedidosAssistencia") ||
+                                                hasSubmodule("Servicos", "Assistencia","DashboardTecnico")) && (
                                                 <TouchableOpacity
-                                                    style={
-                                                        drawerStyles.submoduleItem
-                                                    }
-                                                    onPress={() =>
-                                                        props.navigation.navigate(
-                                                            "PedidosAssistencia",
-                                                        )
-                                                    }
+                                                    style={drawerStyles.submoduleItem}
+                                                    onPress={() => props.navigation.navigate("PedidosAssistencia")}
                                                 >
-                                                    <FontAwesome
-                                                        name="wrench"
-                                                        size={16}
-                                                        color="#1792FE"
-                                                    />
-                                                    <Text
-                                                        style={
-                                                            drawerStyles.submoduleText
-                                                        }
-                                                    >
-                                                        Pedidos de Assistência
-                                                    </Text>
+                                                    <FontAwesome name="wrench" size={16} color="#1792FE" />
+                                                    <Text style={drawerStyles.submoduleText}>Pedidos de Assistência</Text>
                                                 </TouchableOpacity>
+                                                )}
+
+                                                {/* Dashboard Técnico */}
+                                                {hasSubmodule("Servicos", "DashboardTecnico") && (
                                                 <TouchableOpacity
-                                                    style={
-                                                        drawerStyles.submoduleItem
-                                                    }
-                                                    onPress={() =>
-                                                        props.navigation.navigate(
-                                                            "PandIByTecnico",
-                                                        )
-                                                    }
+                                                    style={drawerStyles.submoduleItem}
+                                                    onPress={() => props.navigation.navigate("DashboardTecnico")}
                                                 >
-                                                    <FontAwesome
-                                                        name="bar-chart"
-                                                        size={16}
-                                                        color="#1792FE"
-                                                    />
-                                                    <Text
-                                                        style={
-                                                            drawerStyles.submoduleText
-                                                        }
-                                                    >
-                                                        Dashboard Técnico
-                                                    </Text>
+                                                    <FontAwesome name="bar-chart" size={16} color="#1792FE" />
+                                                    <Text style={drawerStyles.submoduleText}>Dashboard Técnico</Text>
                                                 </TouchableOpacity>
+                                                )}
+
+                                                {/* Contratos */}
+                                                {(hasSubmodule("Servicos", "ContratosList") ||
+                                                hasSubmodule("Servicos", "Contratos") ||
+                                                hasSubmodule("Servicos", "ContratosAtivos")) && (
+                                                <TouchableOpacity
+                                                    style={drawerStyles.submoduleItem}
+                                                    onPress={() => props.navigation.navigate("ContratosList")}
+                                                >
+                                                    <FontAwesome name="file-text-o" size={16} color="#1792FE" />
+                                                    <Text style={drawerStyles.submoduleText}>Contratos</Text>
+                                                </TouchableOpacity>
+                                                )}
+
                                             </View>
-                                        )}
+                                            )}
+
+
                                     </View>
                                 );
                             }
@@ -1216,7 +1217,13 @@ const AppNavigator = () => {
             module.nome === "Administrador" &&
             module.submodulos.some((sub) => sub.nome === "GestaoPOS"),
     );
+    const hasAssistenciaModule = modules.some(
+        (module) =>
+            module.nome === "Servicos" &&
+            module.submodulos.some((sub) => sub.nome === "Assistencia"),
+    );
 
+    
     // Dentro de AppNavigator:
     const fetchUserData = async () => {
         setLoading(true);
@@ -1461,6 +1468,7 @@ const AppNavigator = () => {
                             hasPedidosAlteracaoAdminModule={
                                 hasPedidosAlteracaoAdminModule
                             }
+                            hasAssistenciaModule={hasAssistenciaModule}
                             isPOS={isPOS} // Passa o estado isPOS para o CustomDrawerContent
                         />
                     )}
@@ -1886,6 +1894,15 @@ const AppNavigator = () => {
                         }}
                     />
 
+                    <Drawer.Screen
+                        name="ContratosList"
+                        component={ContratosList}
+                        options={{
+                            title: "AdvirLink - Contratos Ativos",
+                            drawerItemStyle: { display: "none" },
+                        }}
+                    />
+
                     {(() => {
                         const canAccessObras = !loading &&
                             (tipoUser === "Encarregado" ||
@@ -1962,13 +1979,7 @@ const AppNavigator = () => {
                             title: "AdvirLink - Pedidos de Assistência",
                         }}
                     />
-                    <Drawer.Screen
-                        name="PedidosAssistencia"
-                        component={PedidosAssistencia}
-                        options={{
-                            title: "AdvirLink - Pedidos de Assistência",
-                        }}
-                    />
+                  
                     <Drawer.Screen
                         name="PandIByTecnico"
                         component={PandIByTecnico}
@@ -2095,6 +2106,15 @@ const AppNavigator = () => {
                         <Drawer.Screen
                             name="ContratosList"
                             component={ContratosList}
+                        />
+                    )}
+                    {hasAssistenciaModule && (
+                        <Drawer.Screen
+                            name="PedidosAssistencia"
+                            component={PedidosAssistencia}
+                            options={{
+                            title: "AdvirLink - Pedidos de Assistência",
+                        }}
                         />
                     )}
                     {hasRegistarUtilizadorModule && (

@@ -202,16 +202,16 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
         detectingRef.current = false;
 
         const scans = [];
-        const maxScans = 5;
+        const maxScans = 3;
         let currentScan = 0;
         let consecutiveFailures = 0;
         const maxFailures = 8;
 
         // Configurações otimizadas
         const detectionOptions = new faceapi.TinyFaceDetectorOptions({
-            inputSize: 224,
-            scoreThreshold: 0.5
-        });
+    inputSize: 160,
+    scoreThreshold: 0.5
+});
 
         scanIntervalRef.current = setInterval(async () => {
             if (!isScanning || finishedRef.current) return;
@@ -277,7 +277,7 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
             } finally {
                 detectingRef.current = false;
             }
-        }, 200); // Intervalo otimizado para 200ms
+        }, 100); // Intervalo otimizado para 200ms
     };
 
     const completeFacialScan = async (scans) => {
@@ -300,12 +300,13 @@ const InvisibleFacialScanner = ({ onScanComplete, isScanning, onStartScan, onSto
 
             const avgConfidence = scans.reduce((sum, scan) => sum + scan.confidence, 0) / scans.length;
             
-            if (avgConfidence < 0.6) {
-                setStatusMessage('Qualidade insuficiente. Tente novamente.');
-                scanCompletedRef.current = false;
-                setTimeout(() => { if (onStopScan) onStopScan(); }, 1500);
+            if (avgConfidence > 0.8 && currentScan >= 2) {
+                finishedRef.current = true;
+                clearInterval(scanIntervalRef.current);
+                await completeFacialScan(scans);
                 return;
             }
+
 
             setStatusMessage(`Processando... (${Math.round(avgConfidence * 100)}%)`);
             setScanProgress(100);
