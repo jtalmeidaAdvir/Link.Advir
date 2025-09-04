@@ -862,20 +862,7 @@ const obrasSubmodulesOrder = [
                                                                     screenName,
                                                                 )
                                                             }
-                                                            onPressIn={(e) => {
-                                                                e.currentTarget.setNativeProps({
-                                                                    style: {
-                                                                        backgroundColor: "#F0F9FF",
-                                                                    }
-                                                                });
-                                                            }}
-                                                            onPressOut={(e) => {
-                                                                e.currentTarget.setNativeProps({
-                                                                    style: {
-                                                                        backgroundColor: "transparent",
-                                                                    }
-                                                                });
-                                                            }}
+                                                            
                                                             activeOpacity={0.7}
                                                         >
                                                             <FontAwesome
@@ -2439,7 +2426,11 @@ const styles = StyleSheet.create({
             marginHorizontal: 8,
             borderRadius: 10,
             backgroundColor: "transparent",
-            transition: "background-color 0.2s ease",
+            ...(Platform.OS === 'web' && {
+                ':hover': {
+                    backgroundColor: "#F0F9FF",
+                }
+            }),
         },
         submoduleText: {
             fontSize: 15,
