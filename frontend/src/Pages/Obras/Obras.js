@@ -22,7 +22,8 @@ import { styles } from './Css/ObrasStyles';
 
 const { width, height } = Dimensions.get("window");
 
-const ListarObras = ({ navigation }) => {
+const ListarObras = (props) => {
+    const navigation = props.navigation;
     const [obras, setObras] = useState([]);
     const [filteredObras, setFilteredObras] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -296,7 +297,7 @@ const ListarObras = ({ navigation }) => {
                     </Text>
                     <TouchableOpacity
                         style={styles.headerMapaButton}
-                        onPress={() => navigation.navigate("MapaRegistos")}
+                        onPress={() => navigation && navigation.navigate("MapaRegistos")}
                         activeOpacity={0.8}
                     >
                         <LinearGradient
@@ -710,7 +711,7 @@ const ListarObras = ({ navigation }) => {
                                                 return;
                                             }
 
-                                            navigation.navigate("PessoalObra", {
+                                            navigation && navigation.navigate("PessoalObra", {
                                                 obraId: obraExistente.id, // ✅ ID real da tabela `obra`
                                                 nomeObra: obraExistente.nome,
                                             });
