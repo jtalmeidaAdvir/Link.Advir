@@ -2426,11 +2426,6 @@ const styles = StyleSheet.create({
             marginHorizontal: 8,
             borderRadius: 10,
             backgroundColor: "transparent",
-            ...(Platform.OS === 'web' && {
-                ':hover': {
-                    backgroundColor: "#F0F9FF",
-                }
-            }),
         },
         submoduleText: {
             fontSize: 15,
