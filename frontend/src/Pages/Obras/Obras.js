@@ -22,8 +22,7 @@ import { styles } from './Css/ObrasStyles';
 
 const { width, height } = Dimensions.get("window");
 
-const ListarObras = (props) => {
-    const navigation = props.navigation;
+const ListarObras = ({ navigation }) => {
     const [obras, setObras] = useState([]);
     const [filteredObras, setFilteredObras] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -297,7 +296,7 @@ const ListarObras = (props) => {
                     </Text>
                     <TouchableOpacity
                         style={styles.headerMapaButton}
-                        onPress={() => navigation && navigation.navigate("MapaRegistos")}
+                        onPress={() => navigation.navigate("MapaRegistos")}
                         activeOpacity={0.8}
                     >
                         <LinearGradient
@@ -711,7 +710,7 @@ const ListarObras = (props) => {
                                                 return;
                                             }
 
-                                            navigation && navigation.navigate("PessoalObra", {
+                                            navigation.navigate("PessoalObra", {
                                                 obraId: obraExistente.id, // ✅ ID real da tabela `obra`
                                                 nomeObra: obraExistente.nome,
                                             });
@@ -827,33 +826,25 @@ const ListarObras = (props) => {
             colors={["#e3f2fd", "#bbdefb", "#90caf9"]}
             style={styles.container}
         >
-            <ScrollView
-                style={{ flex: 1 }}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ flexGrow: 1 }}
-            >
-                {renderHeader()}
+            {renderHeader()}
 
-                {!loading && !errorMessage && renderSearchBar()}
-                {!loading && !errorMessage && renderFilters()}
+            {!loading && !errorMessage && renderSearchBar()}
+            {!loading && !errorMessage && renderFilters()}
 
-                {loading ? (
-                    renderLoadingState()
-                ) : errorMessage ? (
-                    renderErrorState()
-                ) : (
-                    <FlatList
-                        data={filteredObras}
-                        renderItem={renderObra}
-                        keyExtractor={(item) => item.ID.toString()}
-                        contentContainerStyle={styles.listContainer}
-                        showsVerticalScrollIndicator={false}
-                        ListEmptyComponent={renderEmptyState}
-                        nestedScrollEnabled={true}
-                        scrollEnabled={filteredObras.length > 3}
-                    />
-                )}
-            </ScrollView>
+            {loading ? (
+                renderLoadingState()
+            ) : errorMessage ? (
+                renderErrorState()
+            ) : (
+                <FlatList
+                    data={filteredObras}
+                    renderItem={renderObra}
+                    keyExtractor={(item) => item.ID.toString()}
+                    contentContainerStyle={styles.listContainer}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={renderEmptyState}
+                />
+            )}
         </LinearGradient>
     );
 };
