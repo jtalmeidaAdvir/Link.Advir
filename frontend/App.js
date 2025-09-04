@@ -12,7 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationContainer } from "@react-navigation/native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import CustomDrawerContent from "./src/components/CustomDrawerContent";
+
 
 // Core pages - load immediately
 import Home from "./src/Home";
