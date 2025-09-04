@@ -154,7 +154,7 @@ const FacialScannerModal = ({ visible, onClose, onScanComplete, t }) => {
 
                 // Só desenhar landmarks se estiverem disponíveis
                 if (detection.landmarks) {
-                    const drawLandmarks = new faceapi.draw.DrawLandmarks(detection.landmarks, {
+                    const drawLandmarks = new faceapi.draw.DrawFaceLandmarks(detection.landmarks, {
                         drawLines: true,
                         color: '#FFEB3B'
                     });

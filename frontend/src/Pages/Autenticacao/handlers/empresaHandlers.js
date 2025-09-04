@@ -1,8 +1,19 @@
 // handlers/empresaHandlers.js
 import { handleEntrarEmpresa } from './handleEntrarEmpresa';
- 
-// empresaHandlers.js
- 
+
+// Função para lidar com predefinição de empresa
+export const handlePredefinirEmpresa = ({ checked, empresaSelecionada, setEmpresaPredefinida }) => {
+    if (checked && empresaSelecionada) {
+        localStorage.setItem('empresaPredefinida', JSON.stringify(empresaSelecionada));
+        setEmpresaPredefinida(true);
+    } else {
+        localStorage.removeItem('empresaPredefinida');
+        setEmpresaPredefinida(false);
+    }
+};
+
+export { handleEntrarEmpresa };
+
 export const fetchEmpresas = async ({
     setEmpresas,
     setEmpresaSelecionada,
@@ -18,27 +29,27 @@ export const fetchEmpresas = async ({
 }) => {
     try {
         const loginToken = localStorage.getItem("loginToken");
- 
+
         const response = await fetch("https://backend.advir.pt/api/users/empresas", {
             method: "GET",
             headers: { Authorization: `Bearer ${loginToken}` },
         });
- 
+
         if (!response.ok) {
             setErrorMessage(t("SelecaoEmpresa.Error.1"));
             return;
         }
- 
+
         const data = await response.json();
         setEmpresas(data);
- 
+
         if (data.length === 1) {
             const empresaUnica = data[0].empresa;
             setEmpresaSelecionada(empresaUnica);
- 
+
             if (autoLogin) {
                 onAutoLogin?.(); // marca que o autoLogin já foi feito
- 
+
                 await handleEntrarEmpresa({
                     empresa: empresaUnica,
                     setEmpresa,
@@ -48,7 +59,7 @@ export const fetchEmpresas = async ({
                 });
             }
         }
- 
+
     } catch (error) {
         console.error("Erro de rede:", error);
         setErrorMessage("Erro de rede, tente novamente mais tarde.");
