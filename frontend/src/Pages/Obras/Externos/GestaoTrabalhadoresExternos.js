@@ -739,177 +739,185 @@ const GestaoTrabalhadoresExternos = () => {
   return (
     <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.mainContainer}>
       <SafeAreaView style={styles.container}>
-        {/* Header Melhorado */}
-        <View style={styles.header}>
-          <LinearGradient colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']} style={styles.headerContent}>
-            <View style={styles.headerTop}>
-              <View style={styles.headerIcon}>
-                <Ionicons name="people" size={28} color="#fff" />
-              </View>
-              <View style={styles.headerTextContainer}>
-                <Text style={styles.headerTitle}>Trabalhadores Externos</Text>
-                <Text style={styles.headerSubtitle}>
-                  {listaFiltrada.length} {listaFiltrada.length === 1 ? 'registo encontrado' : 'registos encontrados'}
-                </Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </View>
-
-        {/* Filtros Melhorados */}
-        <View style={styles.filtersContainer}>
-          <View style={styles.filtersCard}>
-            {/* Pesquisa */}
-            <View style={styles.searchContainer}>
-              <View style={styles.searchIcon}>
-                <Ionicons name="search" size={20} color="#1792FE" />
-              </View>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Pesquisar por empresa, funcionário ou categoria..."
-                value={search}
-                onChangeText={setSearch}
-                returnKeyType="search"
-                onSubmitEditing={fetchRegistos}
-                placeholderTextColor="#999"
-              />
-              <TouchableOpacity style={styles.searchBtn} onPress={fetchRegistos}>
-                <Ionicons name="arrow-forward" size={20} color="#1792FE" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Dropdowns Melhorados */}
-            <View style={styles.dropdownsContainer}>
-              <View style={styles.dropdownWrapper}>
-                <Text style={styles.dropdownLabel}>
-                  <Ionicons name="business-outline" size={14} color="#666" /> Empresa
-                </Text>
-                <View style={styles.modernPicker}>
-                  <Picker
-                    selectedValue={empresaFiltro}
-                    onValueChange={(v) => setEmpresaFiltro(v)}
-                    style={styles.pickerStyle}
-                    dropdownIconColor="#1792FE"
-                  >
-                    <Picker.Item label="Todas as empresas" value="" />
-                    {empresasCombo.slice(1).map((e, idx) => (
-                      <Picker.Item key={`emp-${idx}`} label={`🏢 ${e}`} value={e} />
-                    ))}
-                  </Picker>
-                </View>
-              </View>
-
-              <View style={styles.dropdownWrapper}>
-                <Text style={styles.dropdownLabel}>
-                  <Ionicons name="construct-outline" size={14} color="#666" /> Categoria
-                </Text>
-                <View style={styles.modernPicker}>
-                  <Picker
-                    selectedValue={categoriaFiltro}
-                    onValueChange={(v) => setCategoriaFiltro(v)}
-                    style={styles.pickerStyle}
-                    dropdownIconColor="#1792FE"
-                  >
-                    <Picker.Item label="Todas as categorias" value="" />
-                    {categoriasCombo.slice(1).map((c, idx) => (
-                      <Picker.Item key={`cat-${idx}`} label={`⚒️ ${c}`} value={c} />
-                    ))}
-                  </Picker>
-                </View>
-              </View>
-            </View>
-
-            {/* Status Chips */}
-            <View style={styles.statusContainer}>
-              {[
-                { key: 'todos', label: 'Todos', icon: 'list' },
-                { key: 'ativos', label: 'Ativos', icon: 'checkmark-circle' },
-                { key: 'inativos', label: 'Inativos', icon: 'pause-circle' },
-                { key: 'anulados', label: 'Anulados', icon: 'close-circle' }
-              ].map(opcao => (
-                <TouchableOpacity
-                  key={opcao.key}
-                  style={[styles.statusChip, filtroStatus === opcao.key && styles.statusChipActive]}
-                  onPress={() => setFiltroStatus(opcao.key)}
-                >
-                  <Ionicons 
-                    name={opcao.icon} 
-                    size={16} 
-                    color={filtroStatus === opcao.key ? '#fff' : '#666'} 
-                  />
-                  <Text style={filtroStatus === opcao.key ? styles.statusChipTextActive : styles.statusChipText}>
-                    {opcao.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.actionButtonsContainer}>
-              <TouchableOpacity onPress={fetchRegistos} style={[styles.modernButton, styles.primaryButton]}>
-                <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.modernButtonGradient}>
-                  <Ionicons name="funnel" size={18} color="#fff" />
-                  <Text style={styles.modernButtonText}>Aplicar Filtros</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={openCreate} style={[styles.modernButton, styles.successButton]}>
-                <LinearGradient colors={['#28a745', '#20c997']} style={styles.modernButtonGradient}>
-                  <Ionicons name="add-circle" size={18} color="#fff" />
-                  <Text style={styles.modernButtonText}>Novo Registo</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={openResumoExternos} style={[styles.modernButton, styles.warningButton]}>
-                <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.modernButtonGradient}>
-                  <Ionicons name="analytics" size={18} color="#fff" />
-                  <Text style={styles.modernButtonText}>Resumo Analytics</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* Lista Melhorada */}
-        <FlatList
-          data={listaFiltrada}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContainer}
+        <ScrollView
+          style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={onRefresh} 
-              colors={['#1792FE']}
-              tintColor="#1792FE"
-            />
-          }
-          ListEmptyComponent={() => (
-            <View style={styles.emptyStateContainer}>
-              <View style={styles.emptyStateCard}>
-                <LinearGradient 
-                  colors={['rgba(23, 146, 254, 0.1)', 'rgba(23, 146, 254, 0.05)']} 
-                  style={styles.emptyStateIcon}
-                >
-                  <Ionicons name="people-outline" size={80} color="#1792FE" />
-                </LinearGradient>
-                <Text style={styles.emptyStateTitle}>Nenhum trabalhador externo encontrado</Text>
-                <Text style={styles.emptyStateText}>
-                  {search || empresaFiltro || categoriaFiltro || filtroStatus !== 'todos' 
-                    ? 'Tente ajustar os filtros de pesquisa ou limpar os critérios.' 
-                    : 'Comece por criar o primeiro registo de trabalhador externo.'}
-                </Text>
-                <TouchableOpacity onPress={openCreate} style={styles.emptyStateButton}>
-                  <LinearGradient colors={['#28a745', '#20c997']} style={styles.emptyStateButtonGradient}>
-                    <Ionicons name="add" size={20} color="#fff" />
-                    <Text style={styles.emptyStateButtonText}>Criar Primeiro Registo</Text>
+          contentContainerStyle={{ flexGrow: 1 }}
+        >
+          {/* Header Melhorado */}
+          <View style={styles.header}>
+            <LinearGradient colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']} style={styles.headerContent}>
+              <View style={styles.headerTop}>
+                <View style={styles.headerIcon}>
+                  <Ionicons name="people" size={28} color="#fff" />
+                </View>
+                <View style={styles.headerTextContainer}>
+                  <Text style={styles.headerTitle}>Trabalhadores Externos</Text>
+                  <Text style={styles.headerSubtitle}>
+                    {listaFiltrada.length} {listaFiltrada.length === 1 ? 'registo encontrado' : 'registos encontrados'}
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* Filtros Melhorados */}
+          <View style={styles.filtersContainer}>
+            <View style={styles.filtersCard}>
+              {/* Pesquisa */}
+              <View style={styles.searchContainer}>
+                <View style={styles.searchIcon}>
+                  <Ionicons name="search" size={20} color="#1792FE" />
+                </View>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Pesquisar por empresa, funcionário ou categoria..."
+                  value={search}
+                  onChangeText={setSearch}
+                  returnKeyType="search"
+                  onSubmitEditing={fetchRegistos}
+                  placeholderTextColor="#999"
+                />
+                <TouchableOpacity style={styles.searchBtn} onPress={fetchRegistos}>
+                  <Ionicons name="arrow-forward" size={20} color="#1792FE" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Dropdowns Melhorados */}
+              <View style={styles.dropdownsContainer}>
+                <View style={styles.dropdownWrapper}>
+                  <Text style={styles.dropdownLabel}>
+                    <Ionicons name="business-outline" size={14} color="#666" /> Empresa
+                  </Text>
+                  <View style={styles.modernPicker}>
+                    <Picker
+                      selectedValue={empresaFiltro}
+                      onValueChange={(v) => setEmpresaFiltro(v)}
+                      style={styles.pickerStyle}
+                      dropdownIconColor="#1792FE"
+                    >
+                      <Picker.Item label="Todas as empresas" value="" />
+                      {empresasCombo.slice(1).map((e, idx) => (
+                        <Picker.Item key={`emp-${idx}`} label={`🏢 ${e}`} value={e} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                <View style={styles.dropdownWrapper}>
+                  <Text style={styles.dropdownLabel}>
+                    <Ionicons name="construct-outline" size={14} color="#666" /> Categoria
+                  </Text>
+                  <View style={styles.modernPicker}>
+                    <Picker
+                      selectedValue={categoriaFiltro}
+                      onValueChange={(v) => setCategoriaFiltro(v)}
+                      style={styles.pickerStyle}
+                      dropdownIconColor="#1792FE"
+                    >
+                      <Picker.Item label="Todas as categorias" value="" />
+                      {categoriasCombo.slice(1).map((c, idx) => (
+                        <Picker.Item key={`cat-${idx}`} label={`⚒️ ${c}`} value={c} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+              </View>
+
+              {/* Status Chips */}
+              <View style={styles.statusContainer}>
+                {[
+                  { key: 'todos', label: 'Todos', icon: 'list' },
+                  { key: 'ativos', label: 'Ativos', icon: 'checkmark-circle' },
+                  { key: 'inativos', label: 'Inativos', icon: 'pause-circle' },
+                  { key: 'anulados', label: 'Anulados', icon: 'close-circle' }
+                ].map(opcao => (
+                  <TouchableOpacity
+                    key={opcao.key}
+                    style={[styles.statusChip, filtroStatus === opcao.key && styles.statusChipActive]}
+                    onPress={() => setFiltroStatus(opcao.key)}
+                  >
+                    <Ionicons 
+                      name={opcao.icon} 
+                      size={16} 
+                      color={filtroStatus === opcao.key ? '#fff' : '#666'} 
+                    />
+                    <Text style={filtroStatus === opcao.key ? styles.statusChipTextActive : styles.statusChipText}>
+                      {opcao.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.actionButtonsContainer}>
+                <TouchableOpacity onPress={fetchRegistos} style={[styles.modernButton, styles.primaryButton]}>
+                  <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.modernButtonGradient}>
+                    <Ionicons name="funnel" size={18} color="#fff" />
+                    <Text style={styles.modernButtonText}>Aplicar Filtros</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={openCreate} style={[styles.modernButton, styles.successButton]}>
+                  <LinearGradient colors={['#28a745', '#20c997']} style={styles.modernButtonGradient}>
+                    <Ionicons name="add-circle" size={18} color="#fff" />
+                    <Text style={styles.modernButtonText}>Novo Registo</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={openResumoExternos} style={[styles.modernButton, styles.warningButton]}>
+                  <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.modernButtonGradient}>
+                    <Ionicons name="analytics" size={18} color="#fff" />
+                    <Text style={styles.modernButtonText}>Resumo Analytics</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
-          )}
-        />
+          </View>
+
+          {/* Lista Melhorada */}
+          <FlatList
+            data={listaFiltrada}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}
+            scrollEnabled={listaFiltrada.length > 2}
+            refreshControl={
+              <RefreshControl 
+                refreshing={refreshing} 
+                onRefresh={onRefresh} 
+                colors={['#1792FE']}
+                tintColor="#1792FE"
+              />
+            }
+            ListEmptyComponent={() => (
+              <View style={styles.emptyStateContainer}>
+                <View style={styles.emptyStateCard}>
+                  <LinearGradient 
+                    colors={['rgba(23, 146, 254, 0.1)', 'rgba(23, 146, 254, 0.05)']} 
+                    style={styles.emptyStateIcon}
+                  >
+                    <Ionicons name="people-outline" size={80} color="#1792FE" />
+                  </LinearGradient>
+                  <Text style={styles.emptyStateTitle}>Nenhum trabalhador externo encontrado</Text>
+                  <Text style={styles.emptyStateText}>
+                    {search || empresaFiltro || categoriaFiltro || filtroStatus !== 'todos' 
+                      ? 'Tente ajustar os filtros de pesquisa ou limpar os critérios.' 
+                      : 'Comece por criar o primeiro registo de trabalhador externo.'}
+                  </Text>
+                  <TouchableOpacity onPress={openCreate} style={styles.emptyStateButton}>
+                    <LinearGradient colors={['#28a745', '#20c997']} style={styles.emptyStateButtonGradient}>
+                      <Ionicons name="add" size={20} color="#fff" />
+                      <Text style={styles.emptyStateButtonText}>Criar Primeiro Registo</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          />
+        </ScrollView>
 
         {/* Modal Form Melhorado */}
         <Modal visible={modalFormVisible} animationType="slide" onRequestClose={closeForm} presentationStyle="pageSheet">
@@ -1264,225 +1272,231 @@ const GestaoTrabalhadoresExternos = () => {
               </View>
             </LinearGradient>
 
-            <View style={styles.resumoControls}>
-              <View style={styles.controlSection}>
-                <Text style={styles.controlSectionTitle}>Granularidade Temporal</Text>
-                <View style={styles.segmentControl}>
-                  {[
-                    { k: 'diario', label: 'Diário', icon: 'calendar-outline' },
-                    { k: 'mensal', label: 'Mensal', icon: 'calendar' },
-                    { k: 'anual', label: 'Anual', icon: 'calendar-sharp' },
-                  ].map(op => (
-                    <TouchableOpacity
-                      key={op.k}
-                      onPress={() => setGranularidade(op.k)}
-                      style={[styles.segmentBtn, granularidade === op.k && styles.segmentBtnActive]}
-                    >
-                      <Ionicons name={op.icon} size={16} color={granularidade === op.k ? '#fff' : '#666'} />
-                      <Text style={granularidade === op.k ? styles.segmentTextActive : styles.segmentText}>
-                        {op.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.controlSection}>
-                <Text style={styles.controlSectionTitle}>Agrupamento de Dados</Text>
-                <View style={styles.chipContainer}>
-                  {[
-                    { k: 'geral', label: 'Geral', icon: 'grid-outline' },
-                    { k: 'obra', label: 'Por Obra', icon: 'business-outline' },
-                    { k: 'empresa', label: 'Por Empresa', icon: 'storefront-outline' },
-                    { k: 'externo', label: 'Por Colaborador', icon: 'person-outline' },
-                    { k: 'especialidade', label: 'Por Especialidade', icon: 'construct-outline' },
-                  ].map(op => (
-                    <TouchableOpacity
-                      key={op.k}
-                      onPress={() => setAgruparPor(op.k)}
-                      style={[styles.chip, agruparPor === op.k && styles.chipActive]}
-                    >
-                      <Ionicons name={op.icon} size={14} color={agruparPor === op.k ? '#fff' : '#666'} />
-                      <Text style={agruparPor === op.k ? styles.chipTextActive : styles.chipText}>
-                        {op.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.switchSection}>
-                <View style={styles.switchOptionContainer}>
-                  <Ionicons name="cash" size={18} color="#28a745" />
-                  <Text style={styles.switchOptionLabel}>Mostrar valores financeiros (€)</Text>
-                  <Switch 
-                    value={mostrarValores} 
-                    onValueChange={setMostrarValores}
-                    trackColor={{ false: '#e9ecef', true: '#28a745' }}
-                    thumbColor={mostrarValores ? '#fff' : '#6c757d'}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.controlSection}>
-                <Text style={styles.controlSectionTitle}>Filtros de Data</Text>
-                <View style={styles.dateRangeContainer}>
-                  <View style={styles.dateInput}>
-                    <Text style={styles.dateInputLabel}>Data Início</Text>
-                    <TextInput
-                      placeholder="YYYY-MM-DD"
-                      value={dataInicio}
-                      onChangeText={setDataInicio}
-                      style={styles.modernInput}
-                      placeholderTextColor="#999"
-                    />
+            <ScrollView 
+              style={{ flex: 1 }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ flexGrow: 1 }}
+            >
+              <View style={styles.resumoControls}>
+                <View style={styles.controlSection}>
+                  <Text style={styles.controlSectionTitle}>Granularidade Temporal</Text>
+                  <View style={styles.segmentControl}>
+                    {[
+                      { k: 'diario', label: 'Diário', icon: 'calendar-outline' },
+                      { k: 'mensal', label: 'Mensal', icon: 'calendar' },
+                      { k: 'anual', label: 'Anual', icon: 'calendar-sharp' },
+                    ].map(op => (
+                      <TouchableOpacity
+                        key={op.k}
+                        onPress={() => setGranularidade(op.k)}
+                        style={[styles.segmentBtn, granularidade === op.k && styles.segmentBtnActive]}
+                      >
+                        <Ionicons name={op.icon} size={16} color={granularidade === op.k ? '#fff' : '#666'} />
+                        <Text style={granularidade === op.k ? styles.segmentTextActive : styles.segmentText}>
+                          {op.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                  <View style={styles.dateInput}>
-                    <Text style={styles.dateInputLabel}>Data Fim</Text>
-                    <TextInput
-                      placeholder="YYYY-MM-DD"
-                      value={dataFim}
-                      onChangeText={setDataFim}
-                      style={styles.modernInput}
-                      placeholderTextColor="#999"
+                </View>
+
+                <View style={styles.controlSection}>
+                  <Text style={styles.controlSectionTitle}>Agrupamento de Dados</Text>
+                  <View style={styles.chipContainer}>
+                    {[
+                      { k: 'geral', label: 'Geral', icon: 'grid-outline' },
+                      { k: 'obra', label: 'Por Obra', icon: 'business-outline' },
+                      { k: 'empresa', label: 'Por Empresa', icon: 'storefront-outline' },
+                      { k: 'externo', label: 'Por Colaborador', icon: 'person-outline' },
+                      { k: 'especialidade', label: 'Por Especialidade', icon: 'construct-outline' },
+                    ].map(op => (
+                      <TouchableOpacity
+                        key={op.k}
+                        onPress={() => setAgruparPor(op.k)}
+                        style={[styles.chip, agruparPor === op.k && styles.chipActive]}
+                      >
+                        <Ionicons name={op.icon} size={14} color={agruparPor === op.k ? '#fff' : '#666'} />
+                        <Text style={agruparPor === op.k ? styles.chipTextActive : styles.chipText}>
+                          {op.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.switchSection}>
+                  <View style={styles.switchOptionContainer}>
+                    <Ionicons name="cash" size={18} color="#28a745" />
+                    <Text style={styles.switchOptionLabel}>Mostrar valores financeiros (€)</Text>
+                    <Switch 
+                      value={mostrarValores} 
+                      onValueChange={setMostrarValores}
+                      trackColor={{ false: '#e9ecef', true: '#28a745' }}
+                      thumbColor={mostrarValores ? '#fff' : '#6c757d'}
                     />
                   </View>
                 </View>
-              </View>
 
-              <View style={styles.controlSection}>
-                <Text style={styles.controlSectionTitle}>Filtros Avançados</Text>
-                <View style={styles.advancedFilters}>
-                  <View style={styles.filterDropdown}>
-                    <Text style={styles.filterLabel}>Empresa</Text>
-                    <View style={styles.modernPicker}>
-                      <Picker
-                        selectedValue={empresaResumoFiltro}
-                        onValueChange={setEmpresaResumoFiltro}
-                        style={styles.pickerStyle}
-                      >
-                        <Picker.Item label="Todas" value="" />
-                        {resumoOptions.empresas.slice(1).map((e, idx) => (
-                          <Picker.Item key={`emp-res-${idx}`} label={e} value={e} />
-                        ))}
-                      </Picker>
+                <View style={styles.controlSection}>
+                  <Text style={styles.controlSectionTitle}>Filtros de Data</Text>
+                  <View style={styles.dateRangeContainer}>
+                    <View style={styles.dateInput}>
+                      <Text style={styles.dateInputLabel}>Data Início</Text>
+                      <TextInput
+                        placeholder="YYYY-MM-DD"
+                        value={dataInicio}
+                        onChangeText={setDataInicio}
+                        style={styles.modernInput}
+                        placeholderTextColor="#999"
+                      />
                     </View>
-                  </View>
-
-                  <View style={styles.filterDropdown}>
-                    <Text style={styles.filterLabel}>Colaborador</Text>
-                    <View style={styles.modernPicker}>
-                      <Picker
-                        selectedValue={externoResumoFiltro}
-                        onValueChange={setExternoResumoFiltro}
-                        style={styles.pickerStyle}
-                      >
-                        <Picker.Item label="Todos" value="" />
-                        {resumoOptions.externos.slice(1).map((e, idx) => (
-                          <Picker.Item key={`ext-res-${idx}`} label={e} value={e} />
-                        ))}
-                      </Picker>
-                    </View>
-                  </View>
-
-                  <View style={styles.filterDropdown}>
-                    <Text style={styles.filterLabel}>Especialidade</Text>
-                    <View style={styles.modernPicker}>
-                      <Picker
-                        selectedValue={especialidadeResumoFiltro}
-                        onValueChange={setEspecialidadeResumoFiltro}
-                        style={styles.pickerStyle}
-                      >
-                        <Picker.Item label="Todas" value="" />
-                        {resumoOptions.especialidades.slice(1).map((e, idx) => (
-                          <Picker.Item key={`esp-res-${idx}`} label={e} value={e} />
-                        ))}
-                      </Picker>
+                    <View style={styles.dateInput}>
+                      <Text style={styles.dateInputLabel}>Data Fim</Text>
+                      <TextInput
+                        placeholder="YYYY-MM-DD"
+                        value={dataFim}
+                        onChangeText={setDataFim}
+                        style={styles.modernInput}
+                        placeholderTextColor="#999"
+                      />
                     </View>
                   </View>
                 </View>
-              </View>
-            </View>
 
-            {resumoLoading ? (
-              <View style={styles.centerContainer}>
-                <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.loadingCard}>
-                  <ActivityIndicator size="large" color="#fff" />
-                  <Text style={styles.loadingText}>A processar dados analytics...</Text>
-                </LinearGradient>
-              </View>
-            ) : (
-              <ScrollView contentContainerStyle={styles.resumoContent} showsVerticalScrollIndicator={false}>
-                {resumoAgrupado.length === 0 ? (
-                  <View style={styles.emptyStateContainer}>
-                    <View style={styles.emptyStateCard}>
-                      <LinearGradient 
-                        colors={['rgba(253, 126, 20, 0.1)', 'rgba(243, 156, 18, 0.05)']} 
-                        style={styles.emptyStateIcon}
-                      >
-                        <Ionicons name="analytics-outline" size={80} color="#fd7e14" />
-                      </LinearGradient>
-                      <Text style={styles.emptyStateTitle}>Sem dados para análise</Text>
-                      <Text style={styles.emptyStateText}>
-                        Ajuste os filtros, granularidade ou período para visualizar os dados.
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  resumoAgrupado.map(period => (
-                    <View key={period.periodKey} style={styles.analyticsCard}>
-                      <View style={styles.analyticsCardHeader}>
-                        <View style={styles.analyticsIconContainer}>
-                          <Ionicons name="calendar" size={20} color="#1792FE" />
-                        </View>
-                        <Text style={styles.analyticsCardTitle}>{period.label}</Text>
-                        <View style={styles.analyticsCardBadge}>
-                          <Ionicons name="time" size={14} color="#fff" />
-                          <Text style={styles.analyticsCardBadgeText}>{formatarHoras(period.total)}</Text>
-                        </View>
+                <View style={styles.controlSection}>
+                  <Text style={styles.controlSectionTitle}>Filtros Avançados</Text>
+                  <View style={styles.advancedFilters}>
+                    <View style={styles.filterDropdown}>
+                      <Text style={styles.filterLabel}>Empresa</Text>
+                      <View style={styles.modernPicker}>
+                        <Picker
+                          selectedValue={empresaResumoFiltro}
+                          onValueChange={setEmpresaResumoFiltro}
+                          style={styles.pickerStyle}
+                        >
+                          <Picker.Item label="Todas" value="" />
+                          {resumoOptions.empresas.slice(1).map((e, idx) => (
+                            <Picker.Item key={`emp-res-${idx}`} label={e} value={e} />
+                          ))}
+                        </Picker>
                       </View>
+                    </View>
 
-                      <View style={styles.analyticsCardContent}>
-                        {period.groups.map(g => (
-                          <View key={`${period.periodKey}-${g.label}`} style={styles.analyticsItem}>
-                            <View style={styles.analyticsItemIcon}>
-                              <Ionicons
-                                name={
-                                  agruparPor === 'obra' ? 'business' :
-                                  agruparPor === 'externo' ? 'person' :
-                                  agruparPor.includes('empresa') ? 'storefront' :
-                                  agruparPor.includes('especialidade') ? 'construct' :
-                                  'analytics'
-                                }
-                                size={16}
-                                color="#666"
-                              />
-                            </View>
-                            <View style={styles.analyticsItemContent}>
-                              <Text style={styles.analyticsItemLabel} numberOfLines={1}>{g.label}</Text>
-                              <View style={styles.analyticsItemValues}>
-                                <View style={styles.analyticsValueItem}>
-                                  <Ionicons name="time" size={12} color="#17a2b8" />
-                                  <Text style={styles.analyticsValueText}>{formatarHoras(g.minutos)}</Text>
-                                </View>
-                                {mostrarValores && Object.entries(g.valores || {}).map(([moeda, v]) => (
-                                  <View key={moeda} style={styles.analyticsValueItem}>
-                                    <Ionicons name="cash" size={12} color="#28a745" />
-                                    <Text style={[styles.analyticsValueText, styles.moneyText]}>
-                                      {formatarValor(v)} {moeda}
-                                    </Text>
+                    <View style={styles.filterDropdown}>
+                      <Text style={styles.filterLabel}>Colaborador</Text>
+                      <View style={styles.modernPicker}>
+                        <Picker
+                          selectedValue={externoResumoFiltro}
+                          onValueChange={setExternoResumoFiltro}
+                          style={styles.pickerStyle}
+                        >
+                          <Picker.Item label="Todos" value="" />
+                          {resumoOptions.externos.slice(1).map((e, idx) => (
+                            <Picker.Item key={`ext-res-${idx}`} label={e} value={e} />
+                          ))}
+                        </Picker>
+                      </View>
+                    </View>
+
+                    <View style={styles.filterDropdown}>
+                      <Text style={styles.filterLabel}>Especialidade</Text>
+                      <View style={styles.modernPicker}>
+                        <Picker
+                          selectedValue={especialidadeResumoFiltro}
+                          onValueChange={setEspecialidadeResumoFiltro}
+                          style={styles.pickerStyle}
+                        >
+                          <Picker.Item label="Todas" value="" />
+                          {resumoOptions.especialidades.slice(1).map((e, idx) => (
+                            <Picker.Item key={`esp-res-${idx}`} label={e} value={e} />
+                          ))}
+                        </Picker>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {resumoLoading ? (
+                <View style={styles.centerContainer}>
+                  <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.loadingCard}>
+                    <ActivityIndicator size="large" color="#fff" />
+                    <Text style={styles.loadingText}>A processar dados analytics...</Text>
+                  </LinearGradient>
+                </View>
+              ) : (
+                <View style={styles.resumoContent}>
+                  {resumoAgrupado.length === 0 ? (
+                    <View style={styles.emptyStateContainer}>
+                      <View style={styles.emptyStateCard}>
+                        <LinearGradient 
+                          colors={['rgba(253, 126, 20, 0.1)', 'rgba(243, 156, 18, 0.05)']} 
+                          style={styles.emptyStateIcon}
+                        >
+                          <Ionicons name="analytics-outline" size={80} color="#fd7e14" />
+                        </LinearGradient>
+                        <Text style={styles.emptyStateTitle}>Sem dados para análise</Text>
+                        <Text style={styles.emptyStateText}>
+                          Ajuste os filtros, granularidade ou período para visualizar os dados.
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    resumoAgrupado.map(period => (
+                      <View key={period.periodKey} style={styles.analyticsCard}>
+                        <View style={styles.analyticsCardHeader}>
+                          <View style={styles.analyticsIconContainer}>
+                            <Ionicons name="calendar" size={20} color="#1792FE" />
+                          </View>
+                          <Text style={styles.analyticsCardTitle}>{period.label}</Text>
+                          <View style={styles.analyticsCardBadge}>
+                            <Ionicons name="time" size={14} color="#fff" />
+                            <Text style={styles.analyticsCardBadgeText}>{formatarHoras(period.total)}</Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.analyticsCardContent}>
+                          {period.groups.map(g => (
+                            <View key={`${period.periodKey}-${g.label}`} style={styles.analyticsItem}>
+                              <View style={styles.analyticsItemIcon}>
+                                <Ionicons
+                                  name={
+                                    agruparPor === 'obra' ? 'business' :
+                                    agruparPor === 'externo' ? 'person' :
+                                    agruparPor.includes('empresa') ? 'storefront' :
+                                    agruparPor.includes('especialidade') ? 'construct' :
+                                    'analytics'
+                                  }
+                                  size={16}
+                                  color="#666"
+                                />
+                              </View>
+                              <View style={styles.analyticsItemContent}>
+                                <Text style={styles.analyticsItemLabel} numberOfLines={1}>{g.label}</Text>
+                                <View style={styles.analyticsItemValues}>
+                                  <View style={styles.analyticsValueItem}>
+                                    <Ionicons name="time" size={12} color="#17a2b8" />
+                                    <Text style={styles.analyticsValueText}>{formatarHoras(g.minutos)}</Text>
                                   </View>
-                                ))}
+                                  {mostrarValores && Object.entries(g.valores || {}).map(([moeda, v]) => (
+                                    <View key={moeda} style={styles.analyticsValueItem}>
+                                      <Ionicons name="cash" size={12} color="#28a745" />
+                                      <Text style={[styles.analyticsValueText, styles.moneyText]}>
+                                        {formatarValor(v)} {moeda}
+                                      </Text>
+                                    </View>
+                                  ))}
+                                </View>
                               </View>
                             </View>
-                          </View>
-                        ))}
+                          ))}
+                        </View>
                       </View>
-                    </View>
-                  ))
-                )}
-              </ScrollView>
-            )}
+                    ))
+                  )}
+                </View>
+              )}
+            </ScrollView>
           </SafeAreaView>
         </Modal>
 

@@ -241,14 +241,19 @@ const RegistoPontoFacial = (props) => {
 
     // Carregar obras disponíveis
     useEffect(() => {
+        let isMounted = true;
+        
         const fetchObras = async () => {
             try {
+                if (!isMounted) return;
                 setLoading(true);
+                
                 const token = localStorage.getItem('loginToken');
                 const res = await fetch('https://backend.advir.pt/api/obra', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                if (res.ok) {
+                
+                if (res.ok && isMounted) {
                     const data = await res.json();
                     const empresaId = localStorage.getItem('empresa_id');
                     const obrasDaEmpresa = data.filter(o => o.empresa_id == empresaId);
@@ -261,22 +266,44 @@ const RegistoPontoFacial = (props) => {
                 }
             } catch (err) {
                 console.error('Erro ao carregar obras:', err);
-                alert('Erro ao carregar obras');
+                if (isMounted) {
+                    setStatusMessage('Erro ao carregar obras');
+                }
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchObras();
+        
+        // Cleanup function para limpar recursos quando componente desmonta
+        return () => {
+            isMounted = false;
+            setIsFacialScanning(false);
+            registoLockRef.current = false;
+            scanLockRef.current = false;
+        };
     }, []);
 
     // Carregar resumo da obra selecionada
     useEffect(() => {
-        if (obraSelecionada) {
-            carregarResumoObra(obraSelecionada);
-        } else {
-            setResumoObra({ pessoasAConsultar: 0, entradasSaidas: [] });
-        }
+        let isMounted = true;
+        
+        const loadResumo = async () => {
+            if (obraSelecionada && isMounted) {
+                await carregarResumoObra(obraSelecionada);
+            } else if (isMounted) {
+                setResumoObra({ pessoasAConsultar: 0, entradasSaidas: [] });
+            }
+        };
+        
+        loadResumo();
+        
+        return () => {
+            isMounted = false;
+        };
     }, [obraSelecionada]);
 
     const carregarResumoObra = async (obraId) => {
@@ -286,12 +313,12 @@ const RegistoPontoFacial = (props) => {
             const url = `https://backend.advir.pt/api/registo-ponto-obra/resumo-obra/${obraId}`;
 
             console.log('🔄 Carregando resumo da obra...');
-            console.log('📡 URL:', url);
-            console.log('🎯 Obra ID:', obraId);
-            console.log('🔑 Token exists:', !!token);
 
             const res = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Cache-Control': 'no-cache'
+                }
             });
 
             console.log('📥 Response status:', res.status);
@@ -496,7 +523,7 @@ const handleFacialScanComplete = async (facialData) => {
   const timeSinceLastScan = now - lastScanTime;
 
   // 🔒 evita reentradas imediatas
-  if (scanLockRef.current || isRegistering || isProcessingScan || timeSinceLastScan < 3000) {
+  if (scanLockRef.current || isRegistering || isProcessingScan || timeSinceLastScan < 5000) {
     console.log('⚠️ Scan ignorado (já a processar ou demasiado recente)');
     setIsFacialScanning(false);
     return;
@@ -512,12 +539,13 @@ const handleFacialScanComplete = async (facialData) => {
     await processarEntradaComFacial(facialData);
   } catch (error) {
     console.error('Erro ao processar entrada com facial:', error);
+    setStatusMessage('Erro ao processar reconhecimento facial');
   } finally {
-    // reduzir janela de refrigério para melhorar performance
+    // Timeout maior para reduzir carga no servidor
     setTimeout(() => {
-      scanLockRef.current = false;     // 🔓
+      scanLockRef.current = false;
       setIsProcessingScan(false);
-    }, 500);
+    }, 2000);
   }
 };
 
@@ -554,18 +582,17 @@ const handleFacialScanComplete = async (facialData) => {
         setShowResultModal(false);
         setModalData({ type: '', message: '', userName: '', action: '' });
         setStatusMessage('');
-        setIsRegistering(false); // Garantir que o bloqueio é removido
-        setIsProcessingScan(false); // Garantir que o processamento é limpo
-        registoLockRef.current = false; // Garantir que o lock é removido
-        scanLockRef.current = false; // Garantir que o scan lock é removido
+        setIsRegistering(false);
+        setIsProcessingScan(false);
+        registoLockRef.current = false;
+        scanLockRef.current = false;
         
-        // Recarregar resumo da obra imediatamente
+        // Recarregar apenas o resumo da obra sem refresh da página
         if (obraSelecionada) {
-            carregarResumoObra(obraSelecionada);
+            setTimeout(() => {
+                carregarResumoObra(obraSelecionada);
+            }, 1000);
         }
-        
-        // Refresh da página imediatamente
-        window.location.reload();
     };
 
     const isPOS = localStorage.getItem('isPOS') === 'true';
@@ -573,7 +600,9 @@ const handleFacialScanComplete = async (facialData) => {
     return (
         <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{
             overflowX: 'hidden',
-            position: 'relative'
+            overflowY: 'auto',
+            position: 'relative',
+            height: '100vh'
         }}>
             
             <div style={{
@@ -747,7 +776,7 @@ const handleFacialScanComplete = async (facialData) => {
                 </div>
             )}
 
-            <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ position: 'relative', zIndex: 1, height: '100%', overflowY: 'auto' }}>
                 <div className="row justify-content-center">
                     <div className="col-12 col-xl-10">
                         {/* Header */}

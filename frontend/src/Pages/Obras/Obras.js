@@ -826,25 +826,33 @@ const ListarObras = ({ navigation }) => {
             colors={["#e3f2fd", "#bbdefb", "#90caf9"]}
             style={styles.container}
         >
-            {renderHeader()}
+            <ScrollView
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ flexGrow: 1 }}
+            >
+                {renderHeader()}
 
-            {!loading && !errorMessage && renderSearchBar()}
-            {!loading && !errorMessage && renderFilters()}
+                {!loading && !errorMessage && renderSearchBar()}
+                {!loading && !errorMessage && renderFilters()}
 
-            {loading ? (
-                renderLoadingState()
-            ) : errorMessage ? (
-                renderErrorState()
-            ) : (
-                <FlatList
-                    data={filteredObras}
-                    renderItem={renderObra}
-                    keyExtractor={(item) => item.ID.toString()}
-                    contentContainerStyle={styles.listContainer}
-                    showsVerticalScrollIndicator={false}
-                    ListEmptyComponent={renderEmptyState}
-                />
-            )}
+                {loading ? (
+                    renderLoadingState()
+                ) : errorMessage ? (
+                    renderErrorState()
+                ) : (
+                    <FlatList
+                        data={filteredObras}
+                        renderItem={renderObra}
+                        keyExtractor={(item) => item.ID.toString()}
+                        contentContainerStyle={styles.listContainer}
+                        showsVerticalScrollIndicator={false}
+                        ListEmptyComponent={renderEmptyState}
+                        nestedScrollEnabled={true}
+                        scrollEnabled={filteredObras.length > 3}
+                    />
+                )}
+            </ScrollView>
         </LinearGradient>
     );
 };

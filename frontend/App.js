@@ -292,29 +292,29 @@ const CustomDrawerContent = ({
 
 
     const moduleDisplayNames = {
-        Obras: "Ponto",
-        Servicos: "Serviços",
-        Oficios: "Ofícios",
-        Administrador: "Administrador",
-    };
+  Obras: "Ponto",
+  Servicos: "Serviços",
+  Oficios: "Ofícios",
+  Administrador: "Administrador",
+};
 
 
 
-    // Define a ordem que queres para os submódulos de Obras
-    const obrasSubmodulesOrder = [
-        "Ponto",          // RegistoPontoObra
-        "PontoFacial",    // RegistoPontoFacial
-        "Agenda",         // Calendário
-        "Obras",         // Obras
-        "Escritório",     // Escritório
-        "Equipas",        // Criar Equipa
-        "PartesDiarias",   // Partes Diárias
-        "GestaoPontos",   // GestaoPontos
-        "GestaoFaltas",   // GestaoFaltas
-        "GestaoExternos", // GestaoTrabalhadoresExternos
-        "GestaoPartes",   // GestaoPartesDiarias
-        "MapaRegistos"    // MapaRegistos
-    ];
+// Define a ordem que queres para os submódulos de Obras
+const obrasSubmodulesOrder = [
+  "Ponto",          // RegistoPontoObra
+  "PontoFacial",    // RegistoPontoFacial
+  "Agenda",         // Calendário
+  "Obras",         // Obras
+  "Escritório",     // Escritório
+  "Equipas",        // Criar Equipa
+  "PartesDiarias",   // Partes Diárias
+  "GestaoPontos",   // GestaoPontos
+  "GestaoFaltas",   // GestaoFaltas
+  "GestaoExternos", // GestaoTrabalhadoresExternos
+  "GestaoPartes",   // GestaoPartesDiarias
+  "MapaRegistos"    // MapaRegistos
+];
 
 
 
@@ -331,22 +331,22 @@ const CustomDrawerContent = ({
     };
 
     const getModuleDisplayName = (module) => {
-        // Mapa base para outros módulos
-        const base = {
-            Servicos: "Serviços",
-            Oficios: "Ofícios",
-            Administrador: "Administrador",
-        };
+  // Mapa base para outros módulos
+  const base = {
+    Servicos: "Serviços",
+    Oficios: "Ofícios",
+    Administrador: "Administrador",
+  };
 
-        if (module?.nome === "Obras") {
-            // Se tiver submódulo "Ponto", chama-se "Ponto"; senão, "Obras"
-            const hasPonto = Array.isArray(module?.submodulos)
-                && module.submodulos.some(s => s?.nome === "Ponto");
-            return hasPonto ? "Ponto" : "Obras";
-        }
+  if (module?.nome === "Obras") {
+    // Se tiver submódulo "Ponto", chama-se "Ponto"; senão, "Obras"
+    const hasPonto = Array.isArray(module?.submodulos)
+      && module.submodulos.some(s => s?.nome === "Ponto");
+    return hasPonto ? "Ponto" : "Obras";
+  }
 
-        return base[module?.nome] || module?.nome;
-    };
+  return base[module?.nome] || module?.nome;
+};
 
     const getSubmoduleIcon = (submoduleName) => {
         const icons = {
@@ -458,35 +458,35 @@ const CustomDrawerContent = ({
                 contentContainerStyle={{ flexGrow: 1, paddingTop: 0 }}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Início */}
-                <View style={drawerStyles.moduleContainer}>
-                    <TouchableOpacity
-                        style={drawerStyles.moduleHeader}
-                        onPress={() => props.navigation.navigate("Home")}
-                        activeOpacity={0.7}
-                    >
-                        <View style={drawerStyles.moduleTitle}>
-                            <FontAwesome name="home" size={18} color="#1792FE" />
-                            <Text style={drawerStyles.moduleText}>Início</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
+{/* Início */}
+<View style={drawerStyles.moduleContainer}>
+  <TouchableOpacity
+    style={drawerStyles.moduleHeader}
+    onPress={() => props.navigation.navigate("Home")}
+    activeOpacity={0.7}
+  >
+    <View style={drawerStyles.moduleTitle}>
+      <FontAwesome name="home" size={18} color="#1792FE" />
+      <Text style={drawerStyles.moduleText}>Início</Text>
+    </View>
+  </TouchableOpacity>
+</View>
 
-                {/* Selecionar Empresa */}
-                {isLoggedIn && (
-                    <View style={drawerStyles.moduleContainer}>
-                        <TouchableOpacity
-                            style={drawerStyles.moduleHeader}
-                            onPress={() => props.navigation.navigate("SelecaoEmpresa")}
-                            activeOpacity={0.7}
-                        >
-                            <View style={drawerStyles.moduleTitle}>
-                                <FontAwesome name="building" size={18} color="#1792FE" />
-                                <Text style={drawerStyles.moduleText}>Selecionar Empresa</Text>
-                            </View>
-                        </TouchableOpacity>
-                    </View>
-                )}
+{/* Selecionar Empresa */}
+{isLoggedIn && (
+  <View style={drawerStyles.moduleContainer}>
+    <TouchableOpacity
+      style={drawerStyles.moduleHeader}
+      onPress={() => props.navigation.navigate("SelecaoEmpresa")}
+      activeOpacity={0.7}
+    >
+      <View style={drawerStyles.moduleTitle}>
+        <FontAwesome name="building" size={18} color="#1792FE" />
+        <Text style={drawerStyles.moduleText}>Selecionar Empresa</Text>
+      </View>
+    </TouchableOpacity>
+  </View>
+)}
 
 
 
@@ -711,9 +711,9 @@ const CustomDrawerContent = ({
                                                 size={18}
                                                 color="#1792FE"
                                             />
-                                            <Text style={drawerStyles.moduleText}>
-                                                {getModuleDisplayName(module)}
-                                            </Text>
+                                             <Text style={drawerStyles.moduleText}>
+  {getModuleDisplayName(module)}
+   </Text>
 
                                         </View>
                                         <FontAwesome
@@ -728,14 +728,14 @@ const CustomDrawerContent = ({
                                     </TouchableOpacity>
 
                                     {expandedModules[module.nome] && (
-                                        <View style={drawerStyles.submoduleContainer}>
-                                            {module.submodulos
-                                                .sort((a, b) => {
-                                                    const orderA = obrasSubmodulesOrder.indexOf(a.nome);
-                                                    const orderB = obrasSubmodulesOrder.indexOf(b.nome);
-                                                    return orderA - orderB;
-                                                })
-                                                .map((submodulo) => {
+  <View style={drawerStyles.submoduleContainer}>
+    {module.submodulos
+      .sort((a, b) => {
+        const orderA = obrasSubmodulesOrder.indexOf(a.nome);
+        const orderB = obrasSubmodulesOrder.indexOf(b.nome);
+        return orderA - orderB;
+      })
+                                            .map((submodulo) => {
                                                     // Mapear submódulos para navegação
                                                     const navigationMap = {
                                                         Obras: "Obras",
@@ -900,7 +900,7 @@ const CustomDrawerContent = ({
                                                         </TouchableOpacity>
                                                     );
                                                 },
-                                                )}
+                                            )}
                                         </View>
                                     )}
                                 </View>
@@ -1247,18 +1247,18 @@ const AppNavigator = () => {
         // Verificar se o token existe e é válido
         if (token && isTokenValid(token)) {// helper para flags no localStorage: "true" | "1" | "True"
             const getFlag = (key) => {
-                const v = localStorage.getItem(key);
-                return v === "true" || v === "1" || v === "True";
+            const v = localStorage.getItem(key);
+            return v === "true" || v === "1" || v === "True";
             };
 
             const adminStatus =
-                getFlag("isAdmin") || getFlag("admin");
+            getFlag("isAdmin") || getFlag("admin");
 
             const superAdminStatus =
-                getFlag("isSuperAdmin") || getFlag("superAdmin") || getFlag("superadmin");
+            getFlag("isSuperAdmin") || getFlag("superAdmin") || getFlag("superadmin");
 
             const posStatus =
-                getFlag("isPOS") || getFlag("isPos") || getFlag("pos");
+            getFlag("isPOS") || getFlag("isPos") || getFlag("pos");
 
             const userUsername = localStorage.getItem("username");
             const userModules = JSON.parse(localStorage.getItem("userModules") || "[]");
@@ -1769,7 +1769,7 @@ const AppNavigator = () => {
                         },
                     })}
                 >
-                    <Drawer.Screen
+                    <Drawer.Screen 
                         name="Login"
                         options={{
                             title: "AdvirLink - Login",
@@ -2045,7 +2045,7 @@ const AppNavigator = () => {
                     {isLoggedIn && (
                         <Drawer.Screen
                             name="SelecaoEmpresa"
-                            options={{
+                            options={{ 
                                 title: "AdvirLink - Empresa",
                                 drawerItemStyle: { display: "none" },
                                 swipeEnabled: false,
@@ -2131,166 +2131,166 @@ const styles = StyleSheet.create({
     },
 });
 
-const drawerStyles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#F8FAFC",
-    },
-    header: {
-        backgroundColor: "#4A9EFF",
-        paddingTop: 50,
-        paddingBottom: 25,
-        paddingHorizontal: 24,
-        borderBottomLeftRadius: 20,
-        borderBottomRightRadius: 20,
-        shadowColor: "#4A9EFF",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    logoContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginBottom: 12,
-        justifyContent: "center",
-    },
-    logo: {
-        width: 40,
-        height: 40,
-        marginRight: 12,
-        borderRadius: 8,
-    },
-    appName: {
-        fontSize: 24,
-        fontWeight: "700",
-        color: "#FFFFFF",
-        letterSpacing: 0.5,
-    },
-    userName: {
-        fontSize: 16,
-        color: "#E0E7FF",
-        fontWeight: "600",
-        textAlign: "center",
-        backgroundColor: "rgba(255, 255, 255, 0.1)",
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 12,
-        marginTop: 8,
-    },
-    userRole: {
-        fontSize: 13,
-        color: "#C7D2FE",
-        fontWeight: "500",
-        textAlign: "center",
-        marginTop: 4,
-    },
-    mainSection: {
-        paddingTop: 16,
-        paddingHorizontal: 4,
-    },
-    modulesSection: {
-        paddingTop: 12,
-        paddingHorizontal: 4,
-    },
-    adminSection: {
-        paddingTop: 12,
-        paddingHorizontal: 4,
-    },
-    bottomSection: {
-        marginTop: "auto",
-        paddingBottom: 24,
-        paddingHorizontal: 4,
-    },
-    sectionDivider: {
-        height: 1,
-        backgroundColor: "#E2E8F0",
-        marginVertical: 16,
-        marginHorizontal: 20,
-    },
-    menuItem: {
-        marginHorizontal: 12,
-        marginVertical: 3,
-        borderRadius: 12,
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-        backgroundColor: "#FFFFFF",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 3,
-        elevation: 1,
-    },
-    menuItemLabel: {
-        fontSize: 16,
-        paddingHorizontal: 1,
-        fontWeight: "600",
-        color: "#64748B",
-        marginLeft: "-10 !important",
-    },
-    logoutItem: {
-        backgroundColor: "#4A9EFF",
-        borderWidth: 1,
-        borderColor: "#4A9EFF",
-    },
-    moduleContainer: {
-        marginHorizontal: 12,
-        marginVertical: 6,
-        backgroundColor: "#FFFFFF",
-        borderRadius: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
-        overflow: "hidden",
-    },
-    moduleHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        borderRadius: 16,
-        shadowOpacity: 0.08,
+    const drawerStyles = StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor: "#F8FAFC",
+        },
+        header: {
+            backgroundColor: "#4A9EFF",
+            paddingTop: 50,
+            paddingBottom: 25,
+            paddingHorizontal: 24,
+            borderBottomLeftRadius: 20,
+            borderBottomRightRadius: 20,
+            shadowColor: "#4A9EFF",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 12,
+            elevation: 8,
+        },
+        logoContainer: {
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+            justifyContent: "center",
+        },
+        logo: {
+            width: 40,
+            height: 40,
+            marginRight: 12,
+            borderRadius: 8,
+        },
+        appName: {
+            fontSize: 24,
+            fontWeight: "700",
+            color: "#FFFFFF",
+            letterSpacing: 0.5,
+        },
+        userName: {
+            fontSize: 16,
+            color: "#E0E7FF",
+            fontWeight: "600",
+            textAlign: "center",
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+            borderRadius: 12,
+            marginTop: 8,
+        },
+        userRole: {
+            fontSize: 13,
+            color: "#C7D2FE",
+            fontWeight: "500",
+            textAlign: "center",
+            marginTop: 4,
+        },
+        mainSection: {
+            paddingTop: 16,
+            paddingHorizontal: 4,
+        },
+        modulesSection: {
+            paddingTop: 12,
+            paddingHorizontal: 4,
+        },
+        adminSection: {
+            paddingTop: 12,
+            paddingHorizontal: 4,
+        },
+        bottomSection: {
+            marginTop: "auto",
+            paddingBottom: 24,
+            paddingHorizontal: 4,
+        },
+        sectionDivider: {
+            height: 1,
+            backgroundColor: "#E2E8F0",
+            marginVertical: 16,
+            marginHorizontal: 20,
+        },
+        menuItem: {
+            marginHorizontal: 12,
+            marginVertical: 3,
+            borderRadius: 12,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            backgroundColor: "#FFFFFF",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 3,
+            elevation: 1,
+        },
+        menuItemLabel: {
+            fontSize: 16,
+            paddingHorizontal: 1,
+            fontWeight: "600",
+            color: "#64748B",
+            marginLeft: "-10 !important",
+        },
+        logoutItem: {
+            backgroundColor: "#4A9EFF",
+            borderWidth: 1,
+            borderColor: "#4A9EFF",
+        },
+        moduleContainer: {
+            marginHorizontal: 12,
+            marginVertical: 6,
+            backgroundColor: "#FFFFFF",
+            borderRadius: 16,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 3,
+            overflow: "hidden",
+        },
+        moduleHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            borderRadius: 16,            
+            shadowOpacity: 0.08,
 
-        shadowRadius: 8,
-        justifyContent: "space-between",
-        paddingVertical: 16,
-        paddingHorizontal: 20,
-        backgroundColor: "#FFFFFF",
-        borderBottomWidth: 1,
-        borderBottomColor: "#FFFFFF",
-    },
-    moduleTitle: {
-        flexDirection: "row",
-        alignItems: "center",
-    },
-    moduleText: {
-        fontSize: 15,
-        fontWeight: "600",
-        color: "#64748B",
-        marginLeft: 35,
-    },
-    submoduleContainer: {
-        backgroundColor: "#FFFFFF",
-        paddingVertical: 8,
-    },
-    submoduleItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        marginVertical: 2,
-        marginHorizontal: 8,
-        borderRadius: 10,
-        backgroundColor: "transparent",
-        transition: "background-color 0.2s ease",
-    },
-    submoduleText: {
-        fontSize: 15,
-        color: "#64748B",
-        marginLeft: 14,
-        fontWeight: "600",
-    },
-});
+            shadowRadius: 8,
+            justifyContent: "space-between",
+            paddingVertical: 16,
+            paddingHorizontal: 20,
+            backgroundColor: "#FFFFFF",
+            borderBottomWidth: 1,
+            borderBottomColor: "#FFFFFF",
+        },
+        moduleTitle: {
+            flexDirection: "row",
+            alignItems: "center",
+        },
+        moduleText: {
+            fontSize: 15,
+            fontWeight: "600",
+            color: "#64748B",
+            marginLeft: 35,
+        },
+        submoduleContainer: {
+            backgroundColor: "#FFFFFF",
+            paddingVertical: 8,
+        },
+        submoduleItem: {
+            flexDirection: "row",
+            alignItems: "center",
+            paddingVertical: 12,
+            paddingHorizontal: 24,
+            marginVertical: 2,
+            marginHorizontal: 8,
+            borderRadius: 10,
+            backgroundColor: "transparent",
+            transition: "background-color 0.2s ease",
+        },
+        submoduleText: {
+            fontSize: 15,
+            color: "#64748B",
+            marginLeft: 14,
+            fontWeight: "600",
+        },
+    });
 
 const profileMenuStyles = StyleSheet.create({
     dropdown: {

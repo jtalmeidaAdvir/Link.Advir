@@ -3215,14 +3215,19 @@ const renderDataSheet = () => {
     style={{ flex: 1 }}
   >
     <SafeAreaView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {renderHeader()}
-        {renderControls()}
-        {renderDataSheet()}
-        {renderConfirmModal()}
-        {renderEditModal()}
-        {renderExternosModal()}
-
+      <ScrollView 
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ flexGrow: 1 }}
+      >
+        <View style={styles.container}>
+          {renderHeader()}
+          {renderControls()}
+          {renderDataSheet()}
+          {renderConfirmModal()}
+          {renderEditModal()}
+          {renderExternosModal()}
+        </View>
       </ScrollView>
     </SafeAreaView>
   </LinearGradient>

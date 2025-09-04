@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaCalendarCheck, FaClock, FaPlus, FaExclamationTriangle, FaCheckCircle } from 'react-icons/fa';
 
@@ -18,10 +18,11 @@ const CalendarioHorasTrabalho = () => {
         hora: '08:00',
         justificacao: ''
     });
-    const [registosBrutos, setRegistosBrutos] = useState([]);
+    const [registosBrutos, setRegistrosBrutos] = useState([]);
     const [loading, setLoading] = useState(false);
     const [registoEmEdicao, setRegistoEmEdicao] = useState(null);
     const [novaHoraEdicao, setNovaHoraEdicao] = useState('');
+    const [justificacaoAlteracao, setJustificacaoAlteracao] = useState(''); // Para a justificação da alteração de hora
     const [mostrarFormulario, setMostrarFormulario] = useState(false);
     const [mostrarFormularioFalta, setMostrarFormularioFalta] = useState(false);
     const [MostrarFormularioFerias, setMostrarFormularioFerias] = useState(false);
@@ -50,12 +51,11 @@ const CalendarioHorasTrabalho = () => {
     });
     const [modoEdicaoFalta, setModoEdicaoFalta] = useState(false);
     const [modoEdicaoFerias, setModoEdicaoFerias] = useState(false);
-    const [faltaOriginal, setFaltaOriginal] = useState(null);
-    const [feriasTotalizador, setFeriasTotalizador] = useState(null);
-    const [justificacaoAlteracao, setJustificacaoAlteracao] = useState('');
     const [feriasOriginal, setFeriasOriginal] = useState(null);
+    const [feriasTotalizador, setFeriasTotalizador] = useState(null);
     const [diasPendentes, setDiasPendentes] = useState([]);
     const [faltasPendentes, setFaltasPendentes] = useState([]);
+    const [ultimoResumoCache, setUltimoResumoCache] = useState(null); // Cache para resumo
 
     const isBeforeToday = (dateLike) => {
         if (!dateLike) return false;
@@ -148,7 +148,6 @@ const CalendarioHorasTrabalho = () => {
     };
 
     // NOVO: normalizador de feriados (aceita vários formatos do endpoint)
-    // Substituir completamente:
     const normalizarFeriados = (payload) => {
         try {
             const out = new Set();
@@ -289,7 +288,6 @@ const CalendarioHorasTrabalho = () => {
             setFeriados(new Set()); // fallback para conjunto vazio
         }
     };
-
 
     useEffect(() => {
         const boot = async () => {
@@ -477,7 +475,7 @@ const CalendarioHorasTrabalho = () => {
                 setDetalhes([]);
                 setFaltasDoDia([]);
                 setPedidosPendentesDoDia([]);
-                setRegistosBrutos([]);
+                setRegistrosBrutos([]);
 
                 await Promise.all([
                     carregarFaltasFuncionario(),
@@ -572,7 +570,7 @@ const CalendarioHorasTrabalho = () => {
 
     const carregarHorarioFuncionario = async () => {
         const token = localStorage.getItem("painelAdminToken");
-        const funcionarioId = "codFuncionario";
+        const funcionarioId = localStorage.getItem('codFuncionario'); // Correção: usar o ID do funcionário logado
         const urlempresa = localStorage.getItem("urlempresa");
 
         try {
@@ -648,6 +646,51 @@ const CalendarioHorasTrabalho = () => {
         }
     };
 
+    // Função para calcular períodos de férias excluindo feriados e fins de semana
+    const calcularPeriodosFeriasValidos = (dataInicio, dataFim) => {
+        const inicio = new Date(dataInicio);
+        const fim = new Date(dataFim);
+        const periodosValidos = [];
+        let dataAtual = new Date(inicio);
+        let inicioPeríodo = null;
+
+        while (dataAtual <= fim) {
+            const dataISO = toLocalISODate(dataAtual);
+            const isFeriado = feriadosSet.has(dataISO);
+            const isDiaUtil = dataAtual.getDay() !== 0 && dataAtual.getDay() !== 6; // Não é fim de semana (domingo=0, sábado=6)
+
+            if (isDiaUtil && !isFeriado) {
+                // Dia válido para férias (não é fim de semana nem feriado)
+                if (!inicioPeríodo) {
+                    inicioPeríodo = new Date(dataAtual);
+                }
+            } else {
+                // Feriado ou fim de semana - fecha período atual se existir
+                if (inicioPeríodo) {
+                    const dataAnterior = new Date(dataAtual);
+                    dataAnterior.setDate(dataAnterior.getDate() - 1);
+                    periodosValidos.push({
+                        inicio: toLocalISODate(inicioPeríodo),
+                        fim: toLocalISODate(dataAnterior)
+                    });
+                    inicioPeríodo = null;
+                }
+            }
+
+            dataAtual.setDate(dataAtual.getDate() + 1);
+        }
+
+        // Fechar último período se ainda estiver aberto
+        if (inicioPeríodo) {
+            periodosValidos.push({
+                inicio: toLocalISODate(inicioPeríodo),
+                fim: toLocalISODate(fim)
+            });
+        }
+
+        return periodosValidos;
+    };
+
     const submeterFerias = async (e) => {
         e.preventDefault();
 
@@ -662,27 +705,34 @@ const CalendarioHorasTrabalho = () => {
             return;
         }
 
-        const operacao = modoEdicaoFerias ? 'EDITAR' : 'CRIAR';
+        // Calcular períodos válidos excluindo feriados
+        const periodosValidos = calcularPeriodosFeriasValidos(dataInicio, dataFim);
 
-        const dados = {
-            tipoPedido: 'FERIAS',
-            operacao,
-            funcionario: funcionarioId,
-            empresaId: empresaId,
-            dataInicio,
-            dataFim,
-            dataPedido: dataInicio,
-            horas: Horas ? 1 : 0,
-            tempo: Tempo,
-            justificacao: Observacoes,
-            observacoes: '',
-            usuarioCriador: funcionarioId,
-            origem: 'LINK',
-            ...(modoEdicaoFerias && feriasOriginal ? {
-                dataInicioOriginal: feriasOriginal.dataInicio || feriasOriginal.DataInicio || feriasOriginal.dataPedido,
-                dataFimOriginal: feriasOriginal.dataFim || feriasOriginal.DataFim || feriasOriginal.dataPedido
-            } : {})
-        };
+        if (periodosValidos.length === 0) {
+            alert("O período selecionado não contém dias úteis válidos para férias (todos os dias são feriados ou fins de semana).");
+            return;
+        }
+
+        // Verificar se há feriados ou fins de semana no período e informar o utilizador
+        const totalDias = Math.ceil((new Date(dataFim) - new Date(dataInicio)) / (1000 * 60 * 60 * 24)) + 1;
+        const diasValidos = periodosValidos.reduce((acc, periodo) => {
+            const dias = Math.ceil((new Date(periodo.fim) - new Date(periodo.inicio)) / (1000 * 60 * 60 * 24)) + 1;
+            return acc + dias;
+        }, 0);
+
+        if (diasValidos < totalDias) {
+            const diasExcluidos = totalDias - diasValidos;
+            const mensagem = `Atenção: O período selecionado contém ${diasExcluidos} dia(s) que são feriados ou fins de semana e serão automaticamente excluídos.\n\n` +
+                `Serão criados ${periodosValidos.length} pedido(s) de férias:\n` +
+                periodosValidos.map((p, i) => `${i + 1}. De ${p.inicio} a ${p.fim}`).join('\n') +
+                `\n\nDesejas continuar?`;
+
+            if (!confirm(mensagem)) {
+                return;
+            }
+        }
+
+        const operacao = modoEdicaoFerias ? 'EDITAR' : 'CRIAR';
 
         try {
             if (modoEdicaoFerias && feriasOriginal?.id) {
@@ -702,44 +752,95 @@ const CalendarioHorasTrabalho = () => {
                 }
             }
 
-            const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                    urlempresa: localStorage.getItem('empresa_id')
-                },
-                body: JSON.stringify(dados)
-            });
+            // Submeter cada período válido como um pedido separado
+            const resultados = [];
+            for (let i = 0; i < periodosValidos.length; i++) {
+                const periodo = periodosValidos[i];
+                const dados = {
+                    tipoPedido: 'FERIAS',
+                    operacao,
+                    funcionario: funcionarioId,
+                    empresaId: empresaId,
+                    dataInicio: periodo.inicio,
+                    dataFim: periodo.fim,
+                    dataPedido: periodo.inicio,
+                    horas: Horas ? 1 : 0,
+                    tempo: Tempo,
+                    justificacao: periodosValidos.length > 1 ?
+                        `${Observacoes} (Período ${i + 1}/${periodosValidos.length} - feriados e fins de semana excluídos automaticamente)` :
+                        Observacoes,
+                    observacoes: '',
+                    usuarioCriador: funcionarioId,
+                    origem: 'LINK',
+                    ...(modoEdicaoFerias && feriasOriginal ? {
+                        dataInicioOriginal: feriasOriginal.dataInicio || feriasOriginal.DataInicio || feriasOriginal.dataPedido,
+                        dataFimOriginal: feriasOriginal.dataFim || feriasOriginal.DataFim || feriasOriginal.dataPedido
+                    } : {})
+                };
 
-            if (res.ok) {
-                alert(`Pedido de férias ${modoEdicaoFerias ? "editado" : "submetido"} com sucesso para aprovação.`);
-                setMostrarFormularioFerias(false);
-                setNovaFaltaFerias({
-                    dataInicio: '',
-                    dataFim: '',
-                    Horas: false,
-                    Tempo: 1,
-                    Observacoes: ''
+                const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                        urlempresa: localStorage.getItem('empresa_id')
+                    },
+                    body: JSON.stringify(dados)
                 });
-                setModoEdicaoFerias(false);
-                setFeriasOriginal(null);
 
-                setDiaSelecionado(null);
-                setDetalhes([]);
-                setFaltasDoDia([]);
-                setPedidosPendentesDoDia([]);
-                setRegistosBrutos([]);
-
-                await Promise.all([
-                    carregarFaltasFuncionario(),
-                    carregarDiasPendentes(),
-                    carregarResumo()
-                ]);
-            } else {
-                const erro = await res.text();
-                alert("Erro ao submeter férias: " + erro);
+                if (res.ok) {
+                    resultados.push({ sucesso: true, periodo });
+                } else {
+                    const erro = await res.text();
+                    resultados.push({ sucesso: false, periodo, erro });
+                }
             }
+
+            // Verificar resultados
+            const sucessos = resultados.filter(r => r.sucesso);
+            const erros = resultados.filter(r => !r.sucesso);
+
+            if (sucessos.length > 0 && erros.length === 0) {
+                alert(`${sucessos.length} pedido(s) de férias ${modoEdicaoFerias ? "editado(s)" : "submetido(s)"} com sucesso para aprovação.`);
+            } else if (sucessos.length > 0 && erros.length > 0) {
+                let mensagem = `${sucessos.length} pedido(s) submetido(s) com sucesso.\n\n`;
+                mensagem += `${erros.length} pedido(s) falharam:\n`;
+                erros.forEach(e => {
+                    mensagem += `- ${e.periodo.inicio} a ${e.periodo.fim}: ${e.erro}\n`;
+                });
+                alert(mensagem);
+            } else {
+                let mensagem = "Todos os pedidos falharam:\n";
+                erros.forEach(e => {
+                    mensagem += `- ${e.periodo.inicio} a ${e.periodo.fim}: ${e.erro}\n`;
+                });
+                alert(mensagem);
+                return;
+            }
+
+            setMostrarFormularioFerias(false);
+            setNovaFaltaFerias({
+                dataInicio: '',
+                dataFim: '',
+                Horas: false,
+                Tempo: 1,
+                Observacoes: ''
+            });
+            setModoEdicaoFerias(false);
+            setFeriasOriginal(null);
+
+            setDiaSelecionado(null);
+            setDetalhes([]);
+            setFaltasDoDia([]);
+            setPedidosPendentesDoDia([]);
+            setRegistrosBrutos([]);
+
+            await Promise.all([
+                carregarFaltasFuncionario(),
+                carregarDiasPendentes(),
+                carregarResumo()
+            ]);
+
         } catch (err) {
             console.error("Erro ao submeter férias:", err);
             alert("Erro inesperado.");
@@ -870,7 +971,7 @@ const CalendarioHorasTrabalho = () => {
                 setDetalhes([]);
                 setFaltasDoDia([]);
                 setPedidosPendentesDoDia([]);
-                setRegistosBrutos([]);
+                setRegistrosBrutos([]);
 
                 setFaltasPendentes(prev => prev.filter(p => p.id !== pedido.id));
 
@@ -928,7 +1029,7 @@ const CalendarioHorasTrabalho = () => {
             if (res.ok) {
                 alert('Registo de ponto cancelado com sucesso.');
 
-                setRegistosBrutos(prev => prev.filter(r => r.id !== registoId));
+                setRegistrosBrutos(prev => prev.filter(r => r.id !== registoId));
 
                 const registosAtualizados = registosBrutos.filter(r => r.id !== registoId);
                 const ordenado = registosAtualizados.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -1158,7 +1259,7 @@ const CalendarioHorasTrabalho = () => {
         setFaltasPendentes(pendentesAprovacao || []);
         setDiasPendentes(diasPendArr);
         setDiaSelecionado(diaISO);
-        setRegistosBrutos(registosDia);
+        setRegistrosBrutos(registosDia);
         setDetalhes(detalhesPorObra);
         setPedidosPendentesDoDia(pendentesDoDia);
         setFaltasDoDia(faltasNoDiaBootstrap);
@@ -1275,16 +1376,31 @@ const CalendarioHorasTrabalho = () => {
         return `${ano}-${mes}-${dia}`;
     };
 
-    const carregarResumo = async () => {
+    // Cache para o resumo mensal
+    const [resumoCache, setResumoCache] = useState({});
+    const [ultimoMesCache, setUltimoMesCache] = useState(null);
+
+    const carregarResumo = useCallback(async () => {
         const token = localStorage.getItem('loginToken');
         const ano = mesAtual.getFullYear();
         const mes = String(mesAtual.getMonth() + 1).padStart(2, '0');
+
+        // Verifica se o resumo para este mês já está em cache
+        if (ultimoMesCache === `${ano}-${mes}`) {
+            console.log("Usando resumo do cache.");
+            setResumo(resumoCache);
+            return;
+        }
 
         try {
             setLoading(true);
             const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/resumo-mensal?ano=${ano}&mes=${mes}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+
+            if (!res.ok) {
+                throw new Error(`Erro ao carregar resumo: ${res.status}`);
+            }
 
             const dados = await res.json();
             const mapeado = {};
@@ -1333,6 +1449,8 @@ const CalendarioHorasTrabalho = () => {
             });
 
             setResumo(mapeado);
+            setResumoCache(mapeado); // Atualiza o cache
+            setUltimoMesCache(`${ano}-${mes}`); // Atualiza o mês do cache
 
         } catch (err) {
             console.error('Erro ao carregar resumo mensal:', err);
@@ -1340,7 +1458,7 @@ const CalendarioHorasTrabalho = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [mesAtual, registosBrutos]); // Dependências do useCallback
 
     const carregarObras = async () => {
         const token = localStorage.getItem('loginToken');
@@ -1362,6 +1480,7 @@ const CalendarioHorasTrabalho = () => {
         }
     };
 
+    // Memoizar carregarDetalhes para evitar recriações desnecessárias
     const carregarDetalhes = useCallback(async (data) => {
         setDiaSelecionado(data);
         const faltasNoDia = faltas.filter(f => {
@@ -1441,6 +1560,7 @@ const CalendarioHorasTrabalho = () => {
                         estadoAtualPorObra[obraId] = null;
                     }
 
+                    // Calcula tempo de entradas ativas até o momento atual
                     if (estadoAtualPorObra[obraId] && formatarData(ts) === formatarData(new Date())) {
                         const agora = new Date();
                         const minutos = Math.max(0, (agora - estadoAtualPorObra[obraId]) / 60000);
@@ -1455,18 +1575,24 @@ const CalendarioHorasTrabalho = () => {
                 }));
 
                 setDetalhes(detalhesPorObra);
+            } else {
+                console.error(`Erro ao carregar detalhes do dia ${data}:`, await res.text());
+                setRegistosBrutos([]); // Limpa registos em caso de erro
+                setDetalhes([]);
             }
         } catch (err) {
             console.error('Erro ao carregar detalhes do dia:', err);
+            setRegistosBrutos([]);
+            setDetalhes([]);
         } finally {
             setLoading(false);
         }
-    }, [faltas, faltasPendentes]);
+    }, [faltas, faltasPendentes]); // Dependências do useCallback
 
     const submeterPontoEsquecido = async (e) => {
         e.preventDefault();
         if (!novaEntrada.obra_id || !diaSelecionado) {
-            alert('Selecione uma obra antes de submeter');
+            alert('Selecione uma obra e um dia antes de submeter');
             return;
         }
         const [ano, mes, dia] = diaSelecionado.split('-');
@@ -1492,8 +1618,10 @@ const CalendarioHorasTrabalho = () => {
                 carregarResumo();
                 carregarDetalhes(diaSelecionado);
                 setNovaEntrada({ tipo: 'entrada', obra_id: '', hora: '08:00', justificacao: '' });
+                setMostrarFormulario(false); // Fecha o formulário após sucesso
             } else {
-                alert('Erro ao registar ponto');
+                const erro = await res.text();
+                alert('Erro ao registar ponto: ' + erro);
             }
         } catch (err) {
             console.error('Erro ao submeter ponto esquecido:', err);
@@ -1503,24 +1631,84 @@ const CalendarioHorasTrabalho = () => {
         }
     };
 
-    const gerarCalendario = () => {
+    // Memoizar a geração do calendário
+    const diasDoMes = useMemo(() => {
         const ano = mesAtual.getFullYear();
         const mes = mesAtual.getMonth();
         const primeiroDia = new Date(ano, mes, 1);
         const ultimoDia = new Date(ano, mes + 1, 0);
-        const diasDoMes = [];
+        const diasDoMesArray = [];
 
         const diaSemanaInicio = primeiroDia.getDay();
         for (let i = 0; i < diaSemanaInicio; i++) {
-            diasDoMes.push(null);
+            diasDoMesArray.push(null);
         }
 
         for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
-            diasDoMes.push(new Date(ano, mes, dia));
+            diasDoMesArray.push(new Date(ano, mes, dia));
         }
+        return diasDoMesArray;
+    }, [mesAtual]);
 
-        return diasDoMes;
-    };
+    // Componente memoizado para botões do calendário
+    const CalendarioBotao = memo(({ date, dataFormatada, isFeriado, existeFaltaF50, isPendente, obterClasseDia, resumo, onClickDetalhes }) => (
+        <button
+            className={obterClasseDia(date)}
+            onClick={() => onClickDetalhes(dataFormatada)}
+            disabled={loading} // Desabilita botões enquanto carrega
+        >
+            <span>{date.getDate()}</span>
+
+            {isFeriado && (
+                <span className="horas-dia" style={{ fontSize: '0.65rem', color: '#5d4037' }}>
+                    Feriado
+                </span>
+            )}
+
+            {existeFaltaF50 && (
+                <span
+                    style={{
+                        position: 'absolute',
+                        top: '4px',
+                        right: '6px',
+                        fontSize: '0.8rem'
+                    }}
+                    title="Férias"
+                >
+                    🌴
+                </span>
+            )}
+
+            {isPendente && (
+                <span
+                    style={{
+                        position: 'absolute',
+                        bottom: '4px',
+                        right: '6px',
+                        fontSize: '0.85rem',
+                        color: '#f0ad4e'
+                    }}
+                    title="Pendente de aprovação"
+                >
+                    ⏳
+                </span>
+            )}
+
+            {resumo[dataFormatada] && !isFeriado && (
+                <span className="horas-dia">
+                    {resumo[dataFormatada].split('h')[0]}h
+                </span>
+            )}
+
+            {!resumo[dataFormatada] &&
+                !isFeriado &&
+                date < new Date() &&
+                date.getDay() !== 0 &&
+                date.getDay() !== 6 && (
+                    <FaExclamationTriangle className="text-warning mt-1" size={12} />
+                )}
+        </button>
+    ));
 
     const iniciarEdicaoRegisto = (registo) => {
         const data = new Date(registo.timestamp);
@@ -1543,6 +1731,7 @@ const CalendarioHorasTrabalho = () => {
         const token = localStorage.getItem('loginToken');
 
         try {
+            // 1. Eliminar o registo original
             const resDel = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/cancelar/${registoEmEdicao.id}`, {
                 method: 'DELETE',
                 headers: {
@@ -1557,6 +1746,7 @@ const CalendarioHorasTrabalho = () => {
                 return;
             }
 
+            // 2. Submeter o novo registo (com a hora alterada)
             const body = {
                 tipo: registoEmEdicao.tipo,
                 obra_id: registoEmEdicao.obra_id,
@@ -1589,11 +1779,12 @@ const CalendarioHorasTrabalho = () => {
         }
     };
 
-    const obterClasseDia = (date) => {
+    // Memoizar cálculo de classes dos dias para melhor performance
+    const obterClasseDia = useCallback((date) => {
         if (!date) return '';
 
-        const hoje = new Date();
         const dataFormatada = formatarData(date);
+        const hoje = new Date();
         const isHoje = formatarData(hoje) === dataFormatada;
         const isPassado = date < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
         const temRegisto = resumo[dataFormatada];
@@ -1605,9 +1796,10 @@ const CalendarioHorasTrabalho = () => {
         // NOVO: feriado
         const isFeriado = feriadosSet.has(dataFormatada);
 
-        const existeFalta = Array.isArray(faltas) && faltas.some(f => {
+        const existeFaltaF50 = Array.isArray(faltas) && faltas.some(f => {
             const dataFalta = new Date(f.Data);
             return (
+                f.Falta === 'F50' && // F50 é o código para Férias
                 dataFalta.getFullYear() === date.getFullYear() &&
                 dataFalta.getMonth() === date.getMonth() &&
                 dataFalta.getDate() === date.getDate()
@@ -1625,40 +1817,21 @@ const CalendarioHorasTrabalho = () => {
         }
 
         if (isSelecionado) classes += ' btn-primary';
-        else if (existeFalta) classes += ' dia-falta';
+        else if (existeFaltaF50) classes += ' dia-falta'; // Marca dia de férias como falta para visualização
         else if (isHoje) classes += ' btn-outline-primary';
         else if (isPendente) classes += ' dia-pendente';
         else if (temRegisto) {
             const horasStr = resumo[dataFormatada]?.split('h')[0];
             const horasTrabalhadas = parseInt(horasStr, 10);
             if (horasTrabalhadas >= 8) {
-                classes += ' btn-success';
+                classes += ' btn-success'; // Dia com >= 8h trabalhadas
             } else {
-                classes += ' btn-menor-8h';
+                classes += ' btn-menor-8h'; // Dia com < 8h trabalhadas
             }
-        } else classes += ' btn-outline-secondary';
+        } else classes += ' btn-outline-secondary'; // Dias sem registo e não selecionados/pendentes
 
         return classes;
-    };
-
-
-    useEffect(() => {
-        const boot = async () => {
-            setLoading(true);
-            try {
-                const hojeISO = formatarData(new Date());
-                await carregarTudoEmParalelo(hojeISO);
-            } catch (e) {
-                console.error('Erro no bootstrap:', e);
-                alert('Erro ao carregar dados iniciais.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        boot();
-    }, [mesAtual]);
-
-    const diasDoMes = gerarCalendario();
+    }, [resumo, diasPendentes, diaSelecionado, faltas, feriadosSet, loading]); // Dependências do useCallback
 
     return (
         <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{ overflowX: 'hidden', background: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)' }}>
@@ -1678,16 +1851,16 @@ const CalendarioHorasTrabalho = () => {
                     border-radius: 8px !important;
                     transition: all 0.3s ease;
                     cursor: pointer;
+                    position: relative; /* Necessário para posicionar os ícones/spans */
                 }
                     /* NOVO: feriado a laranja */
                 .dia-feriado {
                     background-color: #ffcc80 !important;   /* laranja suave */
                     border: 1px solid #ffa726 !important;   /* laranja mais forte */
                     color: #5d4037 !important;              /* castanho suave para legibilidade */
-                    position: relative;
                 }
 
-                .dia-falta {
+                .dia-falta { /* Estilo para dias com férias (F50) */
                     position: relative;
                     background-image: repeating-linear-gradient(
                         45deg,
@@ -1717,7 +1890,7 @@ const CalendarioHorasTrabalho = () => {
                         font-size: 0.9rem;
                     }
                 }
-                .calendario-dia:hover {
+                .calendario-dia:hover:not(:disabled) { /* Aplica hover apenas se não estiver desabilitado */
                     transform: translateY(-2px);
                     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
                 }
@@ -1912,9 +2085,7 @@ const CalendarioHorasTrabalho = () => {
 
                                             const dataFormatada = formatarData(date);
                                             const isPendente = diasPendentes.includes(dataFormatada);
-
                                             const isFeriado = feriadosSet.has(dataFormatada);
-
                                             const existeFaltaF50 = Array.isArray(faltas) && faltas.some(f => {
                                                 const dataFalta = new Date(f.Data);
                                                 return (
@@ -1926,61 +2097,17 @@ const CalendarioHorasTrabalho = () => {
                                             });
 
                                             return (
-                                                <button
+                                                <CalendarioBotao
                                                     key={index}
-                                                    className={obterClasseDia(date)}
-                                                    onClick={() => carregarDetalhes(dataFormatada)}
-                                                >
-                                                    <span>{date.getDate()}</span>
-
-                                                    {isFeriado && (
-                                                        <span className="horas-dia" style={{ fontSize: '0.65rem', color: '#5d4037' }}>
-                                                            Feriado
-                                                        </span>
-                                                    )}
-
-                                                    {existeFaltaF50 && (
-                                                        <span
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: '4px',
-                                                                right: '6px',
-                                                                fontSize: '0.8rem'
-                                                            }}
-                                                            title="Férias"
-                                                        >
-                                                            🌴
-                                                        </span>
-                                                    )}
-                                                    {isPendente && (
-                                                        <span
-                                                            style={{
-                                                                position: 'absolute',
-                                                                bottom: '4px',
-                                                                right: '6px',
-                                                                fontSize: '0.85rem',
-                                                                color: '#f0ad4e'
-                                                            }}
-                                                            title="Pendente de aprovação"
-                                                        >
-                                                            ⏳
-                                                        </span>
-                                                    )}
-
-                                                    {resumo[dataFormatada] && !isFeriado && (
-                                                        <span className="horas-dia">
-                                                            {resumo[dataFormatada].split('h')[0]}h
-                                                        </span>
-                                                    )}
-
-                                                    {!resumo[dataFormatada] &&
-                                                        !isFeriado &&
-                                                        date < new Date() &&
-                                                        date.getDay() !== 0 &&
-                                                        date.getDay() !== 6 && (
-                                                            <FaExclamationTriangle className="text-warning mt-1" size={12} />
-                                                        )}
-                                                </button>
+                                                    date={date}
+                                                    dataFormatada={dataFormatada}
+                                                    isFeriado={isFeriado}
+                                                    existeFaltaF50={existeFaltaF50}
+                                                    isPendente={isPendente}
+                                                    obterClasseDia={obterClasseDia}
+                                                    resumo={resumo}
+                                                    onClickDetalhes={carregarDetalhes}
+                                                />
                                             );
                                         })}
                                     </div>
@@ -2497,7 +2624,7 @@ const CalendarioHorasTrabalho = () => {
                                                             onClick={() => {
                                                                 setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '' });
                                                                 setModoEdicaoFerias(false);
-                                                                setFaltaOriginal(null);
+                                                                setFeriasOriginal(null);
                                                             }}
                                                         >
                                                             Cancelar Edição
