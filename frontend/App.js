@@ -1,96 +1,82 @@
-import React, { useState, useEffect } from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import {
-    createDrawerNavigator,
-    DrawerContentScrollView,
-    DrawerItem,
-} from "@react-navigation/drawer";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import {
     View,
-    Image,
     Text,
+    StyleSheet,
+    StatusBar,
+    Platform,
     ActivityIndicator,
     TouchableOpacity,
-    ImageBackground,
-    StyleSheet,
-    Modal,
-    Pressable,
 } from "react-native";
-import { List } from "react-native-paper";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { NavigationContainer } from "@react-navigation/native";
+import { createDrawerNavigator } from "@react-navigation/drawer";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import CustomDrawerContent from "./src/components/CustomDrawerContent";
 
-import { FontAwesome } from "@expo/vector-icons";
+// Core pages - load immediately
+import Home from "./src/Home";
+import Login from "./src/Pages/Autenticacao/pages/Login";
+import SelecaoEmpresa from "./src/Pages/Autenticacao/pages/SelecaoEmpresa";
+
+// Lazy load other pages
+const PainelAdmin = React.lazy(() => import("./src/Pages/Autenticacao/PainelAdmin"));
+const RegistoUser = React.lazy(() => import("./src/Pages/Autenticacao/RegistoUser"));
+const RegistoAdmin = React.lazy(() => import("./src/Pages/Autenticacao/RegistoAdmin"));
+const RecuperarPassword = React.lazy(() => import("./src/Pages/Autenticacao/RecuperarPassword"));
+const RedefinirPassword = React.lazy(() => import("./src/Pages/Autenticacao/RedefinirPassword"));
+const VerificaConta = React.lazy(() => import("./src/Pages/Autenticacao/VerificaConta"));
+const PontoBotao = React.lazy(() => import("./src/Pages/Assiduidade/PontoBotao"));
+const LeitorQRCode = React.lazy(() => import("./src/Pages/Assiduidade/LeitorQRCode"));
+const RegistoPontoFacial = React.lazy(() => import("./src/Pages/Assiduidade/RegistoPontoFacial"));
+const CalendarioHorasTrabalho = React.lazy(() => import("./src/Pages/Assiduidade/CalendarioHorasTrabalho"));
+const ListarRegistos = React.lazy(() => import("./src/Pages/Assiduidade/ListarRegistos"));
+const AprovacaoPontoPendentes = React.lazy(() => import("./src/Pages/Assiduidade/AprovacaoPontoPendentes"));
+const AprovacaoFaltaFerias = React.lazy(() => import("./src/Pages/Assiduidade/AprovacaoFaltaFerias"));
+const ModalPedidosAlteracao = React.lazy(() => import("./src/Pages/Assiduidade/ModalPedidosAlteracao"));
+const PedidosAlteracaoAdmin = React.lazy(() => import("./src/Pages/Assiduidade/PedidosAlteracaoAdmin"));
+const RegistoPontoAdmin = React.lazy(() => import("./src/Pages/Assiduidade/RegistoPontoAdmin"));
+const RegistosPorUtilizador = React.lazy(() => import("./src/Pages/Assiduidade/RegistosPorUtilizador"));
+const Obras = React.lazy(() => import("./src/Pages/Obras/Obras"));
+const Escritorio = React.lazy(() => import("./src/Pages/Obras/Escritorio"));
+const MapaRegistos = React.lazy(() => import("./src/Pages/Obras/MapaRegistos"));
+const PartesDiarias = React.lazy(() => import("./src/Pages/Obras/PartesDiarias"));
+const GestaoPartesDiarias = React.lazy(() => import("./src/Pages/Obras/GestaoPartesDiarias"));
+const CriarEquipa = React.lazy(() => import("./src/Pages/Obras/CriarEquipa"));
+const PessoalObra = React.lazy(() => import("./src/Pages/Obras/PessoalObra"));
+const GestaoTrabalhadoresExternos = React.lazy(() => import("./src/Pages/Obras/Externos/GestaoTrabalhadoresExternos"));
+const RegistoPontoObra = React.lazy(() => import("./src/Pages/Assiduidade/RegistoPontoObra"));
+const PedidosAssistencia = React.lazy(() => import("./src/Pages/Servicos/PedidosAssistencia"));
+const Intervencoes = React.lazy(() => import("./src/Pages/Servicos/Intervencoes"));
+const RegistoAssistencia = React.lazy(() => import("./src/Pages/Servicos/RegistoAssistencia"));
+const RegistoIntervencao = React.lazy(() => import("./src/Pages/Servicos/RegistoIntervencao"));
+const PandIByTecnico = React.lazy(() => import("./src/Pages/Servicos/PandIByTecnico"));
+const DashboardAnalytics = React.lazy(() => import("./src/Pages/Servicos/DashboardAnalytics"));
+const OficiosPage = React.lazy(() => import("./src/Pages/Oficios/OficiosPage"));
+const Perfil = React.lazy(() => import("./src/Pages/Perfil"));
+const Settings = React.lazy(() => import("./src/Pages/Settings"));
+const ADHome = React.lazy(() => import("./src/Pages/BackOffice/ADHome"));
+const ContratosList = React.lazy(() => import("./src/Pages/BackOffice/ContratosList"));
+const ConcursosAprovacao = React.lazy(() => import("./src/Pages/Concursos/ConcursosAprovacao"));
+const WhatsAppWebConfig = React.lazy(() => import("./src/Pages/WhatsApp/WhatsAppWebConfig"));
+const GestaoPOS = React.lazy(() => import("./src/Pages/Autenticacao/GestaoPOS"));
+const UsersEmpresa = React.lazy(() => import("./src/Pages/Autenticacao/UsersEmpresa"));
+const UserModulesManagement = React.lazy(() => import("./src/Pages/Autenticacao/UserModulesManagement"));
+const LoginPOS = React.lazy(() => import("./src/Pages/Autenticacao/pages/LoginPOS"));
+
+// Loading component
+const LoadingScreen = () => (
+    <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4A9EFF" />
+        <Text style={styles.loadingText}>Carregando...</Text>
+    </View>
+);
 
 import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
-
-
 import "bootstrap/dist/css/bootstrap.min.css";
-
-// Importa as páginas
-import Login from "./src/Pages/Autenticacao/pages/Login";
-import Home from "./src/Home";
-import ADHome from "./src/Pages/BackOffice/ADHome";
-import Perfil from "./src/Pages/Perfil";
-import PainelAdmin from "./src/Pages/Autenticacao/PainelAdmin";
-import WhatsAppWebConfig from "./src/Pages/WhatsApp/WhatsAppWebConfig";
-import UsersEmpresa from "./src/Pages/Autenticacao/UsersEmpresa";
-import RegistoUser from "./src/Pages/Autenticacao/RegistoUser";
-import RegistoAdmin from "./src/Pages/Autenticacao/RegistoAdmin";
-import VerificaConta from "./src/Pages/Autenticacao/VerificaConta";
-import SelecaoEmpresa from "./src/Pages/Autenticacao/pages/SelecaoEmpresa";
-import RecuperarPassword from "./src/Pages/Autenticacao/RecuperarPassword";
-import RedefinirPassword from "./src/Pages/Autenticacao/RedefinirPassword";
-import GestaoPOS from "./src/Pages/Autenticacao/GestaoPOS";
-
-import ContratosList from "./src/Pages/BackOffice/ContratosList";
-
-// SERVICOS
-import PedidosAssistencia from "./src/Pages/Servicos/PedidosAssistencia";
-import PandIByTecnico from "./src/Pages/Servicos/PandIByTecnico";
-import RegistoPedido from "./src/Pages/Servicos/RegistoAssistencia";
-import intervencoes from "./src/Pages/Servicos/Intervencoes";
-import RegistoIntervencao from "./src/Pages/Servicos/RegistoIntervencao";
-import DashboardAnalytics from "./src/Pages/Servicos/DashboardAnalytics";
-
-// ASSIDUIDADE
-import LeitorQRCode from "./src/Pages/Assiduidade/LeitorQRCode";
-import PontoBotao from "./src/Pages/Assiduidade/PontoBotao";
-import RegistoPontoAdmin from "./src/Pages/Assiduidade/RegistoPontoAdmin";
-import PedidosAlteracaoAdmin from "./src/Pages/Assiduidade/PedidosAlteracaoAdmin";
-import ListarRegistos from "./src/Pages/Assiduidade/ListarRegistos";
-
-import RegistoPontoObra from "./src/Pages/Assiduidade/RegistoPontoObra";
-import RegistoPontoFacial from "./src/Pages/Assiduidade/RegistoPontoFacial";
-import CalendarioHorasTrabalho from "./src/Pages/Assiduidade/CalendarioHorasTrabalho";
-
-import AprovacaoFaltaFerias from "./src/Pages/Assiduidade/AprovacaoFaltaFerias";
-
-import GestaoTrabalhadoresExternos from "./src/Pages/Obras/Externos/GestaoTrabalhadoresExternos";
-import GestaoPartesDiarias from "./src/Pages/Obras/GestaoPartesDiarias";
-
-import AprovacaoPontoPendentes from "./src/Pages/Assiduidade/AprovacaoPontoPendentes";
-//Aprovaçoes Pendentes
-import ConcursosAprovacao from "./src/Pages/Concursos/ConcursosAprovacao";
-
-import Obras from "./src/Pages/Obras/Obras";
-import Escritorio from "./src/Pages/Obras/Escritorio";
-import PartesDiarias from "./src/Pages/Obras/PartesDiarias";
-
-import PessoalObra from "./src/Pages/Obras/PessoalObra";
-
-import CriarEquipa from "./src/Pages/Obras/CriarEquipa";
-
-import RegistosPorUtilizador from "./src/Pages/Assiduidade/RegistosPorUtilizador";
-
-import UserModulesManagement from "./src/Pages/Autenticacao/UserModulesManagement";
-import logo from "./assets/app.png";
+import { FontAwesome } from "@expo/vector-icons";
 import i18n from "./src/Pages/i18n";
 import { useTranslation } from "react-i18next";
-import OficiosPage from "./src/Pages/Oficios/OficiosPage";
-import OficiosList from "./src/Pages/Oficios/OficiosList";
-import EditOficio from "./src/Pages/Oficios/EditOficio";
-// Importa a nova página MapaRegistos
-import MapaRegistos from "./src/Pages/Obras/MapaRegistos";
-
 // Importa o TokenManager
 import { TokenManager } from "./src/utils/TokenManager";
 import { ThemeProvider } from "./ThemeContext";
@@ -1224,26 +1210,6 @@ const AppNavigator = () => {
         const empresaLs = localStorage.getItem("empresaSelecionada");
         let tipoUserLs = localStorage.getItem("tipoUser");
 
-        // Verificar se tipoUser é um token JWT e tentar corrigir
-        if (tipoUserLs && tipoUserLs.includes('.')) {
-            console.log(`🔧 Detectado tipoUser como JWT, tentando recuperar valor correto...`);
-            tipoUserLs = localStorage.getItem("userTipo") || localStorage.getItem("tipo_user") || "";
-
-            // Se ainda não encontramos, definir como vazio para forçar nova seleção
-            if (!tipoUserLs || tipoUserLs.includes('.')) {
-                console.log(`❌ Não foi possível recuperar tipoUser válido, limpando...`);
-                localStorage.removeItem("tipoUser");
-                tipoUserLs = "";
-            }
-        }
-
-        console.log(`🔍 fetchUserData - valores após verificação:`, {
-            token: token ? "exists" : "null",
-            empresa: empresaLs,
-            tipoUser: tipoUserLs,
-            originalTipoUser: localStorage.getItem("tipoUser")
-        });
-
         // Verificar se o token existe e é válido
         if (token && isTokenValid(token)) {// helper para flags no localStorage: "true" | "1" | "True"
             const getFlag = (key) => {
@@ -1760,17 +1726,16 @@ const AppNavigator = () => {
                             </View>
                         ),
                     })}
-                    // Desabilita o drawer se for POS ou se estiver em telas específicas
+                    // Desabilita o drawer se for POS ou se estiver em rotas específicas
                     screenListeners={({ route }) => ({
                         drawerActive: (e) => {
-                            if (isPOS || route.name === "RegistoPontoFacial" || route.name === "Login" || route.name === "SelecaoEmpresa") {
+                            if (shouldDisableDrawer(route.name)) {
                                 e.preventDefault(); // Impede a abertura do drawer para rotas específicas
                             }
                         },
                     })}
                 >
-                    <Drawer.Screen 
-                        name="Login"
+                    <Drawer.Screen name="Login"
                         options={{
                             title: "AdvirLink - Login",
                             drawerItemStyle: { display: "none" },
@@ -1795,17 +1760,31 @@ const AppNavigator = () => {
 
                     {isSuperAdmin && (
                         <>
-                            <Drawer.Screen name="ADHome" component={ADHome} />
+                            <Drawer.Screen name="ADHome"
+                                children={() => (
+                                    <Suspense fallback={<LoadingScreen />}>
+                                        <ADHome />
+                                    </Suspense>
+                                )}
+                            />
                             <Drawer.Screen
                                 name="RegistoAdmin"
-                                component={RegistoAdmin}
+                                children={() => (
+                                    <Suspense fallback={<LoadingScreen />}>
+                                        <RegistoAdmin />
+                                    </Suspense>
+                                )}
                             />
                         </>
                     )}
 
                     <Drawer.Screen
                         name="ListarRegistos"
-                        component={ListarRegistos}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <ListarRegistos />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Registos",
                             drawerItemStyle: { display: "none" },
@@ -1813,11 +1792,19 @@ const AppNavigator = () => {
                     />
                     <Drawer.Screen
                         name="LeitorQRCode"
-                        component={LeitorQRCode}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <LeitorQRCode />
+                            </Suspense>
+                        )}
                     />
                     <Drawer.Screen
                         name="RegistoPontoObra"
-                        component={RegistoPontoObra}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <RegistoPontoObra />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Ponto",
                             drawerItemStyle: { display: "none" },
@@ -1825,7 +1812,11 @@ const AppNavigator = () => {
                     />
                     <Drawer.Screen
                         name="RegistoPontoFacial"
-                        component={RegistoPontoFacial}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <RegistoPontoFacial />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - RegistoPontoFacial",
                             drawerItemStyle: { display: "none" },
@@ -1837,7 +1828,11 @@ const AppNavigator = () => {
                     />
                     <Drawer.Screen
                         name="CalendarioHorasTrabalho"
-                        component={CalendarioHorasTrabalho}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <CalendarioHorasTrabalho />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Agenda",
                             drawerItemStyle: { display: "none" },
@@ -1846,7 +1841,11 @@ const AppNavigator = () => {
 
                     <Drawer.Screen
                         name="AprovacaoFaltaFerias"
-                        component={AprovacaoFaltaFerias}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <AprovacaoFaltaFerias />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Aprovação Faltas/Férias",
                             drawerItemStyle: { display: "none" },
@@ -1854,7 +1853,11 @@ const AppNavigator = () => {
                     />
                     <Drawer.Screen
                         name="GestaoTrabalhadoresExternos"
-                        component={GestaoTrabalhadoresExternos}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <GestaoTrabalhadoresExternos />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Gestão Externos",
                             drawerItemStyle: { display: "none" },
@@ -1862,7 +1865,11 @@ const AppNavigator = () => {
                     />
                     <Drawer.Screen
                         name="AprovacaoPontoPendentes"
-                        component={AprovacaoPontoPendentes}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <AprovacaoPontoPendentes />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Aprovacão Pontos",
                             drawerItemStyle: { display: "none" },
@@ -1870,7 +1877,11 @@ const AppNavigator = () => {
                     />
                     <Drawer.Screen
                         name="GestaoPartesDiarias"
-                        component={GestaoPartesDiarias}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <GestaoPartesDiarias />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Gestão Partes",
                             drawerItemStyle: { display: "none" },
@@ -1879,7 +1890,11 @@ const AppNavigator = () => {
 
                     <Drawer.Screen
                         name="RegistosPorUtilizador"
-                        component={RegistosPorUtilizador}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <RegistosPorUtilizador />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Histórico Registos",
                             drawerItemStyle: { display: "none" },
@@ -1903,14 +1918,22 @@ const AppNavigator = () => {
                             <>
                                 <Drawer.Screen
                                     name="Obras"
-                                    component={Obras}
+                                    children={() => (
+                                        <Suspense fallback={<LoadingScreen />}>
+                                            <Obras />
+                                        </Suspense>
+                                    )}
                                     options={{
                                         title: "AdvirLink - Obras",
                                     }}
                                 />
                                 <Drawer.Screen
                                     name="Escritorio"
-                                    component={Escritorio}
+                                    children={() => (
+                                        <Suspense fallback={<LoadingScreen />}>
+                                            <Escritorio />
+                                        </Suspense>
+                                    )}
                                     options={{
                                         title: "AdvirLink - Escritório",
                                     }}
@@ -1918,15 +1941,27 @@ const AppNavigator = () => {
 
                                 <Drawer.Screen
                                     name="PartesDiarias"
-                                    component={PartesDiarias}
+                                     children={() => (
+                                        <Suspense fallback={<LoadingScreen />}>
+                                            <PartesDiarias />
+                                        </Suspense>
+                                    )}
                                 />
                                 <Drawer.Screen
                                     name="CriarEquipa"
-                                    component={CriarEquipa}
+                                     children={() => (
+                                        <Suspense fallback={<LoadingScreen />}>
+                                            <CriarEquipa />
+                                        </Suspense>
+                                    )}
                                 />
                                 <Drawer.Screen
                                     name="PessoalObra"
-                                    component={PessoalObra}
+                                     children={() => (
+                                        <Suspense fallback={<LoadingScreen />}>
+                                            <PessoalObra />
+                                        </Suspense>
+                                    )}
                                     options={{
                                         drawerItemStyle: { display: "none" },
                                     }}
@@ -1934,7 +1969,11 @@ const AppNavigator = () => {
                                 {/* Adicionar a nova tela ao Drawer.Navigator */}
                                 <Drawer.Screen
                                     name="MapaRegistos"
-                                    component={MapaRegistos}
+                                    children={() => (
+                                        <Suspense fallback={<LoadingScreen />}>
+                                            <MapaRegistos />
+                                        </Suspense>
+                                    )}
                                     options={{
                                         title: "AdvirLink - Mapa Registos",
                                     }}
@@ -1942,49 +1981,74 @@ const AppNavigator = () => {
                             </>
                         )}
 
-                    <Drawer.Screen name="PontoBotao" component={PontoBotao} />
+                    <Drawer.Screen
+                        name="PontoBotao"
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <PontoBotao />
+                            </Suspense>
+                        )}
+                    />
                     <Drawer.Screen
                         name="Perfil"
-                        options={{ title: "AdvirLink - Perfil" }}
-                    >
-                        {(props) => (
-                            <Perfil
-                                {...props}
-                                user={{ name: userNome, company: empresa }}
-                            />
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <Perfil user={{ name: userNome, company: empresa }} />
+                            </Suspense>
                         )}
-                    </Drawer.Screen>
+                        options={{ title: "AdvirLink - Perfil" }}
+                    />
 
                     <Drawer.Screen
                         name="ConcursosAprovacao"
-                        component={ConcursosAprovacao}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <ConcursosAprovacao />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Pedidos de Assistência",
                         }}
                     />
                     <Drawer.Screen
                         name="PedidosAssistencia"
-                        component={PedidosAssistencia}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <PedidosAssistencia />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Pedidos de Assistência",
                         }}
                     />
                     <Drawer.Screen
                         name="PandIByTecnico"
-                        component={PandIByTecnico}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <PandIByTecnico />
+                            </Suspense>
+                        )}
                         options={{ title: "AdvirLink - Dashboard Técnico" }}
                     />
                     <Drawer.Screen
                         name="RegistoIntervencao"
-                        component={RegistoIntervencao}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <RegistoIntervencao />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Intervenção",
                             drawerItemStyle: { display: "none" },
                         }}
                     />
                     <Drawer.Screen
-                        name="RegistarPedido"
-                        component={RegistoPedido}
+                        name="RegistoAssistencia"
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <RegistoAssistencia />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Pedido",
                             drawerItemStyle: { display: "none" },
@@ -1992,7 +2056,11 @@ const AppNavigator = () => {
                     />
                     <Drawer.Screen
                         name="Intervencoes"
-                        component={intervencoes}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <Intervencoes />
+                            </Suspense>
+                        )}
                         options={{
                             title: "AdvirLink - Intervenção",
                             drawerItemStyle: { display: "none" },
@@ -2000,52 +2068,95 @@ const AppNavigator = () => {
                     />
                     <Drawer.Screen
                         name="DashboardAnalytics"
-                        component={DashboardAnalytics}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <DashboardAnalytics />
+                            </Suspense>
+                        )}
                         options={{ title: "AdvirLink - Dashboard Analytics" }}
                     />
 
                     <Drawer.Screen
                         name="RegistoPontoAdmin"
-                        component={RegistoPontoAdmin}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <RegistoPontoAdmin />
+                            </Suspense>
+                        )}
                     />
                     <Drawer.Screen
                         name="PedidosAlteracaoAdmin"
-                        component={PedidosAlteracaoAdmin}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <PedidosAlteracaoAdmin />
+                            </Suspense>
+                        )}
                     />
                     <Drawer.Screen
                         name="UserModulesManagement"
-                        component={UserModulesManagement}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <UserModulesManagement />
+                            </Suspense>
+                        )}
                         options={{ drawerItemStyle: { display: "none" } }}
                     />
                     <Drawer.Screen
                         name="VerificaConta"
-                        component={VerificaConta}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <VerificaConta />
+                            </Suspense>
+                        )}
                         options={{ drawerItemStyle: { display: "none" } }}
                     />
                     <Drawer.Screen
                         name="OficiosPage"
-                        component={OficiosPage}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <OficiosPage />
+                            </Suspense>
+                        )}
                         options={{ title: "AdvirLink - Oficios" }}
                     />
                     <Drawer.Screen
                         name="OficiosList"
-                        component={OficiosList}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <OficiosList />
+                            </Suspense>
+                        )}
                         options={{ title: "AdvirLink - Oficios" }}
                     />
                     <Drawer.Screen
                         name="EditOficio"
-                        component={EditOficio}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <EditOficio />
+                            </Suspense>
+                        )}
                         options={{ title: "AdvirLink - Oficios" }}
                     />
                     <Drawer.Screen
                         name="Home"
-                        component={Home}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <Home />
+                            </Suspense>
+                        )}
                         options={{ title: "AdvirLink - Home" }}
                     />
                     {isLoggedIn && (
                         <Drawer.Screen
                             name="SelecaoEmpresa"
-                            options={{ 
+                            children={() => (
+                                <Suspense fallback={<LoadingScreen />}>
+                                    <SelecaoEmpresa
+                                        setEmpresa={setEmpresa}
+                                    />
+                                </Suspense>
+                            )}
+                            options={{
                                 title: "AdvirLink - Empresa",
                                 drawerItemStyle: { display: "none" },
                                 swipeEnabled: false,
@@ -2053,60 +2164,85 @@ const AppNavigator = () => {
                                 headerLeft: () => null,
                                 drawerLockMode: 'locked-closed',
                             }}
-                        >
-                            {(props) => (
-                                <SelecaoEmpresa
-                                    {...props}
-                                    setEmpresa={setEmpresa}
-                                />
-                            )}
-                        </Drawer.Screen>
+                        />
                     )}
                     <Drawer.Screen
                         name="RecuperarPassword"
-                        component={RecuperarPassword}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <RecuperarPassword />
+                            </Suspense>
+                        )}
                         options={{ drawerItemStyle: { display: "none" } }}
                     />
                     <Drawer.Screen
                         name="RedefinirPassword"
-                        component={RedefinirPassword}
+                        children={() => (
+                            <Suspense fallback={<LoadingScreen />}>
+                                <RedefinirPassword />
+                            </Suspense>
+                        )}
                         options={{ drawerItemStyle: { display: "none" } }}
                     />
 
                     {hasPainelAdministracaoModule && (
                         <Drawer.Screen
                             name="PainelAdmin"
-                            component={PainelAdmin}
+                            children={() => (
+                                <Suspense fallback={<LoadingScreen />}>
+                                    <PainelAdmin />
+                                </Suspense>
+                            )}
                         />
                     )}
                     {hasWhatsappConfigsModule && (
                         <Drawer.Screen
                             name="WhatsAppWebConfig"
-                            component={WhatsAppWebConfig}
+                            children={() => (
+                                <Suspense fallback={<LoadingScreen />}>
+                                    <WhatsAppWebConfig />
+                                </Suspense>
+                            )}
                         />
                     )}
                     {hasGestaoUtilizadoresModule && (
                         <Drawer.Screen
                             name="UsersEmpresa"
-                            component={UsersEmpresa}
+                            children={() => (
+                                <Suspense fallback={<LoadingScreen />}>
+                                    <UsersEmpresa />
+                                </Suspense>
+                            )}
                         />
                     )}
                     {hasContratosAtivosModule && (
                         <Drawer.Screen
                             name="ContratosList"
-                            component={ContratosList}
+                            children={() => (
+                                <Suspense fallback={<LoadingScreen />}>
+                                    <ContratosList />
+                                </Suspense>
+                            )}
                         />
                     )}
                     {hasRegistarUtilizadorModule && (
                         <Drawer.Screen
                             name="RegistoUser"
-                            component={RegistoUser}
+                            children={() => (
+                                <Suspense fallback={<LoadingScreen />}>
+                                    <RegistoUser />
+                                </Suspense>
+                            )}
                         />
                     )}
                     {hasGestaoPOSModule && (
                         <Drawer.Screen
                             name="GestaoPOS"
-                            component={GestaoPOS}
+                            children={() => (
+                                <Suspense fallback={<LoadingScreen />}>
+                                    <GestaoPOS />
+                                </Suspense>
+                            )}
                             options={{
                                 title: "AdvirLink - Gestão POS"
                             }}
@@ -2128,6 +2264,18 @@ const styles = StyleSheet.create({
     overlay: {
         flex: 1,
         backgroundColor: "rgba(255, 255, 255, 0.7)", // Ajusta a opacidade para suavizar o padrão
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f8f9fa',
+    },
+    loadingText: {
+        marginTop: 16,
+        fontSize: 16,
+        color: '#4A9EFF',
+        fontWeight: '500',
     },
 });
 

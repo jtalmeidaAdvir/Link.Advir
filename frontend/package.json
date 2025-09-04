@@ -7,7 +7,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build": "GENERATE_SOURCEMAP=false expo export:web"
+    "build": "GENERATE_SOURCEMAP=false NODE_OPTIONS='--max-old-space-size=4096' expo export:web",
+    "build:analyze": "GENERATE_SOURCEMAP=false EXPO_DEBUG=1 NODE_OPTIONS='--max-old-space-size=4096' expo export:web"
   },
   "dependencies": {
     "@emotion/react": "^11.13.3",
