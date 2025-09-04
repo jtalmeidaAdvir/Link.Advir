@@ -7,6 +7,10 @@ import {
     Platform,
     ActivityIndicator,
     TouchableOpacity,
+    ImageBackground,
+    Image,
+    Modal,
+    Pressable,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationContainer } from "@react-navigation/native";
@@ -73,6 +77,7 @@ const LoadingScreen = () => (
 );
 
 import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
+import logo from "./assets/img_logo.png"; // Adicionar import do logo
 import "bootstrap/dist/css/bootstrap.min.css";
 import { FontAwesome } from "@expo/vector-icons";
 import i18n from "./src/Pages/i18n";
@@ -80,6 +85,10 @@ import { useTranslation } from "react-i18next";
 // Importa o TokenManager
 import { TokenManager } from "./src/utils/TokenManager";
 import { ThemeProvider } from "./ThemeContext";
+import { 
+    DrawerContentScrollView, 
+    DrawerItem 
+} from '@react-navigation/drawer';
 
 const Drawer = createDrawerNavigator();
 
