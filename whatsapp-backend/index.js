@@ -11,9 +11,9 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Importar rotas
+// Importar rotas - corrigir importações para usar apenas o router
 const whatsappRoutes = require('./routes/whatsappRoutes');
-const intervencaoRoutes = require('./routes/whatsappIntervencoes');
+const { router: intervencaoRoutes } = require('./routes/whatsappIntervencoes');
 
 // Usar rotas
 app.use('/api/whatsapp', whatsappRoutes);

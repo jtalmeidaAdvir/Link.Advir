@@ -16,6 +16,7 @@ const { getAuthToken } = require("../../webPrimaveraApi/servives/tokenService");
 const {
     processarMensagemIntervencao,
     isIntervencaoKeyword,
+    activeIntervencoes
 } = require("./whatsappIntervencoes");
 let isInitializing = false;
 let isShuttingDown = false;
@@ -1632,7 +1633,7 @@ async function handleIncomingMessage(message) {
         }
     }
 
-    // **MÉTODO 3: Analisar texto para coordenadas ou links do Google Maps**
+    // MÉTODO 3: Analisar texto para coordenadas ou links do Google Maps
     const parsedLocation = tryParseLocationData(messageText);
     if (parsedLocation) {
         console.log(
@@ -1663,7 +1664,7 @@ async function handleIncomingMessage(message) {
         }
     }
 
-    // **MÉTODO 4: Verificar mensagens multimédia que podem conter localização**
+    // MÉTODO 4: Verificar mensagens multimédia que podem conter localização
     if (message.hasMedia) {
         console.log(`📎 Mensagem com média recebida`);
 
@@ -1710,7 +1711,7 @@ async function handleIncomingMessage(message) {
         }
     }
 
-    // **MÉTODO 5: Verificar se a mensagem parece ser dados de localização em base64**
+    // MÉTODO 5: Verificar se a mensagem parece ser dados de localização em base64
     if (
         messageText.length > 1000 &&
         (messageText.startsWith("/9j/") || messageText.startsWith("data:image"))
@@ -1737,39 +1738,52 @@ async function handleIncomingMessage(message) {
     let userState = getUserState(phoneNumber);
 
     // PRIMEIRO: Verificar se há conversa de intervenção ativa - PRIORIDADE MÁXIMA
-    const whatsappIntervencoes = require("./whatsappIntervencoes");
-    if (
-        whatsappIntervencoes.activeIntervencaoConversations &&
-        whatsappIntervencoes.activeIntervencaoConversations.has(phoneNumber)
-    ) {
-        console.log(`🔧 Processando mensagem dentro de conversa de intervenção ativa`);
+    if (activeIntervencoes.has(phoneNumber)) {
+        console.log(`🔧 Processando mensagem dentro de conversa de intervenção ativa: "${messageText}"`);
         await processarMensagemIntervencao(phoneNumber, messageText, client);
         return;
     }
 
-    // SEGUNDO: Verificar se é cancelamento de processo (só para outras conversas)
-    if (
-        messageText.toLowerCase().includes("cancelar") ||
-        messageText.toLowerCase().includes("sair")
-    ) {
-        console.log(`❌ Cancelamento solicitado por ${phoneNumber}`);
-
-        // Limpar estado do utilizador
-        clearUserState(phoneNumber);
-
-        // Limpar conversa ativa se existir
+    // SEGUNDO: Verificar se é palavra-chave de intervenção (PRIORIDADE ALTA)
+    if (isIntervencaoKeyword(messageText)) {
+        // Limpar qualquer conversa ou estado existente
         if (conversation) {
+            console.log(`🔄 Limpando conversa existente para iniciar intervenção`);
             activeConversations.delete(phoneNumber);
         }
+        if (userState) {
+            console.log(`🔄 Limpando estado de utilizador para iniciar intervenção`);
+            clearUserState(phoneNumber);
+        }
+
+        // Verificar autorização (mesma lógica dos pedidos)
+        const authResult = await checkContactAuthorization(phoneNumber);
+        if (authResult.authorized) {
+            console.log(`✅ Iniciando nova conversa de intervenção para ${phoneNumber}`);
+            await processarMensagemIntervencao(phoneNumber, messageText, client);
+            return;
+        } else {
+            await client.sendMessage(
+                phoneNumber,
+                "❌ *Acesso Negado*\n\nVocê não tem autorização para criar intervenções.\n\nApenas utilizadores com permissão para criar pedidos de assistência podem registar intervenções.\n\nPara obter acesso, contacte o administrador do sistema."
+            );
+            return;
+        }
+    }
+
+    // TERCEIRO: Verificar se é cancelamento de processo
+    if (messageText.toLowerCase().includes("cancelar")) {
+        clearUserState(phoneNumber);
+        activeConversations.delete(phoneNumber);
 
         await client.sendMessage(
             phoneNumber,
-            "❌ *Processo Cancelado*\n\nO registo foi cancelado.\n\nPara iniciar um novo processo, envie 'pedido', 'ponto' ou 'intervenção'.",
+            "❌ *Processo Cancelado*\n\nPara iniciar novo processo, envie 'pedido', 'ponto' ou 'intervenção'.",
         );
         return;
     }
 
-    // TERCEIRO: Verificar se é uma palavra-chave para novo pedido
+    // QUARTO: Verificar se é uma palavra-chave para novo pedido
     // MAS APENAS se não há conversa ativa OU se a conversa está em estado inicial/confirmação
     const canInterruptForRequest =
         !conversation ||
@@ -1800,7 +1814,7 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // QUARTO: Verificar se é uma palavra-chave para registo de ponto
+    // QUINTO: Verificar se é uma palavra-chave para registo de ponto
     // APENAS se não há conversa ativa OU se a conversa está em estado inicial/confirmação
     const canInterruptForPonto =
         !conversation ||
@@ -1874,7 +1888,7 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // QUINTO: Verificar se é uma palavra-chave para iniciar nova conversa de pedidos
+    // SEXTO: Verificar se é uma palavra-chave para iniciar nova conversa de pedidos
     if (isRequestKeyword(messageText) && !conversation) {
         console.log(`🎯 Palavra-chave de início detectada: "${messageText}"`);
 
@@ -1891,26 +1905,6 @@ async function handleIncomingMessage(message) {
 
         await startNewRequest(phoneNumber, messageText, authResult.contactData);
         return;
-    }
-
-    // SEXTO: Se é palavra-chave de intervenção e NÃO há conversa ativa, processar
-    if (isIntervencaoKeyword(messageText) && !conversation && !userState) {
-        // Verificar autorização (mesma lógica dos pedidos)
-        const authResult = await checkContactAuthorization(phoneNumber);
-        if (authResult.authorized) {
-            await processarMensagemIntervencao(
-                phoneNumber,
-                messageText,
-                client,
-            );
-            return;
-        } else {
-            await client.sendMessage(
-                phoneNumber,
-                "❌ *Acesso Negado*\n\nVocê não tem autorização para criar intervenções.\n\nApenas utilizadores com permissão para criar pedidos de assistência podem registar intervenções.\n\nPara obter acesso, contacte o administrador do sistema."
-            );
-            return;
-        }
     }
 
     // Se existe conversa ativa e não é palavra-chave, continuar o fluxo normal
@@ -1930,7 +1924,7 @@ async function handleIncomingMessage(message) {
             await client.sendMessage(
                 phoneNumber,
                 "📍 *Aguardando Localização GPS*\n\n" +
-                "Por favor, envie a sua localização através de:\n" +
+                "Por favor, envie sua localização através de:\n" +
                 "• Anexo (📎) → 'Localização' → 'Localização atual'\n" +
                 "• Link do Google Maps\n" +
                 "• Coordenadas GPS\n\n" +
@@ -2127,34 +2121,44 @@ async function continueConversation(phoneNumber, message, conversation) {
         typeof message === "string" ? message : message.body || message;
 
     // PRIMEIRO: Verificar se há conversa de intervenção ativa - PRIORIDADE MÁXIMA
-    const whatsappIntervencoes = require("./whatsappIntervencoes");
-    if (
-        whatsappIntervencoes.activeIntervencaoConversations &&
-        whatsappIntervencoes.activeIntervencaoConversations.has(phoneNumber)
-    ) {
+    if (activeIntervencoes.has(phoneNumber)) {
         console.log(`🔧 Processando mensagem dentro de conversa de intervenção ativa durante continueConversation`);
         await processarMensagemIntervencao(phoneNumber, messageText, client);
         return;
     }
 
-    // SEGUNDO: Verificar se é cancelamento de processo (só para outras conversas)
-    if (
-        messageText.toLowerCase().includes("cancelar") ||
-        messageText.toLowerCase().includes("sair")
-    ) {
-        console.log(`❌ Cancelamento solicitado por ${phoneNumber}`);
+    // SEGUNDO: Verificar se é palavra-chave de intervenção (força nova intervenção)
+    if (isIntervencaoKeyword(messageText)) {
+        console.log(`🔧 Palavra-chave de intervenção detectada, forçando nova conversa`);
 
-        // Limpar estado do utilizador
-        clearUserState(phoneNumber);
-
-        // Limpar conversa ativa se existir
+        // Limpar conversa atual
         if (conversation) {
             activeConversations.delete(phoneNumber);
         }
+        clearUserState(phoneNumber);
+
+        // Verificar autorização e iniciar nova intervenção
+        const authResult = await checkContactAuthorization(phoneNumber);
+        if (authResult.authorized) {
+            await processarMensagemIntervencao(phoneNumber, messageText, client);
+            return;
+        } else {
+            await client.sendMessage(
+                phoneNumber,
+                "❌ *Acesso Negado*\n\nVocê não tem autorização para criar intervenções."
+            );
+            return;
+        }
+    }
+
+    // TERCEIRO: Verificar se é cancelamento de processo
+    if (messageText.toLowerCase().includes("cancelar")) {
+        clearUserState(phoneNumber);
+        activeConversations.delete(phoneNumber);
 
         await client.sendMessage(
             phoneNumber,
-            "❌ *Processo Cancelado*\n\nO processo foi cancelado.\n\nPara iniciar um novo processo, envie 'pedido', 'ponto' ou 'intervenção'.",
+            "❌ *Processo Cancelado*\n\nPara iniciar novo processo, envie 'pedido', 'ponto' ou 'intervenção'.",
         );
         return;
     }
@@ -2179,9 +2183,11 @@ async function continueConversation(phoneNumber, message, conversation) {
                 messageText,
                 conversation,
             );
-            break;
+            return;
         case CONVERSATION_STATES.PONTO_WAITING_OBRA:
-            await handleObraSelection(phoneNumber, messageText, conversation); // Passa a mensagem como texto
+            await handleObraSelection(phoneNumber, message, {
+                data: conversation.data,
+            }); // Passa a mensagem como texto
             break;
         default:
             console.log(
@@ -2196,8 +2202,17 @@ async function continueConversation(phoneNumber, message, conversation) {
     }
 
     // Atualizar última atividade
-    conversation.lastActivity = Date.now();
-    activeConversations.set(phoneNumber, conversation);
+    const convKey = phoneNumber;
+
+    // Só atualiza se a conversa ainda existir (não foi cancelada nem concluída por um handler)
+    if (activeConversations.has(convKey)) {
+        const cur = activeConversations.get(convKey);
+        cur.lastActivity = Date.now();
+        activeConversations.set(convKey, cur);
+    }
+
+    // Se foi apagada dentro de algum handler, não faças mais nada
+    return;
 }
 
 // Função para validar se o cliente existe no sistema Primavera
@@ -2627,13 +2642,14 @@ async function handleObraSelection(phoneNumber, message, conversation) {
         obraId: obraSelecionada.id,
         obraNome: obraSelecionada.nome,
         tipoRegisto: registoInfo.tipo,
-        precisaSaidaAutomatica: registoInfo.precisaSaidaAutomatica,
+        precisaSaidaAutomatica:
+            registoInfo.precisaSaidaAutomatica,
         obraAnterior: registoInfo.obraAnterior,
     });
 
     let response = `✅ *Obra:* ${obraSelecionada.codigo} - ${obraSelecionada.nome}\n`;
 
-    // Se precisa de saída automática, informar o utilizador
+    // Se precisa de saída automática, informar
     if (registoInfo.precisaSaidaAutomatica) {
         response += `🔄 *Mudança de obra detectada*\n`;
         response += `📤 Será dada saída automática da obra anterior\n`;
@@ -3376,18 +3392,18 @@ async function handleConfirmationInput(phoneNumber, message, conversation) {
             console.log(
                 `✅ Confirmação recebida de ${phoneNumber} - criando pedido...`,
             );
+
+            // Limpar estado e conversa ANTES de criar o pedido para evitar conflitos
+            activeConversations.delete(phoneNumber);
+            clearUserState(phoneNumber);
+
             const result = await createAssistenceRequest(
                 phoneNumber,
                 conversation,
             );
 
-            // Garantir que a conversa é limpa após criação do pedido
-            if (activeConversations.has(phoneNumber)) {
-                activeConversations.delete(phoneNumber);
-            }
-
             console.log(
-                `✅ Pedido criado e conversa limpa para ${phoneNumber}`,
+                `✅ Pedido criado e estados limpos para ${phoneNumber}`,
             );
             return result;
         } catch (error) {
@@ -3396,12 +3412,13 @@ async function handleConfirmationInput(phoneNumber, message, conversation) {
                 error,
             );
 
-            // Mesmo em erro, limpar conversa e informar utilizador
+            // Garantir limpeza mesmo em erro
             activeConversations.delete(phoneNumber);
+            clearUserState(phoneNumber);
 
             await client.sendMessage(
                 phoneNumber,
-                "❌ Ocorreu um erro ao processar o seu pedido. Por favor, tente novamente enviando 'pedido'.",
+                "❌ Ocorreu um erro ao processar o seu pedido. Para tentar novamente, envie 'pedido'.",
             );
 
             return { success: false, error: error.message };
@@ -3413,10 +3430,13 @@ async function handleConfirmationInput(phoneNumber, message, conversation) {
         response === "no" ||
         response === "0"
     ) {
+        // Limpar todos os estados ao cancelar
         activeConversations.delete(phoneNumber);
+        clearUserState(phoneNumber);
+
         await client.sendMessage(
             phoneNumber,
-            "❌ Pedido cancelado com sucesso.\n\n💡 Para iniciar um novo pedido de assistência, envie 'pedido' ou 'assistência'.",
+            "❌ Pedido cancelado com sucesso.\n\n💡 Para iniciar um novo pedido, envie 'pedido'.",
         );
         return { success: false, cancelled: true };
     } else {
@@ -3638,14 +3658,15 @@ Obrigado por contactar a Advir.`;
             message: "Pedido processado",
         }; // força sucesso
     } finally {
-        // Sempre limpar a conversa para permitir novos pedidos
+        // Sempre limpar TODOS os estados para permitir novos pedidos
         try {
             activeConversations.delete(phoneNumber);
+            clearUserState(phoneNumber);
             console.log(
-                `🧹 Conversa limpa para ${phoneNumber} - pronto para novos pedidos`,
+                `🧹 Todos os estados limpos para ${phoneNumber} - pronto para novos pedidos`,
             );
         } catch (cleanupError) {
-            console.warn("Erro ao limpar conversa:", cleanupError);
+            console.warn("Erro ao limpar estados:", cleanupError);
         }
     }
 }
@@ -3658,7 +3679,7 @@ async function createAssistanceRequest(phoneNumber, conversation) {
 // Limpar conversas antigas (executar periodicamente)
 setInterval(
     () => {
-        const now = Date.now();
+        const now = new Date();
         const TIMEOUT = 30 * 60 * 1000; // 30 minutos
 
         for (const [
