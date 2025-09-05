@@ -991,8 +991,8 @@ router.get("/qr", (req, res) => {
 // Sistema de armazenamento em base de dados para agendamentos
 const { sequelize } = require("../config/database");
 const { Op } = require("sequelize");
-const Contact = require("../models/contact");
-const Schedule = require("../models/schedule");
+const Contact = require("../models/Contact");
+const Schedule = require("../models/Schedule");
 
 // Endpoint para criar lista de contactos
 router.post("/contact-lists", async (req, res) => {
