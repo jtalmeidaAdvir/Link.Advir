@@ -13,8 +13,10 @@ const INTERVENCAO_STATES = {
     WAITING_ESTADO: "waiting_estado",
     WAITING_TIPO_REMOTO: "waiting_tipo_remoto",
     WAITING_DESCRICAO: "waiting_descricao",
+    WAITING_DATA_INICIO_CHOICE: "waiting_data_inicio_choice",
     WAITING_DATA_INICIO: "waiting_data_inicio",
     WAITING_HORA_INICIO: "waiting_hora_inicio",
+    WAITING_DATA_FIM_CHOICE: "waiting_data_fim_choice",
     WAITING_DATA_FIM: "waiting_data_fim",
     WAITING_HORA_FIM: "waiting_hora_fim",
     WAITING_CONFIRMATION: "waiting_confirmation",
@@ -177,6 +179,14 @@ async function continueIntervencaoConversation(
                 client,
             );
             break;
+        case INTERVENCAO_STATES.WAITING_DATA_INICIO_CHOICE:
+            await handleDataInicioChoiceInputIntervencao(
+                phoneNumber,
+                messageText,
+                conversation,
+                client,
+            );
+            break;
         case INTERVENCAO_STATES.WAITING_DATA_INICIO:
             await handleDataInicioInputIntervencao(
                 phoneNumber,
@@ -187,6 +197,14 @@ async function continueIntervencaoConversation(
             break;
         case INTERVENCAO_STATES.WAITING_HORA_INICIO:
             await handleHoraInicioInputIntervencao(
+                phoneNumber,
+                messageText,
+                conversation,
+                client,
+            );
+            break;
+        case INTERVENCAO_STATES.WAITING_DATA_FIM_CHOICE:
+            await handleDataFimChoiceInputIntervencao(
                 phoneNumber,
                 messageText,
                 conversation,
@@ -551,14 +569,64 @@ async function handleDescricaoInputIntervencao(
     client,
 ) {
     conversation.data.descricao = messageText.trim();
-    conversation.state = INTERVENCAO_STATES.WAITING_DATA_INICIO;
+    conversation.state = INTERVENCAO_STATES.WAITING_DATA_INICIO_CHOICE;
+
+    const hoje = new Date();
+    const dataHojeFormatada = `${hoje.getDate().toString().padStart(2, '0')}/${(hoje.getMonth() + 1).toString().padStart(2, '0')}/${hoje.getFullYear()}`;
 
     const response = `✅ Descrição registada com sucesso.
 
 *5. Data de Início*
-Indique a data de início da intervenção no formato DD/MM/AAAA (exemplo: 15/12/2024):`;
+Pretende usar a data de hoje (${dataHojeFormatada}) para o início da intervenção?
+
+*1.* SIM - Usar data de hoje (${dataHojeFormatada})
+*2.* NÃO - Inserir data manualmente
+
+Digite o número correspondente (1-2):`;
 
     await client.sendMessage(phoneNumber, response);
+}
+
+// Handler para escolha de data de início (hoje ou manual)
+async function handleDataInicioChoiceInputIntervencao(
+    phoneNumber,
+    messageText,
+    conversation,
+    client,
+) {
+    const escolha = parseInt(messageText.trim());
+
+    if (isNaN(escolha) || escolha < 1 || escolha > 2) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Escolha inválida. Digite um número entre 1 e 2:`,
+        );
+        return;
+    }
+
+    if (escolha === 1) {
+        // Usar data de hoje
+        const hoje = new Date();
+        const dataHojeFormatada = `${hoje.getDate().toString().padStart(2, '0')}/${(hoje.getMonth() + 1).toString().padStart(2, '0')}/${hoje.getFullYear()}`;
+
+        conversation.data.dataInicio = dataHojeFormatada;
+        conversation.state = INTERVENCAO_STATES.WAITING_HORA_INICIO;
+
+        const response = `✅ Data de início: ${dataHojeFormatada}
+
+*6. Hora de Início*
+Indique a hora de início da intervenção no formato HH:MM (exemplo: 09:30 ou 14:15):`;
+
+        await client.sendMessage(phoneNumber, response);
+    } else {
+        // Inserir manualmente
+        conversation.state = INTERVENCAO_STATES.WAITING_DATA_INICIO;
+
+        const response = `*5. Data de Início*
+Indique a data de início da intervenção no formato DD/MM/AAAA (exemplo: 15/12/2024):`;
+
+        await client.sendMessage(phoneNumber, response);
+    }
 }
 
 // Handler para data de início da intervenção
@@ -626,12 +694,20 @@ async function handleHoraInicioInputIntervencao(
     }
 
     conversation.data.horaInicio = horaTexto;
-    conversation.state = INTERVENCAO_STATES.WAITING_DATA_FIM;
+    conversation.state = INTERVENCAO_STATES.WAITING_DATA_FIM_CHOICE;
+
+    const hoje = new Date();
+    const dataHojeFormatada = `${hoje.getDate().toString().padStart(2, '0')}/${(hoje.getMonth() + 1).toString().padStart(2, '0')}/${hoje.getFullYear()}`;
 
     const response = `✅ Hora de início: ${horaTexto}
 
 *7. Data de Fim*
-Indique a data de fim da intervenção no formato DD/MM/AAAA (exemplo: 15/12/2024):`;
+Pretende usar a data de hoje (${dataHojeFormatada}) para o fim da intervenção?
+
+*1.* SIM - Usar data de hoje (${dataHojeFormatada})
+*2.* NÃO - Inserir data manualmente
+
+Digite o número correspondente (1-2):`;
 
     await client.sendMessage(phoneNumber, response);
 }
@@ -693,6 +769,66 @@ async function handleDataFimInputIntervencao(
 Indique a hora de fim da intervenção no formato HH:MM (exemplo: 17:30):`;
 
     await client.sendMessage(phoneNumber, response);
+}
+
+// Handler para escolha de data de fim (hoje ou manual)
+async function handleDataFimChoiceInputIntervencao(
+    phoneNumber,
+    messageText,
+    conversation,
+    client,
+) {
+    const escolha = parseInt(messageText.trim());
+
+    if (isNaN(escolha) || escolha < 1 || escolha > 2) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Escolha inválida. Digite um número entre 1 e 2:`,
+        );
+        return;
+    }
+
+    if (escolha === 1) {
+        // Usar data de hoje
+        const hoje = new Date();
+        const dataHojeFormatada = `${hoje.getDate().toString().padStart(2, '0')}/${(hoje.getMonth() + 1).toString().padStart(2, '0')}/${hoje.getFullYear()}`;
+
+        // Verificar se a data de fim não é anterior à data de início
+        const [diaInicio, mesInicio, anoInicio] = conversation.data.dataInicio.split("/");
+        const dataInicio = new Date(anoInicio, mesInicio - 1, diaInicio);
+        const dataFim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+
+        if (dataFim < dataInicio) {
+            await client.sendMessage(
+                phoneNumber,
+                `❌ A data de fim não pode ser anterior à data de início (${conversation.data.dataInicio}). Por favor, escolha inserir data manualmente ou altere a data de início.
+
+*1.* SIM - Usar data de hoje (${dataHojeFormatada})
+*2.* NÃO - Inserir data manualmente
+
+Digite o número correspondente (1-2):`,
+            );
+            return;
+        }
+
+        conversation.data.dataFim = dataHojeFormatada;
+        conversation.state = INTERVENCAO_STATES.WAITING_HORA_FIM;
+
+        const response = `✅ Data de fim: ${dataHojeFormatada}
+
+*8. Hora de Fim*
+Indique a hora de fim da intervenção no formato HH:MM (exemplo: 17:30):`;
+
+        await client.sendMessage(phoneNumber, response);
+    } else {
+        // Inserir manualmente
+        conversation.state = INTERVENCAO_STATES.WAITING_DATA_FIM;
+
+        const response = `*7. Data de Fim*
+Indique a data de fim da intervenção no formato DD/MM/AAAA (exemplo: 15/12/2024):`;
+
+        await client.sendMessage(phoneNumber, response);
+    }
 }
 
 // Handler para hora de fim da intervenção
@@ -846,6 +982,29 @@ async function createIntervencao(phoneNumber, conversation, client) {
         );
 
         console.log("✅ Token obtido com sucesso");
+
+        // Verificar e atualizar data do pedido se necessário
+        console.log("🔄 Verificando se é necessário atualizar a data do pedido...");
+        try {
+            const verificaDataResponse = await axios.post(
+                "http://151.80.149.159:2018/WebApi/ServicosTecnicos/VerificaDataPedidoAtualiza",
+                {
+                    Id: conversation.data.pedidoId,
+                    NovaData: conversation.data.dataHoraInicio.toISOString().slice(0, 19).replace("T", " ")
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            console.log("✅ Verificação da data do pedido concluída:", verificaDataResponse.data);
+        } catch (verificaError) {
+            console.warn("⚠️ Aviso na verificação da data do pedido:", verificaError.response?.data || verificaError.message);
+            // Continua mesmo se houver erro na verificação da data
+        }
 
         // Formatar datas para o formato esperado pela API
         const formatarData = (data) => {
@@ -1126,6 +1285,29 @@ router.post("/criar-intervencao", async (req, res) => {
             },
             "151.80.149.159:2018",
         );
+
+        // Verificar e atualizar data do pedido se necessário
+        console.log("🔄 Verificando se é necessário atualizar a data do pedido...");
+        try {
+            const verificaDataResponse = await axios.post(
+                "http://151.80.149.159:2018/WebApi/ServicosTecnicos/VerificaDataPedidoAtualiza",
+                {
+                    Id: pedidoId,
+                    NovaData: formatarData(dataInicio)
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            console.log("✅ Verificação da data do pedido concluída:", verificaDataResponse.data);
+        } catch (verificaError) {
+            console.warn("⚠️ Aviso na verificação da data do pedido:", verificaError.response?.data || verificaError.message);
+            // Continua mesmo se houver erro na verificação da data
+        }
 
         // Enviar para a API do Primavera
         try {

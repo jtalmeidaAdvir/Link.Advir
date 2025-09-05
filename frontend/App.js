@@ -584,7 +584,7 @@ const obrasSubmodulesOrder = [
                                                 {hasSubmodule("Servicos", "DashboardTecnico") && (
                                                 <TouchableOpacity
                                                     style={drawerStyles.submoduleItem}
-                                                    onPress={() => props.navigation.navigate("DashboardTecnico")}
+                                                    onPress={() => props.navigation.navigate("PandIByTecnico")}
                                                 >
                                                     <FontAwesome name="bar-chart" size={16} color="#1792FE" />
                                                     <Text style={drawerStyles.submoduleText}>Dashboard Técnico</Text>
