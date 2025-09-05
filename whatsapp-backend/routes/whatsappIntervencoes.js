@@ -474,6 +474,27 @@ async function criarIntervencao(phoneNumber, conversa, client) {
 
         const formatarData = (data) => data.toISOString().slice(0, 19).replace("T", " ");
 
+        // Verificar e atualizar data do pedido se necessário
+        try {
+            const dataValidacao = {
+                Id: conversa.data.pedidoId,
+                NovaData: formatarData(conversa.data.dataHoraInicio)
+            };
+
+            console.log(`🔍 Verificando data do pedido:`, dataValidacao);
+
+            const validacaoResponse = await axios.post(
+                "http://151.80.149.159:2018/WebApi/ServicosTecnicos/VerificaDataPedidoAtualiza",
+                dataValidacao,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            console.log(`✅ Validação de data concluída:`, validacaoResponse.data);
+        } catch (validationError) {
+            console.warn("⚠️ Erro na validação de data, mas continuando:", validationError.response?.data || validationError.message);
+            // Continua mesmo se a validação falhar
+        }
+
         const estadoMap = {
             "Terminado": "1",
             "Aguardar intervenção equipa Advir": "2",
@@ -525,6 +546,9 @@ Para nova intervenção, envie 'intervenção'.`;
         if (typeof erroMsg === "string" && erroMsg.includes("Object reference not set to an instance of an object")) {
             console.warn("⚠️ Erro conhecido ignorado:", erroMsg);
             await enviarMensagemSucesso(phoneNumber, conversa, client);
+        } else if (typeof erroMsg === "string" && erroMsg.includes("A data de início da intervenção é anterior à data de abertura do processo")) {
+            console.error("❌ Erro de data anterior - isso não deveria acontecer após validação:", erroMsg);
+            await client.sendMessage(phoneNumber, "❌ Erro de data da intervenção. Tente novamente enviando 'intervenção'.");
         } else {
             console.error("Erro ao criar intervenção:", erroMsg);
             await client.sendMessage(phoneNumber, "❌ Erro ao criar intervenção. Tente novamente enviando 'intervenção'.");

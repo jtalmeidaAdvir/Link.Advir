@@ -785,16 +785,13 @@ useEffect(() => {
   carregarCategoriaDinamicamente();
 }, [editData?.categoria]);
 
-// Minutos a mostrar numa célula: ParteDiária > editado/manual > default 480 se houve ponto
+// Minutos a mostrar numa célula: ParteDiária > editado/manual (ignora completamente o ponto)
 const getMinutosCell = useCallback((item, dia) => {
   const mPD = item?.horasSubmetidasPorDia?.[dia] || 0;
   if (mPD > 0) return mPD;
 
   const mMan = item?.horasPorDia?.[dia] || 0;
-  if (mMan > 0) return mMan;
-
-  const mPonto = item?.horasOriginais?.[dia] || 0;
-  return mPonto > 0 ? 480 : 0;
+  return mMan;
 }, []);
 
 
@@ -1199,8 +1196,9 @@ const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
   registosPorUsuarioObra.forEach(grupo => {
     const horasPorDia = calcularHorasPorDia(grupo.registos, diasDoMes);
 
+    // Inicializar com zeros - não usar as horas do ponto como padrão
     const horasPorDefeito = {};
-    diasDoMes.forEach(d => (horasPorDefeito[d] = horasPorDia[d] > 0 ? 480 : 0));
+    diasDoMes.forEach(d => (horasPorDefeito[d] = 0));
 
     const cod = codMap[grupo.user.id] || null;
 
@@ -1212,8 +1210,8 @@ const processarDadosPartes = useCallback((registos, equipasData = equipas) => {
       obraId: grupo.obra.id,
       obraNome: grupo.obra.nome,
       obraCodigo: grupo.obra.codigo,
-      horasPorDia: horasPorDefeito,
-      horasOriginais: horasPorDia, // guarda as horas originais do ponto
+      horasPorDia: horasPorDefeito, // sempre zero inicialmente
+      horasOriginais: horasPorDia, // guarda as horas originais do ponto (apenas para referência)
       // NEW: se quiseres guardar para UI, mas sem misturar com o ponto
       horasSubmetidasPorDia: null,
       totalMinSubmetido: 0,
@@ -2216,7 +2214,7 @@ const submeterExternosSilencioso = async () => {
                       style={styles.externosTextInput}
                       value={linhaAtual.horas}
                       onChangeText={(v) => setLinhaAtual(p => ({ ...p, horas: v }))}
-                      placeholder="ex.: 8:00 ou 8.0"
+                      placeholder="0:00"
                       keyboardType="default"
                     />
                   </View>
@@ -2917,9 +2915,7 @@ const renderDataSheet = () => {
 
                                 <View style={styles.editInfoGrid}>
                                     <View style={styles.editInfoItem}>
-                                        <Text style={styles.editInfoLabel}>
-                                            <Ionicons name="time" size={14} color="#666" /> Horas de Ponto
-                                        </Text>
+                                        
                                         <Text style={[styles.editInfoValue, { color: '#1792FE' }]}>
                                             {formatarHorasMinutos(selectedTrabalhador.horasOriginais[selectedDia] || 0)}
                                         </Text>
@@ -3081,7 +3077,7 @@ const renderDataSheet = () => {
                                                     const horasDecimais = minutos / 60;
                                                     atualizarEspecialidade(index, 'horas', horasDecimais);
                                                 }}
-                                                placeholder="8:00"
+                                                placeholder="0:00"
                                                 keyboardType="default"
                                             />
                                         </View>
@@ -3164,12 +3160,7 @@ const renderDataSheet = () => {
                                                 }, 0))}
                                             </Text>
                                         </Text>
-                                        <Text style={styles.editHoursSummaryText}>
-                                            <Ionicons name="time" size={14} color="#28a745" /> 
-                                            Horas Trabalhadas: <Text style={{ fontWeight: 'bold', color: '#28a745' }}>
-                                                {formatarHorasMinutos(selectedTrabalhador?.horasPorDia[selectedDia] || 0)}
-                                            </Text>
-                                        </Text>
+                                        
                                     </View>
                                 </View>
                             </View>
