@@ -226,31 +226,89 @@ const NFCScanner = () => {
 
     const handleNFCRead = (event) => {
         try {
+            console.log("📡 Evento NFC completo:", event);
+            
             // Ler o código RFID real do cartão
             let rfidCodeFromCard = null;
+            let cardInfo = [];
 
-            // Tentar extrair código RFID do cartão NFC
+            // 1. Tentar usar o serialNumber (UID do cartão) - mais comum em cartões de transporte
+            if (event.serialNumber) {
+                rfidCodeFromCard = event.serialNumber;
+                cardInfo.push(`Serial: ${event.serialNumber}`);
+                console.log("✅ Serial Number encontrado:", event.serialNumber);
+            }
+
+            // 2. Tentar extrair dados da mensagem NDEF
             if (event.message && event.message.records) {
-                for (const record of event.message.records) {
-                    if (record.recordType === "text") {
-                        const decoder = new TextDecoder(record.encoding);
-                        rfidCodeFromCard = decoder.decode(record.data);
-                        break;
-                    } else if (record.recordType === "url") {
-                        const decoder = new TextDecoder();
-                        rfidCodeFromCard = decoder.decode(record.data);
-                        break;
+                console.log("📋 Records encontrados:", event.message.records.length);
+                
+                for (let i = 0; i < event.message.records.length; i++) {
+                    const record = event.message.records[i];
+                    console.log(`Record ${i}:`, record);
+                    
+                    try {
+                        if (record.recordType === "text") {
+                            const decoder = new TextDecoder(record.encoding || 'utf-8');
+                            const textData = decoder.decode(record.data);
+                            if (!rfidCodeFromCard) rfidCodeFromCard = textData;
+                            cardInfo.push(`Texto: ${textData}`);
+                            console.log("📝 Texto encontrado:", textData);
+                        } 
+                        else if (record.recordType === "url") {
+                            const decoder = new TextDecoder();
+                            const urlData = decoder.decode(record.data);
+                            if (!rfidCodeFromCard) rfidCodeFromCard = urlData;
+                            cardInfo.push(`URL: ${urlData}`);
+                            console.log("🔗 URL encontrada:", urlData);
+                        }
+                        else if (record.data) {
+                            // Tentar ler dados raw como hex
+                            const rawData = Array.from(new Uint8Array(record.data))
+                                .map(b => b.toString(16).padStart(2, '0'))
+                                .join('');
+                            if (!rfidCodeFromCard && rawData.length > 0) {
+                                rfidCodeFromCard = rawData.substring(0, 16); // Primeiros 16 chars
+                            }
+                            cardInfo.push(`Raw: ${rawData}`);
+                            console.log("🔢 Dados Raw:", rawData);
+                        }
+                    } catch (recordError) {
+                        console.log(`Erro ao processar record ${i}:`, recordError);
                     }
                 }
+            }
+
+            // 3. Se ainda não temos dados, tentar outras propriedades do evento
+            if (!rfidCodeFromCard) {
+                if (event.tag && event.tag.id) {
+                    const tagId = Array.from(new Uint8Array(event.tag.id))
+                        .map(b => b.toString(16).padStart(2, '0'))
+                        .join('');
+                    rfidCodeFromCard = tagId;
+                    cardInfo.push(`Tag ID: ${tagId}`);
+                    console.log("🏷️ Tag ID encontrado:", tagId);
+                }
+            }
+
+            // 4. Se mesmo assim não temos dados, usar timestamp como ID único
+            if (!rfidCodeFromCard) {
+                rfidCodeFromCard = `CP_${Date.now().toString().slice(-8)}`;
+                cardInfo.push("Gerado automaticamente");
+                console.log("🤖 Código gerado automaticamente:", rfidCodeFromCard);
             }
 
             // Se não conseguir ler do cartão, usar o código do campo input como fallback
             const codeToSend = rfidCodeFromCard || rfidCode.trim() || "12AB34CD";
 
-            showStatus(`📡 Cartão detectado! Código RFID lido: ${codeToSend}`, "success");
+            const statusMessage = cardInfo.length > 0 
+                ? `📡 Cartão CP detectado!\n\n🏷️ Código: ${codeToSend}\n\n📋 Dados encontrados:\n${cardInfo.slice(0, 3).join('\n')}`
+                : `📡 Cartão detectado! Código: ${codeToSend}`;
+
+            showStatus(statusMessage, "success");
 
             if (navigator.vibrate) {
-                navigator.vibrate([100, 50, 100]);
+                navigator.vibrate([100, 50, 100, 50, 100]);
             }
 
             sendToWhatsApp(codeToSend);
@@ -258,11 +316,16 @@ const NFCScanner = () => {
         } catch (error) {
             console.error("Erro ao ler NFC:", error);
             
-            // Fallback: usar código do input
-            const codeToSend = rfidCode.trim() || "12AB34CD";
-            showStatus(`⚠️ Erro na leitura, usando código manual: ${codeToSend}`, "info");
+            // Fallback: usar código do input ou gerar um baseado no timestamp
+            const fallbackCode = rfidCode.trim() || `CP_${Date.now().toString().slice(-8)}`;
+            showStatus(
+                `⚠️ Erro na leitura NFC\n\n` +
+                `🔧 Usando código alternativo: ${fallbackCode}\n\n` +
+                `💡 Detalhes do erro: ${error.message}`, 
+                "info"
+            );
             
-            sendToWhatsApp(codeToSend);
+            sendToWhatsApp(fallbackCode);
             stopScanning();
         }
     };
@@ -274,9 +337,17 @@ const NFCScanner = () => {
             return;
         }
 
-        // Usar o código RFID do campo input
-        const testRfidCode = rfidCode.trim() || "12AB34CD";
-        showStatus(`🧪 Teste: Simulando leitura RFID - ${testRfidCode}`, "info");
+        // Simular leitura de cartão CP com códigos realistas
+        const testCodes = [
+            rfidCode.trim(),
+            `CP_${Date.now().toString().slice(-8)}`,
+            "04A2B3C4D5E6F7",
+            "080012345678ABCD",
+            "ANDANTE_789456123"
+        ];
+        
+        const testRfidCode = testCodes.find(code => code && code.length > 0) || "CP_TEST123";
+        showStatus(`🧪 Teste: Simulando leitura cartão CP - ${testRfidCode}`, "info");
 
         if (navigator.vibrate) {
             navigator.vibrate([100, 50, 100]);
@@ -555,11 +626,19 @@ const NFCScanner = () => {
 
                         <p style={styles.instructionsText}><strong>Como Funciona:</strong></p>
                         <ul style={styles.instructionsList}>
-                            <li style={styles.instructionsItem}>📖 <strong>1. LER:</strong> O código RFID gravado no cartão físico</li>
+                            <li style={styles.instructionsItem}>📖 <strong>1. LER:</strong> O código único do cartão (Serial Number, UID, ou dados NDEF)</li>
                             <li style={styles.instructionsItem}>🔧 <strong>2. PROCESSAR:</strong> O código é enviado automaticamente para a intervenção ativa</li>
                             <li style={styles.instructionsItem}>📱 <strong>3. CONTINUAR:</strong> Voltar para o WhatsApp para continuar a conversa</li>
                             <li style={styles.instructionsItem}>✅ <strong>Resultado:</strong> O artigo é adicionado à intervenção automaticamente</li>
-                            <li style={styles.instructionsItem}>🔄 <strong>Fluxo:</strong> Scanner → Leitura RFID → Processa na Intervenção → Continua no WhatsApp</li>
+                            <li style={styles.instructionsItem}>🔄 <strong>Fluxo:</strong> Scanner → Leitura NFC → Processa na Intervenção → Continua no WhatsApp</li>
+                        </ul>
+
+                        <p style={styles.instructionsText}><strong>Tipos de Cartões Suportados:</strong></p>
+                        <ul style={styles.instructionsList}>
+                            <li style={styles.instructionsItem}>🚊 <strong>Cartões CP:</strong> Comboios de Portugal (Andante, Viva Viagem, etc.)</li>
+                            <li style={styles.instructionsItem}>🏷️ <strong>Cartões RFID:</strong> Cartões de acesso, identificação</li>
+                            <li style={styles.instructionsItem}>📱 <strong>Tags NFC:</strong> Etiquetas NFC programáveis</li>
+                            <li style={styles.instructionsItem}>💳 <strong>Cartões Contactless:</strong> Com chip NFC ativo</li>
                         </ul>
 
                         <p style={styles.instructionsText}><strong>Requisitos do Sistema:</strong></p>
