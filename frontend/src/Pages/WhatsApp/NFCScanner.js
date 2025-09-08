@@ -226,57 +226,81 @@ const NFCScanner = () => {
 
     const handleNFCRead = (event) => {
         try {
-            console.log("📡 Evento NFC completo:", event);
+            console.log("📡 Evento NFC COMPLETO:", JSON.stringify(event, null, 2));
+            
+            // Debug completo de todas as propriedades do evento
+            const eventProps = Object.keys(event);
+            console.log("🔍 Propriedades do evento NFC:", eventProps);
             
             // Ler o código RFID real do cartão
             let rfidCodeFromCard = null;
             let cardInfo = [];
+            let debugInfo = [];
 
-            // 1. Tentar usar o serialNumber (UID do cartão) - mais comum em cartões de transporte
+            // 1. Verificar serialNumber (UID do cartão) - mais comum em cartões de transporte
             if (event.serialNumber) {
                 rfidCodeFromCard = event.serialNumber;
                 cardInfo.push(`Serial: ${event.serialNumber}`);
+                debugInfo.push(`✅ Serial Number: ${event.serialNumber}`);
                 console.log("✅ Serial Number encontrado:", event.serialNumber);
+            } else {
+                debugInfo.push("❌ Serial Number: não encontrado");
             }
 
-            // 2. Tentar extrair dados da mensagem NDEF
-            if (event.message && event.message.records) {
-                console.log("📋 Records encontrados:", event.message.records.length);
+            // 2. Verificar se existe mensagem NDEF
+            if (event.message) {
+                debugInfo.push(`✅ Mensagem NDEF: existe`);
+                console.log("📋 Mensagem NDEF:", event.message);
                 
-                for (let i = 0; i < event.message.records.length; i++) {
-                    const record = event.message.records[i];
-                    console.log(`Record ${i}:`, record);
+                if (event.message.records && event.message.records.length > 0) {
+                    debugInfo.push(`✅ Records: ${event.message.records.length} encontrados`);
                     
-                    try {
-                        if (record.recordType === "text") {
-                            const decoder = new TextDecoder(record.encoding || 'utf-8');
-                            const textData = decoder.decode(record.data);
-                            if (!rfidCodeFromCard) rfidCodeFromCard = textData;
-                            cardInfo.push(`Texto: ${textData}`);
-                            console.log("📝 Texto encontrado:", textData);
-                        } 
-                        else if (record.recordType === "url") {
-                            const decoder = new TextDecoder();
-                            const urlData = decoder.decode(record.data);
-                            if (!rfidCodeFromCard) rfidCodeFromCard = urlData;
-                            cardInfo.push(`URL: ${urlData}`);
-                            console.log("🔗 URL encontrada:", urlData);
-                        }
-                        else if (record.data) {
-                            // Tentar ler dados raw como hex
-                            const rawData = Array.from(new Uint8Array(record.data))
-                                .map(b => b.toString(16).padStart(2, '0'))
-                                .join('');
-                            if (!rfidCodeFromCard && rawData.length > 0) {
-                                rfidCodeFromCard = rawData.substring(0, 16); // Primeiros 16 chars
+                    for (let i = 0; i < event.message.records.length; i++) {
+                        const record = event.message.records[i];
+                        console.log(`📄 Record ${i}:`, record);
+                        debugInfo.push(`   Record ${i}: tipo=${record.recordType || 'unknown'}`);
+                        
+                        try {
+                            if (record.recordType === "text") {
+                                const decoder = new TextDecoder(record.encoding || 'utf-8');
+                                const textData = decoder.decode(record.data);
+                                if (!rfidCodeFromCard) rfidCodeFromCard = textData;
+                                cardInfo.push(`Texto: ${textData}`);
+                                debugInfo.push(`   ✅ Texto: ${textData}`);
+                                console.log("📝 Texto encontrado:", textData);
+                            } 
+                            else if (record.recordType === "url") {
+                                const decoder = new TextDecoder();
+                                const urlData = decoder.decode(record.data);
+                                if (!rfidCodeFromCard) rfidCodeFromCard = urlData;
+                                cardInfo.push(`URL: ${urlData}`);
+                                debugInfo.push(`   ✅ URL: ${urlData}`);
+                                console.log("🔗 URL encontrada:", urlData);
                             }
-                            cardInfo.push(`Raw: ${rawData}`);
-                            console.log("🔢 Dados Raw:", rawData);
+                            else if (record.data && record.data.byteLength > 0) {
+                                // Tentar ler dados raw como hex
+                                const rawData = Array.from(new Uint8Array(record.data))
+                                    .map(b => b.toString(16).padStart(2, '0'))
+                                    .join('');
+                                if (!rfidCodeFromCard && rawData.length > 0) {
+                                    rfidCodeFromCard = rawData.length > 16 ? rawData.substring(0, 16) : rawData;
+                                }
+                                cardInfo.push(`Raw (${record.data.byteLength} bytes): ${rawData.substring(0, 32)}${rawData.length > 32 ? '...' : ''}`);
+                                debugInfo.push(`   ✅ Dados Raw: ${rawData.length} chars`);
+                                console.log("🔢 Dados Raw:", rawData);
+                            } else {
+                                debugInfo.push(`   ❌ Record ${i}: sem dados válidos`);
+                            }
+                        } catch (recordError) {
+                            debugInfo.push(`   ❌ Record ${i}: erro - ${recordError.message}`);
+                            console.log(`Erro ao processar record ${i}:`, recordError);
                         }
-                    } catch (recordError) {
-                        console.log(`Erro ao processar record ${i}:`, recordError);
                     }
+                } else {
+                    debugInfo.push("❌ Records: nenhum encontrado");
                 }
+            } else {
+                debugInfo.push("❌ Mensagem NDEF: não existe");
             }
 
             // 3. Se ainda não temos dados, tentar outras propriedades do evento
@@ -284,46 +308,74 @@ const NFCScanner = () => {
                 if (event.tag && event.tag.id) {
                     const tagId = Array.from(new Uint8Array(event.tag.id))
                         .map(b => b.toString(16).padStart(2, '0'))
-                        .join('');
+                        .join('').toUpperCase();
                     rfidCodeFromCard = tagId;
                     cardInfo.push(`Tag ID: ${tagId}`);
+                    debugInfo.push(`✅ Tag ID: ${tagId}`);
                     console.log("🏷️ Tag ID encontrado:", tagId);
+                } else {
+                    debugInfo.push("❌ Tag ID: não encontrado");
                 }
             }
 
-            // 4. Se mesmo assim não temos dados, usar timestamp como ID único
+            // 4. Tentar extrair outras propriedades do evento
+            if (!rfidCodeFromCard) {
+                // Verificar se há outras propriedades úteis
+                for (const prop of eventProps) {
+                    if (prop !== 'message' && prop !== 'serialNumber' && prop !== 'tag') {
+                        const value = event[prop];
+                        if (value && typeof value === 'string' && value.length > 4) {
+                            rfidCodeFromCard = value.substring(0, 16);
+                            cardInfo.push(`${prop}: ${value}`);
+                            debugInfo.push(`✅ ${prop}: ${value}`);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 5. Se mesmo assim não temos dados, gerar um baseado no timestamp
             if (!rfidCodeFromCard) {
                 rfidCodeFromCard = `CP_${Date.now().toString().slice(-8)}`;
-                cardInfo.push("Gerado automaticamente");
+                cardInfo.push("Gerado automaticamente (cartão sem dados legíveis)");
+                debugInfo.push("🤖 Código gerado automaticamente");
                 console.log("🤖 Código gerado automaticamente:", rfidCodeFromCard);
             }
 
             // Se não conseguir ler do cartão, usar o código do campo input como fallback
             const codeToSend = rfidCodeFromCard || rfidCode.trim() || "12AB34CD";
 
-            const statusMessage = cardInfo.length > 0 
-                ? `📡 Cartão CP detectado!\n\n🏷️ Código: ${codeToSend}\n\n📋 Dados encontrados:\n${cardInfo.slice(0, 3).join('\n')}`
-                : `📡 Cartão detectado! Código: ${codeToSend}`;
+            const statusMessage = `📡 Cartão NFC detectado!\n\n🏷️ Código: ${codeToSend}\n\n` +
+                `🔍 Debug Info:\n${debugInfo.slice(0, 5).join('\n')}\n\n` +
+                `📋 Dados encontrados:\n${cardInfo.slice(0, 3).join('\n')}`;
 
             showStatus(statusMessage, "success");
 
+            // Vibração de sucesso mais longa
             if (navigator.vibrate) {
-                navigator.vibrate([100, 50, 100, 50, 100]);
+                navigator.vibrate([200, 100, 200, 100, 200]);
             }
 
+            console.log("🚀 Enviando código para WhatsApp:", codeToSend);
             sendToWhatsApp(codeToSend);
             stopScanning();
         } catch (error) {
-            console.error("Erro ao ler NFC:", error);
+            console.error("❌ Erro ao ler NFC:", error);
             
             // Fallback: usar código do input ou gerar um baseado no timestamp
             const fallbackCode = rfidCode.trim() || `CP_${Date.now().toString().slice(-8)}`;
             showStatus(
                 `⚠️ Erro na leitura NFC\n\n` +
                 `🔧 Usando código alternativo: ${fallbackCode}\n\n` +
-                `💡 Detalhes do erro: ${error.message}`, 
+                `💡 Detalhes do erro: ${error.message}\n\n` +
+                `🧪 Use o botão de teste se continuar com problemas`, 
                 "info"
             );
+            
+            // Vibração de erro
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 100, 100]);
+            }
             
             sendToWhatsApp(fallbackCode);
             stopScanning();
@@ -589,6 +641,18 @@ const NFCScanner = () => {
                         }}
                     >
                         🧪 Teste - Simular Leitura
+                    </button>
+
+                    {/* Botão de Debug */}
+                    <button
+                        onClick={checkWhatsAppStatus}
+                        style={{
+                            ...styles.scanButton,
+                            backgroundColor: '#17a2b8',
+                            marginTop: '10px'
+                        }}
+                    >
+                        🔍 Verificar WhatsApp
                     </button>
 
                     <div style={{
