@@ -27,6 +27,35 @@ const { getAuthToken } = require("../../webPrimaveraApi/servives/tokenService");
 
 // Verificar se a mensagem contém palavras-chave para iniciar uma intervenção
 function isIntervencaoKeyword(message) {
+
+// Função auxiliar para enviar mensagens de forma segura
+async function sendMessageSafely(client, phoneNumber, message, retries = 2) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            if (!client || typeof client.sendMessage !== 'function') {
+                throw new Error('Cliente WhatsApp não disponível');
+            }
+            
+            const result = await client.sendMessage(phoneNumber, message);
+            console.log(`✅ Mensagem enviada com sucesso para ${phoneNumber}`);
+            return result;
+        } catch (error) {
+            console.error(`❌ Tentativa ${attempt + 1} falhada ao enviar mensagem para ${phoneNumber}:`, error.message);
+            
+            if (attempt < retries) {
+                // Aguardar antes de tentar novamente
+                await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+                continue;
+            }
+            
+            // Se todas as tentativas falharam, registrar erro mas não interromper
+            console.error(`❌ Falha definitiva ao enviar mensagem para ${phoneNumber} após ${retries + 1} tentativas`);
+            throw error;
+        }
+    }
+}
+
+
     const keywords = [
         "intervenção",
         "intervencao",
@@ -66,40 +95,62 @@ function isArtigoRFIDCommand(message) {
 async function processarMensagem(phoneNumber, messageText, client) {
     console.log(`🔧 Processando mensagem de ${phoneNumber}: "${messageText}"`);
 
-    let conversa = activeIntervencoes.get(phoneNumber);
-
-    // Verificar se é comando de artigo/RFID durante uma conversa ativa
-    if (
-        conversa &&
-        isArtigoRFIDCommand(messageText) &&
-        conversa.estado !== STATES.WAITING_RFID &&
-        conversa.estado !== STATES.WAITING_QUANTIDADE_ARTIGO
-    ) {
-        await processarComandoArtigo(
-            phoneNumber,
-            messageText,
-            client,
-            conversa,
-        );
-        return;
-    }
-
-    if (!conversa) {
-        // Nova conversa - Iniciar fluxo de intervenção
-        if (isIntervencaoKeyword(messageText)) {
-            await startNewIntervencao(phoneNumber, client);
-        } else {
-            // Mensagem não relacionada a intervenção
-            await client.sendMessage(
-                phoneNumber,
-                "👋 Olá! Para registar uma intervenção, envie 'intervenção'.",
-            );
+    try {
+        // Verificar se o cliente WhatsApp está disponível e pronto
+        if (!client) {
+            console.error("❌ Cliente WhatsApp não está disponível");
+            return;
         }
+
+        let conversa = activeIntervencoes.get(phoneNumber);
+
+        // Verificar se é comando de artigo/RFID durante uma conversa ativa
+        if (
+            conversa &&
+            isArtigoRFIDCommand(messageText) &&
+            conversa.estado !== STATES.WAITING_RFID &&
+            conversa.estado !== STATES.WAITING_QUANTIDADE_ARTIGO
+        ) {
+            await processarComandoArtigo(
+                phoneNumber,
+                messageText,
+                client,
+                conversa,
+            );
+            return;
+        }
+
+        if (!conversa) {
+            // Nova conversa - Iniciar fluxo de intervenção
+            if (isIntervencaoKeyword(messageText)) {
+                await startNewIntervencao(phoneNumber, client);
+            } else {
+                // Mensagem não relacionada a intervenção
+                await sendMessageSafely(
+                    client,
+                    phoneNumber,
+                    "👋 Olá! Para registar uma intervenção, envie 'intervenção'.",
+                );
+            }
+            return;
+        }
+
+        // Continuar conversa existente
+        await continuarConversa(phoneNumber, messageText, conversa, client);
+    } catch (error) {
+        console.error(`❌ Erro ao processar mensagem de ${phoneNumber}:`, error.message);
+        
+        // Se for erro de contexto do Puppeteer, tentar reinicializar
+        if (error.message.includes("Evaluation failed") || 
+            error.message.includes("Target closed") || 
+            error.message.includes("Protocol error") ||
+            error.message.includes("Execution context was destroyed")) {
+            console.log("🔄 Erro de contexto detectado, cliente WhatsApp pode precisar de reinicialização");
+        }
+        
+        // Log do erro mas não interrompe o fluxo
         return;
     }
-
-    // Continuar conversa existente
-    await continuarConversa(phoneNumber, messageText, conversa, client);
 }
 
 // Iniciar nova intervenção
@@ -122,7 +173,7 @@ Bem-vindo! Vamos registar a sua intervenção.
 *1. Cliente*
 Indique o código do cliente:`;
 
-    await client.sendMessage(phoneNumber, message);
+    await sendMessageSafely(client, phoneNumber, message);
 }
 
 // Continuar conversa
@@ -293,7 +344,8 @@ async function handleCliente(phoneNumber, messageText, conversa, client) {
         );
 
         if (pedidosCliente.length === 0) {
-            await client.sendMessage(
+            await sendMessageSafely(
+                client,
                 phoneNumber,
                 `❌ Nenhum pedido encontrado para "${clienteId}". Tente outro código ou nome:`,
             );
@@ -318,10 +370,11 @@ async function handleCliente(phoneNumber, messageText, conversa, client) {
         });
 
         message += `Por favor, selecione o pedido (digite o número de 1 a ${pedidosCliente.length}):`;
-        await client.sendMessage(phoneNumber, message);
+        await sendMessageSafely(client, phoneNumber, message);
     } catch (error) {
         console.error("Erro ao buscar pedidos:", error);
-        await client.sendMessage(
+        await sendMessageSafely(
+            client,
             phoneNumber,
             "❌ Ocorreu um erro ao buscar os pedidos. Por favor, tente novamente mais tarde.",
         );
