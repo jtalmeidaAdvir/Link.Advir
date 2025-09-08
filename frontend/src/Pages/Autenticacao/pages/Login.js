@@ -1,7 +1,8 @@
 // Importações principais de React e bibliotecas auxiliares
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigation } from '@react-navigation/native'; // Navegação do React Native
 import { useTranslation } from 'react-i18next'; // i18n para internacionalização
+import { stopTokenValidation } from '../../../utils/authUtils';
 
 // Imagens utilizadas no ecrã de login
 import logo from '../../../../assets/img_logo.png';
@@ -31,6 +32,17 @@ const Login = ({ setIsAdmin, setUsername, setIsLoggedIn, onLoginComplete }) => {
     // Hooks para navegação e tradução
     const navigation = useNavigation();
     const { t } = useTranslation();
+
+    // Parar verificação automática de tokens quando estiver na página de login
+    useEffect(() => {
+        stopTokenValidation();
+        console.log('Verificação automática de tokens parada na página de login');
+
+        // Cleanup ao sair da página
+        return () => {
+            console.log('Saindo da página de login');
+        };
+    }, []);
 
     // Função para lidar com sucesso da autenticação biométrica
     const handleBiometricSuccess = (result) => {
