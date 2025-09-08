@@ -64,7 +64,7 @@ router.get('/listarObras', async (req, res) => {
 });
 
 
-router.get("/GetResponsavel/:codFuncionario", async (req, res) => {
+router.get("/GetResponsavel/:codigo", async (req, res) => {
     try {
         const painelAdminToken = req.headers["authorization"]?.split(" ")[1]; // Obtendo o token do cabeçalho
         if (!painelAdminToken) {
