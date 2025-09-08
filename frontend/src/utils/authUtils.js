@@ -346,6 +346,12 @@ const checkPainelAdminToken = async () => {
 
 // Função para iniciar verificação automática de token
 export const startTokenValidation = () => {
+    // Verificar se estamos na página de login
+    if (window.location.pathname === '/login' || window.location.pathname.includes('login')) {
+        console.log('Página de login detectada - verificação automática de tokens desabilitada');
+        return;
+    }
+
     // Limpar intervalo existente se houver
     if (tokenCheckInterval) {
         clearInterval(tokenCheckInterval);
@@ -354,6 +360,12 @@ export const startTokenValidation = () => {
     // NÃO verificar imediatamente - só depois de 30 segundos
     // Configurar verificação a cada 30 segundos
     tokenCheckInterval = setInterval(() => {
+        // Verificar novamente se ainda não estamos na página de login
+        if (window.location.pathname === '/login' || window.location.pathname.includes('login')) {
+            console.log('Navegou para login - parando verificação automática');
+            stopTokenValidation();
+            return;
+        }
         checkTokenOnServer();
         checkPainelAdminToken();
     }, 30000); // 30 segundos
