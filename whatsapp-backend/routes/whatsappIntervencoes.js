@@ -19,6 +19,7 @@ const STATES = {
     WAITING_CONFIRMATION: "waiting_confirmation",
     WAITING_ARTIGOS: "aguardando_artigos", // Estado para gestão de artigos
     WAITING_NOME_ARTIGO: "aguardando_nome_artigo", // Novo estado para nome do artigo
+    WAITING_SELECAO_ARTIGO: "aguardando_selecao_artigo", // Estado para seleção de artigo sugerido
     WAITING_QUANTIDADE_ARTIGO: "aguardando_quantidade_artigo", // Estado para quantidade de artigo
 };
 
@@ -211,6 +212,9 @@ async function continuarConversa(phoneNumber, messageText, conversa, client) {
             break;
         case STATES.WAITING_NOME_ARTIGO:
             await processarNomeArtigo(phoneNumber, messageText, client, conversa);
+            break;
+        case STATES.WAITING_SELECAO_ARTIGO:
+            await processarSelecaoArtigo(phoneNumber, messageText, client, conversa);
             break;
         case STATES.WAITING_QUANTIDADE_ARTIGO:
             await processarQuantidadeArtigo(
@@ -737,17 +741,40 @@ async function processarNomeArtigo(phoneNumber, messageText, client, conversa) {
 
         const artigos = response.data.DataSet?.Table || [];
 
-        // Procurar o artigo pelo nome (busca parcial e case insensitive)
-        const artigoEncontrado = artigos.find(
+        // Primeiro, tentar encontrar uma correspondência exata
+        const matchExato = artigos.find(
+            (artigo) => 
+                artigo.Descricao.toLowerCase() === nomeArtigo.toLowerCase() ||
+                artigo.Artigo.toLowerCase() === nomeArtigo.toLowerCase()
+        );
+
+        if (matchExato) {
+            // Match exato encontrado, prosseguir diretamente
+            conversa.data.ultimoArtigoCodigo = matchExato.Artigo;
+            conversa.data.ultimoArtigoDescricao = matchExato.Descricao;
+            conversa.estado = STATES.WAITING_QUANTIDADE_ARTIGO;
+
+            await client.sendMessage(
+                phoneNumber,
+                `✅ Artigo encontrado!\n\n` +
+                `📦 *${conversa.data.ultimoArtigoDescricao}*\n` +
+                `🏷️ Código: ${conversa.data.ultimoArtigoCodigo}\n\n` +
+                `Por favor, indique a quantidade deste artigo:`,
+            );
+            return;
+        }
+
+        // Se não houver match exato, procurar por correspondências parciais
+        const artigosSugeridos = artigos.filter(
             (artigo) => 
                 artigo.Descricao.toLowerCase().includes(nomeArtigo.toLowerCase()) ||
                 artigo.Artigo.toLowerCase().includes(nomeArtigo.toLowerCase())
-        );
+        ).slice(0, 10); // Limitar a 10 sugestões
 
-        if (!artigoEncontrado) {
+        if (artigosSugeridos.length === 0) {
             await client.sendMessage(
                 phoneNumber,
-                `❌ Artigo "${nomeArtigo}" não encontrado na base de dados.\n\n` +
+                `❌ Nenhum artigo encontrado para "${nomeArtigo}".\n\n` +
                 `Por favor, tente com outro nome ou digite:\n` +
                 `• 'fim' para terminar adição de artigos\n` +
                 `• 'cancelar' para cancelar`,
@@ -755,18 +782,25 @@ async function processarNomeArtigo(phoneNumber, messageText, client, conversa) {
             return;
         }
 
-        // Guardar as informações do artigo encontrado
-        conversa.data.ultimoArtigoCodigo = artigoEncontrado.Artigo;
-        conversa.data.ultimoArtigoDescricao = artigoEncontrado.Descricao;
-        conversa.estado = STATES.WAITING_QUANTIDADE_ARTIGO;
+        // Mostrar sugestões para o usuário escolher
+        conversa.data.artigosSugeridos = artigosSugeridos;
+        conversa.estado = STATES.WAITING_SELECAO_ARTIGO;
 
-        await client.sendMessage(
-            phoneNumber,
-            `✅ Artigo encontrado!\n\n` +
-            `📦 *${conversa.data.ultimoArtigoDescricao}*\n` +
-            `🏷️ Código: ${conversa.data.ultimoArtigoCodigo}\n\n` +
-            `Por favor, indique a quantidade deste artigo:`,
-        );
+        let mensagem = `🔍 Encontrei ${artigosSugeridos.length} artigo(s) semelhante(s) para "${nomeArtigo}":\n\n`;
+        
+        artigosSugeridos.forEach((artigo, index) => {
+            mensagem += `*${index + 1}.* ${artigo.Descricao}\n`;
+            mensagem += `   Código: ${artigo.Artigo}\n\n`;
+        });
+
+        mensagem += `📝 Digite o número do artigo desejado (1-${artigosSugeridos.length})\n`;
+        mensagem += `Ou digite:\n`;
+        mensagem += `• 'novo' para tentar outro nome\n`;
+        mensagem += `• 'fim' para terminar\n`;
+        mensagem += `• 'cancelar' para cancelar`;
+
+        await client.sendMessage(phoneNumber, mensagem);
+
     } catch (error) {
         console.error("Erro ao buscar artigos:", error);
         await client.sendMessage(
@@ -774,6 +808,91 @@ async function processarNomeArtigo(phoneNumber, messageText, client, conversa) {
             "❌ Erro ao verificar o artigo. Tente novamente ou digite 'cancelar' para cancelar a adição de artigos.",
         );
     }
+}
+
+// Processar a seleção de artigo das sugestões
+async function processarSelecaoArtigo(phoneNumber, messageText, client, conversa) {
+    const resposta = messageText.trim().toLowerCase();
+
+    // Verificar comandos especiais
+    if (resposta.includes("novo")) {
+        conversa.estado = STATES.WAITING_NOME_ARTIGO;
+        await client.sendMessage(
+            phoneNumber,
+            `💡 Digite o nome de outro artigo que deseja procurar:`,
+        );
+        return;
+    }
+
+    if (resposta.includes("fim") || resposta.includes("terminar")) {
+        // Continuar para a data de início
+        conversa.estado = STATES.WAITING_DATA_INICIO;
+        const hoje = new Date();
+        const dataFormatada = `${hoje.getDate().toString().padStart(2, "0")}/${(hoje.getMonth() + 1).toString().padStart(2, "0")}/${hoje.getFullYear()}`;
+
+        await client.sendMessage(
+            phoneNumber,
+            `✅ Terminando adição de artigos.\n\n` +
+            `*6. Data de Início*\n` +
+            `Selecione a data de início da intervenção:\n\n` +
+            `1. Hoje (${dataFormatada})\n` +
+            `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
+            `Digite 1 ou 2:`,
+        );
+        return;
+    }
+
+    if (resposta.includes("cancelar")) {
+        conversa.data.artigos = [];
+        conversa.estado = STATES.WAITING_DATA_INICIO;
+        const hoje = new Date();
+        const dataFormatada = `${hoje.getDate().toString().padStart(2, "0")}/${(hoje.getMonth() + 1).toString().padStart(2, "0")}/${hoje.getFullYear()}`;
+
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Adição de artigos cancelada. Continuando sem artigos.\n\n` +
+            `*6. Data de Início*\n` +
+            `Selecione a data de início da intervenção:\n\n` +
+            `1. Hoje (${dataFormatada})\n` +
+            `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
+            `Digite 1 ou 2:`,
+        );
+        return;
+    }
+
+    // Processar seleção numérica
+    const escolha = parseInt(messageText.trim());
+    const artigosSugeridos = conversa.data.artigosSugeridos || [];
+
+    if (isNaN(escolha) || escolha < 1 || escolha > artigosSugeridos.length) {
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Opção inválida. Por favor, digite um número entre 1 e ${artigosSugeridos.length}\n` +
+            `Ou digite:\n` +
+            `• 'novo' para tentar outro nome\n` +
+            `• 'fim' para terminar\n` +
+            `• 'cancelar' para cancelar`,
+        );
+        return;
+    }
+
+    const artigoSelecionado = artigosSugeridos[escolha - 1];
+
+    // Guardar as informações do artigo selecionado
+    conversa.data.ultimoArtigoCodigo = artigoSelecionado.Artigo;
+    conversa.data.ultimoArtigoDescricao = artigoSelecionado.Descricao;
+    conversa.estado = STATES.WAITING_QUANTIDADE_ARTIGO;
+
+    // Limpar sugestões
+    delete conversa.data.artigosSugeridos;
+
+    await client.sendMessage(
+        phoneNumber,
+        `✅ Artigo selecionado!\n\n` +
+        `📦 *${conversa.data.ultimoArtigoDescricao}*\n` +
+        `🏷️ Código: ${conversa.data.ultimoArtigoCodigo}\n\n` +
+        `Por favor, indique a quantidade deste artigo:`,
+    );
 }
 
 // Processar a quantidade do artigo
