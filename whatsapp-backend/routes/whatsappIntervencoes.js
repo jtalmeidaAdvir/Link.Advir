@@ -601,10 +601,8 @@ async function mostrarResumoIntervencao(phoneNumber, client, conversa) {
     const data = conversa.data;
 
     let resumo = `📋 *RESUMO DA INTERVENÇÃO*\n\n`;
-    resumo += `🎫 **Pedido:** ${data.pedidoId}\n`;
     resumo += `🔧 **Tipo:** ${data.tipo}\n`;
     resumo += `⏱️ **Duração:** ${data.duracao} horas\n`;
-    resumo += `👨‍🔧 **Técnico:** ${data.tecnicoNumero || "Não especificado"}\n`;
     resumo += `📊 **Estado:** ${data.estado}\n`;
     resumo += `📝 **Descrição:** ${data.descricao}\n`;
 
