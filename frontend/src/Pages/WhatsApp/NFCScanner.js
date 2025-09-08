@@ -244,8 +244,8 @@ const NFCScanner = () => {
             return;
         }
 
-        // Gerar código RFID de teste único
-        const testRfidCode = `TEST_${Date.now().toString().slice(-6)}`;
+        // Código RFID de teste fixo
+        const testRfidCode = "12AB34CD";
         showStatus(`🧪 Teste: Enviando código RFID - ${testRfidCode}`, "info");
 
         if (navigator.vibrate) {
