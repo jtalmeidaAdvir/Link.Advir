@@ -25,9 +25,6 @@ const STATES = {
 // Importar função de token
 const { getAuthToken } = require("../../webPrimaveraApi/servives/tokenService");
 
-// Verificar se a mensagem contém palavras-chave para iniciar uma intervenção
-function isIntervencaoKeyword(message) {
-
 // Função auxiliar para enviar mensagens de forma segura
 async function sendMessageSafely(client, phoneNumber, message, retries = 2) {
     for (let attempt = 0; attempt <= retries; attempt++) {
@@ -64,6 +61,9 @@ async function sendMessageSafelyNoFail(client, phoneNumber, message) {
         return null;
     }
 }
+
+// Verificar se a mensagem contém palavras-chave para iniciar uma intervenção
+function isIntervencaoKeyword(message) {
 
 
     const keywords = [
