@@ -226,6 +226,9 @@ const NFCScanner = () => {
 
     const handleNFCRead = (event) => {
         try {
+            // Mostrar imediatamente que algo foi detectado
+            showStatus("🎯 CARTÃO DETECTADO! Processando...", "info");
+            
             console.log("📡 Evento NFC COMPLETO:", JSON.stringify(event, null, 2));
             
             // Debug completo de todas as propriedades do evento
@@ -237,12 +240,18 @@ const NFCScanner = () => {
             let cardInfo = [];
             let debugInfo = [];
 
+            // Mostrar progresso da análise
+            showStatus("🔍 Cartão detectado! Analisando dados...", "info");
+
             // 1. Verificar serialNumber (UID do cartão) - mais comum em cartões de transporte
             if (event.serialNumber) {
                 rfidCodeFromCard = event.serialNumber;
                 cardInfo.push(`Serial: ${event.serialNumber}`);
                 debugInfo.push(`✅ Serial Number: ${event.serialNumber}`);
                 console.log("✅ Serial Number encontrado:", event.serialNumber);
+                
+                // Feedback imediato quando encontra serial
+                showStatus(`✅ Código encontrado: ${event.serialNumber}\nProcessando...`, "success");
             } else {
                 debugInfo.push("❌ Serial Number: não encontrado");
             }
@@ -251,9 +260,11 @@ const NFCScanner = () => {
             if (event.message) {
                 debugInfo.push(`✅ Mensagem NDEF: existe`);
                 console.log("📋 Mensagem NDEF:", event.message);
+                showStatus("📋 Analisando mensagem NDEF do cartão...", "info");
                 
                 if (event.message.records && event.message.records.length > 0) {
                     debugInfo.push(`✅ Records: ${event.message.records.length} encontrados`);
+                    showStatus(`📄 Encontrados ${event.message.records.length} registos no cartão...`, "info");
                     
                     for (let i = 0; i < event.message.records.length; i++) {
                         const record = event.message.records[i];
@@ -268,6 +279,7 @@ const NFCScanner = () => {
                                 cardInfo.push(`Texto: ${textData}`);
                                 debugInfo.push(`   ✅ Texto: ${textData}`);
                                 console.log("📝 Texto encontrado:", textData);
+                                showStatus(`📝 Texto encontrado: ${textData}`, "success");
                             } 
                             else if (record.recordType === "url") {
                                 const decoder = new TextDecoder();
@@ -276,6 +288,7 @@ const NFCScanner = () => {
                                 cardInfo.push(`URL: ${urlData}`);
                                 debugInfo.push(`   ✅ URL: ${urlData}`);
                                 console.log("🔗 URL encontrada:", urlData);
+                                showStatus(`🔗 URL encontrada: ${urlData}`, "success");
                             }
                             else if (record.data && record.data.byteLength > 0) {
                                 // Tentar ler dados raw como hex
@@ -288,23 +301,28 @@ const NFCScanner = () => {
                                 cardInfo.push(`Raw (${record.data.byteLength} bytes): ${rawData.substring(0, 32)}${rawData.length > 32 ? '...' : ''}`);
                                 debugInfo.push(`   ✅ Dados Raw: ${rawData.length} chars`);
                                 console.log("🔢 Dados Raw:", rawData);
+                                showStatus(`🔢 Dados Raw encontrados: ${rawData.substring(0, 16)}...`, "info");
                             } else {
                                 debugInfo.push(`   ❌ Record ${i}: sem dados válidos`);
                             }
                         } catch (recordError) {
                             debugInfo.push(`   ❌ Record ${i}: erro - ${recordError.message}`);
                             console.log(`Erro ao processar record ${i}:`, recordError);
+                            showStatus(`⚠️ Erro no record ${i}: ${recordError.message}`, "error");
                         }
                     }
                 } else {
                     debugInfo.push("❌ Records: nenhum encontrado");
+                    showStatus("📄 Nenhum record NDEF encontrado no cartão", "info");
                 }
             } else {
                 debugInfo.push("❌ Mensagem NDEF: não existe");
+                showStatus("📋 Cartão sem mensagem NDEF, tentando outras fontes...", "info");
             }
 
             // 3. Se ainda não temos dados, tentar outras propriedades do evento
             if (!rfidCodeFromCard) {
+                showStatus("🏷️ Procurando Tag ID do cartão...", "info");
                 if (event.tag && event.tag.id) {
                     const tagId = Array.from(new Uint8Array(event.tag.id))
                         .map(b => b.toString(16).padStart(2, '0'))
@@ -313,13 +331,16 @@ const NFCScanner = () => {
                     cardInfo.push(`Tag ID: ${tagId}`);
                     debugInfo.push(`✅ Tag ID: ${tagId}`);
                     console.log("🏷️ Tag ID encontrado:", tagId);
+                    showStatus(`🏷️ Tag ID encontrado: ${tagId}`, "success");
                 } else {
                     debugInfo.push("❌ Tag ID: não encontrado");
+                    showStatus("🏷️ Tag ID não disponível, tentando outras propriedades...", "info");
                 }
             }
 
             // 4. Tentar extrair outras propriedades do evento
             if (!rfidCodeFromCard) {
+                showStatus("🔍 Analisando outras propriedades do cartão...", "info");
                 // Verificar se há outras propriedades úteis
                 for (const prop of eventProps) {
                     if (prop !== 'message' && prop !== 'serialNumber' && prop !== 'tag') {
@@ -328,6 +349,7 @@ const NFCScanner = () => {
                             rfidCodeFromCard = value.substring(0, 16);
                             cardInfo.push(`${prop}: ${value}`);
                             debugInfo.push(`✅ ${prop}: ${value}`);
+                            showStatus(`✅ Propriedade '${prop}' encontrada: ${value}`, "success");
                             break;
                         }
                     }
@@ -336,10 +358,12 @@ const NFCScanner = () => {
 
             // 5. Se mesmo assim não temos dados, gerar um baseado no timestamp
             if (!rfidCodeFromCard) {
+                showStatus("🤖 Gerando código alternativo...", "info");
                 rfidCodeFromCard = `CP_${Date.now().toString().slice(-8)}`;
                 cardInfo.push("Gerado automaticamente (cartão sem dados legíveis)");
                 debugInfo.push("🤖 Código gerado automaticamente");
                 console.log("🤖 Código gerado automaticamente:", rfidCodeFromCard);
+                showStatus(`🤖 Código gerado: ${rfidCodeFromCard}`, "info");
             }
 
             // Se não conseguir ler do cartão, usar o código do campo input como fallback
@@ -710,6 +734,23 @@ const NFCScanner = () => {
                             <li style={styles.instructionsItem}>Android com NFC ativado</li>
                             <li style={styles.instructionsItem}>Google Chrome</li>
                             <li style={styles.instructionsItem}>Ligação à internet ativa</li>
+                        </ul>
+
+                        <p style={styles.instructionsText}><strong>Debug - O que deve ver durante a leitura:</strong></p>
+                        <ul style={styles.instructionsList}>
+                            <li style={styles.instructionsItem}>🎯 "CARTÃO DETECTADO! Processando..." - quando aproxima o cartão</li>
+                            <li style={styles.instructionsItem}>🔍 "Analisando dados..." - enquanto processa</li>
+                            <li style={styles.instructionsItem}>✅ "Código encontrado: [código]" - quando encontra dados</li>
+                            <li style={styles.instructionsItem}>🚀 "Enviando código para WhatsApp..." - quando processa</li>
+                            <li style={styles.instructionsItem}>✅ "Código RFID processado com sucesso!" - quando completa</li>
+                        </ul>
+
+                        <p style={styles.instructionsText}><strong>Se não vê mensagens:</strong></p>
+                        <ul style={styles.instructionsList}>
+                            <li style={styles.instructionsItem}>Verifique se o NFC está ativado nas definições</li>
+                            <li style={styles.instructionsItem}>Tente aproximar o cartão mais devagar</li>
+                            <li style={styles.instructionsItem}>Use o botão "🧪 Teste" para verificar se o sistema funciona</li>
+                            <li style={styles.instructionsItem}>Verifique a consola do navegador (F12) para logs detalhados</li>
                         </ul>
                     </div>
                 </div>
