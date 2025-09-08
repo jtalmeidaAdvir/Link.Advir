@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const NFCScanner = () => {
     const [phoneNumber, setPhoneNumber] = useState('');
+    const [rfidCode, setRfidCode] = useState('12AB34CD');
     const [isScanning, setIsScanning] = useState(false);
     const [status, setStatus] = useState({ message: '', type: '' });
     const [ndefReader, setNdefReader] = useState(null);
@@ -224,16 +225,16 @@ const NFCScanner = () => {
     };
 
     const handleNFCRead = (event) => {
-        const { serialNumber } = event;
-        const rfidCode = serialNumber || `CARD_${Date.now().toString().slice(-8)}`;
+        // Usar o código RFID inserido no campo de input
+        const codeToSend = rfidCode.trim() || "12AB34CD";
 
-        showStatus(`📡 Cartão detectado! Enviando código: ${rfidCode}`, "success");
+        showStatus(`📡 Cartão detectado! Enviando seu código RFID: ${codeToSend}`, "success");
 
         if (navigator.vibrate) {
             navigator.vibrate([100, 50, 100]);
         }
 
-        sendToWhatsApp(rfidCode);
+        sendToWhatsApp(codeToSend);
         stopScanning();
     };
 
@@ -244,8 +245,8 @@ const NFCScanner = () => {
             return;
         }
 
-        // Código RFID de teste fixo
-        const testRfidCode = "12AB34CD";
+        // Usar o código RFID do campo input
+        const testRfidCode = rfidCode.trim() || "12AB34CD";
         showStatus(`🧪 Teste: Enviando código RFID - ${testRfidCode}`, "info");
 
         if (navigator.vibrate) {
@@ -387,6 +388,18 @@ const NFCScanner = () => {
                         />
                     </div>
 
+                    <div style={styles.inputGroup}>
+                        <label htmlFor="rfidCode" style={styles.label}>Código RFID para Enviar</label>
+                        <input
+                            type="text"
+                            id="rfidCode"
+                            value={rfidCode}
+                            onChange={(e) => setRfidCode(e.target.value)}
+                            placeholder="Ex: 12AB34CD"
+                            style={styles.input}
+                        />
+                    </div>
+
                     <button
                         onClick={toggleScanning}
                         disabled={!nfcSupported}
@@ -437,19 +450,20 @@ const NFCScanner = () => {
                         <h4 style={styles.instructionsTitle}>Instruções de Uso</h4>
                         <ol style={styles.instructionsList}>
                             <li style={styles.instructionsItem}>Insira o número WhatsApp de destino</li>
+                            <li style={styles.instructionsItem}>Insira ou edite o código RFID que quer enviar</li>
                             <li style={styles.instructionsItem}><strong>Para testar:</strong> Use o botão "🧪 Teste - Simular Leitura"</li>
                             <li style={styles.instructionsItem}><strong>Para uso real:</strong> Toque em "Iniciar Scanner NFC"</li>
-                            <li style={styles.instructionsItem}>Aproxime o cartão RFID/NFC do telemóvel</li>
-                            <li style={styles.instructionsItem}>O código RFID será enviado automaticamente via WhatsApp</li>
+                            <li style={styles.instructionsItem}>Aproxime qualquer cartão NFC do telemóvel para disparar o envio</li>
+                            <li style={styles.instructionsItem}>O SEU código RFID será enviado automaticamente via WhatsApp</li>
                             <li style={styles.instructionsItem}>O destinatário receberá o código imediatamente</li>
                         </ol>
 
                         <p style={styles.instructionsText}><strong>Como Funciona:</strong></p>
                         <ul style={styles.instructionsList}>
-                            <li style={styles.instructionsItem}>📤 <strong>Você ENVIA:</strong> Códigos RFID via seu WhatsApp</li>
-                            <li style={styles.instructionsItem}>📥 <strong>Destino RECEBE:</strong> O código RFID com timestamp</li>
-                            <li style={styles.instructionsItem}>🧪 <strong>Teste:</strong> Código único é gerado e enviado</li>
-                            <li style={styles.instructionsItem}>📱 <strong>Cartões:</strong> Qualquer cartão NFC/RFID compatível</li>
+                            <li style={styles.instructionsItem}>📤 <strong>Você ENVIA:</strong> Seu código RFID predefinido via WhatsApp</li>
+                            <li style={styles.instructionsItem}>📥 <strong>Destino RECEBE:</strong> O seu código RFID com timestamp</li>
+                            <li style={styles.instructionsItem}>🧪 <strong>Teste:</strong> Envia o código definido no campo acima</li>
+                            <li style={styles.instructionsItem}>📱 <strong>Cartões:</strong> Qualquer cartão NFC serve apenas para disparar o envio</li>
                         </ul>
 
                         <p style={styles.instructionsText}><strong>Requisitos do Sistema:</strong></p>
