@@ -1,0 +1,30 @@
+RewriteEngine On
+
+# Servir ficheiros HTML estáticos diretamente (não processar pelo React Router)
+RewriteRule ^(nfc|test)\.html$ - [L]
+
+# Servir outros ficheiros estáticos diretamente
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule \.(css|js|png|jpg|jpeg|gif|svg|ico|html)$ - [L]
+
+# Para todos os outros caminhos (rotas React), redirecionar para index.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/nfc\.html$
+RewriteCond %{REQUEST_URI} !^/test\.html$
+RewriteRule . /index.html [L]
+
+# Headers específicos para ficheiros NFC
+<Files "nfc.html">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+    Header set Content-Type "text/html; charset=UTF-8"
+</Files>
+
+<Files "test.html">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+    Header set Content-Type "text/html; charset=UTF-8"
+</Files>

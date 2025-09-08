@@ -1,349 +1,436 @@
+
 <!doctype html>
-<html>
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>🏷️ RFID/NFC Scanner - AdvirLink</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
+<html lang="pt">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Scanner RFID/NFC - AdvirLink</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 420px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #e1e5e9;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #ffffff;
+            padding: 24px 20px 20px;
+            border-bottom: 1px solid #e1e5e9;
+            text-align: center;
+        }
+
+            .header h2 {
+                margin: 0 0 4px 0;
+                font-size: 20px;
+                font-weight: 600;
+                color: #2c3e50;
+            }
+
+            .header p {
                 margin: 0;
-                padding: 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
+                font-size: 14px;
+                color: #6c757d;
             }
 
-            .container {
-                max-width: 400px;
-                margin: 0 auto;
-                background: white;
-                border-radius: 15px;
-                padding: 20px;
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            }
+        .content {
+            padding: 24px 20px;
+        }
 
-            .header {
-                text-align: center;
-                margin-bottom: 20px;
-            }
-
-            .input-group {
-                margin-bottom: 15px;
-            }
+        .input-group {
+            margin-bottom: 20px;
+        }
 
             .input-group label {
                 display: block;
-                font-weight: bold;
-                margin-bottom: 5px;
+                font-weight: 500;
+                margin-bottom: 6px;
+                color: #495057;
+                font-size: 14px;
             }
 
             .input-group input {
                 width: 100%;
-                padding: 12px;
-                border: 2px solid #ddd;
-                border-radius: 8px;
-                font-size: 16px;
+                padding: 12px 16px;
+                border: 1px solid #ced4da;
+                border-radius: 6px;
+                font-size: 15px;
+                background-color: #fff;
+                transition: border-color 0.15s ease-in-out;
             }
 
-            .scan-button {
-                width: 100%;
-                padding: 15px;
-                background: #4caf50;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-size: 18px;
-                font-weight: bold;
-                cursor: pointer;
-                transition: all 0.3s;
-            }
+                .input-group input:focus {
+                    outline: none;
+                    border-color: #007bff;
+                    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+                }
 
-            .scan-button:hover {
-                background: #45a049;
-                transform: translateY(-2px);
+        .scan-button {
+            width: 100%;
+            padding: 14px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+            margin-bottom: 16px;
+        }
+
+            .scan-button:hover:not(:disabled) {
+                background-color: #0056b3;
             }
 
             .scan-button:disabled {
-                background: #ccc;
+                background-color: #6c757d;
                 cursor: not-allowed;
-                transform: none;
             }
 
-            .stop-button {
-                background: #f44336;
+            .scan-button.stop-button {
+                background-color: #dc3545;
             }
 
-            .stop-button:hover {
-                background: #d32f2f;
+                .scan-button.stop-button:hover {
+                    background-color: #c82333;
+                }
+
+        .scanning-area {
+            text-align: center;
+            padding: 32px 20px;
+            background-color: #f8f9fa;
+            border: 2px dashed #ced4da;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+            .scanning-area.active {
+                border-color: #007bff;
+                background-color: #e3f2fd;
+                animation: pulse 2s infinite;
             }
 
-            .status {
-                padding: 15px;
-                border-radius: 8px;
-                margin-top: 15px;
-                text-align: center;
-                font-weight: bold;
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
             }
+
+            50% {
+                opacity: 0.8;
+            }
+        }
+
+        .scanning-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .scanning-text {
+            font-size: 15px;
+            font-weight: 500;
+            color: #495057;
+            margin: 0;
+        }
+
+        .status {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-top: 16px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
 
             .status.success {
-                background: #d4edda;
+                background-color: #d4edda;
+                border: 1px solid #c3e6cb;
                 color: #155724;
             }
 
             .status.error {
-                background: #f8d7da;
+                background-color: #f8d7da;
+                border: 1px solid #f5c6cb;
                 color: #721c24;
             }
 
             .status.info {
-                background: #d1ecf1;
+                background-color: #d1ecf1;
+                border: 1px solid #bee5eb;
                 color: #0c5460;
             }
 
-            .scanning-animation {
-                text-align: center;
-                padding: 30px;
-                background: #e3f2fd;
-                border-radius: 10px;
-                border: 3px dashed #2196f3;
-                margin: 20px 0;
-                animation: pulse 1.5s infinite;
+        .instructions {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #e1e5e9;
+        }
+
+            .instructions h4 {
+                margin: 0 0 16px 0;
+                font-size: 16px;
+                font-weight: 600;
+                color: #2c3e50;
             }
 
-            @keyframes pulse {
-                0%,
-                100% {
-                    transform: scale(1);
-                }
-
-                50% {
-                    transform: scale(1.05);
-                }
+            .instructions ol,
+            .instructions ul {
+                margin: 0 0 16px 0;
+                padding-left: 20px;
             }
 
-            .instructions {
+            .instructions li {
                 font-size: 14px;
-                color: #666;
-                margin-top: 20px;
-                line-height: 1.5;
+                color: #495057;
+                margin-bottom: 6px;
+                line-height: 1.4;
             }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h2>🏷️ Scanner RFID/NFC</h2>
-                <p>AdvirLink - Intervenções</p>
-            </div>
 
+            .instructions p {
+                font-size: 14px;
+                color: #6c757d;
+                line-height: 1.5;
+                margin: 0 0 12px 0;
+            }
+
+            .instructions strong {
+                color: #495057;
+            }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 12px;
+            }
+
+            .container {
+                border-radius: 0;
+            }
+
+            .header,
+            .content {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Scanner RFID/NFC</h2>
+            <p>AdvirLink - Sistema de Intervenções</p>
+        </div>
+
+        <div class="content">
             <div class="input-group">
-                <label for="phoneNumber">📞 Número WhatsApp:</label>
-                <input
-                    type="text"
-                    id="phoneNumber"
-                    placeholder="Ex: 351912345678"
-                />
+                <label for="phoneNumber">Número WhatsApp</label>
+                <input type="text"
+                       id="phoneNumber"
+                       placeholder="Ex: 351912345678" />
             </div>
 
             <button id="scanButton" class="scan-button">
-                📡 Iniciar Scanner NFC
+                Iniciar Scanner NFC
             </button>
 
-            <div id="scanningArea" style="display: none">
-                <div class="scanning-animation">
-                    <div style="font-size: 48px">📱</div>
-                    <p><strong>Aproxime o cartão RFID/NFC</strong></p>
-                </div>
+            <div id="scanningArea" class="scanning-area" style="display: none">
+                <span class="scanning-icon">📱</span>
+                <p class="scanning-text">Aproxime o cartão RFID do dispositivo</p>
             </div>
 
             <div id="status"></div>
 
             <div class="instructions">
-                <h4>📋 Instruções - Scanner de Artigos:</h4>
+                <h4>Instruções de Uso</h4>
                 <ol>
-                    <li>O número WhatsApp já deve estar preenchido</li>
+                    <li>Verifique se o número WhatsApp está preenchido</li>
                     <li>Toque em "Iniciar Scanner NFC"</li>
                     <li>Aproxime o cartão RFID do telemóvel</li>
                     <li>O código será enviado automaticamente para o WhatsApp</li>
-                    <li>Volte para o WhatsApp para continuar a conversa</li>
-                    <li>Repita para adicionar mais artigos</li>
+                    <li>Volte para o WhatsApp para continuar</li>
                 </ol>
 
-                <p><strong>💡 Dica:</strong> Este scanner integra-se com o sistema de intervenções via WhatsApp. Depois de escanear, continue a conversa no WhatsApp.</p>
-
-                <p><strong>⚠️ Requisitos:</strong></p>
+                <p><strong>Requisitos do Sistema:</strong></p>
                 <ul>
                     <li>Android com NFC ativado</li>
-                    <li>Chrome browser</li>
-                    <li>Conexão à internet</li>
-                    <li>Conversa ativa no WhatsApp</li>
+                    <li>Google Chrome</li>
+                    <li>Ligação à internet ativa</li>
                 </ul>
             </div>
         </div>
+    </div>
 
-        <script>
-            let isScanning = false;
-            let ndefReader = null;
+    <script>
+        let isScanning = false;
+        let ndefReader = null;
 
-            const scanButton = document.getElementById("scanButton");
-            const phoneNumberInput = document.getElementById("phoneNumber");
-            const scanningArea = document.getElementById("scanningArea");
-            const statusDiv = document.getElementById("status");
+        const scanButton = document.getElementById("scanButton");
+        const phoneNumberInput = document.getElementById("phoneNumber");
+        const scanningArea = document.getElementById("scanningArea");
+        const statusDiv = document.getElementById("status");
 
-            // Verificar suporte NFC
-            if (!("NDEFReader" in window)) {
-                showStatus("❌ NFC não suportado neste browser", "error");
-                scanButton.disabled = true;
-                scanButton.textContent = "NFC Não Suportado";
-            } else {
-                showStatus("✅ NFC suportado - Pronto para usar", "success");
-            }
+        // Verificar suporte NFC
+        if (!("NDEFReader" in window)) {
+            showStatus("NFC não é suportado neste navegador", "error");
+            scanButton.disabled = true;
+            scanButton.textContent = "NFC Não Suportado";
+        } else {
+            showStatus("Sistema pronto - NFC disponível", "success");
+        }
 
-            // Auto-preencher número de telefone se fornecido via URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const phoneFromUrl = urlParams.get('phone');
-            if (phoneFromUrl) {
-                phoneNumberInput.value = phoneFromUrl;
-                showStatus("📞 Número WhatsApp carregado automaticamente", "success");
-                
-                // Auto-iniciar o scanner se o número já estiver preenchido
-                setTimeout(() => {
-                    if (phoneNumberInput.value.trim()) {
-                        startScanning();
-                    }
-                }, 1000);
-            }
+        // Auto-preencher número de telefone se fornecido via URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const phoneFromUrl = urlParams.get('phone');
+        if (phoneFromUrl) {
+            phoneNumberInput.value = phoneFromUrl;
+            showStatus("Número WhatsApp carregado automaticamente", "success");
 
-            scanButton.addEventListener("click", toggleScanning);
-
-            async function toggleScanning() {
-                if (!isScanning) {
+            setTimeout(() => {
+                if (phoneNumberInput.value.trim()) {
                     startScanning();
-                } else {
-                    stopScanning();
                 }
-            }
+            }, 1500);
+        }
 
-            async function startScanning() {
-                const phoneNumber = phoneNumberInput.value.trim();
-                if (!phoneNumber) {
-                    showStatus(
-                        "❌ Por favor, insira o número de telefone",
-                        "error",
-                    );
-                    return;
-                }
+        scanButton.addEventListener("click", toggleScanning);
 
-                try {
-                    isScanning = true;
-                    scanButton.textContent = "⏹️ Parar Scanner";
-                    scanButton.className = "scan-button stop-button";
-                    scanningArea.style.display = "block";
-                    showStatus("📡 A aguardar aproximação do RFID...", "info");
-
-                    ndefReader = new NDEFReader();
-                    await ndefReader.scan();
-
-                    ndefReader.addEventListener("reading", handleNFCRead);
-                } catch (error) {
-                    console.error("Erro NFC:", error);
-                    showStatus(
-                        `❌ Erro ao iniciar NFC: ${error.message}`,
-                        "error",
-                    );
-                    stopScanning();
-                }
-            }
-
-            function stopScanning() {
-                isScanning = false;
-                scanButton.textContent = "📡 Iniciar Scanner NFC";
-                scanButton.className = "scan-button";
-                scanningArea.style.display = "none";
-
-                if (ndefReader) {
-                    // Note: não há método oficial para parar, mas removemos o listener
-                    ndefReader = null;
-                }
-
-                showStatus("⏹️ Scanner parado", "info");
-            }
-
-            function handleNFCRead(event) {
-                const { message, serialNumber } = event;
-                const rfidCode = serialNumber || `RFID_${Date.now()}`;
-
-                showStatus(`✅ RFID lido: ${rfidCode}`, "success");
-
-                // Vibração
-                if (navigator.vibrate) {
-                    navigator.vibrate([100, 50, 100]);
-                }
-
-                // Enviar para WhatsApp
-                sendToWhatsApp(rfidCode);
-
-                // Parar scanning após leitura
+        async function toggleScanning() {
+            if (!isScanning) {
+                startScanning();
+            } else {
                 stopScanning();
             }
+        }
 
-            async function sendToWhatsApp(rfidCode) {
-                const phoneNumber = phoneNumberInput.value.trim();
+        async function startScanning() {
+            const phoneNumber = phoneNumberInput.value.trim();
+            if (!phoneNumber) {
+                showStatus("Por favor, insira o número de telefone", "error");
+                return;
+            }
 
-                try {
-                    showStatus("📤 Enviando para WhatsApp...", "info");
+            try {
+                isScanning = true;
+                scanButton.textContent = "Parar Scanner";
+                scanButton.className = "scan-button stop-button";
+                scanningArea.style.display = "block";
+                scanningArea.classList.add("active");
+                showStatus("Aguardando aproximação do cartão RFID...", "info");
 
-                    // Usar a API correta do backend WhatsApp
-                    const response = await fetch("/api/whatsapp/send", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                            to: phoneNumber,
-                            message: rfidCode,
-                            priority: "high",
-                        }),
-                    });
+                ndefReader = new NDEFReader();
+                await ndefReader.scan();
 
-                    if (response.ok) {
-                        showStatus(
-                            `✅ RFID ${rfidCode} enviado com sucesso!\n\n` +
-                            `🔄 Volte para o WhatsApp para continuar a conversa`,
-                            "success",
-                        );
+                ndefReader.addEventListener("reading", handleNFCRead);
+            } catch (error) {
+                console.error("Erro NFC:", error);
+                showStatus(`Erro ao iniciar scanner: ${error.message}`, "error");
+                stopScanning();
+            }
+        }
 
-                        // Vibração de sucesso
-                        if (navigator.vibrate) {
-                            navigator.vibrate([200, 100, 200, 100, 200]);
-                        }
+        function stopScanning() {
+            isScanning = false;
+            scanButton.textContent = "Iniciar Scanner NFC";
+            scanButton.className = "scan-button";
+            scanningArea.style.display = "none";
+            scanningArea.classList.remove("active");
 
-                        // Mostrar botão para continuar no WhatsApp
-                        setTimeout(() => {
-                            showStatus(
-                                `✅ Código enviado: ${rfidCode}\n\n` +
-                                `📱 Continue no WhatsApp para adicionar mais artigos ou finalizar`,
-                                "success",
-                            );
-                        }, 2000);
+            if (ndefReader) {
+                ndefReader = null;
+            }
 
-                        // Auto-reiniciar scanner para próximo artigo
-                        setTimeout(() => {
-                            if (confirm("Deseja escanear outro artigo?")) {
-                                startScanning();
-                            }
-                        }, 3000);
+            showStatus("Scanner parado", "info");
+        }
+
+        function handleNFCRead(event) {
+            const { message, serialNumber } = event;
+            const rfidCode = serialNumber || `RFID_${Date.now()}`;
+
+            showStatus(`RFID lido com sucesso: ${rfidCode}`, "success");
+
+            if (navigator.vibrate) {
+                navigator.vibrate([100, 50, 100]);
+            }
+
+            sendToWhatsApp(rfidCode);
+            stopScanning();
+        }
+
+        async function sendToWhatsApp(rfidCode) {
+            const phoneNumber = phoneNumberInput.value.trim();
+
+            try {
+                showStatus("Enviando código para WhatsApp...", "info");
+
+                let backendUrl;
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    if (window.location.port === '19006') {
+                        backendUrl = 'http://localhost:5001';
                     } else {
-                        showStatus("❌ Erro ao enviar para WhatsApp", "error");
+                        backendUrl = 'http://localhost:5001';
                     }
-                } catch (error) {
-                    showStatus("❌ Erro de conexão: " + error.message, "error");
+                } else {
+                    backendUrl = 'https://link.advir.pt';
                 }
-            }
 
-            function showStatus(message, type) {
-                statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+                const response = await fetch(`${backendUrl}/api/whatsapp/send`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        to: phoneNumber,
+                        message: rfidCode,
+                        priority: "high",
+                    }),
+                });
+
+                if (response.ok) {
+                    showStatus(
+                        `Código ${rfidCode} enviado com sucesso!\n\nVolte para o WhatsApp para continuar a conversa.`,
+                        "success"
+                    );
+
+                    if (navigator.vibrate) {
+                        navigator.vibrate([200, 100, 200, 100, 200]);
+                    }
+
+                    setTimeout(() => {
+                        if (confirm("Deseja escanear outro artigo?")) {
+                            startScanning();
+                        }
+                    }, 3000);
+                } else {
+                    showStatus("Erro ao enviar código para WhatsApp", "error");
+                }
+            } catch (error) {
+                showStatus("Erro de conexão: " + error.message, "error");
             }
-        </script>
-    </body>
+        }
+
+        function showStatus(message, type) {
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+    </script>
+</body>
 </html>
