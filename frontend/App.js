@@ -2369,6 +2369,21 @@ export default function App() {
         setTimeout(() => setAppReady(true), 100); // pequeno delay para garantir fetchUserData concluir
     }, []);
 
+    // Check for NFC scanner route BEFORE any navigation setup
+    const currentHash = window.location?.hash;
+    
+    // If URL contains /nfc-scanner, render NFCScanner directly without any navigation
+    if (currentHash && currentHash.includes('/nfc-scanner')) {
+        // Import NFCScanner dynamically to avoid issues
+        const NFCScanner = React.lazy(() => import('./src/Pages/WhatsApp/NFCScanner'));
+        
+        return (
+            <React.Suspense fallback={<div>Loading...</div>}>
+                <NFCScanner />
+            </React.Suspense>
+        );
+    }
+
     return (
         <NavigationContainer linking={linking}>
             <ImageBackground

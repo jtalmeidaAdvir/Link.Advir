@@ -92,6 +92,7 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
   const [filtroEstado, setFiltroEstado] = useState('pendentes');
   const [integrandoIds, setIntegrandoIds] = useState(new Set());
   const [equipamentosMap, setEquipamentosMap] = useState({});
+  const [obrasResponsavel, setObrasResponsavel] = useState(new Set()); // Set com IDs das obras que sou responsável
 
 
 
@@ -121,10 +122,23 @@ const buildPayloadEquip = ({ docId, cab, itens, idObra }) => ({
 
 
   const cabecalhosFiltrados = useMemo(() => {
-    if (filtroEstado === 'pendentes') return cabecalhos.filter(c => !c.IntegradoERP);
-    if (filtroEstado === 'integrados') return cabecalhos.filter(c => c.IntegradoERP);
-    return cabecalhos;
-  }, [cabecalhos, filtroEstado]);
+    let filtered = cabecalhos;
+
+    // Filtrar por estado (pendentes/integrados)
+    if (filtroEstado === 'pendentes') {
+      filtered = filtered.filter(c => !c.IntegradoERP);
+    } else if (filtroEstado === 'integrados') {
+      filtered = filtered.filter(c => c.IntegradoERP);
+    }
+
+    // Filtrar apenas obras onde sou responsável
+    filtered = filtered.filter(c => {
+      const obraId = Number(c.ObraID);
+      return obrasResponsavel.has(obraId);
+    });
+
+    return filtered;
+  }, [cabecalhos, filtroEstado, obrasResponsavel]);
 
 
   // === ESTADOS DE EDIÇÃO ===
@@ -611,6 +625,41 @@ console.log('ID usado:', editItem.id);
     }
   }, []);
 
+  const fetchResponsavelObra = async (codigoObra) => {
+    try {
+      const token = await AsyncStorage.getItem('painelAdminToken');
+      const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+      if (!token || !urlempresa) {
+        return null;
+      }
+
+      const encodedCodigo = encodeURIComponent(codigoObra);
+
+      const response = await fetch(
+        `https://webapiprimavera.advir.pt/listarObras/GetResponsavel/${encodedCodigo}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            urlempresa: urlempresa,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.DataSet && data.DataSet.Table && data.DataSet.Table.length > 0) {
+          return data.DataSet.Table[0].CDU_AcessoUtilizador1 || data.DataSet.Table[0].Nome || data.DataSet.Table[0].name || null;
+        }
+      }
+    } catch (error) {
+      console.error(`Erro ao buscar responsável da obra ${codigoObra}:`, error);
+    }
+    return null;
+  };
+
   const fetchObras = async () => {
     try {
       const logintoken = await AsyncStorage.getItem('loginToken');
@@ -623,11 +672,27 @@ console.log('ID usado:', editItem.id);
       if (!res.ok) throw new Error('Falha ao obter obras');
       const obras = await res.json();
       const map = {};
-      obras.forEach(obra => {
+      
+      // Obter o responsável atual do localStorage
+      const codRecursosHumanos = await AsyncStorage.getItem('codRecursosHumanos');
+      const obrasDoResponsavel = new Set();
+
+      // Para cada obra, verificar se sou responsável
+      for (const obra of obras) {
         const key = String(obra.id || obra.ID);
         map[key] = { codigo: obra.codigo, descricao: obra.nome };
-      });
+
+        // Verificar se sou responsável por esta obra
+        if (codRecursosHumanos && obra.codigo) {
+          const responsavel = await fetchResponsavelObra(obra.codigo);
+          if (responsavel === codRecursosHumanos) {
+            obrasDoResponsavel.add(Number(key));
+          }
+        }
+      }
+
       setObrasMap(map);
+      setObrasResponsavel(obrasDoResponsavel);
     } catch (err) {
       console.warn('Erro obras:', err.message);
     }
@@ -1039,7 +1104,7 @@ const handleRejeitar = async (cab) => {
         <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.header}>
           <Text style={styles.headerTitle}>Gestão de Partes Diárias</Text>
           <Text style={styles.headerSubtitle}>
-            {cabecalhosFiltrados.length} {cabecalhosFiltrados.length === 1 ? 'parte' : 'partes'}
+            {cabecalhosFiltrados.length} {cabecalhosFiltrados.length === 1 ? 'parte' : 'partes'} das suas obras
           </Text>
         </LinearGradient>
 
@@ -1071,10 +1136,10 @@ const handleRejeitar = async (cab) => {
               <Text style={styles.emptyTitle}>Nenhuma parte diária encontrada</Text>
               <Text style={styles.emptyText}>
                 {filtroEstado === 'pendentes'
-                  ? 'Não há partes pendentes no momento.'
+                  ? 'Não há partes pendentes das suas obras no momento.'
                   : filtroEstado === 'integrados'
-                  ? 'Não há partes integradas ainda.'
-                  : 'Não há partes diárias registadas.'}
+                  ? 'Não há partes integradas das suas obras ainda.'
+                  : 'Não há partes diárias registadas para as suas obras.'}
               </Text>
             </View>
           )}

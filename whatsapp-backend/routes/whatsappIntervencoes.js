@@ -199,11 +199,11 @@ async function continuarConversa(phoneNumber, messageText, conversa, client) {
                 await client.sendMessage(
                     phoneNumber,
                     `✅ Continuando sem artigos.\n\n` +
-                        `*6. Data de Início*\n` +
-                        `Selecione a data de início da intervenção:\n\n` +
-                        `1. Hoje (${dataFormatada})\n` +
-                        `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
-                        `Digite 1 ou 2:`,
+                    `*6. Data de Início*\n` +
+                    `Selecione a data de início da intervenção:\n\n` +
+                    `1. Hoje (${dataFormatada})\n` +
+                    `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
+                    `Digite 1 ou 2:`,
                 );
             } else if (
                 lowerMsg.includes("fim") ||
@@ -217,26 +217,27 @@ async function continuarConversa(phoneNumber, messageText, conversa, client) {
                 await client.sendMessage(
                     phoneNumber,
                     `✅ Terminando adição de artigos.\n\n` +
-                        `*6. Data de Início*\n` +
-                        `Selecione a data de início da intervenção:\n\n` +
-                        `1. Hoje (${dataFormatada})\n` +
-                        `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
-                        `Digite 1 ou 2:`,
+                    `*6. Data de Início*\n` +
+                    `Selecione a data de início da intervenção:\n\n` +
+                    `1. Hoje (${dataFormatada})\n` +
+                    `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
+                    `Digite 1 ou 2:`,
                 );
             } else if (isArtigoRFIDCommand(messageText)) {
                 await processarRFID(phoneNumber, messageText, client, conversa);
             } else {
-                const baseUrl = process.env.BASE_URL || 'https://advirlink.replit.app';
-                const nfcUrl = `${baseUrl}/nfc.html?phone=${encodeURIComponent(phoneNumber)}`;
-                
+                const baseUrl = process.env.BASE_URL || "https://link.advir.pt";
+                const nfcUrl = `${baseUrl}/#/nfc-scanner?phone=${encodeURIComponent(phoneNumber)}`;
+
                 await client.sendMessage(
                     phoneNumber,
                     "❌ Resposta não reconhecida.\n\n" +
-                        "Por favor, responda:\n" +
-                        "• 'sim' para adicionar artigos\n" +
-                        "• 'não' para continuar sem artigos\n" +
-                        "• 'fim' para terminar\n\n" +
-                        "📱 Ou use o scanner NFC: " + nfcUrl,
+                    "Por favor, responda:\n" +
+                    "• 'sim' para adicionar artigos\n" +
+                    "• 'não' para continuar sem artigos\n" +
+                    "• 'fim' para terminar\n\n" +
+                    "📱 Ou use o scanner NFC: " +
+                    nfcUrl,
                 );
             }
             break;
@@ -410,8 +411,8 @@ async function handleTipo(phoneNumber, messageText, conversa, client) {
     await client.sendMessage(
         phoneNumber,
         `✅ Tipo de intervenção selecionado: *${conversa.data.tipo}*\n\n` +
-            `*4. Descrição*\n` +
-            `Por favor, descreva a intervenção realizada:`,
+        `*4. Descrição*\n` +
+        `Por favor, descreva a intervenção realizada:`,
     );
 }
 
@@ -423,11 +424,11 @@ async function handleDescricao(phoneNumber, messageText, conversa, client) {
     await client.sendMessage(
         phoneNumber,
         `✅ Descrição registada!\n\n` +
-            `*5. Artigos/Materiais*\n` +
-            `Deseja registar artigos ou materiais utilizados nesta intervenção?\n\n` +
-            `• Digite 'sim' para adicionar artigos\n` +
-            `• Digite 'não' para continuar sem artigos\n` +
-            `• Ou escaneie diretamente um código RFID`,
+        `*5. Artigos/Materiais*\n` +
+        `Deseja registar artigos ou materiais utilizados nesta intervenção?\n\n` +
+        `• Digite 'sim' para adicionar artigos\n` +
+        `• Digite 'não' para continuar sem artigos\n` +
+        `• Ou escaneie diretamente um código RFID`,
     );
 }
 
@@ -444,8 +445,8 @@ async function handleDataInicio(phoneNumber, messageText, conversa, client) {
         await client.sendMessage(
             phoneNumber,
             `✅ Data de início selecionada: ${dataTexto}\n\n` +
-                `*7. Hora de Início*\n` +
-                `Por favor, digite a hora de início (formato HH:MM):`,
+            `*7. Hora de Início*\n` +
+            `Por favor, digite a hora de início (formato HH:MM):`,
         );
         return;
     }
@@ -487,8 +488,8 @@ async function handleDataInicioManual(
     await client.sendMessage(
         phoneNumber,
         `✅ Data de início inserida: ${conversa.data.dataInicio}\n\n` +
-            `*7. Hora de Início*\n` +
-            `Por favor, digite a hora de início (formato HH:MM):`,
+        `*7. Hora de Início*\n` +
+        `Por favor, digite a hora de início (formato HH:MM):`,
     );
 }
 
@@ -514,11 +515,11 @@ async function handleHoraInicio(phoneNumber, messageText, conversa, client) {
     await client.sendMessage(
         phoneNumber,
         `✅ Hora de início registada: ${horaTexto}\n\n` +
-            `*8. Data de Fim*\n` +
-            `Selecione a data de fim da intervenção:\n\n` +
-            `1. Hoje (${dataFormatada})\n` +
-            `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
-            `Digite 1 ou 2:`,
+        `*8. Data de Fim*\n` +
+        `Selecione a data de fim da intervenção:\n\n` +
+        `1. Hoje (${dataFormatada})\n` +
+        `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
+        `Digite 1 ou 2:`,
     );
 }
 
@@ -535,8 +536,8 @@ async function handleDataFim(phoneNumber, messageText, conversa, client) {
         await client.sendMessage(
             phoneNumber,
             `✅ Data de fim selecionada: ${dataTexto}\n\n` +
-                `*9. Hora de Fim*\n` +
-                `Por favor, digite a hora de fim (formato HH:MM):`,
+            `*9. Hora de Fim*\n` +
+            `Por favor, digite a hora de fim (formato HH:MM):`,
         );
         return;
     }
@@ -573,8 +574,8 @@ async function handleDataFimManual(phoneNumber, messageText, conversa, client) {
     await client.sendMessage(
         phoneNumber,
         `✅ Data de fim inserida: ${conversa.data.dataFim}\n\n` +
-            `*9. Hora de Fim*\n` +
-            `Por favor, digite a hora de fim (formato HH:MM):`,
+        `*9. Hora de Fim*\n` +
+        `Por favor, digite a hora de fim (formato HH:MM):`,
     );
 }
 
@@ -690,11 +691,11 @@ async function handleConfirmation(phoneNumber, messageText, conversa, client) {
 // Iniciar processo de adição de artigos
 async function iniciarProcessoArtigos(phoneNumber, client, conversa) {
     conversa.estado = STATES.WAITING_RFID;
-    
+
     // Obter o domínio base da aplicação (pode ser configurado via variável de ambiente)
-    const baseUrl = process.env.BASE_URL || 'https://advirlink.replit.app';
-    const nfcUrl = `${baseUrl}/nfc.html?phone=${encodeURIComponent(phoneNumber)}`;
-    
+    const baseUrl = process.env.BASE_URL || "https://link.advir.pt";
+    const nfcUrl = `${baseUrl}/#/nfc-scanner?phone=${encodeURIComponent(phoneNumber)}`;
+
     await client.sendMessage(
         phoneNumber,
         `👍 Ótimo! Para adicionar artigos, você tem duas opções:\n\n` +
@@ -709,7 +710,7 @@ async function iniciarProcessoArtigos(phoneNumber, client, conversa) {
         `3. Encoste o cartão RFID no seu telemóvel\n` +
         `4. O código será enviado automaticamente para este chat\n` +
         `5. Continue a conversa aqui para adicionar mais artigos\n\n` +
-        `Aguardando código RFID...`
+        `Aguardando código RFID...`,
     );
 }
 
@@ -773,10 +774,10 @@ async function processarRFID(phoneNumber, messageText, client, conversa) {
         await client.sendMessage(
             phoneNumber,
             `✅ Artigo encontrado!\n\n` +
-                `📦 *${conversa.data.ultimoArtigoDescricao}*\n` +
-                `🏷️ Código: ${conversa.data.ultimoArtigoCodigo}\n` +
-                `📱 RFID: ${rfidCode}\n\n` +
-                `Por favor, indique a quantidade deste artigo:`,
+            `📦 *${conversa.data.ultimoArtigoDescricao}*\n` +
+            `🏷️ Código: ${conversa.data.ultimoArtigoCodigo}\n` +
+            `📱 RFID: ${rfidCode}\n\n` +
+            `Por favor, indique a quantidade deste artigo:`,
         );
     } catch (error) {
         console.error("Erro ao buscar artigos RFID:", error);
@@ -819,19 +820,19 @@ async function processarQuantidadeArtigo(
     delete conversa.data.ultimoArtigoCodigo;
     delete conversa.data.ultimoArtigoDescricao;
 
-    const baseUrl = process.env.BASE_URL || 'https://advirlink.replit.app';
-    const nfcUrl = `${baseUrl}/nfc.html?phone=${encodeURIComponent(phoneNumber)}`;
+    const baseUrl = process.env.BASE_URL || "https://link.advir.pt";
+    const nfcUrl = `${baseUrl}/#/nfc-scanner?phone=${encodeURIComponent(phoneNumber)}`;
 
     await client.sendMessage(
         phoneNumber,
         `✅ ${quantidade}x de *${artigo.descricao}* adicionado(s).\n\n` +
-            `📦 *Artigos já adicionados: ${conversa.data.artigos.length}*\n\n` +
-            `O que deseja fazer a seguir?\n\n` +
-            `📱 *Scanner NFC:* ${nfcUrl}\n` +
-            `📝 *Ou digite:*\n` +
-            `• Código RFID manualmente\n` +
-            `• 'fim' para continuar para as datas\n` +
-            `• 'cancelar' para cancelar adição de artigos`,
+        `📦 *Artigos já adicionados: ${conversa.data.artigos.length}*\n\n` +
+        `O que deseja fazer a seguir?\n\n` +
+        `📱 *Scanner NFC:* ${nfcUrl}\n` +
+        `📝 *Ou digite:*\n` +
+        `• Código RFID manualmente\n` +
+        `• 'fim' para continuar para as datas\n` +
+        `• 'cancelar' para cancelar adição de artigos`,
     );
 
     conversa.estado = STATES.WAITING_ARTIGOS; // Voltar ao estado de gestão de artigos
@@ -855,11 +856,11 @@ async function processarComandoArtigo(
         await client.sendMessage(
             phoneNumber,
             `✅ Artigos registados com sucesso!\n\n` +
-                `*6. Data de Início*\n` +
-                `Selecione a data de início da intervenção:\n\n` +
-                `1. Hoje (${dataFormatada})\n` +
-                `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
-                `Digite 1 ou 2:`,
+            `*6. Data de Início*\n` +
+            `Selecione a data de início da intervenção:\n\n` +
+            `1. Hoje (${dataFormatada})\n` +
+            `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
+            `Digite 1 ou 2:`,
         );
         return;
     }
@@ -874,11 +875,11 @@ async function processarComandoArtigo(
         await client.sendMessage(
             phoneNumber,
             `❌ Adição de artigos cancelada. Continuando sem artigos.\n\n` +
-                `*6. Data de Início*\n` +
-                `Selecione a data de início da intervenção:\n\n` +
-                `1. Hoje (${dataFormatada})\n` +
-                `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
-                `Digite 1 ou 2:`,
+            `*6. Data de Início*\n` +
+            `Selecione a data de início da intervenção:\n\n` +
+            `1. Hoje (${dataFormatada})\n` +
+            `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
+            `Digite 1 ou 2:`,
         );
         return;
     }
@@ -910,21 +911,21 @@ async function processarComandoArtigo(
             await client.sendMessage(
                 phoneNumber,
                 `✅ Continuando sem artigos.\n\n` +
-                    `*6. Data de Início*\n` +
-                    `Selecione a data de início da intervenção:\n\n` +
-                    `1. Hoje (${dataFormatada})\n` +
-                    `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
-                    `Digite 1 ou 2:`,
+                `*6. Data de Início*\n` +
+                `Selecione a data de início da intervenção:\n\n` +
+                `1. Hoje (${dataFormatada})\n` +
+                `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
+                `Digite 1 ou 2:`,
             );
         } else {
             await client.sendMessage(
                 phoneNumber,
                 "❌ Resposta não reconhecida.\n\n" +
-                    "Por favor, responda:\n" +
-                    "• 'sim' para adicionar mais artigos\n" +
-                    "• 'não' para terminar a adição de artigos\n" +
-                    "• 'fim' para terminar\n" +
-                    "• Ou escaneie um código RFID",
+                "Por favor, responda:\n" +
+                "• 'sim' para adicionar mais artigos\n" +
+                "• 'não' para terminar a adição de artigos\n" +
+                "• 'fim' para terminar\n" +
+                "• Ou escaneie um código RFID",
             );
         }
         return;
@@ -935,7 +936,7 @@ async function processarComandoArtigo(
     await client.sendMessage(
         phoneNumber,
         "📦 *Gestão de Artigos/Materiais*\n\n" +
-            "Por favor, escaneie o código RFID do artigo ou digite 'fim' para terminar a adição de artigos.",
+        "Por favor, escaneie o código RFID do artigo ou digite 'fim' para terminar a adição de artigos.",
     );
 }
 

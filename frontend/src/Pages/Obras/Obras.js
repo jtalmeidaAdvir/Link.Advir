@@ -35,6 +35,7 @@ const ListarObras = ({ navigation }) => {
     const [searchAnimated] = useState(new Animated.Value(0));
     const [expandedCards, setExpandedCards] = useState({});
     const [filterType, setFilterType] = useState("with_qr"); // 'all', 'with_qr', 'without_qr'
+    const [responsaveis, setResponsaveis] = useState({}); // Store responsaveis by obra codigo
 
     // Animação principal para efeitos visuais
     useEffect(() => {
@@ -126,6 +127,9 @@ const ListarObras = ({ navigation }) => {
                 // Carregar obras importadas em paralelo
                 await fetchObrasImportadas();
 
+                setLoadingProgress(85);
+                setLoadingMessage("Carregando responsáveis das obras...");
+
                 setLoadingProgress(100);
                 setLoadingMessage("Finalizando...");
             } else {
@@ -209,6 +213,62 @@ const ListarObras = ({ navigation }) => {
         }
     };
 
+    const fetchResponsavelObra = async (codigoObra) => {
+        try {
+            const token = await AsyncStorage.getItem("painelAdminToken");
+            const urlempresa = await AsyncStorage.getItem("urlempresa");
+
+            if (!token || !urlempresa) {
+                return null;
+            }
+
+            // Encode the codigo properly to handle special characters and spaces
+            const encodedCodigo = encodeURIComponent(codigoObra);
+
+            const response = await fetch(
+                `https://webapiprimavera.advir.pt/listarObras/GetResponsavel/${encodedCodigo}`,
+                {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        urlempresa: urlempresa,
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.DataSet && data.DataSet.Table && data.DataSet.Table.length > 0) {
+                    return data.DataSet.Table[0].CDU_AcessoUtilizador1 || data.DataSet.Table[0].Nome || data.DataSet.Table[0].name || "N/A";
+                }
+            }
+        } catch (error) {
+            console.error(`Erro ao buscar responsável da obra ${codigoObra}:`, error);
+        }
+        return null;
+    };
+
+    const fetchAllResponsaveis = async (obras) => {
+        const responsaveisTemp = {};
+        
+        // Only fetch responsaveis for imported obras to optimize performance
+        for (const obra of obras) {
+            const obraImportada = obrasImportadas.find(
+                (importada) => importada.codigo === obra.Codigo
+            );
+            
+            if (obraImportada) {
+                const responsavel = await fetchResponsavelObra(obra.Codigo);
+                if (responsavel) {
+                    responsaveisTemp[obra.Codigo] = responsavel;
+                }
+            }
+        }
+        
+        setResponsaveis(responsaveisTemp);
+    };
+
     const applyFilters = (searchText = searchTerm, filter = filterType) => {
         let filtered = [...obras];
 
@@ -260,6 +320,13 @@ const ListarObras = ({ navigation }) => {
             applyFilters(searchTerm, filterType);
         }
     }, [obrasImportadas, obras]);
+
+    // Fetch responsaveis when obras importadas are loaded
+    useEffect(() => {
+        if (obras.length > 0 && obrasImportadas.length > 0) {
+            fetchAllResponsaveis(obras);
+        }
+    }, [obrasImportadas]);
 
     const toggleCardExpansion = (itemId) => {
         setExpandedCards((prev) => ({
@@ -537,6 +604,11 @@ const ListarObras = ({ navigation }) => {
                                 <Text style={styles.obraCodigo}>
                                     Estado: {item.Estado}
                                 </Text>
+                                {responsaveis[item.Codigo] && (
+                                    <Text style={styles.obraCodigo}>
+                                        Responsável: {responsaveis[item.Codigo]}
+                                    </Text>
+                                )}
                             </View>
                         </View>
                         <Animated.View
@@ -583,6 +655,20 @@ const ListarObras = ({ navigation }) => {
                                     ).toLocaleDateString("pt-PT")}
                                 </Text>
                             </View>
+
+                            {responsaveis[item.Codigo] && (
+                                <View style={styles.detailRow}>
+                                    <FontAwesome
+                                        name="user"
+                                        size={18}
+                                        color="#1792FE"
+                                    />
+                                    <Text style={styles.detailLabel}>Responsável:</Text>
+                                    <Text style={styles.detailValue}>
+                                        {responsaveis[item.Codigo]}
+                                    </Text>
+                                </View>
+                            )}
 
                             {obraExistente ? (
                                 <View style={styles.qrContainer}>
