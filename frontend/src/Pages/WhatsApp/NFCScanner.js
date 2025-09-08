@@ -1,156 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
-
-const NFCScanner = () => {
-    const [isScanning, setIsScanning] = useState(false);
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [status, setStatus] = useState({ message: '', type: '' });
-    const [ndefReader, setNdefReader] = useState(null);
-
-    const styles = {
-        body: {
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-            margin: 0,
-            padding: '20px',
-            backgroundColor: '#f8f9fa',
-            minHeight: '100vh',
-            color: '#333'
-        },
-        container: {
-            maxWidth: '420px',
-            margin: '0 auto',
-            background: '#ffffff',
-            borderRadius: '8px',
-            border: '1px solid #e1e5e9',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            overflow: 'hidden'
-        },
-        header: {
-            backgroundColor: '#ffffff',
-            padding: '24px 20px 20px',
-            borderBottom: '1px solid #e1e5e9',
-            textAlign: 'center'
-        },
-        title: {
-            margin: '0 0 4px 0',
-            fontSize: '20px',
-            fontWeight: '600',
-            color: '#2c3e50'
-        },
-        subtitle: {
-            margin: '0',
-            fontSize: '14px',
-            color: '#6c757d'
-        },
-        content: {
-            padding: '24px 20px'
-        },
-        inputGroup: {
-            marginBottom: '20px'
-        },
-        label: {
-            display: 'block',
-            fontWeight: '500',
-            marginBottom: '6px',
-            color: '#495057',
-            fontSize: '14px'
-        },
-        input: {
-            width: '100%',
-            padding: '12px 16px',
-            border: '1px solid #ced4da',
-            borderRadius: '6px',
-            fontSize: '15px',
-            backgroundColor: '#fff',
-            transition: 'border-color 0.15s ease-in-out',
-            boxSizing: 'border-box'
-        },
-        scanButton: {
-            width: '100%',
-            padding: '14px 20px',
-            backgroundColor: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: '15px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'background-color 0.15s ease-in-out',
-            marginBottom: '16px'
-        },
-        scanButtonStop: {
-            backgroundColor: '#dc3545'
-        },
-        scanButtonDisabled: {
-            backgroundColor: '#6c757d',
-            cursor: 'not-allowed'
-        },
-        scanningArea: {
-            textAlign: 'center',
-            padding: '32px 20px',
-            backgroundColor: '#f8f9fa',
-            border: '2px dashed #ced4da',
-            borderRadius: '8px',
-            margin: '20px 0',
-            display: 'none'
-        },
-        scanningAreaActive: {
-            display: 'block',
-            borderColor: '#007bff',
-            backgroundColor: '#e3f2fd'
-        },
-        scanningIcon: {
-            fontSize: '40px',
-            marginBottom: '12px',
-            display: 'block'
-        },
-        scanningText: {
-            fontSize: '15px',
-            fontWeight: '500',
-            color: '#495057',
-            margin: '0'
-        },
-        status: {
-            padding: '12px 16px',
-            borderRadius: '6px',
-            marginTop: '16px',
-            fontSize: '14px',
-            lineHeight: '1.4'
-        },
-        statusSuccess: {
-            backgroundColor: '#d4edda',
-            border: '1px solid #c3e6cb',
-            color: '#155724'
-        },
-        statusError: {
-            backgroundColor: '#f8d7da',
-            border: '1px solid #f5c6cb',
-            color: '#721c24'
-        },
-        statusInfo: {
-            backgroundColor: '#d1ecf1',
-            border: '1px solid #bee5eb',
-            color: '#0c5460'
-        },
-        instructions: {
-            marginTop: '32px',
-            paddingTop: '24px',
-            borderTop: '1px solid #e1e5e9'
-        },
-        instructionsTitle: {
-            margin: '0 0 16px 0',
-            fontSize: '16px',
-            fontWeight: '600',
-            color: '#2c3e50'
-        },
-        instructionsList: {
-            margin: '0 0 16px 0',
-            paddingLeft: '20px'
-        },
-        instructionsItem: {
-            fontSize: '14px',
-            color: '#495057',
-            marginBottom: '6px',
+'6px',
             lineHeight: '1.4'
         },
         instructionsText: {
@@ -243,7 +91,7 @@ const NFCScanner = () => {
         }
 
         // Simular código RFID de teste
-        const testRfidCode = `TEST_RFID_${Date.now()}`;
+        const testRfidCode = "12AB34CD";
         showStatus(`🧪 Teste: Simulando leitura RFID - ${testRfidCode}`, "info");
         
         if (navigator.vibrate) {
@@ -409,18 +257,6 @@ const NFCScanner = () => {
                         🧪 Teste - Simular Leitura
                     </button>
 
-                    {/* Botão de Verificar Status */}
-                    <button
-                        onClick={checkWhatsAppStatus}
-                        style={{
-                            ...styles.scanButton,
-                            backgroundColor: '#17a2b8',
-                            marginTop: '10px'
-                        }}
-                    >
-                        🔍 Verificar Status WhatsApp
-                    </button>
-
                     <div style={{
                         ...styles.scanningArea,
                         ...(isScanning ? styles.scanningAreaActive : {})
@@ -440,7 +276,6 @@ const NFCScanner = () => {
                     <div style={styles.instructions}>
                         <h4 style={styles.instructionsTitle}>Instruções de Uso</h4>
                         <ol style={styles.instructionsList}>
-                            <li style={styles.instructionsItem}><strong>Primeiro:</strong> Clique em "🔍 Verificar Status WhatsApp"</li>
                             <li style={styles.instructionsItem}>Verifique se o número WhatsApp está preenchido</li>
                             <li style={styles.instructionsItem}><strong>Para testar:</strong> Use o botão "🧪 Teste - Simular Leitura"</li>
                             <li style={styles.instructionsItem}><strong>Para uso real:</strong> Toque em "Iniciar Scanner NFC"</li>
