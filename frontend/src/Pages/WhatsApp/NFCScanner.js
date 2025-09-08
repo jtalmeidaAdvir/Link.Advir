@@ -1,4 +1,158 @@
-'6px',
+import React, { useState, useEffect } from 'react';
+
+const NFCScanner = () => {
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [isScanning, setIsScanning] = useState(false);
+    const [status, setStatus] = useState({ message: '', type: '' });
+    const [ndefReader, setNdefReader] = useState(null);
+
+    const styles = {
+        body: {
+            margin: 0,
+            padding: 0,
+            fontFamily: "'Roboto', 'Helvetica Neue', Arial, sans-serif",
+            backgroundColor: '#f8f9fa',
+            minHeight: '100vh',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
+        },
+        container: {
+            maxWidth: '480px',
+            width: '100%',
+            margin: '20px',
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+            overflow: 'hidden'
+        },
+        header: {
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            padding: '24px',
+            textAlign: 'center'
+        },
+        title: {
+            margin: '0 0 8px 0',
+            fontSize: '24px',
+            fontWeight: '700'
+        },
+        subtitle: {
+            margin: 0,
+            fontSize: '14px',
+            opacity: 0.9
+        },
+        content: {
+            padding: '24px'
+        },
+        inputGroup: {
+            marginBottom: '20px'
+        },
+        label: {
+            display: 'block',
+            marginBottom: '8px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#495057'
+        },
+        input: {
+            width: '100%',
+            padding: '12px 16px',
+            border: '2px solid #e9ecef',
+            borderRadius: '8px',
+            fontSize: '16px',
+            transition: 'border-color 0.3s ease',
+            boxSizing: 'border-box'
+        },
+        scanButton: {
+            width: '100%',
+            padding: '16px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '16px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            marginBottom: '12px'
+        },
+        scanButtonStop: {
+            backgroundColor: '#dc3545'
+        },
+        scanButtonDisabled: {
+            backgroundColor: '#6c757d',
+            cursor: 'not-allowed'
+        },
+        scanningArea: {
+            backgroundColor: '#f8f9fa',
+            border: '2px dashed #dee2e6',
+            borderRadius: '12px',
+            padding: '40px 20px',
+            textAlign: 'center',
+            margin: '20px 0',
+            transition: 'all 0.3s ease'
+        },
+        scanningAreaActive: {
+            backgroundColor: '#e3f2fd',
+            borderColor: '#2196f3',
+            borderStyle: 'solid'
+        },
+        scanningIcon: {
+            fontSize: '48px',
+            display: 'block',
+            marginBottom: '12px'
+        },
+        scanningText: {
+            margin: 0,
+            color: '#6c757d',
+            fontSize: '16px'
+        },
+        status: {
+            padding: '16px',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            fontSize: '14px',
+            fontWeight: '500',
+            whiteSpace: 'pre-line',
+            textAlign: 'center'
+        },
+        statusSuccess: {
+            backgroundColor: '#d4edda',
+            color: '#155724',
+            border: '1px solid #c3e6cb'
+        },
+        statusError: {
+            backgroundColor: '#f8d7da',
+            color: '#721c24',
+            border: '1px solid #f5c6cb'
+        },
+        statusInfo: {
+            backgroundColor: '#d1ecf1',
+            color: '#0c5460',
+            border: '1px solid #bee5eb'
+        },
+        instructions: {
+            backgroundColor: '#f8f9fa',
+            padding: '20px',
+            borderRadius: '12px',
+            border: '1px solid #e9ecef'
+        },
+        instructionsTitle: {
+            margin: '0 0 16px 0',
+            fontSize: '18px',
+            fontWeight: '600',
+            color: '#495057'
+        },
+        instructionsList: {
+            margin: '0 0 16px 0',
+            paddingLeft: '20px'
+        },
+        instructionsItem: {
+            marginBottom: '8px',
+            fontSize: '12px',
+            color: '#495057',
+            padding: '6px',
             lineHeight: '1.4'
         },
         instructionsText: {
@@ -93,7 +247,7 @@
         // Simular código RFID de teste
         const testRfidCode = "12AB34CD";
         showStatus(`🧪 Teste: Simulando leitura RFID - ${testRfidCode}`, "info");
-        
+
         if (navigator.vibrate) {
             navigator.vibrate([100, 50, 100]);
         }
@@ -117,7 +271,7 @@
                 const statusMessage = statusData.isReady 
                     ? "✅ WhatsApp Web está conectado e pronto!"
                     : `⚠️ WhatsApp Web não está pronto\nStatus: ${statusData.status}`;
-                
+
                 showStatus(statusMessage, statusData.isReady ? "success" : "error");
             } else {
                 showStatus("❌ Erro ao verificar status do WhatsApp", "error");
@@ -290,7 +444,7 @@
                             <li style={styles.instructionsItem}>🎫 <strong>Teste Real:</strong> Passe dos comboios funciona perfeitamente</li>
                             <li style={styles.instructionsItem}>📱 <strong>Cartões:</strong> Cartões de transporte, crédito, etc.</li>
                         </ul>
-                        
+
                         <p style={styles.instructionsText}><strong>Requisitos do Sistema:</strong></p>
                         <ul style={styles.instructionsList}>
                             <li style={styles.instructionsItem}>Android com NFC ativado</li>
