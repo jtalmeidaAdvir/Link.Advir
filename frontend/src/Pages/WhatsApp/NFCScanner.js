@@ -253,16 +253,46 @@ const NFCScanner = () => {
         sendToWhatsApp(testRfidCode);
     };
 
+    const checkWhatsAppStatus = async () => {
+        try {
+            showStatus("🔍 Verificando status do WhatsApp...", "info");
+
+            let backendUrl = 'http://localhost:5001';
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                backendUrl = 'https://backend.advir.pt/whatsapi';
+            }
+
+            const response = await fetch(`${backendUrl}/api/whatsapp/status`);
+            const statusData = await response.json();
+
+            if (response.ok) {
+                const statusMessage = statusData.isReady 
+                    ? "✅ WhatsApp Web está conectado e pronto!"
+                    : `⚠️ WhatsApp Web não está pronto\nStatus: ${statusData.status}`;
+                
+                showStatus(statusMessage, statusData.isReady ? "success" : "error");
+            } else {
+                showStatus("❌ Erro ao verificar status do WhatsApp", "error");
+            }
+        } catch (error) {
+            showStatus(`❌ Erro de conexão: ${error.message}`, "error");
+        }
+    };
+
     const sendToWhatsApp = async (rfidCode) => {
         const phone = phoneNumber.trim();
 
         try {
             showStatus("Enviando código para WhatsApp...", "info");
 
+            // Usar a URL correta do backend WhatsApp
             let backendUrl = 'http://localhost:5001';
             if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                backendUrl = 'https://link.advir.pt';
+                backendUrl = 'https://backend.advir.pt/whatsapi';
             }
+
+            console.log('Enviando para:', `${backendUrl}/api/whatsapp/send`);
+            console.log('Dados:', { to: phone, message: rfidCode, priority: "high" });
 
             const response = await fetch(`${backendUrl}/api/whatsapp/send`, {
                 method: "POST",
@@ -276,9 +306,14 @@ const NFCScanner = () => {
                 }),
             });
 
+            const responseData = await response.json();
+            console.log('Resposta do servidor:', responseData);
+
             if (response.ok) {
                 showStatus(
-                    `Código ${rfidCode} enviado com sucesso!\n\nVolte para o WhatsApp para continuar a conversa.`,
+                    `✅ Código ${rfidCode} enviado com sucesso!\n\n` +
+                    `📱 Verifique o WhatsApp agora\n` +
+                    `🔄 Se não recebeu, verifique se o WhatsApp Web está conectado`,
                     "success"
                 );
 
@@ -292,7 +327,12 @@ const NFCScanner = () => {
                     }
                 }, 3000);
             } else {
-                showStatus("Erro ao enviar código para WhatsApp", "error");
+                showStatus(
+                    `❌ Erro ao enviar código para WhatsApp\n\n` +
+                    `Detalhes: ${responseData.error || 'Erro desconhecido'}\n` +
+                    `Verifique se o WhatsApp Web está conectado`,
+                    "error"
+                );
             }
         } catch (error) {
             showStatus("Erro de conexão: " + error.message, "error");
@@ -369,6 +409,18 @@ const NFCScanner = () => {
                         🧪 Teste - Simular Leitura
                     </button>
 
+                    {/* Botão de Verificar Status */}
+                    <button
+                        onClick={checkWhatsAppStatus}
+                        style={{
+                            ...styles.scanButton,
+                            backgroundColor: '#17a2b8',
+                            marginTop: '10px'
+                        }}
+                    >
+                        🔍 Verificar Status WhatsApp
+                    </button>
+
                     <div style={{
                         ...styles.scanningArea,
                         ...(isScanning ? styles.scanningAreaActive : {})
@@ -388,6 +440,7 @@ const NFCScanner = () => {
                     <div style={styles.instructions}>
                         <h4 style={styles.instructionsTitle}>Instruções de Uso</h4>
                         <ol style={styles.instructionsList}>
+                            <li style={styles.instructionsItem}><strong>Primeiro:</strong> Clique em "🔍 Verificar Status WhatsApp"</li>
                             <li style={styles.instructionsItem}>Verifique se o número WhatsApp está preenchido</li>
                             <li style={styles.instructionsItem}><strong>Para testar:</strong> Use o botão "🧪 Teste - Simular Leitura"</li>
                             <li style={styles.instructionsItem}><strong>Para uso real:</strong> Toque em "Iniciar Scanner NFC"</li>
