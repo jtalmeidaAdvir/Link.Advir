@@ -4891,19 +4891,22 @@ router.post('/simulate-message', async (req, res) => {
 
         console.log(`🧪 Simulando mensagem RFID recebida de ${to}: "${message}"`);
 
-        // Verificar se o cliente WhatsApp está disponível
-        if (!client || !isClientReady) {
-            return res.status(503).json({
-                success: false,
-                error: 'WhatsApp Web não está conectado ou não está pronto'
-            });
-        }
-
-        try {
+        // Simular que recebemos uma mensagem do WhatsApp
+        if (client && isClientReady) {
             // Processar a mensagem como se fosse recebida via WhatsApp
+            // Assumindo que o módulo whatsappIntervencoes está disponível
             const { processarMensagemIntervencao } = require('./whatsappIntervencoes');
-            
-            // Chamar a função de processamento
+
+            // Simular a estrutura de uma mensagem recebida
+            const simulatedMessage = {
+                from: to,
+                body: message,
+                fromMe: false, // Simula uma mensagem recebida
+                hasMedia: false,
+                type: 'chat', // Tipo de mensagem simulada
+                // Adicione outras propriedades conforme necessário para processarMensagemIntervencao
+            };
+
             await processarMensagemIntervencao(to, message, client);
 
             res.json({
@@ -4915,27 +4918,10 @@ router.post('/simulate-message', async (req, res) => {
                     isTest: true
                 }
             });
-        } catch (simulationError) {
-            console.error('Erro durante simulação:', simulationError.message);
-            
-            // Se for erro de contexto Puppeteer, informar que o cliente precisa reiniciar
-            if (simulationError.message.includes("Evaluation failed") || 
-                simulationError.message.includes("Target closed") || 
-                simulationError.message.includes("Protocol error") ||
-                simulationError.message.includes("Execution context was destroyed")) {
-                
-                return res.status(503).json({
-                    success: false,
-                    error: 'Cliente WhatsApp perdeu conexão - reinicialize a conexão',
-                    type: 'puppeteer_context_error'
-                });
-            }
-            
-            // Para outros erros, retornar erro genérico
-            res.status(500).json({
+        } else {
+            res.status(503).json({
                 success: false,
-                error: 'Erro ao processar mensagem simulada',
-                details: simulationError.message
+                error: 'WhatsApp Web não está conectado'
             });
         }
     } catch (error) {

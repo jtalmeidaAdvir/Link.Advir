@@ -25,68 +25,8 @@ const STATES = {
 // Importar função de token
 const { getAuthToken } = require("../../webPrimaveraApi/servives/tokenService");
 
-// Função auxiliar para enviar mensagens de forma segura
-async function sendMessageSafely(client, phoneNumber, message, retries = 2) {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-            if (!client || typeof client.sendMessage !== 'function') {
-                throw new Error('Cliente WhatsApp não disponível');
-            }
-            
-            const result = await client.sendMessage(phoneNumber, message);
-            console.log(`✅ Mensagem enviada com sucesso para ${phoneNumber}`);
-            return result;
-        } catch (error) {
-            const errorMsg = error.message || '';
-            console.error(`❌ Tentativa ${attempt + 1} falhada ao enviar mensagem para ${phoneNumber}:`, errorMsg);
-            
-            // Verificar se é erro de contexto do Puppeteer
-            const isPuppeteerContextError = 
-                errorMsg.includes("Evaluation failed") ||
-                errorMsg.includes("Target closed") ||
-                errorMsg.includes("Protocol error") ||
-                errorMsg.includes("Execution context was destroyed") ||
-                errorMsg.includes("Cannot read properties of null") ||
-                errorMsg.includes("Session closed");
-            
-            if (isPuppeteerContextError && attempt < retries) {
-                console.log(`🔄 Erro de contexto detectado (tentativa ${attempt + 1}), aguardando mais tempo antes de tentar novamente...`);
-                // Aguardar mais tempo para erros de contexto
-                await new Promise(resolve => setTimeout(resolve, 3000 * (attempt + 1)));
-                continue;
-            } else if (attempt < retries) {
-                // Aguardar antes de tentar novamente para outros erros
-                await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-                continue;
-            }
-            
-            // Se todas as tentativas falharam, registrar erro mas não interromper
-            console.error(`❌ Falha definitiva ao enviar mensagem para ${phoneNumber} após ${retries + 1} tentativas`);
-            
-            // Para erros de contexto, sugerir reinicialização
-            if (isPuppeteerContextError) {
-                console.log("⚠️ AVISO: Erro de contexto do WhatsApp Web detectado. O cliente pode precisar de reinicialização.");
-            }
-            
-            throw error;
-        }
-    }
-}
-
-// Função auxiliar para enviar mensagens sem falha crítica
-async function sendMessageSafelyNoFail(client, phoneNumber, message) {
-    try {
-        return await sendMessageSafely(client, phoneNumber, message);
-    } catch (error) {
-        console.error(`⚠️ Erro ao enviar mensagem para ${phoneNumber}, mas continuando:`, error.message);
-        return null;
-    }
-}
-
 // Verificar se a mensagem contém palavras-chave para iniciar uma intervenção
 function isIntervencaoKeyword(message) {
-
-
     const keywords = [
         "intervenção",
         "intervencao",
@@ -126,85 +66,40 @@ function isArtigoRFIDCommand(message) {
 async function processarMensagem(phoneNumber, messageText, client) {
     console.log(`🔧 Processando mensagem de ${phoneNumber}: "${messageText}"`);
 
-    try {
-        // Verificar se o cliente WhatsApp está disponível e pronto
-        if (!client) {
-            console.error("❌ Cliente WhatsApp não está disponível");
-            return;
-        }
+    let conversa = activeIntervencoes.get(phoneNumber);
 
-        // Verificar se o cliente tem a propriedade info (indica que está conectado)
-        if (client.info === undefined || client.info === null) {
-            console.log("⚠️ Cliente WhatsApp pode não estar totalmente inicializado, aguardando...");
-            await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-
-        let conversa = activeIntervencoes.get(phoneNumber);
-
-        // Verificar se é comando de artigo/RFID durante uma conversa ativa
-        if (
-            conversa &&
-            isArtigoRFIDCommand(messageText) &&
-            conversa.estado !== STATES.WAITING_RFID &&
-            conversa.estado !== STATES.WAITING_QUANTIDADE_ARTIGO
-        ) {
-            await processarComandoArtigo(
-                phoneNumber,
-                messageText,
-                client,
-                conversa,
-            );
-            return;
-        }
-
-        if (!conversa) {
-            // Nova conversa - Iniciar fluxo de intervenção
-            if (isIntervencaoKeyword(messageText)) {
-                await startNewIntervencao(phoneNumber, client);
-            } else {
-                // Mensagem não relacionada a intervenção
-                await sendMessageSafelyNoFail(
-                    client,
-                    phoneNumber,
-                    "👋 Olá! Para registar uma intervenção, envie 'intervenção'.",
-                );
-            }
-            return;
-        }
-
-        // Continuar conversa existente
-        await continuarConversa(phoneNumber, messageText, conversa, client);
-    } catch (error) {
-        const errorMsg = error.message || '';
-        console.error(`❌ Erro ao processar mensagem de ${phoneNumber}:`, errorMsg);
-        
-        // Verificar se é erro de contexto do Puppeteer
-        const isPuppeteerContextError = 
-            errorMsg.includes("Evaluation failed") ||
-            errorMsg.includes("Target closed") ||
-            errorMsg.includes("Protocol error") ||
-            errorMsg.includes("Execution context was destroyed") ||
-            errorMsg.includes("Cannot read properties of null") ||
-            errorMsg.includes("Session closed");
-        
-        if (isPuppeteerContextError) {
-            console.log("🔄 Erro de contexto do WhatsApp Web detectado. Recomenda-se verificar a conexão do cliente.");
-            
-            // Tentar aguardar um pouco para o cliente se recuperar
-            setTimeout(async () => {
-                try {
-                    console.log("🔄 Tentando reprocessar a mensagem após aguardar recuperação...");
-                    // Tentar reprocessar a mensagem uma vez após aguardar
-                    await processarMensagem(phoneNumber, messageText, client);
-                } catch (retryError) {
-                    console.error("❌ Falha na tentativa de reprocessamento:", retryError.message);
-                }
-            }, 5000);
-        }
-        
-        // Log do erro mas não interrompe o fluxo
+    // Verificar se é comando de artigo/RFID durante uma conversa ativa
+    if (
+        conversa &&
+        isArtigoRFIDCommand(messageText) &&
+        conversa.estado !== STATES.WAITING_RFID &&
+        conversa.estado !== STATES.WAITING_QUANTIDADE_ARTIGO
+    ) {
+        await processarComandoArtigo(
+            phoneNumber,
+            messageText,
+            client,
+            conversa,
+        );
         return;
     }
+
+    if (!conversa) {
+        // Nova conversa - Iniciar fluxo de intervenção
+        if (isIntervencaoKeyword(messageText)) {
+            await startNewIntervencao(phoneNumber, client);
+        } else {
+            // Mensagem não relacionada a intervenção
+            await client.sendMessage(
+                phoneNumber,
+                "👋 Olá! Para registar uma intervenção, envie 'intervenção'.",
+            );
+        }
+        return;
+    }
+
+    // Continuar conversa existente
+    await continuarConversa(phoneNumber, messageText, conversa, client);
 }
 
 // Iniciar nova intervenção
@@ -227,7 +122,7 @@ Bem-vindo! Vamos registar a sua intervenção.
 *1. Cliente*
 Indique o código do cliente:`;
 
-    await sendMessageSafely(client, phoneNumber, message);
+    await client.sendMessage(phoneNumber, message);
 }
 
 // Continuar conversa
@@ -398,8 +293,7 @@ async function handleCliente(phoneNumber, messageText, conversa, client) {
         );
 
         if (pedidosCliente.length === 0) {
-            await sendMessageSafelyNoFail(
-                client,
+            await client.sendMessage(
                 phoneNumber,
                 `❌ Nenhum pedido encontrado para "${clienteId}". Tente outro código ou nome:`,
             );
@@ -424,11 +318,10 @@ async function handleCliente(phoneNumber, messageText, conversa, client) {
         });
 
         message += `Por favor, selecione o pedido (digite o número de 1 a ${pedidosCliente.length}):`;
-        await sendMessageSafelyNoFail(client, phoneNumber, message);
+        await client.sendMessage(phoneNumber, message);
     } catch (error) {
         console.error("Erro ao buscar pedidos:", error);
-        await sendMessageSafelyNoFail(
-            client,
+        await client.sendMessage(
             phoneNumber,
             "❌ Ocorreu um erro ao buscar os pedidos. Por favor, tente novamente mais tarde.",
         );
@@ -1250,6 +1143,4 @@ module.exports = {
     processarMensagemIntervencao: processarMensagem, // Renomear para consistência com o que era exportado
     isIntervencaoKeyword,
     activeIntervencoes,
-    sendMessageSafely,
-    sendMessageSafelyNoFail,
 };
