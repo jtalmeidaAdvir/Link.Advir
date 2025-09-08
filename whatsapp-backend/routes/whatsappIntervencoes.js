@@ -37,16 +37,37 @@ async function sendMessageSafely(client, phoneNumber, message, retries = 2) {
             console.log(`✅ Mensagem enviada com sucesso para ${phoneNumber}`);
             return result;
         } catch (error) {
-            console.error(`❌ Tentativa ${attempt + 1} falhada ao enviar mensagem para ${phoneNumber}:`, error.message);
+            const errorMsg = error.message || '';
+            console.error(`❌ Tentativa ${attempt + 1} falhada ao enviar mensagem para ${phoneNumber}:`, errorMsg);
             
-            if (attempt < retries) {
-                // Aguardar antes de tentar novamente
+            // Verificar se é erro de contexto do Puppeteer
+            const isPuppeteerContextError = 
+                errorMsg.includes("Evaluation failed") ||
+                errorMsg.includes("Target closed") ||
+                errorMsg.includes("Protocol error") ||
+                errorMsg.includes("Execution context was destroyed") ||
+                errorMsg.includes("Cannot read properties of null") ||
+                errorMsg.includes("Session closed");
+            
+            if (isPuppeteerContextError && attempt < retries) {
+                console.log(`🔄 Erro de contexto detectado (tentativa ${attempt + 1}), aguardando mais tempo antes de tentar novamente...`);
+                // Aguardar mais tempo para erros de contexto
+                await new Promise(resolve => setTimeout(resolve, 3000 * (attempt + 1)));
+                continue;
+            } else if (attempt < retries) {
+                // Aguardar antes de tentar novamente para outros erros
                 await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
                 continue;
             }
             
             // Se todas as tentativas falharam, registrar erro mas não interromper
             console.error(`❌ Falha definitiva ao enviar mensagem para ${phoneNumber} após ${retries + 1} tentativas`);
+            
+            // Para erros de contexto, sugerir reinicialização
+            if (isPuppeteerContextError) {
+                console.log("⚠️ AVISO: Erro de contexto do WhatsApp Web detectado. O cliente pode precisar de reinicialização.");
+            }
+            
             throw error;
         }
     }
@@ -112,6 +133,12 @@ async function processarMensagem(phoneNumber, messageText, client) {
             return;
         }
 
+        // Verificar se o cliente tem a propriedade info (indica que está conectado)
+        if (client.info === undefined || client.info === null) {
+            console.log("⚠️ Cliente WhatsApp pode não estar totalmente inicializado, aguardando...");
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
         let conversa = activeIntervencoes.get(phoneNumber);
 
         // Verificar se é comando de artigo/RFID durante uma conversa ativa
@@ -148,14 +175,31 @@ async function processarMensagem(phoneNumber, messageText, client) {
         // Continuar conversa existente
         await continuarConversa(phoneNumber, messageText, conversa, client);
     } catch (error) {
-        console.error(`❌ Erro ao processar mensagem de ${phoneNumber}:`, error.message);
+        const errorMsg = error.message || '';
+        console.error(`❌ Erro ao processar mensagem de ${phoneNumber}:`, errorMsg);
         
-        // Se for erro de contexto do Puppeteer, tentar reinicializar
-        if (error.message.includes("Evaluation failed") || 
-            error.message.includes("Target closed") || 
-            error.message.includes("Protocol error") ||
-            error.message.includes("Execution context was destroyed")) {
-            console.log("🔄 Erro de contexto detectado, cliente WhatsApp pode precisar de reinicialização");
+        // Verificar se é erro de contexto do Puppeteer
+        const isPuppeteerContextError = 
+            errorMsg.includes("Evaluation failed") ||
+            errorMsg.includes("Target closed") ||
+            errorMsg.includes("Protocol error") ||
+            errorMsg.includes("Execution context was destroyed") ||
+            errorMsg.includes("Cannot read properties of null") ||
+            errorMsg.includes("Session closed");
+        
+        if (isPuppeteerContextError) {
+            console.log("🔄 Erro de contexto do WhatsApp Web detectado. Recomenda-se verificar a conexão do cliente.");
+            
+            // Tentar aguardar um pouco para o cliente se recuperar
+            setTimeout(async () => {
+                try {
+                    console.log("🔄 Tentando reprocessar a mensagem após aguardar recuperação...");
+                    // Tentar reprocessar a mensagem uma vez após aguardar
+                    await processarMensagem(phoneNumber, messageText, client);
+                } catch (retryError) {
+                    console.error("❌ Falha na tentativa de reprocessamento:", retryError.message);
+                }
+            }, 5000);
         }
         
         // Log do erro mas não interrompe o fluxo
