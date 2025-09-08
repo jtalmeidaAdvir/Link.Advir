@@ -399,8 +399,7 @@ async function handleDescricao(phoneNumber, messageText, conversa, client) {
         `*5. Artigos/Materiais*\n` +
         `Deseja registar artigos ou materiais utilizados nesta intervenção?\n\n` +
         `• Digite 'sim' para adicionar artigos\n` +
-        `• Digite 'não' para continuar sem artigos\n` +
-        `• Ou escaneie diretamente um código RFID`,
+        `• Digite 'não' para continuar sem artigos`,
     );
 }
 
