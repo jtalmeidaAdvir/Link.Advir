@@ -267,7 +267,7 @@ const NFCScanner = () => {
         }
     };
 
-    const handleTestScan = () => {
+    const handleTestScan = async () => {
         const phone = phoneNumber.trim();
         if (!phone) {
             showStatus("Por favor, insira o número de telefone para testar", "error");
@@ -276,13 +276,67 @@ const NFCScanner = () => {
 
         // Usar o código RFID do campo input
         const testRfidCode = rfidCode.trim() || "12AB34CD";
-        showStatus(`🧪 Teste: Enviando código RFID - ${testRfidCode}`, "info");
+        showStatus(`🧪 Teste: Simulando leitura RFID - ${testRfidCode}`, "info");
 
         if (navigator.vibrate) {
             navigator.vibrate([100, 50, 100]);
         }
 
-        sendToWhatsApp(testRfidCode);
+        // Em vez de enviar via WhatsApp, simular que o telefone recebeu uma mensagem RFID
+        try {
+            let backendUrl = 'http://localhost:5001';
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                backendUrl = 'https://backend.advir.pt/whatsapi';
+            }
+
+            // Simular que o número de telefone enviou uma mensagem com o código RFID
+            const simulatedMessage = {
+                to: phone, // Este é o número que está criando a intervenção
+                message: testRfidCode, // O código RFID que será processado
+                isTest: true // Flag para indicar que é um teste
+            };
+
+            console.log('Simulando mensagem RFID recebida de:', phone);
+            console.log('Código RFID:', testRfidCode);
+
+            const response = await fetch(`${backendUrl}/api/whatsapp/simulate-message`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(simulatedMessage),
+            });
+
+            const responseData = await response.json();
+
+            if (response.ok) {
+                showStatus(
+                    `✅ Teste realizado com sucesso!\n\n` +
+                    `🧪 Código RFID simulado: ${testRfidCode}\n` +
+                    `📱 Simulado para: ${phone}\n` +
+                    `💬 O sistema processou como se fosse uma leitura real`,
+                    "success"
+                );
+            } else {
+                showStatus(
+                    `❌ Erro no teste de simulação\n\n` +
+                    `Detalhes: ${responseData.error || 'Erro desconhecido'}`,
+                    "error"
+                );
+            }
+        } catch (error) {
+            // Fallback: se não conseguir simular via backend, mostrar instruções
+            showStatus(
+                `🧪 Teste local realizado!\n\n` +
+                `📋 Para testar completamente:\n` +
+                `1. Copie este código: ${testRfidCode}\n` +
+                `2. Volte para o WhatsApp\n` +
+                `3. Cole o código como uma mensagem\n` +
+                `4. O sistema processará como RFID\n\n` +
+                `⚠️ Erro de conexão com backend: ${error.message}`,
+                "info"
+            );
+        }
     };
 
     const checkWhatsAppStatus = async () => {
@@ -406,13 +460,13 @@ const NFCScanner = () => {
 
                 <div style={styles.content}>
                     <div style={styles.inputGroup}>
-                        <label htmlFor="phoneNumber" style={styles.label}>Número de Destino WhatsApp</label>
+                        <label htmlFor="phoneNumber" style={styles.label}>Número WhatsApp (que está criando a intervenção)</label>
                         <input
                             type="text"
                             id="phoneNumber"
                             value={phoneNumber}
                             onChange={(e) => setPhoneNumber(e.target.value)}
-                            placeholder="Ex: 351912345678 (número que vai receber o código)"
+                            placeholder="Ex: 351912345678 (número que está a criar a intervenção)"
                             style={styles.input}
                         />
                     </div>
@@ -478,21 +532,22 @@ const NFCScanner = () => {
                     <div style={styles.instructions}>
                         <h4 style={styles.instructionsTitle}>Instruções de Uso</h4>
                         <ol style={styles.instructionsList}>
-                            <li style={styles.instructionsItem}>Insira o número WhatsApp de destino</li>
+                            <li style={styles.instructionsItem}>Insira o número WhatsApp que está criando a intervenção</li>
                             <li style={styles.instructionsItem}>O campo alternativo é usado apenas se não conseguir ler o cartão</li>
                             <li style={styles.instructionsItem}><strong>Para testar:</strong> Use o botão "🧪 Teste - Simular Leitura"</li>
                             <li style={styles.instructionsItem}><strong>Para uso real:</strong> Toque em "Iniciar Scanner NFC"</li>
                             <li style={styles.instructionsItem}>Aproxime o cartão RFID do telemóvel para LER seu código</li>
-                            <li style={styles.instructionsItem}>O código RFID do cartão será enviado automaticamente via WhatsApp</li>
-                            <li style={styles.instructionsItem}>O destinatário receberá o código lido do cartão</li>
+                            <li style={styles.instructionsItem}>O código RFID lido será processado pelo sistema de intervenções</li>
+                            <li style={styles.instructionsItem}>O sistema continuará o processo da intervenção automaticamente</li>
                         </ol>
 
                         <p style={styles.instructionsText}><strong>Como Funciona:</strong></p>
                         <ul style={styles.instructionsList}>
                             <li style={styles.instructionsItem}>📖 <strong>Você LÊ:</strong> O código RFID gravado no cartão físico</li>
-                            <li style={styles.instructionsItem}>📤 <strong>Sistema ENVIA:</strong> O código lido do cartão via WhatsApp</li>
-                            <li style={styles.instructionsItem}>🧪 <strong>Teste:</strong> Envia o código alternativo para simular</li>
+                            <li style={styles.instructionsItem}>📤 <strong>Sistema PROCESSA:</strong> O código lido é enviado para o sistema de intervenções</li>
+                            <li style={styles.instructionsItem}>🧪 <strong>Teste:</strong> Simula que o número inserido enviou o código RFID</li>
                             <li style={styles.instructionsItem}>📱 <strong>Cartões:</strong> Cartões RFID/NFC com códigos gravados</li>
+                            <li style={styles.instructionsItem}>🔄 <strong>Fluxo:</strong> Scanner → Código RFID → Sistema de Intervenções → Continua processo</li>
                         </ul>
 
                         <p style={styles.instructionsText}><strong>Requisitos do Sistema:</strong></p>

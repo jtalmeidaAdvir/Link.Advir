@@ -302,7 +302,7 @@ router.get("/agendamentos/logs", (req, res) => {
     };
     res.json(result);
 });
-// Endpoint para inicializar/obter status
+// Endpoint para obter status
 router.get("/status", (req, res) => {
     const response = {
         status: clientStatus,
@@ -1765,7 +1765,9 @@ async function handleIncomingMessage(message) {
         } else {
             await client.sendMessage(
                 phoneNumber,
-                "❌ *Acesso Negado*\n\nVocê não tem autorização para criar intervenções.\n\nApenas utilizadores com permissão para criar pedidos de assistência podem registar intervenções.\n\nPara obter acesso, contacte o administrador do sistema."
+                "❌ *Acesso Negado*\n\nVocê não tem autorização para criar intervenções.\n\n" +
+                "Apenas utilizadores com permissão para criar pedidos de assistência podem registar intervenções.\n\n" +
+                "Para obter acesso, contacte o administrador do sistema."
             );
             return;
         }
@@ -1805,7 +1807,9 @@ async function handleIncomingMessage(message) {
         if (!authResult.authorized) {
             await client.sendMessage(
                 phoneNumber,
-                "❌ *Acesso Restrito*\n\nLamentamos, mas o seu contacto não tem autorização para criar pedidos de assistência técnica através deste sistema.\n\nPara obter acesso, entre em contacto com a nossa equipa através dos canais habituais.\n\n📞 Obrigado pela compreensão.",
+                "❌ *Acesso Restrito*\n\nLamentamos, mas o seu contacto não tem autorização para criar pedidos de assistência técnica através deste sistema.\n\n" +
+                "Para obter acesso, entre em contacto com a nossa equipa através dos canais habituais.\n\n" +
+                "📞 Obrigado pela compreensão.",
             );
             return;
         }
@@ -1898,7 +1902,9 @@ async function handleIncomingMessage(message) {
         if (!authResult.authorized) {
             await client.sendMessage(
                 phoneNumber,
-                "❌ *Acesso Restrito*\n\nLamentamos, mas o seu contacto não tem autorização para criar pedidos de assistência técnica através deste sistema.\n\nPara obter acesso, entre em contacto com a nossa equipa através dos canais habituais.\n\n📞 Obrigado pela compreensão.",
+                "❌ *Acesso Restrito*\n\nLamentamos, mas o seu contacto não tem autorização para criar pedidos de assistência técnica através deste sistema.\n\n" +
+                "Para obter acesso, entre em contacto com a nossa equipa através dos canais habituais.\n\n" +
+                "📞 Obrigado pela compreensão.",
             );
             return;
         }
@@ -4870,6 +4876,64 @@ router.post("/init-whatsapp-tables", async (req, res) => {
         });
     }
 });
+
+// Adicionar rota para simular mensagem recebida (para testes de RFID)
+router.post('/simulate-message', async (req, res) => {
+    try {
+        const { to, message, isTest } = req.body;
+
+        if (!to || !message) {
+            return res.status(400).json({
+                success: false,
+                error: 'Número de telefone e mensagem são obrigatórios'
+            });
+        }
+
+        console.log(`🧪 Simulando mensagem RFID recebida de ${to}: "${message}"`);
+
+        // Simular que recebemos uma mensagem do WhatsApp
+        if (client && isClientReady) {
+            // Processar a mensagem como se fosse recebida via WhatsApp
+            // Assumindo que o módulo whatsappIntervencoes está disponível
+            const { processarMensagemIntervencao } = require('./whatsappIntervencoes');
+
+            // Simular a estrutura de uma mensagem recebida
+            const simulatedMessage = {
+                from: to,
+                body: message,
+                fromMe: false, // Simula uma mensagem recebida
+                hasMedia: false,
+                type: 'chat', // Tipo de mensagem simulada
+                // Adicione outras propriedades conforme necessário para processarMensagemIntervencao
+            };
+
+            await processarMensagemIntervencao(to, message, client);
+
+            res.json({
+                success: true,
+                message: 'Mensagem RFID simulada com sucesso',
+                details: {
+                    from: to,
+                    rfidCode: message,
+                    isTest: true
+                }
+            });
+        } else {
+            res.status(503).json({
+                success: false,
+                error: 'WhatsApp Web não está conectado'
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao simular mensagem:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            details: error.message
+        });
+    }
+});
+
 
 module.exports = router;
 module.exports.checkContactAuthorization = checkContactAuthorization;
