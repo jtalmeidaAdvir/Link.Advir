@@ -17,9 +17,9 @@ const STATES = {
     WAITING_DATA_FIM: "waiting_data_fim",
     WAITING_HORA_FIM: "waiting_hora_fim",
     WAITING_CONFIRMATION: "waiting_confirmation",
-    WAITING_ARTIGOS: "aguardando_artigos", // Novo estado para artigos
-    WAITING_RFID: "aguardando_rfid", // Novo estado para ler RFID
-    WAITING_QUANTIDADE_ARTIGO: "aguardando_quantidade_artigo", // Novo estado para quantidade de artigo
+    WAITING_ARTIGOS: "aguardando_artigos", // Estado para gestão de artigos
+    WAITING_NOME_ARTIGO: "aguardando_nome_artigo", // Novo estado para nome do artigo
+    WAITING_QUANTIDADE_ARTIGO: "aguardando_quantidade_artigo", // Estado para quantidade de artigo
 };
 
 // Importar função de token
@@ -38,28 +38,19 @@ function isIntervencaoKeyword(message) {
     return keywords.some((keyword) => lowerMessage.includes(keyword));
 }
 
-// Verificar se a mensagem contém códigos RFID ou comandos de artigos
-function isArtigoRFIDCommand(message) {
+// Verificar se a mensagem contém comandos de artigos
+function isArtigoCommand(message) {
     const lowerMessage = message.toLowerCase();
 
     // Verificar comandos de artigos
     if (
         lowerMessage.includes("artigo") ||
-        lowerMessage.includes("rfid") ||
         lowerMessage.includes("material")
     ) {
         return true;
     }
 
-    // Verificar padrões de RFID (ajustar conforme o formato dos teus RFIDs)
-    const rfidPatterns = [
-        /^[0-9A-Fa-f]{8,16}$/, // Códigos hexadecimais de 8-16 caracteres
-        /^RFID[0-9A-Fa-f]{8,12}$/i, // RFID seguido de código
-        /^[0-9]{10,15}$/, // Códigos numéricos longos
-        /^ART[0-9A-Za-z]{6,12}$/i, // Códigos que começam com ART
-    ];
-
-    return rfidPatterns.some((pattern) => pattern.test(message.trim()));
+    return false;
 }
 
 // Função principal para processar mensagens
@@ -67,22 +58,6 @@ async function processarMensagem(phoneNumber, messageText, client) {
     console.log(`🔧 Processando mensagem de ${phoneNumber}: "${messageText}"`);
 
     let conversa = activeIntervencoes.get(phoneNumber);
-
-    // Verificar se é comando de artigo/RFID durante uma conversa ativa
-    if (
-        conversa &&
-        isArtigoRFIDCommand(messageText) &&
-        conversa.estado !== STATES.WAITING_RFID &&
-        conversa.estado !== STATES.WAITING_QUANTIDADE_ARTIGO
-    ) {
-        await processarComandoArtigo(
-            phoneNumber,
-            messageText,
-            client,
-            conversa,
-        );
-        return;
-    }
 
     if (!conversa) {
         // Nova conversa - Iniciar fluxo de intervenção
@@ -181,7 +156,7 @@ async function continuarConversa(phoneNumber, messageText, conversa, client) {
                 client,
             );
             break;
-        // Novos estados para gestão de artigos
+        // Estados para gestão de artigos
         case STATES.WAITING_ARTIGOS:
             const lowerMsg = messageText.toLowerCase();
             if (lowerMsg.includes("sim") || lowerMsg === "s") {
@@ -223,26 +198,19 @@ async function continuarConversa(phoneNumber, messageText, conversa, client) {
                     `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
                     `Digite 1 ou 2:`,
                 );
-            } else if (isArtigoRFIDCommand(messageText)) {
-                await processarRFID(phoneNumber, messageText, client, conversa);
             } else {
-                const baseUrl = process.env.BASE_URL || "https://link.advir.pt";
-                const nfcUrl = `${baseUrl}/#/nfc-scanner?phone=${encodeURIComponent(phoneNumber)}`;
-
                 await client.sendMessage(
                     phoneNumber,
                     "❌ Resposta não reconhecida.\n\n" +
                     "Por favor, responda:\n" +
                     "• 'sim' para adicionar artigos\n" +
                     "• 'não' para continuar sem artigos\n" +
-                    "• 'fim' para terminar\n\n" +
-                    "📱 Ou use o scanner NFC: " +
-                    nfcUrl,
+                    "• 'fim' para terminar",
                 );
             }
             break;
-        case STATES.WAITING_RFID:
-            await processarRFID(phoneNumber, messageText, client, conversa);
+        case STATES.WAITING_NOME_ARTIGO:
+            await processarNomeArtigo(phoneNumber, messageText, client, conversa);
             break;
         case STATES.WAITING_QUANTIDADE_ARTIGO:
             await processarQuantidadeArtigo(
@@ -690,49 +658,67 @@ async function handleConfirmation(phoneNumber, messageText, conversa, client) {
 
 // Iniciar processo de adição de artigos
 async function iniciarProcessoArtigos(phoneNumber, client, conversa) {
-    conversa.estado = STATES.WAITING_RFID;
-
-    // Obter o domínio base da aplicação (pode ser configurado via variável de ambiente)
-    const baseUrl = process.env.BASE_URL || "https://link.advir.pt";
-    const nfcUrl = `${baseUrl}/#/nfc-scanner?phone=${encodeURIComponent(phoneNumber)}`;
+    conversa.estado = STATES.WAITING_NOME_ARTIGO;
 
     await client.sendMessage(
         phoneNumber,
-        `👍 Ótimo! Para adicionar artigos, você tem duas opções:\n\n` +
-        `📱 *Opção 1 - Scanner NFC (Recomendado):*\n` +
-        `Clique no link abaixo para abrir o scanner:\n` +
-        `${nfcUrl}\n\n` +
-        `📝 *Opção 2 - Inserir manualmente:*\n` +
-        `Digite o código RFID do artigo\n\n` +
-        `💡 *Instruções para o scanner:*\n` +
-        `1. Clique no link acima\n` +
-        `2. Autorize o uso do NFC no seu browser\n` +
-        `3. Encoste o cartão RFID no seu telemóvel\n` +
-        `4. O código será enviado automaticamente para este chat\n` +
-        `5. Continue a conversa aqui para adicionar mais artigos\n\n` +
-        `Aguardando código RFID...`,
+        `👍 Ótimo! Para adicionar artigos:\n\n` +
+        `📝 *Digite o nome do artigo*\n` +
+        `Exemplo: "Parafuso", "Cabo ethernet", "Switch"\n\n` +
+        `💡 *Como funciona:*\n` +
+        `1. Digite o nome do artigo\n` +
+        `2. O sistema verifica se existe\n` +
+        `3. Se existir, pede a quantidade\n` +
+        `4. Pode adicionar mais artigos ou terminar\n\n` +
+        `Digite o nome do primeiro artigo:`,
     );
 }
 
-// Processar o código RFID lido
-async function processarRFID(phoneNumber, messageText, client, conversa) {
-    const rfidCode = messageText.trim();
+// Processar o nome do artigo inserido
+async function processarNomeArtigo(phoneNumber, messageText, client, conversa) {
+    const nomeArtigo = messageText.trim();
 
-    // Validar se o código RFID corresponde a um padrão esperado (pode ser refinado)
-    if (
-        !isArtigoRFIDCommand(rfidCode) ||
-        rfidCode.toLowerCase().includes("artigo") ||
-        rfidCode.toLowerCase().includes("material")
-    ) {
+    // Verificar comandos especiais
+    const lowerMessage = nomeArtigo.toLowerCase();
+    if (lowerMessage.includes("fim") || lowerMessage.includes("terminar")) {
+        // Continuar para a data de início
+        conversa.estado = STATES.WAITING_DATA_INICIO;
+        const hoje = new Date();
+        const dataFormatada = `${hoje.getDate().toString().padStart(2, "0")}/${(hoje.getMonth() + 1).toString().padStart(2, "0")}/${hoje.getFullYear()}`;
+
         await client.sendMessage(
             phoneNumber,
-            "❌ Este não parece ser um código RFID válido. Por favor, escaneie o código do artigo novamente.",
+            `✅ Terminando adição de artigos.\n\n` +
+            `*6. Data de Início*\n` +
+            `Selecione a data de início da intervenção:\n\n` +
+            `1. Hoje (${dataFormatada})\n` +
+            `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
+            `Digite 1 ou 2:`,
+        );
+        return;
+    }
+
+    if (lowerMessage.includes("cancelar")) {
+        // Remover todos os artigos adicionados nesta sessão
+        conversa.data.artigos = [];
+        conversa.estado = STATES.WAITING_DATA_INICIO;
+        const hoje = new Date();
+        const dataFormatada = `${hoje.getDate().toString().padStart(2, "0")}/${(hoje.getMonth() + 1).toString().padStart(2, "0")}/${hoje.getFullYear()}`;
+
+        await client.sendMessage(
+            phoneNumber,
+            `❌ Adição de artigos cancelada. Continuando sem artigos.\n\n` +
+            `*6. Data de Início*\n` +
+            `Selecione a data de início da intervenção:\n\n` +
+            `1. Hoje (${dataFormatada})\n` +
+            `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
+            `Digite 1 ou 2:`,
         );
         return;
     }
 
     try {
-        // Buscar artigos RFID da API
+        // Buscar artigos na API
         const token = await getAuthToken(
             {
                 username: "AdvirWeb",
@@ -745,45 +731,47 @@ async function processarRFID(phoneNumber, messageText, client, conversa) {
         );
 
         const response = await axios.get(
-            "http://151.80.149.159:2018/WebApi/Base/LstArtigosRFID",
+            "http://151.80.149.159:2018/WebApi/Base/LstArtigos",
             { headers: { Authorization: `Bearer ${token}` } },
         );
 
-        const artigosRFID = response.data.DataSet?.Table || [];
+        const artigos = response.data.DataSet?.Table || [];
 
-        // Procurar o artigo pelo código RFID
-        const artigoEncontrado = artigosRFID.find(
-            (artigo) => artigo.CDU_RFID === rfidCode,
+        // Procurar o artigo pelo nome (busca parcial e case insensitive)
+        const artigoEncontrado = artigos.find(
+            (artigo) => 
+                artigo.Descricao.toLowerCase().includes(nomeArtigo.toLowerCase()) ||
+                artigo.Artigo.toLowerCase().includes(nomeArtigo.toLowerCase())
         );
 
         if (!artigoEncontrado) {
             await client.sendMessage(
                 phoneNumber,
-                `❌ Código RFID "${rfidCode}" não encontrado na base de dados.\n\nPor favor, escaneie um código RFID válido ou digite 'cancelar' para cancelar a adição de artigos.`,
+                `❌ Artigo "${nomeArtigo}" não encontrado na base de dados.\n\n` +
+                `Por favor, tente com outro nome ou digite:\n` +
+                `• 'fim' para terminar adição de artigos\n` +
+                `• 'cancelar' para cancelar`,
             );
             return;
         }
 
         // Guardar as informações do artigo encontrado
-        conversa.data.ultimoArtigoRFID = rfidCode;
-        conversa.data.ultimoArtigoCodigo = artigoEncontrado.Artigo; // Código do artigo para usar na API
-        conversa.data.ultimoArtigoDescricao =
-            artigoEncontrado.Descricao || rfidCode; // Descrição para mostrar ao usuário
+        conversa.data.ultimoArtigoCodigo = artigoEncontrado.Artigo;
+        conversa.data.ultimoArtigoDescricao = artigoEncontrado.Descricao;
         conversa.estado = STATES.WAITING_QUANTIDADE_ARTIGO;
 
         await client.sendMessage(
             phoneNumber,
             `✅ Artigo encontrado!\n\n` +
             `📦 *${conversa.data.ultimoArtigoDescricao}*\n` +
-            `🏷️ Código: ${conversa.data.ultimoArtigoCodigo}\n` +
-            `📱 RFID: ${rfidCode}\n\n` +
+            `🏷️ Código: ${conversa.data.ultimoArtigoCodigo}\n\n` +
             `Por favor, indique a quantidade deste artigo:`,
         );
     } catch (error) {
-        console.error("Erro ao buscar artigos RFID:", error);
+        console.error("Erro ao buscar artigos:", error);
         await client.sendMessage(
             phoneNumber,
-            "❌ Erro ao verificar o código RFID. Tente novamente ou digite 'cancelar' para cancelar a adição de artigos.",
+            "❌ Erro ao verificar o artigo. Tente novamente ou digite 'cancelar' para cancelar a adição de artigos.",
         );
     }
 }
@@ -809,136 +797,30 @@ async function processarQuantidadeArtigo(
         artigo: conversa.data.ultimoArtigoCodigo, // Usar o código do artigo da API
         qtd: quantidade,
         descricao: conversa.data.ultimoArtigoDescricao, // Guardar a descrição para mostrar no resumo
-        rfid: conversa.data.ultimoArtigoRFID, // Guardar o RFID para referência
     };
 
     // Adicionar o artigo à lista de artigos da intervenção
     conversa.data.artigos.push(artigo);
 
     // Limpar os dados do último artigo processado
-    delete conversa.data.ultimoArtigoRFID;
     delete conversa.data.ultimoArtigoCodigo;
     delete conversa.data.ultimoArtigoDescricao;
-
-    const baseUrl = process.env.BASE_URL || "https://link.advir.pt";
-    const nfcUrl = `${baseUrl}/#/nfc-scanner?phone=${encodeURIComponent(phoneNumber)}`;
 
     await client.sendMessage(
         phoneNumber,
         `✅ ${quantidade}x de *${artigo.descricao}* adicionado(s).\n\n` +
         `📦 *Artigos já adicionados: ${conversa.data.artigos.length}*\n\n` +
         `O que deseja fazer a seguir?\n\n` +
-        `📱 *Scanner NFC:* ${nfcUrl}\n` +
-        `📝 *Ou digite:*\n` +
-        `• Código RFID manualmente\n` +
+        `📝 *Digite:*\n` +
+        `• Nome de outro artigo para adicionar\n` +
         `• 'fim' para continuar para as datas\n` +
         `• 'cancelar' para cancelar adição de artigos`,
     );
 
-    conversa.estado = STATES.WAITING_ARTIGOS; // Voltar ao estado de gestão de artigos
+    conversa.estado = STATES.WAITING_NOME_ARTIGO; // Voltar ao estado de inserção de artigos
 }
 
-// Processar comandos de artigo (quando a mensagem contém "artigo", "rfid", etc.)
-async function processarComandoArtigo(
-    phoneNumber,
-    messageText,
-    client,
-    conversa,
-) {
-    const lowerMessage = messageText.toLowerCase();
 
-    if (lowerMessage.includes("fim") || lowerMessage.includes("terminar")) {
-        // Continuar para a data de início
-        conversa.estado = STATES.WAITING_DATA_INICIO;
-        const hoje = new Date();
-        const dataFormatada = `${hoje.getDate().toString().padStart(2, "0")}/${(hoje.getMonth() + 1).toString().padStart(2, "0")}/${hoje.getFullYear()}`;
-
-        await client.sendMessage(
-            phoneNumber,
-            `✅ Artigos registados com sucesso!\n\n` +
-            `*6. Data de Início*\n` +
-            `Selecione a data de início da intervenção:\n\n` +
-            `1. Hoje (${dataFormatada})\n` +
-            `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
-            `Digite 1 ou 2:`,
-        );
-        return;
-    }
-
-    if (lowerMessage.includes("cancelar")) {
-        // Remover todos os artigos adicionados nesta sessão
-        conversa.data.artigos = [];
-        conversa.estado = STATES.WAITING_DATA_INICIO; // Ir diretamente para data de início
-        const hoje = new Date();
-        const dataFormatada = `${hoje.getDate().toString().padStart(2, "0")}/${(hoje.getMonth() + 1).toString().padStart(2, "0")}/${hoje.getFullYear()}`;
-
-        await client.sendMessage(
-            phoneNumber,
-            `❌ Adição de artigos cancelada. Continuando sem artigos.\n\n` +
-            `*6. Data de Início*\n` +
-            `Selecione a data de início da intervenção:\n\n` +
-            `1. Hoje (${dataFormatada})\n` +
-            `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
-            `Digite 1 ou 2:`,
-        );
-        return;
-    }
-
-    // Se a mensagem for um código RFID válido, processar como tal
-    if (
-        isArtigoRFIDCommand(messageText) &&
-        !lowerMessage.includes("artigo") &&
-        !lowerMessage.includes("material")
-    ) {
-        await processarRFID(phoneNumber, messageText, client, conversa);
-        return;
-    }
-
-    // Se a mensagem for uma resposta de sim/não para adicionar artigos
-    if (conversa.estado === STATES.WAITING_ARTIGOS) {
-        if (lowerMessage.includes("sim") || lowerMessage.includes("s")) {
-            await iniciarProcessoArtigos(phoneNumber, client, conversa);
-        } else if (
-            lowerMessage.includes("não") ||
-            lowerMessage.includes("nao") ||
-            lowerMessage.includes("n")
-        ) {
-            // Continuar para a data de início
-            conversa.estado = STATES.WAITING_DATA_INICIO;
-            const hoje = new Date();
-            const dataFormatada = `${hoje.getDate().toString().padStart(2, "0")}/${(hoje.getMonth() + 1).toString().padStart(2, "0")}/${hoje.getFullYear()}`;
-
-            await client.sendMessage(
-                phoneNumber,
-                `✅ Continuando sem artigos.\n\n` +
-                `*6. Data de Início*\n` +
-                `Selecione a data de início da intervenção:\n\n` +
-                `1. Hoje (${dataFormatada})\n` +
-                `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
-                `Digite 1 ou 2:`,
-            );
-        } else {
-            await client.sendMessage(
-                phoneNumber,
-                "❌ Resposta não reconhecida.\n\n" +
-                "Por favor, responda:\n" +
-                "• 'sim' para adicionar mais artigos\n" +
-                "• 'não' para terminar a adição de artigos\n" +
-                "• 'fim' para terminar\n" +
-                "• Ou escaneie um código RFID",
-            );
-        }
-        return;
-    }
-
-    // Se não for nenhum dos comandos acima, assumir que é um comando geral de artigo
-    conversa.estado = STATES.WAITING_ARTIGOS;
-    await client.sendMessage(
-        phoneNumber,
-        "📦 *Gestão de Artigos/Materiais*\n\n" +
-        "Por favor, escaneie o código RFID do artigo ou digite 'fim' para terminar a adição de artigos.",
-    );
-}
 
 // Criar intervenção via API
 async function criarIntervencao(phoneNumber, conversa, client) {
@@ -1140,7 +1022,7 @@ setInterval(
 // Exportar as funções necessárias
 module.exports = {
     router,
-    processarMensagemIntervencao: processarMensagem, // Renomear para consistência com o que era exportado
+    processarMensagemIntervencao: processarMensagem,
     isIntervencaoKeyword,
     activeIntervencoes,
 };
