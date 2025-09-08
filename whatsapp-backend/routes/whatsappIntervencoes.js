@@ -55,6 +55,16 @@ async function sendMessageSafely(client, phoneNumber, message, retries = 2) {
     }
 }
 
+// Função auxiliar para enviar mensagens sem falha crítica
+async function sendMessageSafelyNoFail(client, phoneNumber, message) {
+    try {
+        return await sendMessageSafely(client, phoneNumber, message);
+    } catch (error) {
+        console.error(`⚠️ Erro ao enviar mensagem para ${phoneNumber}, mas continuando:`, error.message);
+        return null;
+    }
+}
+
 
     const keywords = [
         "intervenção",
@@ -126,7 +136,7 @@ async function processarMensagem(phoneNumber, messageText, client) {
                 await startNewIntervencao(phoneNumber, client);
             } else {
                 // Mensagem não relacionada a intervenção
-                await sendMessageSafely(
+                await sendMessageSafelyNoFail(
                     client,
                     phoneNumber,
                     "👋 Olá! Para registar uma intervenção, envie 'intervenção'.",
@@ -344,7 +354,7 @@ async function handleCliente(phoneNumber, messageText, conversa, client) {
         );
 
         if (pedidosCliente.length === 0) {
-            await sendMessageSafely(
+            await sendMessageSafelyNoFail(
                 client,
                 phoneNumber,
                 `❌ Nenhum pedido encontrado para "${clienteId}". Tente outro código ou nome:`,
@@ -370,10 +380,10 @@ async function handleCliente(phoneNumber, messageText, conversa, client) {
         });
 
         message += `Por favor, selecione o pedido (digite o número de 1 a ${pedidosCliente.length}):`;
-        await sendMessageSafely(client, phoneNumber, message);
+        await sendMessageSafelyNoFail(client, phoneNumber, message);
     } catch (error) {
         console.error("Erro ao buscar pedidos:", error);
-        await sendMessageSafely(
+        await sendMessageSafelyNoFail(
             client,
             phoneNumber,
             "❌ Ocorreu um erro ao buscar os pedidos. Por favor, tente novamente mais tarde.",
@@ -1196,4 +1206,6 @@ module.exports = {
     processarMensagemIntervencao: processarMensagem, // Renomear para consistência com o que era exportado
     isIntervencaoKeyword,
     activeIntervencoes,
+    sendMessageSafely,
+    sendMessageSafelyNoFail,
 };
