@@ -469,24 +469,33 @@ const AprovacaoFaltaFerias = () => {
 
     // ✅ NOVO: enriquecer listas com nomes, antes de setar estado
     const enriquecerComNomes = async (lista) => {
+        if (!lista || lista.length === 0) return lista;
+        
         const funcionariosUnicos = [...new Set(lista.map(p => p.funcionario))];
-        const nomesPromises = funcionariosUnicos.map(async (cod) => {
+        console.log('Carregando nomes para funcionários:', funcionariosUnicos);
+        
+        // Carregar todos os nomes sequencialmente para garantir consistência
+        const mapaNomes = {};
+        for (const cod of funcionariosUnicos) {
             const nome = await obterNomeFuncionario(cod);
-            return { codigo: cod, nome };
-        });
-        const nomesCarregados = await Promise.all(nomesPromises);
-        const mapaNomes = Object.fromEntries(nomesCarregados.map(n => [n.codigo, n.nome]));
+            mapaNomes[cod] = nome;
+            console.log(`Nome carregado para ${cod}: ${nome}`);
+        }
 
-        return lista.map(p => ({
+        const listaEnriquecida = lista.map(p => ({
             ...p,
             nomeFuncionario: mapaNomes[p.funcionario] || p.funcionario
         }));
+        
+        console.log('Lista enriquecida com nomes:', listaEnriquecida.map(p => ({ id: p.id, funcionario: p.funcionario, nomeFuncionario: p.nomeFuncionario })));
+        return listaEnriquecida;
     };
 
     const carregarTodosPedidos = async () => {
         try {
             setLoading(true);
             setNomesProntos(false); // <- bloqueia render até terminar todo o fluxo
+            console.log('Iniciando carregamento de todos os pedidos...');
 
             const [resPendentes, resAprovados, resRejeitados] = await Promise.all([
                 fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
@@ -518,8 +527,13 @@ const AprovacaoFaltaFerias = () => {
                 resRejeitados.ok ? resRejeitados.json() : []
             ]);
 
-            const todos = await enriquecerComNomes([...pendentes, ...aprovados, ...rejeitados]);
+            console.log('Dados recebidos:', { pendentes: pendentes.length, aprovados: aprovados.length, rejeitados: rejeitados.length });
 
+            // Enriquecer com nomes ANTES de definir qualquer estado
+            const todos = await enriquecerComNomes([...pendentes, ...aprovados, ...rejeitados]);
+            console.log('Todos os pedidos enriquecidos:', todos.length);
+
+            // Apenas após ter todos os nomes carregados, definir os estados
             setTodosPedidos(todos);
 
             const pedidosFiltrados = todos.filter(p => {
@@ -531,9 +545,12 @@ const AprovacaoFaltaFerias = () => {
 
             setPedidos(pedidosFiltrados);
 
-            setNomesProntos(true); // ✅ nomes carregados, libertar render
+            // Só liberar o render depois que tudo estiver pronto
+            setNomesProntos(true);
+            console.log('✅ Nomes carregados e estados definidos. Liberando render...');
         } catch (err) {
             console.error('Erro ao carregar todos os pedidos:', err);
+            setNomesProntos(true); // Liberar render mesmo com erro para não ficar bloqueado
         } finally {
             setLoading(false);
         }
@@ -552,11 +569,15 @@ const AprovacaoFaltaFerias = () => {
         }
 
         setLoading(true);
+        setNomesProntos(false); // Bloquear render até nomes serem carregados
+        
         let endpoint = 'pendentes';
         if (estado === 'aprovados') endpoint = 'aprovados';
         if (estado === 'rejeitados') endpoint = 'rejeitados';
 
         try {
+            console.log(`Carregando pedidos para estado: ${estado}`);
+            
             const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${endpoint}`, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -567,15 +588,24 @@ const AprovacaoFaltaFerias = () => {
 
             if (res.ok) {
                 const data = await res.json();
+                console.log(`Dados recebidos para ${estado}:`, data.length);
+                
+                // Enriquecer com nomes ANTES de definir estados
                 const pedidosComNome = await enriquecerComNomes(data);
+                
                 setPedidos(pedidosComNome);
                 setTodosPedidos(pedidosComNome);
-                setNomesProntos(true); // ✅ garantir render se for por este caminho
+                
+                // Só liberar render após nomes carregados
+                setNomesProntos(true);
+                console.log(`✅ Pedidos ${estado} carregados com nomes`);
             } else {
                 console.error('Erro ao carregar pedidos');
+                setNomesProntos(true); // Liberar render mesmo com erro
             }
         } catch (err) {
             console.error('Erro:', err);
+            setNomesProntos(true); // Liberar render mesmo com erro
         } finally {
             setLoading(false);
         }

@@ -305,6 +305,24 @@ const carregarExternos = useCallback(async () => {
       const minutos = parseHorasToMinutos(horas);
       if (minutos <= 0) { Alert.alert('Validação', 'Horas inválidas.'); return; }
 
+      // Validação de horas: 8h normais por dia
+      if (!linhaAtual.horaExtra) {
+        const outrasHorasNormaisDia = linhasExternos
+          .filter(l => l.dia === dia && !l.horaExtra)
+          .reduce((total, l) => total + parseHorasToMinutos(l.horas), 0);
+
+        const totalHorasNormais = outrasHorasNormaisDia + minutos;
+
+        if (totalHorasNormais > 8 * 60) { // 8 horas em minutos
+          Alert.alert(
+            'Limite de Horas Excedido',
+            `Não é possível registar mais de 8 horas normais por dia.\n\nHoras normais já registadas neste dia: ${formatarHorasMinutos(outrasHorasNormaisDia)}\n\nPara mais horas, marque como "Hora Extra".`,
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
+
       const lista = categoria === 'Equipamentos' ? equipamentosList : especialidadesList;
       const sel   = lista.find(x => x.codigo === especialidadeCodigo);
 
@@ -327,6 +345,7 @@ const carregarExternos = useCallback(async () => {
           especialidadeCodigo,
           especialidadeDesc: sel?.descricao ?? '',
           subEmpId: subEmpId ?? null,
+          horas: horas, // guardar horas no formato original para validação
         }
       ]));
 
@@ -599,9 +618,9 @@ useEffect(() => {
 
     // 2) buscar equipas+registos e processar
 const resultado = await carregarDados() || { equipas: [], registos: [] };
-const { equipas: eq, registos } = resultado;
+const { equipas, registos } = resultado;
 
-    processarDadosPartes(registos, eq);
+    processarDadosPartes(registos, equipas);
   } catch (err) {
     console.error(err);
     Alert.alert('Erro', 'Falha ao carregar dados.');
@@ -1563,6 +1582,19 @@ const adicionarEspecialidade = useCallback(() => {
    };
  });
 
+  // Validação: não permitir mais de 8h por dia exceto se for hora extra
+  const horasNormais = linhas.filter(l => !l.horaExtra).reduce((total, l) => total + l.minutos, 0);
+  const horasNormaisDecimal = horasNormais / 60;
+
+  if (horasNormaisDecimal > 8) {
+    Alert.alert(
+      'Limite de Horas Excedido', 
+      `Não é possível registar mais de 8 horas normais por dia.\n\nHoras normais tentadas: ${horasNormaisDecimal.toFixed(2)}h\n\nPara registar mais horas, marque como "Hora Extra".`,
+      [{ text: 'OK' }]
+    );
+    return;
+  }
+
   // Mapa de minutos por obra
   const minutosPorObra = linhas.reduce((acc, l) => {
     if (l.minutos > 0) acc[l.obraId] = (acc[l.obraId] || 0) + l.minutos;
@@ -2409,7 +2441,39 @@ const resolveObraId = (espObraId, trabObraId) => {
                     <TextInput
                       style={styles.externosTextInput}
                       value={linhaAtual.horas}
-                      onChangeText={(v) => setLinhaAtual(p => ({ ...p, horas: v }))}
+                      onChangeText={(v) => {
+                        const { trabalhadorId, dia, obraId } = linhaAtual;
+                        if (!trabalhadorId || !dia || !obraId) {
+                          Alert.alert('Validação', 'Preencha primeiro Obra, Dia e Trabalhador.');
+                          return;
+                        }
+
+                        const minutos = parseHorasToMinutos(v);
+                        if (minutos <= 0 && v !== '') {
+                          Alert.alert('Validação', 'Formato de horas inválido. Use H:MM ou H.MM (ex: 2:30 ou 2.5)');
+                          return;
+                        }
+
+                        // Validação de horas: 8h normais por dia
+                        if (!linhaAtual.horaExtra) {
+                          const outrasHorasNormaisDia = linhasExternos
+                            .filter(l => l.dia === dia && !l.horaExtra)
+                            .reduce((total, l) => total + parseHorasToMinutos(l.horas), 0);
+
+                          const totalHorasNormais = outrasHorasNormaisDia + minutos;
+
+                          if (totalHorasNormais > 8 * 60 && v !== '') { // 8 horas em minutos
+                            Alert.alert(
+                              'Limite de Horas Excedido',
+                              `Não é possível registar mais de 8 horas normais por dia.\n\nHoras normais já registadas neste dia: ${formatarHorasMinutos(outrasHorasNormaisDia)}\n\nPara mais horas, marque como "Hora Extra".`,
+                              [{ text: 'OK' }]
+                            );
+                            return;
+                          }
+                        }
+                        
+                        setLinhaAtual(p => ({ ...p, horas: v }));
+                      }}
                       placeholder="0:00"
                       keyboardType="default"
                     />
@@ -2473,7 +2537,7 @@ const resolveObraId = (espObraId, trabObraId) => {
                           </Text>
                           <View style={styles.externosListItemBadge}>
                             <Text style={styles.externosListItemBadgeText}>
-                              {Math.round(l.horasMin/60*100)/100}h
+                              {formatarHorasMinutos(l.horasMin)}
                             </Text>
                           </View>
                         </View>
@@ -2999,7 +3063,7 @@ const renderDataSheet = () => {
 
     const renderConfirmModal = () => {
         const resumoSubmissao = gerarResumoSubmissao();
-        
+
         return (
             <Modal
                 animationType="slide"
@@ -3071,7 +3135,7 @@ const renderDataSheet = () => {
                                     <Text style={styles.resumoSectionTitle}>
                                         <Ionicons name="people" size={18} color="#1792FE" /> Colaboradores ({resumoSubmissao.totalItens})
                                     </Text>
-                                    
+
                                     {resumoSubmissao.itensPorTrabalhador.map((trabalhador, index) => (
                                         <View key={index} style={styles.resumoTrabalhadorItem}>
                                             <View style={styles.resumoTrabalhadorHeader}>
@@ -3095,9 +3159,9 @@ const renderDataSheet = () => {
                                                     )}
                                                 </View>
                                             </View>
-                                            
-                                            
-                                            
+
+
+
                                             {trabalhador.diasComHoras.map((diaInfo, diaIndex) => (
                                                 <View key={diaIndex} style={styles.resumoDiaItem}>
                                                     <Text style={styles.resumoDiaInfo}>
@@ -3119,13 +3183,13 @@ const renderDataSheet = () => {
                                     <Text style={styles.resumoSectionTitle}>
                                         <Ionicons name="person-add" size={18} color="#1792FE" /> Trabalhadores Externos ({resumoSubmissao.totalExternos})
                                     </Text>
-                                    
+
                                     {Array.from(resumoSubmissao.externosPorObra).map(([obraId, obraData], index) => (
                                         <View key={obraId} style={styles.resumoObraExternos}>
                                             <Text style={styles.resumoObraExternosTitle}>
                                                 <Ionicons name="business" size={14} color="#1792FE" /> {obraData.obraNome}
                                             </Text>
-                                            
+
                                             {obraData.externos.map((ext, extIndex) => (
                                                 <View key={extIndex} style={styles.resumoExternoItem}>
                                                     <View style={styles.resumoExternoHeader}>
@@ -3433,6 +3497,27 @@ const renderDataSheet = () => {
                                                     }
 
                                                     const horasDecimais = minutos / 60;
+
+                                                    // Validação em tempo real para horas normais
+                                                    if (!espItem.horaExtra) {
+                                                        // Calcular total de horas normais incluindo esta alteração
+                                                        const outrasHorasNormais = (editData.especialidadesDia || [])
+                                                            .filter((esp, idx) => idx !== index && !esp.horaExtra)
+                                                            .reduce((total, esp) => total + (parseFloat(esp.horas) || 0), 0);
+
+                                                        const totalHorasNormais = outrasHorasNormais + horasDecimais;
+
+                                                        if (totalHorasNormais > 8) {
+                                                            const horasDisponiveis = Math.max(0, 8 - outrasHorasNormais);
+                                                            Alert.alert(
+                                                                'Limite de Horas Excedido',
+                                                                `Máximo de 8 horas normais por dia.\n\nHoras disponíveis: ${horasDisponiveis.toFixed(2)}h\n\nPara mais horas, marque como "Hora Extra".`,
+                                                                [{ text: 'OK' }]
+                                                            );
+                                                            return;
+                                                        }
+                                                    }
+
                                                     atualizarEspecialidade(index, 'horas', horasDecimais);
                                                 }}
                                                 placeholder="0:00"
@@ -3509,16 +3594,47 @@ const renderDataSheet = () => {
                                 <View style={styles.editHoursSummaryContent}>
                                     <Text style={styles.editHoursSummaryLabel}>Resumo das Horas</Text>
                                     <View style={styles.editHoursSummaryValues}>
-                                        <Text style={styles.editHoursSummaryText}>
-                                            <Ionicons name="calculator" size={14} color="#1792FE" /> 
-                                            Total Distribuído: <Text style={{ fontWeight: 'bold', color: '#1792FE' }}>
-                                                {formatarHorasMinutos(editData.especialidadesDia?.reduce((sum, esp) => {
-                                                    const horas = parseFloat(esp.horas) || 0;
-                                                    return sum + Math.round(horas * 60);
-                                                }, 0))}
-                                            </Text>
-                                        </Text>
+                                        {(() => {
+                                            const totalMinutos = editData.especialidadesDia?.reduce((sum, esp) => {
+                                                const horas = parseFloat(esp.horas) || 0;
+                                                return sum + Math.round(horas * 60);
+                                            }, 0) || 0;
 
+                                            const horasNormais = editData.especialidadesDia?.filter(esp => !esp.horaExtra)
+                                                .reduce((sum, esp) => sum + (parseFloat(esp.horas) || 0), 0) || 0;
+
+                                            const horasExtras = editData.especialidadesDia?.filter(esp => esp.horaExtra)
+                                                .reduce((sum, esp) => sum + (parseFloat(esp.horas) || 0), 0) || 0;
+
+                                            const excedeLimite = horasNormais > 8;
+
+                                            return (
+                                                <>
+                                                    <Text style={styles.editHoursSummaryText}>
+                                                        <Ionicons name="calculator" size={14} color="#1792FE" /> 
+                                                        Total Distribuído: <Text style={{ fontWeight: 'bold', color: '#1792FE' }}>
+                                                            {formatarHorasMinutos(totalMinutos)}
+                                                        </Text>
+                                                    </Text>
+
+                                                    <Text style={styles.editHoursSummaryText}>
+                                                        <Ionicons name="time" size={14} color="#28a745" /> 
+                                                        Horas Normais: <Text style={{ fontWeight: 'bold', color: excedeLimite ? '#dc3545' : '#28a745' }}>
+                                                            {horasNormais.toFixed(2)}h {excedeLimite && '⚠️ Excede 8h'}
+                                                        </Text>
+                                                    </Text>
+
+                                                    {horasExtras > 0 && (
+                                                        <Text style={styles.editHoursSummaryText}>
+                                                            <Ionicons name="flash" size={14} color="#ffc107" /> 
+                                                            Horas Extra: <Text style={{ fontWeight: 'bold', color: '#ffc107' }}>
+                                                                {horasExtras.toFixed(2)}h
+                                                            </Text>
+                                                        </Text>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </View>
                                 </View>
                             </View>
