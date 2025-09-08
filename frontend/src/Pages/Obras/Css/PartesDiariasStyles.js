@@ -1,4 +1,3 @@
-
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
@@ -318,9 +317,9 @@ export const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 16,
+        paddingVertical: 14,
         paddingHorizontal: 20,
-        gap: 10,
+        gap: 8,
     },
     externosSubmitButtonText: {
         color: '#fff',
@@ -1191,5 +1190,257 @@ export const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#1792FE',
         textAlign: 'center',
+    },
+
+    // Resumo Modal styles
+    resumoModalContainer: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    resumoModalContent: {
+        width: '95%',
+        maxHeight: '90%',
+        backgroundColor: '#fff',
+        borderRadius: 15,
+        overflow: 'hidden',
+    },
+    resumoModalHeader: {
+        padding: 20,
+        paddingBottom: 15,
+    },
+    resumoModalHeaderContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    resumoModalTitleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    resumoModalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#fff',
+        marginLeft: 10,
+    },
+    resumoModalSubtitle: {
+        fontSize: 14,
+        color: '#ffffff90',
+    },
+    resumoCloseButton: {
+        padding: 5,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    resumoModalBody: {
+        flex: 1,
+        padding: 15,
+    },
+    resumoStatsCard: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: 10,
+        padding: 15,
+        marginBottom: 15,
+    },
+    resumoStatsTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 15,
+    },
+    resumoStatsGrid: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+    },
+    resumoStatItem: {
+        alignItems: 'center',
+    },
+    resumoStatNumber: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#1792FE',
+    },
+    resumoStatLabel: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 5,
+    },
+    resumoSectionCard: {
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        padding: 15,
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: '#e9ecef',
+    },
+    resumoSectionTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 15,
+    },
+    resumoTrabalhadorItem: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 10,
+    },
+    resumoTrabalhadorHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    resumoTrabalhadorNome: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#333',
+        flex: 1,
+    },
+    resumoTrabalhadorBadges: {
+        flexDirection: 'row',
+    },
+    resumoTrabalhadorBadge: {
+        backgroundColor: '#1792FE',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        marginLeft: 5,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    resumoTrabalhadorBadgeExtra: {
+        backgroundColor: '#ff6b35',
+    },
+    resumoTrabalhadorBadgeText: {
+        fontSize: 11,
+        color: '#fff',
+        fontWeight: '600',
+        marginLeft: 2,
+    },
+    resumoDiaItem: {
+        backgroundColor: '#fff',
+        borderRadius: 6,
+        padding: 8,
+        marginBottom: 5,
+    },
+    resumoDiaInfo: {
+        fontSize: 12,
+        color: '#666',
+        marginBottom: 3,
+    },
+    resumoDiaDetalhes: {
+        fontSize: 11,
+        color: '#999',
+    },
+    resumoObraExternos: {
+        marginBottom: 15,
+    },
+    resumoObraExternosTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#1792FE',
+        marginBottom: 8,
+    },
+    resumoExternoItem: {
+        backgroundColor: '#f8f9fa',
+        borderRadius: 6,
+        padding: 10,
+        marginBottom: 8,
+    },
+    resumoExternoHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 5,
+    },
+    resumoExternoNome: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#333',
+        flex: 1,
+    },
+    resumoExternoBadges: {
+        flexDirection: 'row',
+    },
+    resumoExternoBadge: {
+        backgroundColor: '#6c757d',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 8,
+        marginLeft: 4,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    resumoExternoBadgeExtra: {
+        backgroundColor: '#ff6b35',
+    },
+    resumoExternoBadgeText: {
+        fontSize: 10,
+        color: '#fff',
+        fontWeight: '500',
+    },
+    resumoExternoDetalhes: {
+        fontSize: 11,
+        color: '#666',
+    },
+    resumoEmptyCard: {
+        alignItems: 'center',
+        padding: 40,
+    },
+    resumoEmptyText: {
+        fontSize: 16,
+        color: '#666',
+        marginTop: 15,
+        fontWeight: '600',
+    },
+    resumoEmptySubText: {
+        fontSize: 14,
+        color: '#999',
+        marginTop: 5,
+        textAlign: 'center',
+    },
+    resumoModalFooter: {
+        flexDirection: 'row',
+        padding: 15,
+        backgroundColor: '#f8f9fa',
+        borderTopWidth: 1,
+        borderTopColor: '#e9ecef',
+    },
+    resumoCancelButton: {
+        flex: 1,
+        padding: 15,
+        borderRadius: 8,
+        backgroundColor: '#6c757d',
+        alignItems: 'center',
+        marginRight: 10,
+    },
+    resumoCancelButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    resumoConfirmButton: {
+        flex: 2,
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    resumoConfirmButtonDisabled: {
+        opacity: 0.6,
+    },
+    resumoConfirmButtonGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 15,
+    },
+    resumoConfirmButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginLeft: 8,
     },
 });
