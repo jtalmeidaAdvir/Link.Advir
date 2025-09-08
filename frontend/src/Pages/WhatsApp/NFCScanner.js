@@ -235,6 +235,24 @@ const NFCScanner = () => {
         stopScanning();
     };
 
+    const handleTestScan = () => {
+        const phone = phoneNumber.trim();
+        if (!phone) {
+            showStatus("Por favor, insira o número de telefone para testar", "error");
+            return;
+        }
+
+        // Simular código RFID de teste
+        const testRfidCode = `TEST_RFID_${Date.now()}`;
+        showStatus(`🧪 Teste: Simulando leitura RFID - ${testRfidCode}`, "info");
+        
+        if (navigator.vibrate) {
+            navigator.vibrate([100, 50, 100]);
+        }
+
+        sendToWhatsApp(testRfidCode);
+    };
+
     const sendToWhatsApp = async (rfidCode) => {
         const phone = phoneNumber.trim();
 
@@ -339,6 +357,18 @@ const NFCScanner = () => {
                             !nfcSupported ? 'NFC Não Suportado' : 'Iniciar Scanner NFC'}
                     </button>
 
+                    {/* Botão de Teste */}
+                    <button
+                        onClick={handleTestScan}
+                        style={{
+                            ...styles.scanButton,
+                            backgroundColor: '#28a745',
+                            marginTop: '10px'
+                        }}
+                    >
+                        🧪 Teste - Simular Leitura
+                    </button>
+
                     <div style={{
                         ...styles.scanningArea,
                         ...(isScanning ? styles.scanningAreaActive : {})
@@ -359,12 +389,20 @@ const NFCScanner = () => {
                         <h4 style={styles.instructionsTitle}>Instruções de Uso</h4>
                         <ol style={styles.instructionsList}>
                             <li style={styles.instructionsItem}>Verifique se o número WhatsApp está preenchido</li>
-                            <li style={styles.instructionsItem}>Toque em "Iniciar Scanner NFC"</li>
-                            <li style={styles.instructionsItem}>Aproxime o cartão RFID do telemóvel</li>
+                            <li style={styles.instructionsItem}><strong>Para testar:</strong> Use o botão "🧪 Teste - Simular Leitura"</li>
+                            <li style={styles.instructionsItem}><strong>Para uso real:</strong> Toque em "Iniciar Scanner NFC"</li>
+                            <li style={styles.instructionsItem}>Aproxime o passe dos comboios/cartão RFID do telemóvel</li>
                             <li style={styles.instructionsItem}>O código será enviado automaticamente para o WhatsApp</li>
                             <li style={styles.instructionsItem}>Volte para o WhatsApp para continuar</li>
                         </ol>
 
+                        <p style={styles.instructionsText}><strong>Como Testar:</strong></p>
+                        <ul style={styles.instructionsList}>
+                            <li style={styles.instructionsItem}>🧪 <strong>Modo Teste:</strong> Use o botão verde para simular</li>
+                            <li style={styles.instructionsItem}>🎫 <strong>Teste Real:</strong> Passe dos comboios funciona perfeitamente</li>
+                            <li style={styles.instructionsItem}>📱 <strong>Cartões:</strong> Cartões de transporte, crédito, etc.</li>
+                        </ul>
+                        
                         <p style={styles.instructionsText}><strong>Requisitos do Sistema:</strong></p>
                         <ul style={styles.instructionsList}>
                             <li style={styles.instructionsItem}>Android com NFC ativado</li>
