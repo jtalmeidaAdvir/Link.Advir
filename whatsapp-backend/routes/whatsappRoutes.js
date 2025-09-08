@@ -4880,7 +4880,7 @@ router.post("/init-whatsapp-tables", async (req, res) => {
 // Adicionar rota para simular mensagem recebida (para testes de RFID)
 router.post('/simulate-message', async (req, res) => {
     try {
-        const { to, message, isTest } = req.body;
+        const { to, message, isTest, isRFIDScan } = req.body;
 
         if (!to || !message) {
             return res.status(400).json({
@@ -4889,39 +4889,59 @@ router.post('/simulate-message', async (req, res) => {
             });
         }
 
-        console.log(`🧪 Simulando mensagem RFID recebida de ${to}: "${message}"`);
+        console.log(`🧪 Simulando mensagem ${isRFIDScan ? 'RFID' : ''} recebida de ${to}: "${message}"`);
 
-        // Simular que recebemos uma mensagem do WhatsApp
-        if (client && isClientReady) {
-            // Processar a mensagem como se fosse recebida via WhatsApp
-            // Assumindo que o módulo whatsappIntervencoes está disponível
-            const { processarMensagemIntervencao } = require('./whatsappIntervencoes');
+        // Verificar se o cliente WhatsApp está disponível
+        if (!client || !isClientReady) {
+            return res.status(503).json({
+                success: false,
+                error: 'WhatsApp Web não está conectado ou não está pronto'
+            });
+        }
 
-            // Simular a estrutura de uma mensagem recebida
+        try {
+            // Criar objeto de mensagem simulada que imita uma mensagem recebida do WhatsApp
             const simulatedMessage = {
-                from: to,
-                body: message,
-                fromMe: false, // Simula uma mensagem recebida
-                hasMedia: false,
-                type: 'chat', // Tipo de mensagem simulada
-                // Adicione outras propriedades conforme necessário para processarMensagemIntervencao
+                from: to + '@c.us', // Formato do WhatsApp
+                body: message.trim(),
+                fromMe: false, // Importante: indica que não foi enviada por nós
+                type: 'chat'
             };
 
-            await processarMensagemIntervencao(to, message, client);
+            // Processar através do handler principal de mensagens recebidas
+            await handleIncomingMessage(simulatedMessage);
 
             res.json({
                 success: true,
-                message: 'Mensagem RFID simulada com sucesso',
+                message: 'Mensagem RFID processada com sucesso',
                 details: {
                     from: to,
                     rfidCode: message,
-                    isTest: true
+                    isTest: isTest || false,
+                    isRFIDScan: isRFIDScan || false
                 }
             });
-        } else {
-            res.status(503).json({
+        } catch (simulationError) {
+            console.error('Erro durante simulação:', simulationError.message);
+            
+            // Se for erro de contexto Puppeteer, informar que o cliente precisa reiniciar
+            if (simulationError.message.includes("Evaluation failed") || 
+                simulationError.message.includes("Target closed") || 
+                simulationError.message.includes("Protocol error") ||
+                simulationError.message.includes("Execution context was destroyed")) {
+                
+                return res.status(503).json({
+                    success: false,
+                    error: 'Cliente WhatsApp perdeu conexão - reinicialize a conexão',
+                    type: 'puppeteer_context_error'
+                });
+            }
+            
+            // Para outros erros, retornar erro genérico
+            res.status(500).json({
                 success: false,
-                error: 'WhatsApp Web não está conectado'
+                error: 'Erro ao processar mensagem simulada',
+                details: simulationError.message
             });
         }
     } catch (error) {

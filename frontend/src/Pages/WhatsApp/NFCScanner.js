@@ -282,7 +282,7 @@ const NFCScanner = () => {
             navigator.vibrate([100, 50, 100]);
         }
 
-        // Em vez de enviar via WhatsApp, simular que o telefone recebeu uma mensagem RFID
+        // Simular que o telefone recebeu uma mensagem RFID
         try {
             let backendUrl = 'http://localhost:5001';
             if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
@@ -293,7 +293,8 @@ const NFCScanner = () => {
             const simulatedMessage = {
                 to: phone, // Este é o número que está criando a intervenção
                 message: testRfidCode, // O código RFID que será processado
-                isTest: true // Flag para indicar que é um teste
+                isTest: true, // Flag para indicar que é um teste
+                isRFIDScan: true // Flag para identificar que é leitura RFID
             };
 
             console.log('Simulando mensagem RFID recebida de:', phone);
@@ -313,8 +314,8 @@ const NFCScanner = () => {
                 showStatus(
                     `✅ Teste realizado com sucesso!\n\n` +
                     `🧪 Código RFID simulado: ${testRfidCode}\n` +
-                    `📱 Simulado para: ${phone}\n` +
-                    `💬 O sistema processou como se fosse uma leitura real`,
+                    `📱 Processado para: ${phone}\n` +
+                    `🔧 Voltae para o WhatsApp para ver o processamento`,
                     "success"
                 );
             } else {
@@ -369,7 +370,7 @@ const NFCScanner = () => {
         const phone = phoneNumber.trim();
 
         try {
-            showStatus("Enviando código RFID via WhatsApp...", "info");
+            showStatus("Processando código RFID para intervenção...", "info");
 
             // Usar a URL correta do backend WhatsApp
             let backendUrl = 'http://localhost:5001';
@@ -377,18 +378,19 @@ const NFCScanner = () => {
                 backendUrl = 'https://backend.advir.pt/whatsapi';
             }
 
-            console.log('Enviando código RFID para:', `${backendUrl}/api/whatsapp/send`);
-            console.log('Dados:', { to: phone, message: `Código RFID escaneado: ${rfidCode}`, priority: "high" });
+            console.log('Enviando código RFID simulado para:', `${backendUrl}/api/whatsapp/simulate-message`);
+            console.log('Dados:', { to: phone, message: rfidCode, isRFIDScan: true });
 
-            const response = await fetch(`${backendUrl}/api/whatsapp/send`, {
+            // Simular que o número de telefone enviou uma mensagem com o código RFID
+            const response = await fetch(`${backendUrl}/api/whatsapp/simulate-message`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
                     to: phone,
-                    message: `🏷️ Código RFID: ${rfidCode}\n📅 ${new Date().toLocaleString('pt-PT')}\n📲 Enviado via AdvirLink Scanner`,
-                    priority: "high",
+                    message: rfidCode, // Enviar apenas o código RFID
+                    isRFIDScan: true // Flag para identificar que é leitura RFID
                 }),
             });
 
@@ -397,10 +399,10 @@ const NFCScanner = () => {
 
             if (response.ok) {
                 showStatus(
-                    `✅ Código RFID enviado com sucesso!\n\n` +
+                    `✅ Código RFID processado com sucesso!\n\n` +
                     `🏷️ Código: ${rfidCode}\n` +
-                    `📱 Destinatário: ${phone}\n` +
-                    `💬 Enviado via seu WhatsApp conectado`,
+                    `📱 Processado para: ${phone}\n` +
+                    `🔧 Continuando no WhatsApp para completar a intervenção`,
                     "success"
                 );
 
@@ -408,14 +410,24 @@ const NFCScanner = () => {
                     navigator.vibrate([200, 100, 200, 100, 200]);
                 }
 
+                // Instruir o utilizador a voltar para o WhatsApp
                 setTimeout(() => {
-                    if (window.confirm("Deseja enviar outro código RFID?")) {
+                    showStatus(
+                        `✅ Código RFID processado!\n\n` +
+                        `📱 Volte para o WhatsApp para continuar a conversa de intervenção.\n\n` +
+                        `O sistema já recebeu o código: ${rfidCode}`,
+                        "success"
+                    );
+                }, 2000);
+
+                setTimeout(() => {
+                    if (window.confirm("Deseja escanear outro código RFID?")) {
                         startScanning();
                     }
-                }, 3000);
+                }, 5000);
             } else {
                 showStatus(
-                    `❌ Erro ao enviar código via WhatsApp\n\n` +
+                    `❌ Erro ao processar código RFID\n\n` +
                     `Detalhes: ${responseData.error || 'Erro desconhecido'}\n` +
                     `Verifique se o WhatsApp Web está conectado`,
                     "error"
@@ -543,11 +555,11 @@ const NFCScanner = () => {
 
                         <p style={styles.instructionsText}><strong>Como Funciona:</strong></p>
                         <ul style={styles.instructionsList}>
-                            <li style={styles.instructionsItem}>📖 <strong>Você LÊ:</strong> O código RFID gravado no cartão físico</li>
-                            <li style={styles.instructionsItem}>📤 <strong>Sistema PROCESSA:</strong> O código lido é enviado para o sistema de intervenções</li>
-                            <li style={styles.instructionsItem}>🧪 <strong>Teste:</strong> Simula que o número inserido enviou o código RFID</li>
-                            <li style={styles.instructionsItem}>📱 <strong>Cartões:</strong> Cartões RFID/NFC com códigos gravados</li>
-                            <li style={styles.instructionsItem}>🔄 <strong>Fluxo:</strong> Scanner → Código RFID → Sistema de Intervenções → Continua processo</li>
+                            <li style={styles.instructionsItem}>📖 <strong>1. LER:</strong> O código RFID gravado no cartão físico</li>
+                            <li style={styles.instructionsItem}>🔧 <strong>2. PROCESSAR:</strong> O código é enviado automaticamente para a intervenção ativa</li>
+                            <li style={styles.instructionsItem}>📱 <strong>3. CONTINUAR:</strong> Voltar para o WhatsApp para continuar a conversa</li>
+                            <li style={styles.instructionsItem}>✅ <strong>Resultado:</strong> O artigo é adicionado à intervenção automaticamente</li>
+                            <li style={styles.instructionsItem}>🔄 <strong>Fluxo:</strong> Scanner → Leitura RFID → Processa na Intervenção → Continua no WhatsApp</li>
                         </ul>
 
                         <p style={styles.instructionsText}><strong>Requisitos do Sistema:</strong></p>
