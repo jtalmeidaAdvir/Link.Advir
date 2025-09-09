@@ -1,7 +1,6 @@
 {
   "ExpandedNodes": [
     "",
-    "\\backend",
     "\\backend\\controllers",
     "\\backend\\routes",
     "\\frontend",
@@ -9,6 +8,6 @@
     "\\frontend\\src\\Pages",
     "\\frontend\\src\\Pages\\Assiduidade"
   ],
-  "SelectedNode": "\\backend\\controllers\\registoPontoController.js",
+  "SelectedNode": "\\frontend",
   "PreviewInSolutionExplorer": false
 }

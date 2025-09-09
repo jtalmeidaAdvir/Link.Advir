@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\registoPontoController.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:backend\\controllers\\registoPontoController.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
@@ -13,10 +17,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\ListarRegistos.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
@@ -66,30 +66,17 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 6,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "EditarRegistoModalWeb.js",
-              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
-              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
-              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
-              "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
-              "ViewState": "AgIAAPoCAAAAAAAAAAAAwA0DAAAlAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T15:07:06.479Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 0,
               "Title": "RegistosPorUtilizador.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
               "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
-              "ViewState": "AgIAAIwRAAAAAAAAAAAuwJURAAAlAAAAAAAAAA==",
+              "ViewState": "AgIAAAARAAAAAAAAAAAAAAsRAAAEAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-09T14:51:38.127Z",
               "EditorCaption": ""
@@ -104,8 +91,7 @@
               "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\RegistoPontoObra.js",
               "ViewState": "AgIAAFQDAAAAAAAAAAAgwGIDAAAgAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T14:53:06.156Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-09-09T14:53:06.156Z"
             },
             {
               "$type": "Document",
@@ -117,8 +103,7 @@
               "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\EditarModal.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T14:51:08.949Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-09-09T14:51:08.949Z"
             },
             {
               "$type": "Document",
@@ -130,12 +115,11 @@
               "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\ListarRegistos.js",
               "ViewState": "AgIAAMMCAAAAAAAAAAAYwNUCAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T14:38:15.148Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-09-09T14:38:15.148Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "registoPontoRoutes.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\routes\\registoPontoRoutes.js",
               "RelativeDocumentMoniker": "backend\\routes\\registoPontoRoutes.js",
@@ -143,12 +127,11 @@
               "RelativeToolTip": "backend\\routes\\registoPontoRoutes.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T14:37:31.473Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-09-09T14:37:31.473Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "registoPontoController.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\registoPontoController.js",
               "RelativeDocumentMoniker": "backend\\controllers\\registoPontoController.js",
@@ -158,6 +141,18 @@
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-09T14:37:02.759Z",
               "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "EditarRegistoModalWeb.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
+              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
+              "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
+              "ViewState": "AgIAAPoCAAAAAAAAAAAAwA0DAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-09T15:07:06.479Z"
             },
             {
               "$type": "Document",
