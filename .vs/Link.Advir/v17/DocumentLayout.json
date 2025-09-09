@@ -1,9 +1,25 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\",
+  "WorkspaceRootPath": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\parteItemController.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:backend\\controllers\\parteItemController.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PartesDiarias.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Obras\\PartesDiarias.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:webPrimaveraApi\\routes\\Faltas\\routesFaltas.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PessoalObra.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Obras\\PessoalObra.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     }
   ],
@@ -19,10 +35,62 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "parteItemController.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\parteItemController.js",
+              "RelativeDocumentMoniker": "backend\\controllers\\parteItemController.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\parteItemController.js",
+              "RelativeToolTip": "backend\\controllers\\parteItemController.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAFgAAAACAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-09T10:04:09.27Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "PartesDiarias.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PartesDiarias.js",
+              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Obras\\PartesDiarias.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PartesDiarias.js",
+              "RelativeToolTip": "frontend\\src\\Pages\\Obras\\PartesDiarias.js",
+              "ViewState": "AgIAAMQOAAAAAAAAAAAQwNgOAAAdAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-09T09:02:08.056Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "routesFaltas.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "RelativeDocumentMoniker": "webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "RelativeToolTip": "webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "ViewState": "AgIAAL0DAAAAAAAAAAAcwMYDAAAiAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-09T09:03:23.752Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "PessoalObra.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PessoalObra.js",
+              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Obras\\PessoalObra.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PessoalObra.js",
+              "RelativeToolTip": "frontend\\src\\Pages\\Obras\\PessoalObra.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-09T09:06:05.017Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
               "Title": "ConcursosAprovacao.js",
-              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
-              "ToolTip": "C:\\Users\\jtalm\\Desktop\\New folder\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
               "RelativeToolTip": "frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
               "ViewState": "AgIAAB0CAAAAAAAAAAAwwDACAAAGAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",

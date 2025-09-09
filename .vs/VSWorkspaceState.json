@@ -1,11 +1,12 @@
 {
   "ExpandedNodes": [
     "",
+    "\\backend",
+    "\\backend\\controllers",
     "\\frontend",
     "\\frontend\\src",
     "\\frontend\\src\\Pages",
-    "\\frontend\\src\\Pages\\Concursos",
-    "\\frontend\\src\\Pages\\WhatsApp\\components",
+    "\\frontend\\src\\Pages\\Obras",
     "\\webPrimaveraApi",
     "\\webPrimaveraApi\\routes",
     "\\webPrimaveraApi\\routes\\Faltas"
