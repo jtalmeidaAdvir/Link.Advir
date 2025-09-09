@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, Dimensions, Animated } from 'react-native';
 import { FontAwesome, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import EditarModal from './EditarModal';
+import EditarRegistoModal from './EditarRegistoModal';
 import ModalPedidosAlteracao from './ModalPedidosAlteracao';
 
 
@@ -21,11 +20,11 @@ const RegistoItem = ({ item, onEdit }) => {
     const horaEntrada = item.horaEntrada
         ? new Date(item.horaEntrada).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
         : '—';
-    
+
     const horaSaida = item.horaSaida
         ? new Date(item.horaSaida).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
         : '—';
-    
+
     const toggleExpand = () => {
         const toValue = expandedCard ? 0 : 1;
         Animated.timing(slideAnimation, {
@@ -50,7 +49,7 @@ const RegistoItem = ({ item, onEdit }) => {
 
     const mostrarAlerta = registoIncompleto && diaAnteriorAHoje;
 
-    
+
     const getEnderecoPorCoordenadas = async (latitude, longitude) => {
         const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
         try {
@@ -123,11 +122,11 @@ const RegistoItem = ({ item, onEdit }) => {
                         <Text style={styles.timeLabel}>Entrada</Text>
                         <Text style={styles.timeValue}>{horaEntrada}</Text>
                     </View>
-                    
+
                     <View style={styles.timeSeparator}>
                         <View style={styles.timeLine}></View>
                     </View>
-                    
+
                     <View style={styles.timeItem}>
                         <MaterialCommunityIcons name="logout" size={18} color="#4481EB" />
                         <Text style={styles.timeLabel}>Saída</Text>
@@ -185,6 +184,7 @@ const ListarRegistos = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [registoSelecionado, setRegistoSelecionado] = useState(null);
     const [modalPedidosVisible, setModalPedidosVisible] = useState(false);
+    const [selectedDate, setSelectedDate] = useState(new Date()); // Estado para guardar a data selecionada
 
     const [fadeAnimation] = useState(new Animated.Value(0));
 
@@ -204,10 +204,64 @@ const ListarRegistos = () => {
         setModalVisible(true);
     };
 
-    useEffect(() => {
-        fetchHistoricoPontos();
-    }, [mesSelecionado, anoSelecionado]);
+    // Função para refetch dos registos
+    const fetchRegistos = async (mes, ano, empresa) => {
+      setLoading(true);
+      try {
+        const response = await fetch(`https://backend.advir.pt/api/registoPonto/listar?mes=${mes}&ano=${ano}&empresa=${empresa}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+            'Content-Type': 'application/json',
+          },
+        });
 
+        if (response.ok) {
+          const data = await response.json();
+          const registos = data || [];
+          const diasDoMes = gerarDiasDoMes(mes, ano);
+
+          const diasComRegistos = diasDoMes.map(({ data }) => {
+            const dataISO = new Date(data).toLocaleDateString('pt-PT', {
+              timeZone: 'Europe/Lisbon',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit'
+            }).split('/').reverse().join('-');
+
+            const registoDoDia = registos.find(reg => {
+              const dataReg = new Date(reg.data).toLocaleDateString('pt-PT', {
+                timeZone: 'Europe/Lisbon',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+              }).split('/').reverse().join('-');
+              return dataReg === dataISO;
+            });
+            return registoDoDia || { data: dataISO };
+          });
+          setHistoricoPontos(diasComRegistos);
+        } else {
+          setErrorMessage('Erro ao obter histórico de pontos.');
+          setHistoricoPontos([]);
+        }
+      } catch (error) {
+        console.error('Erro ao obter histórico de pontos:', error);
+        setHistoricoPontos([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    useEffect(() => {
+        const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+        if (empresaSelecionada) {
+            fetchRegistos(mesSelecionado, anoSelecionado, empresaSelecionada);
+        } else {
+            setErrorMessage("Nenhuma empresa selecionada.");
+            setLoading(false);
+        }
+    }, [mesSelecionado, anoSelecionado]);
 
 const gerarDiasDoMes = (mes, ano) => {
   const dias = [];
@@ -220,72 +274,14 @@ const gerarDiasDoMes = (mes, ano) => {
   return dias;
 };
 
-
-
-   const fetchHistoricoPontos = async () => {
-  setLoading(true);
-  try {
-    const empresaSelecionada = localStorage.getItem("empresaSelecionada");
-    const response = await fetch(`https://backend.advir.pt/api/registoPonto/listar?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa=${empresaSelecionada}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      const registos = data || [];
-
-      // Gerar todos os dias do mês atual
-      const diasDoMes = gerarDiasDoMes(mesSelecionado, anoSelecionado);
-
-      // Mapear cada dia com o registo se existir
-      const diasComRegistos = diasDoMes.map(({ data }) => {
-        const dataISO = new Date(data).toLocaleDateString('pt-PT', {
-  timeZone: 'Europe/Lisbon',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit'
-}).split('/').reverse().join('-');
-
-
-        const registoDoDia = registos.find(reg => {
-        const dataReg = new Date(reg.data).toLocaleDateString('pt-PT', {
-        timeZone: 'Europe/Lisbon',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-        }).split('/').reverse().join('-'); // formato YYYY-MM-DD
-
-        return dataReg === dataISO;
-        });
-
-
-        return registoDoDia || { data: dataISO }; // se não houver registo, mantém só a data
-      });
-
-      setHistoricoPontos(diasComRegistos);
-    } else {
-      setErrorMessage('Erro ao obter histórico de pontos.');
-      setHistoricoPontos([]);
-    }
-  } catch (error) {
-    console.error('Erro ao obter histórico de pontos:', error);
-    setHistoricoPontos([]);
-  } finally {
-    setLoading(false);
-  }
-};
-
-    
     const nextMonth = () => {
         if (mesSelecionado === 12) {
             setMesSelecionado(1);
             setAnoSelecionado(anoSelecionado + 1);
+            setSelectedDate(new Date(anoSelecionado + 1, 0, 1));
         } else {
             setMesSelecionado(mesSelecionado + 1);
+            setSelectedDate(new Date(anoSelecionado, mesSelecionado, 1));
         }
     };
 
@@ -293,27 +289,29 @@ const gerarDiasDoMes = (mes, ano) => {
         if (mesSelecionado === 1) {
             setMesSelecionado(12);
             setAnoSelecionado(anoSelecionado - 1);
+            setSelectedDate(new Date(anoSelecionado - 1, 11, 1));
         } else {
             setMesSelecionado(mesSelecionado - 1);
+            setSelectedDate(new Date(anoSelecionado, mesSelecionado - 2, 1));
         }
     };
 
     // Calcular o sumário do mês
     const calcularSumarioMes = () => {
         if (historicoPontos.length === 0) return { dias: 0, horasTotais: 0 };
-        
+
         const dias = historicoPontos.length;
         let horasTotais = 0;
-        
+
         historicoPontos.forEach(item => {
             const horasTrabalhadas = parseFloat(item.totalHorasTrabalhadas || 0);
             const tempoIntervalo = parseFloat(item.totalTempoIntervalo || 0);
-            
+
             if (!isNaN(horasTrabalhadas) && !isNaN(tempoIntervalo)) {
                 horasTotais += horasTrabalhadas - tempoIntervalo;
             }
         });
-        
+
         return { 
             dias,
             horasTotais: horasTotais.toFixed(2)
@@ -321,6 +319,19 @@ const gerarDiasDoMes = (mes, ano) => {
     };
 
     const sumario = calcularSumarioMes();
+
+    const handleSaveEdit = (updatedRegisto) => {
+    // Refrescar os dados após a edição
+    console.log('Registo atualizado:', updatedRegisto);
+    // Recarregar os registos
+    const empresaSelecionada = localStorage.getItem('empresaSelecionada');
+    const ano = selectedDate?.getFullYear();
+    const mes = selectedDate?.getMonth() + 1;
+
+    if (empresaSelecionada && ano && mes) {
+      fetchRegistos(mes, ano, empresaSelecionada);
+    }
+  };
 
     return (
         <ScrollView 
@@ -348,7 +359,7 @@ const gerarDiasDoMes = (mes, ano) => {
 </TouchableOpacity>
 
             </LinearGradient>
-            
+
             <Animated.View 
                 style={[
                     styles.contentContainer, 
@@ -359,23 +370,23 @@ const gerarDiasDoMes = (mes, ano) => {
                 ]}
             >
                 <View style={styles.filterCard}>
-                
+
 
                     <View style={styles.monthSelector}>
                         <TouchableOpacity onPress={prevMonth} style={styles.monthArrow}>
                             <Ionicons name="chevron-back" size={22} color="#4481EB" />
                         </TouchableOpacity>
-                        
+
                         <View style={styles.monthDisplay}>
                             <Text style={styles.monthText}>{months[mesSelecionado-1]}</Text>
                             <Text style={styles.yearText}>{anoSelecionado}</Text>
                         </View>
-                        
+
                         <TouchableOpacity onPress={nextMonth} style={styles.monthArrow}>
                             <Ionicons name="chevron-forward" size={22} color="#4481EB" />
                         </TouchableOpacity>
                     </View>
-                    
+
                     <View style={styles.summaryContainer}>
                         <View style={styles.summaryItem}>
                             <MaterialCommunityIcons name="calendar-check" size={20} color="#4481EB" />
@@ -384,9 +395,9 @@ const gerarDiasDoMes = (mes, ano) => {
                                 <Text style={styles.summaryLabel}>Dias</Text>
                             </View>
                         </View>
-                        
+
                         <View style={styles.summaryDivider}></View>
-                        
+
                         <View style={styles.summaryItem}>
                             <MaterialCommunityIcons name="clock-time-five" size={20} color="#4481EB" />
                             <View style={styles.summaryTextContainer}>
@@ -410,7 +421,7 @@ const gerarDiasDoMes = (mes, ano) => {
                 ) : (
                     <FlatList
                         data={historicoPontos}
-                        keyExtractor={(item) => `${item.id}`}
+                        keyExtractor={(item) => `${item.id || Math.random()}`}
                         renderItem={({ item }) => <RegistoItem item={item} onEdit={openEditModal} />}
                         contentContainerStyle={styles.listContainer}
                         ListEmptyComponent={
@@ -424,11 +435,14 @@ const gerarDiasDoMes = (mes, ano) => {
                 )}
             </Animated.View>
 
-            <EditarModal
-                visible={modalVisible}
+            <EditarRegistoModal
                 registo={registoSelecionado}
-                onClose={() => setModalVisible(false)}
-                onSave={() => fetchHistoricoPontos()}
+                visible={modalVisible}
+                onClose={() => {
+                    setModalVisible(false);
+                    setRegistoSelecionado(null);
+                }}
+                onSave={handleSaveEdit}
             />
             <ModalPedidosAlteracao 
   visible={modalPedidosVisible} 
@@ -436,7 +450,7 @@ const gerarDiasDoMes = (mes, ano) => {
 />
 
         </ScrollView>
-        
+
     );
 };
 
