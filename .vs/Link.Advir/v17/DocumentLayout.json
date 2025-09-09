@@ -3,8 +3,20 @@
   "WorkspaceRootPath": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\trabalhadorExternoController.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:backend\\controllers\\trabalhadorExternoController.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\Externos\\GestaoTrabalhadoresExternos.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Obras\\Externos\\GestaoTrabalhadoresExternos.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:webPrimaveraApi\\routes\\Faltas\\routesFaltas.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
@@ -47,10 +59,6 @@
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:backend\\controllers\\parteItemController.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:webPrimaveraApi\\routes\\Faltas\\routesFaltas.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PessoalObra.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Obras\\PessoalObra.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
@@ -66,24 +74,63 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 5,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "RegistosPorUtilizador.js",
-              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
-              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
-              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
-              "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
-              "ViewState": "AgIAAAARAAAAAAAAAAAswA8RAAAlAAAAAAAAAA==",
+              "DocumentIndex": 0,
+              "Title": "trabalhadorExternoController.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\trabalhadorExternoController.js",
+              "RelativeDocumentMoniker": "backend\\controllers\\trabalhadorExternoController.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\trabalhadorExternoController.js",
+              "RelativeToolTip": "backend\\controllers\\trabalhadorExternoController.js",
+              "ViewState": "AgIAALIBAAAAAAAAAAAswMEBAAACAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T14:51:38.127Z",
+              "WhenOpened": "2025-09-09T16:50:51.072Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 1,
+              "Title": "GestaoTrabalhadoresExternos.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\Externos\\GestaoTrabalhadoresExternos.js",
+              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Obras\\Externos\\GestaoTrabalhadoresExternos.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\Externos\\GestaoTrabalhadoresExternos.js",
+              "RelativeToolTip": "frontend\\src\\Pages\\Obras\\Externos\\GestaoTrabalhadoresExternos.js",
+              "ViewState": "AgIAANUJAAAAAAAAAAAswOQJAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-09T16:49:27.431Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "EditarRegistoModalWeb.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
+              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
+              "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
+              "ViewState": "AgIAAHkDAAAAAAAAAAAUwJEDAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-09T15:07:06.479Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "routesFaltas.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "RelativeDocumentMoniker": "webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "RelativeToolTip": "webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
+              "ViewState": "AgIAALUAAAAAAAAAAAAEwMEAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-09T09:03:23.752Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
               "Title": "EditarModal.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\EditarModal.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\EditarModal.js",
@@ -95,7 +142,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 7,
               "Title": "ListarRegistos.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\ListarRegistos.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\ListarRegistos.js",
@@ -107,7 +154,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 6,
               "Title": "registoPontoRoutes.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\routes\\registoPontoRoutes.js",
               "RelativeDocumentMoniker": "backend\\routes\\registoPontoRoutes.js",
@@ -119,7 +166,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 5,
               "Title": "registoPontoController.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\registoPontoController.js",
               "RelativeDocumentMoniker": "backend\\controllers\\registoPontoController.js",
@@ -131,20 +178,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "EditarRegistoModalWeb.js",
-              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
-              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
-              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
-              "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\EditarRegistoModalWeb.js",
-              "ViewState": "AgIAAIIDAAAAAAAAAAAswJEDAAAlAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T15:07:06.479Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 8,
               "Title": "RegistoPontoObra.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\RegistoPontoObra.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\RegistoPontoObra.js",
@@ -156,7 +190,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 10,
               "Title": "GestaoPartesDiarias.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\GestaoPartesDiarias.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Obras\\GestaoPartesDiarias.js",
@@ -168,7 +202,19 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 4,
+              "Title": "RegistosPorUtilizador.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
+              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
+              "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
+              "ViewState": "AgIAAAARAAAAAAAAAAAswA8RAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-09T14:51:38.127Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
               "Title": "PartesDiarias.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PartesDiarias.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Obras\\PartesDiarias.js",
@@ -180,7 +226,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 12,
               "Title": "parteDiariaItem.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\models\\parteDiariaItem.js",
               "RelativeDocumentMoniker": "backend\\models\\parteDiariaItem.js",
@@ -192,7 +238,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 13,
               "Title": "parteItemController.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\parteItemController.js",
               "RelativeDocumentMoniker": "backend\\controllers\\parteItemController.js",
@@ -204,19 +250,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
-              "Title": "routesFaltas.js",
-              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
-              "RelativeDocumentMoniker": "webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
-              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
-              "RelativeToolTip": "webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
-              "ViewState": "AgIAABMDAAAAAAAAAAAhwBoDAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T09:03:23.752Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 14,
               "Title": "PessoalObra.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PessoalObra.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Obras\\PessoalObra.js",
@@ -228,7 +262,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 15,
               "Title": "ConcursosAprovacao.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
