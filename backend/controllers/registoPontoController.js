@@ -219,49 +219,6 @@ const editarRegisto = async (req, res) => {
     }
 };
 
-const editarRegistoDireto = async (req, res) => {
-    try {
-        const { registoId } = req.params;
-        const { horaEntrada, horaSaida } = req.body;
-
-        const registo = await RegistoPonto.findByPk(registoId);
-
-        if (!registo) {
-            return res.status(404).json({ message: 'Registo não encontrado.' });
-        }
-
-        // Processa as novas horas
-        if (horaEntrada) {
-            const [ano, mes, dia] = registo.data.split('-');
-            const [hora, minuto] = horaEntrada.split(':');
-            const novaEntrada = new Date(ano, mes - 1, dia, hora, minuto);
-            registo.horaEntrada = novaEntrada.toISOString();
-        }
-
-        if (horaSaida) {
-            const [ano, mes, dia] = registo.data.split('-');
-            const [hora, minuto] = horaSaida.split(':');
-            const novaSaida = new Date(ano, mes - 1, dia, hora, minuto);
-            registo.horaSaida = novaSaida.toISOString();
-        }
-
-        // Recalcular horas trabalhadas
-        if (registo.horaEntrada && registo.horaSaida) {
-            registo.totalHorasTrabalhadas = calcularHorasTrabalhadas(registo.horaEntrada, registo.horaSaida);
-        }
-
-        await registo.save();
-
-        res.status(200).json({
-            message: 'Registo editado com sucesso!',
-            registo: registo.toJSON()
-        });
-    } catch (error) {
-        console.error("Erro ao editar registo direto:", error);
-        res.status(500).json({ message: 'Erro ao editar registo.' });
-    }
-};
-
 
 
 const getRegistoDiario = async (req, res) => {
@@ -433,7 +390,6 @@ module.exports = {
     listarHistoricoPontoAdmin,
     registarPontoComBotao,
     editarRegisto,
-    editarRegistoDireto,
     obterEstadoPonto,
     registarPontoParaOutro
 

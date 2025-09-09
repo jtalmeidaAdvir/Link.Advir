@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
+import EditarRegistoModal from './EditarRegistoModalWeb';
 
 const RegistosPorUtilizador = () => {
     const [utilizadores, setUtilizadores] = useState([]);
@@ -39,6 +40,15 @@ const RegistosPorUtilizador = () => {
     const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
     const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
     const [loadingBulkDelete, setLoadingBulkDelete] = useState(false);
+
+    // Estados para edição direta
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [registoParaEditar, setRegistoParaEditar] = useState(null);
+    const [dadosEdicao, setDadosEdicao] = useState({
+        userId: null,
+        dia: null,
+        registos: []
+    });
 
 
     const [horarios, setHorarios] = useState({
@@ -1370,6 +1380,151 @@ const RegistosPorUtilizador = () => {
             alert(`Erro na eliminação em bloco: ${err.message}`);
         } finally {
             setLoadingBulkDelete(false);
+        }
+    };
+
+    // Função para abrir modal de edição direta
+    const abrirEdicaoDirecta = async (userId, dia, utilizadorNome) => {
+        if (!anoSelecionado || !mesSelecionado) {
+            alert('Por favor, selecione o ano e mês para editar.');
+            return;
+        }
+
+        try {
+            const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+
+            // Buscar registos existentes para este dia
+            let query = `user_id=${userId}&data=${dataFormatada}`;
+            if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
+
+            const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const registos = await res.json();
+
+                // Se há registos, permitir edição do primeiro registo de ponto "clássico"
+                // Caso contrário, criar estrutura para novo registo
+                if (registos.length > 0) {
+                    // Organizar registos por timestamp para edição
+                    const registosOrdenados = registos.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                    // Vamos editar usando o primeiro registo como base
+                    const primeiroRegisto = registosOrdenados[0];
+
+                    // Criar um registo "virtual" que representa o dia completo com todos os registos
+                    const registoVirtual = {
+                        id: `virtual_${userId}_${dia}`,
+                        data: dataFormatada,
+                        utilizador: utilizadorNome,
+                        utilizadorId: userId,
+                        dia: dia,
+                        registosOriginais: registos
+                    };
+
+                    setRegistoParaEditar(registoVirtual);
+                } else {
+                    // Novo registo
+                    const registoVirtual = {
+                        id: `novo_${userId}_${dia}`,
+                        data: dataFormatada,
+                        utilizador: utilizadorNome,
+                        utilizadorId: userId,
+                        dia: dia,
+                        registosOriginais: []
+                    };
+
+                    setRegistoParaEditar(registoVirtual);
+                }
+
+                setDadosEdicao({
+                    userId: userId,
+                    dia: dia,
+                    registos: registos
+                });
+
+                setEditModalOpen(true);
+            } else {
+                alert('Erro ao carregar registos para edição.');
+            }
+        } catch (err) {
+            console.error('Erro ao abrir edição direta:', err);
+            alert('Erro ao abrir edição direta.');
+        }
+    };
+
+    // Função para salvar edição direta
+    const salvarEdicaoDirecta = async (dadosEditados) => {
+        try {
+            const { userId, dia } = dadosEdicao;
+            const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+
+            if (!obraSelecionada) {
+                alert('Por favor, selecione uma obra para salvar os registos.');
+                return;
+            }
+
+            // Se há registos originais, eliminar todos primeiro
+            if (dadosEdicao.registos.length > 0) {
+                for (const registo of dadosEdicao.registos) {
+                    try {
+                        await fetch(`https://backend.advir.pt/api/registo-ponto-obra/eliminar/${registo.id}`, {
+                            method: 'DELETE',
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                    } catch (err) {
+                        console.warn(`Erro ao eliminar registo ${registo.id}:`, err);
+                    }
+                }
+            }
+
+            // Criar todos os novos registos baseados na edição
+            const registosEditados = dadosEditados.registosEditados || [];
+
+            for (const registoEditado of registosEditados) {
+                if (registoEditado.hora && registoEditado.tipo) {
+                    const timestamp = makeUTCISOFromStrings(dataFormatada, registoEditado.hora);
+
+                    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            tipo: registoEditado.tipo,
+                            obra_id: Number(obraSelecionada),
+                            user_id: Number(userId),
+                            timestamp: timestamp
+                        })
+                    });
+
+                    if (res.ok) {
+                        const json = await res.json();
+                        // Confirmar automaticamente
+                        await fetch(`https://backend.advir.pt/api/registo-ponto-obra/confirmar/${json.id}`, {
+                            method: 'PATCH',
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                    } else {
+                        throw new Error(`Erro ao criar registo ${registoEditado.tipo}`);
+                    }
+                }
+            }
+
+            alert(`${registosEditados.length} registos editados com sucesso!`);
+            setEditModalOpen(false);
+            setRegistoParaEditar(null);
+
+            // Recarregar dados da grade
+            if (viewMode === 'grade') {
+                carregarDadosGrade();
+            }
+
+        } catch (err) {
+            console.error('Erro ao salvar edição direta:', err);
+            alert(`Erro ao salvar edição: ${err.message}`);
         }
     };
 
@@ -2851,6 +3006,9 @@ const RegistosPorUtilizador = () => {
                                 <span>Sem registos</span>
                             </div>
                         </div>
+                        <div style={{ marginTop: '15px', fontSize: '0.9rem', color: '#4a5568', fontStyle: 'italic' }}>
+                            <strong>💡 Instruções:</strong> Clique normal = <strong>editar se há registos, criar se vazio</strong> | Ctrl + Clique = seleção múltipla
+                        </div>
                     </div>
 
                     <div style={styles.gradeContainer}>
@@ -2917,6 +3075,7 @@ const RegistosPorUtilizador = () => {
                                                             console.log(`[DEBUG] Clique na célula - utilizador.id: ${userId}, dia: ${diaNum}, cellKey: "${cellKey}"`);
 
                                                             if (e.ctrlKey) {
+                                                                // Ctrl + Click = Seleção múltipla
                                                                 setSelectedCells(cells => {
                                                                     const newCells = cells.includes(cellKey)
                                                                         ? cells.filter(c => c !== cellKey)
@@ -2925,9 +3084,16 @@ const RegistosPorUtilizador = () => {
                                                                     return newCells;
                                                                 });
                                                             } else {
-                                                                setUserToRegistar(userId);
-                                                                setDiaToRegistar(diaNum);
-                                                                setDialogOpen(true);
+                                                                // Clique normal = Editar se há registos, criar novo se não há
+                                                                if (estatisticas && estatisticas.totalRegistos > 0) {
+                                                                    // Há registos existentes - abrir editor
+                                                                    abrirEdicaoDirecta(userId, diaNum, item.utilizador.nome);
+                                                                } else {
+                                                                    // Não há registos - criar novo
+                                                                    setUserToRegistar(userId);
+                                                                    setDiaToRegistar(diaNum);
+                                                                    setDialogOpen(true);
+                                                                }
                                                             }
                                                         }}
                                                         style={{
@@ -2947,8 +3113,8 @@ const RegistosPorUtilizador = () => {
                                                         }}
 
                                                         title={estatisticas ?
-                                                            `${estatisticas.totalRegistos} registos\n${estatisticas.horasEstimadas} horas\n${estatisticas.confirmados}/${estatisticas.totalRegistos} confirmados\nPrimeiro: ${estatisticas.primeiroRegisto}\nÚltimo: ${estatisticas.ultimoRegisto}${estatisticas.faltas && estatisticas.faltas.length > 0 ? `\n\nFaltas: ${estatisticas.faltas.map(f => `${f.Falta} - ${tiposFaltas[f.Falta] || 'Desconhecido'} (${f.Tempo}${f.Horas ? 'h' : 'd'})`).join(', ')}` : ''}\n\nClique para registar novo ponto`
-                                                            : 'Sem registos\n\nClique para registar ponto'
+                                                            `${estatisticas.totalRegistos} registos\n${estatisticas.horasEstimadas} horas\n${estatisticas.confirmados}/${estatisticas.totalRegistos} confirmados\nPrimeiro: ${estatisticas.primeiroRegisto}\nÚltimo: ${estatisticas.ultimoRegisto}${estatisticas.faltas && estatisticas.faltas.length > 0 ? `\n\nFaltas: ${estatisticas.faltas.map(f => `${f.Falta} - ${tiposFaltas[f.Falta] || 'Desconhecido'} (${f.Tempo}${f.Horas ? 'h' : 'd'})`).join(', ')}` : ''}\n\nClique: editar registos existentes\nCtrl+Click: seleção múltipla`
+                                                            : 'Sem registos\n\nClique: registar novo ponto\nCtrl+Click: seleção múltipla'
                                                         }
 
 
@@ -3121,6 +3287,143 @@ const RegistosPorUtilizador = () => {
                             <p>Não foram encontrados registos para os critérios selecionados.</p>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Modal de Edição Direta */}
+            {editModalOpen && registoParaEditar && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.editModal}>
+                        <div style={styles.editModalHeader}>
+                            <h3 style={styles.editModalTitle}>
+                                ✏️ Editar Registos de Ponto
+                            </h3>
+                            <p style={styles.editModalSubtitle}>
+                                {registoParaEditar.utilizador} - Dia {registoParaEditar.dia}/{mesSelecionado}/{anoSelecionado}
+                            </p>
+                            <button
+                                style={styles.closeButton}
+                                onClick={() => setEditModalOpen(false)}
+                                aria-label="Fechar"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div style={styles.editModalContent}>
+                            {dadosEdicao.registos.length > 0 && (
+                                <div style={{
+                                    ...styles.selectedCellsContainer,
+                                    backgroundColor: '#fff3cd',
+                                    border: '1px solid #ffeaa7',
+                                    marginBottom: '20px'
+                                }}>
+                                    <div style={{ fontSize: '0.9rem', color: '#856404' }}>
+                                        <div style={{ marginBottom: '10px' }}>
+                                            <strong>📊 Registos Existentes:</strong>
+                                        </div>
+                                        <div style={{ fontSize: '0.8rem' }}>
+                                            {dadosEdicao.registos.map((reg, idx) => (
+                                                <div key={idx} style={{ marginBottom: '5px' }}>
+                                                    • {reg.tipo.toUpperCase()}: {new Date(reg.timestamp).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                                                    {reg.Obra && ` (${reg.Obra.nome})`}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div style={{ marginTop: '10px', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                                            Os registos existentes serão substituídos pelos novos valores.
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div style={styles.filterGroup}>
+                                <label style={styles.label}>
+                                    🕐 Hora de Entrada
+                                </label>
+                                <input
+                                    type="time"
+                                    style={styles.timeInput}
+                                    value={registoParaEditar.horaEntrada || ''}
+                                    onChange={(e) => setRegistoParaEditar(prev => ({
+                                        ...prev,
+                                        horaEntrada: e.target.value
+                                    }))}
+                                    placeholder="Deixe vazio se não houver entrada"
+                                />
+                                <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '5px' }}>
+                                    Deixe vazio se não houver entrada neste dia
+                                </div>
+                            </div>
+
+                            <div style={styles.filterGroup}>
+                                <label style={styles.label}>
+                                    🕐 Hora de Saída
+                                </label>
+                                <input
+                                    type="time"
+                                    style={styles.timeInput}
+                                    value={registoParaEditar.horaSaida || ''}
+                                    onChange={(e) => setRegistoParaEditar(prev => ({
+                                        ...prev,
+                                        horaSaida: e.target.value
+                                    }))}
+                                    placeholder="Deixe vazio se não houver saída"
+                                />
+                                <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '5px' }}>
+                                    Deixe vazio se não houver saída neste dia
+                                </div>
+                            </div>
+
+                            <div style={styles.obraContainer}>
+                                <label style={styles.obraLabel}>
+                                    <span style={styles.obraIcon}>🏗️</span>
+                                    Obra Selecionada
+                                </label>
+                                <div style={{
+                                    padding: '12px 16px',
+                                    border: '2px solid #e2e8f0',
+                                    borderRadius: '12px',
+                                    backgroundColor: '#f8f9fa',
+                                    fontSize: '1rem',
+                                    color: obraSelecionada ? '#2d3748' : '#718096'
+                                }}>
+                                    {obraSelecionada
+                                        ? obras.find(o => o.id.toString() === obraSelecionada.toString())?.nome || `Obra ${obraSelecionada}`
+                                        : 'Nenhuma obra selecionada - selecione uma obra nos filtros acima'
+                                    }
+                                </div>
+                            </div>
+
+                            {(!registoParaEditar.horaEntrada && !registoParaEditar.horaSaida) && (
+                                <div style={{
+                                    ...styles.selectedCellsContainer,
+                                    backgroundColor: '#fef5e7',
+                                    border: '1px solid #f6e05e'
+                                }}>
+                                    <div style={{ fontSize: '0.9rem', color: '#744210' }}>
+                                        <strong>💡 Dica:</strong> Se deixar ambos os campos vazios, os registos existentes serão eliminados.
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={styles.editModalActions}>
+                            <button
+                                style={styles.cancelButton}
+                                onClick={() => setEditModalOpen(false)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                style={styles.confirmButton}
+                                onClick={() => salvarEdicaoDirecta(registoParaEditar)}
+                                disabled={!obraSelecionada}
+                            >
+                                ✅ Salvar Alterações
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -4023,6 +4326,48 @@ const styles = {
         overflowY: 'auto'
     },
     individualModalActions: {
+        background: '#f8fafc',
+        padding: '20px 25px',
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: '15px',
+        borderTop: '1px solid #e2e8f0'
+    },
+
+    // Estilos para modal de edição direta
+    editModal: {
+        background: '#ffffff',
+        borderRadius: '16px',
+        maxWidth: '500px',
+        width: '90vw',
+        maxHeight: '80vh',
+        overflow: 'hidden',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        position: 'relative',
+        animation: 'modalSlideIn 0.3s ease-out'
+    },
+    editModalHeader: {
+        background: 'linear-gradient(135deg, #2c5aa0, #3182ce)',
+        color: 'white',
+        padding: '25px 30px',
+        position: 'relative'
+    },
+    editModalTitle: {
+        margin: '0 0 8px 0',
+        fontSize: '1.4rem',
+        fontWeight: '700'
+    },
+    editModalSubtitle: {
+        margin: 0,
+        fontSize: '0.95rem',
+        opacity: 0.9
+    },
+    editModalContent: {
+        padding: '25px',
+        maxHeight: 'calc(80vh - 160px)',
+        overflowY: 'auto'
+    },
+    editModalActions: {
         background: '#f8fafc',
         padding: '20px 25px',
         display: 'flex',

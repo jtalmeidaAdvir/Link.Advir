@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, Dimensions, Animated } from 'react-native';
 import { FontAwesome, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import EditarRegistoModal from './EditarRegistoModal';
+import EditarModal from './EditarModal';
 import ModalPedidosAlteracao from './ModalPedidosAlteracao';
 
 
@@ -98,20 +99,20 @@ const RegistoItem = ({ item, onEdit }) => {
                         <Text style={styles.cardDate}>{formatDate(item.data)}</Text>
                         {mostrarAlerta && (
                             <MaterialCommunityIcons
-                            name="alert-circle"
-                            size={20}
-                            color="#FFA500"
-                            style={{ marginLeft: 6 }}
+                                name="alert-circle"
+                                size={20}
+                                color="#FFA500"
+                                style={{ marginLeft: 6 }}
                             />
                         )}
-                        </View>
+                    </View>
 
 
                     <TouchableOpacity onPress={toggleExpand} style={styles.expandButton}>
-                        <Ionicons 
-                            name={expandedCard ? "chevron-up-circle" : "chevron-down-circle"} 
-                            size={22} 
-                            color="#4481EB" 
+                        <Ionicons
+                            name={expandedCard ? "chevron-up-circle" : "chevron-down-circle"}
+                            size={22}
+                            color="#4481EB"
                         />
                     </TouchableOpacity>
                 </View>
@@ -154,8 +155,8 @@ const RegistoItem = ({ item, onEdit }) => {
                 </Animated.View>
 
                 {expandedCard && (
-                    <TouchableOpacity 
-                        style={styles.editButton} 
+                    <TouchableOpacity
+                        style={styles.editButton}
                         onPress={() => onEdit(item)}
                     >
                         <LinearGradient
@@ -184,7 +185,6 @@ const ListarRegistos = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [registoSelecionado, setRegistoSelecionado] = useState(null);
     const [modalPedidosVisible, setModalPedidosVisible] = useState(false);
-    const [selectedDate, setSelectedDate] = useState(new Date()); // Estado para guardar a data selecionada
 
     const [fadeAnimation] = useState(new Animated.Value(0));
 
@@ -204,84 +204,88 @@ const ListarRegistos = () => {
         setModalVisible(true);
     };
 
-    // Função para refetch dos registos
-    const fetchRegistos = async (mes, ano, empresa) => {
-      setLoading(true);
-      try {
-        const response = await fetch(`https://backend.advir.pt/api/registoPonto/listar?mes=${mes}&ano=${ano}&empresa=${empresa}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const registos = data || [];
-          const diasDoMes = gerarDiasDoMes(mes, ano);
-
-          const diasComRegistos = diasDoMes.map(({ data }) => {
-            const dataISO = new Date(data).toLocaleDateString('pt-PT', {
-              timeZone: 'Europe/Lisbon',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit'
-            }).split('/').reverse().join('-');
-
-            const registoDoDia = registos.find(reg => {
-              const dataReg = new Date(reg.data).toLocaleDateString('pt-PT', {
-                timeZone: 'Europe/Lisbon',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-              }).split('/').reverse().join('-');
-              return dataReg === dataISO;
-            });
-            return registoDoDia || { data: dataISO };
-          });
-          setHistoricoPontos(diasComRegistos);
-        } else {
-          setErrorMessage('Erro ao obter histórico de pontos.');
-          setHistoricoPontos([]);
-        }
-      } catch (error) {
-        console.error('Erro ao obter histórico de pontos:', error);
-        setHistoricoPontos([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     useEffect(() => {
-        const empresaSelecionada = localStorage.getItem("empresaSelecionada");
-        if (empresaSelecionada) {
-            fetchRegistos(mesSelecionado, anoSelecionado, empresaSelecionada);
-        } else {
-            setErrorMessage("Nenhuma empresa selecionada.");
-            setLoading(false);
-        }
+        fetchHistoricoPontos();
     }, [mesSelecionado, anoSelecionado]);
 
-const gerarDiasDoMes = (mes, ano) => {
-  const dias = [];
-  const totalDias = new Date(ano, mes, 0).getDate(); // último dia do mês atual
 
-  for (let dia = 1; dia <= totalDias; dia++) {
-    dias.push({ data: new Date(ano, mes - 1, dia) }); // atenção: mês é zero-based
-  }
+    const gerarDiasDoMes = (mes, ano) => {
+        const dias = [];
+        const totalDias = new Date(ano, mes, 0).getDate(); // último dia do mês atual
 
-  return dias;
-};
+        for (let dia = 1; dia <= totalDias; dia++) {
+            dias.push({ data: new Date(ano, mes - 1, dia) }); // atenção: mês é zero-based
+        }
+
+        return dias;
+    };
+
+
+
+    const fetchHistoricoPontos = async () => {
+        setLoading(true);
+        try {
+            const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+            const response = await fetch(`https://backend.advir.pt/api/registoPonto/listar?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa=${empresaSelecionada}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const registos = data || [];
+
+                // Gerar todos os dias do mês atual
+                const diasDoMes = gerarDiasDoMes(mesSelecionado, anoSelecionado);
+
+                // Mapear cada dia com o registo se existir
+                const diasComRegistos = diasDoMes.map(({ data }) => {
+                    const dataISO = new Date(data).toLocaleDateString('pt-PT', {
+                        timeZone: 'Europe/Lisbon',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    }).split('/').reverse().join('-');
+
+
+                    const registoDoDia = registos.find(reg => {
+                        const dataReg = new Date(reg.data).toLocaleDateString('pt-PT', {
+                            timeZone: 'Europe/Lisbon',
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit'
+                        }).split('/').reverse().join('-'); // formato YYYY-MM-DD
+
+                        return dataReg === dataISO;
+                    });
+
+
+                    return registoDoDia || { data: dataISO }; // se não houver registo, mantém só a data
+                });
+
+                setHistoricoPontos(diasComRegistos);
+            } else {
+                setErrorMessage('Erro ao obter histórico de pontos.');
+                setHistoricoPontos([]);
+            }
+        } catch (error) {
+            console.error('Erro ao obter histórico de pontos:', error);
+            setHistoricoPontos([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
     const nextMonth = () => {
         if (mesSelecionado === 12) {
             setMesSelecionado(1);
             setAnoSelecionado(anoSelecionado + 1);
-            setSelectedDate(new Date(anoSelecionado + 1, 0, 1));
         } else {
             setMesSelecionado(mesSelecionado + 1);
-            setSelectedDate(new Date(anoSelecionado, mesSelecionado, 1));
         }
     };
 
@@ -289,10 +293,8 @@ const gerarDiasDoMes = (mes, ano) => {
         if (mesSelecionado === 1) {
             setMesSelecionado(12);
             setAnoSelecionado(anoSelecionado - 1);
-            setSelectedDate(new Date(anoSelecionado - 1, 11, 1));
         } else {
             setMesSelecionado(mesSelecionado - 1);
-            setSelectedDate(new Date(anoSelecionado, mesSelecionado - 2, 1));
         }
     };
 
@@ -312,7 +314,7 @@ const gerarDiasDoMes = (mes, ano) => {
             }
         });
 
-        return { 
+        return {
             dias,
             horasTotais: horasTotais.toFixed(2)
         };
@@ -320,22 +322,9 @@ const gerarDiasDoMes = (mes, ano) => {
 
     const sumario = calcularSumarioMes();
 
-    const handleSaveEdit = (updatedRegisto) => {
-    // Refrescar os dados após a edição
-    console.log('Registo atualizado:', updatedRegisto);
-    // Recarregar os registos
-    const empresaSelecionada = localStorage.getItem('empresaSelecionada');
-    const ano = selectedDate?.getFullYear();
-    const mes = selectedDate?.getMonth() + 1;
-
-    if (empresaSelecionada && ano && mes) {
-      fetchRegistos(mes, ano, empresaSelecionada);
-    }
-  };
-
     return (
-        <ScrollView 
-            style={styles.container} 
+        <ScrollView
+            style={styles.container}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
         >
@@ -350,23 +339,27 @@ const gerarDiasDoMes = (mes, ano) => {
                     <Text style={styles.headerSubtitle}>Consulte seus registos de ponto</Text>
                 </View>
                 <TouchableOpacity
-  style={{ marginTop: 10, backgroundColor: '#fff', padding: 10, borderRadius: 10 }}
-  onPress={() => setModalPedidosVisible(true)}
->
-  <Text style={{ textAlign: 'center', color: '#4481EB', fontWeight: 'bold' }}>
-    Ver Pedidos de Alteração
-  </Text>
-</TouchableOpacity>
+                    style={{ marginTop: 10, backgroundColor: '#fff', padding: 10, borderRadius: 10 }}
+                    onPress={() => setModalPedidosVisible(true)}
+                >
+                    <Text style={{ textAlign: 'center', color: '#4481EB', fontWeight: 'bold' }}>
+                        Ver Pedidos de Alteração
+                    </Text>
+                </TouchableOpacity>
 
             </LinearGradient>
 
-            <Animated.View 
+            <Animated.View
                 style={[
-                    styles.contentContainer, 
-                    { opacity: fadeAnimation, transform: [{ translateY: fadeAnimation.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [50, 0],
-                    })}] }
+                    styles.contentContainer,
+                    {
+                        opacity: fadeAnimation, transform: [{
+                            translateY: fadeAnimation.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [50, 0],
+                            })
+                        }]
+                    }
                 ]}
             >
                 <View style={styles.filterCard}>
@@ -378,7 +371,7 @@ const gerarDiasDoMes = (mes, ano) => {
                         </TouchableOpacity>
 
                         <View style={styles.monthDisplay}>
-                            <Text style={styles.monthText}>{months[mesSelecionado-1]}</Text>
+                            <Text style={styles.monthText}>{months[mesSelecionado - 1]}</Text>
                             <Text style={styles.yearText}>{anoSelecionado}</Text>
                         </View>
 
@@ -421,7 +414,7 @@ const gerarDiasDoMes = (mes, ano) => {
                 ) : (
                     <FlatList
                         data={historicoPontos}
-                        keyExtractor={(item) => `${item.id || Math.random()}`}
+                        keyExtractor={(item) => `${item.id}`}
                         renderItem={({ item }) => <RegistoItem item={item} onEdit={openEditModal} />}
                         contentContainerStyle={styles.listContainer}
                         ListEmptyComponent={
@@ -435,19 +428,16 @@ const gerarDiasDoMes = (mes, ano) => {
                 )}
             </Animated.View>
 
-            <EditarRegistoModal
-                registo={registoSelecionado}
+            <EditarModal
                 visible={modalVisible}
-                onClose={() => {
-                    setModalVisible(false);
-                    setRegistoSelecionado(null);
-                }}
-                onSave={handleSaveEdit}
+                registo={registoSelecionado}
+                onClose={() => setModalVisible(false)}
+                onSave={() => fetchHistoricoPontos()}
             />
-            <ModalPedidosAlteracao 
-  visible={modalPedidosVisible} 
-  onClose={() => setModalPedidosVisible(false)} 
-/>
+            <ModalPedidosAlteracao
+                visible={modalPedidosVisible}
+                onClose={() => setModalPedidosVisible(false)}
+            />
 
         </ScrollView>
 
