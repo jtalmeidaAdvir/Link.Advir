@@ -11,6 +11,6 @@
     "\\webPrimaveraApi\\routes",
     "\\webPrimaveraApi\\routes\\Faltas"
   ],
-  "SelectedNode": "\\backend\\controllers\\parteItemController.js",
+  "SelectedNode": "\\frontend\\src\\Pages\\Obras\\PartesDiarias.js",
   "PreviewInSolutionExplorer": false
 }
