@@ -40,7 +40,7 @@
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Obras\\PartesDiarias.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PartesDiarias.js",
               "RelativeToolTip": "frontend\\src\\Pages\\Obras\\PartesDiarias.js",
-              "ViewState": "AgIAAEISAAAAAAAAAAAAAFESAAAdAAAAAAAAAA==",
+              "ViewState": "AgIAALsOAAAAAAAAAAAAAMoOAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-09T09:02:08.056Z",
               "EditorCaption": ""
@@ -53,7 +53,7 @@
               "RelativeDocumentMoniker": "backend\\controllers\\parteItemController.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\parteItemController.js",
               "RelativeToolTip": "backend\\controllers\\parteItemController.js",
-              "ViewState": "AgIAAGEAAAAAAAAAAAAAAG0AAAArAAAAAAAAAA==",
+              "ViewState": "AgIAABUAAAAAAAAAAAAAAFYAAAACAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-09T10:04:09.27Z",
               "EditorCaption": ""
@@ -68,8 +68,7 @@
               "RelativeToolTip": "webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
               "ViewState": "AgIAABMDAAAAAAAAAAAhwBoDAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T09:03:23.752Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-09-09T09:03:23.752Z"
             },
             {
               "$type": "Document",

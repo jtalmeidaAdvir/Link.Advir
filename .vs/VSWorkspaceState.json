@@ -3,14 +3,13 @@
     "",
     "\\backend",
     "\\backend\\controllers",
+    "\\backend\\models",
     "\\frontend",
-    "\\frontend\\src",
     "\\frontend\\src\\Pages",
     "\\frontend\\src\\Pages\\Obras",
     "\\webPrimaveraApi",
     "\\webPrimaveraApi\\routes",
     "\\webPrimaveraApi\\routes\\Faltas"
   ],
-  "SelectedNode": "\\frontend\\src\\Pages\\Obras\\PartesDiarias.js",
   "PreviewInSolutionExplorer": false
 }

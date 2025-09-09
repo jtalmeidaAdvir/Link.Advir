@@ -7,8 +7,16 @@
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Obras\\PartesDiarias.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\models\\parteDiariaItem.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:backend\\models\\parteDiariaItem.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\parteItemController.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:backend\\controllers\\parteItemController.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\GestaoPartesDiarias.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Obras\\GestaoPartesDiarias.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
@@ -40,7 +48,7 @@
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Obras\\PartesDiarias.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PartesDiarias.js",
               "RelativeToolTip": "frontend\\src\\Pages\\Obras\\PartesDiarias.js",
-              "ViewState": "AgIAALsOAAAAAAAAAAAAAMoOAAAdAAAAAAAAAA==",
+              "ViewState": "AgIAAMERAAAAAAAAAAAUwM8RAAAGAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-09T09:02:08.056Z",
               "EditorCaption": ""
@@ -48,19 +56,45 @@
             {
               "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "parteDiariaItem.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\models\\parteDiariaItem.js",
+              "RelativeDocumentMoniker": "backend\\models\\parteDiariaItem.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\models\\parteDiariaItem.js",
+              "RelativeToolTip": "backend\\models\\parteDiariaItem.js",
+              "ViewState": "AgIAABkAAAAAAAAAAAAYwCwAAAAhAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-09T13:49:49.766Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "GestaoPartesDiarias.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\GestaoPartesDiarias.js",
+              "RelativeDocumentMoniker": "frontend\\src\\Pages\\Obras\\GestaoPartesDiarias.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\GestaoPartesDiarias.js",
+              "RelativeToolTip": "frontend\\src\\Pages\\Obras\\GestaoPartesDiarias.js",
+              "ViewState": "AgIAACIAAAAAAAAAAAAmwDEAAAAuAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-09-09T13:36:13.265Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
               "Title": "parteItemController.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\parteItemController.js",
               "RelativeDocumentMoniker": "backend\\controllers\\parteItemController.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\backend\\controllers\\parteItemController.js",
               "RelativeToolTip": "backend\\controllers\\parteItemController.js",
-              "ViewState": "AgIAABUAAAAAAAAAAAAAAFYAAAACAAAAAAAAAA==",
+              "ViewState": "AgIAAEMAAAAAAAAAAAAUwFYAAAACAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-09T10:04:09.27Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 4,
               "Title": "routesFaltas.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
               "RelativeDocumentMoniker": "webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
@@ -72,7 +106,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 5,
               "Title": "PessoalObra.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Obras\\PessoalObra.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Obras\\PessoalObra.js",
@@ -84,7 +118,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 6,
               "Title": "ConcursosAprovacao.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\LINK\\Link.Advir\\frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Concursos\\ConcursosAprovacao.js",
