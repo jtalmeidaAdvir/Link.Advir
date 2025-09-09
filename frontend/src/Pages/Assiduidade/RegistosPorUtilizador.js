@@ -1390,17 +1390,11 @@ const RegistosPorUtilizador = () => {
             return;
         }
 
-        if (!obraSelecionada) {
-            alert('Por favor, selecione uma obra para editar registos.');
-            return;
-        }
-
         try {
             const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 
-            // Buscar registos existentes para este dia
+            // Buscar TODOS os registos existentes para este dia (sem filtro de obra)
             let query = `user_id=${userId}&data=${dataFormatada}`;
-            if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
 
             const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -1408,7 +1402,7 @@ const RegistosPorUtilizador = () => {
 
             if (res.ok) {
                 const registos = await res.json();
-                console.log('Registos carregados para edição:', registos);
+                console.log('Registos carregados para edição (todas as obras):', registos);
 
                 // Criar um registo "virtual" que representa o dia completo com todos os registos
                 const registoVirtual = {
@@ -1447,11 +1441,6 @@ const RegistosPorUtilizador = () => {
             const { userId, dia } = dadosEdicao;
             const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 
-            if (!obraSelecionada) {
-                alert('Por favor, selecione uma obra para salvar os registos.');
-                return;
-            }
-
             // Se há registos originais, eliminar todos primeiro
             if (dadosEdicao.registos.length > 0) {
                 for (const registo of dadosEdicao.registos) {
@@ -1469,9 +1458,10 @@ const RegistosPorUtilizador = () => {
             // Processar registos editados do modal
             const registosEditados = dadosEditados.registosEditados || [];
             let registosCriados = 0;
+            let erros = [];
 
             for (const registoEditado of registosEditados) {
-                if (registoEditado.hora && registoEditado.tipo) {
+                if (registoEditado.hora && registoEditado.tipo && registoEditado.obraId) {
                     const timestamp = makeUTCISOFromStrings(dataFormatada, registoEditado.hora);
 
                     const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`, {
@@ -1482,7 +1472,7 @@ const RegistosPorUtilizador = () => {
                         },
                         body: JSON.stringify({
                             tipo: registoEditado.tipo,
-                            obra_id: Number(obraSelecionada),
+                            obra_id: Number(registoEditado.obraId),
                             user_id: Number(userId),
                             timestamp: timestamp
                         })
@@ -1499,15 +1489,25 @@ const RegistosPorUtilizador = () => {
                     } else {
                         const errorText = await res.text();
                         console.error(`Erro ao criar registo ${registoEditado.tipo}:`, errorText);
-                        throw new Error(`Erro ao criar registo ${registoEditado.tipo}: ${errorText}`);
+                        erros.push(`Erro ao criar registo ${registoEditado.tipo}: ${errorText}`);
                     }
+                } else if (registoEditado.hora && registoEditado.tipo && !registoEditado.obraId) {
+                    erros.push(`Registo ${registoEditado.tipo} às ${registoEditado.hora}: obra não especificada`);
                 }
             }
 
             if (registosCriados > 0) {
-                alert(`${registosCriados} registos editados e integrados com sucesso!`);
+                let mensagem = `${registosCriados} registos editados e integrados com sucesso!`;
+                if (erros.length > 0) {
+                    mensagem += `\n\nErros encontrados:\n${erros.join('\n')}`;
+                }
+                alert(mensagem);
             } else {
-                alert('Nenhum registo foi criado. Verifique se preencheu as horas corretamente.');
+                if (erros.length > 0) {
+                    alert(`Nenhum registo foi criado devido aos seguintes erros:\n${erros.join('\n')}`);
+                } else {
+                    alert('Nenhum registo foi criado. Verifique se preencheu as horas e obras corretamente.');
+                }
             }
 
             setEditModalOpen(false);

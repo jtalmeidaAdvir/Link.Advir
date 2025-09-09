@@ -3,9 +3,33 @@ import React, { useState, useEffect } from "react";
 const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
     const [registosEditaveis, setRegistosEditaveis] = useState([]);
     const [registosOriginais, setRegistosOriginais] = useState([]);
+    const [obras, setObras] = useState([]);
 
     useEffect(() => {
         console.log('Modal recebeu registo:', registo); // Debug
+
+        // Carregar obras disponíveis
+        const carregarObras = async () => {
+            const token = localStorage.getItem('loginToken');
+            const empresaId = localStorage.getItem('empresa_id');
+
+            if (!empresaId) {
+                console.error('ID da empresa não encontrado');
+                return;
+            }
+
+            try {
+                const res = await fetch(`https://backend.advir.pt/api/obra/por-empresa?empresa_id=${empresaId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const data = await res.json();
+                setObras(Array.isArray(data) ? data : []);
+            } catch (err) {
+                console.error('Erro ao carregar obras:', err);
+            }
+        };
+
+        carregarObras();
 
         if (registo && registo.registosOriginais && registo.registosOriginais.length > 0) {
             // Organizar registos por timestamp (ordem cronológica)
@@ -21,6 +45,7 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
                 tipo: reg.tipo || 'entrada',
                 hora: new Date(reg.timestamp).toTimeString().substring(0, 5),
                 obra: reg.Obra?.nome || reg.obra || "Não definida",
+                obraId: reg.obra_id || reg.Obra?.id || '',
                 confirmado: reg.is_confirmed || false,
                 timestamp: reg.timestamp,
                 index: index,
@@ -49,21 +74,81 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
     };
 
     const adicionarNovoRegisto = () => {
-        const novoRegisto = {
-            id: `novo_${Date.now()}`,
-            tipo: "entrada",
-            hora: "09:00",
-            obra: "N/A",
-            confirmado: false,
-            timestamp: null,
-            index: registosEditaveis.length,
-        };
-        setRegistosEditaveis((prev) => [...prev, novoRegisto]);
+        // Se não há registos editáveis, pré-carregar os 4 pontos padrão
+        if (registosEditaveis.length === 0) {
+            const pontosPreCarregados = [
+                {
+                    id: `novo_entrada_manha_${Date.now()}`,
+                    tipo: "entrada",
+                    hora: "09:00",
+                    obra: "Selecione uma obra",
+                    obraId: '',
+                    confirmado: false,
+                    timestamp: null,
+                    index: 0,
+                },
+                {
+                    id: `novo_saida_manha_${Date.now()}`,
+                    tipo: "saida",
+                    hora: "13:00",
+                    obra: "Selecione uma obra",
+                    obraId: '',
+                    confirmado: false,
+                    timestamp: null,
+                    index: 1,
+                },
+                {
+                    id: `novo_entrada_tarde_${Date.now()}`,
+                    tipo: "entrada",
+                    hora: "14:00",
+                    obra: "Selecione uma obra",
+                    obraId: '',
+                    confirmado: false,
+                    timestamp: null,
+                    index: 2,
+                },
+                {
+                    id: `novo_saida_tarde_${Date.now()}`,
+                    tipo: "saida",
+                    hora: "18:00",
+                    obra: "Selecione uma obra",
+                    obraId: '',
+                    confirmado: false,
+                    timestamp: null,
+                    index: 3,
+                }
+            ];
+            setRegistosEditaveis(pontosPreCarregados);
+        } else {
+            // Caso já existam registos, adicionar apenas um registo individual
+            const novoRegisto = {
+                id: `novo_${Date.now()}`,
+                tipo: "entrada",
+                hora: "09:00",
+                obra: "Selecione uma obra",
+                obraId: '',
+                confirmado: false,
+                timestamp: null,
+                index: registosEditaveis.length,
+            };
+            setRegistosEditaveis((prev) => [...prev, novoRegisto]);
+        }
     };
 
     const alterarTipoRegisto = (index, novoTipo) => {
         setRegistosEditaveis((prev) =>
             prev.map((reg, i) => (i === index ? { ...reg, tipo: novoTipo } : reg)),
+        );
+    };
+
+    const alterarObraRegisto = (index, novaObraId) => {
+        const obraSelecionada = obras.find(o => o.id.toString() === novaObraId.toString());
+        setRegistosEditaveis((prev) =>
+            prev.map((reg, i) => (i === index ? {
+                ...reg,
+                obraId: novaObraId,
+                obra: obraSelecionada ? obraSelecionada.nome : 'Obra não encontrada'
+            } : reg)),
         );
     };
 
@@ -73,10 +158,14 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
             return;
         }
 
-        // Validar horários
+        // Validar horários e obras
         for (let i = 0; i < registosEditaveis.length; i++) {
             if (!registosEditaveis[i].hora) {
                 alert(`Por favor, preencha a hora do registo ${i + 1}.`);
+                return;
+            }
+            if (!registosEditaveis[i].obraId && !registosEditaveis[i].isOriginal) {
+                alert(`Por favor, selecione uma obra para o registo ${i + 1}.`);
                 return;
             }
         }
@@ -90,6 +179,7 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
                     id: reg.id,
                     tipo: reg.tipo,
                     hora: reg.hora,
+                    obraId: reg.obraId,
                     isNovo: reg.id.toString().startsWith("novo_"),
                 })),
                 registosOriginais: registosOriginais,
@@ -219,9 +309,9 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
                             <button
                                 style={styles.addButton}
                                 onClick={adicionarNovoRegisto}
-                                title="Adicionar novo registo"
+                                title={registosEditaveis.length === 0 ? "Pré-carregar 4 pontos padrão" : "Adicionar novo registo"}
                             >
-                                ➕ Adicionar
+                                {registosEditaveis.length === 0 ? "⚡ Pré-carregar 4 Pontos" : "➕ Adicionar"}
                             </button>
                         </div>
 
@@ -231,7 +321,7 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
                                     📝 Nenhum registo para editar.
                                 </p>
                                 <p style={styles.emptyHint}>
-                                    Clique em "➕ Adicionar" para criar um novo registo de ponto.
+                                    Clique em "⚡ Pré-carregar 4 Pontos" para criar automaticamente os 4 pontos padrão do dia (entrada manhã, saída manhã, entrada tarde, saída tarde).
                                 </p>
                             </div>
                         ) : (
@@ -300,6 +390,30 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
                                                     value={registo.hora}
                                                     onChange={(e) => atualizarHora(index, e.target.value)}
                                                 />
+                                            </div>
+
+                                            <div style={styles.inputGroup}>
+                                                <label style={styles.inputLabel}>Obra:</label>
+                                                {registo.isOriginal ? (
+                                                    <div style={styles.obraReadonly}>
+                                                        {registo.obra}
+                                                    </div>
+                                                ) : (
+                                                    <select
+                                                        style={styles.obraSelect}
+                                                        value={registo.obraId || ''}
+                                                        onChange={(e) =>
+                                                            alterarObraRegisto(index, e.target.value)
+                                                        }
+                                                    >
+                                                        <option value="">-- Selecione uma obra --</option>
+                                                        {obras.map(obra => (
+                                                            <option key={obra.id} value={obra.id}>
+                                                                {obra.nome}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                )}
                                             </div>
                                         </div>
 
@@ -647,7 +761,7 @@ const styles = {
     },
     registoEditavelInputs: {
         display: "grid",
-        gridTemplateColumns: "1fr 1fr",
+        gridTemplateColumns: "1fr 1fr 1fr",
         gap: "15px",
         marginBottom: "10px",
     },
@@ -678,6 +792,24 @@ const styles = {
         backgroundColor: "#ffffff",
         transition: "all 0.2s",
         outline: "none",
+    },
+    obraSelect: {
+        padding: "10px 12px",
+        border: "2px solid #e2e8f0",
+        borderRadius: "8px",
+        fontSize: "14px",
+        backgroundColor: "#ffffff",
+        transition: "all 0.2s",
+        outline: "none",
+    },
+    obraReadonly: {
+        padding: "10px 12px",
+        border: "2px solid #f0f0f0",
+        borderRadius: "8px",
+        fontSize: "14px",
+        backgroundColor: "#f8f9fa",
+        color: "#6c757d",
+        fontStyle: "italic",
     },
     registoInfo: {
         display: 'flex',
