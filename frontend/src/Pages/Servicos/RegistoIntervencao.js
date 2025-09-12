@@ -99,18 +99,35 @@ const RegistoIntervencao = (props) => {
                 console.log("Resposta da API GetTempoDeslocacao:", data);
 
                 // Verificar se existe DataSet com Table e o primeiro elemento tem CDU_TempoDeslocacao
-                if (data && data.DataSet && data.DataSet.Table && data.DataSet.Table.length > 0) {
-                    const tempoDeslocacaoHoras = data.DataSet.Table[0].CDU_TempoDeslocacao;
-                    if (tempoDeslocacaoHoras !== null && tempoDeslocacaoHoras !== undefined) {
+                if (
+                    data &&
+                    data.DataSet &&
+                    data.DataSet.Table &&
+                    data.DataSet.Table.length > 0
+                ) {
+                    const tempoDeslocacaoHoras =
+                        data.DataSet.Table[0].CDU_TempoDeslocacao;
+                    if (
+                        tempoDeslocacaoHoras !== null &&
+                        tempoDeslocacaoHoras !== undefined
+                    ) {
                         // O valor retornado é decimal em horas, converter para minutos
-                        const tempoEmMinutos = Math.round(tempoDeslocacaoHoras * 60);
+                        const tempoEmMinutos = Math.round(
+                            tempoDeslocacaoHoras * 60,
+                        );
                         setTempoDeslocacao(tempoEmMinutos);
-                        console.log(`Tempo de deslocação predefinido: ${tempoDeslocacaoHoras} horas (${tempoEmMinutos} minutos)`);
+                        console.log(
+                            `Tempo de deslocação predefinido: ${tempoDeslocacaoHoras} horas (${tempoEmMinutos} minutos)`,
+                        );
                     } else {
-                        console.log("Tempo de deslocação não definido para este cliente - valor null");
+                        console.log(
+                            "Tempo de deslocação não definido para este cliente - valor null",
+                        );
                     }
                 } else {
-                    console.log("Tempo de deslocação não definido para este cliente - sem dados");
+                    console.log(
+                        "Tempo de deslocação não definido para este cliente - sem dados",
+                    );
                 }
             } else {
                 console.warn("Erro ao buscar tempo de deslocação predefinido");
@@ -264,7 +281,7 @@ const RegistoIntervencao = (props) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
 
-        // Se o tipo mudou para PRE, buscar o tempo de deslocação predefinido
+        // If the type changed to PRE, fetch the predefined travel time
         if (name === "tipo" && value === "PRE") {
             const processoID = localStorage.getItem("intervencaoId");
             if (processoID) {
@@ -586,8 +603,70 @@ const RegistoIntervencao = (props) => {
                 // Email sending process
                 if (enviarEmailCheck && email && ResponseData) {
                     try {
+                        // Buscar informações do contrato antes de enviar o email
+                        let contratoInfo = null;
+                        try {
+                            console.log(
+                                "Buscando informações do contrato para o processo:",
+                                processoID,
+                            );
+                            const contratoResponse = await fetch(
+                                `${apiBaseUrl}/ObterInfoContratoProcesso/${processoID}`,
+                                {
+                                    method: "GET",
+                                    headers: {
+                                        Authorization: `Bearer ${token}`,
+                                        urlempresa: urlempresa,
+                                        "Content-Type": "application/json",
+                                    },
+                                },
+                            );
+
+                            if (contratoResponse.ok) {
+                                const contratoData = await contratoResponse.json();
+                                console.log("Dados do contrato recebidos:", contratoData);
+
+                                if (
+                                    contratoData.DataSet &&
+                                    contratoData.DataSet.Table &&
+                                    contratoData.DataSet.Table.length > 0
+                                ) {
+                                    // Usar o primeiro contrato disponível
+                                    const contrato = contratoData.DataSet.Table[0];
+
+                                    if (contrato && contrato.HorasTotais !== undefined) {
+                                        const horasLivres = (contrato.HorasTotais || 0) - (contrato.HorasGastas || 0);
+
+                                        contratoInfo = {
+                                            numeroContrato: contrato.ID || "N/A",
+                                            horasContratadas: contrato.HorasTotais || 0,
+                                            horasUtilizadas: contrato.HorasGastas || 0,
+                                            horasLivres: horasLivres.toFixed(2),
+                                        };
+
+                                        console.log("✅ Informações do contrato extraídas com sucesso:", contratoInfo);
+                                    } else {
+                                        console.warn("⚠️ Dados do contrato incompletos");
+                                    }
+                                } else {
+                                    console.warn("⚠️ Estrutura de dados do contrato inválida ou vazia");
+                                }
+                            } else {
+                                console.warn(
+                                    "⚠️ Erro na resposta da API de contrato:",
+                                    contratoResponse.status,
+                                    contratoResponse.statusText,
+                                );
+                            }
+                        } catch (contratoError) {
+                            console.warn(
+                                "❌ Erro ao buscar informações do contrato:",
+                                contratoError.message,
+                            );
+                        }
+
                         const response = await fetch(
-                            "https://webapiprimavera.advir.pt/send-email",
+                            `${apiBaseUrl}/send-email`,
                             {
                                 method: "POST",
                                 headers: {
@@ -608,11 +687,20 @@ const RegistoIntervencao = (props) => {
                                             dataToSave.descricaoResposta,
                                         Estadointer:
                                             ResponseData.Estado.replace(
-                                                /<|>/g,
-                                                "",
+                                                /\b\w/g,
+                                                (l) => l.toUpperCase(),
                                             ),
                                         HoraInicioIntervencao:
-                                            ResponseData.HoraInicioIntervencao,
+                                            formData.dataInicio +
+                                            ", " +
+                                            formData.horaInicio,
+                                        HoraFimIntervencao:
+                                            formData.dataFim +
+                                            ", " +
+                                            formData.horaFim,
+                                        TipoIntervencao: formData.tipo,
+                                        Duracao: `${Math.floor(duracaoEmMinutos / 60)}h ${duracaoEmMinutos % 60}min`,
+                                        contratoInfo: contratoInfo,
                                     },
                                 }),
                             },

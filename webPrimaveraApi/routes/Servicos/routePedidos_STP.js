@@ -168,7 +168,7 @@ router.get('/LstUltimoPedido', async (req, res) => {
 // Rota para listar contactos
 router.get('/ListarContactos/:IDCliente', async (req, res) => {
     try {
-        const {IDCliente} = req.params;
+        const { IDCliente } = req.params;
         const painelAdminToken = req.headers['authorization']?.split(' ')[1];
         if (!painelAdminToken) {
             return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
@@ -585,7 +585,7 @@ router.get('/ListarSeccoes', async (req, res) => {
 // Rota para listar seções
 router.get('/ListarContratos/:IDCliente', async (req, res) => {
     try {
-        const {IDCliente} = req.params;
+        const { IDCliente } = req.params;
         const painelAdminToken = req.headers['authorization']?.split(' ')[1];
         if (!painelAdminToken) {
             return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
@@ -609,7 +609,7 @@ router.get('/ListarContratos/:IDCliente', async (req, res) => {
 
         if (response.status === 200) {
             return res.status(200).json(response.data);
-            
+
         } else if (response.status === 404) {
             return res.status(404).json({
                 error: 'Nenhuma seção encontrada.'
@@ -985,6 +985,50 @@ router.get('/ListarSeccaoUtilizador/:PedidoID', async (req, res) => {
     }
 });
 
+
+router.get('/ObterInfoContratoProcesso/:idProcesso', async (req, res) => {
+    try {
+        const { idProcesso } = req.params;
+        const painelAdminToken = req.headers['authorization']?.split(' ')[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
+        }
+
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+        }
+
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ObterInfoContratoProcesso/${idProcesso}`;
+        console.log('Enviando solicitação para a URL:', apiUrl);
+
+        const response = await axios.get(apiUrl, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+        });
+
+        if (response.status === 200) {
+            return res.status(200).json(response.data);
+        } else if (response.status === 404) {
+            return res.status(404).json({ error: 'contrato não encontrado.' });
+        } else {
+            return res.status(400).json({
+                error: 'Falha ao obter o estado do contrato.',
+                details: response.data.ErrorMessage || 'Erro desconhecido.',
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao obter o estado do contrato:', error.response ? error.response.data : error.message);
+        return res.status(500).json({
+            error: 'Erro inesperado ao obter o estado do contrato.',
+            details: error.response?.data || error.message,
+        });
+    }
+});
+
 // Rota para criar um pedido
 router.post('/CriarPedido', async (req, res) => {
     try {
@@ -1019,7 +1063,7 @@ router.post('/CriarPedido', async (req, res) => {
             contratoID,
             datahoraabertura,
             datahorafimprevista
-        
+
         } = req.body;
 
         // Construindo a URL da API
@@ -1035,7 +1079,7 @@ router.post('/CriarPedido', async (req, res) => {
             prioridade,
             tecnico,
             objectoID,
-            tipoDoc:"PA", //TODO
+            tipoDoc: "PA", //TODO
             serie,
             estado: Number(estado),
             seccao,
@@ -1083,7 +1127,7 @@ router.post('/CriarPedido', async (req, res) => {
 router.post('/CriarIntervencoes', async (req, res) => {
     try {
         const dadosIntervencao = req.body;
-        
+
 
         // Obter o token de autenticação do cabeçalho
         const painelAdminToken = req.headers['authorization']?.split(' ')[1];
@@ -1153,11 +1197,11 @@ router.post('/CriarIntervencoes', async (req, res) => {
         if (response.status === 200) {
             // Enviar o email após a intervenção ser criada com sucesso
 
-            return res.status(200).json({ 
-                mensagem: 'Intervenção criada e email enviado com sucesso!', 
-                detalhes: response.data 
+            return res.status(200).json({
+                mensagem: 'Intervenção criada e email enviado com sucesso!',
+                detalhes: response.data
             });
-           
+
         } else {
             return res.status(response.status).json({
                 error: 'Falha ao criar intervenção.',
@@ -1387,7 +1431,7 @@ router.post('/FechaProcessoID/:ProcessoID', async (req, res) => {
                 'Accept': 'application/json',
             },
         });
-        
+
 
         if (response.status === 200) {
             return res.status(200).json(response.data);

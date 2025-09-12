@@ -3,8 +3,13 @@
     "",
     "\\frontend",
     "\\frontend\\src",
-    "\\frontend\\src\\Pages\\Obras\\Externos"
+    "\\frontend\\src\\Pages",
+    "\\frontend\\src\\Pages\\Servicos",
+    "\\webPrimaveraApi",
+    "\\webPrimaveraApi\\routes",
+    "\\webPrimaveraApi\\routes\\Servicos",
+    "\\webPrimaveraApi\\servives"
   ],
-  "SelectedNode": "\\frontend\\src\\Home.js",
+  "SelectedNode": "\\webPrimaveraApi\\routes\\Servicos\\routePedidos_STP.js",
   "PreviewInSolutionExplorer": false
 }
