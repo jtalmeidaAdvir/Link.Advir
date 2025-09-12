@@ -74,10 +74,6 @@ const sendEmail = async (req, res) => {
                                 ${dadosIntervencao.contratoInfo ? `
                                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
                                         <tr style="border-bottom: 1px solid #f59e0b;">
-                                            <td style="padding: 8px 0; font-weight: bold; color: #92400e; width: 40%;">Contrato:</td>
-                                            <td style="padding: 8px 0; color: #92400e;">${dadosIntervencao.contratoInfo.numeroContrato || 'N/A'}</td>
-                                        </tr>
-                                        <tr style="border-bottom: 1px solid #f59e0b;">
                                             <td style="padding: 8px 0; font-weight: bold; color: #92400e;">Horas Contratadas:</td>
                                             <td style="padding: 8px 0; color: #92400e;">${dadosIntervencao.contratoInfo.horasContratadas || 'N/A'}</td>
                                         </tr>
