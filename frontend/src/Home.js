@@ -527,20 +527,7 @@ const Home = () => {
                     throw new Error(`Erro ao buscar contrato: ${contratoResponse.statusText}`);
                 }
 
-                const contratoData = await
-
-
-
-
-
-
-
-
-
-
-
-
-                response.json();
+                const contratoData = await contratoResponse.json();
                 console.log('Contrato Data:', contratoData);
 
                 // Filtrar contrato com estado === 3
@@ -1925,8 +1912,8 @@ const Home = () => {
                                     </h2>
                                 </div>
 
-                                <div style={{ 
-                                    padding: window.innerWidth <= 768 ? '20px 16px' : '30px' 
+                                <div style={{
+                                    padding: window.innerWidth <= 768 ? '20px 16px' : '30px'
                                 }}>
                                     {noticiasLoading ? (
                                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
@@ -1946,10 +1933,10 @@ const Home = () => {
                                             <p style={{ fontSize: '18px', fontWeight: '500' }}>{noticiasError}</p>
                                         </div>
                                     ) : noticias.length > 0 ? (
-                                        <div style={{ 
-                                            display: 'flex', 
-                                            flexDirection: 'column', 
-                                            gap: '16px' 
+                                        <div style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '16px'
                                         }}>
                                             {noticias.map((noticia, index) => (
                                                 <motion.div
@@ -1982,16 +1969,16 @@ const Home = () => {
                                                     }}
                                                 >
                                                     {/* Conteúdo */}
-                                                    <div style={{ 
-                                                        display: 'flex', 
-                                                        flexDirection: 'column', 
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
                                                         gap: '8px',
                                                         minHeight: '0',
                                                         width: '100%'
                                                     }}>
-                                                        <div style={{ 
-                                                            display: 'flex', 
-                                                            justifyContent: 'space-between', 
+                                                        <div style={{
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
                                                             gap: '8px',
                                                             flexWrap: window.innerWidth <= 768 ? 'wrap' : 'nowrap'
                                                         }}>
@@ -2009,9 +1996,9 @@ const Home = () => {
                                                             }}>
                                                                 {noticia.source}
                                                             </span>
-                                                            <span style={{ 
-                                                                fontSize: '12px', 
-                                                                color: '#667085', 
+                                                            <span style={{
+                                                                fontSize: '12px',
+                                                                color: '#667085',
                                                                 whiteSpace: 'nowrap',
                                                                 marginTop: window.innerWidth <= 768 ? '4px' : '0'
                                                             }}>

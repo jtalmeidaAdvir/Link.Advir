@@ -1,13 +1,10 @@
 {
   "ExpandedNodes": [
     "",
+    "\\frontend",
     "\\frontend\\src",
-    "\\frontend\\src\\Pages",
-    "\\frontend\\src\\Pages\\Obras",
-    "\\frontend\\src\\Pages\\Obras\\Externos",
-    "\\webPrimaveraApi\\routes",
-    "\\webPrimaveraApi\\routes\\Faltas"
+    "\\frontend\\src\\Pages\\Obras\\Externos"
   ],
-  "SelectedNode": "\\backend",
+  "SelectedNode": "\\frontend\\src\\Home.js",
   "PreviewInSolutionExplorer": false
 }
