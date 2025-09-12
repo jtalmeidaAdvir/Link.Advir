@@ -666,7 +666,7 @@ const RegistoIntervencao = (props) => {
                         }
 
                         const response = await fetch(
-                            `${apiBaseUrl}/send-email`,
+                            `https://webapiprimavera.advir.pt/send-email`,
                             {
                                 method: "POST",
                                 headers: {
