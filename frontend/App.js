@@ -22,7 +22,6 @@ import { FontAwesome } from "@expo/vector-icons";
 
 import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
 
-
 import "bootstrap/dist/css/bootstrap.min.css";
 
 // Importa as páginas
@@ -133,7 +132,10 @@ const CustomDrawerContent = ({
     isPOS, // Recebe a prop isPOS
     ...props
 }) => {
-    const [expandedModules, setExpandedModules] = useState({ Geral: true, Administrador: false });
+    const [expandedModules, setExpandedModules] = useState({
+        Geral: true,
+        Administrador: false,
+    });
     const { t } = useTranslation();
 
     const handleModulePress = (moduleName) => {
@@ -151,17 +153,14 @@ const CustomDrawerContent = ({
         }, 500);
     };
 
-
-
     // Helper: o user tem o submódulo X dentro do módulo Y?
-const hasSubmodule = (moduleName, subName) =>
-  modules?.some(
-    (m) =>
-      m?.nome === moduleName &&
-      Array.isArray(m?.submodulos) &&
-      m.submodulos.some((s) => s?.nome === subName)
-  );
-
+    const hasSubmodule = (moduleName, subName) =>
+        modules?.some(
+            (m) =>
+                m?.nome === moduleName &&
+                Array.isArray(m?.submodulos) &&
+                m.submodulos.some((s) => s?.nome === subName),
+        );
 
     // Se for superAdmin ou POS, mostra apenas opções específicas
     if (isSuperAdmin) {
@@ -237,10 +236,7 @@ const hasSubmodule = (moduleName, subName) =>
                                 drawerStyles.menuItemLabel,
                                 { color: "#4A9EFF" },
                             ]}
-                            style={[
-                                drawerStyles.menuItem,
-                                drawerStyles.logoutItem,
-                            ]}
+                            style={drawerStyles.logoutItem}
                         />
                     </View>
                 </DrawerContentScrollView>
@@ -265,7 +261,9 @@ const hasSubmodule = (moduleName, subName) =>
                 >
                     <DrawerItem
                         label="Registo Ponto Facial"
-                        onPress={() => props.navigation.navigate("RegistoPontoFacial")}
+                        onPress={() =>
+                            props.navigation.navigate("RegistoPontoFacial")
+                        }
                         icon={() => (
                             <FontAwesome
                                 name="user-secret" // Ícone para reconhecimento facial
@@ -291,10 +289,7 @@ const hasSubmodule = (moduleName, subName) =>
                                 drawerStyles.menuItemLabel,
                                 { color: "#4A9EFF" },
                             ]}
-                            style={[
-                                drawerStyles.menuItem,
-                                drawerStyles.logoutItem,
-                            ]}
+                            style={drawerStyles.logoutItem}
                         />
                     </View>
                 </DrawerContentScrollView>
@@ -302,33 +297,28 @@ const hasSubmodule = (moduleName, subName) =>
         );
     }
 
-
     const moduleDisplayNames = {
-  Obras: "Ponto",
-  Servicos: "Serviços",
-  Oficios: "Ofícios",
-  Administrador: "Administrador",
-};
+        Obras: "Ponto",
+        Servicos: "Serviços",
+        Oficios: "Ofícios",
+        Administrador: "Administrador",
+    };
 
-
-
-// Define a ordem que queres para os submódulos de Obras
-const obrasSubmodulesOrder = [
-  "Ponto",          // RegistoPontoObra
-  "PontoFacial",    // RegistoPontoFacial
-  "Agenda",         // Calendário
-  "Obras",         // Obras
-  "Escritório",     // Escritório
-  "Equipas",        // Criar Equipa
-  "PartesDiarias",   // Partes Diárias
-  "GestaoPontos",   // GestaoPontos
-  "GestaoFaltas",   // GestaoFaltas
-  "GestaoExternos", // GestaoTrabalhadoresExternos
-  "GestaoPartes",   // GestaoPartesDiarias
-  "MapaRegistos"    // MapaRegistos
-];
-
-
+    // Define a ordem que queres para os submódulos de Obras
+    const obrasSubmodulesOrder = [
+        "Ponto", // RegistoPontoObra
+        "PontoFacial", // RegistoPontoFacial
+        "Agenda", // Calendário
+        "Obras", // Obras
+        "Escritório", // Escritório
+        "Equipas", // Criar Equipa
+        "PartesDiarias", // Partes Diárias
+        "GestaoPontos", // GestaoPontos
+        "GestaoFaltas", // GestaoFaltas
+        "GestaoExternos", // GestaoTrabalhadoresExternos
+        "GestaoPartes", // GestaoPartesDiarias
+        "MapaRegistos", // MapaRegistos
+    ];
 
     // Organizar módulos para drawer
     const getModuleIcon = (moduleName) => {
@@ -343,22 +333,23 @@ const obrasSubmodulesOrder = [
     };
 
     const getModuleDisplayName = (module) => {
-  // Mapa base para outros módulos
-  const base = {
-    Servicos: "Serviços",
-    Oficios: "Ofícios",
-    Administrador: "Administrador",
-  };
+        // Mapa base para outros módulos
+        const base = {
+            Servicos: "Serviços",
+            Oficios: "Ofícios",
+            Administrador: "Administrador",
+        };
 
-  if (module?.nome === "Obras") {
-    // Se tiver submódulo "Ponto", chama-se "Ponto"; senão, "Obras"
-    const hasPonto = Array.isArray(module?.submodulos)
-      && module.submodulos.some(s => s?.nome === "Ponto");
-    return hasPonto ? "Ponto" : "Obras";
-  }
+        if (module?.nome === "Obras") {
+            // Se tiver submódulo "Ponto", chama-se "Ponto"; senão, "Obras"
+            const hasPonto =
+                Array.isArray(module?.submodulos) &&
+                module.submodulos.some((s) => s?.nome === "Ponto");
+            return hasPonto ? "Ponto" : "Obras";
+        }
 
-  return base[module?.nome] || module?.nome;
-};
+        return base[module?.nome] || module?.nome;
+    };
 
     const getSubmoduleIcon = (submoduleName) => {
         const icons = {
@@ -382,20 +373,24 @@ const obrasSubmodulesOrder = [
     };
 
     // Filtrar módulos disponíveis para o usuário
-    console.log(`📋 Módulos recebidos:`, modules);
-    console.log(`👤 Estado atual - tipoUser: "${tipoUser}", isLoggedIn: ${isLoggedIn}`);
+   /* console.log(`📋 Módulos recebidos:`, modules);
+    console.log(
+        `👤 Estado atual - tipoUser: "${tipoUser}", isLoggedIn: ${isLoggedIn}`,
+    );
     console.log(`🔧 Valores do localStorage:`, {
         tipoUser: localStorage.getItem("tipoUser"),
         userTipo: localStorage.getItem("userTipo"),
         tipo_user: localStorage.getItem("tipo_user"),
         isAdmin: localStorage.getItem("isAdmin"),
-        superAdmin: localStorage.getItem("superAdmin")
-    });
+        superAdmin: localStorage.getItem("superAdmin"),
+    });*/
 
     const availableModules = modules.filter((module) => {
-        console.log(`🔍 Verificando módulo: ${module.nome}, tipoUser: "${tipoUser}"`);
+      /*  console.log(
+            `🔍 Verificando módulo: ${module.nome}, tipoUser: "${tipoUser}"`,
+        );*/
 
-        // Log detalhado para o módulo Obras
+      /*  // Log detalhado para o módulo Obras
         if (module.nome === "Obras") {
             console.log(`🏗️ MÓDULO OBRAS ENCONTRADO:`, {
                 moduloNome: module.nome,
@@ -406,13 +401,15 @@ const obrasSubmodulesOrder = [
                 isDiretor: tipoUser === "Diretor",
                 isAdministrador: tipoUser === "Administrador",
                 submodulos: module.submodulos,
-                localStorageTipoUser: localStorage.getItem("tipoUser")
+                localStorageTipoUser: localStorage.getItem("tipoUser"),
             });
-        }
+        }*/
 
         // Se o tipoUser parece ser um JWT (contém pontos), permitir todos os módulos temporariamente
-        if (tipoUser && tipoUser.includes('.')) {
-            console.log(`⚠️ tipoUser parece ser um token JWT, permitindo módulo ${module.nome} temporariamente`);
+        if (tipoUser && tipoUser.includes(".")) {
+            console.log(
+                `⚠️ tipoUser parece ser um token JWT, permitindo módulo ${module.nome} temporariamente`,
+            );
             return true;
         }
 
@@ -422,17 +419,17 @@ const obrasSubmodulesOrder = [
                 tipoUser === "Encarregado" ||
                 tipoUser === "Diretor" ||
                 tipoUser === "Administrador" ||
-                tipoUser === "Trabalhador"  // Permitir Trabalhadores terem acesso ao módulo Obras
+                tipoUser === "Trabalhador" // Permitir Trabalhadores terem acesso ao módulo Obras
             )
         ) {
-            console.log(`❌ Módulo Obras bloqueado para tipoUser: "${tipoUser}"`);
+      
             return false;
         }
-        console.log(`✅ Módulo ${module.nome} permitido para tipoUser: "${tipoUser}"`);
+       
         return true;
     });
 
-    console.log(`📊 Módulos disponíveis após filtro:`, availableModules);
+   // console.log(`📊 Módulos disponíveis após filtro:`, availableModules);
 
     // Check if user has any admin module
     const hasAnyAdminModule =
@@ -470,37 +467,47 @@ const obrasSubmodulesOrder = [
                 contentContainerStyle={{ flexGrow: 1, paddingTop: 0 }}
                 showsVerticalScrollIndicator={false}
             >
-{/* Início */}
-<View style={drawerStyles.moduleContainer}>
-  <TouchableOpacity
-    style={drawerStyles.moduleHeader}
-    onPress={() => props.navigation.navigate("Home")}
-    activeOpacity={0.7}
-  >
-    <View style={drawerStyles.moduleTitle}>
-      <FontAwesome name="home" size={18} color="#1792FE" />
-      <Text style={drawerStyles.moduleText}>Início</Text>
-    </View>
-  </TouchableOpacity>
-</View>
+                {/* Início */}
+                <View style={drawerStyles.moduleContainer}>
+                    <TouchableOpacity
+                        style={drawerStyles.moduleHeader}
+                        onPress={() => props.navigation.navigate("Home")}
+                        activeOpacity={0.7}
+                    >
+                        <View style={drawerStyles.moduleTitle}>
+                            <FontAwesome
+                                name="home"
+                                size={18}
+                                color="#1792FE"
+                            />
+                            <Text style={drawerStyles.moduleText}>Início</Text>
+                        </View>
+                    </TouchableOpacity>
+                </View>
 
-{/* Selecionar Empresa */}
-{isLoggedIn && (
-  <View style={drawerStyles.moduleContainer}>
-    <TouchableOpacity
-      style={drawerStyles.moduleHeader}
-      onPress={() => props.navigation.navigate("SelecaoEmpresa")}
-      activeOpacity={0.7}
-    >
-      <View style={drawerStyles.moduleTitle}>
-        <FontAwesome name="building" size={18} color="#1792FE" />
-        <Text style={drawerStyles.moduleText}>Selecionar Empresa</Text>
-      </View>
-    </TouchableOpacity>
-  </View>
-)}
-
-
+                {/* Selecionar Empresa */}
+                {isLoggedIn && (
+                    <View style={drawerStyles.moduleContainer}>
+                        <TouchableOpacity
+                            style={drawerStyles.moduleHeader}
+                            onPress={() =>
+                                props.navigation.navigate("SelecaoEmpresa")
+                            }
+                            activeOpacity={0.7}
+                        >
+                            <View style={drawerStyles.moduleTitle}>
+                                <FontAwesome
+                                    name="building"
+                                    size={18}
+                                    color="#1792FE"
+                                />
+                                <Text style={drawerStyles.moduleText}>
+                                    Selecionar Empresa
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 {/* Módulos */}
                 {isLoggedIn && availableModules.length > 0 && (
@@ -565,49 +572,117 @@ const obrasSubmodulesOrder = [
                                             />
                                         </TouchableOpacity>
 
-                                            {expandedModules[module.nome] && (
-                                            <View style={drawerStyles.submoduleContainer}>
-
+                                        {expandedModules[module.nome] && (
+                                            <View
+                                                style={
+                                                    drawerStyles.submoduleContainer
+                                                }
+                                            >
                                                 {/* Pedidos de Assistência */}
-                                                {(hasSubmodule("Servicos", "PedidosAssistencia") ||
-                                                hasSubmodule("Servicos", "Assistencia","DashboardTecnico")) && (
-                                                <TouchableOpacity
-                                                    style={drawerStyles.submoduleItem}
-                                                    onPress={() => props.navigation.navigate("PedidosAssistencia")}
-                                                >
-                                                    <FontAwesome name="wrench" size={16} color="#1792FE" />
-                                                    <Text style={drawerStyles.submoduleText}>Pedidos de Assistência</Text>
-                                                </TouchableOpacity>
-                                                )}
+                                                {(hasSubmodule(
+                                                    "Servicos",
+                                                    "PedidosAssistencia",
+                                                ) ||
+                                                    hasSubmodule(
+                                                        "Servicos",
+                                                        "Assistencia",
+                                                        "DashboardTecnico",
+                                                    )) && (
+                                                        <TouchableOpacity
+                                                            style={
+                                                                drawerStyles.submoduleItem
+                                                            }
+                                                            onPress={() =>
+                                                                props.navigation.navigate(
+                                                                    "PedidosAssistencia",
+                                                                )
+                                                            }
+                                                        >
+                                                            <FontAwesome
+                                                                name="wrench"
+                                                                size={16}
+                                                                color="#1792FE"
+                                                            />
+                                                            <Text
+                                                                style={
+                                                                    drawerStyles.submoduleText
+                                                                }
+                                                            >
+                                                                Pedidos de
+                                                                Assistência
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                    )}
 
                                                 {/* Dashboard Técnico */}
-                                                {hasSubmodule("Servicos", "DashboardTecnico") && (
-                                                <TouchableOpacity
-                                                    style={drawerStyles.submoduleItem}
-                                                    onPress={() => props.navigation.navigate("PandIByTecnico")}
-                                                >
-                                                    <FontAwesome name="bar-chart" size={16} color="#1792FE" />
-                                                    <Text style={drawerStyles.submoduleText}>Dashboard Técnico</Text>
-                                                </TouchableOpacity>
-                                                )}
+                                                {hasSubmodule(
+                                                    "Servicos",
+                                                    "DashboardTecnico",
+                                                ) && (
+                                                        <TouchableOpacity
+                                                            style={
+                                                                drawerStyles.submoduleItem
+                                                            }
+                                                            onPress={() =>
+                                                                props.navigation.navigate(
+                                                                    "PandIByTecnico",
+                                                                )
+                                                            }
+                                                        >
+                                                            <FontAwesome
+                                                                name="bar-chart"
+                                                                size={16}
+                                                                color="#1792FE"
+                                                            />
+                                                            <Text
+                                                                style={
+                                                                    drawerStyles.submoduleText
+                                                                }
+                                                            >
+                                                                Dashboard Técnico
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                    )}
 
                                                 {/* Contratos */}
-                                                {(hasSubmodule("Servicos", "ContratosList") ||
-                                                hasSubmodule("Servicos", "Contratos") ||
-                                                hasSubmodule("Servicos", "ContratosAtivos")) && (
-                                                <TouchableOpacity
-                                                    style={drawerStyles.submoduleItem}
-                                                    onPress={() => props.navigation.navigate("ContratosList")}
-                                                >
-                                                    <FontAwesome name="file-text-o" size={16} color="#1792FE" />
-                                                    <Text style={drawerStyles.submoduleText}>Contratos</Text>
-                                                </TouchableOpacity>
-                                                )}
-
+                                                {(hasSubmodule(
+                                                    "Servicos",
+                                                    "ContratosList",
+                                                ) ||
+                                                    hasSubmodule(
+                                                        "Servicos",
+                                                        "Contratos",
+                                                    ) ||
+                                                    hasSubmodule(
+                                                        "Servicos",
+                                                        "ContratosAtivos",
+                                                    )) && (
+                                                        <TouchableOpacity
+                                                            style={
+                                                                drawerStyles.submoduleItem
+                                                            }
+                                                            onPress={() =>
+                                                                props.navigation.navigate(
+                                                                    "ContratosList",
+                                                                )
+                                                            }
+                                                        >
+                                                            <FontAwesome
+                                                                name="file-text-o"
+                                                                size={16}
+                                                                color="#1792FE"
+                                                            />
+                                                            <Text
+                                                                style={
+                                                                    drawerStyles.submoduleText
+                                                                }
+                                                            >
+                                                                Contratos
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                    )}
                                             </View>
-                                            )}
-
-
+                                        )}
                                     </View>
                                 );
                             }
@@ -712,10 +787,11 @@ const obrasSubmodulesOrder = [
                                                 size={18}
                                                 color="#1792FE"
                                             />
-                                             <Text style={drawerStyles.moduleText}>
-  {getModuleDisplayName(module)}
-   </Text>
-
+                                            <Text
+                                                style={drawerStyles.moduleText}
+                                            >
+                                                {getModuleDisplayName(module)}
+                                            </Text>
                                         </View>
                                         <FontAwesome
                                             name={
@@ -729,14 +805,24 @@ const obrasSubmodulesOrder = [
                                     </TouchableOpacity>
 
                                     {expandedModules[module.nome] && (
-  <View style={drawerStyles.submoduleContainer}>
-    {module.submodulos
-      .sort((a, b) => {
-        const orderA = obrasSubmodulesOrder.indexOf(a.nome);
-        const orderB = obrasSubmodulesOrder.indexOf(b.nome);
-        return orderA - orderB;
-      })
-                                            .map((submodulo) => {
+                                        <View
+                                            style={
+                                                drawerStyles.submoduleContainer
+                                            }
+                                        >
+                                            {module.submodulos
+                                                .sort((a, b) => {
+                                                    const orderA =
+                                                        obrasSubmodulesOrder.indexOf(
+                                                            a.nome,
+                                                        );
+                                                    const orderB =
+                                                        obrasSubmodulesOrder.indexOf(
+                                                            b.nome,
+                                                        );
+                                                    return orderA - orderB;
+                                                })
+                                                .map((submodulo) => {
                                                     // Mapear submódulos para navegação
                                                     const navigationMap = {
                                                         Obras: "Obras",
@@ -755,7 +841,8 @@ const obrasSubmodulesOrder = [
                                                         GestaoPartes:
                                                             "GestaoPartesDiarias",
                                                         Ponto: "RegistoPontoObra",
-                                                        PontoFacial: "RegistoPontoFacial",
+                                                        PontoFacial:
+                                                            "RegistoPontoFacial",
                                                         MapaRegistos:
                                                             "MapaRegistos",
                                                         QrCode: "LeitorQRCode",
@@ -769,13 +856,20 @@ const obrasSubmodulesOrder = [
                                                         submodulo.nome
                                                         ];
                                                     if (!screenName) {
-                                                        console.log(`⚠️ Submódulo sem mapeamento: ${submodulo.nome}`);
+                                                        console.log(
+                                                            `⚠️ Submódulo sem mapeamento: ${submodulo.nome}`,
+                                                        );
                                                         return null;
                                                     }
 
                                                     // Log específico para Ponto e Agenda
-                                                    if (submodulo.nome === "Ponto" || submodulo.nome === "Agenda") {
-                                                        console.log(`🎯 Processando submódulo ${submodulo.nome} para tipoUser: "${tipoUser}"`);
+                                                    if (
+                                                        submodulo.nome ===
+                                                        "Ponto" ||
+                                                        submodulo.nome ===
+                                                        "Agenda"
+                                                    ) {
+                                                   
                                                     }
 
                                                     // Verificar permissões especiais
@@ -797,18 +891,35 @@ const obrasSubmodulesOrder = [
                                                     }
 
                                                     // PontoFacial só aparece se o utilizador tiver o submódulo específico
-                                                    if (submodulo.nome === "PontoFacial") {
+                                                    if (
+                                                        submodulo.nome ===
+                                                        "PontoFacial"
+                                                    ) {
                                                         // O submódulo já está filtrado pelo backend baseado nas permissões do utilizador
                                                         // Se chegou aqui, o utilizador tem acesso
                                                     }
 
                                                     // Trabalhadores têm acesso APENAS aos submódulos Ponto e Agenda
-                                                    if (tipoUser === "Trabalhador") {
-                                                        if (!(submodulo.nome === "Ponto" || submodulo.nome === "Agenda")) {
-                                                            console.log(`❌ Submódulo ${submodulo.nome} bloqueado para Trabalhador`);
+                                                    if (
+                                                        tipoUser ===
+                                                        "Trabalhador"
+                                                    ) {
+                                                        if (
+                                                            !(
+                                                                submodulo.nome ===
+                                                                "Ponto" ||
+                                                                submodulo.nome ===
+                                                                "Agenda"
+                                                            )
+                                                        ) {
+                                                            console.log(
+                                                                `❌ Submódulo ${submodulo.nome} bloqueado para Trabalhador`,
+                                                            );
                                                             return null;
                                                         }
-                                                        console.log(`✅ Submódulo ${submodulo.nome} permitido para Trabalhador`);
+                                                        console.log(
+                                                            `✅ Submódulo ${submodulo.nome} permitido para Trabalhador`,
+                                                        );
                                                     }
 
                                                     if (
@@ -860,8 +971,9 @@ const obrasSubmodulesOrder = [
                                                             style={[
                                                                 drawerStyles.submoduleItem,
                                                                 {
-                                                                    backgroundColor: "transparent",
-                                                                }
+                                                                    backgroundColor:
+                                                                        "transparent",
+                                                                },
                                                             ]}
                                                             onPress={() =>
                                                                 props.navigation.navigate(
@@ -869,18 +981,24 @@ const obrasSubmodulesOrder = [
                                                                 )
                                                             }
                                                             onPressIn={(e) => {
-                                                                e.currentTarget.setNativeProps({
-                                                                    style: {
-                                                                        backgroundColor: "#F0F9FF",
-                                                                    }
-                                                                });
+                                                                e.currentTarget.setNativeProps(
+                                                                    {
+                                                                        style: {
+                                                                            backgroundColor:
+                                                                                "#F0F9FF",
+                                                                        },
+                                                                    },
+                                                                );
                                                             }}
                                                             onPressOut={(e) => {
-                                                                e.currentTarget.setNativeProps({
-                                                                    style: {
-                                                                        backgroundColor: "transparent",
-                                                                    }
-                                                                });
+                                                                e.currentTarget.setNativeProps(
+                                                                    {
+                                                                        style: {
+                                                                            backgroundColor:
+                                                                                "transparent",
+                                                                        },
+                                                                    },
+                                                                );
                                                             }}
                                                             activeOpacity={0.7}
                                                         >
@@ -900,8 +1018,7 @@ const obrasSubmodulesOrder = [
                                                             </Text>
                                                         </TouchableOpacity>
                                                     );
-                                                },
-                                            )}
+                                                })}
                                         </View>
                                     )}
                                 </View>
@@ -1147,10 +1264,7 @@ const obrasSubmodulesOrder = [
                                 drawerStyles.menuItemLabel,
                                 { color: "#FFFFFF" },
                             ]}
-                            style={[
-                                drawerStyles.menuItem,
-                                drawerStyles.logoutItem,
-                            ]}
+                            style={drawerStyles.logoutItem}
                         />
                     )}
                 </View>
@@ -1210,7 +1324,9 @@ const AppNavigator = () => {
     const hasPedidosAlteracaoAdminModule = modules.some(
         (module) =>
             module.nome === "Administrador" &&
-            module.submodulos.some((sub) => sub.nome === "PedidosAlteracaoAdmin"),
+            module.submodulos.some(
+                (sub) => sub.nome === "PedidosAlteracaoAdmin",
+            ),
     );
     const hasGestaoPOSModule = modules.some(
         (module) =>
@@ -1223,7 +1339,6 @@ const AppNavigator = () => {
             module.submodulos.some((sub) => sub.nome === "Assistencia"),
     );
 
-    
     // Dentro de AppNavigator:
     const fetchUserData = async () => {
         setLoading(true);
@@ -1232,13 +1347,20 @@ const AppNavigator = () => {
         let tipoUserLs = localStorage.getItem("tipoUser");
 
         // Verificar se tipoUser é um token JWT e tentar corrigir
-        if (tipoUserLs && tipoUserLs.includes('.')) {
-            console.log(`🔧 Detectado tipoUser como JWT, tentando recuperar valor correto...`);
-            tipoUserLs = localStorage.getItem("userTipo") || localStorage.getItem("tipo_user") || "";
+        if (tipoUserLs && tipoUserLs.includes(".")) {
+            console.log(
+                `🔧 Detectado tipoUser como JWT, tentando recuperar valor correto...`,
+            );
+            tipoUserLs =
+                localStorage.getItem("userTipo") ||
+                localStorage.getItem("tipo_user") ||
+                "";
 
             // Se ainda não encontramos, definir como vazio para forçar nova seleção
-            if (!tipoUserLs || tipoUserLs.includes('.')) {
-                console.log(`❌ Não foi possível recuperar tipoUser válido, limpando...`);
+            if (!tipoUserLs || tipoUserLs.includes(".")) {
+                console.log(
+                    `❌ Não foi possível recuperar tipoUser válido, limpando...`,
+                );
                 localStorage.removeItem("tipoUser");
                 tipoUserLs = "";
             }
@@ -1248,29 +1370,35 @@ const AppNavigator = () => {
             token: token ? "exists" : "null",
             empresa: empresaLs,
             tipoUser: tipoUserLs,
-            originalTipoUser: localStorage.getItem("tipoUser")
+            originalTipoUser: localStorage.getItem("tipoUser"),
         });
 
         // Verificar se o token existe e é válido
-        if (token && isTokenValid(token)) {// helper para flags no localStorage: "true" | "1" | "True"
+        if (token && isTokenValid(token)) {
+            // helper para flags no localStorage: "true" | "1" | "True"
             const getFlag = (key) => {
-            const v = localStorage.getItem(key);
-            return v === "true" || v === "1" || v === "True";
+                const v = localStorage.getItem(key);
+                return v === "true" || v === "1" || v === "True";
             };
 
-            const adminStatus =
-            getFlag("isAdmin") || getFlag("admin");
+            const adminStatus = getFlag("isAdmin") || getFlag("admin");
 
             const superAdminStatus =
-            getFlag("isSuperAdmin") || getFlag("superAdmin") || getFlag("superadmin");
+                getFlag("isSuperAdmin") ||
+                getFlag("superAdmin") ||
+                getFlag("superadmin");
 
             const posStatus =
-            getFlag("isPOS") || getFlag("isPos") || getFlag("pos");
+                getFlag("isPOS") || getFlag("isPos") || getFlag("pos");
 
             const userUsername = localStorage.getItem("username");
-            const userModules = JSON.parse(localStorage.getItem("userModules") || "[]");
+            const userModules = JSON.parse(
+                localStorage.getItem("userModules") || "[]",
+            );
             const userNomeFromStorage = localStorage.getItem("userNome");
-            const empresaFromStorage = localStorage.getItem("empresaSelecionada") || localStorage.getItem("empresa_areacliente");
+            const empresaFromStorage =
+                localStorage.getItem("empresaSelecionada") ||
+                localStorage.getItem("empresa_areacliente");
 
             setIsLoggedIn(!!token);
             setIsAdmin(adminStatus);
@@ -1285,13 +1413,26 @@ const AppNavigator = () => {
             await fetchUserModules();
 
             // Definir a rota inicial baseada no estado
-            if (posStatus) { // Se for POS, a rota inicial é RegistoPontoFacial
+            if (posStatus) {
+                // Se for POS, a rota inicial é RegistoPontoFacial
                 setInitialRoute("RegistoPontoFacial");
             } else if (superAdminStatus) {
                 setInitialRoute("ADHome");
             } else if (tipoUserLs && empresaLs) {
-                // Se tipoUser está definido e tem empresa, vai direto para RegistoPontoObra (padrão)
-                setInitialRoute("RegistoPontoObra");
+                // Verificar se tem o submódulo "Ponto" para redirecionamento automático
+                const hasPointSubmodule = await checkUserHasPointSubmodule();
+
+                console.log("✅ APP.JS - RESULTADO FINAL - Tem submódulo Ponto?", hasPointSubmodule);
+                console.log("👤 APP.JS - TipoUser:", tipoUserLs);
+                console.log("🏢 APP.JS - Empresa:", empresaLs);
+
+                if (hasPointSubmodule) {
+                    console.log("🎯 APP.JS - REDIRECIONANDO PARA RegistoPontoObra");
+                    setInitialRoute("RegistoPontoObra");
+                } else {
+                    console.log("🏠 APP.JS - Redirecionando para Home - não tem submódulo Ponto");
+                    setInitialRoute("Home");
+                }
             } else if (empresaLs) {
                 setInitialRoute("Home");
             } else {
@@ -1304,6 +1445,7 @@ const AppNavigator = () => {
             setInitialRoute("Login");
         }
 
+        console.log("🎯 APP.JS - ROTA INICIAL FINAL DEFINIDA:", initialRoute);
         setLoading(false);
     };
 
@@ -1315,7 +1457,7 @@ const AppNavigator = () => {
         console.log(`🔧 fetchUserModules - Parâmetros:`, {
             userId,
             empresaId,
-            hasToken: !!token
+            hasToken: !!token,
         });
 
         if (userId && token) {
@@ -1345,7 +1487,7 @@ const AppNavigator = () => {
         } else {
             console.log(`❌ fetchUserModules - Dados em falta:`, {
                 userId: !!userId,
-                token: !!token
+                token: !!token,
             });
         }
     };
@@ -1364,10 +1506,62 @@ const AppNavigator = () => {
         }
     };
 
+    // Função para verificar se o utilizador tem o submódulo "Ponto"
+    const checkUserHasPointSubmodule = async () => {
+        try {
+            const token = localStorage.getItem("loginToken");
+            const userId = localStorage.getItem("userId");
+            const empresaId = localStorage.getItem("empresa_id");
+
+            if (!userId || !token || !empresaId) {
+                console.log("❌ checkUserHasPointSubmodule - Dados em falta");
+                return false;
+            }
+
+            console.log("🔍 checkUserHasPointSubmodule - Buscando módulos da API");
+            const response = await fetch(
+                `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos?empresa_id=${empresaId}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                console.error("❌ checkUserHasPointSubmodule - Erro na API:", response.status);
+                return false;
+            }
+
+            const data = await response.json();
+            const userModules = data.modulos || [];
+
+            console.log("🔍 checkUserHasPointSubmodule - Módulos recebidos:", userModules);
+
+            // Procurar especificamente pelo submódulo "Ponto"
+            for (const module of userModules) {
+                if (module.submodulos && Array.isArray(module.submodulos)) {
+                    for (const sub of module.submodulos) {
+                        if (sub.nome === "Ponto") {
+                            console.log(`✅ checkUserHasPointSubmodule - ENCONTRADO submódulo Ponto: ${sub.nome} (id: ${sub.id})`);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            console.log("❌ checkUserHasPointSubmodule - Submódulo Ponto não encontrado");
+            return false;
+        } catch (error) {
+            console.error("❌ checkUserHasPointSubmodule - Erro:", error);
+            return false;
+        }
+    };
+
     useEffect(() => {
         fetchUserData();
     }, []);
-
 
     const toggleLanguageSelector = () => {
         setLanguageSelectorVisible(!languageSelectorVisible); // Alterna a visibilidade do combobox de idiomas
@@ -1426,8 +1620,18 @@ const AppNavigator = () => {
 
     // Função para verificar se deve desabilitar o drawer para uma rota específica
     const shouldDisableDrawer = (routeName) => {
-        return routeName === "RegistoPontoFacial" || routeName === "Login" || routeName === "SelecaoEmpresa" || isPOS;
+        return (
+            routeName === "RegistoPontoFacial" ||
+            routeName === "Login" ||
+            routeName === "SelecaoEmpresa" ||
+            isPOS
+        );
     };
+
+    console.log(
+        "🎯 APP.JS - CRIANDO DRAWER.NAVIGATOR COM initialRouteName:",
+        initialRoute,
+    );
 
     return (
         <ThemeProvider>
@@ -1477,7 +1681,6 @@ const AppNavigator = () => {
                             backgroundColor: "#FFFFFF",
                             elevation: 8,
                             shadowColor: "#E57EB",
-                            shadowOffset: { width: 0, height: 4 },
                             shadowOpacity: 0.1,
                             shadowRadius: 12,
                             height: 80,
@@ -1509,9 +1712,7 @@ const AppNavigator = () => {
                                         color: "#4A9EFF",
                                         letterSpacing: 0.5,
                                     }}
-                                >
-
-                                </Text>
+                                ></Text>
                             </View>
                         ),
                         headerRight: () => (
@@ -1539,7 +1740,8 @@ const AppNavigator = () => {
                                     style={{
                                         flexDirection: "row",
                                         alignItems: "center",
-                                        backgroundColor: "rgba(30, 64, 175, 0.1)",
+                                        backgroundColor:
+                                            "rgba(30, 64, 175, 0.1)",
                                         paddingVertical: 8,
                                         paddingHorizontal: 12,
                                         borderRadius: 20,
@@ -1552,7 +1754,8 @@ const AppNavigator = () => {
                                             width: 32,
                                             height: 32,
                                             borderRadius: 16,
-                                            backgroundColor: "rgba(30, 64, 175, 0.2)",
+                                            backgroundColor:
+                                                "rgba(30, 64, 175, 0.2)",
                                             justifyContent: "center",
                                             alignItems: "center",
                                             marginRight: 8,
@@ -1771,13 +1974,18 @@ const AppNavigator = () => {
                     // Desabilita o drawer se for POS ou se estiver em telas específicas
                     screenListeners={({ route }) => ({
                         drawerActive: (e) => {
-                            if (isPOS || route.name === "RegistoPontoFacial" || route.name === "Login" || route.name === "SelecaoEmpresa") {
+                            if (
+                                isPOS ||
+                                route.name === "RegistoPontoFacial" ||
+                                route.name === "Login" ||
+                                route.name === "SelecaoEmpresa"
+                            ) {
                                 e.preventDefault(); // Impede a abertura do drawer para rotas específicas
                             }
                         },
                     })}
                 >
-                    <Drawer.Screen 
+                    <Drawer.Screen
                         name="Login"
                         options={{
                             title: "AdvirLink - Login",
@@ -1785,7 +1993,7 @@ const AppNavigator = () => {
                             swipeEnabled: false,
                             gestureEnabled: false,
                             headerLeft: () => null,
-                            drawerLockMode: 'locked-closed',
+                            drawerLockMode: "locked-closed",
                         }}
                     >
                         {(props) => (
@@ -1840,7 +2048,7 @@ const AppNavigator = () => {
                             swipeEnabled: false,
                             gestureEnabled: false,
                             headerLeft: () => null,
-                            drawerLockMode: 'locked-closed',
+                            drawerLockMode: "locked-closed",
                         }}
                     />
                     <Drawer.Screen
@@ -1904,16 +2112,20 @@ const AppNavigator = () => {
                     />
 
                     {(() => {
-                        const canAccessObras = !loading &&
+                        const canAccessObras =
+                            !loading &&
                             (tipoUser === "Encarregado" ||
                                 tipoUser === "Diretor" ||
                                 tipoUser === "Administrador");
 
-                        console.log(`🏗️ Verificando acesso às screens de Obras:`, {
-                            loading,
-                            tipoUser,
-                            canAccessObras
-                        });
+                        console.log(
+                            `🏗️ Verificando acesso às screens de Obras:`,
+                            {
+                                loading,
+                                tipoUser,
+                                canAccessObras,
+                            },
+                        );
 
                         return canAccessObras;
                     })() && (
@@ -1979,7 +2191,7 @@ const AppNavigator = () => {
                             title: "AdvirLink - Pedidos de Assistência",
                         }}
                     />
-                  
+
                     <Drawer.Screen
                         name="PandIByTecnico"
                         component={PandIByTecnico}
@@ -2056,13 +2268,13 @@ const AppNavigator = () => {
                     {isLoggedIn && (
                         <Drawer.Screen
                             name="SelecaoEmpresa"
-                            options={{ 
+                            options={{
                                 title: "AdvirLink - Empresa",
                                 drawerItemStyle: { display: "none" },
                                 swipeEnabled: false,
                                 gestureEnabled: false,
                                 headerLeft: () => null,
-                                drawerLockMode: 'locked-closed',
+                                drawerLockMode: "locked-closed",
                             }}
                         >
                             {(props) => (
@@ -2113,8 +2325,8 @@ const AppNavigator = () => {
                             name="PedidosAssistencia"
                             component={PedidosAssistencia}
                             options={{
-                            title: "AdvirLink - Pedidos de Assistência",
-                        }}
+                                title: "AdvirLink - Pedidos de Assistência",
+                            }}
                         />
                     )}
                     {hasRegistarUtilizadorModule && (
@@ -2128,7 +2340,7 @@ const AppNavigator = () => {
                             name="GestaoPOS"
                             component={GestaoPOS}
                             options={{
-                                title: "AdvirLink - Gestão POS"
+                                title: "AdvirLink - Gestão POS",
                             }}
                         />
                     )}
@@ -2151,166 +2363,166 @@ const styles = StyleSheet.create({
     },
 });
 
-    const drawerStyles = StyleSheet.create({
-        container: {
-            flex: 1,
-            backgroundColor: "#F8FAFC",
-        },
-        header: {
-            backgroundColor: "#4A9EFF",
-            paddingTop: 50,
-            paddingBottom: 25,
-            paddingHorizontal: 24,
-            borderBottomLeftRadius: 20,
-            borderBottomRightRadius: 20,
-            shadowColor: "#4A9EFF",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 12,
-            elevation: 8,
-        },
-        logoContainer: {
-            flexDirection: "row",
-            alignItems: "center",
-            marginBottom: 12,
-            justifyContent: "center",
-        },
-        logo: {
-            width: 40,
-            height: 40,
-            marginRight: 12,
-            borderRadius: 8,
-        },
-        appName: {
-            fontSize: 24,
-            fontWeight: "700",
-            color: "#FFFFFF",
-            letterSpacing: 0.5,
-        },
-        userName: {
-            fontSize: 16,
-            color: "#E0E7FF",
-            fontWeight: "600",
-            textAlign: "center",
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            paddingVertical: 6,
-            paddingHorizontal: 12,
-            borderRadius: 12,
-            marginTop: 8,
-        },
-        userRole: {
-            fontSize: 13,
-            color: "#C7D2FE",
-            fontWeight: "500",
-            textAlign: "center",
-            marginTop: 4,
-        },
-        mainSection: {
-            paddingTop: 16,
-            paddingHorizontal: 4,
-        },
-        modulesSection: {
-            paddingTop: 12,
-            paddingHorizontal: 4,
-        },
-        adminSection: {
-            paddingTop: 12,
-            paddingHorizontal: 4,
-        },
-        bottomSection: {
-            marginTop: "auto",
-            paddingBottom: 24,
-            paddingHorizontal: 4,
-        },
-        sectionDivider: {
-            height: 1,
-            backgroundColor: "#E2E8F0",
-            marginVertical: 16,
-            marginHorizontal: 20,
-        },
-        menuItem: {
-            marginHorizontal: 12,
-            marginVertical: 3,
-            borderRadius: 12,
-            paddingVertical: 14,
-            paddingHorizontal: 16,
-            backgroundColor: "#FFFFFF",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.05,
-            shadowRadius: 3,
-            elevation: 1,
-        },
-        menuItemLabel: {
-            fontSize: 16,
-            paddingHorizontal: 1,
-            fontWeight: "600",
-            color: "#64748B",
-            marginLeft: "-10 !important",
-        },
-        logoutItem: {
-            backgroundColor: "#4A9EFF",
-            borderWidth: 1,
-            borderColor: "#4A9EFF",
-        },
-        moduleContainer: {
-            marginHorizontal: 12,
-            marginVertical: 6,
-            backgroundColor: "#FFFFFF",
-            borderRadius: 16,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 3,
-            overflow: "hidden",
-        },
-        moduleHeader: {
-            flexDirection: "row",
-            alignItems: "center",
-            borderRadius: 16,            
-            shadowOpacity: 0.08,
+const drawerStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: "#F8FAFC",
+    },
+    header: {
+        backgroundColor: "#4A9EFF",
+        paddingTop: 50,
+        paddingBottom: 25,
+        paddingHorizontal: 24,
+        borderBottomLeftRadius: 20,
+        borderBottomRightRadius: 20,
+        shadowColor: "#4A9EFF",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    logoContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 12,
+        justifyContent: "center",
+    },
+    logo: {
+        width: 40,
+        height: 40,
+        marginRight: 12,
+        borderRadius: 8,
+    },
+    appName: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: "#FFFFFF",
+        letterSpacing: 0.5,
+    },
+    userName: {
+        fontSize: 16,
+        color: "#E0E7FF",
+        fontWeight: "600",
+        textAlign: "center",
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        marginTop: 8,
+    },
+    userRole: {
+        fontSize: 13,
+        color: "#C7D2FE",
+        fontWeight: "500",
+        textAlign: "center",
+        marginTop: 4,
+    },
+    mainSection: {
+        paddingTop: 16,
+        paddingHorizontal: 4,
+    },
+    modulesSection: {
+        paddingTop: 12,
+        paddingHorizontal: 4,
+    },
+    adminSection: {
+        paddingTop: 12,
+        paddingHorizontal: 4,
+    },
+    bottomSection: {
+        marginTop: "auto",
+        paddingBottom: 24,
+        paddingHorizontal: 4,
+    },
+    sectionDivider: {
+        height: 1,
+        backgroundColor: "#E2E8F0",
+        marginVertical: 16,
+        marginHorizontal: 20,
+    },
+    menuItem: {
+        marginHorizontal: 12,
+        marginVertical: 3,
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        backgroundColor: "#FFFFFF",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+        elevation: 1,
+    },
+    menuItemLabel: {
+        fontSize: 16,
+        paddingHorizontal: 1,
+        fontWeight: "600",
+        color: "#64748B",
+        marginLeft: "-10 !important",
+    },
+    logoutItem: {
+        backgroundColor: "#4A9EFF",
+        borderWidth: 1,
+        borderColor: "#4A9EFF",
+    },
+    moduleContainer: {
+        marginHorizontal: 12,
+        marginVertical: 6,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 16,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+        overflow: "hidden",
+    },
+    moduleHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        borderRadius: 16,
+        shadowOpacity: 0.08,
 
-            shadowRadius: 8,
-            justifyContent: "space-between",
-            paddingVertical: 16,
-            paddingHorizontal: 20,
-            backgroundColor: "#FFFFFF",
-            borderBottomWidth: 1,
-            borderBottomColor: "#FFFFFF",
-        },
-        moduleTitle: {
-            flexDirection: "row",
-            alignItems: "center",
-        },
-        moduleText: {
-            fontSize: 15,
-            fontWeight: "600",
-            color: "#64748B",
-            marginLeft: 35,
-        },
-        submoduleContainer: {
-            backgroundColor: "#FFFFFF",
-            paddingVertical: 8,
-        },
-        submoduleItem: {
-            flexDirection: "row",
-            alignItems: "center",
-            paddingVertical: 12,
-            paddingHorizontal: 24,
-            marginVertical: 2,
-            marginHorizontal: 8,
-            borderRadius: 10,
-            backgroundColor: "transparent",
-            transition: "background-color 0.2s ease",
-        },
-        submoduleText: {
-            fontSize: 15,
-            color: "#64748B",
-            marginLeft: 14,
-            fontWeight: "600",
-        },
-    });
+        shadowRadius: 8,
+        justifyContent: "space-between",
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        backgroundColor: "#FFFFFF",
+        borderBottomWidth: 1,
+        borderBottomColor: "#FFFFFF",
+    },
+    moduleTitle: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    moduleText: {
+        fontSize: 15,
+        fontWeight: "600",
+        color: "#64748B",
+        marginLeft: 35,
+    },
+    submoduleContainer: {
+        backgroundColor: "#FFFFFF",
+        paddingVertical: 8,
+    },
+    submoduleItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        marginVertical: 2,
+        marginHorizontal: 8,
+        borderRadius: 10,
+        backgroundColor: "transparent",
+        transition: "background-color 0.2s ease",
+    },
+    submoduleText: {
+        fontSize: 15,
+        color: "#64748B",
+        marginLeft: 14,
+        fontWeight: "600",
+    },
+});
 
 const profileMenuStyles = StyleSheet.create({
     dropdown: {
@@ -2371,12 +2583,14 @@ export default function App() {
 
     // Check for NFC scanner route BEFORE any navigation setup
     const currentHash = window.location?.hash;
-    
+
     // If URL contains /nfc-scanner, render NFCScanner directly without any navigation
-    if (currentHash && currentHash.includes('/nfc-scanner')) {
+    if (currentHash && currentHash.includes("/nfc-scanner")) {
         // Import NFCScanner dynamically to avoid issues
-        const NFCScanner = React.lazy(() => import('./src/Pages/WhatsApp/NFCScanner'));
-        
+        const NFCScanner = React.lazy(
+            () => import("./src/Pages/WhatsApp/NFCScanner"),
+        );
+
         return (
             <React.Suspense fallback={<div>Loading...</div>}>
                 <NFCScanner />

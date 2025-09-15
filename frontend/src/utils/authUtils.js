@@ -190,7 +190,7 @@ const checkTokenOnServer = async () => {
             }
         });
 
-        console.log('Resposta do servidor ao verificar token:', response.status);
+      //  console.log('Resposta do servidor ao verificar token:', response.status);
 
         if (!response.ok) {
             if (response.status === 401 || response.status === 403) {
@@ -314,7 +314,7 @@ const checkPainelAdminToken = async () => {
         });
 
         if (response.ok) {
-            console.log(`Verificação do painelAdminToken - Status: ${response.status} (considerado válido)`);
+        //   console.log(`Verificação do painelAdminToken - Status: ${response.status} (considerado válido)`);
             return true;
         }
 
@@ -324,7 +324,7 @@ const checkPainelAdminToken = async () => {
 
             const renovado = await refreshPainelAdminToken();
             if (renovado) {
-                console.log('Token renovado automaticamente após expiração');
+           //     console.log('Token renovado automaticamente após expiração');
                 return true;
             } else {
                 console.log('Falha ao renovar token, fazendo logout');
@@ -335,7 +335,7 @@ const checkPainelAdminToken = async () => {
 
         // Para outros status, você pode registrar o erro, mas não fazer logout
         const errorData = await response.json();
-        console.log(`Erro na verificação do painelAdminToken - Status: ${response.status}`, errorData);
+     //   console.log(`Erro na verificação do painelAdminToken - Status: ${response.status}`, errorData);
         return true;
 
     } catch (error) {
@@ -348,7 +348,7 @@ const checkPainelAdminToken = async () => {
 export const startTokenValidation = () => {
     // Verificar se estamos na página de login
     if (window.location.pathname === '/login' || window.location.pathname.includes('login')) {
-        console.log('Página de login detectada - verificação automática de tokens desabilitada');
+     //   console.log('Página de login detectada - verificação automática de tokens desabilitada');
         return;
     }
 
@@ -362,7 +362,7 @@ export const startTokenValidation = () => {
     tokenCheckInterval = setInterval(() => {
         // Verificar novamente se ainda não estamos na página de login
         if (window.location.pathname === '/login' || window.location.pathname.includes('login')) {
-            console.log('Navegou para login - parando verificação automática');
+       //     console.log('Navegou para login - parando verificação automática');
             stopTokenValidation();
             return;
         }
@@ -399,7 +399,7 @@ const refreshLoginToken = async () => {
             return true;
         }
 
-        console.log('Token de login expirado, tentando renovar...');
+      //  console.log('Token de login expirado, tentando renovar...');
 
         // Tentar renovar usando refresh token se disponível
         const response = await fetch('https://backend.advir.pt/api/auth/refresh-token', {
@@ -413,7 +413,7 @@ const refreshLoginToken = async () => {
         if (response.ok) {
             const data = await response.json();
             localStorage.setItem('loginToken', data.token);
-            console.log('Token de login renovado automaticamente');
+       //     console.log('Token de login renovado automaticamente');
             return true;
         } else {
             console.log('Falha ao renovar token de login:', response.status);
@@ -433,7 +433,7 @@ export const refreshTokensOnAppFocus = async () => {
         const painelAdminToken = localStorage.getItem('painelAdminToken');
         const empresaSelecionada = localStorage.getItem('empresaSelecionada');
 
-        console.log('Verificando estado dos tokens...');
+        //console.log('Verificando estado dos tokens...');
 
         // Se não há loginToken, não fazer nada (usuário não está logado)
         if (!loginToken) {
@@ -451,7 +451,7 @@ export const refreshTokensOnAppFocus = async () => {
 
         // 2. Se há empresa selecionada, verificar e renovar painelAdminToken
         if (empresaSelecionada && painelAdminToken) {
-            console.log('Verificando painelAdminToken...');
+           // console.log('Verificando painelAdminToken...');
 
             // Verificar se o painelAdminToken precisa ser renovado
             const urlempresa = localStorage.getItem('urlempresa');
@@ -470,7 +470,7 @@ export const refreshTokensOnAppFocus = async () => {
                         console.log('painelAdminToken expirado, renovando...');
                         await refreshPainelAdminToken();
                     } else {
-                        console.log('painelAdminToken ainda válido');
+                      //  console.log('painelAdminToken ainda válido');
                     }
                 } catch (error) {
                     console.log('Erro ao verificar painelAdminToken, tentando renovar...');
@@ -479,11 +479,11 @@ export const refreshTokensOnAppFocus = async () => {
             }
         } else if (empresaSelecionada && !painelAdminToken) {
             // Se há empresa selecionada mas não há painelAdminToken, tentar obter um novo
-            console.log('Empresa selecionada encontrada, obtendo novo painelAdminToken...');
+          //  console.log('Empresa selecionada encontrada, obtendo novo painelAdminToken...');
             await refreshPainelAdminToken();
         }
 
-        console.log('Verificação e renovação de tokens concluída');
+      //  console.log('Verificação e renovação de tokens concluída');
 
     } catch (error) {
         console.error('Erro durante a renovação automática de tokens:', error);

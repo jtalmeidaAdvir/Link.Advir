@@ -4,8 +4,7 @@
     "\\frontend",
     "\\frontend\\src",
     "\\frontend\\src\\Pages",
-    "\\frontend\\src\\Pages\\Servicos",
-    "\\webPrimaveraApi",
+    "\\frontend\\src\\Pages\\Autenticacao\\handlers",
     "\\webPrimaveraApi\\routes",
     "\\webPrimaveraApi\\routes\\Servicos",
     "\\webPrimaveraApi\\servives"

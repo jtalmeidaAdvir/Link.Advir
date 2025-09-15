@@ -230,7 +230,7 @@ const RegistoPontoObra = (props) => {
             const data = await res.json();
             return data.display_name || `${lat}, ${lon}`;
         } catch (err) {
-            console.error('Erro ao obter morada:', err);
+        //    console.error('Erro ao obter morada:', err);
             return `${lat}, ${lon}`;
         }
     };
@@ -434,7 +434,7 @@ const handlePicagemManual = async () => {
         }
     };
 
-    console.log('tipoUser:', tipoUser);
+ //   console.log('tipoUser:', tipoUser);
 
     return (
         <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{ 
