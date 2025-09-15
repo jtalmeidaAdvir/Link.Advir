@@ -4,10 +4,8 @@
     "\\frontend",
     "\\frontend\\src",
     "\\frontend\\src\\Pages",
-    "\\frontend\\src\\Pages\\Autenticacao\\handlers",
-    "\\webPrimaveraApi\\routes",
-    "\\webPrimaveraApi\\routes\\Servicos",
-    "\\webPrimaveraApi\\servives"
+    "\\frontend\\src\\Pages\\WhatsApp"
   ],
+  "SelectedNode": "\\frontend\\src\\Pages\\WhatsApp\\WhatsAppWebConfig.js",
   "PreviewInSolutionExplorer": false
 }
