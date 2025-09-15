@@ -292,8 +292,9 @@ app.use('/api/mapa-registos', mapaRegistosRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/pos', posRoutes);
 app.use('/api', newsRoutes);
+app.use('/api/verificacao-automatica', require('./routes/verificacaoAutomaticaPontosRoutes'));
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3010;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor iniciado na porta ${PORT}`);
     console.log(`Acesso disponível em: http://localhost:${PORT}`);
