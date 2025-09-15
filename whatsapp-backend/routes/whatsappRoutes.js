@@ -1535,6 +1535,74 @@ async function getObrasAutorizadas(obrasIds) {
     }
 }
 
+// Função para executar verificação automática de pontos de almoço
+async function executarVerificacaoPontosAlmoco(schedule) {
+    addLog(
+        schedule.id,
+        "info",
+        `Iniciando verificação automática de pontos de almoço para empresa ${schedule.empresa_id}`
+    );
+
+    try {
+        // Chamar a API do backend para verificar e adicionar pontos
+        const response = await fetch(`https://backend.advir.pt/api/verificacao-automatica/verificar-pontos-almoco?empresa_id=${schedule.empresa_id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer sistema_automatico' // Token do sistema
+            }
+        });
+
+        const resultado = await response.json();
+
+        if (response.ok && resultado.success) {
+            addLog(
+                schedule.id,
+                "success",
+                `Verificação concluída: ${resultado.estatisticas.pontosAdicionados} pontos adicionados para ${resultado.estatisticas.utilizadoresProcessados} utilizadores`
+            );
+
+            // Atualizar estatísticas do agendamento
+            await Schedule.update(
+                {
+                    last_sent: new Date().toISOString(),
+                    total_sent: (schedule.totalSent || 0) + 1
+                },
+                { where: { id: schedule.id } }
+            );
+
+            return {
+                success: true,
+                message: "Verificação automática de pontos concluída",
+                resultado: resultado.estatisticas
+            };
+        } else {
+            addLog(
+                schedule.id,
+                "error",
+                `Erro na verificação: ${resultado.message || 'Erro desconhecido'}`
+            );
+
+            return {
+                success: false,
+                error: resultado.message || "Erro na verificação automática"
+            };
+        }
+
+    } catch (error) {
+        addLog(
+            schedule.id,
+            "error",
+            `Erro ao executar verificação: ${error.message}`
+        );
+
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
 // Função para lidar com mensagens recebidas
 async function handleIncomingMessage(message) {
     // Ignorar mensagens de grupos e mensagens enviadas por nós
@@ -4479,6 +4547,11 @@ function shouldExecuteToday(schedule, now) {
 
 // Função para executar mensagem agendada
 async function executeScheduledMessage(schedule) {
+    // Verificar se é uma verificação automática de pontos
+    if (schedule.tipo === "verificacao_pontos_almoco") {
+        return await executarVerificacaoPontosAlmoco(schedule);
+    }
+
     // Log inicial da execução
     addLog(
         schedule.id,
@@ -4877,6 +4950,138 @@ router.post("/init-whatsapp-tables", async (req, res) => {
     }
 });
 
+// Endpoint para agendar verificação automática de pontos de almoço
+router.post('/schedule-lunch-verification', async (req, res) => {
+    try {
+        const { empresa_id, horario = "15:00" } = req.body;
+
+        if (!empresa_id) {
+            return res.status(400).json({
+                error: "ID da empresa é obrigatório"
+            });
+        }
+
+        // Verificar se a empresa existe consultando o backend principal
+        try {
+            const empresaResponse = await fetch(`https://backend.advir.pt/api/empresa/${empresa_id}`, {
+                headers: {
+                    'Authorization': req.headers.authorization || ''
+                }
+            });
+
+            if (!empresaResponse.ok) {
+                return res.status(404).json({
+                    error: "Empresa não encontrada"
+                });
+            }
+
+            const empresaData = await empresaResponse.json();
+
+            // Criar agendamento na base de dados
+            const novoAgendamento = await Schedule.create({
+                message: `Verificação automática de pontos de almoço para empresa ${empresaData.empresa}`,
+                contact_list: JSON.stringify([{
+                    name: "Sistema Automático",
+                    phone: "system"
+                }]),
+                frequency: "daily",
+                time: new Date(`1970-01-01T${horario}:00Z`),
+                days: JSON.stringify([1, 2, 3, 4, 5]), // Segunda a Sexta
+                start_date: new Date(),
+                enabled: true,
+                priority: "normal",
+                tipo: "verificacao_pontos_almoco",
+                empresa_id: empresa_id
+            });
+
+            // Iniciar o agendamento
+            const scheduleData = {
+                id: novoAgendamento.id,
+                message: novoAgendamento.message,
+                contactList: [{
+                    name: "Sistema Automático",
+                    phone: "system"
+                }],
+                frequency: "daily",
+                time: horario,
+                days: [1, 2, 3, 4, 5],
+                enabled: true,
+                priority: "normal",
+                tipo: "verificacao_pontos_almoco",
+                empresa_id: empresa_id
+            };
+
+            startSchedule(scheduleData);
+
+            addLog(
+                novoAgendamento.id.toString(),
+                "info",
+                `Agendamento de verificação de pontos criado para empresa ${empresaData.empresa} às ${horario}`
+            );
+
+            res.json({
+                success: true,
+                message: "Agendamento de verificação de pontos criado com sucesso",
+                agendamento: {
+                    id: novoAgendamento.id,
+                    empresa: empresaData.empresa,
+                    horario: horario,
+                    frequencia: "Dias úteis",
+                    ativo: true
+                }
+            });
+
+        } catch (empresaError) {
+            console.error("Erro ao verificar empresa:", empresaError);
+            return res.status(500).json({
+                error: "Erro ao verificar empresa"
+            });
+        }
+
+    } catch (error) {
+        console.error("Erro ao criar agendamento de verificação:", error);
+        res.status(500).json({
+            error: "Erro interno ao criar agendamento"
+        });
+    }
+});
+
+// Endpoint para listar agendamentos de verificação de pontos
+router.get('/lunch-verification-schedules', async (req, res) => {
+    try {
+        const agendamentos = await Schedule.findAll({
+            where: {
+                tipo: "verificacao_pontos_almoco"
+            },
+            order: [['created_at', 'DESC']]
+        });
+
+        const agendamentosFormatados = agendamentos.map(agendamento => ({
+            id: agendamento.id,
+            empresa_id: agendamento.empresa_id,
+            horario: new Date(agendamento.time).toLocaleTimeString('pt-PT', {
+                hour: '2-digit',
+                minute: '2-digit'
+            }),
+            ativo: agendamento.enabled,
+            ultimaExecucao: agendamento.last_sent,
+            totalExecucoes: agendamento.total_sent,
+            criadoEm: agendamento.created_at
+        }));
+
+        res.json({
+            success: true,
+            agendamentos: agendamentosFormatados
+        });
+
+    } catch (error) {
+        console.error("Erro ao listar agendamentos:", error);
+        res.status(500).json({
+            error: "Erro ao listar agendamentos de verificação"
+        });
+    }
+});
+
 // Adicionar rota para simular mensagem recebida (para testes de RFID)
 router.post('/simulate-message', async (req, res) => {
     try {
@@ -4923,20 +5128,20 @@ router.post('/simulate-message', async (req, res) => {
             });
         } catch (simulationError) {
             console.error('Erro durante simulação:', simulationError.message);
-            
+
             // Se for erro de contexto Puppeteer, informar que o cliente precisa reiniciar
-            if (simulationError.message.includes("Evaluation failed") || 
-                simulationError.message.includes("Target closed") || 
+            if (simulationError.message.includes("Evaluation failed") ||
+                simulationError.message.includes("Target closed") ||
                 simulationError.message.includes("Protocol error") ||
                 simulationError.message.includes("Execution context was destroyed")) {
-                
+
                 return res.status(503).json({
                     success: false,
                     error: 'Cliente WhatsApp perdeu conexão - reinicialize a conexão',
                     type: 'puppeteer_context_error'
                 });
             }
-            
+
             // Para outros erros, retornar erro genérico
             res.status(500).json({
                 success: false,

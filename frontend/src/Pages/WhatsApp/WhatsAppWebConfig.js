@@ -4,12 +4,13 @@ import ContactsTab from "./components/ContactsTab";
 import ScheduleTab from "./components/ScheduleTab";
 import ExternosTab from "./components/ExternosTab";
 import LogsTab from "./components/LogsTab";
+import ConfiguracaoAutomaticaTab from "./components/ConfiguracaoAutomaticaTab";
 import useWhatsAppData from "./hooks/useWhatsAppData";
 import { getWhatsAppStyles } from "./styles/whatsAppStyles";
 
 const WhatsAppWebConfig = () => {
     // API base URL
-    const API_BASE_URL = "https://backend.advir.pt/whatsapi/api/whatsapp";  //https://backend.advir.pt/whatsapi
+    const API_BASE_URL = "https://backend.advir.pt/whatsapiapi/whatsapp";  //https://backend.advir.pt/whatsapi
     // Estados principais
     const [activeTab, setActiveTab] = useState("connection");
     const [testMessage, setTestMessage] = useState({
@@ -1012,6 +1013,12 @@ const WhatsAppWebConfig = () => {
         />
     );
 
+    const renderConfiguracaoAutomaticaTab = () => (
+        <ConfiguracaoAutomaticaTab
+            styles={styles}
+        />
+    );
+
     return (
         <div
             style={{
@@ -1036,6 +1043,7 @@ const WhatsAppWebConfig = () => {
                     { id: "contacts", icon: "👥", label: "Contactos" },
                     { id: "schedule", icon: "⏰", label: "Agendamento" },
                     { id: "externos", icon: "🏗️", label: "Externos" },
+                    { id: "configuracao", icon: "🍽️", label: "Almoços" },
                     { id: "logs", icon: "📋", label: "Logs" },
                 ].map((tab) => (
                     <button
@@ -1057,6 +1065,7 @@ const WhatsAppWebConfig = () => {
                 {activeTab === "contacts" && renderContactsTab()}
                 {activeTab === "schedule" && renderScheduleTab()}
                 {activeTab === "externos" && renderExternosTab()}
+                {activeTab === "configuracao" && renderConfiguracaoAutomaticaTab()}
                 {activeTab === "logs" && renderLogsTab()}
             </div>
         </div>

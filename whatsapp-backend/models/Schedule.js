@@ -51,6 +51,15 @@ const Schedule = sequelize.define('Schedule', {
     total_sent: {
         type: DataTypes.INTEGER,
         defaultValue: 0
+    },
+    tipo: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        defaultValue: 'mensagem'
+    },
+    empresa_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true
     }
 }, {
     tableName: 'schedules',

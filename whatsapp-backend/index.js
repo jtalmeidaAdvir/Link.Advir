@@ -18,6 +18,7 @@ const { router: intervencaoRoutes } = require('./routes/whatsappIntervencoes');
 // Usar rotas
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/intervencoes', intervencaoRoutes);
+app.use('/api/configuracao-automatica', require('./routes/configuracaoAutomaticaRoutes'));
 
 // Rota de saúde
 app.get('/health', (req, res) => {
