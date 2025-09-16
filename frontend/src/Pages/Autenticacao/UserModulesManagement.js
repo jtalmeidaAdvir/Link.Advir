@@ -34,6 +34,7 @@ const UserModulesManagement = ({ route }) => {
         tipoUser: "Trabalhador",
         codFuncionario: "",
         codRecursosHumanos: "",
+        naotratapontosalmoco: false, // Initialize the new field
     });
 
     const { t } = useTranslation();
@@ -315,6 +316,7 @@ const UserModulesManagement = ({ route }) => {
                     tipoUser: data.tipoUser || "Trabalhador",
                     codFuncionario: data.codFuncionario || "",
                     codRecursosHumanos: data.codRecursosHumanos || "",
+                    naotratapontosalmoco: data.naotratapontosalmoco || false, // Set the new field from API
                 });
             } else {
                 setErrorMessage("Erro ao obter dados do utilizador.");
@@ -743,26 +745,53 @@ const UserModulesManagement = ({ route }) => {
                                     </Picker>
                                 </View>
                             </View>
-                        </ScrollView>
 
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={() => setShowUserDataModal(false)}
-                            >
-                                <Text style={styles.cancelButtonText}>
-                                    Cancelar
+                            <View style={styles.inputGroup}>
+                                <View style={styles.checkboxContainer}>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.checkbox,
+                                            userData.naotratapontosalmoco && styles.checkboxChecked
+                                        ]}
+                                        onPress={() =>
+                                            setUserData({
+                                                ...userData,
+                                                naotratapontosalmoco: !userData.naotratapontosalmoco,
+                                            })
+                                        }
+                                    >
+                                        {userData.naotratapontosalmoco && (
+                                            <Ionicons name="checkmark" size={16} color="#ffffff" />
+                                        )}
+                                    </TouchableOpacity>
+                                    <Text style={styles.checkboxLabel}>
+                                        Não tratar pontos de almoço automaticamente
+                                    </Text>
+                                </View>
+                                <Text style={styles.checkboxDescription}>
+                                    Se ativado, este utilizador não será incluído na verificação automática de pontos de almoço
                                 </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.saveButton}
-                                onPress={handleSaveUserData}
-                            >
-                                <Text style={styles.saveButtonText}>
-                                    Guardar
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
+                            </View>
+
+                            <View style={styles.modalActions}>
+                                <TouchableOpacity
+                                    style={styles.cancelButton}
+                                    onPress={() => setShowUserDataModal(false)}
+                                >
+                                    <Text style={styles.cancelButtonText}>
+                                        Cancelar
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.saveButton}
+                                    onPress={handleSaveUserData}
+                                >
+                                    <Text style={styles.saveButtonText}>
+                                        Guardar
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>
@@ -1065,6 +1094,39 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: "#ffffff",
         fontWeight: "600",
+    },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    checkbox: {
+        width: 20,
+        height: 20,
+        borderWidth: 2,
+        borderColor: '#ddd',
+        borderRadius: 4,
+        marginRight: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fff',
+    },
+    checkboxChecked: {
+        backgroundColor: '#4481EB',
+        borderColor: '#4481EB',
+    },
+    checkboxLabel: {
+        fontSize: 14,
+        color: '#333',
+        fontWeight: '500',
+        flex: 1,
+    },
+    checkboxDescription: {
+        fontSize: 12,
+        color: '#666',
+        fontStyle: 'italic',
+        marginLeft: 32,
+        lineHeight: 16,
     },
 });
 

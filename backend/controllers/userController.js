@@ -1005,6 +1005,7 @@ const atualizarDadosUtilizador = async (req, res) => {
             tipoUser,
             codFuncionario,
             codRecursosHumanos,
+            naotratapontosalmoco,
         } = req.body;
 
         // Verificar se o utilizador existe
@@ -1043,6 +1044,8 @@ const atualizarDadosUtilizador = async (req, res) => {
             dadosParaAtualizar.codFuncionario = codFuncionario;
         if (codRecursosHumanos !== undefined)
             dadosParaAtualizar.codRecursosHumanos = codRecursosHumanos;
+        if (naotratapontosalmoco !== undefined)
+            dadosParaAtualizar.naotratapontosalmoco = naotratapontosalmoco;
 
         // Atualizar o utilizador
         await user.update(dadosParaAtualizar);
@@ -1058,6 +1061,7 @@ const atualizarDadosUtilizador = async (req, res) => {
                 tipoUser: user.tipoUser,
                 codFuncionario: user.codFuncionario,
                 codRecursosHumanos: user.codRecursosHumanos,
+                naotratapontosalmoco: user.naotratapontosalmoco,
             },
         });
     } catch (error) {
@@ -1076,6 +1080,7 @@ const getDadosUtilizador = async (req, res) => {
                 "tipoUser",
                 "codFuncionario",
                 "codRecursosHumanos",
+                "naotratapontosalmoco",
             ],
         });
 
