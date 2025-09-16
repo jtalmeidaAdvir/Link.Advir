@@ -4284,84 +4284,125 @@ function addLog(scheduleId, type, message, details = null) {
 
 // Função para iniciar um agendamento
 function startSchedule(schedule) {
+    const scheduleIdStr = schedule.id.toString();
+    
     // Limpar agendamento existente se houver
-    if (activeSchedules.has(schedule.id.toString())) {
-        clearInterval(activeSchedules.get(schedule.id.toString()));
-        activeSchedules.delete(schedule.id.toString());
+    if (activeSchedules.has(scheduleIdStr)) {
+        clearInterval(activeSchedules.get(scheduleIdStr));
+        activeSchedules.delete(scheduleIdStr);
         addLog(schedule.id, "info", "Agendamento reiniciado");
     } else {
         addLog(
             schedule.id,
             "info",
-            `Agendamento iniciado - Frequência: ${schedule.frequency}, Hora: ${schedule.time}`,
+            `Agendamento iniciado - Frequência: ${schedule.frequency}, Hora: ${schedule.time}, Tipo: ${schedule.tipo || 'mensagem'}`,
         );
     }
 
     const checkAndExecute = async () => {
-        // Usar fuso horário de Lisboa/Portugal como padrão
-        const now = new Date();
-        const portugalTime = new Date(
-            now.toLocaleString("en-US", { timeZone: "Europe/Lisbon" }),
-        );
-
-        if (typeof schedule.time !== "string") {
-            addLog(
-                schedule.id,
-                "error",
-                `Formato inválido para schedule.time: ${schedule.time}`,
+        try {
+            // Usar fuso horário de Lisboa/Portugal como padrão
+            const now = new Date();
+            const portugalTime = new Date(
+                now.toLocaleString("en-US", { timeZone: "Europe/Lisbon" }),
             );
-            return; // Sai da função se o formato for inválido
-        }
-        const scheduleTimeParts = schedule.time.split(":");
-        const scheduleHour = parseInt(scheduleTimeParts[0]);
-        const scheduleMinute = parseInt(scheduleTimeParts[1]);
 
-        // Log para depuração, apenas quando o minuto for 0 para evitar spam
-        if (portugalTime.getMinutes() === 0) {
-            addLog(
-                schedule.id,
-                "info",
-                `Verificação automática - Hora de Portugal: ${portugalTime.getHours()}:${portugalTime.getMinutes().toString().padStart(2, "0")}, Hora Agendada: ${schedule.time}`,
-            );
-        }
+            // Verificar se o formato do tempo está correto
+            let scheduleTime = schedule.time;
+            if (typeof scheduleTime !== "string") {
+                // Se for um objeto Date, converter para string HH:MM
+                if (scheduleTime instanceof Date) {
+                    scheduleTime = scheduleTime.toLocaleTimeString('pt-PT', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                } else {
+                    addLog(
+                        schedule.id,
+                        "error",
+                        `Formato inválido para schedule.time: ${scheduleTime}`,
+                    );
+                    return;
+                }
+            }
 
-        if (
-            portugalTime.getHours() === scheduleHour &&
-            portugalTime.getMinutes() === scheduleMinute
-        ) {
-            addLog(
-                schedule.id,
-                "info",
-                "Hora de execução atingida, verificando condições...",
-            );
-            if (shouldExecuteToday(schedule, portugalTime)) {
+            const scheduleTimeParts = scheduleTime.split(":");
+            const scheduleHour = parseInt(scheduleTimeParts[0]);
+            const scheduleMinute = parseInt(scheduleTimeParts[1]);
+
+            const currentHour = portugalTime.getHours();
+            const currentMinute = portugalTime.getMinutes();
+
+            // Log para depuração a cada 5 minutos para evitar spam
+            if (currentMinute % 5 === 0) {
                 addLog(
                     schedule.id,
                     "info",
-                    "Condições atendidas, iniciando execução...",
-                );
-                let result;
-                if (schedule.tipo === "verificacao_pontos_almoco") {
-                    // Executar verificação automática de pontos
-                    result = await executarVerificacaoPontosAlmoco(schedule);
-                } else {
-                    // Executar mensagem normal
-                    result = await executeScheduledMessage(schedule);
-                }
-                console.log(`Resultado da execução:`, result);
-            } else {
-                addLog(
-                    schedule.id,
-                    "warning",
-                    "Condições não atendidas para execução hoje",
+                    `Verificação - Atual: ${currentHour}:${currentMinute.toString().padStart(2, "0")}, Agendado: ${scheduleTime}, Tipo: ${schedule.tipo || 'mensagem'}`,
                 );
             }
+
+            // Verificar se chegou a hora de execução
+            if (currentHour === scheduleHour && currentMinute === scheduleMinute) {
+                addLog(
+                    schedule.id,
+                    "info",
+                    "⏰ Hora de execução atingida, verificando condições...",
+                );
+                
+                if (shouldExecuteToday(schedule, portugalTime)) {
+                    addLog(
+                        schedule.id,
+                        "info",
+                        "✅ Condições atendidas, iniciando execução...",
+                    );
+                    
+                    let result;
+                    if (schedule.tipo === "verificacao_pontos_almoco") {
+                        // Executar verificação automática de pontos
+                        result = await executarVerificacaoPontosAlmoco(schedule);
+                    } else {
+                        // Executar mensagem normal
+                        result = await executeScheduledMessage(schedule);
+                    }
+                    
+                    console.log(`📊 Resultado da execução:`, result);
+                    addLog(
+                        schedule.id,
+                        result.success ? "success" : "error",
+                        `Execução concluída: ${result.message || result.error}`
+                    );
+                } else {
+                    addLog(
+                        schedule.id,
+                        "warning",
+                        "❌ Condições não atendidas para execução hoje",
+                    );
+                }
+            }
+        } catch (error) {
+            console.error(`❌ Erro na verificação do agendamento ${schedule.id}:`, error);
+            addLog(
+                schedule.id,
+                "error",
+                `Erro na verificação: ${error.message}`
+            );
         }
     };
+
+    // Executar verificação imediatamente para debug
+    console.log(`🔄 Iniciando monitoramento do agendamento ${schedule.id} (${schedule.tipo || 'mensagem'})`);
+    
     // Define o intervalo para verificar a hora
     const intervalId = setInterval(checkAndExecute, 60000); // Verifica a cada minuto
-    activeSchedules.set(schedule.id.toString(), intervalId);
+    activeSchedules.set(scheduleIdStr, intervalId);
+    
     console.log(`✅ Agendamento ${schedule.id} monitorado - verificação a cada minuto`);
+    addLog(
+        schedule.id,
+        "success",
+        `Monitoramento ativo - próxima verificação em 60 segundos`
+    );
 }
 
 // Função para verificar se deve executar hoje
@@ -4613,41 +4654,76 @@ async function executeScheduledMessage(schedule) {
 
 // Inicializar agendamentos salvos ao iniciar o servidor
 function initializeSchedules() {
+    console.log('🔄 Inicializando agendamentos...');
+    
     // Carregar agendamentos da base de dados
     Schedule.findAll()
         .then((schedules) => {
+            console.log(`📋 Encontrados ${schedules.length} agendamentos na base de dados`);
+            
+            let enabledCount = 0;
+            
             schedules.forEach(async (schedule) => {
-                const scheduleData = {
-                    id: schedule.id,
-                    message: schedule.message,
-                    contactList: JSON.parse(schedule.contact_list || '[]'),
-                    frequency: schedule.frequency,
-                    time: schedule.time
-                        ? new Date(schedule.time).toLocaleTimeString("pt-PT", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                        })
-                        : "09:00", // Default time if not set
-                    days: schedule.days
-                        ? JSON.parse(schedule.days)
-                        : [1, 2, 3, 4, 5],
-                    startDate: schedule.start_date,
-                    enabled: schedule.enabled,
-                    priority: schedule.priority,
-                    tipo: schedule.tipo, // Adicionado para agendamentos de verificação
-                    empresa_id: schedule.empresa_id, // Adicionado para agendamentos de verificação
-                    lastSent: schedule.last_sent,
-                    totalSent: schedule.total_sent,
-                };
-                if (schedule.enabled) {
-                    startSchedule(scheduleData);
+                try {
+                    const scheduleData = {
+                        id: schedule.id,
+                        message: schedule.message,
+                        contactList: JSON.parse(schedule.contact_list || '[]'),
+                        frequency: schedule.frequency,
+                        time: schedule.time
+                            ? new Date(schedule.time).toLocaleTimeString("pt-PT", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                            })
+                            : "09:00", // Default time if not set
+                        days: schedule.days
+                            ? JSON.parse(schedule.days)
+                            : [1, 2, 3, 4, 5],
+                        startDate: schedule.start_date,
+                        enabled: schedule.enabled,
+                        priority: schedule.priority,
+                        tipo: schedule.tipo, // Adicionado para agendamentos de verificação
+                        empresa_id: schedule.empresa_id, // Adicionado para agendamentos de verificação
+                        lastSent: schedule.last_sent,
+                        totalSent: schedule.total_sent,
+                    };
+                    
+                    console.log(`📅 Agendamento ${schedule.id}: ${schedule.enabled ? 'ATIVO' : 'INATIVO'} - Tipo: ${schedule.tipo || 'mensagem'} - Hora: ${scheduleData.time}`);
+                    
+                    if (schedule.enabled) {
+                        startSchedule(scheduleData);
+                        enabledCount++;
+                    }
+                } catch (error) {
+                    console.error(`❌ Erro ao processar agendamento ${schedule.id}:`, error);
                 }
             });
+            
+            console.log(`✅ Inicialização concluída: ${enabledCount} agendamentos ativos de ${schedules.length} totais`);
+            
+            // Log de status dos agendamentos ativos
+            if (enabledCount > 0) {
+                console.log(`🔄 Sistema de verificação automática ativo - ${enabledCount} agendamento(s) em execução`);
+                addLog(
+                    "SYSTEM",
+                    "success",
+                    `Sistema inicializado: ${enabledCount} agendamentos ativos`
+                );
+            } else {
+                console.log(`⚠️ Nenhum agendamento ativo encontrado`);
+                addLog(
+                    "SYSTEM",
+                    "warning",
+                    "Nenhum agendamento ativo encontrado na inicialização"
+                );
+            }
         })
         .catch((err) => {
-            console.error(
-                "Erro ao carregar agendamentos para inicialização:",
-                err,
+            console.error("❌ Erro ao carregar agendamentos para inicialização:", err);
+            addLog(
+                "SYSTEM",
+                "error",
+                `Erro na inicialização: ${err.message}`
             );
         });
 }
@@ -4788,43 +4864,90 @@ router.get("/timezone-debug", (req, res) => {
 });
 
 // Endpoint para debugging - mostrar próximas execuções
-router.get("/next-executions", (req, res) => {
-    const now = new Date();
-    const executions = [];
+router.get("/next-executions", async (req, res) => {
+    try {
+        const now = new Date();
+        const portugalTime = new Date(
+            now.toLocaleString("en-US", { timeZone: "Europe/Lisbon" })
+        );
+        const executions = [];
 
-    scheduledMessages.forEach((schedule) => {
-        if (!schedule.enabled) return;
-
-        const [hours, minutes] = schedule.time.split(":");
-        let nextExecution = new Date();
-        nextExecution.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-        // Se já passou da hora hoje, agendar para amanhã
-        if (nextExecution <= now) {
-            nextExecution.setDate(nextExecution.getDate() + 1);
-        }
-
-        executions.push({
-            scheduleId: schedule.id,
-            message: schedule.message,
-            frequency: schedule.frequency,
-            time: schedule.time,
-            nextExecution: nextExecution.toISOString(),
-            timeUntilNext:
-                Math.ceil((nextExecution - now) / 60000) + " minutos",
-            isActive: activeSchedules.has(schedule.id),
+        // Buscar agendamentos ativos da base de dados
+        const schedules = await Schedule.findAll({
+            where: { enabled: true },
+            order: [['id', 'ASC']]
         });
-    });
 
-    // Ordenar por próxima execução
-    executions.sort(
-        (a, b) => new Date(a.nextExecution) - new Date(b.nextExecution),
-    );
+        schedules.forEach((schedule) => {
+            try {
+                let scheduleTime = schedule.time;
+                if (scheduleTime instanceof Date) {
+                    scheduleTime = scheduleTime.toLocaleTimeString('pt-PT', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
 
-    res.json({
-        currentTime: now.toISOString(),
-        nextExecutions: executions,
-    });
+                const [hours, minutes] = scheduleTime.split(":");
+                let nextExecution = new Date(portugalTime);
+                nextExecution.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+                // Se já passou da hora hoje, agendar para amanhã
+                if (nextExecution <= portugalTime) {
+                    nextExecution.setDate(nextExecution.getDate() + 1);
+                }
+
+                // Para verificações de almoço, pular fins de semana
+                if (schedule.tipo === "verificacao_pontos_almoco") {
+                    while (nextExecution.getDay() === 0 || nextExecution.getDay() === 6) {
+                        nextExecution.setDate(nextExecution.getDate() + 1);
+                    }
+                }
+
+                executions.push({
+                    scheduleId: schedule.id,
+                    message: schedule.message.substring(0, 50) + "...",
+                    frequency: schedule.frequency,
+                    time: scheduleTime,
+                    tipo: schedule.tipo || 'mensagem',
+                    empresa_id: schedule.empresa_id,
+                    nextExecution: nextExecution.toISOString(),
+                    timeUntilNext: Math.ceil((nextExecution - portugalTime) / 60000) + " minutos",
+                    isActive: activeSchedules.has(schedule.id.toString()),
+                    lastSent: schedule.last_sent,
+                    totalSent: schedule.total_sent || 0,
+                    alreadyExecutedToday: schedule.last_sent && 
+                        new Date(schedule.last_sent).toDateString() === portugalTime.toDateString()
+                });
+            } catch (error) {
+                console.error(`Erro ao processar agendamento ${schedule.id}:`, error);
+            }
+        });
+
+        // Ordenar por próxima execução
+        executions.sort(
+            (a, b) => new Date(a.nextExecution) - new Date(b.nextExecution),
+        );
+
+        res.json({
+            currentTime: now.toISOString(),
+            portugalTime: portugalTime.toISOString(),
+            activeSchedulesCount: activeSchedules.size,
+            totalEnabledSchedules: schedules.length,
+            nextExecutions: executions,
+            systemStatus: {
+                whatsappReady: isClientReady,
+                activeMonitors: activeSchedules.size,
+                nextExecution: executions.length > 0 ? executions[0].nextExecution : null
+            }
+        });
+    } catch (error) {
+        console.error("Erro ao obter próximas execuções:", error);
+        res.status(500).json({
+            error: "Erro interno ao obter próximas execuções",
+            details: error.message
+        });
+    }
 });
 
 // Chamar inicialização quando o cliente estiver pronto
