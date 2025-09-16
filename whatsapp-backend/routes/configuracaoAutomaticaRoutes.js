@@ -219,62 +219,7 @@ router.get('/status-agendamentos', async (req, res) => {
     }
 });
 
-// Endpoint para forçar execução de um agendamento específico
-router.post('/executar-agora/:empresa_id', async (req, res) => {
-    try {
-        const { empresa_id } = req.params;
 
-        // Verificar se existe agendamento para esta empresa
-        const agendamento = await Schedule.findOne({
-            where: {
-                tipo: "verificacao_pontos_almoco",
-                empresa_id: empresa_id
-            }
-        });
-
-        if (!agendamento) {
-            return res.status(404).json({
-                error: "Agendamento não encontrado para esta empresa"
-            });
-        }
-
-        // Executar verificação
-        const response = await fetch(`https://backend.advir.pt/api/verificacao-automatica/verificacao-manual?empresa_id=${empresa_id}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer sistema_automatico'
-            }
-        });
-
-        const resultado = await response.json();
-
-        if (response.ok && resultado.success) {
-            // Atualizar estatísticas do agendamento
-            await agendamento.update({
-                last_sent: new Date(),
-                total_sent: (agendamento.total_sent || 0) + 1
-            });
-
-            res.json({
-                success: true,
-                message: "Execução manual concluída com sucesso",
-                resultado: resultado.estatisticas
-            });
-        } else {
-            res.status(400).json({
-                error: "Erro na execução da verificação",
-                detalhes: resultado.message
-            });
-        }
-
-    } catch (error) {
-        console.error("Erro ao executar verificação manual:", error);
-        res.status(500).json({
-            error: "Erro interno ao executar verificação"
-        });
-    }
-});
 
 // Endpoint para atualizar estatísticas de um agendamento
 router.post('/atualizar-estatisticas/:empresa_id', async (req, res) => {

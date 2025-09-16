@@ -70,7 +70,7 @@ const ConfiguracaoAutomaticaTab = ({
         }
     };
 
-    // Forçar execução de um agendamento (usa a mesma lógica do botão testar)
+    // Forçar execução de um agendamento (usa exatamente a mesma lógica do botão testar)
     const executarAgendamentoAgora = async (empresaId) => {
         try {
             setLoading(true);
