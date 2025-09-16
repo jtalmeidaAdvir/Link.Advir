@@ -3837,11 +3837,9 @@ setInterval(async () => {
             } else if (horarioMatch && shouldExecute) {
                 // Se horário coincide E deve executar hoje, chamar função de almoço
                 console.log(`🍽️ EXECUTANDO função de verificação de pontos de almoço - Horário coincide!`);
-                try {
-                    await executarVerificacaoPontosAlmoco(schedule);
-                } catch (error) {
+                executarVerificacaoPontosAlmoco(schedule).catch(error => {
                     console.error(`❌ Erro ao executar verificação de pontos:`, error);
-                }
+                });
             }
         });
 
