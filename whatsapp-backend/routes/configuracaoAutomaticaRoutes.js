@@ -97,7 +97,61 @@ router.get('/listar-configuracoes', async (req, res) => {
                 minute: '2-digit'
             }),
             ativo: agendamento.enabled,
+            frequencia: "Dias úteis",
+            ultimaExecucao: agendamento.last_sent,
+            totalExecucoes: agendamento.total_sent
+        }));
 
+        res.json({
+            success: true,
+            configuracoes: configuracoes
+        });
+
+    } catch (error) {
+        console.error("Erro ao listar configurações:", error);
+        res.status(500).json({
+            error: "Erro ao listar configurações"
+        });
+    }
+});
+
+// Endpoint para ativar/desativar verificação de uma empresa
+router.put('/toggle-empresa/:empresa_id', async (req, res) => {
+    try {
+        const { empresa_id } = req.params;
+        const { ativo } = req.body;
+
+        const agendamento = await Schedule.findOne({
+            where: {
+                tipo: "verificacao_pontos_almoco",
+                empresa_id: empresa_id
+            }
+        });
+
+        if (!agendamento) {
+            return res.status(404).json({
+                error: "Configuração não encontrada para esta empresa"
+            });
+        }
+
+        await agendamento.update({ enabled: ativo });
+
+        res.json({
+            success: true,
+            message: `Verificação automática ${ativo ? 'ativada' : 'desativada'} para empresa ${empresa_id}`,
+            configuracao: {
+                empresa_id: empresa_id,
+                ativo: ativo
+            }
+        });
+
+    } catch (error) {
+        console.error("Erro ao alterar estado:", error);
+        res.status(500).json({
+            error: "Erro ao alterar estado da verificação automática"
+        });
+    }
+});
 
 // Endpoint para verificar status dos agendamentos ativos
 router.get('/status-agendamentos', async (req, res) => {
@@ -197,7 +251,30 @@ router.post('/executar-agora/:empresa_id', async (req, res) => {
 
         if (response.ok && resultado.success) {
             // Atualizar estatísticas do agendamento
+            await agendamento.update({
+                last_sent: new Date(),
+                total_sent: (agendamento.total_sent || 0) + 1
+            });
 
+            res.json({
+                success: true,
+                message: "Execução manual concluída com sucesso",
+                resultado: resultado.estatisticas
+            });
+        } else {
+            res.status(400).json({
+                error: "Erro na execução da verificação",
+                detalhes: resultado.message
+            });
+        }
+
+    } catch (error) {
+        console.error("Erro ao executar verificação manual:", error);
+        res.status(500).json({
+            error: "Erro interno ao executar verificação"
+        });
+    }
+});
 
 // Endpoint de debug para verificar se o sistema de agendamentos está ativo
 router.get('/debug-agendamentos', async (req, res) => {
@@ -273,89 +350,6 @@ router.get('/debug-agendamentos', async (req, res) => {
         res.status(500).json({
             error: "Erro no debug dos agendamentos",
             detalhes: error.message
-        });
-    }
-});
-
-module.exports = router;
-
-            await agendamento.update({
-                last_sent: new Date(),
-                total_sent: (agendamento.total_sent || 0) + 1
-            });
-
-            res.json({
-                success: true,
-                message: "Execução manual concluída com sucesso",
-                resultado: resultado.estatisticas
-            });
-        } else {
-            res.status(400).json({
-                error: "Erro na execução da verificação",
-                detalhes: resultado.message
-            });
-        }
-
-    } catch (error) {
-        console.error("Erro ao executar verificação manual:", error);
-        res.status(500).json({
-            error: "Erro interno ao executar verificação"
-        });
-    }
-});
-
-            frequencia: "Dias úteis",
-            ultimaExecucao: agendamento.last_sent,
-            totalExecucoes: agendamento.total_sent
-        }));
-
-        res.json({
-            success: true,
-            configuracoess: configuracoes
-        });
-
-    } catch (error) {
-        console.error("Erro ao listar configurações:", error);
-        res.status(500).json({
-            error: "Erro ao listar configurações"
-        });
-    }
-});
-
-// Endpoint para ativar/desativar verificação de uma empresa
-router.put('/toggle-empresa/:empresa_id', async (req, res) => {
-    try {
-        const { empresa_id } = req.params;
-        const { ativo } = req.body;
-
-        const agendamento = await Schedule.findOne({
-            where: {
-                tipo: "verificacao_pontos_almoco",
-                empresa_id: empresa_id
-            }
-        });
-
-        if (!agendamento) {
-            return res.status(404).json({
-                error: "Configuração não encontrada para esta empresa"
-            });
-        }
-
-        await agendamento.update({ enabled: ativo });
-
-        res.json({
-            success: true,
-            message: `Verificação automática ${ativo ? 'ativada' : 'desativada'} para empresa ${empresa_id}`,
-            configuracao: {
-                empresa_id: empresa_id,
-                ativo: ativo
-            }
-        });
-
-    } catch (error) {
-        console.error("Erro ao alterar estado:", error);
-        res.status(500).json({
-            error: "Erro ao alterar estado da verificação automática"
         });
     }
 });
