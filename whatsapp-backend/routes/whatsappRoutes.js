@@ -1562,7 +1562,7 @@ async function executarVerificacaoPontosAlmoco(schedule) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer sistema_automatico',
+                'X-System-Call': 'whatsapp-scheduler',
                 'User-Agent': 'WhatsApp-Backend-Scheduler'
             },
             signal: controller.signal
