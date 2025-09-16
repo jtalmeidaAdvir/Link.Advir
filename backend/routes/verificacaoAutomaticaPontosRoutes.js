@@ -13,7 +13,7 @@ const router = express.Router();
 router.post('/verificar-pontos-almoco', authMiddleware, verificarEAdicionarPontosAlmoco);
 
 // Rota para verificação manual (para testes)
-router.post('/verificacao-manual', authMiddleware, verificacaoManual);
+router.post('/verificacao-manual',  verificacaoManual);
 
 // Rota para listar utilizadores com/sem tratamento automático
 router.get('/utilizadores-tratamento', authMiddleware, listarUtilizadoresComTratamento);
