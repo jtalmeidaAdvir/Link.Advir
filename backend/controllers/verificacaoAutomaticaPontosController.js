@@ -1,5 +1,5 @@
 
-const RegistoPonto = require('../models/registoPonto');
+const RegistoPontoObra = require('../models/registoPontoObra');
 const User = require('../models/user');
 const Empresa = require('../models/empresa');
 const { Op } = require('sequelize');
@@ -53,53 +53,60 @@ const verificarEAdicionarPontosAlmoco = async (req, res) => {
         let pontosAdicionados = 0;
         const relatorio = [];
 
+        // Definir intervalo do dia atual
+        const dataInicio = new Date(`${dataAtual}T00:00:00.000Z`);
+        const dataFim = new Date(`${dataAtual}T23:59:59.999Z`);
+
         for (const utilizador of utilizadores) {
             try {
-                // Buscar registos do utilizador para hoje na empresa
-                const registosHoje = await RegistoPonto.findAll({
+                // Buscar registos do utilizador para hoje na tabela registo_ponto_obra
+                const registosHoje = await RegistoPontoObra.findAll({
                     where: {
                         user_id: utilizador.id,
-                        empresa_id: empresa.id,
-                        data: dataAtual
+                        timestamp: {
+                            [Op.between]: [dataInicio, dataFim]
+                        }
                     },
-                    order: [['horaEntrada', 'ASC']]
+                    order: [['timestamp', 'ASC']]
                 });
 
                 console.log(`👤 ${utilizador.nome}: ${registosHoje.length} registos encontrados`);
 
                 // Se tiver exatamente 2 picagens (entrada de manhã e saída final)
-                if (registosHoje.length === 1) {
-                    const registo = registosHoje[0];
+                if (registosHoje.length === 2) {
+                    const primeiroRegisto = registosHoje[0];
+                    const segundoRegisto = registosHoje[1];
 
-                    // Verificar se já tem entrada e saída
-                    if (registo.horaEntrada && registo.horaSaida) {
+                    // Verificar se é uma entrada seguida de uma saída
+                    if (primeiroRegisto.tipo === 'entrada' && segundoRegisto.tipo === 'saida') {
                         console.log(`🍽️ Adicionando pontos de almoço para ${utilizador.nome}`);
 
                         // Criar horários de almoço
-                        const saidaAlmoco = new Date(`${dataAtual}T13:00:00`);
-                        const entradaAlmoco = new Date(`${dataAtual}T14:00:00`);
+                        const saidaAlmoco = new Date(`${dataAtual}T13:00:00.000Z`);
+                        const entradaAlmoco = new Date(`${dataAtual}T14:00:00.000Z`);
 
-                        // Atualizar o registo existente para terminar às 13:00
-                        const horaEntradaOriginal = registo.horaEntrada;
-                        await registo.update({
-                            horaSaida: saidaAlmoco.toISOString(),
-                            totalHorasTrabalhadas: calcularHorasTrabalhadas(horaEntradaOriginal, saidaAlmoco.toISOString())
+                        // Criar registo de saída para almoço (às 13:00)
+                        const registoSaidaAlmoco = await RegistoPontoObra.create({
+                            user_id: utilizador.id,
+                            obra_id: primeiroRegisto.obra_id, // Usar a mesma obra da entrada
+                            tipo: 'saida',
+                            timestamp: saidaAlmoco,
+                            latitude: primeiroRegisto.latitude,
+                            longitude: primeiroRegisto.longitude,
+                            is_confirmed: true,
+                            justificacao: 'Saída automática para almoço'
                         });
 
-                        // Criar novo registo para o período da tarde
-                        const horaSaidaOriginal = registo.horaSaida;
-                        const novoRegisto = await RegistoPonto.create({
+                        // Criar registo de entrada pós-almoço (às 14:00)
+                        const registoEntradaAlmoco = await RegistoPontoObra.create({
                             user_id: utilizador.id,
-                            empresa_id: empresa.id,
-                            data: dataAtual,
-                            horaEntrada: entradaAlmoco.toISOString(),
-                            horaSaida: horaSaidaOriginal,
-                            latitude: registo.latitude,
-                            longitude: registo.longitude,
-                            endereco: registo.endereco || 'Registo automático de almoço',
-                            obra_id: registo.obra_id,
-                            totalHorasTrabalhadas: calcularHorasTrabalhadas(entradaAlmoco.toISOString(), horaSaidaOriginal),
-                            totalTempoIntervalo: empresa.tempoIntervaloPadrao || 60 // 1 hora de almoço por defeito
+                            obra_id: primeiroRegisto.obra_id, // Usar a mesma obra
+                            tipo: 'entrada',
+                            timestamp: entradaAlmoco,
+                            latitude: primeiroRegisto.latitude,
+                            longitude: primeiroRegisto.longitude,
+                            is_confirmed: true,
+                            justificacao: 'Entrada automática pós-almoço'
                         });
 
                         pontosAdicionados += 2; // Saída + Entrada
@@ -108,17 +115,19 @@ const verificarEAdicionarPontosAlmoco = async (req, res) => {
                             acao: 'Pontos de almoço adicionados',
                             saidaAlmoco: saidaAlmoco.toLocaleTimeString('pt-PT'),
                             entradaAlmoco: entradaAlmoco.toLocaleTimeString('pt-PT'),
-                            registoOriginalId: registo.id,
-                            novoRegistoId: novoRegisto.id
+                            obraId: primeiroRegisto.obra_id,
+                            registoSaidaId: registoSaidaAlmoco.id,
+                            registoEntradaId: registoEntradaAlmoco.id,
+                            registosOriginais: registosHoje.length
                         });
 
                         console.log(`✅ Pontos de almoço adicionados para ${utilizador.nome}`);
                     } else {
-                        console.log(`⚠️ ${utilizador.nome} não tem entrada e saída completas`);
+                        console.log(`⚠️ ${utilizador.nome} tem 2 registos mas não são entrada->saída`);
                         relatorio.push({
                             utilizador: utilizador.nome,
-                            acao: 'Ignorado - registo incompleto',
-                            detalhes: 'Não tem entrada e saída no mesmo registo'
+                            acao: 'Ignorado - sequência incorreta',
+                            detalhes: `Tipos: ${primeiroRegisto.tipo} -> ${segundoRegisto.tipo}`
                         });
                     }
                 } else if (registosHoje.length === 0) {
@@ -128,11 +137,18 @@ const verificarEAdicionarPontosAlmoco = async (req, res) => {
                         acao: 'Ignorado - sem registos',
                         detalhes: 'Nenhum registo encontrado para hoje'
                     });
-                } else {
-                    console.log(`ℹ️ ${utilizador.nome} já tem ${registosHoje.length} registos (não precisa de ajuste)`);
+                } else if (registosHoje.length < 2) {
+                    console.log(`⚠️ ${utilizador.nome} tem apenas ${registosHoje.length} registo(s)`);
                     relatorio.push({
                         utilizador: utilizador.nome,
-                        acao: 'Ignorado - já tem múltiplos registos',
+                        acao: 'Ignorado - registos insuficientes',
+                        detalhes: `Apenas ${registosHoje.length} registo(s) encontrado(s)`
+                    });
+                } else {
+                    console.log(`ℹ️ ${utilizador.nome} já tem ${registosHoje.length} registos (suficientes)`);
+                    relatorio.push({
+                        utilizador: utilizador.nome,
+                        acao: 'Ignorado - já tem registos suficientes',
                         detalhes: `${registosHoje.length} registos encontrados`
                     });
                 }
@@ -173,22 +189,6 @@ const verificarEAdicionarPontosAlmoco = async (req, res) => {
             error: error.message
         });
     }
-};
-
-// Função auxiliar para calcular horas trabalhadas
-const calcularHorasTrabalhadas = (horaEntrada, horaSaida) => {
-    const entrada = new Date(horaEntrada);
-    const saida = new Date(horaSaida);
-
-    if (isNaN(entrada.getTime()) || isNaN(saida.getTime())) {
-        console.error("Erro: Hora inválida.");
-        return "0.00";
-    }
-
-    const diferencaMilissegundos = saida.getTime() - entrada.getTime();
-    const horasTrabalhadas = diferencaMilissegundos / (1000 * 60 * 60);
-
-    return horasTrabalhadas.toFixed(2);
 };
 
 // Endpoint para verificação manual (para testes)
