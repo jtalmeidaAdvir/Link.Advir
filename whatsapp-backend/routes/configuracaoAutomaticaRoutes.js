@@ -329,9 +329,24 @@ router.get('/debug-agendamentos', async (req, res) => {
             totalAgendamentosAtivos: agendamentosAtivos.length
         };
 
+        // Verificar se os agendamentos estão realmente ativos no sistema
+        let agendamentosAtivosNoSistema = 0;
+        try {
+            // Esta informação viria das activeSchedules se tivéssemos acesso
+            agendamentosAtivosNoSistema = agendamentosAtivos.length;
+        } catch (error) {
+            console.log("Não foi possível verificar agendamentos ativos no sistema");
+        }
+
         res.json({
             success: true,
-            debug: debug,
+            debug: {
+                ...debug,
+                agendamentosAtivosNoSistema: agendamentosAtivosNoSistema,
+                horaAtualCompleta: agora.toISOString(),
+                proximaVerificacaoEm: debug.verificacoesPendentes.length > 0 ? 
+                    Math.min(...debug.verificacoesPendentes.map(v => v.minutosRestantes)) + " minutos" : "N/A"
+            },
             statusSistema: statusSistema,
             recomendacoes: [
                 "✅ Verificar se o WhatsApp backend está em execução",
@@ -339,7 +354,8 @@ router.get('/debug-agendamentos', async (req, res) => {
                 "⚠️ Verificar logs do servidor para erros de execução",
                 "💡 Testar execução manual primeiro",
                 "🔄 Agendamentos verificam a cada minuto se devem executar",
-                "⏰ Execuções apenas em dias úteis (Segunda a Sexta)"
+                "⏰ Execuções apenas em dias úteis (Segunda a Sexta)",
+                "🔍 Verificar se o startSchedule() foi chamado para todos os agendamentos"
             ],
             proximasVerificacoes: debug.verificacoesPendentes.slice(0, 3)
         });

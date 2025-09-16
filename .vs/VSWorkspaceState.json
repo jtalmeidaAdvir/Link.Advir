@@ -1,13 +1,10 @@
 {
   "ExpandedNodes": [
     "",
-    "\\frontend",
     "\\frontend\\src",
     "\\frontend\\src\\Pages",
     "\\frontend\\src\\Pages\\WhatsApp",
-    "\\whatsapp-backend",
     "\\whatsapp-backend\\routes"
   ],
-  "SelectedNode": "\\whatsapp-backend\\routes\\configuracaoAutomaticaRoutes.js",
   "PreviewInSolutionExplorer": false
 }

@@ -3076,7 +3076,7 @@ async function processarRegistoPontoComLocalizacao(message, userState) {
     }
 }
 
-// Função para tentar extrair coordenadas de dados de localização
+// Função para extrair coordenadas de dados de localização
 function tryParseLocationData(messageText) {
     try {
         console.log(
@@ -4175,117 +4175,6 @@ router.post("/test-schedule", async (req, res) => {
 // Endpoint para forçar execução de agendamento em uma hora específica (para testes)
 router.post("/force-schedule-time", async (req, res) => {
     try {
-        const { message, contacts, testTime, priority = "normal" } = req.body;
-
-        if (!message || !contacts || !testTime) {
-            return res.status(400).json({
-                error: "Mensagem, contactos e hora de teste são obrigatórios",
-            });
-        }
-
-        const scheduleId = "FORCED_" + Date.now();
-        const schedule = {
-            id: scheduleId,
-            message,
-            contactList: contacts.map((contact) => ({
-                name: contact.name || "Teste",
-                phone: contact.phone,
-            })),
-            frequency: "test",
-            time: testTime,
-            enabled: true,
-            priority,
-            createdAt: new Date().toISOString(),
-            lastSent: null,
-            totalSent: 0,
-        };
-
-        // Adicionar à lista de agendamentos
-        scheduledMessages.push(schedule);
-
-        addLog(
-            scheduleId,
-            "info",
-            `Agendamento forçado criado para ${testTime}`,
-        );
-
-        // Agendar para executar na próxima vez que a hora bater
-        startSchedule(schedule);
-
-        res.json({
-            message: "Agendamento forçado criado com sucesso",
-            schedule,
-            note: `Será executado quando o relógio marcar ${testTime}`,
-        });
-    } catch (error) {
-        console.error("Erro ao criar agendamento forçado:", error);
-        res.status(500).json({ error: "Erro ao criar agendamento forçado" });
-    }
-});
-
-// Endpoint para verificar status dos agendamentos ativos
-router.get("/schedule-status", (req, res) => {
-    const now = new Date();
-    const currentTime = now.toLocaleTimeString("pt-PT", {
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-
-    res.json({
-        currentTime,
-        totalSchedules: scheduledMessages.length,
-        activeSchedules: activeSchedules.size,
-        schedules: scheduledMessages.map((schedule) => ({
-            id: schedule.id,
-            message: schedule.message,
-            frequency: schedule.frequency,
-            time: schedule.time,
-            enabled: schedule.enabled,
-            lastSent: schedule.lastSent,
-            totalSent: schedule.totalSent,
-            contactCount: schedule.contactList.length,
-            isActive: activeSchedules.has(schedule.id),
-        })),
-    });
-});
-
-// Endpoint para debug completo do WhatsApp Web
-router.get("/debug", (req, res) => {
-    const fs = require("fs");
-    const chromePaths = [
-        "/usr/bin/chromium-browser",
-        "/usr/bin/google-chrome",
-        "/usr/bin/chrome",
-        "/snap/bin/chromium",
-    ];
-
-    const availableChrome = chromePaths.find((path) => fs.existsSync(path));
-
-    res.json({
-        timestamp: new Date().toISOString(),
-        status: clientStatus,
-        isReady: isClientReady,
-        hasClient: !!client,
-        qrCode: {
-            exists: !!qrCodeData,
-            length: qrCodeData ? qrCodeData.length : 0,
-            preview: qrCodeData ? qrCodeData.substring(0, 50) + "..." : null,
-        },
-        environment: {
-            nodeVersion: process.version,
-            platform: process.platform,
-            availableChrome: availableChrome || "Nenhum Chrome encontrado",
-            chromePaths: chromePaths.map((path) => ({
-                path,
-                exists: fs.existsSync(path),
-            })),
-        },
-    });
-});
-
-// Endpoint para simular que é uma hora específica (para testes)
-router.post("/simulate-time", async (req, res) => {
-    try {
         const { time, scheduleId } = req.body;
 
         if (!time) {
@@ -4395,8 +4284,10 @@ function addLog(scheduleId, type, message, details = null) {
 
 // Função para iniciar um agendamento
 function startSchedule(schedule) {
-    if (activeSchedules.has(schedule.id)) {
-        clearInterval(activeSchedules.get(schedule.id));
+    // Limpar agendamento existente se houver
+    if (activeSchedules.has(schedule.id.toString())) {
+        clearInterval(activeSchedules.get(schedule.id.toString()));
+        activeSchedules.delete(schedule.id.toString());
         addLog(schedule.id, "info", "Agendamento reiniciado");
     } else {
         addLog(
@@ -4405,7 +4296,8 @@ function startSchedule(schedule) {
             `Agendamento iniciado - Frequência: ${schedule.frequency}, Hora: ${schedule.time}`,
         );
     }
-    const checkAndExecute = () => {
+
+    const checkAndExecute = async () => {
         // Usar fuso horário de Lisboa/Portugal como padrão
         const now = new Date();
         const portugalTime = new Date(
@@ -4448,7 +4340,15 @@ function startSchedule(schedule) {
                     "info",
                     "Condições atendidas, iniciando execução...",
                 );
-                executeScheduledMessage(schedule); // Certifique-se de que executeScheduledMessage está definida corretamente
+                let result;
+                if (schedule.tipo === "verificacao_pontos_almoco") {
+                    // Executar verificação automática de pontos
+                    result = await executarVerificacaoPontosAlmoco(schedule);
+                } else {
+                    // Executar mensagem normal
+                    result = await executeScheduledMessage(schedule);
+                }
+                console.log(`Resultado da execução:`, result);
             } else {
                 addLog(
                     schedule.id,
@@ -4460,7 +4360,8 @@ function startSchedule(schedule) {
     };
     // Define o intervalo para verificar a hora
     const intervalId = setInterval(checkAndExecute, 60000); // Verifica a cada minuto
-    activeSchedules.set(schedule.id, intervalId);
+    activeSchedules.set(schedule.id.toString(), intervalId);
+    console.log(`✅ Agendamento ${schedule.id} monitorado - verificação a cada minuto`);
 }
 
 // Função para verificar se deve executar hoje
@@ -4719,7 +4620,7 @@ function initializeSchedules() {
                 const scheduleData = {
                     id: schedule.id,
                     message: schedule.message,
-                    contactList: JSON.parse(schedule.contact_list),
+                    contactList: JSON.parse(schedule.contact_list || '[]'),
                     frequency: schedule.frequency,
                     time: schedule.time
                         ? new Date(schedule.time).toLocaleTimeString("pt-PT", {
@@ -4733,6 +4634,8 @@ function initializeSchedules() {
                     startDate: schedule.start_date,
                     enabled: schedule.enabled,
                     priority: schedule.priority,
+                    tipo: schedule.tipo, // Adicionado para agendamentos de verificação
+                    empresa_id: schedule.empresa_id, // Adicionado para agendamentos de verificação
                     lastSent: schedule.last_sent,
                     totalSent: schedule.total_sent,
                 };
