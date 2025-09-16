@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import ConnectionTab from "./components/ConnectionTab";
 import ContactsTab from "./components/ContactsTab";
 import ScheduleTab from "./components/ScheduleTab";
-import ExternosTab from "./components/ExternosTab";
-import LogsTab from "./components/LogsTab";
+
 import ConfiguracaoAutomaticaTab from "./components/ConfiguracaoAutomaticaTab";
 import useWhatsAppData from "./hooks/useWhatsAppData";
 import { getWhatsAppStyles } from "./styles/whatsAppStyles";
@@ -1042,9 +1041,7 @@ const WhatsAppWebConfig = () => {
                     { id: "connection", icon: "🔗", label: "Conexão" },
                     { id: "contacts", icon: "👥", label: "Contactos" },
                     { id: "schedule", icon: "⏰", label: "Agendamento" },
-                    { id: "externos", icon: "🏗️", label: "Externos" },
                     { id: "configuracao", icon: "🍽️", label: "Almoços" },
-                    { id: "logs", icon: "📋", label: "Logs" },
                 ].map((tab) => (
                     <button
                         key={tab.id}
@@ -1064,9 +1061,7 @@ const WhatsAppWebConfig = () => {
                 {activeTab === "connection" && renderConnectionTab()}
                 {activeTab === "contacts" && renderContactsTab()}
                 {activeTab === "schedule" && renderScheduleTab()}
-                {activeTab === "externos" && renderExternosTab()}
                 {activeTab === "configuracao" && renderConfiguracaoAutomaticaTab()}
-                {activeTab === "logs" && renderLogsTab()}
             </div>
         </div>
     );
