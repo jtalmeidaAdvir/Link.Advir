@@ -70,24 +70,37 @@ const ConfiguracaoAutomaticaTab = ({
         }
     };
 
-    // Forçar execução de um agendamento
+    // Forçar execução de um agendamento (usa a mesma lógica do botão testar)
     const executarAgendamentoAgora = async (empresaId) => {
         try {
             setLoading(true);
-            const response = await fetch(`${API_BASE_URL}/configuracao-automatica/executar-agora/${empresaId}`, {
+            const response = await fetch(`https://backend.advir.pt/api/verificacao-automatica/verificacao-manual?empresa_id=${empresaId}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
                 }
             });
 
             const result = await response.json();
 
             if (response.ok) {
-                alert(`✅ Execução concluída!\n\nUtilizadores processados: ${result.resultado?.utilizadoresProcessados || 0}\nPontos adicionados: ${result.resultado?.pontosAdicionados || 0}`);
+                // Atualizar as estatísticas do agendamento no whatsapp-backend
+                try {
+                    await fetch(`${API_BASE_URL}/configuracao-automatica/atualizar-estatisticas/${empresaId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                } catch (updateError) {
+                    console.warn("Erro ao atualizar estatísticas:", updateError);
+                }
+
+                alert(`✅ Execução concluída!\n\nUtilizadores processados: ${result.estatisticas?.utilizadoresProcessados || 0}\nPontos adicionados: ${result.estatisticas?.pontosAdicionados || 0}`);
                 loadConfiguracoes(); // Recarregar dados
             } else {
-                alert(`Erro: ${result.error}`);
+                alert(`Erro: ${result.message}`);
             }
         } catch (error) {
             console.error("Erro ao executar agendamento:", error);
