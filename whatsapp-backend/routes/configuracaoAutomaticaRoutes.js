@@ -276,6 +276,42 @@ router.post('/executar-agora/:empresa_id', async (req, res) => {
     }
 });
 
+// Endpoint para atualizar estatísticas de um agendamento
+router.post('/atualizar-estatisticas/:empresa_id', async (req, res) => {
+    try {
+        const { empresa_id } = req.params;
+
+        const agendamento = await Schedule.findOne({
+            where: {
+                tipo: "verificacao_pontos_almoco",
+                empresa_id: empresa_id
+            }
+        });
+
+        if (agendamento) {
+            await agendamento.update({
+                last_sent: new Date(),
+                total_sent: (agendamento.total_sent || 0) + 1
+            });
+
+            res.json({
+                success: true,
+                message: "Estatísticas atualizadas"
+            });
+        } else {
+            res.status(404).json({
+                error: "Agendamento não encontrado"
+            });
+        }
+
+    } catch (error) {
+        console.error("Erro ao atualizar estatísticas:", error);
+        res.status(500).json({
+            error: "Erro interno ao atualizar estatísticas"
+        });
+    }
+});
+
 // Endpoint de debug para verificar se o sistema de agendamentos está ativo
 router.get('/debug-agendamentos', async (req, res) => {
     try {
@@ -334,15 +370,33 @@ router.get('/debug-agendamentos', async (req, res) => {
 
         console.log('🔍 Debug completo:', debug);
 
+        // Status do sistema
+        const horaAtual = agora.toLocaleTimeString('pt-PT', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+
+        const statusSistema = {
+            sistemaAtivo: true, // Assumindo que está ativo se chegou aqui
+            horaAtual: horaAtual,
+            dataAtual: agora.toLocaleDateString('pt-PT'),
+            servidorRodando: true,
+            totalAgendamentosAtivos: agendamentosAtivos.length
+        };
+
         res.json({
             success: true,
             debug: debug,
+            statusSistema: statusSistema,
             recomendacoes: [
-                "Verificar se o WhatsApp backend está em execução",
-                "Confirmar se os agendamentos estão enabled=true",
-                "Verificar logs do servidor para erros de execução",
-                "Testar execução manual primeiro"
-            ]
+                "✅ Verificar se o WhatsApp backend está em execução",
+                "✅ Confirmar se os agendamentos estão enabled=true",
+                "⚠️ Verificar logs do servidor para erros de execução",
+                "💡 Testar execução manual primeiro",
+                "🔄 Agendamentos verificam a cada minuto se devem executar",
+                "⏰ Execuções apenas em dias úteis (Segunda a Sexta)"
+            ],
+            proximasVerificacoes: debug.verificacoesPendentes.slice(0, 3)
         });
 
     } catch (error) {
