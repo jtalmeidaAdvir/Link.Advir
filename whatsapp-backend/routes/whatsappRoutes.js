@@ -1554,11 +1554,13 @@ async function executarVerificacaoPontosAlmoco(schedule) {
             `🚀 INICIANDO verificação automática para empresa ${schedule.empresa_id}`
         );
 
-        // Fazer chamada para o backend principal com timeout
+        // Usar a mesma lógica do botão "Executar Agora" - chamada para verificacao-manual
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
 
-        const response = await fetch(`https://backend.advir.pt/api/verificacao-automatica/verificar-pontos-almoco?empresa_id=${schedule.empresa_id}`, {
+        console.log(`📡 Fazendo chamada para verificacao-manual para empresa ${schedule.empresa_id}`);
+
+        const response = await fetch(`https://backend.advir.pt/api/verificacao-automatica/verificacao-manual?empresa_id=${schedule.empresa_id}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1570,15 +1572,11 @@ async function executarVerificacaoPontosAlmoco(schedule) {
 
         clearTimeout(timeoutId);
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Erro HTTP ${response.status}: ${errorText}`);
-        }
+        const result = await response.json();
+        console.log(`📋 Resposta da API:`, result);
 
-        const resultado = await response.json();
-
-        if (resultado.success) {
-            const stats = resultado.estatisticas;
+        if (response.ok && result.success) {
+            const stats = result.estatisticas;
             console.log(`✅ Verificação concluída para empresa ${schedule.empresa_id}:`, stats);
 
             addLog(
@@ -1587,33 +1585,35 @@ async function executarVerificacaoPontosAlmoco(schedule) {
                 `Verificação concluída: ${stats.pontosAdicionados} pontos adicionados para ${stats.utilizadoresProcessados}/${stats.utilizadoresTotais} utilizadores`
             );
 
-            // Atualizar estatísticas do agendamento
+            // Atualizar estatísticas do agendamento no whatsapp-backend
             try {
-                await fetch(`https://backend.advir.pt/api/configuracao-automatica/atualizar-estatisticas/${schedule.empresa_id}`, {
+                await fetch(`https://backend.advir.pt/whatsapi/api/configuracao-automatica/atualizar-estatisticas/${schedule.empresa_id}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     }
                 });
+                console.log(`📊 Estatísticas atualizadas no whatsapp-backend`);
             } catch (statsError) {
-                console.warn('Erro ao atualizar estatísticas:', statsError.message);
+                console.warn('⚠️ Erro ao atualizar estatísticas no whatsapp-backend:', statsError.message);
             }
 
             return {
                 success: true,
                 message: `Verificação automática concluída: ${stats.pontosAdicionados} pontos adicionados para ${stats.utilizadoresProcessados} utilizadores`,
-                dados: resultado
+                dados: result
             };
         } else {
-            console.error(`❌ Erro na verificação para empresa ${schedule.empresa_id}:`, resultado.message);
+            const errorMessage = result.message || `Erro HTTP ${response.status}`;
+            console.error(`❌ Erro na verificação para empresa ${schedule.empresa_id}:`, errorMessage);
             addLog(
                 schedule.id,
                 "error",
-                `Erro na verificação: ${resultado.message}`
+                `Erro na verificação: ${errorMessage}`
             );
             return {
                 success: false,
-                error: resultado.message || 'Erro desconhecido na verificação'
+                error: errorMessage
             };
         }
 
