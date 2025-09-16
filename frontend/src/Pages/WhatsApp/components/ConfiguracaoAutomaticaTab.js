@@ -34,6 +34,69 @@ const ConfiguracaoAutomaticaTab = ({
         }
     };
 
+    // Verificar status dos agendamentos
+    const verificarStatusAgendamentos = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/configuracao-automatica/status-agendamentos`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                let statusMessage = `📊 Status dos Agendamentos:\n\n`;
+                statusMessage += `🕐 Hora atual: ${new Date(data.horaAtual).toLocaleString('pt-PT')}\n`;
+                statusMessage += `📋 Total de agendamentos: ${data.totalAgendamentos}\n\n`;
+                
+                if (data.agendamentosAtivos.length > 0) {
+                    statusMessage += `📅 Próximas execuções:\n`;
+                    data.agendamentosAtivos.forEach(ag => {
+                        statusMessage += `\n🏢 Empresa ${ag.empresa_id}:\n`;
+                        statusMessage += `  ⏰ Horário: ${ag.horario}\n`;
+                        statusMessage += `  📅 Próxima: ${new Date(ag.proximaExecucao).toLocaleString('pt-PT')}\n`;
+                        statusMessage += `  ⏳ Em ${ag.minutosParaProxima} minutos\n`;
+                        statusMessage += `  ✅ Executada hoje: ${ag.jaExecutouHoje ? 'Sim' : 'Não'}\n`;
+                        statusMessage += `  📊 Total execuções: ${ag.totalExecucoes}\n`;
+                    });
+                } else {
+                    statusMessage += `⚠️ Nenhum agendamento ativo encontrado`;
+                }
+                
+                alert(statusMessage);
+            } else {
+                alert("Erro ao verificar status dos agendamentos");
+            }
+        } catch (error) {
+            console.error("Erro ao verificar status:", error);
+            alert("Erro ao verificar status dos agendamentos");
+        }
+    };
+
+    // Forçar execução de um agendamento
+    const executarAgendamentoAgora = async (empresaId) => {
+        try {
+            setLoading(true);
+            const response = await fetch(`${API_BASE_URL}/configuracao-automatica/executar-agora/${empresaId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(`✅ Execução concluída!\n\nUtilizadores processados: ${result.resultado?.utilizadoresProcessados || 0}\nPontos adicionados: ${result.resultado?.pontosAdicionados || 0}`);
+                loadConfiguracoes(); // Recarregar dados
+            } else {
+                alert(`Erro: ${result.error}`);
+            }
+        } catch (error) {
+            console.error("Erro ao executar agendamento:", error);
+            alert("Erro ao executar agendamento");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Carregar empresas disponíveis
     const loadEmpresas = async () => {
         try {
@@ -228,7 +291,22 @@ const ConfiguracaoAutomaticaTab = ({
 
             {/* Lista de Configurações */}
             <div style={styles.card}>
-                <h3 style={styles.cardTitle}>📋 Configurações Ativas ({configuracoes.length})</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <h3 style={styles.cardTitle}>📋 Configurações Ativas ({configuracoes.length})</h3>
+                    <button
+                        onClick={verificarStatusAgendamentos}
+                        style={{
+                            ...styles.button,
+                            backgroundColor: "#2196F3",
+                            color: "white",
+                            padding: "8px 12px",
+                            fontSize: "0.9rem",
+                        }}
+                        disabled={loading}
+                    >
+                        📊 Ver Status Global
+                    </button>
+                </div>
 
                 {loading ? (
                     <div style={{ textAlign: 'center', padding: '20px' }}>
@@ -277,6 +355,19 @@ const ConfiguracaoAutomaticaTab = ({
                                         disabled={loading}
                                     >
                                         🧪 Testar
+                                    </button>
+                                    <button
+                                        onClick={() => executarAgendamentoAgora(config.empresa_id)}
+                                        style={{
+                                            ...styles.button,
+                                            backgroundColor: "#4CAF50",
+                                            color: "white",
+                                            padding: "6px 10px",
+                                            fontSize: "0.8rem",
+                                        }}
+                                        disabled={loading}
+                                    >
+                                        ▶️ Executar Agora
                                     </button>
                                     <button
                                         onClick={() => toggleConfiguracao(config.empresa_id, config.ativo)}
