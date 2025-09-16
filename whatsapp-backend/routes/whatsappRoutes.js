@@ -3825,7 +3825,24 @@ setInterval(async () => {
 
             console.log(`      • Deve executar hoje: ${shouldExecute ? '✅ Sim' : '❌ Não'}`);
             console.log(`      • Hora atual: ${currentTime} | Hora agendada: ${scheduleTime}`);
-            console.log(`      • Match de horário: ${currentTime === scheduleTime ? '✅ Sim' : '❌ Não'}`);
+            const horarioMatch = currentTime === scheduleTime;
+            console.log(`      • Match de horário: ${horarioMatch ? '✅ Sim' : '❌ Não'}`);
+            
+            // Se o horário não coincide, mas queremos executar a função de almoço quando coincidir
+            if (!horarioMatch) {
+                console.log(`[${portugalTime.toLocaleString('pt-PT')}] INFO: Verificação de execução: Frequência customizada - Dia incluído`);
+                console.log(`      • Deve executar hoje: ✅ Sim`);
+                console.log(`      • Hora atual: ${currentTime} | Hora agendada: ${scheduleTime}`);
+                console.log(`      • Match de horário: ❌ Não`);
+            } else if (horarioMatch && shouldExecute) {
+                // Se horário coincide E deve executar hoje, chamar função de almoço
+                console.log(`🍽️ EXECUTANDO função de verificação de pontos de almoço - Horário coincide!`);
+                try {
+                    await executarVerificacaoPontosAlmoco(schedule);
+                } catch (error) {
+                    console.error(`❌ Erro ao executar verificação de pontos:`, error);
+                }
+            }
         });
 
     } catch (dbError) {
