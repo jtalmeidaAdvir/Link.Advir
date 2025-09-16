@@ -4444,13 +4444,16 @@ function startSchedule(schedule) {
 
             // Verificar se o formato do tempo está correto
             let scheduleTime = schedule.time;
+            let scheduleHour, scheduleMinute;
+            
             if (typeof scheduleTime !== "string") {
-                // Se for um objeto Date, converter para string HH:MM
+                // Se for um objeto Date, extrair hora e minuto diretamente
                 if (scheduleTime instanceof Date) {
-                    scheduleTime = scheduleTime.toLocaleTimeString('pt-PT', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
+                    // Para agendamentos armazenados como Date no formato 1970-01-01T16:26:00.000Z
+                    // extrair apenas a hora e minuto
+                    scheduleHour = scheduleTime.getUTCHours();
+                    scheduleMinute = scheduleTime.getUTCMinutes();
+                    scheduleTime = `${scheduleHour.toString().padStart(2, '0')}:${scheduleMinute.toString().padStart(2, '0')}`;
                 } else {
                     addLog(
                         schedule.id,
@@ -4459,11 +4462,11 @@ function startSchedule(schedule) {
                     );
                     return;
                 }
+            } else {
+                const scheduleTimeParts = scheduleTime.split(":");
+                scheduleHour = parseInt(scheduleTimeParts[0]);
+                scheduleMinute = parseInt(scheduleTimeParts[1]);
             }
-
-            const scheduleTimeParts = scheduleTime.split(":");
-            const scheduleHour = parseInt(scheduleTimeParts[0]);
-            const scheduleMinute = parseInt(scheduleTimeParts[1]);
 
             const currentHour = portugalTime.getHours();
             const currentMinute = portugalTime.getMinutes();
@@ -4473,7 +4476,7 @@ function startSchedule(schedule) {
                 addLog(
                     schedule.id,
                     "info",
-                    `Verificação - Atual: ${currentHour}:${currentMinute.toString().padStart(2, "0")}, Agendado: ${scheduleTime}, Tipo: ${schedule.tipo || 'mensagem'}`,
+                    `Verificação - Atual: ${currentHour}:${currentMinute.toString().padStart(2, "0")}, Agendado: ${scheduleTime} (${scheduleHour}:${scheduleMinute}), Tipo: ${schedule.tipo || 'mensagem'}`,
                 );
             }
 
@@ -4482,7 +4485,7 @@ function startSchedule(schedule) {
                 addLog(
                     schedule.id,
                     "info",
-                    `⏰ Hora de execução atingida (${currentHour}:${currentMinute.toString().padStart(2, '0')}), verificando condições...`,
+                    `⏰ Hora de execução atingida (${currentHour}:${currentMinute.toString().padStart(2, '0')}) = Agendado (${scheduleHour}:${scheduleMinute.toString().padStart(2, '0')}), verificando condições...`,
                 );
                 
                 const shouldExecute = shouldExecuteToday(schedule, portugalTime);
@@ -4846,10 +4849,9 @@ function initializeSchedules() {
                         contactList: JSON.parse(schedule.contact_list || '[]'),
                         frequency: schedule.frequency,
                         time: schedule.time
-                            ? new Date(schedule.time).toLocaleTimeString("pt-PT", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            })
+                            ? (schedule.time instanceof Date 
+                                ? `${schedule.time.getUTCHours().toString().padStart(2, '0')}:${schedule.time.getUTCMinutes().toString().padStart(2, '0')}`
+                                : schedule.time)
                             : "09:00", // Default time if not set
                         days: schedule.days
                             ? JSON.parse(schedule.days)
