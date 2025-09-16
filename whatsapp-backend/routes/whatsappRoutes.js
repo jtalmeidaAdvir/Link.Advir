@@ -1562,14 +1562,17 @@ async function executarVerificacaoPontosAlmoco(schedule) {
                 `Verificação concluída: ${resultado.estatisticas.pontosAdicionados} pontos adicionados para ${resultado.estatisticas.utilizadoresProcessados} utilizadores`
             );
 
-            // Atualizar estatísticas do agendamento
-            await Schedule.update(
+            // Atualizar estatísticas do agendamento na base de dados
+            const portugalTime = new Date().toLocaleString("en-US", { timeZone: "Europe/Lisbon" });
+            const updateResult = await Schedule.update(
                 {
-                    last_sent: new Date().toISOString(),
-                    total_sent: (schedule.totalSent || 0) + 1
+                    last_sent: new Date(portugalTime).toISOString(),
+                    total_sent: (schedule.total_sent || 0) + 1
                 },
                 { where: { id: schedule.id } }
             );
+            
+            console.log(`📊 Estatísticas atualizadas para agendamento ${schedule.id}:`, updateResult);
 
             return {
                 success: true,
@@ -4479,7 +4482,7 @@ function startSchedule(schedule) {
                 addLog(
                     schedule.id,
                     "info",
-                    "⏰ Hora de execução atingida, verificando condições...",
+                    `⏰ Hora de execução atingida (${currentHour}:${currentMinute.toString().padStart(2, '0')}), verificando condições...`,
                 );
                 
                 if (shouldExecuteToday(schedule, portugalTime)) {
@@ -4509,6 +4512,15 @@ function startSchedule(schedule) {
                         schedule.id,
                         "warning",
                         "❌ Condições não atendidas para execução hoje",
+                    );
+                }
+            } else {
+                // Log de debug mais detalhado apenas de 5 em 5 minutos
+                if (currentMinute % 5 === 0 && currentMinute !== scheduleMinute) {
+                    addLog(
+                        schedule.id,
+                        "info",
+                        `⏱️ Aguardando execução - Atual: ${currentHour}:${currentMinute.toString().padStart(2, "0")}, Agendado: ${scheduleTime}, Diferença: ${Math.abs((scheduleHour * 60 + scheduleMinute) - (currentHour * 60 + currentMinute))} min`,
                     );
                 }
             }
@@ -4555,14 +4567,38 @@ function shouldExecuteToday(schedule, now) {
         "Sábado",
     ];
 
-    // Verificar se já foi enviado hoje (usando data de Portugal)
-    if (
-        schedule.lastSent &&
-        typeof schedule.lastSent === "string" &&
-        schedule.lastSent.startsWith(todayDate)
-    ) {
-        addLog(schedule.id, "warning", `Já foi enviado hoje (${todayDate})`);
-        return false;
+    // Para agendamentos de verificação automática, verificar se já foi executado na hora exata
+    if (schedule.tipo === "verificacao_pontos_almoco") {
+        if (schedule.lastSent) {
+            const lastSentTime = new Date(schedule.lastSent);
+            const lastSentPortugal = new Date(
+                lastSentTime.toLocaleString("en-US", { timeZone: "Europe/Lisbon" })
+            );
+            
+            // Verificar se já foi executado na mesma hora e minuto hoje
+            const currentHour = portugalTime.getHours();
+            const currentMinute = portugalTime.getMinutes();
+            const lastSentHour = lastSentPortugal.getHours();
+            const lastSentMinute = lastSentPortugal.getMinutes();
+            const lastSentDate = lastSentPortugal.toISOString().split("T")[0];
+            
+            if (lastSentDate === todayDate && 
+                lastSentHour === currentHour && 
+                lastSentMinute === currentMinute) {
+                addLog(schedule.id, "warning", `Verificação automática já executada hoje às ${lastSentHour}:${lastSentMinute.toString().padStart(2, '0')}`);
+                return false;
+            }
+        }
+    } else {
+        // Para outros tipos de agendamento, manter a lógica original (uma vez por dia)
+        if (
+            schedule.lastSent &&
+            typeof schedule.lastSent === "string" &&
+            schedule.lastSent.startsWith(todayDate)
+        ) {
+            addLog(schedule.id, "warning", `Já foi enviado hoje (${todayDate})`);
+            return false;
+        }
     }
 
     // Verificar data de início
