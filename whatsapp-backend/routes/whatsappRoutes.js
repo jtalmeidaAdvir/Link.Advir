@@ -4375,7 +4375,7 @@ function startSchedule(schedule) {
                 addLog(
                     schedule.id,
                     "info",
-                    `Verificação - Atual: ${currentHour}:${currentMinute.toString().padStart(2, "0")}, Agendado: ${scheduleTime} (${scheduleHour}:${scheduleMinute}), Tipo: ${schedule.tipo || 'mensagem'}`,
+                    `Verificação - Atual: ${currentHour}:${currentMinute.toString().padStart(2, "0")}, Agendado: ${scheduleTime} (${scheduleHour}:${scheduleMinute})`,
                 );
             }
 
@@ -4479,17 +4479,8 @@ function shouldExecuteToday(schedule, now) {
     );
     const today = portugalTime.getDay(); // 0 = Domingo, 1 = Segunda, etc.
     const todayDate = portugalTime.toISOString().split("T")[0];
-    const dayNames = [
-        "Domingo",
-        "Segunda",
-        "Terça",
-        "Quarta",
-        "Quinta",
-        "Sexta",
-        "Sábado",
-    ];
 
-    // Verificação se já foi executado hoje (apenas para agendamentos normais)
+    // Verificação se já foi executado hoje (APENAS para agendamentos normais)
     if (schedule.tipo !== "verificacao_pontos_almoco" && schedule.lastSent) {
         let lastSentDate;
 
@@ -4509,32 +4500,52 @@ function shouldExecuteToday(schedule, now) {
         }
 
         if (lastSentDate === todayDate) {
-            addLog(schedule.id, "warning", `Agendamento já executado hoje (${lastSentDate})`);
+            addLog(schedule.id, "warning", `Agendamento normal já executado hoje (${lastSentDate}) - BLOQUEADO`);
             return false;
         }
 
         addLog(schedule.id, "info", `Última execução: ${lastSentDate}, Hoje: ${todayDate} - Pode executar`);
     }
 
-    // Para verificações automáticas de pontos, permitir execução múltipla por dia
+    // Para verificações automáticas de pontos, SEMPRE permitir execução múltipla
     if (schedule.tipo === "verificacao_pontos_almoco") {
-        addLog(schedule.id, "info", `Verificação automática de pontos - execução múltipla permitida`);
+        addLog(schedule.id, "success", `✅ Verificação automática de pontos - SEMPRE PODE EXECUTAR (múltiplas por dia)`);
+    }
+
+    // Verificação se já foi executado hoje (APENAS para agendamentos normais)
+    if (schedule.tipo !== "verificacao_pontos_almoco" && schedule.lastSent) {
+        let lastSentDate;
+
+        if (schedule.lastSent instanceof Date) {
+            lastSentDate = schedule.lastSent.toISOString().split("T")[0];
+        } else if (typeof schedule.lastSent === "string") {
+            // Se for string, pode ser formato ISO ou formato português
+            if (schedule.lastSent.includes("/")) {
+                // Formato português: dd/mm/yyyy, hh:mm:ss
+                const datePart = schedule.lastSent.split(",")[0].trim();
+                const [day, month, year] = datePart.split("/");
+                lastSentDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            } else {
+                // Formato ISO
+                lastSentDate = new Date(schedule.lastSent).toISOString().split("T")[0];
+            }
+        }
+
+        if (lastSentDate === todayDate) {
+            addLog(schedule.id, "warning", `Agendamento normal já executado hoje (${lastSentDate}) - BLOQUEADO`);
+            return false;
+        }
+
+        addLog(schedule.id, "info", `Última execução: ${lastSentDate}, Hoje: ${todayDate} - Pode executar`);
+    }
+
+    // Para verificações automáticas de pontos, SEMPRE permitir execução múltipla
+    if (schedule.tipo === "verificacao_pontos_almoco") {
+        addLog(schedule.id, "success", `✅ Verificação automática de pontos - SEMPRE PODE EXECUTAR (múltiplas por dia)`);
     }
 
 
-    // Verificar data de início
-    if (
-        schedule.startDate &&
-        new Date(schedule.startDate).toISOString().split("T")[0] > todayDate
-    ) {
-        addLog(
-            schedule.id,
-            "warning",
-            `Data de início ainda não atingida (${schedule.startDate.toISOString().split("T")[0]})`,
-        );
-        return false;
-    }
-
+    // Verificação do dia da semana
     let shouldExecute = false;
     let reason = "";
 
@@ -4545,7 +4556,7 @@ function shouldExecuteToday(schedule, now) {
             break;
         case "weekly":
             shouldExecute = schedule.days.includes(today);
-            reason = `Frequência semanal - Hoje é ${dayNames[today]} (${shouldExecute ? "incluído" : "não incluído"} nos dias selecionados)`;
+            reason = `Frequência semanal - Hoje é ${["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][today]} (${shouldExecute ? "incluído" : "não incluído"} nos dias selecionados)`;
             break;
         case "monthly":
             shouldExecute = portugalTime.getDate() === 1;
@@ -4566,7 +4577,7 @@ function shouldExecuteToday(schedule, now) {
 
     addLog(schedule.id, "info", `Verificação de execução: ${reason}`, {
         frequency: schedule.frequency,
-        today: dayNames[today],
+        today: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][today],
         portugalTime: portugalTime.toLocaleString("pt-PT"),
         scheduleTime: schedule.time,
         selectedDays: schedule.days,
