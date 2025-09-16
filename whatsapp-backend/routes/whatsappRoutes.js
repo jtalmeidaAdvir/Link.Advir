@@ -4485,28 +4485,46 @@ function startSchedule(schedule) {
                     `⏰ Hora de execução atingida (${currentHour}:${currentMinute.toString().padStart(2, '0')}), verificando condições...`,
                 );
                 
-                if (shouldExecuteToday(schedule, portugalTime)) {
+                const shouldExecute = shouldExecuteToday(schedule, portugalTime);
+                addLog(
+                    schedule.id,
+                    "info",
+                    `🔍 Resultado da verificação shouldExecuteToday: ${shouldExecute}`,
+                );
+                
+                if (shouldExecute) {
                     addLog(
                         schedule.id,
                         "info",
                         "✅ Condições atendidas, iniciando execução...",
                     );
                     
-                    let result;
-                    if (schedule.tipo === "verificacao_pontos_almoco") {
-                        // Executar verificação automática de pontos
-                        result = await executarVerificacaoPontosAlmoco(schedule);
-                    } else {
-                        // Executar mensagem normal
-                        result = await executeScheduledMessage(schedule);
+                    try {
+                        let result;
+                        if (schedule.tipo === "verificacao_pontos_almoco") {
+                            // Executar verificação automática de pontos
+                            addLog(schedule.id, "info", "🍽️ Executando verificação automática de pontos de almoço...");
+                            result = await executarVerificacaoPontosAlmoco(schedule);
+                        } else {
+                            // Executar mensagem normal
+                            addLog(schedule.id, "info", "📩 Executando envio de mensagem agendada...");
+                            result = await executeScheduledMessage(schedule);
+                        }
+                        
+                        console.log(`📊 Resultado da execução para agendamento ${schedule.id}:`, result);
+                        addLog(
+                            schedule.id,
+                            result.success ? "success" : "error",
+                            `Execução concluída: ${result.message || result.error || 'Sem detalhes'}`
+                        );
+                    } catch (executionError) {
+                        console.error(`❌ Erro durante execução do agendamento ${schedule.id}:`, executionError);
+                        addLog(
+                            schedule.id,
+                            "error",
+                            `Erro na execução: ${executionError.message}`
+                        );
                     }
-                    
-                    console.log(`📊 Resultado da execução:`, result);
-                    addLog(
-                        schedule.id,
-                        result.success ? "success" : "error",
-                        `Execução concluída: ${result.message || result.error}`
-                    );
                 } else {
                     addLog(
                         schedule.id,
@@ -4567,25 +4585,14 @@ function shouldExecuteToday(schedule, now) {
         "Sábado",
     ];
 
-    // Para agendamentos de verificação automática, verificar se já foi executado na hora exata
+    // Para agendamentos de verificação automática, verificar se já foi executado hoje
     if (schedule.tipo === "verificacao_pontos_almoco") {
         if (schedule.lastSent) {
             const lastSentTime = new Date(schedule.lastSent);
-            const lastSentPortugal = new Date(
-                lastSentTime.toLocaleString("en-US", { timeZone: "Europe/Lisbon" })
-            );
+            const lastSentDate = lastSentTime.toISOString().split("T")[0];
             
-            // Verificar se já foi executado na mesma hora e minuto hoje
-            const currentHour = portugalTime.getHours();
-            const currentMinute = portugalTime.getMinutes();
-            const lastSentHour = lastSentPortugal.getHours();
-            const lastSentMinute = lastSentPortugal.getMinutes();
-            const lastSentDate = lastSentPortugal.toISOString().split("T")[0];
-            
-            if (lastSentDate === todayDate && 
-                lastSentHour === currentHour && 
-                lastSentMinute === currentMinute) {
-                addLog(schedule.id, "warning", `Verificação automática já executada hoje às ${lastSentHour}:${lastSentMinute.toString().padStart(2, '0')}`);
+            if (lastSentDate === todayDate) {
+                addLog(schedule.id, "warning", `Verificação automática já executada hoje (${lastSentDate})`);
                 return false;
             }
         }
