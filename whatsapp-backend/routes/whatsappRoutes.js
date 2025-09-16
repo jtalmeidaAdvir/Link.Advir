@@ -1571,7 +1571,7 @@ async function executarVerificacaoPontosAlmoco(schedule) {
                 },
                 { where: { id: schedule.id } }
             );
-            
+
             console.log(`📊 Estatísticas atualizadas para agendamento ${schedule.id}:`, updateResult);
 
             return {
@@ -2742,107 +2742,6 @@ async function handleObraSelection(phoneNumber, message, conversation) {
     await client.sendMessage(phoneNumber, response);
 }
 
-// Função para determinar automaticamente o tipo de registo baseado no estado atual
-async function determinarTipoRegisto(userId, obraId) {
-    try {
-        const { Op } = require("sequelize");
-        const RegistoPontoObra = require("../models/registoPontoObra");
-
-        // Buscar registos do utilizador na data atual
-        const dataAtual = new Date();
-        const inicioHoje = new Date(
-            dataAtual.getFullYear(),
-            dataAtual.getMonth(),
-            dataAtual.getDate(),
-        );
-        const fimHoje = new Date(
-            dataAtual.getFullYear(),
-            dataAtual.getMonth(),
-            dataAtual.getDate(),
-            23,
-            59,
-            59,
-        );
-
-        // 1. Buscar o último registo geral do utilizador hoje (qualquer obra)
-        const ultimoRegistoGeral = await RegistoPontoObra.findOne({
-            where: {
-                user_id: userId,
-                createdAt: {
-                    [Op.between]: [inicioHoje, fimHoje],
-                },
-            },
-            order: [["createdAt", "DESC"]],
-        });
-
-        console.log(
-            `🔍 Último registo geral encontrado:`,
-            ultimoRegistoGeral
-                ? `${ultimoRegistoGeral.tipo} na obra ${ultimoRegistoGeral.obra_id} às ${ultimoRegistoGeral.createdAt}`
-                : "Nenhum",
-        );
-
-        // 2. Se não há registos hoje, é entrada
-        if (!ultimoRegistoGeral) {
-            console.log(`✅ Nenhum registo hoje -> ENTRADA`);
-            return { tipo: "entrada", precisaSaidaAutomatica: false };
-        }
-
-        // 3. Verificar se o último registo foi numa obra diferente
-        const obraAnterior = ultimoRegistoGeral.obra_id;
-        const mudouDeObra =
-            obraId !== null && obraAnterior !== null && obraId !== obraAnterior;
-
-        console.log(
-            `🏗️ Obra anterior: ${obraAnterior}, Obra atual: ${obraId}, Mudou de obra: ${mudouDeObra}`,
-        );
-
-        // 4. Se mudou de obra e o último registo foi entrada, precisa dar saída automática
-        if (mudouDeObra && ultimoRegistoGeral.tipo === "entrada") {
-            console.log(
-                `🔄 Mudança de obra detectada - vai dar saída da obra ${obraAnterior} e entrada na obra ${obraId}`,
-            );
-            return {
-                tipo: "entrada",
-                precisaSaidaAutomatica: true,
-                obraAnterior: obraAnterior,
-                ultimoRegistoId: ultimoRegistoGeral.id,
-            };
-        }
-
-        // 5. Se é na mesma obra, verificar o tipo normal
-        if (
-            obraId === null ||
-            obraId === undefined ||
-            obraId === obraAnterior
-        ) {
-            if (ultimoRegistoGeral.tipo === "entrada") {
-                console.log(
-                    `✅ Último foi entrada na mesma obra -> próximo será SAÍDA`,
-                );
-                return { tipo: "saida", precisaSaidaAutomatica: false };
-            } else {
-                console.log(`✅ Último foi saída -> próximo será ENTRADA`);
-                return { tipo: "entrada", precisaSaidaAutomatica: false };
-            }
-        }
-
-        // 6. Se mudou de obra mas o último registo foi saída, pode dar entrada diretamente
-        if (mudouDeObra && ultimoRegistoGeral.tipo === "saida") {
-            console.log(
-                `✅ Mudança de obra mas último registo foi saída -> ENTRADA direta`,
-            );
-            return { tipo: "entrada", precisaSaidaAutomatica: false };
-        }
-
-        // Default
-        return { tipo: "entrada", precisaSaidaAutomatica: false };
-    } catch (error) {
-        console.error("Erro ao determinar tipo de registo:", error);
-        return { tipo: "entrada", precisaSaidaAutomatica: false };
-    }
-}
-
 // Função para lidar com confirmação automática de ponto
 async function handlePontoConfirmationInput(
     phoneNumber,
@@ -3094,7 +2993,7 @@ function tryParseLocationData(messageText) {
             /maps\.google\.com\/maps\?q=(-?\d+\.?\d*),(-?\d+\.?\d*)/i,
             // https://www.google.com/maps/@lat,lng
             /google\.com\/maps\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/i,
-            // https://goo.gl/maps/... (encurtado)
+            // https://goo.gl/maps/...
             /goo\.gl\/maps/i,
             // https://maps.app.goo.gl/...
             /maps\.app\.goo\.gl/i,
@@ -3786,11 +3685,11 @@ setInterval(
 setInterval(async () => {
     const agora = new Date();
     const portugalTime = new Date(agora.toLocaleString("en-US", { timeZone: "Europe/Lisbon" }));
-    
+
     console.log("=".repeat(80));
     console.log(`🕐 LOG AGENDAMENTOS - ${portugalTime.toLocaleString('pt-PT')}`);
     console.log("=".repeat(80));
-    
+
     // Estado geral do sistema
     console.log(`📊 ESTADO GERAL:`);
     console.log(`   • Cliente WhatsApp: ${isClientReady ? '✅ Conectado' : '❌ Desconectado'} (${clientStatus})`);
@@ -3798,46 +3697,46 @@ setInterval(async () => {
     console.log(`   • Total de logs: ${scheduleLogs.length}`);
     console.log(`   • Conversas ativas: ${activeConversations.size}`);
     console.log(`   • Intervenções ativas: ${activeIntervencoes ? activeIntervencoes.size : 0}`);
-    
+
     // Informações sobre agendamentos na base de dados
     try {
         const schedules = await Schedule.findAll({
             where: { enabled: true },
             order: [['time', 'ASC']]
         });
-        
+
         console.log(`\n📋 AGENDAMENTOS NA BASE DE DADOS (${schedules.length} ativos):`);
-        
+
         schedules.forEach((schedule, index) => {
             const timeStr = schedule.time ? new Date(schedule.time).toLocaleTimeString('pt-PT', { 
                 hour: '2-digit', 
                 minute: '2-digit' 
             }) : 'N/A';
-            
+
             const contactList = JSON.parse(schedule.contact_list || '[]');
             const days = schedule.days ? JSON.parse(schedule.days) : [];
-            
+
             console.log(`   ${index + 1}. ID: ${schedule.id} | Hora: ${timeStr} | Freq: ${schedule.frequency}`);
             console.log(`      • Mensagem: "${schedule.message.substring(0, 50)}${schedule.message.length > 50 ? '...' : ''}"`);
             console.log(`      • Contactos: ${contactList.length} | Dias: [${days.join(', ')}]`);
             console.log(`      • Última execução: ${schedule.last_sent ? new Date(schedule.last_sent).toLocaleString('pt-PT') : 'Nunca'}`);
             console.log(`      • Total enviados: ${schedule.total_sent || 0}`);
             console.log(`      • Ativo em memória: ${activeSchedules.has(schedule.id.toString()) ? '✅ Sim' : '❌ Não'}`);
-            
+
             // Verificar se deve executar agora
-            const shouldExecuteNow = shouldExecuteToday(schedule, portugalTime);
+            const shouldExecute = shouldExecuteToday(schedule, portugalTime);
             const currentTime = `${portugalTime.getHours().toString().padStart(2, '0')}:${portugalTime.getMinutes().toString().padStart(2, '0')}`;
             const scheduleTime = timeStr;
-            
-            console.log(`      • Deve executar hoje: ${shouldExecuteNow ? '✅ Sim' : '❌ Não'}`);
+
+            console.log(`      • Deve executar hoje: ${shouldExecute ? '✅ Sim' : '❌ Não'}`);
             console.log(`      • Hora atual: ${currentTime} | Hora agendada: ${scheduleTime}`);
             console.log(`      • Match de horário: ${currentTime === scheduleTime ? '✅ Sim' : '❌ Não'}`);
         });
-        
+
     } catch (dbError) {
         console.log(`\n❌ ERRO AO CONSULTAR BASE DE DADOS: ${dbError.message}`);
     }
-    
+
     // Informações sobre agendamentos em memória
     console.log(`\n🧠 AGENDAMENTOS EM MEMÓRIA (${activeSchedules.size}):`);
     let memoryIndex = 1;
@@ -3845,7 +3744,7 @@ setInterval(async () => {
         console.log(`   ${memoryIndex}. Schedule ID: ${scheduleId} | Interval ID: ${intervalId}`);
         memoryIndex++;
     });
-    
+
     // Logs recentes (últimos 10)
     const recentLogs = scheduleLogs.slice(0, 10);
     console.log(`\n📝 LOGS RECENTES (últimos ${recentLogs.length}):`);
@@ -3857,37 +3756,37 @@ setInterval(async () => {
             'error': '❌',
             'warning': '⚠️'
         }[log.type] || '📝';
-        
+
         console.log(`   ${index + 1}. [${timeStr}] ${typeEmoji} ${log.message}`);
         if (log.details) {
             console.log(`      Detalhes: ${JSON.stringify(log.details)}`);
         }
     });
-    
+
     // Próximas execuções previstas
     try {
         const schedules = await Schedule.findAll({ where: { enabled: true } });
         const proximasExecucoes = [];
-        
+
         schedules.forEach(schedule => {
             if (schedule.time) {
                 const timeStr = new Date(schedule.time).toLocaleTimeString('pt-PT', { 
                     hour: '2-digit', 
                     minute: '2-digit' 
                 });
-                
+
                 const [hours, minutes] = timeStr.split(':').map(Number);
                 const hoje = new Date(portugalTime);
                 const proximaExecucao = new Date(hoje);
                 proximaExecucao.setHours(hours, minutes, 0, 0);
-                
+
                 // Se já passou hoje, programar para amanhã
                 if (proximaExecucao <= portugalTime) {
                     proximaExecucao.setDate(proximaExecucao.getDate() + 1);
                 }
-                
+
                 const minutosRestantes = Math.floor((proximaExecucao - portugalTime) / (1000 * 60));
-                
+
                 proximasExecucoes.push({
                     id: schedule.id,
                     hora: timeStr,
@@ -3896,22 +3795,22 @@ setInterval(async () => {
                 });
             }
         });
-        
+
         // Ordenar por minutos restantes
         proximasExecucoes.sort((a, b) => a.minutosRestantes - b.minutosRestantes);
-        
+
         console.log(`\n⏰ PRÓXIMAS EXECUÇÕES (próximas 5):`);
         proximasExecucoes.slice(0, 5).forEach((exec, index) => {
             console.log(`   ${index + 1}. ID: ${exec.id} | ${exec.hora} | ${exec.minutosRestantes}min | ${exec.dataProxima}`);
         });
-        
+
     } catch (nextExecError) {
         console.log(`\n❌ ERRO AO CALCULAR PRÓXIMAS EXECUÇÕES: ${nextExecError.message}`);
     }
-    
+
     console.log("=".repeat(80));
     console.log("");
-    
+
 }, 30000); // Executar de 30 em 30 segundos
 
 // Endpoint para criar agendamento de mensagens
@@ -4274,7 +4173,7 @@ router.post("/test-schedule", async (req, res) => {
         const testSchedule = {
             id: "TEST_" + Date.now(),
             message,
-            contactList: contacts.map((contact) => ({
+            contactList: JSON.parse(JSON.stringify(contacts)).map((contact) => ({ // Deep copy to prevent mutation
                 name: contact.name || "Teste",
                 phone: contact.phone,
             })),
@@ -4420,7 +4319,7 @@ function addLog(scheduleId, type, message, details = null) {
 // Função para iniciar um agendamento
 function startSchedule(schedule) {
     const scheduleIdStr = schedule.id.toString();
-    
+
     // Limpar agendamento existente se houver
     if (activeSchedules.has(scheduleIdStr)) {
         clearInterval(activeSchedules.get(scheduleIdStr));
@@ -4445,7 +4344,7 @@ function startSchedule(schedule) {
             // Verificar se o formato do tempo está correto
             let scheduleTime = schedule.time;
             let scheduleHour, scheduleMinute;
-            
+
             if (typeof scheduleTime !== "string") {
                 // Se for um objeto Date, extrair hora e minuto diretamente
                 if (scheduleTime instanceof Date) {
@@ -4487,33 +4386,35 @@ function startSchedule(schedule) {
                     "info",
                     `⏰ Hora de execução atingida (${currentHour}:${currentMinute.toString().padStart(2, '0')}) = Agendado (${scheduleHour}:${scheduleMinute.toString().padStart(2, '0')}), verificando condições...`,
                 );
-                
+
                 const shouldExecute = shouldExecuteToday(schedule, portugalTime);
                 addLog(
                     schedule.id,
                     "info",
                     `🔍 Resultado da verificação shouldExecuteToday: ${shouldExecute}`,
                 );
-                
+
                 if (shouldExecute) {
+                    const executionType = schedule.tipo === "verificacao_pontos_almoco" ? "verificação automática (execução múltipla permitida)" : "execução única por dia";
                     addLog(
                         schedule.id,
-                        "info",
-                        "✅ Condições atendidas, iniciando execução...",
+                        "success",
+                        `✅ Condições atendidas, iniciando execução (${executionType})...`,
                     );
-                    
+
                     try {
                         let result;
                         if (schedule.tipo === "verificacao_pontos_almoco") {
                             // Executar verificação automática de pontos
-                            addLog(schedule.id, "info", "🍽️ Executando verificação automática de pontos de almoço...");
+                            const currentTime = new Date().toLocaleTimeString('pt-PT');
+                            addLog(schedule.id, "info", `🍽️ Executando verificação automática de pontos de almoço às ${currentTime}...`);
                             result = await executarVerificacaoPontosAlmoco(schedule);
                         } else {
                             // Executar mensagem normal
                             addLog(schedule.id, "info", "📩 Executando envio de mensagem agendada...");
                             result = await executeScheduledMessage(schedule);
                         }
-                        
+
                         console.log(`📊 Resultado da execução para agendamento ${schedule.id}:`, result);
                         addLog(
                             schedule.id,
@@ -4557,11 +4458,11 @@ function startSchedule(schedule) {
 
     // Executar verificação imediatamente para debug
     console.log(`🔄 Iniciando monitoramento do agendamento ${schedule.id} (${schedule.tipo || 'mensagem'})`);
-    
+
     // Define o intervalo para verificar a hora
     const intervalId = setInterval(checkAndExecute, 60000); // Verifica a cada minuto
     activeSchedules.set(scheduleIdStr, intervalId);
-    
+
     console.log(`✅ Agendamento ${schedule.id} monitorado - verificação a cada minuto`);
     addLog(
         schedule.id,
@@ -4588,28 +4489,38 @@ function shouldExecuteToday(schedule, now) {
         "Sábado",
     ];
 
-    // Para agendamentos de verificação automática, verificar se já foi executado hoje
-    if (schedule.tipo === "verificacao_pontos_almoco") {
-        if (schedule.lastSent) {
-            const lastSentTime = new Date(schedule.lastSent);
-            const lastSentDate = lastSentTime.toISOString().split("T")[0];
-            
-            if (lastSentDate === todayDate) {
-                addLog(schedule.id, "warning", `Verificação automática já executada hoje (${lastSentDate})`);
-                return false;
+    // Verificação se já foi executado hoje (apenas para agendamentos normais)
+    if (schedule.tipo !== "verificacao_pontos_almoco" && schedule.lastSent) {
+        let lastSentDate;
+
+        if (schedule.lastSent instanceof Date) {
+            lastSentDate = schedule.lastSent.toISOString().split("T")[0];
+        } else if (typeof schedule.lastSent === "string") {
+            // Se for string, pode ser formato ISO ou formato português
+            if (schedule.lastSent.includes("/")) {
+                // Formato português: dd/mm/yyyy, hh:mm:ss
+                const datePart = schedule.lastSent.split(",")[0].trim();
+                const [day, month, year] = datePart.split("/");
+                lastSentDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            } else {
+                // Formato ISO
+                lastSentDate = new Date(schedule.lastSent).toISOString().split("T")[0];
             }
         }
-    } else {
-        // Para outros tipos de agendamento, manter a lógica original (uma vez por dia)
-        if (
-            schedule.lastSent &&
-            typeof schedule.lastSent === "string" &&
-            schedule.lastSent.startsWith(todayDate)
-        ) {
-            addLog(schedule.id, "warning", `Já foi enviado hoje (${todayDate})`);
+
+        if (lastSentDate === todayDate) {
+            addLog(schedule.id, "warning", `Agendamento já executado hoje (${lastSentDate})`);
             return false;
         }
+
+        addLog(schedule.id, "info", `Última execução: ${lastSentDate}, Hoje: ${todayDate} - Pode executar`);
     }
+
+    // Para verificações automáticas de pontos, permitir execução múltipla por dia
+    if (schedule.tipo === "verificacao_pontos_almoco") {
+        addLog(schedule.id, "info", `Verificação automática de pontos - execução múltipla permitida`);
+    }
+
 
     // Verificar data de início
     if (
@@ -4833,14 +4744,14 @@ async function executeScheduledMessage(schedule) {
 // Inicializar agendamentos salvos ao iniciar o servidor
 function initializeSchedules() {
     console.log('🔄 Inicializando agendamentos...');
-    
+
     // Carregar agendamentos da base de dados
     Schedule.findAll()
         .then((schedules) => {
             console.log(`📋 Encontrados ${schedules.length} agendamentos na base de dados`);
-            
+
             let enabledCount = 0;
-            
+
             schedules.forEach(async (schedule) => {
                 try {
                     const scheduleData = {
@@ -4864,9 +4775,9 @@ function initializeSchedules() {
                         lastSent: schedule.last_sent,
                         totalSent: schedule.total_sent,
                     };
-                    
+
                     console.log(`📅 Agendamento ${schedule.id}: ${schedule.enabled ? 'ATIVO' : 'INATIVO'} - Tipo: ${schedule.tipo || 'mensagem'} - Hora: ${scheduleData.time}`);
-                    
+
                     if (schedule.enabled) {
                         startSchedule(scheduleData);
                         enabledCount++;
@@ -4875,9 +4786,9 @@ function initializeSchedules() {
                     console.error(`❌ Erro ao processar agendamento ${schedule.id}:`, error);
                 }
             });
-            
+
             console.log(`✅ Inicialização concluída: ${enabledCount} agendamentos ativos de ${schedules.length} totais`);
-            
+
             // Log de status dos agendamentos ativos
             if (enabledCount > 0) {
                 console.log(`🔄 Sistema de verificação automática ativo - ${enabledCount} agendamento(s) em execução`);
