@@ -1538,13 +1538,20 @@ async function getObrasAutorizadas(obrasIds) {
 // Função para executar verificação automática de pontos de almoço
 async function executarVerificacaoPontosAlmoco(schedule) {
     try {
+        console.log(`🎯 ENTRADA na função executarVerificacaoPontosAlmoco`);
         console.log(`🍽️ Executando verificação automática de pontos para empresa ${schedule.empresa_id}...`);
+        console.log(`📋 Dados do schedule:`, {
+            id: schedule.id,
+            empresa_id: schedule.empresa_id,
+            tipo: schedule.tipo,
+            message: schedule.message?.substring(0, 50)
+        });
 
         // Atualizar log antes da execução
         addLog(
             schedule.id,
             "info",
-            `Iniciando verificação automática para empresa ${schedule.empresa_id}`
+            `🚀 INICIANDO verificação automática para empresa ${schedule.empresa_id}`
         );
 
         // Fazer chamada para o backend principal com timeout
@@ -2090,6 +2097,69 @@ function isPontoKeyword(message) {
     const lowerMessage = message.toLowerCase();
     return keywords.some((keyword) => lowerMessage.includes(keyword));
 }
+
+// Endpoint para forçar execução IMEDIATA de um agendamento (para debug)
+router.post("/force-execute/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        console.log(`🎯 FORÇANDO EXECUÇÃO do agendamento ${id}`);
+        
+        const schedule = await Schedule.findByPk(id);
+        if (!schedule) {
+            return res.status(404).json({ error: "Agendamento não encontrado" });
+        }
+
+        const scheduleData = {
+            id: schedule.id,
+            message: schedule.message,
+            contactList: JSON.parse(schedule.contact_list || '[]'),
+            frequency: schedule.frequency,
+            time: schedule.time,
+            days: schedule.days ? JSON.parse(schedule.days) : [],
+            enabled: schedule.enabled,
+            priority: schedule.priority,
+            tipo: schedule.tipo,
+            empresa_id: schedule.empresa_id
+        };
+
+        console.log(`🚀 DADOS DO AGENDAMENTO:`, scheduleData);
+
+        addLog(id, "info", "🔧 EXECUÇÃO FORÇADA pelo utilizador");
+
+        let result;
+        if (schedule.tipo === "verificacao_pontos_almoco") {
+            console.log(`🍽️ CHAMANDO executarVerificacaoPontosAlmoco FORÇADAMENTE`);
+            result = await executarVerificacaoPontosAlmoco(scheduleData);
+        } else {
+            console.log(`📩 CHAMANDO executeScheduledMessage FORÇADAMENTE`);
+            result = await executeScheduledMessage(scheduleData);
+        }
+
+        console.log(`📊 RESULTADO da execução forçada:`, result);
+
+        addLog(
+            id,
+            result.success ? "success" : "error",
+            `Execução forçada concluída: ${result.message || result.error}`
+        );
+
+        res.json({
+            success: true,
+            message: "Execução forçada concluída",
+            result: result
+        });
+
+    } catch (error) {
+        console.error(`❌ ERRO na execução forçada:`, error);
+        res.status(500).json({
+            error: "Erro na execução forçada",
+            details: error.message
+        });
+    }
+});
+
+
 
 // Iniciar novo pedido de assistência
 async function startNewRequest(
@@ -4409,14 +4479,16 @@ function startSchedule(schedule) {
                 addLog(
                     schedule.id,
                     "info",
-                    `⏰ Hora de execução atingida (${currentHour}:${currentMinute.toString().padStart(2, '0')}) = Agendado (${scheduleHour}:${scheduleMinute.toString().padStart(2, '0')}), verificando condições...`,
+                    `⏰ HORA DE EXECUÇÃO ATINGIDA! Atual: ${currentHour}:${currentMinute.toString().padStart(2, '0')} = Agendado: ${scheduleHour}:${scheduleMinute.toString().padStart(2, '0')}`,
                 );
+
+                console.log(`🎯 EXECUTANDO AGENDAMENTO ${schedule.id} ÀS ${currentHour}:${currentMinute.toString().padStart(2, '0')}`);
 
                 const shouldExecute = shouldExecuteToday(schedule, portugalTime);
                 addLog(
                     schedule.id,
                     "info",
-                    `🔍 Resultado da verificação shouldExecuteToday: ${shouldExecute}`,
+                    `🔍 Resultado shouldExecuteToday: ${shouldExecute} (Tipo: ${schedule.tipo || 'mensagem'})`,
                 );
 
                 if (shouldExecute) {
@@ -4424,42 +4496,49 @@ function startSchedule(schedule) {
                     addLog(
                         schedule.id,
                         "success",
-                        `✅ Condições atendidas, iniciando execução (${executionType})...`,
+                        `🚀 INICIANDO EXECUÇÃO (${executionType})...`,
                     );
+
+                    console.log(`🚀 INICIANDO EXECUÇÃO DO AGENDAMENTO ${schedule.id} - TIPO: ${schedule.tipo || 'mensagem'}`);
 
                     try {
                         let result;
                         if (schedule.tipo === "verificacao_pontos_almoco") {
                             // Executar verificação automática de pontos
                             const currentTime = new Date().toLocaleTimeString('pt-PT');
-                            addLog(schedule.id, "info", `🍽️ Executando verificação automática de pontos de almoço às ${currentTime}...`);
+                            addLog(schedule.id, "info", `🍽️ Chamando executarVerificacaoPontosAlmoco às ${currentTime}...`);
+                            console.log(`🍽️ CHAMANDO executarVerificacaoPontosAlmoco para agendamento ${schedule.id}`);
                             result = await executarVerificacaoPontosAlmoco(schedule);
+                            console.log(`📋 RESULTADO da verificação de pontos:`, result);
                         } else {
                             // Executar mensagem normal
-                            addLog(schedule.id, "info", "📩 Executando envio de mensagem agendada...");
+                            addLog(schedule.id, "info", "📩 Chamando executeScheduledMessage...");
+                            console.log(`📩 CHAMANDO executeScheduledMessage para agendamento ${schedule.id}`);
                             result = await executeScheduledMessage(schedule);
+                            console.log(`📋 RESULTADO do envio de mensagem:`, result);
                         }
 
-                        console.log(`📊 Resultado da execução para agendamento ${schedule.id}:`, result);
+                        console.log(`📊 RESULTADO FINAL da execução para agendamento ${schedule.id}:`, result);
                         addLog(
                             schedule.id,
                             result.success ? "success" : "error",
-                            `Execução concluída: ${result.message || result.error || 'Sem detalhes'}`
+                            `✅ EXECUÇÃO CONCLUÍDA: ${result.message || result.error || 'Sem detalhes'}`
                         );
                     } catch (executionError) {
-                        console.error(`❌ Erro durante execução do agendamento ${schedule.id}:`, executionError);
+                        console.error(`❌ ERRO DURANTE EXECUÇÃO do agendamento ${schedule.id}:`, executionError);
                         addLog(
                             schedule.id,
                             "error",
-                            `Erro na execução: ${executionError.message}`
+                            `❌ ERRO NA EXECUÇÃO: ${executionError.message}`
                         );
                     }
                 } else {
                     addLog(
                         schedule.id,
                         "warning",
-                        "❌ Condições não atendidas para execução hoje",
+                        "❌ CONDIÇÕES NÃO ATENDIDAS para execução hoje",
                     );
+                    console.log(`❌ CONDIÇÕES NÃO ATENDIDAS para agendamento ${schedule.id}`);
                 }
             } else {
                 // Log de debug mais detalhado apenas de 5 em 5 minutos
@@ -4525,16 +4604,19 @@ function shouldExecuteToday(schedule, now) {
         }
 
         if (lastSentDate === todayDate) {
-            addLog(schedule.id, "warning", `Agendamento normal já executado hoje (${lastSentDate}) - BLOQUEADO`);
+            addLog(schedule.id, "warning", `🚫 BLOQUEADO: Agendamento normal já executado hoje (${lastSentDate})`);
+            console.log(`🚫 AGENDAMENTO ${schedule.id} BLOQUEADO - JÁ EXECUTADO HOJE`);
             return false;
         }
 
-        addLog(schedule.id, "info", `Última execução: ${lastSentDate}, Hoje: ${todayDate} - Pode executar`);
+        addLog(schedule.id, "info", `✅ PODE EXECUTAR: Última execução: ${lastSentDate}, Hoje: ${todayDate}`);
+        console.log(`✅ AGENDAMENTO ${schedule.id} PODE EXECUTAR - Última: ${lastSentDate}, Hoje: ${todayDate}`);
     }
 
     // Para verificações automáticas de pontos, SEMPRE permitir execução múltipla
     if (schedule.tipo === "verificacao_pontos_almoco") {
-        addLog(schedule.id, "success", `✅ Verificação automática de pontos - SEMPRE PODE EXECUTAR (múltiplas por dia)`);
+        addLog(schedule.id, "success", `🔥 VERIFICAÇÃO AUTOMÁTICA - SEMPRE PODE EXECUTAR (múltiplas por dia)`);
+        console.log(`🔥 AGENDAMENTO ${schedule.id} - VERIFICAÇÃO AUTOMÁTICA SEMPRE PODE EXECUTAR`);
     }
 
     // Verificação do dia da semana
