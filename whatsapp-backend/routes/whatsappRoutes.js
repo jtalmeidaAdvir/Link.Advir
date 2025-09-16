@@ -3779,6 +3779,138 @@ setInterval(
     5 * 60 * 1000,
 ); // Verificar a cada 5 minutos
 
+// Sistema de logging detalhado dos agendamentos - Executar de 30 em 30 segundos
+setInterval(async () => {
+    const agora = new Date();
+    const portugalTime = new Date(agora.toLocaleString("en-US", { timeZone: "Europe/Lisbon" }));
+    
+    console.log("=".repeat(80));
+    console.log(`🕐 LOG AGENDAMENTOS - ${portugalTime.toLocaleString('pt-PT')}`);
+    console.log("=".repeat(80));
+    
+    // Estado geral do sistema
+    console.log(`📊 ESTADO GERAL:`);
+    console.log(`   • Cliente WhatsApp: ${isClientReady ? '✅ Conectado' : '❌ Desconectado'} (${clientStatus})`);
+    console.log(`   • Agendamentos ativos: ${activeSchedules.size}`);
+    console.log(`   • Total de logs: ${scheduleLogs.length}`);
+    console.log(`   • Conversas ativas: ${activeConversations.size}`);
+    console.log(`   • Intervenções ativas: ${activeIntervencoes ? activeIntervencoes.size : 0}`);
+    
+    // Informações sobre agendamentos na base de dados
+    try {
+        const schedules = await Schedule.findAll({
+            where: { enabled: true },
+            order: [['time', 'ASC']]
+        });
+        
+        console.log(`\n📋 AGENDAMENTOS NA BASE DE DADOS (${schedules.length} ativos):`);
+        
+        schedules.forEach((schedule, index) => {
+            const timeStr = schedule.time ? new Date(schedule.time).toLocaleTimeString('pt-PT', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            }) : 'N/A';
+            
+            const contactList = JSON.parse(schedule.contact_list || '[]');
+            const days = schedule.days ? JSON.parse(schedule.days) : [];
+            
+            console.log(`   ${index + 1}. ID: ${schedule.id} | Hora: ${timeStr} | Freq: ${schedule.frequency}`);
+            console.log(`      • Mensagem: "${schedule.message.substring(0, 50)}${schedule.message.length > 50 ? '...' : ''}"`);
+            console.log(`      • Contactos: ${contactList.length} | Dias: [${days.join(', ')}]`);
+            console.log(`      • Última execução: ${schedule.last_sent ? new Date(schedule.last_sent).toLocaleString('pt-PT') : 'Nunca'}`);
+            console.log(`      • Total enviados: ${schedule.total_sent || 0}`);
+            console.log(`      • Ativo em memória: ${activeSchedules.has(schedule.id.toString()) ? '✅ Sim' : '❌ Não'}`);
+            
+            // Verificar se deve executar agora
+            const shouldExecuteNow = shouldExecuteToday(schedule, portugalTime);
+            const currentTime = `${portugalTime.getHours().toString().padStart(2, '0')}:${portugalTime.getMinutes().toString().padStart(2, '0')}`;
+            const scheduleTime = timeStr;
+            
+            console.log(`      • Deve executar hoje: ${shouldExecuteNow ? '✅ Sim' : '❌ Não'}`);
+            console.log(`      • Hora atual: ${currentTime} | Hora agendada: ${scheduleTime}`);
+            console.log(`      • Match de horário: ${currentTime === scheduleTime ? '✅ Sim' : '❌ Não'}`);
+        });
+        
+    } catch (dbError) {
+        console.log(`\n❌ ERRO AO CONSULTAR BASE DE DADOS: ${dbError.message}`);
+    }
+    
+    // Informações sobre agendamentos em memória
+    console.log(`\n🧠 AGENDAMENTOS EM MEMÓRIA (${activeSchedules.size}):`);
+    let memoryIndex = 1;
+    activeSchedules.forEach((intervalId, scheduleId) => {
+        console.log(`   ${memoryIndex}. Schedule ID: ${scheduleId} | Interval ID: ${intervalId}`);
+        memoryIndex++;
+    });
+    
+    // Logs recentes (últimos 10)
+    const recentLogs = scheduleLogs.slice(0, 10);
+    console.log(`\n📝 LOGS RECENTES (últimos ${recentLogs.length}):`);
+    recentLogs.forEach((log, index) => {
+        const timeStr = new Date(log.timestamp).toLocaleString('pt-PT');
+        const typeEmoji = {
+            'info': 'ℹ️',
+            'success': '✅',
+            'error': '❌',
+            'warning': '⚠️'
+        }[log.type] || '📝';
+        
+        console.log(`   ${index + 1}. [${timeStr}] ${typeEmoji} ${log.message}`);
+        if (log.details) {
+            console.log(`      Detalhes: ${JSON.stringify(log.details)}`);
+        }
+    });
+    
+    // Próximas execuções previstas
+    try {
+        const schedules = await Schedule.findAll({ where: { enabled: true } });
+        const proximasExecucoes = [];
+        
+        schedules.forEach(schedule => {
+            if (schedule.time) {
+                const timeStr = new Date(schedule.time).toLocaleTimeString('pt-PT', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                const hoje = new Date(portugalTime);
+                const proximaExecucao = new Date(hoje);
+                proximaExecucao.setHours(hours, minutes, 0, 0);
+                
+                // Se já passou hoje, programar para amanhã
+                if (proximaExecucao <= portugalTime) {
+                    proximaExecucao.setDate(proximaExecucao.getDate() + 1);
+                }
+                
+                const minutosRestantes = Math.floor((proximaExecucao - portugalTime) / (1000 * 60));
+                
+                proximasExecucoes.push({
+                    id: schedule.id,
+                    hora: timeStr,
+                    minutosRestantes: minutosRestantes,
+                    dataProxima: proximaExecucao.toLocaleString('pt-PT')
+                });
+            }
+        });
+        
+        // Ordenar por minutos restantes
+        proximasExecucoes.sort((a, b) => a.minutosRestantes - b.minutosRestantes);
+        
+        console.log(`\n⏰ PRÓXIMAS EXECUÇÕES (próximas 5):`);
+        proximasExecucoes.slice(0, 5).forEach((exec, index) => {
+            console.log(`   ${index + 1}. ID: ${exec.id} | ${exec.hora} | ${exec.minutosRestantes}min | ${exec.dataProxima}`);
+        });
+        
+    } catch (nextExecError) {
+        console.log(`\n❌ ERRO AO CALCULAR PRÓXIMAS EXECUÇÕES: ${nextExecError.message}`);
+    }
+    
+    console.log("=".repeat(80));
+    console.log("");
+    
+}, 30000); // Executar de 30 em 30 segundos
+
 // Endpoint para criar agendamento de mensagens
 router.post("/schedule", async (req, res) => {
     try {
