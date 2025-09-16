@@ -1537,71 +1537,96 @@ async function getObrasAutorizadas(obrasIds) {
 
 // Função para executar verificação automática de pontos de almoço
 async function executarVerificacaoPontosAlmoco(schedule) {
-    addLog(
-        schedule.id,
-        "info",
-        `Iniciando verificação automática de pontos de almoço para empresa ${schedule.empresa_id}`
-    );
-
     try {
-        // Chamar a API do backend para verificar e adicionar pontos
+        console.log(`🍽️ Executando verificação automática de pontos para empresa ${schedule.empresa_id}...`);
+
+        // Atualizar log antes da execução
+        addLog(
+            schedule.id,
+            "info",
+            `Iniciando verificação automática para empresa ${schedule.empresa_id}`
+        );
+
+        // Fazer chamada para o backend principal com timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
+
         const response = await fetch(`https://backend.advir.pt/api/verificacao-automatica/verificar-pontos-almoco?empresa_id=${schedule.empresa_id}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer sistema_automatico' // Token do sistema
-            }
+                'Authorization': 'Bearer sistema_automatico',
+                'User-Agent': 'WhatsApp-Backend-Scheduler'
+            },
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Erro HTTP ${response.status}: ${errorText}`);
+        }
 
         const resultado = await response.json();
 
-        if (response.ok && resultado.success) {
+        if (resultado.success) {
+            const stats = resultado.estatisticas;
+            console.log(`✅ Verificação concluída para empresa ${schedule.empresa_id}:`, stats);
+
             addLog(
                 schedule.id,
                 "success",
-                `Verificação concluída: ${resultado.estatisticas.pontosAdicionados} pontos adicionados para ${resultado.estatisticas.utilizadoresProcessados} utilizadores`
+                `Verificação concluída: ${stats.pontosAdicionados} pontos adicionados para ${stats.utilizadoresProcessados}/${stats.utilizadoresTotais} utilizadores`
             );
 
-            // Atualizar estatísticas do agendamento na base de dados
-            const portugalTime = new Date().toLocaleString("en-US", { timeZone: "Europe/Lisbon" });
-            const updateResult = await Schedule.update(
-                {
-                    last_sent: new Date(portugalTime).toISOString(),
-                    total_sent: (schedule.total_sent || 0) + 1
-                },
-                { where: { id: schedule.id } }
-            );
-
-            console.log(`📊 Estatísticas atualizadas para agendamento ${schedule.id}:`, updateResult);
+            // Atualizar estatísticas do agendamento
+            try {
+                await fetch(`https://backend.advir.pt/api/configuracao-automatica/atualizar-estatisticas/${schedule.empresa_id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            } catch (statsError) {
+                console.warn('Erro ao atualizar estatísticas:', statsError.message);
+            }
 
             return {
                 success: true,
-                message: "Verificação automática de pontos concluída",
-                resultado: resultado.estatisticas
+                message: `Verificação automática concluída: ${stats.pontosAdicionados} pontos adicionados para ${stats.utilizadoresProcessados} utilizadores`,
+                dados: resultado
             };
         } else {
+            console.error(`❌ Erro na verificação para empresa ${schedule.empresa_id}:`, resultado.message);
             addLog(
                 schedule.id,
                 "error",
-                `Erro na verificação: ${resultado.message || 'Erro desconhecido'}`
+                `Erro na verificação: ${resultado.message}`
             );
-
             return {
                 success: false,
-                error: resultado.message || "Erro na verificação automática"
+                error: resultado.message || 'Erro desconhecido na verificação'
             };
         }
 
     } catch (error) {
+        console.error(`❌ Erro ao executar verificação automática:`, error);
+
+        let errorMessage = error.message;
+        if (error.name === 'AbortError') {
+            errorMessage = 'Timeout na conexão com o backend';
+        }
+
         addLog(
             schedule.id,
             "error",
-            `Erro ao executar verificação: ${error.message}`
+            `Erro de execução: ${errorMessage}`
         );
 
         return {
             success: false,
-            error: error.message
+            error: `Erro de conexão: ${errorMessage}`
         };
     }
 }
@@ -2253,14 +2278,14 @@ async function continueConversation(phoneNumber, message, conversation) {
             break;
         case CONVERSATION_STATES.WAITING_PRIORITY:
             await handlePriorityInput(phoneNumber, messageText, conversation);
-            break;
+            return; // Already handled and state changed
         case CONVERSATION_STATES.WAITING_CONFIRMATION:
             await handleConfirmationInput(
                 phoneNumber,
                 messageText,
                 conversation,
             );
-            return;
+            return; // Handled, conversation deleted
         case CONVERSATION_STATES.PONTO_WAITING_OBRA:
             await handleObraSelection(phoneNumber, message, {
                 data: conversation.data,
@@ -3708,9 +3733,9 @@ setInterval(async () => {
         console.log(`\n📋 AGENDAMENTOS NA BASE DE DADOS (${schedules.length} ativos):`);
 
         schedules.forEach((schedule, index) => {
-            const timeStr = schedule.time ? new Date(schedule.time).toLocaleTimeString('pt-PT', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
+            const timeStr = schedule.time ? new Date(schedule.time).toLocaleTimeString('pt-PT', {
+                hour: '2-digit',
+                minute: '2-digit'
             }) : 'N/A';
 
             const contactList = JSON.parse(schedule.contact_list || '[]');
@@ -3770,9 +3795,9 @@ setInterval(async () => {
 
         schedules.forEach(schedule => {
             if (schedule.time) {
-                const timeStr = new Date(schedule.time).toLocaleTimeString('pt-PT', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
+                const timeStr = new Date(schedule.time).toLocaleTimeString('pt-PT', {
+                    hour: '2-digit',
+                    minute: '2-digit'
                 });
 
                 const [hours, minutes] = timeStr.split(':').map(Number);
@@ -4512,39 +4537,6 @@ function shouldExecuteToday(schedule, now) {
         addLog(schedule.id, "success", `✅ Verificação automática de pontos - SEMPRE PODE EXECUTAR (múltiplas por dia)`);
     }
 
-    // Verificação se já foi executado hoje (APENAS para agendamentos normais)
-    if (schedule.tipo !== "verificacao_pontos_almoco" && schedule.lastSent) {
-        let lastSentDate;
-
-        if (schedule.lastSent instanceof Date) {
-            lastSentDate = schedule.lastSent.toISOString().split("T")[0];
-        } else if (typeof schedule.lastSent === "string") {
-            // Se for string, pode ser formato ISO ou formato português
-            if (schedule.lastSent.includes("/")) {
-                // Formato português: dd/mm/yyyy, hh:mm:ss
-                const datePart = schedule.lastSent.split(",")[0].trim();
-                const [day, month, year] = datePart.split("/");
-                lastSentDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-            } else {
-                // Formato ISO
-                lastSentDate = new Date(schedule.lastSent).toISOString().split("T")[0];
-            }
-        }
-
-        if (lastSentDate === todayDate) {
-            addLog(schedule.id, "warning", `Agendamento normal já executado hoje (${lastSentDate}) - BLOQUEADO`);
-            return false;
-        }
-
-        addLog(schedule.id, "info", `Última execução: ${lastSentDate}, Hoje: ${todayDate} - Pode executar`);
-    }
-
-    // Para verificações automáticas de pontos, SEMPRE permitir execução múltipla
-    if (schedule.tipo === "verificacao_pontos_almoco") {
-        addLog(schedule.id, "success", `✅ Verificação automática de pontos - SEMPRE PODE EXECUTAR (múltiplas por dia)`);
-    }
-
-
     // Verificação do dia da semana
     let shouldExecute = false;
     let reason = "";
@@ -4771,7 +4763,7 @@ function initializeSchedules() {
                         contactList: JSON.parse(schedule.contact_list || '[]'),
                         frequency: schedule.frequency,
                         time: schedule.time
-                            ? (schedule.time instanceof Date 
+                            ? (schedule.time instanceof Date
                                 ? `${schedule.time.getUTCHours().toString().padStart(2, '0')}:${schedule.time.getUTCMinutes().toString().padStart(2, '0')}`
                                 : schedule.time)
                             : "09:00", // Default time if not set
@@ -5015,7 +5007,7 @@ router.get("/next-executions", async (req, res) => {
                     isActive: activeSchedules.has(schedule.id.toString()),
                     lastSent: schedule.last_sent,
                     totalSent: schedule.total_sent || 0,
-                    alreadyExecutedToday: schedule.last_sent && 
+                    alreadyExecutedToday: schedule.last_sent &&
                         new Date(schedule.last_sent).toDateString() === portugalTime.toDateString()
                 });
             } catch (error) {
@@ -5207,7 +5199,7 @@ router.get('/lunch-verification-schedules', async (req, res) => {
     }
 });
 
-// Adicionar rota para simular mensagem recebida (para testes de RFID)
+// Endpoint para simular mensagem recebida (para testes de RFID)
 router.post('/simulate-message', async (req, res) => {
     try {
         const { to, message, isTest, isRFIDScan } = req.body;
