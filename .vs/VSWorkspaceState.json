@@ -1,9 +1,12 @@
 {
   "ExpandedNodes": [
     "",
-    "\\backend",
-    "\\backend\\routes"
+    "\\backend\\routes",
+    "\\frontend",
+    "\\frontend\\src",
+    "\\frontend\\src\\Pages",
+    "\\frontend\\src\\Pages\\Obras"
   ],
-  "SelectedNode": "\\backend\\routes\\verificacaoAutomaticaPontosRoutes.js",
+  "SelectedNode": "\\frontend\\src\\Pages\\Obras\\PartesDiarias.js",
   "PreviewInSolutionExplorer": false
 }

@@ -594,11 +594,14 @@ const PartesDiarias = ({ navigation }) => {
             );
             const table = data?.DataSet?.Table;
             const items = Array.isArray(table)
-                ? table.map((item) => ({
-                    codigo: item.SubEmp,
-                    descricao: item.Descricao,
-                    subEmpId: item.SubEmpId,
-                }))
+                ? table
+                    .filter((item) => item.CDU_CCS != null && item.CDU_CCS !== '') // Filtrar apenas especialidades com CDU_CCS preenchido
+                    .map((item) => ({
+                        codigo: item.SubEmp,
+                        descricao: item.Descricao,
+                        subEmpId: item.SubEmpId,
+                        cduCcs: item.CDU_CCS,
+                    }))
                 : [];
             setEspecialidadesList(items);
         } catch (err) {
@@ -619,11 +622,14 @@ const PartesDiarias = ({ navigation }) => {
             );
             const table = data?.DataSet?.Table;
             const items = Array.isArray(table)
-                ? table.map((item) => ({
-                    codigo: item.Codigo,
-                    descricao: item.Desig,
-                    subEmpId: item.ComponenteID,
-                }))
+                ? table
+                    .filter((item) => item.CDU_CCS != null && item.CDU_CCS !== '') // Filtrar apenas equipamentos com CDU_CCS preenchido
+                    .map((item) => ({
+                        codigo: item.Codigo,
+                        descricao: item.Desig,
+                        subEmpId: item.ComponenteID,
+                        cduCcs: item.CDU_CCS,
+                    }))
                 : [];
             setEquipamentosList(items);
         } catch (err) {
@@ -648,6 +654,7 @@ const PartesDiarias = ({ navigation }) => {
                     classeId: item.ClasseId,
                     descricao: item.Descricao,
                     classe: item.Classe,
+                    cduCcs: item.CDU_CCS || item.Classe, // Usar CDU_CCS se disponível, senão usar Classe
                 }))
                 : [];
             setClassesList(items);
@@ -877,21 +884,25 @@ const PartesDiarias = ({ navigation }) => {
                     return;
                 }
 
-                const itemsFormatados = table.map((item) => {
-                    if (editData.categoria === "Equipamentos") {
-                        return {
-                            codigo: item.Codigo,
-                            descricao: item.Desig,
-                            subEmpId: item.ComponenteID,
-                        };
-                    } else {
-                        return {
-                            codigo: item.SubEmp,
-                            descricao: item.Descricao,
-                            subEmpId: item.SubEmpId,
-                        };
-                    }
-                });
+                const itemsFormatados = table
+                    .filter((item) => item.CDU_CCS != null && item.CDU_CCS !== '') // Filtrar apenas itens com CDU_CCS preenchido
+                    .map((item) => {
+                        if (editData.categoria === "Equipamentos") {
+                            return {
+                                codigo: item.Codigo,
+                                descricao: item.Desig,
+                                subEmpId: item.ComponenteID,
+                                cduCcs: item.CDU_CCS,
+                            };
+                        } else {
+                            return {
+                                codigo: item.SubEmp,
+                                descricao: item.Descricao,
+                                subEmpId: item.SubEmpId,
+                                cduCcs: item.CDU_CCS,
+                            };
+                        }
+                    });
 
                 setEspecialidades(itemsFormatados);
             } catch (err) {
@@ -957,6 +968,27 @@ const PartesDiarias = ({ navigation }) => {
         { label: "Mão de Obra", value: "MaoObra" },
         { label: "Equipamentos", value: "Equipamentos" },
     ];
+
+    // Função para filtrar classes compatíveis com a especialidade selecionada
+    const getClassesCompativeis = useCallback((especialidadeCodigo, categoria) => {
+        if (!especialidadeCodigo) return classesList;
+
+        const lista = categoria === "Equipamentos" ? equipamentosList : especialidadesList;
+        const especialidadeSelecionada = lista.find(esp => esp.codigo === especialidadeCodigo);
+        
+        if (!especialidadeSelecionada || !especialidadeSelecionada.cduCcs) {
+            return classesList;
+        }
+
+        // Dividir o CDU_CCS por vírgulas para obter os códigos compatíveis
+        const codigosCompativeis = especialidadeSelecionada.cduCcs.split(',').map(codigo => codigo.trim());
+        
+        // Filtrar classes que têm o cduCcs (ou classe) que coincide com algum dos códigos compatíveis
+        return classesList.filter(classe => 
+            codigosCompativeis.includes(String(classe.cduCcs)) || 
+            codigosCompativeis.includes(String(classe.classe))
+        );
+    }, [classesList, especialidadesList, equipamentosList]);
 
     // === HELPER: extrai as linhas (uma só data + uma só obra) ===
     const montarLinhasDoDia = (item, dia, obraIdDia) => {
@@ -2774,7 +2806,7 @@ const PartesDiarias = ({ navigation }) => {
                                         style={styles.externosPicker}
                                     >
                                         <Picker.Item label="— Selecionar classe —" value={null} />
-                                        {classesList.map((classe) => (
+                                        {getClassesCompativeis(linhaAtual.especialidadeCodigo, linhaAtual.categoria).map((classe) => (
                                             <Picker.Item
                                                 key={classe.classeId}
                                                 label={`${classe.classe} - ${classe.descricao}`}
@@ -4378,7 +4410,7 @@ const PartesDiarias = ({ navigation }) => {
                                                     enabled={false}
                                                     color="#999"
                                                 />
-                                                {classesList.map((classe) => (
+                                                {getClassesCompativeis(espItem.especialidade, espItem.categoria).map((classe) => (
                                                     <Picker.Item
                                                         key={classe.classeId}
                                                         label={`${classe.classe} - ${classe.descricao}`}
