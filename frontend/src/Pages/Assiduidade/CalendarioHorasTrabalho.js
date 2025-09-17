@@ -220,7 +220,7 @@ const CalendarioHorasTrabalho = () => {
                 handleRow(payload);
             }
 
-            console.log(`Feriados normalizados: ${out.size} datas encontradas`, Array.from(out));
+            //console.log(`Feriados normalizados: ${out.size} datas encontradas`, Array.from(out));
             return out;
 
         } catch (error) {
@@ -243,7 +243,7 @@ const CalendarioHorasTrabalho = () => {
         }
 
         try {
-            console.log(`Carregando feriados para o ano ${ano}... (tentativa ${tentativa}/${maxTentativas})`);
+            //console.log(`Carregando feriados para o ano ${ano}... (tentativa ${tentativa}/${maxTentativas})`);
 
             const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/Feriados`, {
                 headers: {
@@ -253,7 +253,7 @@ const CalendarioHorasTrabalho = () => {
                 }
             });
 
-            console.log(`Resposta da API feriados: Status ${res.status}`);
+            //console.log(`Resposta da API feriados: Status ${res.status}`);
 
             if (!res.ok) {
                 const errorText = await res.text();
@@ -261,7 +261,7 @@ const CalendarioHorasTrabalho = () => {
 
                 // Se for erro 409 e ainda temos tentativas, aguardar e tentar novamente
                 if (res.status === 409 && tentativa < maxTentativas) {
-                    console.log(`Erro 409 detectado. Aguardando 2s antes da próxima tentativa...`);
+                    //console.log(`Erro 409 detectado. Aguardando 2s antes da próxima tentativa...`);
                     await new Promise(resolve => setTimeout(resolve, 2000));
                     return carregarFeriados(tentativa + 1, maxTentativas);
                 }
@@ -270,9 +270,9 @@ const CalendarioHorasTrabalho = () => {
             }
 
             const data = await res.json();
-            console.log('Dados feriados recebidos:', data);
+            //console.log('Dados feriados recebidos:', data);
             const listaISO = normalizarFeriados(data);
-            console.log('Feriados normalizados:', listaISO);
+            //console.log('Feriados normalizados:', listaISO);
             setFeriados(listaISO);
 
         } catch (err) {
@@ -280,7 +280,7 @@ const CalendarioHorasTrabalho = () => {
 
             // Se ainda temos tentativas e não foi um erro de rede crítico
             if (tentativa < maxTentativas && !err.message.includes('TypeError: Failed to fetch')) {
-                console.log(`Tentando novamente em 3s...`);
+                //console.log(`Tentando novamente em 3s...`);
                 await new Promise(resolve => setTimeout(resolve, 3000));
                 return carregarFeriados(tentativa + 1, maxTentativas);
             }
@@ -415,7 +415,7 @@ const CalendarioHorasTrabalho = () => {
                     });
 
                     if (resF40.ok) {
-                        console.log('Falta F40 submetida automaticamente.');
+                        //console.log('Falta F40 submetida automaticamente.');
                     } else {
                         console.warn('Erro ao submeter falta F40:', await resF40.text());
                     }
@@ -529,7 +529,7 @@ const CalendarioHorasTrabalho = () => {
                     setFaltasDoDia(faltasNoDia);
                 }
 
-                console.log('Faltas carregadas:', listaFaltas);
+                //console.log('Faltas carregadas:', listaFaltas);
             } else {
                 const msg = await res.text();
                 console.error('Erro ao carregar faltas:', res.status, msg);
@@ -560,7 +560,7 @@ const CalendarioHorasTrabalho = () => {
                 const mapa = Object.fromEntries(lista.map(f => [f.Falta, f.Descricao]));
                 setMapaFaltas(mapa);
 
-                console.log('Tipos de falta carregados:', lista);
+                //console.log('Tipos de falta carregados:', lista);
             } else {
                 const msg = await res.text();
                 console.error('Erro ao carregar tipos de falta:', res.status, msg);
@@ -1404,7 +1404,7 @@ const CalendarioHorasTrabalho = () => {
         });
 
         setPedidosPendentesDoDia(pedidosPendentesDoDia);
-        console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
+        //console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
 
         const token = localStorage.getItem('loginToken');
         try {

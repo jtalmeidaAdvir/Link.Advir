@@ -434,14 +434,7 @@ const RegistoPontoObra = (props) => {
         }
     };
 
-    console.log('tipoUser from localStorage:', tipoUser);
-    console.log('tipoUserCapitalizado:', tipoUserCapitalizado);
-    console.log('Available in localStorage:', {
-        loginToken: localStorage.getItem('loginToken'),
-        tipoUser: localStorage.getItem('tipoUser'),
-        tipo: localStorage.getItem('tipo'),
-        userType: localStorage.getItem('userType')
-    });
+  
 
     return (
         <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{

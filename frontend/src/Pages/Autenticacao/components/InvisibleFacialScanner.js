@@ -406,6 +406,7 @@ const makeDetectorOpts = () => new faceapi.TinyFaceDetectorOptions({
         sampleCount: scans.length,
         qualityScore: avgConfidence
       },
+      
       scanQuality: {
         confidence: avgConfidence,
         sampleCount: scans.length,

@@ -173,7 +173,7 @@ const AprovacaoFaltaFerias = () => {
 
     const aprovarPedido = async (pedido) => {
         try {
-            console.log('Iniciando aprovação do pedido:', pedido.id);
+            //console.log('Iniciando aprovação do pedido:', pedido.id);
 
             // 1) marca como aprovado no backend
             const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${pedido.id}/aprovar`, {
@@ -189,7 +189,7 @@ const AprovacaoFaltaFerias = () => {
                 return;
             }
 
-            console.log('Pedido marcado como aprovado no backend');
+            //console.log('Pedido marcado como aprovado no backend');
 
             // 2) executa ação no ERP conforme tipo/operacao
             if (pedido.tipoPedido === 'FERIAS') {
@@ -284,7 +284,7 @@ const AprovacaoFaltaFerias = () => {
                 }
             }
 
-            console.log('Ações no ERP executadas com sucesso');
+            //console.log('Ações no ERP executadas com sucesso');
             alert('Pedido aprovado e registado com sucesso.');
             await carregarTodosPedidos();
         } catch (err) {
@@ -472,14 +472,14 @@ const AprovacaoFaltaFerias = () => {
         if (!lista || lista.length === 0) return lista;
         
         const funcionariosUnicos = [...new Set(lista.map(p => p.funcionario))];
-        console.log('Carregando nomes para funcionários:', funcionariosUnicos);
+        //console.log('Carregando nomes para funcionários:', funcionariosUnicos);
         
         // Carregar todos os nomes sequencialmente para garantir consistência
         const mapaNomes = {};
         for (const cod of funcionariosUnicos) {
             const nome = await obterNomeFuncionario(cod);
             mapaNomes[cod] = nome;
-            console.log(`Nome carregado para ${cod}: ${nome}`);
+            //console.log(`Nome carregado para ${cod}: ${nome}`);
         }
 
         const listaEnriquecida = lista.map(p => ({
@@ -487,7 +487,7 @@ const AprovacaoFaltaFerias = () => {
             nomeFuncionario: mapaNomes[p.funcionario] || p.funcionario
         }));
         
-        console.log('Lista enriquecida com nomes:', listaEnriquecida.map(p => ({ id: p.id, funcionario: p.funcionario, nomeFuncionario: p.nomeFuncionario })));
+        //console.log('Lista enriquecida com nomes:', listaEnriquecida.map(p => ({ id: p.id, funcionario: p.funcionario, nomeFuncionario: p.nomeFuncionario })));
         return listaEnriquecida;
     };
 
@@ -495,7 +495,7 @@ const AprovacaoFaltaFerias = () => {
         try {
             setLoading(true);
             setNomesProntos(false); // <- bloqueia render até terminar todo o fluxo
-            console.log('Iniciando carregamento de todos os pedidos...');
+            //console.log('Iniciando carregamento de todos os pedidos...');
 
             const [resPendentes, resAprovados, resRejeitados] = await Promise.all([
                 fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
@@ -527,11 +527,11 @@ const AprovacaoFaltaFerias = () => {
                 resRejeitados.ok ? resRejeitados.json() : []
             ]);
 
-            console.log('Dados recebidos:', { pendentes: pendentes.length, aprovados: aprovados.length, rejeitados: rejeitados.length });
+            //console.log('Dados recebidos:', { pendentes: pendentes.length, aprovados: aprovados.length, rejeitados: rejeitados.length });
 
             // Enriquecer com nomes ANTES de definir qualquer estado
             const todos = await enriquecerComNomes([...pendentes, ...aprovados, ...rejeitados]);
-            console.log('Todos os pedidos enriquecidos:', todos.length);
+            //console.log('Todos os pedidos enriquecidos:', todos.length);
 
             // Apenas após ter todos os nomes carregados, definir os estados
             setTodosPedidos(todos);
@@ -547,7 +547,7 @@ const AprovacaoFaltaFerias = () => {
 
             // Só liberar o render depois que tudo estiver pronto
             setNomesProntos(true);
-            console.log('✅ Nomes carregados e estados definidos. Liberando render...');
+            //console.log('✅ Nomes carregados e estados definidos. Liberando render...');
         } catch (err) {
             console.error('Erro ao carregar todos os pedidos:', err);
             setNomesProntos(true); // Liberar render mesmo com erro para não ficar bloqueado
@@ -576,7 +576,7 @@ const AprovacaoFaltaFerias = () => {
         if (estado === 'rejeitados') endpoint = 'rejeitados';
 
         try {
-            console.log(`Carregando pedidos para estado: ${estado}`);
+            //console.log(`Carregando pedidos para estado: ${estado}`);
             
             const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${endpoint}`, {
                 headers: {
@@ -588,7 +588,7 @@ const AprovacaoFaltaFerias = () => {
 
             if (res.ok) {
                 const data = await res.json();
-                console.log(`Dados recebidos para ${estado}:`, data.length);
+                //console.log(`Dados recebidos para ${estado}:`, data.length);
                 
                 // Enriquecer com nomes ANTES de definir estados
                 const pedidosComNome = await enriquecerComNomes(data);
@@ -598,7 +598,7 @@ const AprovacaoFaltaFerias = () => {
                 
                 // Só liberar render após nomes carregados
                 setNomesProntos(true);
-                console.log(`✅ Pedidos ${estado} carregados com nomes`);
+                //console.log(`✅ Pedidos ${estado} carregados com nomes`);
             } else {
                 console.error('Erro ao carregar pedidos');
                 setNomesProntos(true); // Liberar render mesmo com erro

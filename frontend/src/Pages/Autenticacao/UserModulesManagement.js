@@ -48,7 +48,7 @@ const UserModulesManagement = ({ route }) => {
     }, []);
 
     useEffect(() => {
-        console.log("🚀 useEffect chamado com userId:", userId);
+        //console.log("🚀 useEffect chamado com userId:", userId);
         fetchEmpresaModulos();
         fetchUserModulos(userId);
         fetchUserData();
@@ -56,7 +56,7 @@ const UserModulesManagement = ({ route }) => {
 
     const fetchEmpresaModulos = async () => {
         try {
-            console.log("📋 Iniciando fetchEmpresaModulos para userId:", userId);
+            //console.log("📋 Iniciando fetchEmpresaModulos para userId:", userId);
             setLoading(true);
 
             const empresaId = localStorage.getItem("empresa_id");
@@ -69,7 +69,7 @@ const UserModulesManagement = ({ route }) => {
                 `https://backend.advir.pt/api/empresas/${empresaId}/modulos`,
             );
             const data = await response.json();
-            console.log("📋 Resposta de empresa-modulos:", data);
+            //console.log("📋 Resposta de empresa-modulos:", data);
 
             if (!response.ok) {
                 throw new Error(
@@ -78,7 +78,7 @@ const UserModulesManagement = ({ route }) => {
             }
 
             const modulos = data.modulos || [];
-            console.log("📋 Módulos encontrados:", modulos);
+            //console.log("📋 Módulos encontrados:", modulos);
             setEmpresaModulos(modulos);
 
             // Initialize expanded state for all modules
@@ -120,7 +120,7 @@ const UserModulesManagement = ({ route }) => {
             }
 
             const data = await response.json();
-            console.log("👤 Módulos do utilizador:", data);
+            //console.log("👤 Módulos do utilizador:", data);
             setUserModulos(data.modulos || []);
         } catch (error) {
             console.error("❌ Erro ao carregar módulos do utilizador:", error);
@@ -130,16 +130,11 @@ const UserModulesManagement = ({ route }) => {
 
     const fetchAvailableSubmodules = async (empresaId, modulos) => {
         try {
-            console.log("🎯 fetchAvailableSubmodules INICIADO com:", {
-                empresaId,
-                modulos,
-            });
+            
             const availableSubmodulesData = {};
 
             for (const modulo of modulos) {
-                console.log(
-                    `🔍 Buscando submódulos para módulo ${modulo.id} (${modulo.nome}), empresaId: ${empresaId}`,
-                );
+               
 
                 // Busca os submódulos que a empresa tem associados a este módulo
                 const empresaSubmodulosResponse = await fetch(
@@ -148,20 +143,15 @@ const UserModulesManagement = ({ route }) => {
 
                 if (empresaSubmodulosResponse.ok) {
                     const empresaSubmodulosData = await empresaSubmodulosResponse.json();
-                    console.log(
-                        `📊 Submódulos disponíveis na empresa para módulo ${modulo.nome}:`,
-                        empresaSubmodulosData,
-                    );
+                   
                     availableSubmodulesData[modulo.id] = empresaSubmodulosData.submodulos || [];
                 } else {
-                    console.log(
-                        `⚠️ Erro ao buscar submódulos da empresa para o módulo ${modulo.nome}`,
-                    );
+                   
                     availableSubmodulesData[modulo.id] = [];
                 }
             }
 
-            console.log("✅ setAvailableSubmodules chamado com:", availableSubmodulesData);
+            //console.log("✅ setAvailableSubmodules chamado com:", availableSubmodulesData);
             setAvailableSubmodules(availableSubmodulesData);
         } catch (error) {
             console.error("❌ Erro ao carregar submódulos disponíveis:", error);
@@ -193,7 +183,7 @@ const UserModulesManagement = ({ route }) => {
 
             const empresaId = localStorage.getItem("empresa_id");
 
-            console.log("🔄 Toggle módulo:", { userId, moduloId, empresaId, isChecked });
+            //console.log("🔄 Toggle módulo:", { userId, moduloId, empresaId, isChecked });
 
             const response = await fetch(url, {
                 method: "POST",
@@ -209,7 +199,7 @@ const UserModulesManagement = ({ route }) => {
             });
 
             const responseData = await response.json();
-            console.log("📡 Resposta do toggle módulo:", responseData);
+            //console.log("📡 Resposta do toggle módulo:", responseData);
 
             if (response.ok) {
                 await fetchUserModulos(userId);
@@ -247,7 +237,7 @@ const UserModulesManagement = ({ route }) => {
 
             const empresaId = localStorage.getItem("empresa_id");
 
-            console.log("🔄 Toggle submódulo:", { userId, submoduloId, empresaId, isCurrentlyChecked });
+            //console.log("🔄 Toggle submódulo:", { userId, submoduloId, empresaId, isCurrentlyChecked });
 
             const response = await fetch(url, {
                 method: "POST",
@@ -263,7 +253,7 @@ const UserModulesManagement = ({ route }) => {
             });
 
             const responseData = await response.json();
-            console.log("📡 Resposta do toggle submódulo:", responseData);
+            //console.log("📡 Resposta do toggle submódulo:", responseData);
 
             if (response.ok) {
                 await fetchUserModulos(userId);
@@ -452,23 +442,7 @@ const UserModulesManagement = ({ route }) => {
                             const availableSubmodulesForModule =
                                 availableSubmodules[item.id] || [];
 
-                            console.log(
-                                `🔧 Renderizando submódulos para módulo ${item.nome} (ID: ${item.id}):`,
-                                availableSubmodulesForModule,
-                            );
-                            console.log(
-                                "🔧 Estado completo availableSubmodules:",
-                                availableSubmodules,
-                            );
-                            console.log(
-                                "🔧 Chaves disponíveis:",
-                                Object.keys(availableSubmodules),
-                            );
-                            console.log(
-                                `🔧 availableSubmodules[${item.id}]:`,
-                                availableSubmodules[item.id],
-                            );
-
+                          
                             if (availableSubmodulesForModule.length > 0) {
                                 return availableSubmodulesForModule.map(
                                     (submodulo) =>

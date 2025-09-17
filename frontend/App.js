@@ -407,9 +407,7 @@ const CustomDrawerContent = ({
 
         // Se o tipoUser parece ser um JWT (contém pontos), permitir todos os módulos temporariamente
         if (tipoUser && tipoUser.includes(".")) {
-            console.log(
-                `⚠️ tipoUser parece ser um token JWT, permitindo módulo ${module.nome} temporariamente`,
-            );
+            
             return true;
         }
 
@@ -856,9 +854,7 @@ const CustomDrawerContent = ({
                                                         submodulo.nome
                                                         ];
                                                     if (!screenName) {
-                                                        console.log(
-                                                            `⚠️ Submódulo sem mapeamento: ${submodulo.nome}`,
-                                                        );
+                                                        
                                                         return null;
                                                     }
 
@@ -912,14 +908,10 @@ const CustomDrawerContent = ({
                                                                 "Agenda"
                                                             )
                                                         ) {
-                                                            console.log(
-                                                                `❌ Submódulo ${submodulo.nome} bloqueado para Trabalhador`,
-                                                            );
+                                                            
                                                             return null;
                                                         }
-                                                        console.log(
-                                                            `✅ Submódulo ${submodulo.nome} permitido para Trabalhador`,
-                                                        );
+                                                        
                                                     }
 
                                                     if (
@@ -1348,9 +1340,7 @@ const AppNavigator = () => {
 
         // Verificar se tipoUser é um token JWT e tentar corrigir
         if (tipoUserLs && tipoUserLs.includes(".")) {
-            console.log(
-                `🔧 Detectado tipoUser como JWT, tentando recuperar valor correto...`,
-            );
+          
             tipoUserLs =
                 localStorage.getItem("userTipo") ||
                 localStorage.getItem("tipo_user") ||
@@ -1358,20 +1348,13 @@ const AppNavigator = () => {
 
             // Se ainda não encontramos, definir como vazio para forçar nova seleção
             if (!tipoUserLs || tipoUserLs.includes(".")) {
-                console.log(
-                    `❌ Não foi possível recuperar tipoUser válido, limpando...`,
-                );
+                
                 localStorage.removeItem("tipoUser");
                 tipoUserLs = "";
             }
         }
 
-        console.log(`🔍 fetchUserData - valores após verificação:`, {
-            token: token ? "exists" : "null",
-            empresa: empresaLs,
-            tipoUser: tipoUserLs,
-            originalTipoUser: localStorage.getItem("tipoUser"),
-        });
+        
 
         // Verificar se o token existe e é válido
         if (token && isTokenValid(token)) {
@@ -1422,15 +1405,10 @@ const AppNavigator = () => {
                 // Verificar se tem o submódulo "Ponto" para redirecionamento automático
                 const hasPointSubmodule = await checkUserHasPointSubmodule();
 
-                console.log("✅ APP.JS - RESULTADO FINAL - Tem submódulo Ponto?", hasPointSubmodule);
-                console.log("👤 APP.JS - TipoUser:", tipoUserLs);
-                console.log("🏢 APP.JS - Empresa:", empresaLs);
 
                 if (hasPointSubmodule) {
-                    console.log("🎯 APP.JS - REDIRECIONANDO PARA RegistoPontoObra");
                     setInitialRoute("RegistoPontoObra");
                 } else {
-                    console.log("🏠 APP.JS - Redirecionando para Home - não tem submódulo Ponto");
                     setInitialRoute("Home");
                 }
             } else if (empresaLs) {
@@ -1445,7 +1423,6 @@ const AppNavigator = () => {
             setInitialRoute("Login");
         }
 
-        console.log("🎯 APP.JS - ROTA INICIAL FINAL DEFINIDA:", initialRoute);
         setLoading(false);
     };
 
@@ -1454,11 +1431,7 @@ const AppNavigator = () => {
         const userId = localStorage.getItem("userId");
         const empresaId = localStorage.getItem("empresa_id");
 
-        console.log(`🔧 fetchUserModules - Parâmetros:`, {
-            userId,
-            empresaId,
-            hasToken: !!token,
-        });
+      
 
         if (userId && token) {
             try {
@@ -1469,15 +1442,12 @@ const AppNavigator = () => {
                     url += `?empresa_id=${empresaId}`;
                 }
 
-                console.log(`🌐 Fazendo request para:`, url);
 
                 const response = await fetch(url, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await response.json();
 
-                console.log(`📨 Resposta da API:`, data);
-                console.log(`📁 Módulos recebidos:`, data.modulos);
 
                 setModules(data.modulos || []);
             } catch (error) {
@@ -1485,10 +1455,7 @@ const AppNavigator = () => {
                 setModules([]);
             }
         } else {
-            console.log(`❌ fetchUserModules - Dados em falta:`, {
-                userId: !!userId,
-                token: !!token,
-            });
+            
         }
     };
 
@@ -1514,11 +1481,9 @@ const AppNavigator = () => {
             const empresaId = localStorage.getItem("empresa_id");
 
             if (!userId || !token || !empresaId) {
-                console.log("❌ checkUserHasPointSubmodule - Dados em falta");
                 return false;
             }
 
-            console.log("🔍 checkUserHasPointSubmodule - Buscando módulos da API");
             const response = await fetch(
                 `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos?empresa_id=${empresaId}`,
                 {
@@ -1537,21 +1502,18 @@ const AppNavigator = () => {
             const data = await response.json();
             const userModules = data.modulos || [];
 
-            console.log("🔍 checkUserHasPointSubmodule - Módulos recebidos:", userModules);
 
             // Procurar especificamente pelo submódulo "Ponto"
             for (const module of userModules) {
                 if (module.submodulos && Array.isArray(module.submodulos)) {
                     for (const sub of module.submodulos) {
                         if (sub.nome === "Ponto") {
-                            console.log(`✅ checkUserHasPointSubmodule - ENCONTRADO submódulo Ponto: ${sub.nome} (id: ${sub.id})`);
                             return true;
                         }
                     }
                 }
             }
 
-            console.log("❌ checkUserHasPointSubmodule - Submódulo Ponto não encontrado");
             return false;
         } catch (error) {
             console.error("❌ checkUserHasPointSubmodule - Erro:", error);
@@ -1628,10 +1590,6 @@ const AppNavigator = () => {
         );
     };
 
-    console.log(
-        "🎯 APP.JS - CRIANDO DRAWER.NAVIGATOR COM initialRouteName:",
-        initialRoute,
-    );
 
     return (
         <ThemeProvider>
@@ -1727,10 +1685,7 @@ const AppNavigator = () => {
                                 {/* Botão de perfil/login */}
                                 <TouchableOpacity
                                     onPress={() => {
-                                        console.log(
-                                            "Clicou no botão do perfil",
-                                            isLoggedIn,
-                                        );
+                                        
                                         if (isLoggedIn) {
                                             toggleProfileMenu();
                                         } else {
@@ -2117,15 +2072,6 @@ const AppNavigator = () => {
                             (tipoUser === "Encarregado" ||
                                 tipoUser === "Diretor" ||
                                 tipoUser === "Administrador");
-
-                        console.log(
-                            `🏗️ Verificando acesso às screens de Obras:`,
-                            {
-                                loading,
-                                tipoUser,
-                                canAccessObras,
-                            },
-                        );
 
                         return canAccessObras;
                     })() && (
