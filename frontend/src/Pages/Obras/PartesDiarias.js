@@ -533,6 +533,8 @@ const PartesDiarias = ({ navigation }) => {
                 linha.categoria = "Equipamentos";
                 linha.especialidade = eq.codigo;
                 linha.subEmpId = eq.subEmpId ?? null;
+                // Set classeId to -1 if category is Equipamentos
+                linha.classeId = -1;
             } else if (mao) {
                 // veio da lista de Mão de Obra
                 linha.categoria = "MaoObra";
@@ -610,33 +612,40 @@ const PartesDiarias = ({ navigation }) => {
         }
     }, []);
 
-    const carregarEquipamentos = useCallback(async () => {
-        const painelToken = await AsyncStorage.getItem("painelAdminToken");
-        const urlempresa = await AsyncStorage.getItem("urlempresa");
-        try {
-            const data = await fetchComRetentativas(
-                "https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos",
-                {
-                    headers: { Authorization: `Bearer ${painelToken}`, urlempresa },
-                },
-            );
-            const table = data?.DataSet?.Table;
-            const items = Array.isArray(table)
-                ? table
-                    .filter((item) => item.CDU_CCS != null && item.CDU_CCS !== '') // Filtrar apenas equipamentos com CDU_CCS preenchido
-                    .map((item) => ({
-                        codigo: item.Codigo,
-                        descricao: item.Desig,
-                        subEmpId: item.ComponenteID,
-                        cduCcs: item.CDU_CCS,
-                    }))
-                : [];
-            setEquipamentosList(items);
-        } catch (err) {
-            console.error("Erro ao obter equipamentos:", err);
-            Alert.alert("Erro", "Não foi possível carregar os equipamentos");
-        }
-    }, []);
+const carregarEquipamentos = useCallback(async () => {
+  const painelToken = await AsyncStorage.getItem("painelAdminToken");
+  const urlempresa = await AsyncStorage.getItem("urlempresa");
+  try {
+    const data = await fetchComRetentativas(
+      "https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos",
+      {
+        headers: { Authorization: `Bearer ${painelToken}`, urlempresa },
+      },
+    );
+
+    // A API às vezes pode devolver um único objeto em vez de array
+    const raw = data?.DataSet?.Table;
+    const table = Array.isArray(raw) ? raw : raw ? [raw] : [];
+
+    const items = table
+      .filter((item) =>
+        typeof item?.Codigo === "string" &&
+        item.Codigo.trim().toUpperCase().startsWith("L")
+      )
+      .map((item) => ({
+        codigo: item.Codigo.trim(),
+        descricao: item.Desig,
+        subEmpId: item.ComponenteID,
+      }));
+
+    setEquipamentosList(items);
+  } catch (err) {
+    console.error("Erro ao obter equipamentos:", err);
+    Alert.alert("Erro", "Não foi possível carregar os equipamentos");
+  }
+}, []);
+
+
 
     const carregarClasses = useCallback(async () => {
         const painelToken = await AsyncStorage.getItem("painelAdminToken");
@@ -885,7 +894,14 @@ const PartesDiarias = ({ navigation }) => {
                 }
 
                 const itemsFormatados = table
-                    .filter((item) => item.CDU_CCS != null && item.CDU_CCS !== '') // Filtrar apenas itens com CDU_CCS preenchido
+                    .filter((item) => {
+                        // Filter for items starting with 'L' if the category is Equipment
+                        if (editData.categoria === "Equipamentos") {
+                            return item.CDU_CCS != null && item.CDU_CCS !== '' && String(item.Codigo).startsWith('L');
+                        }
+                        // Otherwise, apply the existing filter
+                        return item.CDU_CCS != null && item.CDU_CCS !== '';
+                    })
                     .map((item) => {
                         if (editData.categoria === "Equipamentos") {
                             return {
@@ -975,17 +991,17 @@ const PartesDiarias = ({ navigation }) => {
 
         const lista = categoria === "Equipamentos" ? equipamentosList : especialidadesList;
         const especialidadeSelecionada = lista.find(esp => esp.codigo === especialidadeCodigo);
-        
+
         if (!especialidadeSelecionada || !especialidadeSelecionada.cduCcs) {
             return classesList;
         }
 
         // Dividir o CDU_CCS por vírgulas para obter os códigos compatíveis
         const codigosCompativeis = especialidadeSelecionada.cduCcs.split(',').map(codigo => codigo.trim());
-        
+
         // Filtrar classes que têm o cduCcs (ou classe) que coincide com algum dos códigos compatíveis
-        return classesList.filter(classe => 
-            codigosCompativeis.includes(String(classe.cduCcs)) || 
+        return classesList.filter(classe =>
+            codigosCompativeis.includes(String(classe.cduCcs)) ||
             codigosCompativeis.includes(String(classe.classe))
         );
     }, [classesList, especialidadesList, equipamentosList]);
@@ -1095,7 +1111,7 @@ const PartesDiarias = ({ navigation }) => {
                 PrecoUnit: 0,
                 categoria: l.categoria, // 'MaoObra' | 'Equipamentos'
                 TipoHoraID: tipoHoraId,
-                Observacoes: l.observacoes || "", // Add observações field
+                Observacoes: l.observacoes || "", // Add observacoes field
             };
 
             console.log(
@@ -1782,6 +1798,12 @@ const PartesDiarias = ({ navigation }) => {
         if (campo === "categoria") {
             novas[index].especialidade = "";
             novas[index].subEmpId = null;
+            // Set classeId to -1 if category is Equipamentos
+            if (valor === "Equipamentos") {
+                novas[index].classeId = -1;
+            } else {
+                novas[index].classeId = null; // Reset if not Equipamentos
+            }
         }
 
         setEditData({ ...editData, especialidadesDia: novas });
@@ -2266,14 +2288,6 @@ const PartesDiarias = ({ navigation }) => {
         }
     };
 
-    // --- Mudança principal ---
-    // A alteração é na lógica do botão "Enviar Partes", que agora chama gerarResumoSubmissao
-    // e mostra um novo modal com o resumo antes de chamar criarParteDiaria.
-
-    // Na renderControls(), o onPress do botão "Enviar Partes" foi alterado de `() => setModalVisible(true)` para:
-    // `onPress={() => { const resumo = gerarResumoSubmissao(); setModalVisible(true); }}`
-    // E a função `criarParteDiaria` agora é chamada de dentro do modal de resumo após confirmação.
-
     const resolveObraId = (espObraId, trabObraId) => {
         const toNum = (v) => (v == null ? null : Number(v));
         const cand1 = toNum(espObraId);
@@ -2714,6 +2728,7 @@ const PartesDiarias = ({ navigation }) => {
                                                     categoria: opt.value,
                                                     especialidadeCodigo: "",
                                                     subEmpId: null,
+                                                    classeId: null,
                                                 }))
                                             }
                                         >
@@ -2744,7 +2759,7 @@ const PartesDiarias = ({ navigation }) => {
                             <View style={styles.externosInputGroup}>
                                 <Text style={styles.externosInputLabel}>
                                     <Ionicons
-                                        name={
+                                       name={
                                             linhaAtual.categoria === "Equipamentos"
                                                 ? "construct"
                                                 : "hammer"
@@ -4260,17 +4275,18 @@ const PartesDiarias = ({ navigation }) => {
                                                     // Validação em tempo real para horas normais
                                                     if (!espItem.horaExtra) {
                                                         // Calcular total de horas normais incluindo esta alteração
-                                                        const outrasHorasNormais = (
-                                                            editData.especialidadesDia || []
-                                                        )
-                                                            .filter(
-                                                                (esp, idx) => idx !== index && !esp.horaExtra,
+                                                        const outrasHorasNormais =
+                                                            (
+                                                                editData.especialidadesDia || []
                                                             )
-                                                            .reduce(
-                                                                (total, esp) =>
-                                                                    total + (parseFloat(esp.horas) || 0),
-                                                                0,
-                                                            );
+                                                                .filter(
+                                                                    (esp, idx) => idx !== index && !esp.horaExtra,
+                                                                )
+                                                                .reduce(
+                                                                    (total, esp) =>
+                                                                        total + (parseFloat(esp.horas) || 0),
+                                                                    0,
+                                                                );
 
                                                         const totalHorasNormais =
                                                             outrasHorasNormais + horasDecimais;

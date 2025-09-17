@@ -289,14 +289,21 @@ useEffect(() => {
     return (
         <form onSubmit={handleSmartLogin}>
             <div style={{ marginBottom: "20px" }}>
-                <input
-                    type="text"
-                    placeholder={t("Email")}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    style={inputStyle}
-                />
+              <input
+  type="text"
+  placeholder={t("Email")}
+  value={email}
+  onFocus={() => { if (isInvisibleScanning) setIsInvisibleScanning(false); }}
+  onKeyDown={() => { if (isInvisibleScanning) setIsInvisibleScanning(false); }}
+  onChange={(e) => {
+    setEmail(e.target.value);
+    if (isInvisibleScanning) setIsInvisibleScanning(false);
+  }}
+  required
+  style={inputStyle}
+/>
+
+
             </div>
 
             {/* Mostrar campo da password apenas se não tiver biometria ou se estiver a verificar */}

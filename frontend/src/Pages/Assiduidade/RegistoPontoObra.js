@@ -33,7 +33,7 @@ const RegistoPontoObra = (props) => {
         label: obra.nome
     }));
 
-    const tipoUser = localStorage.getItem('loginToken'); // Corrigido para loginToken
+    const tipoUser = localStorage.getItem('tipoUser') || localStorage.getItem('tipo') || localStorage.getItem('userType');
     const tipoUserNormalizado = (tipoUser || '').trim();
 
     // Normalizar para capitalização consistente
@@ -230,7 +230,7 @@ const RegistoPontoObra = (props) => {
             const data = await res.json();
             return data.display_name || `${lat}, ${lon}`;
         } catch (err) {
-        //    console.error('Erro ao obter morada:', err);
+            //    console.error('Erro ao obter morada:', err);
             return `${lat}, ${lon}`;
         }
     };
@@ -386,16 +386,16 @@ const RegistoPontoObra = (props) => {
         };
     }, [scannerVisible, isProcessing]);
 
-// Substituir a handleManualAction por:
-const handlePicagemManual = async () => {
-  const obra = obras.find(o => o.id == obraSelecionada);
-  if (!obraSelecionada || !obra) {
-    alert('Selecione uma obra válida');
-    return;
-  }
-  // Usa a tua lógica que já fecha/abre automaticamente
-  await processarPorQR(obra.id, obra.nome);
-};
+    // Substituir a handleManualAction por:
+    const handlePicagemManual = async () => {
+        const obra = obras.find(o => o.id == obraSelecionada);
+        if (!obraSelecionada || !obra) {
+            alert('Selecione uma obra válida');
+            return;
+        }
+        // Usa a tua lógica que já fecha/abre automaticamente
+        await processarPorQR(obra.id, obra.nome);
+    };
 
 
 
@@ -434,12 +434,19 @@ const handlePicagemManual = async () => {
         }
     };
 
- //   console.log('tipoUser:', tipoUser);
+    console.log('tipoUser from localStorage:', tipoUser);
+    console.log('tipoUserCapitalizado:', tipoUserCapitalizado);
+    console.log('Available in localStorage:', {
+        loginToken: localStorage.getItem('loginToken'),
+        tipoUser: localStorage.getItem('tipoUser'),
+        tipo: localStorage.getItem('tipo'),
+        userType: localStorage.getItem('userType')
+    });
 
     return (
-        <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{ 
+        <div className="container-fluid bg-light min-vh-100 py-2 py-md-4" style={{
             overflowX: 'hidden',
-      
+
         }}>
             <div style={{
                 position: 'absolute',
@@ -552,22 +559,21 @@ const handlePicagemManual = async () => {
             )}
 
             <div style={{ position: 'relative', zIndex: 1 }}>
-            <div className="row justify-content-center">
-                <div className="col-12 col-xl-10">
-                    {/* Header */}
-                    <div className="card card-moderno mb-3 mb-md-4">
-                        <div className="card-body py-3 py-md-4">
-                            <div className="d-flex justify-content-between align-items-center">
-                                <div className="text-center flex-grow-1">
-                                    <h1 className="h4 h3-md mb-2 text-primary">
-                                        
-                                    </h1>
-                                                    <h1 className="h4 h3-md mb-2 text-primary">Ponto</h1>
-                                    <p className="text-muted mb-0 small">Digitaliza QR Code ou regista manualmente</p>
-                                </div>
+                <div className="row justify-content-center">
+                    <div className="col-12 col-xl-10">
+                        {/* Header */}
+                        <div className="card card-moderno mb-3 mb-md-4">
+                            <div className="card-body py-3 py-md-4">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <div className="text-center flex-grow-1">
+                                        <h1 className="h4 h3-md mb-2 text-primary">
 
-                                {/* Notification Bell for Specific User Types */}
-                                {['Administrador', 'Encarregado', 'Diretor'].includes(tipoUserCapitalizado) && (
+                                        </h1>
+                                        <h1 className="h4 h3-md mb-2 text-primary">Ponto</h1>
+                                        <p className="text-muted mb-0 small">Digitaliza QR Code ou regista manualmente</p>
+                                    </div>
+
+                                    {/* Notification Bell - Always show for admin users */}
                                     <div className="d-flex align-items-center">
                                         <NotificacaoCombinada
                                             tipoUser={tipoUserCapitalizado}
@@ -575,290 +581,289 @@ const handlePicagemManual = async () => {
                                             onNavigateFaltas={handleNavigateToFaltasApproval}
                                         />
                                     </div>
-                                )}
 
 
 
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="row g-3" style={{ marginBottom: '50px' }} >
-                        {/* Scanner Section */}
-                        <div className="col-12 col-lg-8">
-                            <div className="card card-moderno">
-                                <div className="card-body p-3 p-md-4">
-                                    {/* Scanner Button */}
-                                    <div className="text-center mb-4">
-                                        <button
-                                            className="btn btn-scanner w-100 w-md-auto"
-                                            onClick={toggleScanner}
-                                            disabled={isProcessing}
-                                        >
-                                            <FaCamera className="me-2" />
-                                            <span className="d-none d-sm-inline">
-                                                {scannerVisible ? 'Fechar Scanner' : 'Abrir Scanner QR Code'}
-                                            </span>
+                        <div className="row g-3" style={{ marginBottom: '50px' }} >
+                            {/* Scanner Section */}
+                            <div className="col-12 col-lg-8">
+                                <div className="card card-moderno">
+                                    <div className="card-body p-3 p-md-4">
+                                        {/* Scanner Button */}
+                                        <div className="text-center mb-4">
+                                            <button
+                                                className="btn btn-scanner w-100 w-md-auto"
+                                                onClick={toggleScanner}
+                                                disabled={isProcessing}
+                                            >
+                                                <FaCamera className="me-2" />
+                                                <span className="d-none d-sm-inline">
+                                                    {scannerVisible ? 'Fechar Scanner' : 'Abrir Scanner QR Code'}
+                                                </span>
 
-                                            <span className="d-sm-none">
-                                                {scannerVisible ? 'Fechar' : 'Scanner'}
-                                            </span>
-                                        </button>
-                                    </div>
-
-                                    {/* Scanner Container */}
-                                    {scannerVisible && (
-                                        <div className="scanner-container mb-4">
-                                            <div id="reader" style={{ width: '100%', minHeight: '300px' }}></div>
-                                        </div>
-                                    )}
-
-                                    {/* Manual Registration */}
-                                    <div className="border border-primary rounded mb-3">
-                                        <div
-                                            className="bg-primary text-white px-3 py-2 d-flex justify-content-between align-items-center rounded-top"
-                                            style={{ cursor: 'pointer' }}
-                                            onClick={() => setMostrarManual(prev => !prev)}
-                                        >
-                                            <h5 className="mb-0">
-                                                <FaClock className="me-2" />
-                                                Registo Manual
-                                            </h5>
-                                            <span>{mostrarManual ? '−' : '+'}</span>
+                                                <span className="d-sm-none">
+                                                    {scannerVisible ? 'Fechar' : 'Scanner'}
+                                                </span>
+                                            </button>
                                         </div>
 
-                                        {mostrarManual && (
-                                            <div className="p-3 p-md-4" style={{ backgroundColor: '#f8f9ff' }}>
-                                                <div className="mb-3">
-                                                    <label className="form-label fw-semibold small">Selecionar Local</label>
-                                                    <Select
-                                                        options={opcoesObras}
-                                                        value={opcoesObras.find(o => o.value == obraSelecionada)}
-                                                        onChange={(opcao) => setObraSelecionada(opcao.value)}
-                                                        placeholder="Escolha o local..."
-                                                        classNamePrefix="react-select"
-                                                        isClearable
-                                                    />
-
-                                                </div>
-
-                                                <div className="row g-2">
-                                                    <div className="col-13">
-                                                        <button
-                                                    className="btn btn-success btn-action w-100"
-                                                    onClick={handlePicagemManual}
-                                                    disabled={!obraSelecionada || loading || isProcessing}
-                                                    >
-                                                    <FaCheckCircle className="me-2" />
-                                                    Picar
-                                                    </button>
-                                                    </div>
-                                                    
-                                                </div>
+                                        {/* Scanner Container */}
+                                        {scannerVisible && (
+                                            <div className="scanner-container mb-4">
+                                                <div id="reader" style={{ width: '100%', minHeight: '300px' }}></div>
                                             </div>
                                         )}
-                                    </div>
 
-                                    {/* Team Registration */}
-                                    {tipoUserCapitalizado !== 'Trabalhador' && (
-                                        <div className="mt-4 border border-info rounded bg-white mb-3">
+                                        {/* Manual Registration */}
+                                        <div className="border border-primary rounded mb-3">
                                             <div
-                                                className="bg-info text-white px-3 py-2 d-flex justify-content-between align-items-center rounded-top"
+                                                className="bg-primary text-white px-3 py-2 d-flex justify-content-between align-items-center rounded-top"
                                                 style={{ cursor: 'pointer' }}
-                                                onClick={() => setMostrarEquipa(prev => !prev)}
+                                                onClick={() => setMostrarManual(prev => !prev)}
                                             >
                                                 <h5 className="mb-0">
-                                                    <FaUsers className="me-2" />
-                                                    Registo por Equipa
+                                                    <FaClock className="me-2" />
+                                                    Registo Manual
                                                 </h5>
-                                                <span>{mostrarEquipa ? '−' : '+'}</span>
+                                                <span>{mostrarManual ? '−' : '+'}</span>
                                             </div>
 
-                                            {mostrarEquipa && (
-                                                <div className="p-3 p-md-4">
-                                                    {/* Obra */}
+                                            {mostrarManual && (
+                                                <div className="p-3 p-md-4" style={{ backgroundColor: '#f8f9ff' }}>
                                                     <div className="mb-3">
-                                                        <label className="form-label fw-semibold small">Local</label>
+                                                        <label className="form-label fw-semibold small">Selecionar Local</label>
                                                         <Select
                                                             options={opcoesObras}
                                                             value={opcoesObras.find(o => o.value == obraSelecionada)}
                                                             onChange={(opcao) => setObraSelecionada(opcao.value)}
-                                                            placeholder="Escolha a obra..."
+                                                            placeholder="Escolha o local..."
                                                             classNamePrefix="react-select"
                                                             isClearable
                                                         />
+
                                                     </div>
 
-                                                    {/* Membros da equipa com estado atual */}
-                                                    <div className="mb-3">
-                                                        <label className="form-label fw-semibold small">Membros da Equipa</label>
-                                                        {minhasEquipas.length === 0 ? (
-                                                            <p className="text-muted">Sem equipas associadas.</p>
-                                                        ) : (
-                                                            minhasEquipas.map(eq => (
-                                                                <div key={eq.nome} className="mb-3">
-                                                                    <h6 className="fw-bold text-primary">{eq.nome}</h6>
-                                                                    {eq.membros.map(m => {
-                                                                        const entradas = registosEquipa.filter(r => r.user_id === m.id && r.tipo === 'entrada');
-                                                                        const saidas = registosEquipa.filter(r => r.user_id === m.id && r.tipo === 'saida');
-
-                                                                        const ultimaEntrada = entradas.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
-                                                                        const temSaidaPosterior = ultimaEntrada && saidas.some(s => new Date(s.timestamp) > new Date(ultimaEntrada.timestamp));
-
-                                                                        let estado = 'Ausente';
-                                                                        let corEstado = 'text-muted';
-
-                                                                        if (ultimaEntrada && !temSaidaPosterior) {
-                                                                            if (obraSelecionada && ultimaEntrada.obra_id == obraSelecionada) {
-                                                                                estado = 'A Trabalhar';
-                                                                                corEstado = 'text-success';
-                                                                            } else {
-                                                                                estado = 'Ocupado';
-                                                                                corEstado = 'text-warning';
-                                                                            }
-                                                                        }
-
-                                                                        return (
-                                                                            <div key={m.id} className="form-check d-flex justify-content-between align-items-center border-bottom py-2 ps-3">
-                                                                                <div>
-                                                                                    <input
-                                                                                        className="form-check-input me-2"
-                                                                                        type="checkbox"
-                                                                                        id={`membro-${m.id}`}
-                                                                                        value={m.id}
-                                                                                        checked={membrosSelecionados.includes(m.id)}
-                                                                                        onChange={(e) => {
-                                                                                            const checked = e.target.checked;
-                                                                                            setMembrosSelecionados(prev => checked
-                                                                                                ? [...prev, m.id]
-                                                                                                : prev.filter(id => id !== m.id));
-                                                                                        }}
-                                                                                    />
-                                                                                    <label className="form-check-label" htmlFor={`membro-${m.id}`}>
-                                                                                        {m.nome}
-                                                                                    </label>
-                                                                                </div>
-                                                                                <span className={`fw-semibold ${corEstado} me-2`}>{estado}</span>
-                                                                            </div>
-                                                                        );
-                                                                    })}
-
-
-                                                                </div>
-                                                            ))
-                                                        )}
-                                                    </div>
-
-
-                                                    {/* Botões Entrada/Saída */}
                                                     <div className="row g-2">
-                                                        <div className="col-6">
+                                                        <div className="col-13">
                                                             <button
                                                                 className="btn btn-success btn-action w-100"
-                                                                onClick={() => handleRegistoEquipa('entrada')}
-                                                                disabled={!obraSelecionada || membrosSelecionados.length === 0 || loading}
+                                                                onClick={handlePicagemManual}
+                                                                disabled={!obraSelecionada || loading || isProcessing}
                                                             >
-                                                                <FaPlay className="me-1" /> ENTRADA
+                                                                <FaCheckCircle className="me-2" />
+                                                                Picar
                                                             </button>
                                                         </div>
-                                                        <div className="col-6">
-                                                            <button
-                                                                className="btn btn-danger btn-action w-100"
-                                                                onClick={() => handleRegistoEquipa('saida')}
-                                                                disabled={!obraSelecionada || membrosSelecionados.length === 0 || loading}
-                                                            >
-                                                                <FaStop className="me-1" /> SAÍDA
-                                                            </button>
-                                                        </div>
+
                                                     </div>
-
-
-
-
                                                 </div>
                                             )}
                                         </div>
-                                    )}
 
-
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Today's Records */}
-                        <div className="col-12 col-lg-4" style={{ marginBottom: '50px' }}>
-                            <div className="card card-moderno">
-                                <div className="card-body p-3 p-md-4">
-                                    <h5 className="card-title d-flex align-items-center mb-3 mb-md-4" style={{ fontSize: 'clamp(1rem, 3vw, 1.25rem)' }}>
-                                        <FaClock className="text-primary me-2 flex-shrink-0" />
-                                        <span className="d-none d-sm-inline">Registos de Hoje</span>
-                                        <span className="d-sm-none">Hoje</span>
-                                    </h5>
-
-                                    <div style={{ maxHeight: '400px', overflowY: 'auto' }} className="custom-scroll">
-                                        {registos.length === 0 ? (
-                                            <div className="text-center py-4">
-                                                <FaExclamationCircle className="text-muted mb-3" size={32} />
-                                                <p className="text-muted mb-0">Nenhum registo encontrado para hoje</p>
-                                            </div>
-                                        ) : (
-                                            [...registos]
-  .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt))
-                                                .map((r, i) => (
+                                        {/* Team Registration */}
+                                        {tipoUserCapitalizado !== 'Trabalhador' && (
+                                            <div className="mt-4 border border-info rounded bg-white mb-3">
                                                 <div
-                                                    key={i}
-                                                    className={`registro-item ${r.tipo === 'saida' ? 'registro-saida' : ''}`}
+                                                    className="bg-info text-white px-3 py-2 d-flex justify-content-between align-items-center rounded-top"
+                                                    style={{ cursor: 'pointer' }}
+                                                    onClick={() => setMostrarEquipa(prev => !prev)}
                                                 >
-                                                    <div className="d-flex justify-content-between align-items-start mb-2">
-                                                        <div className="flex-grow-1">
-                                                            <div className="d-flex align-items-center mb-1">
-                                                                {r.tipo === 'entrada' ? (
-                                                                    <FaPlay className="text-success me-2" />
-                                                                ) : (
-                                                                    <FaStop className="text-danger me-2" />
-                                                                )}
-                                                                <span className="fw-bold text-uppercase small">
-                                                                    {r.tipo}
-                                                                </span>
-                                                            </div>
-                                                            <small className="text-muted d-block">
-                                                                {new Date(r.timestamp || r.createdAt).toLocaleString('pt-PT', {
-                                                                    hour: '2-digit',
-                                                                    minute: '2-digit',
-                                                                    day: '2-digit',
-                                                                    month: '2-digit'
-                                                                })}
-                                                            </small>
-                                                        </div>
-                                                        <FaCheckCircle className="text-success" />
-                                                    </div>
-
-                                                    <div className="mb-2">
-                                                        <span className="fw-semibold text-primary">
-                                                            {r.Obra?.nome}
-                                                        </span>
-                                                    </div>
-
-                                                    {r.morada && (
-                                                        <div className="d-flex align-items-start">
-                                                            <FaMapMarkerAlt className="text-muted me-2 mt-1 flex-shrink-0" size={12} />
-                                                            <small className="text-muted text-truncate">
-                                                                {r.morada}
-                                                            </small>
-                                                        </div>
-                                                    )}
+                                                    <h5 className="mb-0">
+                                                        <FaUsers className="me-2" />
+                                                        Registo por Equipa
+                                                    </h5>
+                                                    <span>{mostrarEquipa ? '−' : '+'}</span>
                                                 </div>
-                                            ))
+
+                                                {mostrarEquipa && (
+                                                    <div className="p-3 p-md-4">
+                                                        {/* Obra */}
+                                                        <div className="mb-3">
+                                                            <label className="form-label fw-semibold small">Local</label>
+                                                            <Select
+                                                                options={opcoesObras}
+                                                                value={opcoesObras.find(o => o.value == obraSelecionada)}
+                                                                onChange={(opcao) => setObraSelecionada(opcao.value)}
+                                                                placeholder="Escolha a obra..."
+                                                                classNamePrefix="react-select"
+                                                                isClearable
+                                                            />
+                                                        </div>
+
+                                                        {/* Membros da equipa com estado atual */}
+                                                        <div className="mb-3">
+                                                            <label className="form-label fw-semibold small">Membros da Equipa</label>
+                                                            {minhasEquipas.length === 0 ? (
+                                                                <p className="text-muted">Sem equipas associadas.</p>
+                                                            ) : (
+                                                                minhasEquipas.map(eq => (
+                                                                    <div key={eq.nome} className="mb-3">
+                                                                        <h6 className="fw-bold text-primary">{eq.nome}</h6>
+                                                                        {eq.membros.map(m => {
+                                                                            const entradas = registosEquipa.filter(r => r.user_id === m.id && r.tipo === 'entrada');
+                                                                            const saidas = registosEquipa.filter(r => r.user_id === m.id && r.tipo === 'saida');
+
+                                                                            const ultimaEntrada = entradas.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+                                                                            const temSaidaPosterior = ultimaEntrada && saidas.some(s => new Date(s.timestamp) > new Date(ultimaEntrada.timestamp));
+
+                                                                            let estado = 'Ausente';
+                                                                            let corEstado = 'text-muted';
+
+                                                                            if (ultimaEntrada && !temSaidaPosterior) {
+                                                                                if (obraSelecionada && ultimaEntrada.obra_id == obraSelecionada) {
+                                                                                    estado = 'A Trabalhar';
+                                                                                    corEstado = 'text-success';
+                                                                                } else {
+                                                                                    estado = 'Ocupado';
+                                                                                    corEstado = 'text-warning';
+                                                                                }
+                                                                            }
+
+                                                                            return (
+                                                                                <div key={m.id} className="form-check d-flex justify-content-between align-items-center border-bottom py-2 ps-3">
+                                                                                    <div>
+                                                                                        <input
+                                                                                            className="form-check-input me-2"
+                                                                                            type="checkbox"
+                                                                                            id={`membro-${m.id}`}
+                                                                                            value={m.id}
+                                                                                            checked={membrosSelecionados.includes(m.id)}
+                                                                                            onChange={(e) => {
+                                                                                                const checked = e.target.checked;
+                                                                                                setMembrosSelecionados(prev => checked
+                                                                                                    ? [...prev, m.id]
+                                                                                                    : prev.filter(id => id !== m.id));
+                                                                                            }}
+                                                                                        />
+                                                                                        <label className="form-check-label" htmlFor={`membro-${m.id}`}>
+                                                                                            {m.nome}
+                                                                                        </label>
+                                                                                    </div>
+                                                                                    <span className={`fw-semibold ${corEstado} me-2`}>{estado}</span>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+
+
+                                                                    </div>
+                                                                ))
+                                                            )}
+                                                        </div>
+
+
+                                                        {/* Botões Entrada/Saída */}
+                                                        <div className="row g-2">
+                                                            <div className="col-6">
+                                                                <button
+                                                                    className="btn btn-success btn-action w-100"
+                                                                    onClick={() => handleRegistoEquipa('entrada')}
+                                                                    disabled={!obraSelecionada || membrosSelecionados.length === 0 || loading}
+                                                                >
+                                                                    <FaPlay className="me-1" /> ENTRADA
+                                                                </button>
+                                                            </div>
+                                                            <div className="col-6">
+                                                                <button
+                                                                    className="btn btn-danger btn-action w-100"
+                                                                    onClick={() => handleRegistoEquipa('saida')}
+                                                                    disabled={!obraSelecionada || membrosSelecionados.length === 0 || loading}
+                                                                >
+                                                                    <FaStop className="me-1" /> SAÍDA
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+
+
+
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
+
+
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Today's Records */}
+                            <div className="col-12 col-lg-4" style={{ marginBottom: '50px' }}>
+                                <div className="card card-moderno">
+                                    <div className="card-body p-3 p-md-4">
+                                        <h5 className="card-title d-flex align-items-center mb-3 mb-md-4" style={{ fontSize: 'clamp(1rem, 3vw, 1.25rem)' }}>
+                                            <FaClock className="text-primary me-2 flex-shrink-0" />
+                                            <span className="d-none d-sm-inline">Registos de Hoje</span>
+                                            <span className="d-sm-none">Hoje</span>
+                                        </h5>
+
+                                        <div style={{ maxHeight: '400px', overflowY: 'auto' }} className="custom-scroll">
+                                            {registos.length === 0 ? (
+                                                <div className="text-center py-4">
+                                                    <FaExclamationCircle className="text-muted mb-3" size={32} />
+                                                    <p className="text-muted mb-0">Nenhum registo encontrado para hoje</p>
+                                                </div>
+                                            ) : (
+                                                [...registos]
+                                                    .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt))
+                                                    .map((r, i) => (
+                                                        <div
+                                                            key={i}
+                                                            className={`registro-item ${r.tipo === 'saida' ? 'registro-saida' : ''}`}
+                                                        >
+                                                            <div className="d-flex justify-content-between align-items-start mb-2">
+                                                                <div className="flex-grow-1">
+                                                                    <div className="d-flex align-items-center mb-1">
+                                                                        {r.tipo === 'entrada' ? (
+                                                                            <FaPlay className="text-success me-2" />
+                                                                        ) : (
+                                                                            <FaStop className="text-danger me-2" />
+                                                                        )}
+                                                                        <span className="fw-bold text-uppercase small">
+                                                                            {r.tipo}
+                                                                        </span>
+                                                                    </div>
+                                                                    <small className="text-muted d-block">
+                                                                        {new Date(r.timestamp || r.createdAt).toLocaleString('pt-PT', {
+                                                                            hour: '2-digit',
+                                                                            minute: '2-digit',
+                                                                            day: '2-digit',
+                                                                            month: '2-digit'
+                                                                        })}
+                                                                    </small>
+                                                                </div>
+                                                                <FaCheckCircle className="text-success" />
+                                                            </div>
+
+                                                            <div className="mb-2">
+                                                                <span className="fw-semibold text-primary">
+                                                                    {r.Obra?.nome}
+                                                                </span>
+                                                            </div>
+
+                                                            {r.morada && (
+                                                                <div className="d-flex align-items-start">
+                                                                    <FaMapMarkerAlt className="text-muted me-2 mt-1 flex-shrink-0" size={12} />
+                                                                    <small className="text-muted text-truncate">
+                                                                        {r.morada}
+                                                                    </small>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+
                         </div>
-
-
                     </div>
                 </div>
-            </div>
             </div>
         </div>
     );
