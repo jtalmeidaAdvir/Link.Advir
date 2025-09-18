@@ -1,12 +1,11 @@
 {
   "ExpandedNodes": [
     "",
-    "\\backend\\routes",
     "\\frontend",
     "\\frontend\\src",
     "\\frontend\\src\\Pages",
+    "\\frontend\\src\\Pages\\Assiduidade",
     "\\frontend\\src\\Pages\\Obras"
   ],
-  "SelectedNode": "\\frontend\\src\\Pages\\Obras\\PartesDiarias.js",
   "PreviewInSolutionExplorer": false
 }

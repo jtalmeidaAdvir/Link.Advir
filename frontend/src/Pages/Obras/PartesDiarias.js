@@ -540,6 +540,14 @@ const PartesDiarias = ({ navigation }) => {
                 linha.categoria = "MaoObra";
                 linha.especialidade = mao.codigo;
                 linha.subEmpId = mao.subEmpId ?? null;
+
+                // Automaticamente selecionar a primeira classe compatível
+                const classesCompativeis = getClassesCompativeis(valor, "MaoObra");
+                if (classesCompativeis.length > 0) {
+                    linha.classeId = classesCompativeis[0].classeId;
+                } else {
+                    linha.classeId = null;
+                }
             } else {
                 // fallback (não encontrou em nenhuma lista)
                 linha.especialidade = valor;
@@ -612,38 +620,38 @@ const PartesDiarias = ({ navigation }) => {
         }
     }, []);
 
-const carregarEquipamentos = useCallback(async () => {
-  const painelToken = await AsyncStorage.getItem("painelAdminToken");
-  const urlempresa = await AsyncStorage.getItem("urlempresa");
-  try {
-    const data = await fetchComRetentativas(
-      "https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos",
-      {
-        headers: { Authorization: `Bearer ${painelToken}`, urlempresa },
-      },
-    );
+    const carregarEquipamentos = useCallback(async () => {
+        const painelToken = await AsyncStorage.getItem("painelAdminToken");
+        const urlempresa = await AsyncStorage.getItem("urlempresa");
+        try {
+            const data = await fetchComRetentativas(
+                "https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos",
+                {
+                    headers: { Authorization: `Bearer ${painelToken}`, urlempresa },
+                },
+            );
 
-    // A API às vezes pode devolver um único objeto em vez de array
-    const raw = data?.DataSet?.Table;
-    const table = Array.isArray(raw) ? raw : raw ? [raw] : [];
+            // A API às vezes pode devolver um único objeto em vez de array
+            const raw = data?.DataSet?.Table;
+            const table = Array.isArray(raw) ? raw : raw ? [raw] : [];
 
-    const items = table
-      .filter((item) =>
-        typeof item?.Codigo === "string" &&
-        item.Codigo.trim().toUpperCase().startsWith("L")
-      )
-      .map((item) => ({
-        codigo: item.Codigo.trim(),
-        descricao: item.Desig,
-        subEmpId: item.ComponenteID,
-      }));
+            const items = table
+                .filter((item) =>
+                    typeof item?.Codigo === "string" &&
+                    item.Codigo.trim().toUpperCase().startsWith("L")
+                )
+                .map((item) => ({
+                    codigo: item.Codigo.trim(),
+                    descricao: item.Desig,
+                    subEmpId: item.ComponenteID,
+                }));
 
-    setEquipamentosList(items);
-  } catch (err) {
-    console.error("Erro ao obter equipamentos:", err);
-    Alert.alert("Erro", "Não foi possível carregar os equipamentos");
-  }
-}, []);
+            setEquipamentosList(items);
+        } catch (err) {
+            console.error("Erro ao obter equipamentos:", err);
+            Alert.alert("Erro", "Não foi possível carregar os equipamentos");
+        }
+    }, []);
 
 
 
@@ -1793,6 +1801,15 @@ const carregarEquipamentos = useCallback(async () => {
         // se vier subEmpId, actualiza-o também
         if (campo === "especialidade" && subEmpId != null) {
             novas[index].subEmpId = subEmpId;
+
+            // Automaticamente selecionar a primeira classe compatível quando especialidade muda
+            const categoria = novas[index].categoria || "MaoObra";
+            const classesCompativeis = getClassesCompativeis(valor, categoria);
+            if (classesCompativeis.length > 0) {
+                novas[index].classeId = classesCompativeis[0].classeId;
+            } else {
+                novas[index].classeId = categoria === "Equipamentos" ? -1 : null;
+            }
         }
 
         if (campo === "categoria") {
@@ -2722,15 +2739,16 @@ const carregarEquipamentos = useCallback(async () => {
                                                 linhaAtual.categoria === opt.value &&
                                                 styles.externosCategoryButtonActive,
                                             ]}
-                                            onPress={() =>
+                                            onPress={() => {
+                                                const novaClasseId = opt.value === "Equipamentos" ? -1 : null;
                                                 setLinhaAtual((p) => ({
                                                     ...p,
                                                     categoria: opt.value,
                                                     especialidadeCodigo: "",
                                                     subEmpId: null,
-                                                    classeId: null,
-                                                }))
-                                            }
+                                                    classeId: novaClasseId,
+                                                }));
+                                            }}
                                         >
                                             <Ionicons
                                                 name={opt.icon}
@@ -2759,7 +2777,7 @@ const carregarEquipamentos = useCallback(async () => {
                             <View style={styles.externosInputGroup}>
                                 <Text style={styles.externosInputLabel}>
                                     <Ionicons
-                                       name={
+                                        name={
                                             linhaAtual.categoria === "Equipamentos"
                                                 ? "construct"
                                                 : "hammer"
@@ -2781,10 +2799,18 @@ const carregarEquipamentos = useCallback(async () => {
                                                     ? equipamentosList
                                                     : especialidadesList;
                                             const sel = lista.find((x) => x.codigo === cod);
+
+                                            // Automaticamente selecionar a primeira classe compatível
+                                            const classesCompativeis = getClassesCompativeis(cod, linhaAtual.categoria);
+                                            const primeiraClasse = classesCompativeis.length > 0
+                                                ? classesCompativeis[0].classeId
+                                                : (linhaAtual.categoria === "Equipamentos" ? -1 : null);
+
                                             setLinhaAtual((p) => ({
                                                 ...p,
                                                 especialidadeCodigo: cod,
                                                 subEmpId: sel?.subEmpId ?? null,
+                                                classeId: primeiraClasse, // Set the first compatible class
                                             }));
                                         }}
                                         style={styles.externosPicker}
