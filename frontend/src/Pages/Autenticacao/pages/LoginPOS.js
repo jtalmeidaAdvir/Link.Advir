@@ -37,10 +37,19 @@ const LoginPOS = () => {
                 localStorage.setItem('posId', result.posId);
                 localStorage.setItem('posNome', result.posNome);
                 localStorage.setItem('posCodigo', result.posCodigo);
+                localStorage.setItem('email', result.email);
                 localStorage.setItem('empresa_id', result.empresa_id);
                 localStorage.setItem('empresa_areacliente', result.empresa_areacliente);
-                localStorage.setItem('obra_predefinida_id', result.obra_predefinida_id);
-                localStorage.setItem('obra_predefinida_nome', result.obra_predefinida_nome);
+                localStorage.setItem('obra_predefinida_id', result.obra_predefinida_id || '');
+                localStorage.setItem('obra_predefinida_nome', result.obra_predefinida_nome || '');
+                
+                // Debug: verificar se os dados foram guardados
+                console.log('Dados POS guardados:', {
+                    loginToken: localStorage.getItem('loginToken'),
+                    isPOS: localStorage.getItem('isPOS'),
+                    empresa_id: localStorage.getItem('empresa_id'),
+                    empresa_areacliente: localStorage.getItem('empresa_areacliente')
+                });
 
                 // Redirecionar para a página de registo facial
                 window.location.href = '/registo-ponto-facial';

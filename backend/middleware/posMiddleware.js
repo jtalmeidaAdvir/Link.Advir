@@ -8,10 +8,17 @@ const posMiddleware = async (req, res, next) => {
         const token = req.header('Authorization')?.replace('Bearer ', '');
         
         if (!token) {
+            console.log('❌ posMiddleware: Token não fornecido');
             return res.status(401).json({ message: 'Token de acesso requerido' });
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret');
+        console.log('🔍 posMiddleware: Token decodificado:', {
+            isPOS: decoded.isPOS,
+            posId: decoded.posId,
+            userId: decoded.userId,
+            empresa_id: decoded.empresa_id
+        });
         
         // Verificar se é um POS ou um utilizador admin
         if (decoded.isPOS) {

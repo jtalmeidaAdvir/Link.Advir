@@ -46,6 +46,28 @@ const RegistoPontoFacial = (props) => {
         label: obra.nome
     }));
 
+    // Debug: verificar dados do localStorage no carregamento
+    useEffect(() => {
+        console.log('=== DEBUG: Dados do localStorage ===');
+        console.log('loginToken:', localStorage.getItem('loginToken'));
+        console.log('isPOS:', localStorage.getItem('isPOS'));
+        console.log('empresa_id:', localStorage.getItem('empresa_id'));
+        console.log('empresa_areacliente:', localStorage.getItem('empresa_areacliente'));
+        console.log('posId:', localStorage.getItem('posId'));
+        console.log('posNome:', localStorage.getItem('posNome'));
+        console.log('=====================================');
+        
+        // Verificar se é POS e se tem dados essenciais
+        const isPOS = localStorage.getItem('isPOS') === 'true';
+        const token = localStorage.getItem('loginToken');
+        const empresaId = localStorage.getItem('empresa_id');
+        
+        if (!isPOS || !token || !empresaId) {
+            console.error('Dados essenciais em falta. Redirecionando para login...');
+            window.location.href = '/login-pos';
+        }
+    }, []);
+
     // Hook para renovar tokens automaticamente quando o app volta ao primeiro plano
     useAppStateRefresh();
 
@@ -249,6 +271,12 @@ const RegistoPontoFacial = (props) => {
                 setLoading(true);
                 
                 const token = localStorage.getItem('loginToken');
+                const empresaId = localStorage.getItem('empresa_id');
+                
+                console.log('🔄 Carregando obras...');
+                console.log('Token:', token ? 'Presente' : 'Ausente');
+                console.log('Empresa ID:', empresaId);
+                
                 const res = await fetch('https://backend.advir.pt/api/obra', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
