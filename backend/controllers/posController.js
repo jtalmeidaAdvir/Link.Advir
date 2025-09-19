@@ -101,7 +101,7 @@ const loginPOS = async (req, res) => {
                 obra_predefinida_id: pos.obra_predefinida_id
             },
             process.env.JWT_SECRET || 'default_secret',
-            { expiresIn: '8h' }
+            //{ expiresIn: '8h' }
         );
 
         res.json({
