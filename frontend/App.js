@@ -57,6 +57,8 @@ import RegistoPontoAdmin from "./src/Pages/Assiduidade/RegistoPontoAdmin";
 import PedidosAlteracaoAdmin from "./src/Pages/Assiduidade/PedidosAlteracaoAdmin";
 import ListarRegistos from "./src/Pages/Assiduidade/ListarRegistos";
 
+
+import AnaliseComplotaPontos from "./src/Pages/Assiduidade/AnaliseComplotaPontos";
 import RegistoPontoObra from "./src/Pages/Assiduidade/RegistoPontoObra";
 import RegistoPontoFacial from "./src/Pages/Assiduidade/RegistoPontoFacial";
 import CalendarioHorasTrabalho from "./src/Pages/Assiduidade/CalendarioHorasTrabalho";
@@ -318,6 +320,7 @@ const CustomDrawerContent = ({
         "GestaoExternos", // GestaoTrabalhadoresExternos
         "GestaoPartes", // GestaoPartesDiarias
         "MapaRegistos", // MapaRegistos
+   
     ];
 
     // Organizar módulos para drawer
@@ -479,6 +482,22 @@ const CustomDrawerContent = ({
                                 color="#1792FE"
                             />
                             <Text style={drawerStyles.moduleText}>Início</Text>
+                        </View>
+                    </TouchableOpacity>
+                </View>
+                <View style={drawerStyles.moduleContainer}>
+                    <TouchableOpacity
+                        style={drawerStyles.moduleHeader}
+                        onPress={() => props.navigation.navigate("AnaliseComplotaPontos")}
+                        activeOpacity={0.7}
+                    >
+                        <View style={drawerStyles.moduleTitle}>
+                            <FontAwesome
+                                name="AnaliseComplotaPontos"
+                                size={18}
+                                color="#1792FE"
+                            />
+                            <Text style={drawerStyles.moduleText}>AnaliseComplotaPontos</Text>
                         </View>
                     </TouchableOpacity>
                 </View>
@@ -2210,6 +2229,11 @@ const AppNavigator = () => {
                         name="Home"
                         component={Home}
                         options={{ title: "AdvirLink - Home" }}
+                    />
+                    <Drawer.Screen
+                        name="AnaliseComplotaPontos"
+                        component={AnaliseComplotaPontos}
+                        options={{ title: "AdvirLink - AnaliseComplotaPontos" }}
                     />
                     {isLoggedIn && (
                         <Drawer.Screen
