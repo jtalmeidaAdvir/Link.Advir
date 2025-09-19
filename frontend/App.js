@@ -331,6 +331,7 @@ const CustomDrawerContent = ({
             Servicos: "wrench",
             Oficios: "file-text",
             Administrador: "cog",
+            Complota: "map",
         };
         return icons[moduleName] || "circle";
     };
@@ -350,6 +351,12 @@ const CustomDrawerContent = ({
                 module.submodulos.some((s) => s?.nome === "Ponto");
             return hasPonto ? "Ponto" : "Obras";
         }
+
+
+        if (module?.nome === "Complota") {
+            return "Pontos";
+            }
+
 
         return base[module?.nome] || module?.nome;
     };
@@ -486,20 +493,7 @@ const CustomDrawerContent = ({
                     </TouchableOpacity>
                 </View>
                 <View style={drawerStyles.moduleContainer}>
-                    <TouchableOpacity
-                        style={drawerStyles.moduleHeader}
-                        onPress={() => props.navigation.navigate("AnaliseComplotaPontos")}
-                        activeOpacity={0.7}
-                    >
-                        <View style={drawerStyles.moduleTitle}>
-                            <FontAwesome
-                                name="AnaliseComplotaPontos"
-                                size={18}
-                                color="#1792FE"
-                            />
-                            <Text style={drawerStyles.moduleText}>AnaliseComplotaPontos</Text>
-                        </View>
-                    </TouchableOpacity>
+                    
                 </View>
 
                 {/* Selecionar Empresa */}
@@ -866,6 +860,7 @@ const CustomDrawerContent = ({
                                                         Botao: "PontoBotao",
                                                         Aprovacoes:
                                                             "ConcursosAprovacao",
+                                                            Complota: "AnaliseComplotaPontos",
                                                     };
 
                                                     const screenName =
@@ -973,6 +968,7 @@ const CustomDrawerContent = ({
                                                             Botao: "Ponto Botão",
                                                             Aprovacoes:
                                                                 "Aprovações",
+                                                                 Complota: "Pontos",
                                                         }[submodulo.nome] ||
                                                         submodulo.nome;
 
@@ -1312,6 +1308,12 @@ const AppNavigator = () => {
             module.nome === "Administrador" &&
             module.submodulos.some((sub) => sub.nome === "PainelAdministracao"),
     );
+    const hasComplotaModule = modules.some(
+        (module) =>
+            module.nome === "Complota" &&
+            module.submodulos.some((sub) => sub.nome === "Complota"),
+    );
+
     const hasWhatsappConfigsModule = modules.some(
         (module) =>
             module.nome === "Administrador" &&
@@ -1637,6 +1639,7 @@ const AppNavigator = () => {
                                 hasPainelAdministracaoModule
                             }
                             hasWhatsappConfigsModule={hasWhatsappConfigsModule}
+                            hasComplotaModule={hasComplotaModule}
                             hasGestaoUtilizadoresModule={
                                 hasGestaoUtilizadoresModule
                             }
@@ -2276,6 +2279,12 @@ const AppNavigator = () => {
                         <Drawer.Screen
                             name="WhatsAppWebConfig"
                             component={WhatsAppWebConfig}
+                        />
+                    )}
+                    {hasComplotaModule && (
+                        <Drawer.Screen
+                            name="Pessoal em Obra"
+                            component={AnaliseComplotaPontos}
                         />
                     )}
                     {hasGestaoUtilizadoresModule && (
