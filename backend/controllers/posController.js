@@ -107,7 +107,6 @@ const loginPOS = async (req, res) => {
         res.json({
             success: true,
             token,
-            loginToken: token, // Adicionar loginToken para compatibilidade
             isPOS: true,
             posId: pos.id,
             posNome: pos.nome,
