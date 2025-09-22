@@ -299,18 +299,37 @@ const RegistoIntervencao = (props) => {
             }
             const data = await resp.json();
             console.log("🔍 fetchProcessoData: dados do processo recebidos:", data);
+            console.log("🔍 fetchProcessoData: estrutura completa dos dados:", JSON.stringify(data, null, 2));
 
-            // Extrair cliente ID dos dados do processo
+            // Extrair cliente ID dos dados do processo - tentar várias possibilidades
             const processoTable = data?.DataSet?.Table?.[0];
+            console.log("🔍 fetchProcessoData: processoTable extraída:", processoTable);
+            
             const clienteId = 
                 processoTable?.Cliente || 
                 processoTable?.ClienteID || 
                 processoTable?.IDCliente ||
                 processoTable?.Entidade ||
                 processoTable?.EntidadeId ||
+                processoTable?.EntidadeID ||
+                processoTable?.cliente ||
+                processoTable?.clienteID ||
+                processoTable?.idCliente ||
+                processoTable?.entidade ||
+                processoTable?.entidadeId ||
+                processoTable?.ID_Cliente ||
+                processoTable?.COD_CLIENTE ||
+                processoTable?.CLIENTE ||
+                processoTable?.Cod_Cliente ||
                 null;
             
             console.log("🔍 fetchProcessoData: clienteId extraído do processo:", clienteId);
+            
+            // Se ainda não encontrou, listar todas as propriedades disponíveis
+            if (!clienteId && processoTable) {
+                console.log("🔍 fetchProcessoData: propriedades disponíveis no processo:", Object.keys(processoTable));
+            }
+            
             return clienteId;
         } catch (e) {
             console.warn("⚠️ Falha a obter dados do processo:", e.message);
@@ -363,6 +382,51 @@ const fetchEmailGeralCliente = async (clienteId) => {
     }
 };
 
+    // ——— helper: obter email do técnico ———
+const fetchEmailTecnico = async (tecnicoId) => {
+    if (!tecnicoId) {
+        console.log("🔍 fetchEmailTecnico: tecnicoId não fornecido");
+        return null;
+    }
+    const apiBaseUrl = "https://webapiprimavera.advir.pt/routePedidos_STP";
+    try {
+        console.log("🔍 fetchEmailTecnico: buscando email para técnico:", tecnicoId);
+        const resp = await fetch(`${apiBaseUrl}/GetEmailTecnico/${tecnicoId}`, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                urlempresa: urlempresa,
+                "Content-Type": "application/json",
+            },
+        });
+        if (!resp.ok) {
+            console.log("🔍 fetchEmailTecnico: resposta não OK:", resp.status);
+            return null;
+        }
+        const data = await resp.json();
+        console.log("🔍 fetchEmailTecnico: dados recebidos:", data);
+
+        // Tenta apanhar o campo de forma resiliente
+        const row = data?.DataSet?.Table?.[0];
+        console.log("🔍 fetchEmailTecnico: row extraída:", row);
+        const emailTecnico =
+            row?.Email || row?.EMail || row?.Mail || row?.email || row?.EmailTecnico || null;
+        console.log("🔍 fetchEmailTecnico: email extraído:", emailTecnico);
+
+        // Sanitiza (ex.: pode vir com ; separadores)
+        if (typeof emailTecnico === "string") {
+            const first = emailTecnico.split(/[;,]/).map(s => s.trim()).filter(Boolean)[0];
+            console.log("🔍 fetchEmailTecnico: email final:", first);
+            return first || null;
+        }
+        console.log("🔍 fetchEmailTecnico: email não é string, retornando null");
+        return null;
+    } catch (e) {
+        console.warn("⚠️ Falha a obter email do técnico:", e.message);
+        return null;
+    }
+};
+
 
 
     const handleFormChange = async (e) => {
@@ -374,6 +438,59 @@ const fetchEmailGeralCliente = async (clienteId) => {
             const processoID = localStorage.getItem("intervencaoId");
             if (processoID) {
                 await fetchTempoDeslocacao(processoID);
+            }
+        }
+
+        // If the technician changed, fetch emails and populate CC field
+        if (name === "tecnico" && value) {
+            try {
+                const processoID = localStorage.getItem("intervencaoId");
+                
+                // Buscar email do técnico
+                const emailTecnico = await fetchEmailTecnico(value);
+                console.log("📧 Email do técnico obtido:", emailTecnico);
+
+                // Buscar dados do processo para obter cliente ID
+                let clienteId = null;
+                let emailCliente = null;
+                
+                if (processoID) {
+                    clienteId = await fetchProcessoData(processoID);
+                    if (clienteId) {
+                        emailCliente = await fetchEmailGeralCliente(clienteId);
+                        console.log("📧 Email do cliente obtido:", emailCliente);
+                    }
+                }
+
+                // Construir lista de emails para CC
+                const emailsCC = [];
+                if (emailTecnico && emailTecnico.trim()) {
+                    emailsCC.push(emailTecnico.trim());
+                }
+                if (emailCliente && emailCliente.trim() && emailCliente !== emailTecnico) {
+                    emailsCC.push(emailCliente.trim());
+                }
+
+                // Atualizar o campo CC se houver emails
+                if (emailsCC.length > 0) {
+                    setEmailGeralCC(emailsCC.join("; "));
+                    console.log("📧 Campo CC atualizado com:", emailsCC.join("; "));
+                    console.log("📧 Emails incluídos:", {
+                        emailTecnico: emailTecnico || "não encontrado",
+                        emailCliente: emailCliente || "não encontrado",
+                        clienteId: clienteId || "não encontrado"
+                    });
+                } else {
+                    console.log("📧 Nenhum email encontrado para preencher CC");
+                    console.log("📧 Debug:", {
+                        emailTecnico: emailTecnico || "não encontrado",
+                        emailCliente: emailCliente || "não encontrado", 
+                        clienteId: clienteId || "não encontrado"
+                    });
+                }
+
+            } catch (error) {
+                console.warn("⚠️ Erro ao buscar emails para CC:", error.message);
             }
         }
     };

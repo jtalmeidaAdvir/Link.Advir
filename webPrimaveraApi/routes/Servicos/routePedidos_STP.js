@@ -307,6 +307,54 @@ router.get('/GetEmailTecnico/:IDTecnico', async (req, res) => {
 });
 
 
+// Rota para obter email do técnico
+router.get('/GetEmailTecnico/:tecnicoId', async (req, res) => {
+    try {
+        const { tecnicoId } = req.params;
+        const painelAdminToken = req.headers['authorization']?.split(' ')[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
+        }
+
+        // Usa a função getEmpresaUrl para obter o urlempresa
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+        }
+
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/GetEmailTecnico/${tecnicoId}`;
+        console.log('Enviando solicitação para a URL:', apiUrl);
+
+        const response = await axios.get(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${painelAdminToken}`,
+                'urlempresa': urlempresa,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            }
+        });
+
+        if (response.status === 200) {
+            return res.status(200).json(response.data);
+        } else if (response.status === 404) {
+            return res.status(404).json({
+                error: 'Email do técnico não encontrado.'
+            });
+        } else {
+            return res.status(400).json({
+                error: 'Falha ao obter email do técnico.',
+                details: response.data.ErrorMessage || 'Erro desconhecido'
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao obter email do técnico:', error.response ? error.response.data : error.message);
+        return res.status(500).json({
+            error: 'Erro inesperado ao obter email do técnico',
+            details: error.message
+        });
+    }
+});
+
 // Rota para listar contactos da intervencao
 router.get('/ObterContactoIntervencao/:IDIntervencao', async (req, res) => {
     try {
@@ -1093,10 +1141,38 @@ router.get('/ObterInfoContratoProcesso/:idProcesso', async (req, res) => {
             return res.status(400).json({ error: 'URL da empresa não fornecida.' });
         }
 
-        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ObterInfoContratoProcesso/${idProcesso}`;
-        console.log('Enviando solicitação para a URL:', apiUrl);
+        // Primeiro, obter dados do processo para extrair o ID do cliente
+        console.log('🔍 Buscando dados do processo:', idProcesso);
+        const processoApiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/ListarPedidosTecnico/${idProcesso}`;
+        
+        let clienteId = null;
+        try {
+            const processoResponse = await axios.get(processoApiUrl, {
+                headers: {
+                    Authorization: `Bearer ${painelAdminToken}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+            
+            if (processoResponse.status === 200 && processoResponse.data?.DataSet?.Table?.[0]) {
+                const processo = processoResponse.data.DataSet.Table[0];
+                clienteId = processo.Cliente || processo.Entidade || processo.ClienteID || processo.EntidadeID;
+                console.log('🔍 Cliente ID extraído do processo:', clienteId);
+            }
+        } catch (processoError) {
+            console.warn('⚠️ Erro ao buscar dados do processo:', processoError.message);
+        }
 
-        const response = await axios.get(apiUrl, {
+        if (!clienteId) {
+            return res.status(404).json({ error: 'Cliente não encontrado no processo.' });
+        }
+
+        // Agora usar o endpoint ObterInfoContrato com o ID do cliente
+        const contratoApiUrl = `http://${urlempresa}/WebApi/ClientArea/ObterInfoContrato/${clienteId}`;
+        console.log('Enviando solicitação para a URL:', contratoApiUrl);
+
+        const response = await axios.get(contratoApiUrl, {
             headers: {
                 Authorization: `Bearer ${painelAdminToken}`,
                 'Content-Type': 'application/json',
@@ -1107,17 +1183,17 @@ router.get('/ObterInfoContratoProcesso/:idProcesso', async (req, res) => {
         if (response.status === 200) {
             return res.status(200).json(response.data);
         } else if (response.status === 404) {
-            return res.status(404).json({ error: 'contrato não encontrado.' });
+            return res.status(404).json({ error: 'Contrato não encontrado.' });
         } else {
             return res.status(400).json({
-                error: 'Falha ao obter o estado do contrato.',
+                error: 'Falha ao obter informações do contrato.',
                 details: response.data.ErrorMessage || 'Erro desconhecido.',
             });
         }
     } catch (error) {
-        console.error('Erro ao obter o estado do contrato:', error.response ? error.response.data : error.message);
+        console.error('Erro ao obter informações do contrato:', error.response ? error.response.data : error.message);
         return res.status(500).json({
-            error: 'Erro inesperado ao obter o estado do contrato.',
+            error: 'Erro inesperado ao obter informações do contrato.',
             details: error.response?.data || error.message,
         });
     }
