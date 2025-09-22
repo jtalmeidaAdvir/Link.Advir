@@ -2236,7 +2236,7 @@ const AppNavigator = () => {
                     <Drawer.Screen
                         name="AnaliseComplotaPontos"
                         component={AnaliseComplotaPontos}
-                        options={{ title: "AdvirLink - AnaliseComplotaPontos" }}
+                        options={{ title: "AdvirLink - Pontos" }}
                     />
                     {isLoggedIn && (
                         <Drawer.Screen

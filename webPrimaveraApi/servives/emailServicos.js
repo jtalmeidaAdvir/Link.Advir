@@ -3,7 +3,23 @@ const axios = require('axios');
 
 const sendEmail = async (req, res) => {
     console.log('Corpo da requisição:', req.body); // Adicione este log
-    const { emailDestinatario, Pedido, dadosIntervencao } = req.body;
+    const { emailDestinatario, Pedido, dadosIntervencao, cc } = req.body;
+
+    // Helper: normaliza CC (aceita string "a@a.pt; b@b.pt" ou array)
+    const normalizeCc = (value) => {
+        if (!value) return [];
+        if (Array.isArray(value)) return value.filter(Boolean).map(s => String(s).trim());
+        return String(value)
+            .split(/[;,]/)
+            .map(s => s.trim())
+            .filter(Boolean);
+    };
+
+    // Constrói a lista CC já limpa e sem duplicar o "to"
+    const ccList = normalizeCc(cc).filter(addr =>
+        String(addr).toLowerCase() !== String(emailDestinatario || '').toLowerCase()
+    );
+
 
     try {
         const transporter = nodemailer.createTransport({
@@ -18,6 +34,7 @@ const sendEmail = async (req, res) => {
         const mailOptions = {
             from: 'noreply.advir@gmail.com',
             to: `${emailDestinatario}`,
+            ...(ccList.length ? { cc: ccList } : {}),
             subject: `Nova Intervenção: ${Pedido}  ${dadosIntervencao.processoID}/${dadosIntervencao.NumIntervencao}`,
             html: `
                 <div style="font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px;">

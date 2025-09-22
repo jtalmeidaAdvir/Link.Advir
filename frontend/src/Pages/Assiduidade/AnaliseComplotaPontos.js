@@ -143,6 +143,21 @@ const AnaliseComplotaPontos = () => {
         }
     }, [obraSelecionada, mesSelecionado, anoSelecionado]);
 
+    // Refresh automático quando mudar obra, mês ou ano
+    useEffect(() => {
+        console.log("🔄 [REFRESH] Detectada mudança nos filtros - recarregando dados...");
+        console.log("🔄 [REFRESH] Obra:", obraSelecionada, "Mês:", mesSelecionado, "Ano:", anoSelecionado);
+        
+        if (obraSelecionada) {
+            // Limpar dados anteriores
+            setDadosGrade([]);
+            setFaltas([]);
+            
+            // Recarregar com os novos filtros
+            carregarDadosGrade();
+        }
+    }, [obraSelecionada, mesSelecionado, anoSelecionado, utilizadores]);
+
     const carregarDadosIniciais = async () => {
         setLoading(true);
         try {
@@ -177,8 +192,15 @@ const AnaliseComplotaPontos = () => {
                     user.email ||
                     `Utilizador ${user.id}`,
                 email: user.email,
-                codFuncionario: user.codFuncionario,
+                codFuncionario: user.codFuncionario || user.username || user.nome,
             }));
+
+            console.log("🔍 [INIT] Utilizadores carregados:", utilizadoresFormatados.map(u => ({
+                id: u.id,
+                nome: u.nome,
+                codFuncionario: u.codFuncionario,
+                original: usersData.find(ud => ud.id === u.id)
+            })));
 
             setUtilizadores(utilizadoresFormatados);
         } catch (error) {
@@ -193,40 +215,97 @@ const AnaliseComplotaPontos = () => {
         try {
             const painelAdminToken = localStorage.getItem("painelAdminToken");
             const urlempresa = localStorage.getItem("urlempresa");
+            const loginToken = localStorage.getItem("loginToken");
 
-            if (!painelAdminToken || !urlempresa) {
+            console.log("🔍 [FALTAS] Iniciando carregamento de faltas...");
+            console.log("🔍 [FALTAS] painelAdminToken:", painelAdminToken ? "✅ Presente" : "❌ Ausente");
+            console.log("🔍 [FALTAS] urlempresa:", urlempresa ? "✅ Presente" : "❌ Ausente");
+            console.log("🔍 [FALTAS] loginToken:", loginToken ? "✅ Presente" : "❌ Ausente");
+
+            if (!painelAdminToken || !urlempresa || !loginToken) {
                 console.warn(
-                    "Token ou URL da empresa não encontrados para carregar faltas",
+                    "❌ [FALTAS] Token, URL da empresa ou loginToken não encontrados para carregar faltas",
                 );
                 return [];
             }
 
+            console.log("🔍 [FALTAS] Utilizadores a processar:", utilizadores.length);
+
             const promises = utilizadores.map(async (user) => {
                 try {
-                    const res = await fetch(
-                        `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${user.codFuncionario}`,
+                    console.log(`🔍 [FALTAS] Carregando faltas para ${user.nome} (ID: ${user.id})`);
+                    
+                    // Primeiro, obter o codFuncionario do backend
+                    console.log(`🔍 [FALTAS] Obtendo codFuncionario para userId: ${user.id}`);
+                    const resCodFuncionario = await fetch(
+                        `https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`,
                         {
+                            method: 'GET',
                             headers: {
-                                Authorization: `Bearer ${painelAdminToken}`,
-                                urlempresa: urlempresa,
-                                "Content-Type": "application/json",
+                                'Authorization': `Bearer ${loginToken}`,
+                                'Content-Type': 'application/json',
                             },
-                        },
+                        }
                     );
+
+                    if (!resCodFuncionario.ok) {
+                        const errorText = await resCodFuncionario.text().catch(() => 'Erro desconhecido');
+                        console.warn(`❌ [FALTAS] Erro ao obter codFuncionario para ${user.nome}: ${errorText}`);
+                        return [];
+                    }
+
+                    const dataCodFuncionario = await resCodFuncionario.json();
+                    const codFuncionario = dataCodFuncionario.codFuncionario;
+
+                    if (!codFuncionario) {
+                        console.warn(`❌ [FALTAS] codFuncionario não definido para ${user.nome}`);
+                        return [];
+                    }
+
+                    console.log(`✅ [FALTAS] codFuncionario obtido para ${user.nome}: "${codFuncionario}"`);
+
+                    // Agora usar o codFuncionario para buscar as faltas
+                    const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
+                    console.log(`🔍 [FALTAS] Chamando API de faltas para ${user.nome}: ${urlFaltas}`);
+
+                    const res = await fetch(urlFaltas, {
+                        headers: {
+                            Authorization: `Bearer ${painelAdminToken}`,
+                            urlempresa: urlempresa,
+                            "Content-Type": "application/json",
+                        },
+                    });
+
+                    console.log(`🔍 [FALTAS] Response status para ${user.nome}:`, res.status);
 
                     if (res.ok) {
                         const data = await res.json();
                         const faltasUsuario = data?.DataSet?.Table || [];
-                        return faltasUsuario.map((falta) => ({
-                            ...falta,
-                            userId: user.id,
-                            nomeUsuario: user.nome,
-                        }));
+                        
+                        if (faltasUsuario.length > 0) {
+                            console.log(`✅ [FALTAS] ${user.nome}: ${faltasUsuario.length} faltas encontradas`);
+                            console.log(`🔍 [FALTAS] Primeiras faltas de ${user.nome}:`, faltasUsuario.slice(0, 3));
+                            
+                            const faltasComUserId = faltasUsuario.map((falta) => ({
+                                ...falta,
+                                userId: user.id,
+                                nomeUsuario: user.nome,
+                                codFuncionarioUsado: codFuncionario,
+                            }));
+                            
+                            return faltasComUserId;
+                        } else {
+                            console.log(`⚠️ [FALTAS] ${user.nome}: API retornou com sucesso mas sem faltas`);
+                        }
+                    } else {
+                        const errorText = await res.text().catch(() => 'Erro desconhecido');
+                        console.warn(`❌ [FALTAS] Erro ${res.status} para ${user.nome}: ${errorText}`);
                     }
+                    
                     return [];
                 } catch (error) {
                     console.error(
-                        `Erro ao carregar faltas para ${user.nome}:`,
+                        `❌ [FALTAS] Erro ao carregar faltas para ${user.nome}:`,
                         error,
                     );
                     return [];
@@ -234,9 +313,17 @@ const AnaliseComplotaPontos = () => {
             });
 
             const resultados = await Promise.all(promises);
-            return resultados.flat();
+            const faltasTotal = resultados.flat();
+            console.log("✅ [FALTAS] Total de faltas carregadas:", faltasTotal.length);
+            
+            if (faltasTotal.length > 0) {
+                console.log("🔍 [FALTAS] Primeiras faltas gerais:", faltasTotal.slice(0, 5));
+                console.log("🔍 [FALTAS] UserIds únicos nas faltas:", [...new Set(faltasTotal.map(f => f.userId))]);
+            }
+            
+            return faltasTotal;
         } catch (error) {
-            console.error("Erro ao carregar faltas:", error);
+            console.error("❌ [FALTAS] Erro ao carregar faltas:", error);
             return [];
         }
     };
@@ -327,13 +414,20 @@ const AnaliseComplotaPontos = () => {
     const carregarDadosGrade = async () => {
         if (!obraSelecionada) return;
 
+        console.log("🔍 [GRADE] Iniciando carregamento da grade...");
+        console.log("🔍 [GRADE] Obra selecionada:", obraSelecionada);
+        console.log("🔍 [GRADE] Mês/Ano:", mesSelecionado, "/", anoSelecionado);
+
         setLoading(true);
         try {
             // 1) Carregar faltas
+            console.log("🔍 [GRADE] Etapa 1: Carregando faltas...");
             const faltasData = await carregarFaltas();
             setFaltas(faltasData);
+            console.log("✅ [GRADE] Faltas carregadas:", faltasData.length);
 
             // 2) Obter dias com registos reais por utilizador (no período selecionado)
+            console.log("🔍 [GRADE] Etapa 2: Obtendo dias com registos...");
             const diasComRegistosByUser =
                 await obterDiasComRegistosPorUtilizador(
                     obraSelecionada,
@@ -341,15 +435,36 @@ const AnaliseComplotaPontos = () => {
                     mesSelecionado,
                     utilizadores,
                 );
+            console.log("✅ [GRADE] Dias com registos por utilizador:", diasComRegistosByUser);
 
             // 3) Filtrar faltas para o mês/ano selecionado
+            console.log("🔍 [GRADE] Etapa 3: Filtrando faltas do mês...");
+            console.log("🔍 [GRADE] Mês selecionado:", mesSelecionado, "Ano selecionado:", anoSelecionado);
+            console.log("🔍 [GRADE] Total faltas antes do filtro:", faltasData.length);
+            
             const faltasDoMes = faltasData.filter((falta) => {
                 const dataFalta = new Date(falta.Data);
-                return (
-                    dataFalta.getMonth() + 1 === mesSelecionado &&
-                    dataFalta.getFullYear() === anoSelecionado
-                );
+                const mesData = dataFalta.getMonth() + 1;
+                const anoData = dataFalta.getFullYear();
+                const match = mesData === mesSelecionado && anoData === anoSelecionado;
+                
+                if (faltasData.indexOf(falta) < 5) { // Log das primeiras 5 faltas para debug
+                    console.log(`🔍 [GRADE] Falta ${faltasData.indexOf(falta)}:`, {
+                        data: falta.Data,
+                        mesData,
+                        anoData,
+                        userId: falta.userId,
+                        match
+                    });
+                }
+                
+                return match;
             });
+            console.log("✅ [GRADE] Faltas do mês filtradas:", faltasDoMes.length);
+            
+            if (faltasDoMes.length > 0) {
+                console.log("🔍 [GRADE] Primeiras faltas do mês:", faltasDoMes.slice(0, 3));
+            }
 
             // 4) Construir a grelha apenas com fictícios nos dias com registos reais
             const diasDoMes = new Date(
@@ -382,8 +497,32 @@ const AnaliseComplotaPontos = () => {
 
                     const faltasDoDia = faltasDoMes.filter((falta) => {
                         const df = new Date(falta.Data);
-                        return falta.userId === user.id && df.getDate() === dia;
+                        const diaFalta = df.getDate();
+                        const userMatch = falta.userId === user.id;
+                        const diaMatch = diaFalta === dia;
+                        
+                        // Log detalhado para debug
+                        if (dia <= 5) {
+                            console.log(`🔍 [GRADE] Verificando falta para ${user.nome} (ID: ${user.id}) - Dia ${dia}:`);
+                            console.log(`   - Data falta: ${falta.Data} (dia ${diaFalta})`);
+                            console.log(`   - User match: ${userMatch} (falta.userId: ${falta.userId})`);
+                            console.log(`   - Dia match: ${diaMatch}`);
+                        }
+                        
+                        return userMatch && diaMatch;
                     });
+
+                    // Log detalhado para os primeiros dias e quando há faltas
+                    if (dia <= 5 || faltasDoDia.length > 0) {
+                        console.log(`🔍 [GRADE] ${user.nome} - Dia ${dia}:`);
+                        console.log(`   - É fim de semana: ${isWeekend}`);
+                        console.log(`   - É futuro: ${isFutureDate}`);
+                        console.log(`   - Faltas do dia: ${faltasDoDia.length}`);
+                        console.log(`   - Tem registos: ${diasReais.has(dia)}`);
+                        if (faltasDoDia.length > 0) {
+                            console.log(`   - Faltas encontradas:`, faltasDoDia);
+                        }
+                    }
 
                     let estatisticasDia = {
                         dia,
@@ -392,19 +531,26 @@ const AnaliseComplotaPontos = () => {
                         isFutureDate,
                         faltas: faltasDoDia,
                         temFalta: faltasDoDia.length > 0,
+                        trabalhou: false,
                     };
 
-                    // ✅ Só gerar fictício se:
-                    // - não é fim de semana
-                    // - não é futuro
-                    // - não tem falta
-                    // - E HOUVE MESMO REGISTO nesse dia (diasReais.has(dia))
-                    if (
+                    // Processar faltas primeiro - tem prioridade
+                    if (faltasDoDia.length > 0) {
+                        console.log(`✅ [GRADE] ${user.nome} - Dia ${dia}: FALTA PROCESSADA`);
+                        estatisticasDia.trabalhou = false;
+                        estatisticasDia.temFalta = true;
+                        dadosUsuario.faltasTotal++;
+                    } else if (
                         !isWeekend &&
                         !isFutureDate &&
-                        faltasDoDia.length === 0 &&
                         diasReais.has(dia)
                     ) {
+                        // ✅ Só gerar fictício se:
+                        // - não é fim de semana
+                        // - não é futuro
+                        // - não tem falta
+                        // - E HOUVE MESMO REGISTO nesse dia (diasReais.has(dia))
+                        
                         // Verificar se é hoje e obter hora atual
                         const isHoje = dataAtual.toDateString() === hoje.toDateString();
                         const horaAtual = isHoje ? 
@@ -423,6 +569,10 @@ const AnaliseComplotaPontos = () => {
                             trabalhou: true,
                         };
                         
+                        if (dia <= 5) {
+                            console.log(`✅ [GRADE] ${user.nome} - Dia ${dia}: PONTO FICTÍCIO GERADO`);
+                        }
+                        
                         // Só contar horas e dias se tiver saída
                         if (pontosFicticios.temSaida) {
                             dadosUsuario.totalHorasMes += 8;
@@ -430,9 +580,6 @@ const AnaliseComplotaPontos = () => {
                         } else {
                             dadosUsuario.diasTrabalhados += 0.5; // Meio dia se só tem entrada
                         }
-                    } else if (faltasDoDia.length > 0) {
-                        estatisticasDia.trabalhou = false;
-                        dadosUsuario.faltasTotal++;
                     }
 
                     dadosUsuario.estatisticasDias[dia] = estatisticasDia;
@@ -441,9 +588,23 @@ const AnaliseComplotaPontos = () => {
                 dadosGradeTemp.push(dadosUsuario);
             });
 
+            console.log("✅ [GRADE] Grade final gerada com", dadosGradeTemp.length, "utilizadores");
+            
+            // Log do resumo final
+            dadosGradeTemp.forEach((dadosUsuario) => {
+                const totalFaltasCalculadas = Object.values(dadosUsuario.estatisticasDias)
+                    .filter(dia => dia.temFalta).length;
+                
+                console.log(`📊 [GRADE] ${dadosUsuario.utilizador.nome}:`);
+                console.log(`   - Total faltas: ${dadosUsuario.faltasTotal}`);
+                console.log(`   - Faltas calculadas: ${totalFaltasCalculadas}`);
+                console.log(`   - Dias trabalhados: ${dadosUsuario.diasTrabalhados}`);
+                console.log(`   - Total horas: ${dadosUsuario.totalHorasMes}`);
+            });
+
             setDadosGrade(dadosGradeTemp);
         } catch (error) {
-            console.error("Erro ao carregar dados da grade:", error);
+            console.error("❌ [GRADE] Erro ao carregar dados da grade:", error);
             Alert.alert("Erro", "Erro ao carregar dados da grade");
         } finally {
             setLoading(false);
@@ -461,6 +622,7 @@ const AnaliseComplotaPontos = () => {
             return styles.cellFuture;
         }
 
+        // Priorizar a exibição de faltas sobre trabalho
         if (estatisticas.temFalta) {
             return styles.cellFalta;
         }
@@ -477,6 +639,7 @@ const AnaliseComplotaPontos = () => {
 
         if (estatisticas.isFutureDate) return "";
 
+        // Priorizar a exibição de faltas sobre trabalho
         if (estatisticas.temFalta) {
             return "FALTA";
         }

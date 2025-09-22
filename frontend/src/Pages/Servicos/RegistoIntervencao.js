@@ -277,6 +277,43 @@ const RegistoIntervencao = (props) => {
         }
     };
 
+
+
+    // ——— helper: obter email geral do cliente (via teu backend) ———
+const fetchEmailGeralCliente = async (clienteId) => {
+    if (!clienteId) return null;
+    const apiBaseUrl = "https://webapiprimavera.advir.pt/routePedidos_STP"; // mantém a tua base
+    try {
+        const resp = await fetch(`${apiBaseUrl}/GetEmailGeral/${clienteId}`, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                urlempresa: urlempresa,
+                "Content-Type": "application/json",
+            },
+        });
+        if (!resp.ok) return null;
+        const data = await resp.json();
+
+        // Tenta apanhar o campo de forma resiliente
+        const row = data?.DataSet?.Table?.[0];
+        const emailGeral =
+            row?.EmailGeral || row?.Email || row?.EMail || row?.Mail || null;
+
+        // Sanitiza (ex.: pode vir com ; separadores)
+        if (typeof emailGeral === "string") {
+            const first = emailGeral.split(/[;,]/).map(s => s.trim()).filter(Boolean)[0];
+            return first || null;
+        }
+        return null;
+    } catch (e) {
+        console.warn("⚠️ Falha a obter email geral:", e.message);
+        return null;
+    }
+};
+
+
+
     const handleFormChange = async (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
@@ -321,6 +358,24 @@ const RegistoIntervencao = (props) => {
             let secAnterior;
             let utilizador;
             let email;
+
+            // ——— tentar descobrir o ID do cliente a partir da resposta ———
+            let clienteId =
+                ResponseData?.ClienteID ||
+                ResponseData?.IDCliente ||
+                ResponseData?.Entidade || // às vezes vem o código da entidade
+                null;
+
+            // se vier um "código" e não o GUID/ID interno, não há stress: a tua rota interna
+            // pode aceitar ambos; se não aceitar, adapta lá a rota para converter.
+            const emailGeral = await fetchEmailGeralCliente(clienteId);
+
+            // Evitar duplicar destinatários se for o mesmo endereço
+            const ccList = [];
+            if (emailGeral && emailGeral.toLowerCase() !== String(email || "").toLowerCase()) {
+                ccList.push(emailGeral);
+            }
+
             // Fetch the last state of the order
             try {
                 const estadoResponse = await fetch(
@@ -674,6 +729,7 @@ const RegistoIntervencao = (props) => {
                                 },
                                 body: JSON.stringify({
                                     emailDestinatario: email,
+                                    cc: ccList, 
                                     Pedido: ResponseData.Pedido,
                                     dadosIntervencao: {
                                         NumIntervencao:
