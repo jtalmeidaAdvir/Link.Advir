@@ -7,6 +7,7 @@ const RegistoIntervencao = (props) => {
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const { t } = useTranslation();
     const [enviarEmailCheck, setEnviarEmailCheck] = useState(true);
+    const [emailGeralCC, setEmailGeralCC] = useState("");
 
     const initialArtigoForm = () => ({
         artigo: "",
@@ -279,11 +280,53 @@ const RegistoIntervencao = (props) => {
 
 
 
+    // ——— helper: obter dados do processo para extrair cliente ID ———
+    const fetchProcessoData = async (processoID) => {
+        const apiBaseUrl = "https://webapiprimavera.advir.pt/routePedidos_STP";
+        try {
+            console.log("🔍 fetchProcessoData: buscando dados do processo:", processoID);
+            const resp = await fetch(`${apiBaseUrl}/pedidostecnico/${processoID}`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    urlempresa: urlempresa,
+                    "Content-Type": "application/json",
+                },
+            });
+            if (!resp.ok) {
+                console.log("🔍 fetchProcessoData: resposta não OK:", resp.status);
+                return null;
+            }
+            const data = await resp.json();
+            console.log("🔍 fetchProcessoData: dados do processo recebidos:", data);
+
+            // Extrair cliente ID dos dados do processo
+            const processoTable = data?.DataSet?.Table?.[0];
+            const clienteId = 
+                processoTable?.Cliente || 
+                processoTable?.ClienteID || 
+                processoTable?.IDCliente ||
+                processoTable?.Entidade ||
+                processoTable?.EntidadeId ||
+                null;
+            
+            console.log("🔍 fetchProcessoData: clienteId extraído do processo:", clienteId);
+            return clienteId;
+        } catch (e) {
+            console.warn("⚠️ Falha a obter dados do processo:", e.message);
+            return null;
+        }
+    };
+
     // ——— helper: obter email geral do cliente (via teu backend) ———
 const fetchEmailGeralCliente = async (clienteId) => {
-    if (!clienteId) return null;
+    if (!clienteId) {
+        console.log("🔍 fetchEmailGeralCliente: clienteId não fornecido");
+        return null;
+    }
     const apiBaseUrl = "https://webapiprimavera.advir.pt/routePedidos_STP"; // mantém a tua base
     try {
+        console.log("🔍 fetchEmailGeralCliente: buscando email para cliente:", clienteId);
         const resp = await fetch(`${apiBaseUrl}/GetEmailGeral/${clienteId}`, {
             method: "GET",
             headers: {
@@ -292,19 +335,27 @@ const fetchEmailGeralCliente = async (clienteId) => {
                 "Content-Type": "application/json",
             },
         });
-        if (!resp.ok) return null;
+        if (!resp.ok) {
+            console.log("🔍 fetchEmailGeralCliente: resposta não OK:", resp.status);
+            return null;
+        }
         const data = await resp.json();
+        console.log("🔍 fetchEmailGeralCliente: dados recebidos:", data);
 
         // Tenta apanhar o campo de forma resiliente
         const row = data?.DataSet?.Table?.[0];
+        console.log("🔍 fetchEmailGeralCliente: row extraída:", row);
         const emailGeral =
-            row?.EmailGeral || row?.Email || row?.EMail || row?.Mail || null;
+            row?.EmailGeral || row?.Email || row?.EMail || row?.Mail || row?.email || null;
+        console.log("🔍 fetchEmailGeralCliente: email extraído:", emailGeral);
 
         // Sanitiza (ex.: pode vir com ; separadores)
         if (typeof emailGeral === "string") {
             const first = emailGeral.split(/[;,]/).map(s => s.trim()).filter(Boolean)[0];
+            console.log("🔍 fetchEmailGeralCliente: email final:", first);
             return first || null;
         }
+        console.log("🔍 fetchEmailGeralCliente: email não é string, retornando null");
         return null;
     } catch (e) {
         console.warn("⚠️ Falha a obter email geral:", e.message);
@@ -629,14 +680,29 @@ const fetchEmailGeralCliente = async (clienteId) => {
                             "Resposta de e-mail obtida com sucesso:",
                             responseData,
                         );
+                        console.log("🔍 Estrutura completa dos dados:", JSON.stringify(responseData, null, 2));
                         ResponseData = responseData;
                         
-                        // Extract client ID from ResponseData
+                        // First try to extract client ID from ResponseData
                         clienteId =
                             ResponseData?.ClienteID ||
                             ResponseData?.IDCliente ||
-                            ResponseData?.Entidade || 
+                            ResponseData?.Entidade ||
+                            ResponseData?.Cliente ||
+                            ResponseData?.ID ||
+                            ResponseData?.EntidadeId ||
+                            ResponseData?.ClienteId ||
                             null;
+                        
+                        console.log("🔍 Tentando extrair clienteId de ResponseData:", ResponseData);
+                        console.log("🔍 ClienteId extraído de ResponseData:", clienteId);
+
+                        // If no client ID found in ResponseData, try to fetch from process data
+                        if (!clienteId) {
+                            console.log("🔍 ClienteId não encontrado em ResponseData, buscando dados do processo...");
+                            clienteId = await fetchProcessoData(processoID);
+                            console.log("🔍 ClienteId extraído dos dados do processo:", clienteId);
+                        }
 
                         // Fetch general email using the extracted client ID
                         emailGeral = await fetchEmailGeralCliente(clienteId);
@@ -655,10 +721,57 @@ const fetchEmailGeralCliente = async (clienteId) => {
 
                 // Email sending process
                 if (enviarEmailCheck && email && ResponseData) {
-                    // Evitar duplicar destinatários se for o mesmo endereço
+                    // Construir lista CC com email do contacto, email geral do cliente e email manual
                     const ccList = [];
+                    
+                    // Adicionar email do contacto se for diferente do email principal
+                    if (email && email.toLowerCase() !== String(email || "").toLowerCase()) {
+                        // Este email já é o principal, não precisa adicionar ao CC
+                    }
+                    
+                    // Adicionar email geral do cliente se for diferente do email principal
                     if (emailGeral && emailGeral.toLowerCase() !== String(email || "").toLowerCase()) {
                         ccList.push(emailGeral);
+                    }
+                    
+                    // Adicionar email CC manual se preenchido e diferente dos outros
+                    if (emailGeralCC && 
+                        emailGeralCC.toLowerCase() !== String(email || "").toLowerCase() &&
+                        emailGeralCC.toLowerCase() !== String(emailGeral || "").toLowerCase() &&
+                        !ccList.includes(emailGeralCC)) {
+                        ccList.push(emailGeralCC);
+                    }
+                    
+                    // Buscar email do contacto específico da intervenção
+                    let emailContacto = null;
+                    try {
+                        const contactoResponse = await fetch(
+                            `${apiBaseUrl}/ObterContactoIntervencao/${processoID}`,
+                            {
+                                method: "GET",
+                                headers: {
+                                    Authorization: `Bearer ${token}`,
+                                    urlempresa: urlempresa,
+                                    "Content-Type": "application/json",
+                                },
+                            }
+                        );
+                        
+                        if (contactoResponse.ok) {
+                            const contactoData = await contactoResponse.json();
+                            emailContacto = contactoData?.DataSet?.Table?.[0]?.Email || null;
+                            console.log("📧 Email do contacto da intervenção:", emailContacto);
+                            
+                            // Adicionar email do contacto ao CC se for diferente do principal e do geral
+                            if (emailContacto && 
+                                emailContacto.toLowerCase() !== String(email || "").toLowerCase() &&
+                                emailContacto.toLowerCase() !== String(emailGeral || "").toLowerCase() &&
+                                !ccList.includes(emailContacto)) {
+                                ccList.push(emailContacto);
+                            }
+                        }
+                    } catch (contactoError) {
+                        console.warn("⚠️ Erro ao buscar email do contacto:", contactoError.message);
                     }
                     try {
                         // Buscar informações do contrato antes de enviar o email
@@ -725,9 +838,11 @@ const fetchEmailGeralCliente = async (clienteId) => {
                             );
                         }
 
-                        console.log("📧 Preparando email com CC:", ccList);
-                        console.log("📧 Email principal:", email);
+                        console.log("📧 Preparando email com os seguintes destinatários:");
+                        console.log("📧 Email principal (TO):", email);
                         console.log("📧 Email geral do cliente:", emailGeral);
+                        console.log("📧 Email do contacto:", emailContacto);
+                        console.log("📧 Lista final CC:", ccList);
 
                         const emailPayload = {
                             emailDestinatario: email,
@@ -823,6 +938,7 @@ const fetchEmailGeralCliente = async (clienteId) => {
             setSuccessMessage("");
             setTempoAlmoco(0);
             setTempoDeslocacao(0);
+            setEmailGeralCC("");
             props.navigation.navigate("Intervencoes");
             setAddedArtigos([]);
             setArtigoForm(initialArtigoForm());
@@ -1063,23 +1179,56 @@ const fetchEmailGeralCliente = async (clienteId) => {
                                     style={{
                                         marginTop: "20px",
                                         display: "flex",
-                                        alignItems: "center",
+                                        flexDirection: "column",
+                                        gap: "10px",
                                     }}
                                 >
-                                    <input
-                                        type="checkbox"
-                                        id="enviarEmail"
-                                        checked={enviarEmailCheck}
-                                        onChange={() =>
-                                            setEnviarEmailCheck(
-                                                !enviarEmailCheck,
-                                            )
-                                        }
-                                        style={{ marginRight: "10px" }}
-                                    />
-                                    <label htmlFor="enviarEmail">
-                                        Enviar e-mail
-                                    </label>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                        }}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            id="enviarEmail"
+                                            checked={enviarEmailCheck}
+                                            onChange={() =>
+                                                setEnviarEmailCheck(
+                                                    !enviarEmailCheck,
+                                                )
+                                            }
+                                            style={{ marginRight: "10px" }}
+                                        />
+                                        <label htmlFor="enviarEmail">
+                                            Enviar e-mail
+                                        </label>
+                                    </div>
+                                    
+                                    {enviarEmailCheck && (
+                                        <div style={formGroupStyle}>
+                                            <label style={labelStyle}>
+                                                Email CC (adicional):
+                                            </label>
+                                            <input
+                                                type="email"
+                                                placeholder="Digite o emails para CC (adicional1@adicional.com;adicional2@adicional.com)"
+                                                value={emailGeralCC}
+                                                onChange={(e) => setEmailGeralCC(e.target.value)}
+                                                style={inputStyle}
+                                            />
+                                            <small
+                                                style={{
+                                                    color: "#666",
+                                                    fontSize: "0.85rem",
+                                                    marginTop: "5px",
+                                                    display: "block",
+                                                }}
+                                            >
+                                                Este email será adicionado como CC no envio do email da intervenção
+                                            </small>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div style={navigationButtonsStyle}>
@@ -1839,6 +1988,7 @@ const fetchEmailGeralCliente = async (clienteId) => {
                                 });
                                 setTempoAlmoco(0);
                                 setTempoDeslocacao(0);
+                                setEmailGeralCC("");
                             }}
                             style={cancelButtonStyle}
                         >
