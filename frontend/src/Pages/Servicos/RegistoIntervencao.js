@@ -889,10 +889,7 @@ const fetchEmailTecnico = async (tecnicoId) => {
                         // Este email já é o principal, não precisa adicionar ao CC
                     }
                     
-                    // Adicionar email geral do cliente se for diferente do email principal
-                    if (emailGeral && emailGeral.toLowerCase() !== String(email || "").toLowerCase()) {
-                        ccList.push(emailGeral);
-                    }
+                  
                     
                     // Adicionar email CC manual se preenchido e diferente dos outros
                     if (emailGeralCC && 
