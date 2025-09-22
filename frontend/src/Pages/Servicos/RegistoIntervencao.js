@@ -280,11 +280,35 @@ const RegistoIntervencao = (props) => {
 
 
 
-    // ——— helper: obter dados do processo para extrair cliente ID ———
+    // ——— helper: obter dados do processo/contrato para extrair cliente ID ———
     const fetchProcessoData = async (processoID) => {
         const apiBaseUrl = "https://webapiprimavera.advir.pt/routePedidos_STP";
         try {
             console.log("🔍 fetchProcessoData: buscando dados do processo:", processoID);
+            
+            // Primeiro tentar obter informações do contrato diretamente
+            const contratoResp = await fetch(`${apiBaseUrl}/ObterInfoContratoProcesso/${processoID}`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    urlempresa: urlempresa,
+                    "Content-Type": "application/json",
+                },
+            });
+            
+            if (contratoResp.ok) {
+                const contratoData = await contratoResp.json();
+                console.log("🔍 fetchProcessoData: dados do contrato recebidos:", contratoData);
+                
+                // Extrair o Cliente ID dos dados do contrato
+                const contratoTable = contratoData?.DataSet?.Table?.[0];
+                if (contratoTable?.Cliente) {
+                    console.log("🔍 fetchProcessoData: Cliente extraído:", contratoTable.Cliente);
+                    return contratoTable.Cliente; // Retorna o Cliente (ex: 'VD')
+                }
+            }
+
+            // Fallback para o método original se necessário
             const resp = await fetch(`${apiBaseUrl}/pedidostecnico/${processoID}`, {
                 method: "GET",
                 headers: {
@@ -293,17 +317,23 @@ const RegistoIntervencao = (props) => {
                     "Content-Type": "application/json",
                 },
             });
+            
             if (!resp.ok) {
                 console.log("🔍 fetchProcessoData: resposta não OK:", resp.status);
                 return null;
             }
+            
             const data = await resp.json();
             console.log("🔍 fetchProcessoData: dados do processo recebidos:", data);
-            console.log("🔍 fetchProcessoData: estrutura completa dos dados:", JSON.stringify(data, null, 2));
 
             // Extrair cliente ID dos dados do processo - tentar várias possibilidades
             const processoTable = data?.DataSet?.Table?.[0];
             console.log("🔍 fetchProcessoData: processoTable extraída:", processoTable);
+            
+            if (!processoTable) {
+                console.warn("🔍 fetchProcessoData: Nenhum dado encontrado na tabela do processo");
+                return null;
+            }
             
             const clienteId = 
                 processoTable?.Cliente || 
@@ -459,6 +489,10 @@ const fetchEmailTecnico = async (tecnicoId) => {
                     if (clienteId) {
                         emailCliente = await fetchEmailGeralCliente(clienteId);
                         console.log("📧 Email do cliente obtido:", emailCliente);
+                    } else {
+                        console.log("📧 Cliente ID não encontrado, tentando abordagem alternativa");
+                        // Se não conseguimos obter o cliente ID, o email do cliente não será incluído
+                        // mas ainda podemos continuar com o email do técnico
                     }
                 }
 
@@ -817,12 +851,21 @@ const fetchEmailTecnico = async (tecnicoId) => {
                         // If no client ID found in ResponseData, try to fetch from process data
                         if (!clienteId) {
                             console.log("🔍 ClienteId não encontrado em ResponseData, buscando dados do processo...");
-                            clienteId = await fetchProcessoData(processoID);
-                            console.log("🔍 ClienteId extraído dos dados do processo:", clienteId);
+                            const dadosProcesso = await fetchProcessoData(processoID);
+                            
+                            // Se retornou um ContratoId em vez de ClienteId, podemos tentar usá-lo
+                            if (dadosProcesso) {
+                                clienteId = dadosProcesso;
+                                console.log("🔍 Dados extraídos do processo (pode ser ContratoId):", clienteId);
+                            }
                         }
 
-                        // Fetch general email using the extracted client ID
-                        emailGeral = await fetchEmailGeralCliente(clienteId);
+                        // Fetch general email using the extracted client ID (or ContratoId as fallback)
+                        if (clienteId) {
+                            emailGeral = await fetchEmailGeralCliente(clienteId);
+                        } else {
+                            console.log("🔍 Não foi possível obter identificador do cliente/contrato");
+                        }
 
                     } else {
                         console.warn(
