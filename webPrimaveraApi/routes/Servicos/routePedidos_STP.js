@@ -259,6 +259,53 @@ router.get('/GetEmailGeral/:IDCliente', async (req, res) => {
     }
 });
 
+// Rota para obter email tecnico
+router.get('/GetEmailTecnico/:IDTecnico', async (req, res) => {
+    try {
+        const { IDTecnico } = req.params;
+        const painelAdminToken = req.headers['authorization']?.split(' ')[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
+        }
+
+        // Usa a função getEmpresaUrl para obter o urlempresa
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+        }
+
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/GetEmailTecnico/${IDTecnico}`;
+        console.log('Enviando solicitação para a URL:', apiUrl);
+
+        const response = await axios.get(apiUrl, {
+            headers: {
+                'Authorization': `Bearer ${painelAdminToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            }
+        });
+
+        if (response.status === 200) {
+            return res.status(200).json(response.data);
+        } else if (response.status === 404) {
+            return res.status(404).json({
+                error: 'Nenhum tecnico encontrado.'
+            });
+        } else {
+            return res.status(400).json({
+                error: 'Falha ao listar email tecnico.',
+                details: response.data.ErrorMessage
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao listar tecnico:', error.response ? error.response.data : error.message);
+        return res.status(500).json({
+            error: 'Erro inesperado ao listar tecnico',
+            details: error.message
+        });
+    }
+});
+
 
 // Rota para listar contactos da intervencao
 router.get('/ObterContactoIntervencao/:IDIntervencao', async (req, res) => {
