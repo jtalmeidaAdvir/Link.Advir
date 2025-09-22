@@ -358,23 +358,11 @@ const fetchEmailGeralCliente = async (clienteId) => {
             let secAnterior;
             let utilizador;
             let email;
+            let ResponseData = null; // Initialize ResponseData here
 
-            // ——— tentar descobrir o ID do cliente a partir da resposta ———
-            let clienteId =
-                ResponseData?.ClienteID ||
-                ResponseData?.IDCliente ||
-                ResponseData?.Entidade || // às vezes vem o código da entidade
-                null;
-
-            // se vier um "código" e não o GUID/ID interno, não há stress: a tua rota interna
-            // pode aceitar ambos; se não aceitar, adapta lá a rota para converter.
-            const emailGeral = await fetchEmailGeralCliente(clienteId);
-
-            // Evitar duplicar destinatários se for o mesmo endereço
-            const ccList = [];
-            if (emailGeral && emailGeral.toLowerCase() !== String(email || "").toLowerCase()) {
-                ccList.push(emailGeral);
-            }
+            // Initialize variables for client ID and general email
+            let clienteId = null;
+            let emailGeral = null;
 
             // Fetch the last state of the order
             try {
@@ -620,8 +608,7 @@ const fetchEmailGeralCliente = async (clienteId) => {
             }
 
             // Secondary processes (email info and sending) - don't fail the entire process
-            let ResponseData = null;
-
+            
             if (intervencaoCriada) {
                 try {
                     const emailResponse = await fetch(
@@ -643,6 +630,17 @@ const fetchEmailGeralCliente = async (clienteId) => {
                             responseData,
                         );
                         ResponseData = responseData;
+                        
+                        // Extract client ID from ResponseData
+                        clienteId =
+                            ResponseData?.ClienteID ||
+                            ResponseData?.IDCliente ||
+                            ResponseData?.Entidade || 
+                            null;
+
+                        // Fetch general email using the extracted client ID
+                        emailGeral = await fetchEmailGeralCliente(clienteId);
+
                     } else {
                         console.warn(
                             "Erro ao obter informações de e-mail, mas intervenção foi criada com sucesso",
@@ -657,6 +655,11 @@ const fetchEmailGeralCliente = async (clienteId) => {
 
                 // Email sending process
                 if (enviarEmailCheck && email && ResponseData) {
+                    // Evitar duplicar destinatários se for o mesmo endereço
+                    const ccList = [];
+                    if (emailGeral && emailGeral.toLowerCase() !== String(email || "").toLowerCase()) {
+                        ccList.push(emailGeral);
+                    }
                     try {
                         // Buscar informações do contrato antes de enviar o email
                         let contratoInfo = null;
@@ -711,14 +714,55 @@ const fetchEmailGeralCliente = async (clienteId) => {
                                     "⚠️ Erro na resposta da API de contrato:",
                                     contratoResponse.status,
                                     contratoResponse.statusText,
+                                    "- Continuando sem informações do contrato"
                                 );
                             }
                         } catch (contratoError) {
                             console.warn(
                                 "❌ Erro ao buscar informações do contrato:",
                                 contratoError.message,
+                                "- Continuando sem informações do contrato"
                             );
                         }
+
+                        console.log("📧 Preparando email com CC:", ccList);
+                        console.log("📧 Email principal:", email);
+                        console.log("📧 Email geral do cliente:", emailGeral);
+
+                        const emailPayload = {
+                            emailDestinatario: email,
+                            cc: ccList, 
+                            Pedido: ResponseData.Pedido,
+                            dadosIntervencao: {
+                                NumIntervencao:
+                                    ResponseData.NumIntervencao,
+                                Contacto: ResponseData.Contacto,
+                                processoID: ResponseData.NumProcesso,
+                                HoraInicioPedido:
+                                    ResponseData.HoraInicioPedido,
+                                tecnico: ResponseData.Tecnico,
+                                descricaoResposta:
+                                    dataToSave.descricaoResposta,
+                                Estadointer:
+                                    ResponseData.Estado.replace(
+                                        /\b\w/g,
+                                        (l) => l.toUpperCase(),
+                                    ),
+                                HoraInicioIntervencao:
+                                    formData.dataInicio +
+                                    ", " +
+                                    formData.horaInicio,
+                                HoraFimIntervencao:
+                                    formData.dataFim +
+                                    ", " +
+                                    formData.horaFim,
+                                TipoIntervencao: formData.tipo,
+                                Duracao: `${Math.floor(duracaoEmMinutos / 60)}h ${duracaoEmMinutos % 60}min`,
+                                contratoInfo: contratoInfo,
+                            },
+                        };
+
+                        console.log("📧 Payload do email:", JSON.stringify(emailPayload, null, 2));
 
                         const response = await fetch(
                             `https://webapiprimavera.advir.pt/send-email`,
@@ -727,47 +771,26 @@ const fetchEmailGeralCliente = async (clienteId) => {
                                 headers: {
                                     "Content-Type": "application/json",
                                 },
-                                body: JSON.stringify({
-                                    emailDestinatario: email,
-                                    cc: ccList, 
-                                    Pedido: ResponseData.Pedido,
-                                    dadosIntervencao: {
-                                        NumIntervencao:
-                                            ResponseData.NumIntervencao,
-                                        Contacto: ResponseData.Contacto,
-                                        processoID: ResponseData.NumProcesso,
-                                        HoraInicioPedido:
-                                            ResponseData.HoraInicioPedido,
-                                        tecnico: ResponseData.Tecnico,
-                                        descricaoResposta:
-                                            dataToSave.descricaoResposta,
-                                        Estadointer:
-                                            ResponseData.Estado.replace(
-                                                /\b\w/g,
-                                                (l) => l.toUpperCase(),
-                                            ),
-                                        HoraInicioIntervencao:
-                                            formData.dataInicio +
-                                            ", " +
-                                            formData.horaInicio,
-                                        HoraFimIntervencao:
-                                            formData.dataFim +
-                                            ", " +
-                                            formData.horaFim,
-                                        TipoIntervencao: formData.tipo,
-                                        Duracao: `${Math.floor(duracaoEmMinutos / 60)}h ${duracaoEmMinutos % 60}min`,
-                                        contratoInfo: contratoInfo,
-                                    },
-                                }),
+                                body: JSON.stringify(emailPayload),
                             },
                         );
 
+                        const responseText = await response.text();
+                        console.log("📧 Resposta do servidor (texto):", responseText);
+
                         if (response.ok) {
-                            const data = await response.json();
-                            console.log("Email enviado com sucesso:", data);
+                            try {
+                                const data = responseText ? JSON.parse(responseText) : { message: responseText };
+                                console.log("✅ Email enviado com sucesso:", data);
+                            } catch (parseError) {
+                                console.log("✅ Email enviado com sucesso (resposta não-JSON):", responseText);
+                            }
                         } else {
                             console.warn(
-                                "Erro ao enviar e-mail, mas intervenção foi criada com sucesso",
+                                "⚠️ Erro ao enviar e-mail, mas intervenção foi criada com sucesso. Status:",
+                                response.status,
+                                "Resposta:",
+                                responseText
                             );
                         }
                     } catch (error) {
@@ -928,10 +951,10 @@ const fetchEmailGeralCliente = async (clienteId) => {
                                             </option>
                                             {tiposIntervencao.map((tipo) => (
                                                 <option
-                                                    key={tipo.Prioridade}
-                                                    value={tipo.Prioridade}
+                                                    key={tipo.TipoIntervencao}
+                                                    value={tipo.TipoIntervencao}
                                                 >
-                                                    {tipo.Prioridade} -{" "}
+                                                    {tipo.TipoIntervencao} -{" "}
                                                     {tipo.Descricao}
                                                 </option>
                                             ))}

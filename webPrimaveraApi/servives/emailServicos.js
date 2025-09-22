@@ -2,8 +2,11 @@ const nodemailer = require('nodemailer');
 const axios = require('axios');
 
 const sendEmail = async (req, res) => {
-    console.log('Corpo da requisição:', req.body); // Adicione este log
+    console.log('📧 Corpo da requisição completo:', JSON.stringify(req.body, null, 2));
     const { emailDestinatario, Pedido, dadosIntervencao, cc } = req.body;
+
+    console.log('📧 Email destinatário:', emailDestinatario);
+    console.log('📧 CC recebido:', cc);
 
     // Helper: normaliza CC (aceita string "a@a.pt; b@b.pt" ou array)
     const normalizeCc = (value) => {
@@ -19,6 +22,8 @@ const sendEmail = async (req, res) => {
     const ccList = normalizeCc(cc).filter(addr =>
         String(addr).toLowerCase() !== String(emailDestinatario || '').toLowerCase()
     );
+
+    console.log('📧 CC lista final:', ccList);
 
 
     try {
@@ -132,12 +137,31 @@ const sendEmail = async (req, res) => {
             `,
         };
 
+        console.log('📧 Enviando email com as seguintes opções:', {
+            from: mailOptions.from,
+            to: mailOptions.to,
+            cc: mailOptions.cc,
+            subject: mailOptions.subject
+        });
+
         const info = await transporter.sendMail(mailOptions);
-        console.log('Email enviado com sucesso:', info.response);
-        return res.status(200).send('Email enviado com sucesso!'); // Retorne uma resposta ao cliente
+        console.log('✅ Email enviado com sucesso:', info.response);
+        console.log('✅ Email ID:', info.messageId);
+        
+        return res.status(200).json({ 
+            success: true, 
+            message: 'Email enviado com sucesso!',
+            messageId: info.messageId,
+            to: emailDestinatario,
+            cc: ccList
+        });
     } catch (error) {
-        console.error('Erro ao enviar email2:', error.message);
-        return res.status(500).send('Erro ao enviar email'); // Retorne um erro ao cliente
+        console.error('❌ Erro ao enviar email:', error.message);
+        return res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao enviar email', 
+            details: error.message 
+        });
     }
 }
 
