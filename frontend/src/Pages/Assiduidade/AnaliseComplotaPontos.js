@@ -413,6 +413,29 @@ const AnaliseComplotaPontos = () => {
         };
     };
 
+
+
+    // Extrai Y/M/D e HH:mm de um ISO (preferir UTC por causa do "Z" do endpoint)
+const ymdFrom = (iso) => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d)) return null;
+  return {
+    y: d.getUTCFullYear(),
+    m: d.getUTCMonth() + 1,
+    d: d.getUTCDate(),
+    hh: String(d.getUTCHours()).padStart(2, "0"),
+    mm: String(d.getUTCMinutes()).padStart(2, "0"),
+  };
+};
+
+const horaFrom = (reg) => {
+  const iso = reg?.timestamp || reg?.dataHora || reg?.data || reg?.createdAt || reg?.updatedAt;
+  const p = ymdFrom(iso);
+  return p ? `${p.hh}:${p.mm}` : null;
+};
+
+
     const carregarDadosGrade = async () => {
         if (!obraSelecionada) return;
 
@@ -462,34 +485,29 @@ const AnaliseComplotaPontos = () => {
                         headers: { Authorization: `Bearer ${token}` },
                     });
 
-                    if (res.ok) {
-                        const registos = await res.json();
-                        const registosPorDia = {};
+                   if (res.ok) {
+  const registos = await res.json();
+  const registosPorDia = {};
 
-                        // Agrupar registos por dia
-                        (Array.isArray(registos) ? registos : []).forEach((registro) => {
-                            const dataRegistro = new Date(
-                                registro.data ||
-                                registro.dataHora ||
-                                registro.createdAt ||
-                                registro.updatedAt,
-                            );
-                            
-                            if (!isNaN(dataRegistro)) {
-                                const dia = dataRegistro.getDate();
-                                if (!registosPorDia[dia]) {
-                                    registosPorDia[dia] = [];
-                                }
-                                registosPorDia[dia].push(registro);
-                            }
-                        });
+  // Agrupar por dia **do mês/ano selecionados** usando "timestamp"
+  (Array.isArray(registos) ? registos : []).forEach((registro) => {
+    const iso = registro.timestamp || registro.dataHora || registro.data || registro.createdAt || registro.updatedAt;
+    const p = ymdFrom(iso);
+    if (!p) return;
+    if (p.y !== anoSelecionado || p.m !== mesSelecionado) return; // garante mês/ano corretos
 
-                        registosReaisDetalhados[user.id] = registosPorDia;
-                        console.log(`✅ [GRADE] ${user.nome}: ${Object.keys(registosPorDia).length} dias com registos`);
-                    } else {
-                        console.warn(`❌ [GRADE] Erro ao buscar registos para ${user.nome}: ${res.status}`);
-                        registosReaisDetalhados[user.id] = {};
-                    }
+    const dia = p.d;
+    if (!registosPorDia[dia]) registosPorDia[dia] = [];
+    registosPorDia[dia].push({ ...registro, _hhmm: `${p.hh}:${p.mm}` }); // guarda HH:mm já calculado
+  });
+
+  registosReaisDetalhados[user.id] = registosPorDia;
+  console.log(`✅ [GRADE] ${user.nome}: ${Object.keys(registosPorDia).length} dias com registos`);
+} else {
+  console.warn(`❌ [GRADE] Erro ao buscar registos para ${user.nome}: ${res.status}`);
+  registosReaisDetalhados[user.id] = {};
+}
+
                 } catch (error) {
                     console.error(`❌ [GRADE] Erro ao processar ${user.nome}:`, error);
                     registosReaisDetalhados[user.id] = {};
@@ -617,90 +635,70 @@ const AnaliseComplotaPontos = () => {
                         console.log(`❌ [GRADE] ${user.nome} - Dia ${dia}: FALTA registada (${faltasDoDia.length} falta(s))`);
                     }
                     // PRIORIDADE 2: Registos reais existem
-                    else if (temRegistosReais && !isWeekend && !isFutureDate) {
-                        // Usar dados reais se disponíveis, senão gerar fictícios
-                        const entradas = registosReaisDoDia.filter(r => r.tipo === 'entrada');
-                        const saidas = registosReaisDoDia.filter(r => r.tipo === 'saida');
+                    // PRIORIDADE 2: Só tratamos trabalho quando o DIA tem registos reais
+else if (temRegistosReais && !isWeekend && !isFutureDate) {
+  const entradas = registosReaisDoDia.filter(r => r.tipo === "entrada");
+  const saidas   = registosReaisDoDia.filter(r => r.tipo === "saida");
 
-                        if (entradas.length > 0) {
-                            estatisticasDia.horaEntrada = entradas[0].hora || entradas[0].dataHora?.split('T')[1]?.substr(0, 5) || "08:00";
-                            
-                            if (saidas.length > 0) {
-                                estatisticasDia.horaSaida = saidas[saidas.length - 1].hora || saidas[saidas.length - 1].dataHora?.split('T')[1]?.substr(0, 5) || "17:00";
-                                estatisticasDia.totalHoras = 8.0;
-                                estatisticasDia.temSaida = true;
-                                dadosUsuario.totalHorasMes += 8;
-                                dadosUsuario.diasTrabalhados++;
-                            } else {
-                                // Só entrada, verificar se é hoje
-                                const isHoje = dataAtual.toDateString() === hoje.toDateString();
-                                if (isHoje) {
-                                    estatisticasDia.horaSaida = null;
-                                    estatisticasDia.temSaida = false;
-                                    dadosUsuario.diasTrabalhados += 0.5;
-                                } else {
-                                    // Dia passado sem saída - gerar saída fictícia
-                                    estatisticasDia.horaSaida = "17:00";
-                                    estatisticasDia.totalHoras = 8.0;
-                                    estatisticasDia.temSaida = true;
-                                    dadosUsuario.totalHorasMes += 8;
-                                    dadosUsuario.diasTrabalhados++;
-                                }
-                            }
-                            
-                            estatisticasDia.trabalhou = true;
-                            console.log(`✅ [GRADE] ${user.nome} - Dia ${dia}: DADOS REAIS/HÍBRIDOS`);
-                        } else {
-                            // Registos existem mas sem entrada clara - gerar fictício
-                            const isHoje = dataAtual.toDateString() === hoje.toDateString();
-                            const horaAtual = isHoje ? 
-                                `${String(hoje.getHours()).padStart(2, '0')}:${String(hoje.getMinutes()).padStart(2, '0')}` 
-                                : null;
+  if (entradas.length > 0) {
+    // Temos pelo menos 1 entrada -> usar hora real da primeira
+    estatisticasDia.horaEntrada = entradas[0]._hhmm || horaFrom(entradas[0]);
 
-                            const pontosFicticios = gerarPontosFicticios(user.id, dia, isHoje, horaAtual);
-                            Object.assign(estatisticasDia, pontosFicticios);
-                            estatisticasDia.trabalhou = true;
+    if (saidas.length > 0) {
+      // Temos saída -> usar a última
+      estatisticasDia.horaSaida = saidas[saidas.length - 1]._hhmm || horaFrom(saidas[saidas.length - 1]);
+      estatisticasDia.totalHoras = 8.0; // ou calcula a partir de horas reais, se quiseres
+      estatisticasDia.temSaida = true;
+      dadosUsuario.totalHorasMes += 8;
+      dadosUsuario.diasTrabalhados++;
+    } else {
+      // Só entrada
+      const hojeStr = hoje.toDateString();
+      const dataAtualStr = new Date(anoSelecionado, mesSelecionado - 1, dia).toDateString();
 
-                            if (pontosFicticios.temSaida) {
-                                dadosUsuario.totalHorasMes += 8;
-                                dadosUsuario.diasTrabalhados++;
-                            } else {
-                                dadosUsuario.diasTrabalhados += 0.5;
-                            }
-                            console.log(`🔧 [GRADE] ${user.nome} - Dia ${dia}: FICTÍCIO (registos sem entrada clara)`);
-                        }
-                    }
-                    // PRIORIDADE 3: 🚫 REGRA RIGOROSA - SÓ gerar fictícios se tem registos reais NO MÊS
-                    else if (!isWeekend && !isFutureDate) {
-                        // 🚫 VALIDAÇÃO RIGOROSA: Só gera fictícios se tem registos reais NESTE mês específico
-                        if (temRegistosReaisNoMes) {
-                            // ✅ Utilizador tem registos reais no mês atual - pode ter fictícios
-                            const isHoje = dataAtual.toDateString() === hoje.toDateString();
-                            const horaAtual = isHoje ? 
-                                `${String(hoje.getHours()).padStart(2, '0')}:${String(hoje.getMinutes()).padStart(2, '0')}` 
-                                : null;
+      if (hojeStr === dataAtualStr) {
+        // Hoje: sem saída ainda
+        estatisticasDia.horaSaida = null;
+        estatisticasDia.temSaida = false;
+        dadosUsuario.diasTrabalhados += 0.5;
+      } else {
+        // Dia no passado: saída fictícia **apenas porque há atividade real no próprio dia**
+        estatisticasDia.horaSaida = "17:00";
+        estatisticasDia.totalHoras = 8.0;
+        estatisticasDia.temSaida = true;
+        dadosUsuario.totalHorasMes += 8;
+        dadosUsuario.diasTrabalhados++;
+      }
+    }
 
-                            const pontosFicticios = gerarPontosFicticios(user.id, dia, isHoje, horaAtual);
-                            Object.assign(estatisticasDia, pontosFicticios);
-                            estatisticasDia.trabalhou = true;
+    estatisticasDia.trabalhou = true;
+  } else {
+    // Há registos no dia, mas nenhum de tipo "entrada" -> gerar cenário fictício **permitido** porque HÁ atividade real nesse dia
+    const isHoje = new Date(anoSelecionado, mesSelecionado - 1, dia).toDateString() === hoje.toDateString();
+    const horaAtual = isHoje ? `${String(hoje.getHours()).padStart(2, '0')}:${String(hoje.getMinutes()).padStart(2, '0')}` : null;
 
-                            if (pontosFicticios.temSaida) {
-                                dadosUsuario.totalHorasMes += 8;
-                                dadosUsuario.diasTrabalhados++;
-                            } else {
-                                dadosUsuario.diasTrabalhados += 0.5;
-                            }
-                            console.log(`🔧 [GRADE] ${user.nome} - Dia ${dia}: FICTÍCIO autorizado (tem ${Object.keys(registosUsuario).length} dias reais)`);
-                        } else {
-                            // 🚫 Sem registos reais no mês - NÃO gerar fictícios
-                            estatisticasDia.trabalhou = false;
-                            estatisticasDia.horaEntrada = null;
-                            estatisticasDia.horaSaida = null;
-                            estatisticasDia.totalHoras = null;
-                            estatisticasDia.temSaida = false;
-                            console.log(`🚫 [GRADE] ${user.nome} - Dia ${dia}: SEM FICTÍCIOS - zero registos no mês ${mesSelecionado}/${anoSelecionado}`);
-                        }
-                    }
+    const pontosFicticios = gerarPontosFicticios(user.id, dia, isHoje, horaAtual);
+    Object.assign(estatisticasDia, pontosFicticios);
+    estatisticasDia.trabalhou = true;
+
+    if (pontosFicticios.temSaida) {
+      dadosUsuario.totalHorasMes += 8;
+      dadosUsuario.diasTrabalhados++;
+    } else {
+      dadosUsuario.diasTrabalhados += 0.5;
+    }
+  }
+}
+// SEM registos reais no dia -> **NADA de fictícios**
+else {
+  estatisticasDia.trabalhou   = false;
+  estatisticasDia.horaEntrada = null;
+  estatisticasDia.horaSaida   = null;
+  estatisticasDia.totalHoras  = null;
+  estatisticasDia.temSaida    = false;
+}
+
+                    
 
                     dadosUsuario.estatisticasDias[dia] = estatisticasDia;
                 }
@@ -1287,8 +1285,10 @@ const AnaliseComplotaPontos = () => {
                                                                         estatisticasDia.temFalta = false;
                                                                         // Se não há falta e não é fim de semana/futuro, 
                                                                         // regenerar dados de trabalho se necessário
-                                                                        if (!estatisticasDia.isWeekend && 
-                                                                            !estatisticasDia.isFutureDate && 
+                                                                        if (!estatisticasDia.isWeekend &&
+                                                                            !estatisticasDia.isFutureDate &&
+                                                                            !estatisticasDia.temFalta &&
+                                                                            estatisticasDia.temRegistosReais &&        // ✅ só se o DIA tem real
                                                                             !estatisticasDia.horaEntrada) {
                                                                             
                                                                             const hoje = new Date();
