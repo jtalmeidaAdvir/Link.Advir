@@ -11,6 +11,7 @@ import {
 import { Picker } from "@react-native-picker/picker";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as XLSX from 'xlsx';
 
 const AnaliseComplotaPontos = () => {
     const [loading, setLoading] = useState(false);
@@ -147,12 +148,12 @@ const AnaliseComplotaPontos = () => {
     useEffect(() => {
         console.log("🔄 [REFRESH] Detectada mudança nos filtros - recarregando dados...");
         console.log("🔄 [REFRESH] Obra:", obraSelecionada, "Mês:", mesSelecionado, "Ano:", anoSelecionado);
-        
+
         if (obraSelecionada) {
             // Limpar dados anteriores
             setDadosGrade([]);
             setFaltas([]);
-            
+
             // Recarregar com os novos filtros
             carregarDadosGrade();
         }
@@ -234,7 +235,7 @@ const AnaliseComplotaPontos = () => {
             const promises = utilizadores.map(async (user) => {
                 try {
                     console.log(`🔍 [FALTAS] Carregando faltas para ${user.nome} (ID: ${user.id})`);
-                    
+
                     // Primeiro, obter o codFuncionario do backend
                     console.log(`🔍 [FALTAS] Obtendo codFuncionario para userId: ${user.id}`);
                     const resCodFuncionario = await fetch(
@@ -281,18 +282,18 @@ const AnaliseComplotaPontos = () => {
                     if (res.ok) {
                         const data = await res.json();
                         const faltasUsuario = data?.DataSet?.Table || [];
-                        
+
                         if (faltasUsuario.length > 0) {
                             console.log(`✅ [FALTAS] ${user.nome}: ${faltasUsuario.length} faltas encontradas`);
                             console.log(`🔍 [FALTAS] Primeiras faltas de ${user.nome}:`, faltasUsuario.slice(0, 3));
-                            
+
                             const faltasComUserId = faltasUsuario.map((falta) => ({
                                 ...falta,
                                 userId: user.id,
                                 nomeUsuario: user.nome,
                                 codFuncionarioUsado: codFuncionario,
                             }));
-                            
+
                             return faltasComUserId;
                         } else {
                             console.log(`⚠️ [FALTAS] ${user.nome}: API retornou com sucesso mas sem faltas`);
@@ -301,7 +302,7 @@ const AnaliseComplotaPontos = () => {
                         const errorText = await res.text().catch(() => 'Erro desconhecido');
                         console.warn(`❌ [FALTAS] Erro ${res.status} para ${user.nome}: ${errorText}`);
                     }
-                    
+
                     return [];
                 } catch (error) {
                     console.error(
@@ -315,12 +316,12 @@ const AnaliseComplotaPontos = () => {
             const resultados = await Promise.all(promises);
             const faltasTotal = resultados.flat();
             console.log("✅ [FALTAS] Total de faltas carregadas:", faltasTotal.length);
-            
+
             if (faltasTotal.length > 0) {
                 console.log("🔍 [FALTAS] Primeiras faltas gerais:", faltasTotal.slice(0, 5));
                 console.log("🔍 [FALTAS] UserIds únicos nas faltas:", [...new Set(faltasTotal.map(f => f.userId))]);
             }
-            
+
             return faltasTotal;
         } catch (error) {
             console.error("❌ [FALTAS] Erro ao carregar faltas:", error);
@@ -396,10 +397,10 @@ const AnaliseComplotaPontos = () => {
         if (isHoje && horaAtual) {
             const [horaAtualH, horaAtualM] = horaAtual.split(':').map(Number);
             const [horaSaidaH, horaSaidaM] = horaSaida.split(':').map(Number);
-            
+
             const minutosAtuais = horaAtualH * 60 + horaAtualM;
             const minutosSaida = horaSaidaH * 60 + horaSaidaM;
-            
+
             mostrarSaida = minutosAtuais >= minutosSaida;
         }
 
@@ -426,57 +427,129 @@ const AnaliseComplotaPontos = () => {
             setFaltas(faltasData);
             console.log("✅ [GRADE] Faltas carregadas:", faltasData.length);
 
-            // 2) Obter dias com registos reais por utilizador (no período selecionado)
-            console.log("🔍 [GRADE] Etapa 2: Obtendo dias com registos...");
-            const diasComRegistosByUser =
-                await obterDiasComRegistosPorUtilizador(
-                    obraSelecionada,
-                    anoSelecionado,
-                    mesSelecionado,
-                    utilizadores,
-                );
-            console.log("✅ [GRADE] Dias com registos por utilizador:", diasComRegistosByUser);
+            // 2) Obter registos reais detalhados por utilizador no período selecionado
+            console.log("🔍 [GRADE] Etapa 2: Obtendo registos reais detalhados...");
+            const token = localStorage.getItem("loginToken");
+            const registosReaisDetalhados = {};
+
+            // Para cada utilizador, buscar os registos reais do mês
+            for (const user of utilizadores) {
+                try {
+                    const dataInicio = new Date(anoSelecionado, mesSelecionado - 1, 1);
+                    const dataFim = new Date(anoSelecionado, mesSelecionado, 0);
+                    const di = fmtLocal(dataInicio);
+                    const df = fmtLocal(dataFim);
+
+                    const url = new URL(
+                        `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo`,
+                    );
+
+                    url.searchParams.set("user_id", String(user.id));
+                    url.searchParams.set("userId", String(user.id));
+
+                    if (obraSelecionada) {
+                        url.searchParams.set("obra_id", String(obraSelecionada));
+                        url.searchParams.set("obraId", String(obraSelecionada));
+                    }
+
+                    url.searchParams.set("data_inicio", di);
+                    url.searchParams.set("data_fim", df);
+                    url.searchParams.set("dataInicio", di);
+                    url.searchParams.set("dataFim", df);
+
+                    const res = await fetch(url.toString(), {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+
+                    if (res.ok) {
+                        const registos = await res.json();
+                        const registosPorDia = {};
+
+                        // Agrupar registos por dia
+                        (Array.isArray(registos) ? registos : []).forEach((registro) => {
+                            const dataRegistro = new Date(
+                                registro.data ||
+                                registro.dataHora ||
+                                registro.createdAt ||
+                                registro.updatedAt,
+                            );
+                            
+                            if (!isNaN(dataRegistro)) {
+                                const dia = dataRegistro.getDate();
+                                if (!registosPorDia[dia]) {
+                                    registosPorDia[dia] = [];
+                                }
+                                registosPorDia[dia].push(registro);
+                            }
+                        });
+
+                        registosReaisDetalhados[user.id] = registosPorDia;
+                        console.log(`✅ [GRADE] ${user.nome}: ${Object.keys(registosPorDia).length} dias com registos`);
+                    } else {
+                        console.warn(`❌ [GRADE] Erro ao buscar registos para ${user.nome}: ${res.status}`);
+                        registosReaisDetalhados[user.id] = {};
+                    }
+                } catch (error) {
+                    console.error(`❌ [GRADE] Erro ao processar ${user.nome}:`, error);
+                    registosReaisDetalhados[user.id] = {};
+                }
+            }
 
             // 3) Filtrar faltas para o mês/ano selecionado
             console.log("🔍 [GRADE] Etapa 3: Filtrando faltas do mês...");
-            console.log("🔍 [GRADE] Mês selecionado:", mesSelecionado, "Ano selecionado:", anoSelecionado);
-            console.log("🔍 [GRADE] Total faltas antes do filtro:", faltasData.length);
-            
             const faltasDoMes = faltasData.filter((falta) => {
                 const dataFalta = new Date(falta.Data);
                 const mesData = dataFalta.getMonth() + 1;
                 const anoData = dataFalta.getFullYear();
-                const match = mesData === mesSelecionado && anoData === anoSelecionado;
-                
-                if (faltasData.indexOf(falta) < 5) { // Log das primeiras 5 faltas para debug
-                    console.log(`🔍 [GRADE] Falta ${faltasData.indexOf(falta)}:`, {
-                        data: falta.Data,
-                        mesData,
-                        anoData,
-                        userId: falta.userId,
-                        match
-                    });
-                }
-                
-                return match;
+                return mesData === mesSelecionado && anoData === anoSelecionado;
             });
-            console.log("✅ [GRADE] Faltas do mês filtradas:", faltasDoMes.length);
             
-            if (faltasDoMes.length > 0) {
-                console.log("🔍 [GRADE] Primeiras faltas do mês:", faltasDoMes.slice(0, 3));
-            }
+            console.log("✅ [GRADE] Faltas do mês filtradas:", faltasDoMes.length);
+            console.log("🔍 [GRADE] UserIds únicos nas faltas:", [...new Set(faltasDoMes.map(f => f.userId))]);
+            console.log("🔍 [GRADE] UserIds dos utilizadores:", utilizadores.map(u => u.id));
+            console.log("🔍 [GRADE] Primeiras faltas do mês:", faltasDoMes.slice(0, 3).map(f => ({
+                userId: f.userId,
+                nomeUsuario: f.nomeUsuario,
+                Data: f.Data,
+                Falta: f.Falta
+            })));
 
-            // 4) Construir a grelha apenas com fictícios nos dias com registos reais
-            const diasDoMes = new Date(
-                anoSelecionado,
-                mesSelecionado,
-                0,
-            ).getDate();
+            // 4) Construir a grelha com validação rigorosa
+            const diasDoMes = new Date(anoSelecionado, mesSelecionado, 0).getDate();
             const hoje = new Date();
             const dadosGradeTemp = [];
 
             utilizadores.forEach((user) => {
-                const diasReais = diasComRegistosByUser[user.id] || new Set();
+                const registosUsuario = registosReaisDetalhados[user.id] || {};
+                
+                // 🔍 STEP 1: Verificar se tem registos reais ESPECIFICAMENTE no período selecionado
+                const temRegistosReaisNoMes = Object.keys(registosUsuario).length > 0;
+                
+                // 🔍 STEP 2: Verificar se tem faltas ESPECIFICAMENTE no período selecionado
+                const faltasUsuarioNoMes = faltasDoMes.filter(falta => falta.userId === user.id);
+                const temFaltasNoMes = faltasUsuarioNoMes.length > 0;
+                
+                // 🚫 VALIDAÇÃO ULTRA-RIGOROSA: Se não tem registos E não tem faltas NO MÊS ESPECÍFICO, ignorar
+                if (!temRegistosReaisNoMes && !temFaltasNoMes) {
+                    console.log(`🚫 [GRADE] ${user.nome}: IGNORADO - zero atividade no período ${mesSelecionado}/${anoSelecionado}`);
+                    console.log(`🚫 [GRADE] ${user.nome}: - Registos no mês: ${temRegistosReaisNoMes ? 'SIM' : 'NÃO'}`);
+                    console.log(`🚫 [GRADE] ${user.nome}: - Faltas no mês: ${temFaltasNoMes ? 'SIM' : 'NÃO'}`);
+                    return; // 🚫 NÃO PROCESSAR este utilizador
+                }
+                
+                // ✅ Utilizador tem atividade real no período - vai ser processado
+                console.log(`✅ [GRADE] ${user.nome}: PROCESSANDO - tem atividade no período ${mesSelecionado}/${anoSelecionado}`);
+                console.log(`✅ [GRADE] ${user.nome}: - Registos no mês: ${temRegistosReaisNoMes ? 'SIM' : 'NÃO'} (${Object.keys(registosUsuario).length} dias)`);
+                console.log(`✅ [GRADE] ${user.nome}: - Faltas no mês: ${temFaltasNoMes ? 'SIM' : 'NÃO'} (${faltasUsuarioNoMes.length} faltas)`);
+                
+                if (temRegistosReaisNoMes && temFaltasNoMes) {
+                    console.log(`🔄 [GRADE] ${user.nome}: Tipo: REGISTOS + FALTAS`);
+                } else if (temRegistosReaisNoMes && !temFaltasNoMes) {
+                    console.log(`🔄 [GRADE] ${user.nome}: Tipo: APENAS REGISTOS`);
+                } else if (!temRegistosReaisNoMes && temFaltasNoMes) {
+                    console.log(`🔄 [GRADE] ${user.nome}: Tipo: APENAS FALTAS`);
+                }
+                
                 const dadosUsuario = {
                     utilizador: user,
                     estatisticasDias: {},
@@ -486,43 +559,20 @@ const AnaliseComplotaPontos = () => {
                 };
 
                 for (let dia = 1; dia <= diasDoMes; dia++) {
-                    const dataAtual = new Date(
-                        anoSelecionado,
-                        mesSelecionado - 1,
-                        dia,
-                    );
+                    const dataAtual = new Date(anoSelecionado, mesSelecionado - 1, dia);
                     const diaSemana = dataAtual.getDay();
                     const isWeekend = diaSemana === 0 || diaSemana === 6;
                     const isFutureDate = dataAtual > hoje;
 
+                    // Verificar faltas do dia
                     const faltasDoDia = faltasDoMes.filter((falta) => {
                         const df = new Date(falta.Data);
-                        const diaFalta = df.getDate();
-                        const userMatch = falta.userId === user.id;
-                        const diaMatch = diaFalta === dia;
-                        
-                        // Log detalhado para debug
-                        if (dia <= 5) {
-                            console.log(`🔍 [GRADE] Verificando falta para ${user.nome} (ID: ${user.id}) - Dia ${dia}:`);
-                            console.log(`   - Data falta: ${falta.Data} (dia ${diaFalta})`);
-                            console.log(`   - User match: ${userMatch} (falta.userId: ${falta.userId})`);
-                            console.log(`   - Dia match: ${diaMatch}`);
-                        }
-                        
-                        return userMatch && diaMatch;
+                        return df.getDate() === dia && falta.userId === user.id;
                     });
 
-                    // Log detalhado para os primeiros dias e quando há faltas
-                    if (dia <= 5 || faltasDoDia.length > 0) {
-                        console.log(`🔍 [GRADE] ${user.nome} - Dia ${dia}:`);
-                        console.log(`   - É fim de semana: ${isWeekend}`);
-                        console.log(`   - É futuro: ${isFutureDate}`);
-                        console.log(`   - Faltas do dia: ${faltasDoDia.length}`);
-                        console.log(`   - Tem registos: ${diasReais.has(dia)}`);
-                        if (faltasDoDia.length > 0) {
-                            console.log(`   - Faltas encontradas:`, faltasDoDia);
-                        }
-                    }
+                    // Verificar registos reais do dia
+                    const registosReaisDoDia = registosUsuario[dia] || [];
+                    const temRegistosReais = registosReaisDoDia.length > 0;
 
                     let estatisticasDia = {
                         dia,
@@ -532,53 +582,122 @@ const AnaliseComplotaPontos = () => {
                         faltas: faltasDoDia,
                         temFalta: faltasDoDia.length > 0,
                         trabalhou: false,
+                        registosReais: registosReaisDoDia,
+                        temRegistosReais,
                     };
 
-                    // Processar faltas primeiro - tem prioridade
+                    // Log para validação dos primeiros 5 dias
+                    if (dia <= 5) {
+                        console.log(`🔍 [GRADE] ${user.nome} - Dia ${dia}:`);
+                        console.log(`   - Fim de semana: ${isWeekend}`);
+                        console.log(`   - Futuro: ${isFutureDate}`);
+                        console.log(`   - Faltas: ${faltasDoDia.length}`);
+                        console.log(`   - Registos reais: ${registosReaisDoDia.length}`);
+                        console.log(`   - Detalhes registos:`, registosReaisDoDia.map(r => ({
+                            data: r.data || r.dataHora,
+                            tipo: r.tipo,
+                            hora: r.hora
+                        })));
+                    }
+
+                    // PRIORIDADE 1: Faltas (sempre prevalecem sobre qualquer registo)
                     if (faltasDoDia.length > 0) {
-                        console.log(`✅ [GRADE] ${user.nome} - Dia ${dia}: FALTA PROCESSADA`);
                         estatisticasDia.trabalhou = false;
                         estatisticasDia.temFalta = true;
+                        estatisticasDia.faltas = faltasDoDia;
                         dadosUsuario.faltasTotal++;
-                    } else if (
-                        !isWeekend &&
-                        !isFutureDate &&
-                        diasReais.has(dia)
-                    ) {
-                        // ✅ Só gerar fictício se:
-                        // - não é fim de semana
-                        // - não é futuro
-                        // - não tem falta
-                        // - E HOUVE MESMO REGISTO nesse dia (diasReais.has(dia))
                         
-                        // Verificar se é hoje e obter hora atual
-                        const isHoje = dataAtual.toDateString() === hoje.toDateString();
-                        const horaAtual = isHoje ? 
-                            `${String(hoje.getHours()).padStart(2, '0')}:${String(hoje.getMinutes()).padStart(2, '0')}` 
-                            : null;
+                        // 🔧 Limpar qualquer dado de trabalho se há falta
+                        estatisticasDia.horaEntrada = null;
+                        estatisticasDia.horaSaida = null;
+                        estatisticasDia.totalHoras = null;
+                        estatisticasDia.temSaida = false;
+                        
+                        console.log(`❌ [GRADE] ${user.nome} - Dia ${dia}: FALTA registada (${faltasDoDia.length} falta(s))`);
+                    }
+                    // PRIORIDADE 2: Registos reais existem
+                    else if (temRegistosReais && !isWeekend && !isFutureDate) {
+                        // Usar dados reais se disponíveis, senão gerar fictícios
+                        const entradas = registosReaisDoDia.filter(r => r.tipo === 'entrada');
+                        const saidas = registosReaisDoDia.filter(r => r.tipo === 'saida');
 
-                        const pontosFicticios = gerarPontosFicticios(
-                            user.id,
-                            dia,
-                            isHoje,
-                            horaAtual
-                        );
-                        estatisticasDia = {
-                            ...estatisticasDia,
-                            ...pontosFicticios,
-                            trabalhou: true,
-                        };
-                        
-                        if (dia <= 5) {
-                            console.log(`✅ [GRADE] ${user.nome} - Dia ${dia}: PONTO FICTÍCIO GERADO`);
-                        }
-                        
-                        // Só contar horas e dias se tiver saída
-                        if (pontosFicticios.temSaida) {
-                            dadosUsuario.totalHorasMes += 8;
-                            dadosUsuario.diasTrabalhados++;
+                        if (entradas.length > 0) {
+                            estatisticasDia.horaEntrada = entradas[0].hora || entradas[0].dataHora?.split('T')[1]?.substr(0, 5) || "08:00";
+                            
+                            if (saidas.length > 0) {
+                                estatisticasDia.horaSaida = saidas[saidas.length - 1].hora || saidas[saidas.length - 1].dataHora?.split('T')[1]?.substr(0, 5) || "17:00";
+                                estatisticasDia.totalHoras = 8.0;
+                                estatisticasDia.temSaida = true;
+                                dadosUsuario.totalHorasMes += 8;
+                                dadosUsuario.diasTrabalhados++;
+                            } else {
+                                // Só entrada, verificar se é hoje
+                                const isHoje = dataAtual.toDateString() === hoje.toDateString();
+                                if (isHoje) {
+                                    estatisticasDia.horaSaida = null;
+                                    estatisticasDia.temSaida = false;
+                                    dadosUsuario.diasTrabalhados += 0.5;
+                                } else {
+                                    // Dia passado sem saída - gerar saída fictícia
+                                    estatisticasDia.horaSaida = "17:00";
+                                    estatisticasDia.totalHoras = 8.0;
+                                    estatisticasDia.temSaida = true;
+                                    dadosUsuario.totalHorasMes += 8;
+                                    dadosUsuario.diasTrabalhados++;
+                                }
+                            }
+                            
+                            estatisticasDia.trabalhou = true;
+                            console.log(`✅ [GRADE] ${user.nome} - Dia ${dia}: DADOS REAIS/HÍBRIDOS`);
                         } else {
-                            dadosUsuario.diasTrabalhados += 0.5; // Meio dia se só tem entrada
+                            // Registos existem mas sem entrada clara - gerar fictício
+                            const isHoje = dataAtual.toDateString() === hoje.toDateString();
+                            const horaAtual = isHoje ? 
+                                `${String(hoje.getHours()).padStart(2, '0')}:${String(hoje.getMinutes()).padStart(2, '0')}` 
+                                : null;
+
+                            const pontosFicticios = gerarPontosFicticios(user.id, dia, isHoje, horaAtual);
+                            Object.assign(estatisticasDia, pontosFicticios);
+                            estatisticasDia.trabalhou = true;
+
+                            if (pontosFicticios.temSaida) {
+                                dadosUsuario.totalHorasMes += 8;
+                                dadosUsuario.diasTrabalhados++;
+                            } else {
+                                dadosUsuario.diasTrabalhados += 0.5;
+                            }
+                            console.log(`🔧 [GRADE] ${user.nome} - Dia ${dia}: FICTÍCIO (registos sem entrada clara)`);
+                        }
+                    }
+                    // PRIORIDADE 3: 🚫 REGRA RIGOROSA - SÓ gerar fictícios se tem registos reais NO MÊS
+                    else if (!isWeekend && !isFutureDate) {
+                        // 🚫 VALIDAÇÃO RIGOROSA: Só gera fictícios se tem registos reais NESTE mês específico
+                        if (temRegistosReaisNoMes) {
+                            // ✅ Utilizador tem registos reais no mês atual - pode ter fictícios
+                            const isHoje = dataAtual.toDateString() === hoje.toDateString();
+                            const horaAtual = isHoje ? 
+                                `${String(hoje.getHours()).padStart(2, '0')}:${String(hoje.getMinutes()).padStart(2, '0')}` 
+                                : null;
+
+                            const pontosFicticios = gerarPontosFicticios(user.id, dia, isHoje, horaAtual);
+                            Object.assign(estatisticasDia, pontosFicticios);
+                            estatisticasDia.trabalhou = true;
+
+                            if (pontosFicticios.temSaida) {
+                                dadosUsuario.totalHorasMes += 8;
+                                dadosUsuario.diasTrabalhados++;
+                            } else {
+                                dadosUsuario.diasTrabalhados += 0.5;
+                            }
+                            console.log(`🔧 [GRADE] ${user.nome} - Dia ${dia}: FICTÍCIO autorizado (tem ${Object.keys(registosUsuario).length} dias reais)`);
+                        } else {
+                            // 🚫 Sem registos reais no mês - NÃO gerar fictícios
+                            estatisticasDia.trabalhou = false;
+                            estatisticasDia.horaEntrada = null;
+                            estatisticasDia.horaSaida = null;
+                            estatisticasDia.totalHoras = null;
+                            estatisticasDia.temSaida = false;
+                            console.log(`🚫 [GRADE] ${user.nome} - Dia ${dia}: SEM FICTÍCIOS - zero registos no mês ${mesSelecionado}/${anoSelecionado}`);
                         }
                     }
 
@@ -589,17 +708,30 @@ const AnaliseComplotaPontos = () => {
             });
 
             console.log("✅ [GRADE] Grade final gerada com", dadosGradeTemp.length, "utilizadores");
-            
-            // Log do resumo final
+            console.log("✅ [GRADE] Utilizadores filtrados:", utilizadores.length - dadosGradeTemp.length, "utilizadores sem atividade no período");
+
+            // Validação final - verificar se algum utilizador sem atividade passou pela validação
             dadosGradeTemp.forEach((dadosUsuario) => {
-                const totalFaltasCalculadas = Object.values(dadosUsuario.estatisticasDias)
-                    .filter(dia => dia.temFalta).length;
+                const registosReaisUtilizador = registosReaisDetalhados[dadosUsuario.utilizador.id] || {};
+                const faltasUtilizador = faltasDoMes.filter(f => f.userId === dadosUsuario.utilizador.id);
                 
+                const totalDiasComRegistos = Object.keys(registosReaisUtilizador).length;
+                const totalFaltasNoMes = faltasUtilizador.length;
+                const totalDiasComPontosFicticios = Object.values(dadosUsuario.estatisticasDias)
+                    .filter(dia => dia.trabalhou && !dia.temRegistosReais && !dia.temFalta).length;
+
+                // 🚨 ALERTA: Se tem pontos fictícios mas não tem registos reais no mês
+                if (totalDiasComPontosFicticios > 0 && totalDiasComRegistos === 0 && totalFaltasNoMes === 0) {
+                    console.error(`🚨 [VALIDAÇÃO] ERRO: ${dadosUsuario.utilizador.nome} tem ${totalDiasComPontosFicticios} pontos fictícios mas ZERO atividade real no período!`);
+                }
+
                 console.log(`📊 [GRADE] ${dadosUsuario.utilizador.nome}:`);
-                console.log(`   - Total faltas: ${dadosUsuario.faltasTotal}`);
-                console.log(`   - Faltas calculadas: ${totalFaltasCalculadas}`);
+                console.log(`   - Dias com registos reais: ${totalDiasComRegistos}`);
+                console.log(`   - Dias com pontos fictícios: ${totalDiasComPontosFicticios}`);
+                console.log(`   - Total faltas: ${totalFaltasNoMes}`);
                 console.log(`   - Dias trabalhados: ${dadosUsuario.diasTrabalhados}`);
                 console.log(`   - Total horas: ${dadosUsuario.totalHorasMes}`);
+                console.log(`   - ✅ Validação: ${(totalDiasComRegistos > 0 || totalFaltasNoMes > 0) ? 'PASSOU' : '❌ FALHOU'}`);
             });
 
             setDadosGrade(dadosGradeTemp);
@@ -653,6 +785,221 @@ const AnaliseComplotaPontos = () => {
         }
 
         return "";
+    };
+
+    const exportarPicagensParaExcel = () => {
+        if (!dadosGrade.length) {
+            Alert.alert('Aviso', 'Não há dados para exportar');
+            return;
+        }
+
+        if (!obraSelecionada) {
+            Alert.alert('Aviso', 'Nenhuma obra selecionada');
+            return;
+        }
+
+        try {
+            const workbook = XLSX.utils.book_new();
+            const diasDoMes = new Date(anoSelecionado, mesSelecionado, 0).getDate();
+            const dias = Array.from({ length: diasDoMes }, (_, i) => i + 1);
+            const obraNome = obras.find(obra => obra.id.toString() === obraSelecionada)?.nome || 'Obra não encontrada';
+
+            // Criar dados para exportação em formato profissional
+            const dadosExport = [];
+
+            // ========== CABEÇALHO PRINCIPAL ==========
+            dadosExport.push(['RELATÓRIO DE ANÁLISE COMPLETA DE REGISTOS DE PONTO']);
+            dadosExport.push(['']);
+
+            // Informações do relatório
+            dadosExport.push(['📅 PERÍODO:', `${meses[mesSelecionado - 1]} de ${anoSelecionado}`]);
+            dadosExport.push(['🏢 OBRA:', obraNome]);
+            dadosExport.push(['👥 FUNCIONÁRIOS:', `${dadosGrade.length} utilizadores`]);
+            dadosExport.push(['📊 DATA GERAÇÃO:', new Date().toLocaleString('pt-PT')]);
+            dadosExport.push(['']);
+            dadosExport.push(['']);
+
+            // ========== LEGENDA DE CORES E SÍMBOLOS ==========
+            dadosExport.push(['📋 LEGENDA:']);
+            dadosExport.push(['', '✅ Registo Normal', '- Horário de entrada e saída']);
+            dadosExport.push(['', '❌ FALTA', '- Ausência registada']);
+            dadosExport.push(['', '📅 FDS', '- Fim de semana']);
+            dadosExport.push(['', '🔄 Em curso', '- Apenas entrada registada']);
+            dadosExport.push(['']);
+            dadosExport.push(['']);
+
+            // ========== CABEÇALHO DA TABELA DE DADOS ==========
+            const headerRow = ['FUNCIONÁRIO'];
+
+            // Adicionar dias do mês com dia da semana
+            dias.forEach(dia => {
+                const dataCompleta = new Date(anoSelecionado, mesSelecionado - 1, dia);
+                const diaSemana = dataCompleta.toLocaleDateString('pt-PT', { weekday: 'short' }).toUpperCase();
+                headerRow.push(`${dia}\n${diaSemana}`);
+            });
+
+            headerRow.push('TOTAL\nHORAS', 'DIAS\nTRABALHADOS', 'TOTAL\nFALTAS');
+            dadosExport.push(headerRow);
+
+            // ========== DADOS DOS FUNCIONÁRIOS ==========
+            dadosGrade.forEach((dadosUsuario, index) => {
+                const row = [dadosUsuario.utilizador.nome];
+
+                // Adicionar dados de cada dia
+                dias.forEach(dia => {
+                    const estatisticas = dadosUsuario.estatisticasDias[dia];
+                    let cellValue = '';
+
+                    if (estatisticas) {
+                        if (estatisticas.isWeekend) {
+                            cellValue = '📅 FDS';
+                        } else if (estatisticas.isFutureDate) {
+                            cellValue = '';
+                        } else if (estatisticas.temFalta) {
+                            cellValue = '❌ FALTA';
+                        } else if (estatisticas.trabalhou) {
+                            if (estatisticas.horaSaida) {
+                                cellValue = `✅ ${estatisticas.horaEntrada}\n${estatisticas.horaSaida}`;
+                            } else {
+                                cellValue = `🔄 ${estatisticas.horaEntrada}\nEm curso`;
+                            }
+                        } else {
+                            cellValue = '';
+                        }
+                    }
+
+                    row.push(cellValue);
+                });
+
+                // Adicionar totais com formatação
+                row.push(
+                    `${dadosUsuario.totalHorasMes}h`,
+                    `${dadosUsuario.diasTrabalhados} dias`,
+                    `${dadosUsuario.faltasTotal} faltas`
+                );
+
+                dadosExport.push(row);
+            });
+
+            // ========== LINHA DE SEPARAÇÃO ==========
+            const separatorRow = Array(headerRow.length).fill('═══════════');
+            dadosExport.push(separatorRow);
+
+            // ========== RESUMO ESTATÍSTICO ==========
+            const totalHorasTodos = dadosGrade.reduce((sum, user) => sum + user.totalHorasMes, 0);
+            const totalDiasTodos = dadosGrade.reduce((sum, user) => sum + user.diasTrabalhados, 0);
+            const totalFaltasTodos = dadosGrade.reduce((sum, user) => sum + user.faltasTotal, 0);
+            const mediaHorasPorFuncionario = (totalHorasTodos / dadosGrade.length).toFixed(1);
+            const mediaDiasPorFuncionario = (totalDiasTodos / dadosGrade.length).toFixed(1);
+
+            dadosExport.push(['📊 RESUMO ESTATÍSTICO']);
+            dadosExport.push(['']);
+
+            // Totais gerais
+            const resumoRow = Array(dias.length + 1).fill('');
+            resumoRow[0] = 'TOTAIS GERAIS:';
+            resumoRow[resumoRow.length - 3] = `${totalHorasTodos}h`;
+            resumoRow[resumoRow.length - 2] = `${totalDiasTodos} dias`;
+            resumoRow[resumoRow.length - 1] = `${totalFaltasTodos} faltas`;
+            dadosExport.push(resumoRow);
+
+            // Médias
+            const mediaRow = Array(dias.length + 1).fill('');
+            mediaRow[0] = 'MÉDIAS POR FUNCIONÁRIO:';
+            mediaRow[mediaRow.length - 3] = `${mediaHorasPorFuncionario}h`;
+            mediaRow[mediaRow.length - 2] = `${mediaDiasPorFuncionario} dias`;
+            mediaRow[mediaRow.length - 1] = `${(totalFaltasTodos / dadosGrade.length).toFixed(1)} faltas`;
+            dadosExport.push(mediaRow);
+
+            dadosExport.push(['']);
+
+            // ========== ANÁLISE POR CATEGORIA ==========
+            dadosExport.push(['📈 ANÁLISE DETALHADA:']);
+
+            const funcionariosComMaisFaltas = dadosGrade
+                .filter(user => user.faltasTotal > 0)
+                .sort((a, b) => b.faltasTotal - a.faltasTotal)
+                .slice(0, 5);
+
+            if (funcionariosComMaisFaltas.length > 0) {
+                dadosExport.push(['']);
+                dadosExport.push(['🚨 TOP 5 - FUNCIONÁRIOS COM MAIS FALTAS:']);
+                funcionariosComMaisFaltas.forEach((user, index) => {
+                    dadosExport.push([`${index + 1}. ${user.utilizador.nome}`, '', '', '', `${user.faltasTotal} faltas`]);
+                });
+            }
+
+            const funcionariosComMaisHoras = dadosGrade
+                .sort((a, b) => b.totalHorasMes - a.totalHorasMes)
+                .slice(0, 5);
+
+            dadosExport.push(['']);
+            dadosExport.push(['⭐ TOP 5 - FUNCIONÁRIOS COM MAIS HORAS:']);
+            funcionariosComMaisHoras.forEach((user, index) => {
+                dadosExport.push([`${index + 1}. ${user.utilizador.nome}`, '', '', '', `${user.totalHorasMes}h`]);
+            });
+
+            // ========== CRIAR E FORMATAR PLANILHA ==========
+            const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
+
+            // Definir larguras das colunas otimizadas
+            const colWidths = [{ wch: 25 }]; // Nome do funcionário mais largo
+            dias.forEach(() => colWidths.push({ wch: 14 })); // Dias com espaço para duas linhas
+            colWidths.push({ wch: 12 }, { wch: 15 }, { wch: 12 }); // Totais
+
+            worksheet['!cols'] = colWidths;
+
+            // Definir altura das linhas para melhor visualização
+            const rowHeights = dadosExport.map((row, index) => {
+                if (index === 0) return { hpt: 25 }; // Título principal
+                if (index >= 12 && index < 12 + dadosGrade.length + 1) return { hpt: 35 }; // Linhas de dados
+                return { hpt: 20 }; // Outras linhas
+            });
+            worksheet['!rows'] = rowHeights;
+
+            // Adicionar planilha ao workbook
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Análise Completa');
+
+            // ========== CRIAR PLANILHA DE RESUMO EXECUTIVO ==========
+            const resumoExecutivo = [
+                ['RESUMO EXECUTIVO - ASSIDUIDADE'],
+                [''],
+                ['OBRA:', obraNome],
+                ['PERÍODO:', `${meses[mesSelecionado - 1]} ${anoSelecionado}`],
+                [''],
+                ['INDICADORES PRINCIPAIS:'],
+                [''],
+                ['👥 Total de Funcionários:', dadosGrade.length],
+                ['⏰ Total de Horas Trabalhadas:', `${totalHorasTodos}h`],
+                ['📅 Total de Dias Trabalhados:', totalDiasTodos],
+                ['❌ Total de Faltas:', totalFaltasTodos],
+                [''],
+                ['MÉDIAS:'],
+                [''],
+                ['⏰ Horas por Funcionário:', `${mediaHorasPorFuncionario}h`],
+                ['📅 Dias por Funcionário:', `${mediaDiasPorFuncionario} dias`],
+                ['❌ Faltas por Funcionário:', `${(totalFaltasTodos / dadosGrade.length).toFixed(1)}`],
+                [''],
+                ['TAXA DE ASSIDUIDADE:'],
+                [''],
+                ['🎯 Taxa Geral:', `${(((totalDiasTodos / (dadosGrade.length * diasDoMes)) * 100) || 0).toFixed(1)}%`],
+            ];
+
+            const worksheetResumo = XLSX.utils.aoa_to_sheet(resumoExecutivo);
+            worksheetResumo['!cols'] = [{ wch: 30 }, { wch: 20 }];
+            XLSX.utils.book_append_sheet(workbook, worksheetResumo, 'Resumo Executivo');
+
+            // Salvar arquivo com nome mais descritivo
+            const dataAtual = new Date().toISOString().split('T')[0];
+            const fileName = `Analise_Completa_Registos_${obraNome.replace(/[^a-zA-Z0-9]/g, '_')}_${meses[mesSelecionado - 1]}_${anoSelecionado}_${dataAtual}.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+
+            Alert.alert('✅ Exportação Concluída', 
+                `Relatório completo exportado com sucesso!\n\n📁 Arquivo: ${fileName}\n📊 ${dadosGrade.length} funcionários analisados\n⏰ ${totalHorasTodos}h totais registadas`);
+        } catch (error) {
+            console.error('Erro ao exportar para Excel:', error);
+            Alert.alert('❌ Erro na Exportação', 'Ocorreu um erro ao gerar o relatório Excel. Tente novamente.');
+        }
     };
 
     const renderGradeHeader = () => {
@@ -865,10 +1212,170 @@ const AnaliseComplotaPontos = () => {
                     </View>
                 ) : dadosGrade.length > 0 ? (
                     <View style={styles.gradeCard}>
-                        <Text style={styles.gradeTitle}>
-                            Grade Mensal - {meses[mesSelecionado - 1]}{" "}
-                            {anoSelecionado} ({dadosGrade.length} utilizadores)
-                        </Text>
+                        <View style={styles.gradeHeader}>
+                            <Text style={styles.gradeTitle}>
+                                Grade Mensal - {meses[mesSelecionado - 1]}{" "}
+                                {anoSelecionado} ({dadosGrade.length} utilizadores)
+                            </Text>
+                            <View style={styles.buttonGroup}>
+                                <TouchableOpacity
+                                    style={styles.refreshButton}
+                                    onPress={() => {
+                                        if (!obraSelecionada) {
+                                            Alert.alert('Aviso', 'Selecione uma obra primeiro');
+                                            return;
+                                        }
+
+                                        Alert.alert(
+                                            'Atualizar Dados',
+                                            'Deseja recarregar apenas as faltas ou todos os dados?',
+                                            [
+                                                {
+                                                    text: 'Cancelar',
+                                                    style: 'cancel'
+                                                },
+                                                {
+                                                    text: 'Apenas Faltas',
+                                                    onPress: async () => {
+                                                        setLoading(true);
+                                                        try {
+                                                            console.log("🔄 [REFRESH] Recarregando apenas faltas...");
+                                                            const novasFaltas = await carregarFaltas();
+                                                            setFaltas(novasFaltas);
+                                                            
+                                                            // Filtrar faltas do mês atual
+                                                            const faltasDoMes = novasFaltas.filter((falta) => {
+                                                                const dataFalta = new Date(falta.Data);
+                                                                const mesData = dataFalta.getMonth() + 1;
+                                                                const anoData = dataFalta.getFullYear();
+                                                                return mesData === mesSelecionado && anoData === anoSelecionado;
+                                                            });
+
+                                                            // Reprocessar dados da grade com as novas faltas
+                                                            const dadosAtualizados = dadosGrade.map(dadosUsuario => {
+                                                                let novosDados = { ...dadosUsuario };
+                                                                novosDados.faltasTotal = 0;
+                                                                
+                                                                // Filtrar faltas para este usuário
+                                                                const faltasUsuario = faltasDoMes.filter(falta => 
+                                                                    falta.userId === dadosUsuario.utilizador.id
+                                                                );
+                                                                
+                                                                // Atualizar cada dia
+                                                                Object.keys(novosDados.estatisticasDias).forEach(dia => {
+                                                                    const diaNum = parseInt(dia);
+                                                                    const faltasDoDia = faltasUsuario.filter(falta => {
+                                                                        const dataFalta = new Date(falta.Data);
+                                                                        return dataFalta.getDate() === diaNum;
+                                                                    });
+                                                                    
+                                                                    // Atualizar estatísticas do dia
+                                                                    const estatisticasDia = { ...novosDados.estatisticasDias[dia] };
+                                                                    
+                                                                    if (faltasDoDia.length > 0) {
+                                                                        estatisticasDia.faltas = faltasDoDia;
+                                                                        estatisticasDia.temFalta = true;
+                                                                        estatisticasDia.trabalhou = false;
+                                                                        // Limpar dados de trabalho se há falta
+                                                                        estatisticasDia.horaEntrada = null;
+                                                                        estatisticasDia.horaSaida = null;
+                                                                        estatisticasDia.totalHoras = null;
+                                                                        novosDados.faltasTotal++;
+                                                                    } else {
+                                                                        estatisticasDia.faltas = [];
+                                                                        estatisticasDia.temFalta = false;
+                                                                        // Se não há falta e não é fim de semana/futuro, 
+                                                                        // regenerar dados de trabalho se necessário
+                                                                        if (!estatisticasDia.isWeekend && 
+                                                                            !estatisticasDia.isFutureDate && 
+                                                                            !estatisticasDia.horaEntrada) {
+                                                                            
+                                                                            const hoje = new Date();
+                                                                            const dataAtual = new Date(anoSelecionado, mesSelecionado - 1, diaNum);
+                                                                            const isHoje = dataAtual.toDateString() === hoje.toDateString();
+                                                                            const horaAtual = isHoje ? 
+                                                                                `${String(hoje.getHours()).padStart(2, '0')}:${String(hoje.getMinutes()).padStart(2, '0')}` 
+                                                                                : null;
+
+                                                                            const pontosFicticios = gerarPontosFicticios(
+                                                                                dadosUsuario.utilizador.id,
+                                                                                diaNum,
+                                                                                isHoje,
+                                                                                horaAtual
+                                                                            );
+                                                                            
+                                                                            Object.assign(estatisticasDia, pontosFicticios);
+                                                                            estatisticasDia.trabalhou = true;
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    novosDados.estatisticasDias[dia] = estatisticasDia;
+                                                                });
+                                                                
+                                                                return novosDados;
+                                                            });
+                                                            
+                                                            setDadosGrade(dadosAtualizados);
+                                                            Alert.alert('✅ Sucesso', 'Faltas atualizadas com sucesso!');
+                                                        } catch (error) {
+                                                            console.error("❌ Erro ao recarregar faltas:", error);
+                                                            Alert.alert('❌ Erro', 'Erro ao recarregar faltas. Tente novamente.');
+                                                        } finally {
+                                                            setLoading(false);
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    text: 'Todos os Dados',
+                                                    onPress: () => {
+                                                        console.log("🔄 [REFRESH] Recarregando todos os dados...");
+                                                        carregarDadosGrade();
+                                                    }
+                                                }
+                                            ]
+                                        );
+                                    }}
+                                    disabled={loading || !obraSelecionada}
+                                >
+                                    <LinearGradient
+                                        colors={["#007bff", "#0056b3"]}
+                                        style={styles.refreshButtonGradient}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                    >
+                                        <MaterialCommunityIcons 
+                                            name={loading ? "loading" : "refresh"} 
+                                            size={18} 
+                                            color="#fff" 
+                                        />
+                                        <Text style={styles.refreshButtonText}>
+                                            Atualizar
+                                        </Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity
+                                    style={styles.exportButton}
+                                    onPress={exportarPicagensParaExcel}
+                                >
+                                    <LinearGradient
+                                        colors={["#28a745", "#20c997"]}
+                                        style={styles.exportButtonGradient}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                    >
+                                        <MaterialCommunityIcons 
+                                            name="file-excel" 
+                                            size={20} 
+                                            color="#fff" 
+                                        />
+                                        <Text style={styles.exportButtonText}>
+                                            Exportar Excel
+                                        </Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
 
                         <ScrollView
                             horizontal
@@ -1022,12 +1529,57 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 3,
     },
+    gradeHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 16,
+        flexWrap: "wrap",
+    },
     gradeTitle: {
         fontSize: 16,
         fontWeight: "bold",
         color: "#333",
-        marginBottom: 16,
+        flex: 1,
         textAlign: "center",
+        minWidth: 200,
+    },
+    buttonGroup: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    refreshButton: {
+        borderRadius: 8,
+        overflow: "hidden",
+        marginRight: 8,
+    },
+    refreshButtonGradient: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    refreshButtonText: {
+        color: "#fff",
+        fontWeight: "bold",
+        fontSize: 12,
+        marginLeft: 6,
+    },
+    exportButton: {
+        borderRadius: 8,
+        overflow: "hidden",
+    },
+    exportButtonGradient: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+    },
+    exportButtonText: {
+        color: "#fff",
+        fontWeight: "bold",
+        fontSize: 14,
+        marginLeft: 8,
     },
     gradeContainer: {
         minWidth: 800,

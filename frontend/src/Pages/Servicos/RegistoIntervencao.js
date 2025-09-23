@@ -930,6 +930,12 @@ const fetchEmailTecnico = async (tecnicoId) => {
                     } catch (contactoError) {
                         console.warn("⚠️ Erro ao buscar email do contacto:", contactoError.message);
                     }
+
+
+
+
+
+                    
                     try {
                         // Buscar informações do contrato antes de enviar o email
                         let contratoInfo = null;
