@@ -664,14 +664,19 @@ const CalendarioHorasTrabalho = () => {
 
         const operacao = modoEdicaoFerias ? 'EDITAR' : 'CRIAR';
 
+        // Converter datas para formato ISO completo
+        const dataInicioISO = new Date(dataInicio + 'T00:00:00.000Z').toISOString();
+        const dataFimISO = new Date(dataFim + 'T00:00:00.000Z').toISOString();
+        const dataPedidoISO = new Date(dataInicio + 'T00:00:00.000Z').toISOString();
+
         const dados = {
             tipoPedido: 'FERIAS',
             operacao,
             funcionario: funcionarioId,
             empresaId: empresaId,
-            dataInicio,
-            dataFim,
-            dataPedido: dataInicio,
+            dataInicio: dataInicioISO,
+            dataFim: dataFimISO,
+            dataPedido: dataPedidoISO,
             horas: Horas ? 1 : 0,
             tempo: Tempo,
             justificacao: Observacoes,
@@ -1170,6 +1175,7 @@ const CalendarioHorasTrabalho = () => {
         const empresaId = localStorage.getItem('empresa_id');
 
         const dataISO = toLocalISODate(dataFeria);
+        const dataCompleta = new Date(dataISO + 'T00:00:00.000Z').toISOString();
 
         const justificacao = window.prompt(`Justificação para cancelar a férias de ${dataISO}:`, '') || '';
 
@@ -1186,9 +1192,9 @@ const CalendarioHorasTrabalho = () => {
                     operacao: 'CANCELAR',
                     funcionario,
                     empresaId: empresaId,
-                    dataPedido: dataISO,
-                    dataInicio: dataISO,
-                    dataFim: dataISO,
+                    dataPedido: dataCompleta,
+                    dataInicio: dataCompleta,
+                    dataFim: dataCompleta,
                     horas: 0,
                     tempo: 1,
                     justificacao,
