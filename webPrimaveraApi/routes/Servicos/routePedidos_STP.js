@@ -1234,10 +1234,12 @@ router.post('/CriarContacto', async (req, res) => {
 
         // Dados do corpo da request
         const {
+            contacto,
             nome,
             email,
             entidade,
-            tipoEntidade
+            tipoEntidade,
+            
         } = req.body;
 
         // Validações simples (ajusta conforme necessário)
@@ -1252,10 +1254,12 @@ router.post('/CriarContacto', async (req, res) => {
         const requestData = {
             // Mantém a mesma convenção camelCase que usaste no CriarPedido
             // (o model binder do ASP.NET trata case-insensitivamente)
+            contacto,
             nome,
             email,
             entidade: entidade || null,
-            tipoEntidade: tipoEntidade || null
+            tipoEntidade: tipoEntidade || null,
+            
         };
 
         console.log('Enviando solicitação para a URL:', apiUrl);
