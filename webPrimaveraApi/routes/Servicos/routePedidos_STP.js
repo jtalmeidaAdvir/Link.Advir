@@ -1217,6 +1217,81 @@ router.post('/CriarPedido', async (req, res) => {
     }
 });
 
+// Rota para criar um contacto
+router.post('/CriarContacto', async (req, res) => {
+    try {
+        // Token do painel (Authorization: Bearer xxx)
+        const painelAdminToken = req.headers['authorization']?.split(' ')[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
+        }
+
+        // URL da empresa
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+        }
+
+        // Dados do corpo da request
+        const {
+            nome,
+            email,
+            entidade,
+            tipoEntidade
+        } = req.body;
+
+        // Validações simples (ajusta conforme necessário)
+        if (!email || !nome) {
+            return res.status(400).json({ error: 'Campos obrigatórios em falta: nome e/ou email.' });
+        }
+
+        // Endpoint da API interna (C#)
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/CriarContacto`;
+
+        // Payload para a API C#
+        const requestData = {
+            // Mantém a mesma convenção camelCase que usaste no CriarPedido
+            // (o model binder do ASP.NET trata case-insensitivamente)
+            nome,
+            email,
+            entidade: entidade || null,
+            tipoEntidade: tipoEntidade || null
+        };
+
+        console.log('Enviando solicitação para a URL:', apiUrl);
+        console.log('Dados a enviar:', requestData);
+
+        // Chamada à API C#
+        const response = await axios.post(apiUrl, requestData, {
+            headers: {
+                'Authorization': `Bearer ${painelAdminToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            }
+        });
+
+        if (response.status === 200) {
+            // OK devolvido pelo teu controller: "Contacto criado com sucesso."
+            return res.status(200).json(response.data);
+        } else if (response.status === 404) {
+            return res.status(404).json({ error: 'Entidade não encontrada.' });
+        } else {
+            return res.status(response.status).json({
+                error: 'Falha ao criar contacto.',
+                details: response.data?.ErrorMessage || response.data
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao criar contacto:', error.response ? error.response.data : error.message);
+        return res.status(500).json({
+            error: 'Erro inesperado ao criar contacto',
+            details: error.response?.data || error.message
+        });
+    }
+});
+
+
+
 
 router.post('/CriarIntervencoes', async (req, res) => {
     try {

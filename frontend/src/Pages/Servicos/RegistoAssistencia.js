@@ -110,6 +110,109 @@ const RegistoAssistencia = (props) => {
     const [contratoSelecionado, setContratoSelecionado] = useState(null);
     const [contratoExpandido, setContratoExpandido] = useState(false);
 
+
+    // --- Estado do modal de novo contacto ---
+const [showNovoContacto, setShowNovoContacto] = useState(false);
+const [novoContacto, setNovoContacto] = useState({
+  nome: "",
+  email: "",
+  entidade: "",     // por norma = cliente selecionado
+  tipoEntidade: "C" // C=Cliente, F=Fornecedor, etc. ajusta se precisares
+});
+
+// Helper para buscar contactos do cliente (reutilizável)
+const fetchContactosByCliente = async (clienteCod) => {
+  if (!clienteCod) return [];
+  try {
+    const contactosRes = await fetch(
+      `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${clienteCod}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          urlempresa: urlempresa,
+        },
+      }
+    );
+    const contactosData = await contactosRes.json();
+    const contactos = contactosData?.DataSet?.Table || [];
+    setDataLists((prev) => ({ ...prev, contactos }));
+    return contactos;
+  } catch (error) {
+    console.error("Erro ao buscar contactos:", error);
+    return [];
+  }
+};
+
+// Abrir modal já com entidade preenchida
+const abrirModalNovoContacto = () => {
+  if (!formData.cliente) {
+    alert("Selecione primeiro o cliente.");
+    return;
+  }
+  setNovoContacto({
+    nome: "",
+    email: "",
+    entidade: formData.cliente,
+    tipoEntidade: "C",
+  });
+  setShowNovoContacto(true);
+};
+
+const fecharModalNovoContacto = () => setShowNovoContacto(false);
+
+// Criar contacto -> chama o teu proxy e atualiza combo
+const criarNovoContacto = async (e) => {
+  e?.preventDefault?.();
+  if (!novoContacto.nome || !novoContacto.email) {
+    alert("Preencha Nome e Email.");
+    return;
+  }
+  try {
+    const resp = await fetch(
+      `https://webapiprimavera.advir.pt/routePedidos_STP/CriarContacto`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          urlempresa: urlempresa,
+        },
+        body: JSON.stringify({
+          nome: novoContacto.nome,
+          email: novoContacto.email,
+          entidade: novoContacto.entidade || formData.cliente,
+          tipoEntidade: novoContacto.tipoEntidade || "C",
+        }),
+      }
+    );
+
+    if (!resp.ok) {
+      const txt = await resp.text();
+      throw new Error(txt || `Falha ao criar contacto (${resp.status})`);
+    }
+
+    // Refresca lista e seleciona o novo (pelo email)
+    const lista = await fetchContactosByCliente(formData.cliente);
+    const recemCriado =
+      lista.find((c) => String(c.Email).toLowerCase() === novoContacto.email.toLowerCase()) ||
+      lista[0];
+
+    setFormData((prev) => ({
+      ...prev,
+      contacto: recemCriado?.Contacto || prev.contacto
+    }));
+
+    setShowNovoContacto(false);
+  } catch (err) {
+    console.error("Erro ao criar contacto:", err);
+    alert(`Erro ao criar contacto: ${err.message}`);
+  }
+};
+
+
+
     // Atualizar handleChange
     const handleFormChange = (e) => {
         const { name, value } = e.target;
@@ -624,42 +727,51 @@ const RegistoAssistencia = (props) => {
 
                                 <div style={formRowStyle}>
                                     <div style={formGroupStyle}>
-                                        <label style={labelStyle}>
-                                            {t(
-                                                "RegistoAssistencia.TxtContacto",
-                                            )}
-                                        </label>
-                                        <select
-                                            name="contacto"
-                                            value={formData.contacto}
-                                            onChange={handleChange}
-                                            onClick={() =>
-                                                fetchData(
-                                                    `routePedidos_STP/ListarContactos/${formData.cliente}`,
-                                                    "contactos",
-                                                    "carregandoContactos",
-                                                )
-                                            }
-                                            style={selectStyle}
-                                            disabled={!formData.cliente}
-                                        >
-                                            <option value="">
-                                                {t(
-                                                    "RegistoAssistencia.TxtContacto",
-                                                )}
-                                            </option>
-                                            {dataLists.contactos.map((co) => (
-                                                <option
-                                                    key={co.Contacto}
-                                                    value={co.Contacto}
-                                                >
-                                                    {co.Contacto} -{" "}
-                                                    {co.PrimeiroNome}{" "}
-                                                    {co.UltimoNome}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
+  <label style={labelStyle}>{t("RegistoAssistencia.TxtContacto")}</label>
+
+  {/* Wrapper para o select + botão + */}
+  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+    <select
+      name="contacto"
+      value={formData.contacto}
+      onChange={handleChange}
+      onClick={() =>
+        fetchContactosByCliente(formData.cliente)
+      }
+      style={{ ...selectStyle, flex: 1 }}
+      disabled={!formData.cliente}
+    >
+      <option value="">{t("RegistoAssistencia.TxtContacto")}</option>
+      {dataLists.contactos.map((co) => (
+        <option key={co.Contacto} value={co.Contacto}>
+          {co.Contacto} - {co.PrimeiroNome} {co.UltimoNome}
+        </option>
+      ))}
+    </select>
+
+    {/* Botão + para criar novo contacto */}
+    <button
+      type="button"
+      title="Criar novo contacto"
+      onClick={abrirModalNovoContacto}
+      disabled={!formData.cliente}
+      style={{
+        width: 42,
+        height: 42,
+        borderRadius: 8,
+        border: "1px solid #ddd",
+        background: "#1792FE",
+        color: "#fff",
+        fontSize: 24,
+        lineHeight: "0",
+        cursor: "pointer",
+      }}
+    >
+      +
+    </button>
+  </div>
+</div>
+
 
                                     <div style={formGroupStyle}>
                                         <label style={labelStyle}>
@@ -1456,6 +1568,69 @@ const RegistoAssistencia = (props) => {
                     </div>
                 </div>
             </div>
+            {showNovoContacto && (
+  <div style={{
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)",
+    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999
+  }}>
+    <div style={{
+      width: "95%", maxWidth: 520, background: "#fff", borderRadius: 12,
+      boxShadow: "0 10px 25px rgba(0,0,0,0.2)", padding: 20
+    }}>
+      <h3 style={{ marginTop: 0, color: "#1792FE" }}>Novo Contacto</h3>
+      <form onSubmit={criarNovoContacto}>
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Nome</label>
+          <input
+            type="text"
+            value={novoContacto.nome}
+            onChange={(e) => setNovoContacto((p) => ({ ...p, nome: e.target.value }))}
+            style={inputStyle}
+            required
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Email</label>
+          <input
+            type="email"
+            value={novoContacto.email}
+            onChange={(e) => setNovoContacto((p) => ({ ...p, email: e.target.value }))}
+            style={inputStyle}
+            required
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Entidade</label>
+          <input
+            type="text"
+            value={novoContacto.entidade}
+            onChange={(e) => setNovoContacto((p) => ({ ...p, entidade: e.target.value }))}
+            style={inputStyle}
+            placeholder="(por defeito usa o cliente selecionado)"
+          />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>Tipo Entidade</label>
+          <select
+            value={novoContacto.tipoEntidade}
+            onChange={(e) => setNovoContacto((p) => ({ ...p, tipoEntidade: e.target.value }))}
+            style={selectStyle}
+          >
+            <option value="C">Cliente</option>
+            <option value="F">Fornecedor</option>
+            <option value="O">Outro</option>
+          </select>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button type="button" onClick={fecharModalNovoContacto} style={backButtonStyle}>Cancelar</button>
+          <button type="submit" style={submitButtonStyle}>Criar Contacto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
         </div>
     );
 };
@@ -1820,5 +1995,7 @@ const expandIconStyle = {
     fontSize: "1.2rem",
     cursor: "pointer",
 };
+
+
 
 export default RegistoAssistencia;
