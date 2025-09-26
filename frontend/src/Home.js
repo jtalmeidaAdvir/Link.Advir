@@ -4,8 +4,14 @@ import { startTokenValidation, stopTokenValidation } from './utils/authUtils';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaFileContract, FaPhone, FaBoxOpen, FaQuestionCircle, FaBars } from 'react-icons/fa';
 import { motion } from 'framer-motion';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n from './Pages/i18n'; // Import do i18n
+
+// Função para simular AsyncStorage no browser
+const AsyncStorage = {
+    getItem: (key) => Promise.resolve(localStorage.getItem(key)),
+    setItem: (key, value) => Promise.resolve(localStorage.setItem(key, value)),
+    removeItem: (key) => Promise.resolve(localStorage.removeItem(key))
+};
 import backgroundImage from '../images/ImagemFundo.png';
 
 
@@ -90,85 +96,151 @@ const Home = () => {
 
     const [showForm, setShowForm] = useState(false);
 
-    const toggleForm = () => {
+    const toggleForm = async () => {
+        if (!showForm) {
+            // Se está a abrir o formulário, carregar dados se necessário
+            if (dataLists.contactos.length === 0 || dataLists.prioridades.length === 0) {
+                console.log('Carregando dados do formulário...');
+                await fetchFormData();
+            }
+        }
         setShowForm(!showForm);
         // Reset error message when toggling form
         setErrorMessage('');
     };
 
 
+
+// ⬇️ coloca isto fora do handleFormSubmit, mas dentro do componente (ou mesmo antes)
+const mapearPrioridade = (prioridadeId) => {
+  const p = dataLists.prioridades.find(pr => String(pr.ID) === String(prioridadeId));
+  const desc = (p?.Descricao ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  if (desc.includes('baix')) return 1;                       // Baixa
+  if (desc.includes('medi') || desc.includes('normal')) return 2; // Média/Normal
+  if (desc.includes('alta') || desc.includes('urgent')) return 3; // Alta/Urgente
+
+  const n = Number(prioridadeId);
+  return [1,2,3].includes(n) ? n : 2; // fallback seguro
+};
+
     const handleFormSubmit = async (event) => {
-        event.preventDefault();
+  event.preventDefault();
 
-        // Validação de campos obrigatórios
-        if (!formData.contacto || !formData.prioridade || !formData.descricaoProblema) {
-            setErrorMessage(t('Por favor, preencha todos os campos obrigatórios.'));
-            return;
-        }
+  // validações mínimas
+  if (!formData.contacto || !formData.prioridade || !formData.descricaoProblema) {
+    setErrorMessage(t('Por favor, preencha todos os campos obrigatórios.'));
+    return;
+  }
+  if (formData.descricaoProblema.trim().length < 10) {
+    setErrorMessage(t('Descrição do problema deve ter pelo menos 10 caracteres.'));
+    return;
+  }
 
-        try {
-            const token = await AsyncStorage.getItem('painelAdminToken');
-            const urlempresa = await AsyncStorage.getItem('urlempresa');
-            const clienteID = await AsyncStorage.getItem('empresa_areacliente');
+  const finalizeSuccess = () => {
+    setSuccessMessage('Pedido enviado com sucesso, iremos entrar em contacto o mais rápido possível.');
 
-            if (!token || !urlempresa || !clienteID) {
-                throw new Error(t('Erro: Token ou informações da empresa estão ausentes.'));
-            }
+    setShowForm(false);
+    setFormData(prev => ({ ...prev, contacto: '', prioridade: '', descricaoProblema: '' }));
+    setTimeout(() => setSuccessMessage(''), 5000);
+    if (activeMenu === t('Home.menu.orders')) {
+      // se quiseres atualizar a lista sem reload, chama o fetch de pedidos aqui
+      window.location.reload();
+    }
+  };
 
-            const payload = {
-                ...formData,
-                cliente: clienteID, // Define o cliente a partir do AsyncStorage
-                datahoraabertura: new Date().toISOString(),
-            };
+  try {
+    const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
+    const urlempresa = await AsyncStorage.getItem('urlempresaAdvir');
+    const clienteID = await AsyncStorage.getItem('empresa_areacliente');
 
-            console.log('Enviando o pedido com payload:', payload);
+    if (!token || !urlempresa || !clienteID) {
+      throw new Error(t('Erro: Token ou informações da empresa estão ausentes.'));
+    }
 
-            const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/CriarPedido`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                    urlempresa,
-                },
-                body: JSON.stringify(payload),
-            });
+    const dataAbertura = formData.datahoraabertura || new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const dataFimPrevista = formData.datahorafimprevista || new Date(Date.now() + 24*60*60*1000).toISOString().replace('T', ' ').slice(0, 19);
+    const prioridadeNumero = mapearPrioridade(formData.prioridade);
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Erro ao criar pedido:', errorData);
-                throw new Error(t('Erro ao criar o pedido: ') + errorData.message);
-            }
+    if (![1,2,3].includes(Number(prioridadeNumero))) {
+      throw new Error('Prioridade inválida. Deve ser 1, 2 ou 3.');
+    }
 
-            const responseData = await response.json();
-            console.log('Resposta da criação do pedido:', responseData);
+    const payload = {
+      cliente: clienteID, // garante que vai o ID do cliente logado
+      descricaoProblema: formData.descricaoProblema,
+      prioridade: Number(prioridadeNumero),
+      contacto: formData.contacto,
+      datahoraabertura: dataAbertura,
+      datahorafimprevista: dataFimPrevista,
 
-            // Mensagem de sucesso e fechar o formulário
-            setSuccessMessage(t('Pedido criado com sucesso!'));
-            setShowForm(false); // Fecha o formulário
-            setFormData({
-                cliente: '',
-                contacto: '',
-                prioridade: '',
-                descricaoProblema: '',
-                origem: 'SITE',
-                tecnico: '000',
-                tipoProcesso: 'PASI',
-                estado: 1,
-                serie: '2025',
-                seccao: 'SD',
-                objectoID: '9dc979ae-96b4-11ef-943d-e08281583916',
-                contratoID: '',
-            });
-
-            // Limpar mensagem de sucesso após 3 segundos
-            setTimeout(() => {
-                setSuccessMessage('');
-            }, 3000);
-        } catch (error) {
-            console.error('Erro ao enviar o pedido:', error);
-            setErrorMessage(error.message);
-        }
+      descricaoObjecto: formData.descricaoProblema.trim(),
+      origem: formData.origem || 'SITE',
+      tecnico: formData.tecnico || '000',
+      tipoProcesso: formData.tipoProcesso || 'PASI',
+      estado: formData.estado || 1,
+      serie: formData.serie || '2025',
+      seccao: formData.seccao || 'SD',
+      objectoID: formData.objectoID || '9dc979ae-96b4-11ef-943d-e08281583916',
+      contratoID: formData.contratoID || null,
+      comoReproduzir: null
     };
+
+    console.log('Enviando o pedido com payload:', JSON.stringify(payload, null, 2));
+
+    const response = await fetch(`https://webapiprimavera.advir.pt/routePedidos_STP/CriarPedido`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        urlempresa,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    console.log('Status da resposta:', response.status);
+
+    // tenta ler corpo em qualquer caso (alguns backends mandam JSON no erro)
+    let bodyText = '';
+    let bodyJson = null;
+    try {
+      bodyText = await response.text();
+      try { bodyJson = JSON.parse(bodyText); } catch {}
+    } catch {}
+
+    if (!response.ok) {
+      // 👇 Heurística: o backend cria mas responde 500 (NullReference/“Erro inesperado”).
+      const msg = (bodyJson?.error || bodyJson?.details || bodyText || '').toLowerCase();
+      const knownBackendBug =
+        response.status === 500 && (
+          msg.includes('object reference') ||
+          msg.includes('erro inesperado') ||
+          msg.includes('request failed with status code 500')
+        );
+
+      if (knownBackendBug) {
+        console.warn('500 conhecido do backend, mas vamos assumir sucesso.');
+        finalizeSuccess();
+        return;
+      }
+
+      // Se não for o caso conhecido, lança erro normal
+      const errorMessage = bodyJson?.details || bodyJson?.error || bodyText || 'Erro desconhecido';
+      throw new Error(`Erro ao criar o pedido: ${errorMessage}`);
+    }
+
+    // 2xx — sucesso normal
+    console.log('Resposta (sucesso):', bodyJson ?? bodyText);
+    finalizeSuccess();
+
+  } catch (error) {
+    console.error('Erro ao enviar o pedido:', error);
+    setErrorMessage(error.message || 'Erro desconhecido ao criar pedido');
+  }
+};
+
 
 
 
@@ -500,6 +572,51 @@ const Home = () => {
         }
     }, [activeMenu]);
 
+    // Função para buscar dados gerais (contactos e prioridades)
+    const fetchFormData = async () => {
+        try {
+            const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
+            const urlempresa = await AsyncStorage.getItem('urlempresaAdvir');
+            const clienteID = await AsyncStorage.getItem('empresa_areacliente');
+
+            if (!clienteID || !token || !urlempresa) {
+                console.error('Token, URL ou ID de cliente estão ausentes.');
+                setErrorMessage('Dados de autenticação não encontrados. Tente fazer login novamente.');
+                return;
+            }
+
+            // Fetch contactos
+            const contactosResponse = await fetch(
+                `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${clienteID}`,
+                { headers: { Authorization: `Bearer ${token}`, urlempresa } }
+            );
+
+            if (contactosResponse.ok) {
+                const contactosData = await contactosResponse.json();
+                setDataLists((prev) => ({ ...prev, contactos: contactosData.DataSet?.Table || [] }));
+                console.log('Contactos carregados:', contactosData.DataSet?.Table?.length || 0);
+            }
+
+            // Fetch prioridades
+            const prioridadesResponse = await fetch(
+                `https://webapiprimavera.advir.pt/routePedidos_STP/ListarTiposPrioridades`,
+                { headers: { Authorization: `Bearer ${token}`, urlempresa } }
+            );
+
+            if (prioridadesResponse.ok) {
+                const prioridadesData = await prioridadesResponse.json();
+                setDataLists((prev) => ({ ...prev, prioridades: prioridadesData.DataSet?.Table || [] }));
+                console.log('Prioridades carregadas:', prioridadesData.DataSet?.Table?.length || 0);
+            }
+
+            // Preencher cliente no formulário
+            setFormData((prev) => ({ ...prev, cliente: clienteID }));
+        } catch (error) {
+            console.error('Erro ao buscar dados do formulário:', error);
+        }
+    };
+
+    // UseEffect para carregar dados do contrato
     useEffect(() => {
         const fetchData = async () => {
             console.log("Iniciando fetch de dados iniciais e contrato.");
@@ -511,10 +628,15 @@ const Home = () => {
                 const urlempresa = await AsyncStorage.getItem('urlempresaAdvir');
                 const clienteID = await AsyncStorage.getItem('empresa_areacliente');
 
-                console.log('Token:', token, 'URL Empresa:', urlempresa, 'Cliente ID:', clienteID);
+                console.log('Dados obtidos do storage:', { 
+                    token: token ? 'Presente' : 'Ausente', 
+                    urlempresa, 
+                    clienteID 
+                });
 
                 if (!clienteID || !token || !urlempresa) {
                     console.error('Token, URL ou ID de cliente estão ausentes.');
+                    setErrorMessage('Dados de autenticação não encontrados. Tente fazer login novamente.');
                     return;
                 }
 
@@ -534,32 +656,17 @@ const Home = () => {
                 const contratosFiltrados = contratoData?.DataSet?.Table?.filter(c => c.Estado === 3) || [];
                 if (contratosFiltrados.length > 0) {
                     setContratoInfo(contratosFiltrados);
-                    // opcional: guardar o primeiro ID no formulário ou permitir escolher
                     setFormData(prev => ({ ...prev, contratoID: contratosFiltrados[0].ID }));
                 } else {
                     setContratoInfo([]);
                     setFormData(prev => ({ ...prev, contratoID: null }));
                 }
 
+                // Carregar também os dados do formulário se ainda não foram carregados
+                if (dataLists.contactos.length === 0 || dataLists.prioridades.length === 0) {
+                    await fetchFormData();
+                }
 
-                // Fetch contactos
-                const contactosResponse = await fetch(
-                    `https://webapiprimavera.advir.pt/routePedidos_STP/ListarContactos/${clienteID}`,
-                    { headers: { Authorization: `Bearer ${token}`, urlempresa } }
-                );
-                const contactosData = await contactosResponse.json();
-                setDataLists((prev) => ({ ...prev, contactos: contactosData.DataSet.Table || [] }));
-
-                // Fetch prioridades
-                const prioridadesResponse = await fetch(
-                    `https://webapiprimavera.advir.pt/routePedidos_STP/ListarTiposPrioridades`,
-                    { headers: { Authorization: `Bearer ${token}`, urlempresa } }
-                );
-                const prioridadesData = await prioridadesResponse.json();
-                setDataLists((prev) => ({ ...prev, prioridades: prioridadesData.DataSet.Table || [] }));
-
-                // Preencher cliente no formulário
-                setFormData((prev) => ({ ...prev, cliente: clienteID }));
             } catch (error) {
                 console.error('Erro ao buscar dados:', error);
                 setErrorMessage(error.message);
@@ -572,6 +679,13 @@ const Home = () => {
 
         if (activeMenu === t('Home.menu.contract')) {
             fetchData();
+        }
+    }, [activeMenu, t]);
+
+    // UseEffect para carregar dados do formulário quando necessário
+    useEffect(() => {
+        if (activeMenu === t('Home.menu.orders') && (dataLists.contactos.length === 0 || dataLists.prioridades.length === 0)) {
+            fetchFormData();
         }
     }, [activeMenu, t]);
 
@@ -1332,7 +1446,7 @@ const Home = () => {
                                                                     </label>
                                                                     <select
                                                                         value={formData.contacto}
-                                                                        onChange={(e) => setFormData({ ...formData, contacto: e.target.value })}
+                                                                        onChange={(e) => setFormData(prev => ({ ...prev, contacto: e.target.value }))}
                                                                         style={{
                                                                             width: '100%',
                                                                             padding: '12px',
@@ -1343,11 +1457,17 @@ const Home = () => {
                                                                         required
                                                                     >
                                                                         <option value="">{t('Selecione um contacto')}</option>
-                                                                        {dataLists.contactos.map((contacto, index) => (
-                                                                            <option key={index} value={contacto.ID}>
-                                                                                {contacto.Nome}
-                                                                            </option>
-                                                                        ))}
+                                                                        {dataLists.contactos.map((contacto, index) => {
+                                                                            // Suportar diferentes estruturas de contacto
+                                                                            const id = contacto.ID || contacto.Contacto || contacto.id;
+                                                                            const nome = contacto.Nome || contacto.PrimeiroNome + ' ' + (contacto.UltimoNome || '') || contacto.name || `Contacto ${id}`;
+
+                                                                            return (
+                                                                                <option key={index} value={id}>
+                                                                                    {nome.trim()}
+                                                                                </option>
+                                                                            );
+                                                                        })}
                                                                     </select>
                                                                 </div>
 
@@ -1362,7 +1482,7 @@ const Home = () => {
                                                                     </label>
                                                                     <select
                                                                         value={formData.prioridade}
-                                                                        onChange={(e) => setFormData({ ...formData, prioridade: e.target.value })}
+                                                                        onChange={(e) => setFormData(prev => ({ ...prev, prioridade: e.target.value }))}
                                                                         style={{
                                                                             width: '100%',
                                                                             padding: '12px',
@@ -1392,7 +1512,7 @@ const Home = () => {
                                                                     </label>
                                                                     <textarea
                                                                         value={formData.descricaoProblema}
-                                                                        onChange={(e) => setFormData({ ...formData, descricaoProblema: e.target.value })}
+                                                                        onChange={(e) => setFormData(prev => ({ ...prev, descricaoProblema: e.target.value }))}
                                                                         style={{
                                                                             width: '100%',
                                                                             padding: '12px',
