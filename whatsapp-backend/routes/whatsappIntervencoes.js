@@ -312,6 +312,7 @@ async function handleCliente(phoneNumber, messageText, conversa, client) {
 }
 
 // Mantém a tua função de paginação; aqui vai uma versão pronta
+// === manter como está se já tens esta função ===
 async function enviarListaPedidosPagina(phoneNumber, client, conversa) {
   const pageSize = 10;
   const page = conversa.data.pedidosPage || 0;
@@ -326,7 +327,7 @@ async function enviarListaPedidosPagina(phoneNumber, client, conversa) {
   slice.forEach((p, i) => {
     const idx = i + 1;
     const desc = p.DescricaoProb || p.DescricaoProblema || "Sem descrição";
-    const ref  = p.Processo || p.ID || "Sem ref.";
+    const ref  = p.Processo || p.NumProcesso || p.ID || "Sem ref.";
     msg += `*${idx}.* ${ref}\n   ${desc}\n\n`;
   });
 
@@ -336,6 +337,91 @@ async function enviarListaPedidosPagina(phoneNumber, client, conversa) {
 
   await client.sendMessage(phoneNumber, msg);
 }
+
+// === PATCH: substituir o teu handlePedido por este ===
+async function handlePedido(phoneNumber, messageText, conversa, client) {
+  const txt = (messageText || "").trim().toLowerCase();
+
+  // Preferência: usar paginação com pedidosAll
+  const pageSize = 10;
+  const pedidosAll = conversa.data.pedidosAll || [];
+  const temPaginacao = pedidosAll.length > 0;
+
+  if (temPaginacao) {
+    // "mais" -> próxima página
+    if (txt === "mais" || txt === "m" || txt === ">") {
+      const nextFrom = ((conversa.data.pedidosPage || 0) + 1) * pageSize;
+      if (nextFrom >= pedidosAll.length) {
+        await client.sendMessage(phoneNumber, "⚠️ Já não há mais pedidos.");
+        return;
+      }
+      conversa.data.pedidosPage = (conversa.data.pedidosPage || 0) + 1;
+      await enviarListaPedidosPagina(phoneNumber, client, conversa);
+      return;
+    }
+
+    // seleção 1..N da página corrente
+    const escolha = parseInt(txt, 10);
+    const page = conversa.data.pedidosPage || 0;
+    const from = page * pageSize;
+    const slice = pedidosAll.slice(from, from + pageSize);
+
+    if (Number.isNaN(escolha) || escolha < 1 || escolha > slice.length) {
+      await client.sendMessage(
+        phoneNumber,
+        `❌ Escolha inválida. Indique um número entre 1 e ${slice.length}${from + slice.length < pedidosAll.length ? ' ou "mais".' : '.'}`
+      );
+      return;
+    }
+
+    const p = slice[escolha - 1];
+
+    // Guardar ID e técnico com fallbacks
+    conversa.data.pedidoId = p.ID || p.Processo || p.NumProcesso || `${from + escolha}`;
+    conversa.data.tecnicoNumero = p.Tecnico || "000";
+    conversa.estado = STATES.WAITING_ESTADO;
+
+    const msg =
+      `✅ Pedido selecionado: *${p.Processo || p.NumProcesso || conversa.data.pedidoId}*\n\n` +
+      `*2. Estado da Intervenção*\n` +
+      `1. Terminado\n` +
+      `2. Aguardar intervenção equipa Advir\n` +
+      `3. Em curso equipa Advir\n` +
+      `4. Reportado para Parceiro\n` +
+      `5. Aguarda resposta Cliente\n\n` +
+      `Digite o número (1-5):`;
+    await client.sendMessage(phoneNumber, msg);
+    return;
+  }
+
+  // ——— LEGACY: se por acaso ainda vieres com conversa.data.pedidos (sem paginação)
+  const pedidos = conversa.data.pedidos || [];
+  if (pedidos.length === 0) {
+    await client.sendMessage(phoneNumber, "⚠️ Não há lista de pedidos carregada. Escreve novamente o nome/código do cliente.");
+    conversa.estado = STATES.WAITING_CLIENT;
+    return;
+  }
+
+  const escolha = parseInt(txt, 10);
+  if (Number.isNaN(escolha) || escolha < 1 || escolha > pedidos.length) {
+    await client.sendMessage(phoneNumber, `❌ Por favor, digite um número entre 1 e ${pedidos.length}:`);
+    return;
+  }
+
+  const pedidoSelecionado = pedidos[escolha - 1];
+  conversa.data.pedidoId = pedidoSelecionado.ID || pedidoSelecionado.Processo || `${escolha}`;
+  conversa.data.tecnicoNumero = pedidoSelecionado.Tecnico || "000";
+  conversa.estado = STATES.WAITING_ESTADO;
+
+  await client.sendMessage(
+    phoneNumber,
+    `✅ Pedido selecionado: *${pedidoSelecionado.Processo || conversa.data.pedidoId}*\n\n` +
+    `*2. Estado da Intervenção*\n` +
+    `1. Terminado\n2. Aguardar intervenção equipa Advir\n3. Em curso equipa Advir\n4. Reportado para Parceiro\n5. Aguarda resposta Cliente\n\n` +
+    `Digite o número (1-5):`
+  );
+}
+
 
 async function handlePedido(phoneNumber, messageText, conversa, client) {
   const arr = conversa.data.pedidosAll || [];
