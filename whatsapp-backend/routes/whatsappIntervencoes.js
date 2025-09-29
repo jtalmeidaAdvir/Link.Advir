@@ -236,95 +236,60 @@ async function continuarConversa(phoneNumber, messageText, conversa, client) {
 }
 
 // Handle Cliente
+const BASE = "http://151.80.149.159:2018";
+const API_PREFIX = "/WebApi"; // "" se afinal estiver na raiz
+const ST = `${BASE}${API_PREFIX}/ServicosTecnicos`;
+
 async function handleCliente(phoneNumber, messageText, conversa, client) {
-    const clienteId = messageText.trim();
+  const pesquisa = messageText.trim();
 
-    try {
-  const token = await getAuthToken(
-    { username: "AdvirWeb", password: "Advir2506##", company: "Advir", instance: "DEFAULT", line: "Evolution" },
-    "151.80.149.159:2018"
-  );
+  try {
+    const token = await getAuthToken(
+      { username: "AdvirWeb", password: "Advir2506##", company: "Advir", instance: "DEFAULT", line: "Evolution" },
+      "151.80.149.159:2018",
+    );
+    const headers = { Authorization: `Bearer ${token}` };
 
-  const headers = { Authorization: `Bearer ${token}` };
+    // Heurística simples: se for 100% numérico/alfa-curto tipo "0023" assume código cliente, senão nome
+    const isCodigo = /^[A-Za-z0-9]{2,10}$/.test(pesquisa);
+    const params = isCodigo ? `cliente=${encodeURIComponent(pesquisa)}` 
+                            : `nome=${encodeURIComponent(pesquisa)}`;
 
-  // Tentativas por ordem
-  const candidates = [
-    "http://151.80.149.159:2018/WebApi/ServicosTecnicos/ObterPedidos",      // a tua atual
-    "http://151.80.149.159:2018/WebApi/ServicosTecnicos/ObterPedidosAssistencia",
-    "http://151.80.149.159:2018/WebApi/ServicosTecnicos/LstPedidos",
-    "http://151.80.149.159:2018/ServicosTecnicos/ObterPedidos"              // sem /WebApi
-  ];
+    const url = `${ST}/ObterPedidos?${params}&page=1&pageSize=50&incluirFechados=false`;
 
-  let pedidos = null;
-  let lastErr = null;
+    const r = await axios.get(url, { headers });
+    const table = r.data?.DataSet?.Table || [];
+    const total = r.data?.Total?.Table?.[0]?.Total ?? table.length;
 
-  for (const url of candidates) {
-    try {
-      const r = await axios.get(url, { headers });
-      pedidos = r.data?.DataSet?.Table ?? r.data?.Data ?? r.data ?? [];
-      if (!Array.isArray(pedidos)) {
-        // alguns endpoints devolvem diretamente array
-        if (Array.isArray(r.data)) pedidos = r.data;
-      }
-      if (pedidos) {
-        console.log(`Obteve pedidos via ${url} (${pedidos.length})`);
-        break;
-      }
-    } catch (e) {
-      lastErr = e;
-      if (e.response?.status !== 404) {
-        // Erro relevante (401, 500, etc.) — não vale continuar a tentar
-        throw e;
-      }
+    if (!Array.isArray(table) || table.length === 0) {
+      await client.sendMessage(
+        phoneNumber,
+        `❌ Não encontrei pedidos para "*${pesquisa}*". Tenta outro *código ou nome* do cliente:`
+      );
+      return;
     }
-  }
 
-  if (!pedidos) {
-    // Ainda assim sem rota válida
+    conversa.data.clienteId = pesquisa;
+    conversa.data.cliente = table[0]?.Nome || pesquisa;
+    conversa.data.pedidosAll = table;
+    conversa.data.pedidosTotal = total;
+    conversa.data.pedidosPage = 0;
+    conversa.estado = STATES.WAITING_PEDIDO;
+
+    await enviarListaPedidosPagina(phoneNumber, client, conversa);
+
+  } catch (error) {
+    console.error("Erro ao buscar pedidos:", {
+      status: error.response?.status,
+      data: error.response?.data,
+      msg: error.message
+    });
     await client.sendMessage(
       phoneNumber,
-      "⚠️ Não consegui encontrar a lista de pedidos neste momento. " +
-      "Indique por favor o *código ou nº de processo* diretamente (ex.: `PRC1234`)."
+      "❌ Ocorreu um erro ao obter os pedidos. Tenta novamente."
     );
-    // Opcional: avança o estado para WAITING_PEDIDO aceitando texto livre
-    conversa.data.clienteId = clienteId;
-    conversa.data.pedidos = []; // vazio — vais aceitar ID manual
-    conversa.estado = STATES.WAITING_PEDIDO;
-    return;
   }
-
-  const pedidosCliente = pedidos.filter(p =>
-    p.Cliente === clienteId ||
-    (p.Cliente && p.Cliente.toLowerCase?.() === clienteId.toLowerCase()) ||
-    (p.Nome && p.Nome.toLowerCase?.().includes(clienteId.toLowerCase()))
-  );
-
-  if (pedidosCliente.length === 0) {
-    await client.sendMessage(
-      phoneNumber,
-      `❌ Nenhum pedido encontrado para "${clienteId}". Indique o *nº de processo* diretamente:`
-    );
-    conversa.data.clienteId = clienteId;
-    conversa.data.pedidos = [];
-    conversa.estado = STATES.WAITING_PEDIDO;
-    return;
-  }
-
-  // ... (resto do teu código para listar e escolher)
-} catch (error) {
-  console.error("Erro ao buscar pedidos:", {
-    status: error.response?.status,
-    data: error.response?.data,
-    msg: error.message
-  });
-  await client.sendMessage(
-    phoneNumber,
-    "❌ Ocorreu um erro ao obter os pedidos. Tente novamente mais tarde ou indique o *nº de processo* diretamente."
-  );
 }
-
-}
-
 
 
 // Handle Pedido
