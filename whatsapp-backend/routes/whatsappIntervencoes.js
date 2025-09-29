@@ -235,13 +235,34 @@ async function continuarConversa(phoneNumber, messageText, conversa, client) {
     }
 }
 
-// Handle Cliente
+// Helpers
 const BASE = "http://151.80.149.159:2018";
-const API_PREFIX = "/WebApi"; // "" se afinal estiver na raiz
+const API_PREFIX = "/WebApi"; // se não tiver /WebApi, mete ""
 const ST = `${BASE}${API_PREFIX}/ServicosTecnicos`;
 
+function safe(v){ return (v ?? "").toString(); }
+function norm(v){
+  return safe(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+}
+
+// Aceita vários formatos de resposta da API Primavera
+function toArrayFromPrimaveraResponse(raw){
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.DataSet?.Table)) return raw.DataSet.Table;
+  if (Array.isArray(raw?.Data?.Table)) return raw.Data.Table;
+  if (Array.isArray(raw?.Table)) return raw.Table;
+  // alguns endpoints metem várias tabelas dentro de DataSet
+  if (raw?.DataSet && typeof raw.DataSet === "object"){
+    return Object.values(raw.DataSet).flatMap(t => Array.isArray(t) ? t : []);
+  }
+  return [];
+}
+
+// --- PATCH: handleCliente
 async function handleCliente(phoneNumber, messageText, conversa, client) {
   const pesquisa = messageText.trim();
+  const q = norm(pesquisa);
 
   try {
     const token = await getAuthToken(
@@ -250,18 +271,23 @@ async function handleCliente(phoneNumber, messageText, conversa, client) {
     );
     const headers = { Authorization: `Bearer ${token}` };
 
-    // Heurística simples: se for 100% numérico/alfa-curto tipo "0023" assume código cliente, senão nome
-    const isCodigo = /^[A-Za-z0-9]{2,10}$/.test(pesquisa);
-    const params = isCodigo ? `cliente=${encodeURIComponent(pesquisa)}` 
-                            : `nome=${encodeURIComponent(pesquisa)}`;
-
-    const url = `${ST}/ObterPedidos?${params}&page=1&pageSize=50&incluirFechados=false`;
-
+    // Chama SEM filtros no servidor (como tens agora) e filtra no Node
+    const url = `${ST}/ObterPedidos`;
     const r = await axios.get(url, { headers });
-    const table = r.data?.DataSet?.Table || [];
-    const total = r.data?.Total?.Table?.[0]?.Total ?? table.length;
 
-    if (!Array.isArray(table) || table.length === 0) {
+    const todos = toArrayFromPrimaveraResponse(r.data);
+    console.log(`ObterPedidos devolveu ${todos.length} registos.`);
+
+    // Filtrar por Nome (parcial, sem acentos), por Cliente (exato)
+    // e, se quiseres, por Processo/NumProcesso (parcial)
+    const filtrados = todos.filter(p => {
+      const nome = norm(p.Nome);
+      const cod  = norm(p.Cliente);
+      const proc = norm(p.Processo || p.NumProcesso);
+      return nome.includes(q) || cod === q || (q.length >= 3 && proc.includes(q));
+    });
+
+    if (filtrados.length === 0) {
       await client.sendMessage(
         phoneNumber,
         `❌ Não encontrei pedidos para "*${pesquisa}*". Tenta outro *código ou nome* do cliente:`
@@ -269,27 +295,86 @@ async function handleCliente(phoneNumber, messageText, conversa, client) {
       return;
     }
 
-    conversa.data.clienteId = pesquisa;
-    conversa.data.cliente = table[0]?.Nome || pesquisa;
-    conversa.data.pedidosAll = table;
-    conversa.data.pedidosTotal = total;
+    // Paginação simples (10 por página)
+    conversa.data.clienteId   = pesquisa;
+    conversa.data.cliente     = filtrados[0]?.Nome || pesquisa;
+    conversa.data.pedidosAll  = filtrados;
     conversa.data.pedidosPage = 0;
     conversa.estado = STATES.WAITING_PEDIDO;
 
     await enviarListaPedidosPagina(phoneNumber, client, conversa);
-
   } catch (error) {
     console.error("Erro ao buscar pedidos:", {
-      status: error.response?.status,
-      data: error.response?.data,
-      msg: error.message
+      status: error.response?.status, data: error.response?.data, msg: error.message
     });
-    await client.sendMessage(
-      phoneNumber,
-      "❌ Ocorreu um erro ao obter os pedidos. Tenta novamente."
-    );
+    await client.sendMessage(phoneNumber, "❌ Ocorreu um erro ao obter os pedidos. Tenta novamente.");
   }
 }
+
+// Mantém a tua função de paginação; aqui vai uma versão pronta
+async function enviarListaPedidosPagina(phoneNumber, client, conversa) {
+  const pageSize = 10;
+  const page = conversa.data.pedidosPage || 0;
+  const arr = conversa.data.pedidosAll || [];
+  const total = arr.length;
+  const from = page * pageSize;
+  const slice = arr.slice(from, from + pageSize);
+
+  let msg = `✅ Cliente: *${conversa.data.cliente}*\n\n` +
+            `Foram encontrados ${total} pedido(s). A mostrar ${from+1}-${from+slice.length}:\n\n`;
+
+  slice.forEach((p, i) => {
+    const idx = i + 1;
+    const desc = p.DescricaoProb || p.DescricaoProblema || "Sem descrição";
+    const ref  = p.Processo || p.ID || "Sem ref.";
+    msg += `*${idx}.* ${ref}\n   ${desc}\n\n`;
+  });
+
+  msg += (from + slice.length < total)
+    ? `Responda com o número (1-${slice.length}) ou escreva "mais" para ver mais.`
+    : `Responda com o número (1-${slice.length}).`;
+
+  await client.sendMessage(phoneNumber, msg);
+}
+
+async function handlePedido(phoneNumber, messageText, conversa, client) {
+  const arr = conversa.data.pedidosAll || [];
+  const page = conversa.data.pedidosPage || 0;
+  const pageSize = 10;
+
+  const txt = messageText.trim().toLowerCase();
+  if (txt === "mais" || txt === "m") {
+    if ((page + 1) * pageSize >= arr.length) {
+      await client.sendMessage(phoneNumber, "⚠️ Já não há mais pedidos.");
+      return;
+    }
+    conversa.data.pedidosPage = page + 1;
+    await enviarListaPedidosPagina(phoneNumber, client, conversa);
+    return;
+  }
+
+  const escolha = parseInt(messageText.trim(), 10);
+  const from = page * pageSize;
+  const slice = arr.slice(from, from + pageSize);
+
+  if (isNaN(escolha) || escolha < 1 || escolha > slice.length) {
+    await client.sendMessage(phoneNumber, `❌ Escolha inválida. Indique um número entre 1 e ${slice.length}${from + slice.length < arr.length ? ' ou "mais".' : '.'}`);
+    return;
+  }
+
+  const p = slice[escolha - 1];
+  conversa.data.pedidoId = p.ID ?? (p.Processo || `${from + escolha}`);
+  conversa.data.tecnicoNumero = p.Tecnico;
+  conversa.estado = STATES.WAITING_ESTADO;
+
+  const msg =
+    `✅ Pedido selecionado: *${p.Processo || conversa.data.pedidoId}*\n\n` +
+    `*2. Estado da Intervenção*\n` +
+    `1. Terminado\n2. Aguardar intervenção equipa Advir\n3. Em curso equipa Advir\n4. Reportado para Parceiro\n5. Aguarda resposta Cliente\n\n` +
+    `Digite o número (1-5):`;
+  await client.sendMessage(phoneNumber, msg);
+}
+
 
 
 // Handle Pedido
