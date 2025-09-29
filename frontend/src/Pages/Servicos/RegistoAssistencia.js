@@ -114,6 +114,7 @@ const RegistoAssistencia = (props) => {
     // --- Estado do modal de novo contacto ---
 const [showNovoContacto, setShowNovoContacto] = useState(false);
 const [novoContacto, setNovoContacto] = useState({
+contacto: "",
   nome: "",
   email: "",
   entidade: "",     // por norma = cliente selecionado
@@ -152,6 +153,7 @@ const abrirModalNovoContacto = () => {
     return;
   }
   setNovoContacto({
+    contacto: "",
     nome: "",
     email: "",
     entidade: formData.cliente,
@@ -180,6 +182,7 @@ const criarNovoContacto = async (e) => {
           urlempresa: urlempresa,
         },
         body: JSON.stringify({
+            contacto: novoContacto.contacto,
           nome: novoContacto.nome,
           email: novoContacto.email,
           entidade: novoContacto.entidade || formData.cliente,
@@ -1579,6 +1582,16 @@ const criarNovoContacto = async (e) => {
     }}>
       <h3 style={{ marginTop: 0, color: "#1792FE" }}>Novo Contacto</h3>
       <form onSubmit={criarNovoContacto}>
+        <div style={{ marginBottom: 12 }}>
+          <label style={labelStyle}>Contacto</label>
+          <input
+            type="text"
+            value={novoContacto.contacto}
+            onChange={(e) => setNovoContacto((p) => ({ ...p, contacto: e.target.value }))}
+            style={inputStyle}
+            required
+          />
+        </div>
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>Nome</label>
           <input
