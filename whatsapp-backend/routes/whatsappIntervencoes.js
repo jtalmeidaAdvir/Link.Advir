@@ -240,65 +240,92 @@ async function handleCliente(phoneNumber, messageText, conversa, client) {
     const clienteId = messageText.trim();
 
     try {
-        const token = await getAuthToken(
-            {
-                username: "AdvirWeb",
-                password: "Advir2506##",
-                company: "Advir",
-                instance: "DEFAULT",
-                line: "Evolution",
-            },
-            "151.80.149.159:2018",
-        );
+  const token = await getAuthToken(
+    { username: "AdvirWeb", password: "Advir2506##", company: "Advir", instance: "DEFAULT", line: "Evolution" },
+    "151.80.149.159:2018"
+  );
 
-        const response = await axios.get(
-            "http://151.80.149.159:2018/WebApi/ServicosTecnicos/ObterPedidos",
-            { headers: { Authorization: `Bearer ${token}` } },
-        );
+  const headers = { Authorization: `Bearer ${token}` };
 
-        const pedidos = response.data.DataSet?.Table || [];
-        const pedidosCliente = pedidos.filter(
-            (p) =>
-                p.Cliente === clienteId ||
-                p.Cliente.toLowerCase() === clienteId.toLowerCase() ||
-                p.Nome.toLowerCase().includes(clienteId.toLowerCase()),
-        );
+  // Tentativas por ordem
+  const candidates = [
+    "http://151.80.149.159:2018/WebApi/ServicosTecnicos/ObterPedidos",      // a tua atual
+    "http://151.80.149.159:2018/WebApi/ServicosTecnicos/ObterPedidosAssistencia",
+    "http://151.80.149.159:2018/WebApi/ServicosTecnicos/LstPedidos",
+    "http://151.80.149.159:2018/ServicosTecnicos/ObterPedidos"              // sem /WebApi
+  ];
 
-        if (pedidosCliente.length === 0) {
-            await client.sendMessage(
-                phoneNumber,
-                `❌ Nenhum pedido encontrado para "${clienteId}". Tente outro código ou nome:`,
-            );
-            return;
-        }
+  let pedidos = null;
+  let lastErr = null;
 
-        conversa.data.clienteId = clienteId; // Armazenar o ID do cliente que foi buscado
-        conversa.data.cliente = pedidosCliente[0]?.Nome || clienteId; // Armazenar o nome do cliente para o resumo
-        conversa.data.pedidos = pedidosCliente;
-        conversa.estado = STATES.WAITING_PEDIDO;
-
-        let message = `✅ Cliente: *${conversa.data.cliente}*\n\n`;
-        message += `*1. Pedido de Assistência*\n`;
-        message += `Estes são os pedidos encontrados para este cliente:\n\n`;
-
-        pedidosCliente.forEach((pedido, index) => {
-            const descricao =
-                pedido.DescricaoProb ||
-                pedido.DescricaoProblema ||
-                "Sem descrição";
-            message += `*${index + 1}.* ${pedido.Processo || `Ref. ${index + 1}`}\n   ${descricao}\n\n`;
-        });
-
-        message += `Por favor, selecione o pedido (digite o número de 1 a ${pedidosCliente.length}):`;
-        await client.sendMessage(phoneNumber, message);
-    } catch (error) {
-        console.error("Erro ao buscar pedidos:", error);
-        await client.sendMessage(
-            phoneNumber,
-            "❌ Ocorreu um erro ao buscar os pedidos. Por favor, tente novamente mais tarde.",
-        );
+  for (const url of candidates) {
+    try {
+      const r = await axios.get(url, { headers });
+      pedidos = r.data?.DataSet?.Table ?? r.data?.Data ?? r.data ?? [];
+      if (!Array.isArray(pedidos)) {
+        // alguns endpoints devolvem diretamente array
+        if (Array.isArray(r.data)) pedidos = r.data;
+      }
+      if (pedidos) {
+        console.log(`Obteve pedidos via ${url} (${pedidos.length})`);
+        break;
+      }
+    } catch (e) {
+      lastErr = e;
+      if (e.response?.status !== 404) {
+        // Erro relevante (401, 500, etc.) — não vale continuar a tentar
+        throw e;
+      }
     }
+  }
+
+  if (!pedidos) {
+    // Ainda assim sem rota válida
+    await client.sendMessage(
+      phoneNumber,
+      "⚠️ Não consegui encontrar a lista de pedidos neste momento. " +
+      "Indique por favor o *código ou nº de processo* diretamente (ex.: `PRC1234`)."
+    );
+    // Opcional: avança o estado para WAITING_PEDIDO aceitando texto livre
+    conversa.data.clienteId = clienteId;
+    conversa.data.pedidos = []; // vazio — vais aceitar ID manual
+    conversa.estado = STATES.WAITING_PEDIDO;
+    return;
+  }
+
+  const pedidosCliente = pedidos.filter(p =>
+    p.Cliente === clienteId ||
+    (p.Cliente && p.Cliente.toLowerCase?.() === clienteId.toLowerCase()) ||
+    (p.Nome && p.Nome.toLowerCase?.().includes(clienteId.toLowerCase()))
+  );
+
+  if (pedidosCliente.length === 0) {
+    await client.sendMessage(
+      phoneNumber,
+      `❌ Nenhum pedido encontrado para "${clienteId}". Indique o *nº de processo* diretamente:`
+    );
+    conversa.data.clienteId = clienteId;
+    conversa.data.pedidos = [];
+    conversa.estado = STATES.WAITING_PEDIDO;
+    return;
+  }
+
+  // ... (resto do teu código para listar e escolher)
+} catch (error) {
+  console.error("Erro ao buscar pedidos:", {
+    status: error.response?.status,
+    data: error.response?.data,
+    msg: error.message
+  });
+  await client.sendMessage(
+    phoneNumber,
+    "❌ Ocorreu um erro ao obter os pedidos. Tente novamente mais tarde ou indique o *nº de processo* diretamente."
+  );
 }
+
+}
+
+
 
 // Handle Pedido
 async function handlePedido(phoneNumber, messageText, conversa, client) {

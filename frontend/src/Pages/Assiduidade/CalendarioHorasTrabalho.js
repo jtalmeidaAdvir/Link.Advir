@@ -1472,7 +1472,7 @@ const CalendarioHorasTrabalho = () => {
     const submeterPontoEsquecido = async (e) => {
         e.preventDefault();
         if (!novaEntrada.obra_id || !diaSelecionado) {
-            alert('Selecione uma obra antes de submeter');
+            alert('Selecione um local antes de submeter');
             return;
         }
         const [ano, mes, dia] = diaSelecionado.split('-');
@@ -1857,8 +1857,7 @@ const CalendarioHorasTrabalho = () => {
                     <div className="card card-moderno mb-3 mb-md-4">
                         <div className="card-body text-center py-3 py-md-4">
                             <h1 className="h4 h3-md mb-2 text-primary">
-                                <FaCalendarCheck className="me-2 me-md-3" />
-                                <span className="d-none d-sm-inline">Calendário de Horas Trabalhadas</span>
+                                <span className="d-none d-sm-inline">Agenda</span>
                                 <span className="d-sm-none">Horas Trabalhadas</span>
                             </h1>
                             <p className="text-muted mb-0 small">Gerencie e visualize suas horas de trabalho</p>
@@ -2241,14 +2240,14 @@ const CalendarioHorasTrabalho = () => {
 
                                                     <form onSubmit={submeterPontoEsquecido}>
                                                         <div className="mb-3">
-                                                            <label className="form-label fw-semibold small">Obra</label>
+                                                            <label className="form-label fw-semibold small">Local</label>
                                                             <select
                                                                 className="form-select form-moderno"
                                                                 value={novaEntrada.obra_id}
                                                                 onChange={(e) => setNovaEntrada({ ...novaEntrada, obra_id: e.target.value })}
                                                                 required
                                                             >
-                                                                <option value="">Selecione uma obra...</option>
+                                                                <option value="">Selecione um Local...</option>
                                                                 {obras.map(obra => (
                                                                     <option key={obra.id} value={obra.id}>{obra.nome}</option>
                                                                 ))}
