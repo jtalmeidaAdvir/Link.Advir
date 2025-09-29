@@ -419,50 +419,73 @@ async function handlePedido(phoneNumber, messageText, conversa, client) {
 
 
 // === PATCH: substituir o teu handlePedido por este ===
+// ✅ Usa SEMPRE pedidosAll (novo) e só cai para pedidos (legacy) com segurança
 async function handlePedido(phoneNumber, messageText, conversa, client) {
-  const txt = (messageText || "").trim().toLowerCase();
+  try {
+    const txt = (messageText || "").trim().toLowerCase();
+    const pageSize = 10;
 
-  // Preferência: usar paginação com pedidosAll
-  const pageSize = 10;
-  const pedidosAll = conversa.data.pedidosAll || [];
-  const temPaginacao = pedidosAll.length > 0;
+    // Normalizar estrutura
+    conversa.data = conversa.data || {};
 
-  if (temPaginacao) {
+    // Se ainda não existir pedidosAll mas existir pedidos (legacy), migra
+    if (!Array.isArray(conversa.data.pedidosAll) && Array.isArray(conversa.data.pedidos)) {
+      conversa.data.pedidosAll = conversa.data.pedidos;
+    }
+
+    const arr = Array.isArray(conversa.data.pedidosAll) ? conversa.data.pedidosAll : [];
+    const hasList = arr.length > 0;
+
+    if (!hasList) {
+      // Nada carregado -> volta a pedir cliente (EVITA .length num undefined)
+      await client.sendMessage(
+        phoneNumber,
+        "⚠️ Não tenho pedidos carregados. Indique novamente o *nome ou código do cliente*."
+      );
+      conversa.estado = STATES.WAITING_CLIENT;
+      return;
+    }
+
     // "mais" -> próxima página
     if (txt === "mais" || txt === "m" || txt === ">") {
-      const nextFrom = ((conversa.data.pedidosPage || 0) + 1) * pageSize;
-      if (nextFrom >= pedidosAll.length) {
+      const nextFrom = ((conversa.data.pedidosPage ?? 0) + 1) * pageSize;
+      if (nextFrom >= arr.length) {
         await client.sendMessage(phoneNumber, "⚠️ Já não há mais pedidos.");
         return;
       }
-      conversa.data.pedidosPage = (conversa.data.pedidosPage || 0) + 1;
+      conversa.data.pedidosPage = (conversa.data.pedidosPage ?? 0) + 1;
       await enviarListaPedidosPagina(phoneNumber, client, conversa);
       return;
     }
 
-    // seleção 1..N da página corrente
+    // Seleção numérica 1..N da página atual
     const escolha = parseInt(txt, 10);
-    const page = conversa.data.pedidosPage || 0;
-    const from = page * pageSize;
-    const slice = pedidosAll.slice(from, from + pageSize);
+    if (Number.isNaN(escolha)) {
+      await client.sendMessage(phoneNumber, "❌ Escolha inválida. Indique o número do pedido ou escreva \"mais\".");
+      return;
+    }
 
-    if (Number.isNaN(escolha) || escolha < 1 || escolha > slice.length) {
+    const page = conversa.data.pedidosPage ?? 0;
+    const from = page * pageSize;
+    const slice = arr.slice(from, Math.min(from + pageSize, arr.length)); // slice é SEMPRE array
+
+    if (escolha < 1 || escolha > slice.length) {
       await client.sendMessage(
         phoneNumber,
-        `❌ Escolha inválida. Indique um número entre 1 e ${slice.length}${from + slice.length < pedidosAll.length ? ' ou "mais".' : '.'}`
+        `❌ Escolha inválida. Indique um número entre 1 e ${slice.length}${from + slice.length < arr.length ? ' ou "mais".' : '.'}`
       );
       return;
     }
 
     const p = slice[escolha - 1];
 
-    // Guardar ID e técnico com fallbacks
-    conversa.data.pedidoId = p.ID || p.Processo || p.NumProcesso || `${from + escolha}`;
+    conversa.data.pedidoId      = p.ID || p.Processo || p.NumProcesso || `${from + escolha}`;
     conversa.data.tecnicoNumero = p.Tecnico || "000";
     conversa.estado = STATES.WAITING_ESTADO;
 
+    const ref = p.Processo || p.NumProcesso || conversa.data.pedidoId;
     const msg =
-      `✅ Pedido selecionado: *${p.Processo || p.NumProcesso || conversa.data.pedidoId}*\n\n` +
+      `✅ Pedido selecionado: *${ref}*\n\n` +
       `*2. Estado da Intervenção*\n` +
       `1. Terminado\n` +
       `2. Aguardar intervenção equipa Advir\n` +
@@ -471,109 +494,45 @@ async function handlePedido(phoneNumber, messageText, conversa, client) {
       `5. Aguarda resposta Cliente\n\n` +
       `Digite o número (1-5):`;
     await client.sendMessage(phoneNumber, msg);
-    return;
+  } catch (err) {
+    console.error("handlePedido falhou:", err);
+    await client.sendMessage(phoneNumber, "❌ Ocorreu um erro ao selecionar o pedido. Tente novamente.");
   }
+}
 
-  // ——— LEGACY: se por acaso ainda vieres com conversa.data.pedidos (sem paginação)
-  const pedidos = conversa.data.pedidos || [];
-  if (pedidos.length === 0) {
-    await client.sendMessage(phoneNumber, "⚠️ Não há lista de pedidos carregada. Escreve novamente o nome/código do cliente.");
+// ✅ Listagem da página (usa pedidosAll e NUNCA lê .length de undefined)
+async function enviarListaPedidosPagina(phoneNumber, client, conversa) {
+  const pageSize = 10;
+  const page = conversa.data?.pedidosPage ?? 0;
+  const arr = Array.isArray(conversa.data?.pedidosAll) ? conversa.data.pedidosAll : [];
+  const total = arr.length;
+
+  const from = page * pageSize;
+  const slice = arr.slice(from, Math.min(from + pageSize, total));
+
+  if (slice.length === 0) {
+    await client.sendMessage(phoneNumber, "⚠️ Não há pedidos para listar. Indique o *nome ou código do cliente*.");
     conversa.estado = STATES.WAITING_CLIENT;
     return;
   }
 
-  const escolha = parseInt(txt, 10);
-  if (Number.isNaN(escolha) || escolha < 1 || escolha > pedidos.length) {
-    await client.sendMessage(phoneNumber, `❌ Por favor, digite um número entre 1 e ${pedidos.length}:`);
-    return;
-  }
+  let msg = `✅ Cliente: *${conversa.data?.cliente || conversa.data?.clienteId || "N/D"}*\n\n` +
+            `Foram encontrados ${total} pedido(s). A mostrar ${from + 1}-${from + slice.length}:\n\n`;
 
-  const pedidoSelecionado = pedidos[escolha - 1];
-  conversa.data.pedidoId = pedidoSelecionado.ID || pedidoSelecionado.Processo || `${escolha}`;
-  conversa.data.tecnicoNumero = pedidoSelecionado.Tecnico || "000";
-  conversa.estado = STATES.WAITING_ESTADO;
+  slice.forEach((p, i) => {
+    const idx  = i + 1;
+    const desc = p.DescricaoProb || p.DescricaoProblema || "Sem descrição";
+    const ref  = p.Processo || p.NumProcesso || p.ID || "Sem ref.";
+    msg += `*${idx}.* ${ref}\n   ${desc}\n\n`;
+  });
 
-  await client.sendMessage(
-    phoneNumber,
-    `✅ Pedido selecionado: *${pedidoSelecionado.Processo || conversa.data.pedidoId}*\n\n` +
-    `*2. Estado da Intervenção*\n` +
-    `1. Terminado\n2. Aguardar intervenção equipa Advir\n3. Em curso equipa Advir\n4. Reportado para Parceiro\n5. Aguarda resposta Cliente\n\n` +
-    `Digite o número (1-5):`
-  );
-}
+  msg += (from + slice.length < total)
+    ? `Responda com o número (1-${slice.length}) ou escreva "mais" para ver mais.`
+    : `Responda com o número (1-${slice.length}).`;
 
-
-async function handlePedido(phoneNumber, messageText, conversa, client) {
-  const arr = conversa.data.pedidosAll || [];
-  const page = conversa.data.pedidosPage || 0;
-  const pageSize = 10;
-
-  const txt = messageText.trim().toLowerCase();
-  if (txt === "mais" || txt === "m") {
-    if ((page + 1) * pageSize >= arr.length) {
-      await client.sendMessage(phoneNumber, "⚠️ Já não há mais pedidos.");
-      return;
-    }
-    conversa.data.pedidosPage = page + 1;
-    await enviarListaPedidosPagina(phoneNumber, client, conversa);
-    return;
-  }
-
-  const escolha = parseInt(messageText.trim(), 10);
-  const from = page * pageSize;
-  const slice = arr.slice(from, from + pageSize);
-
-  if (isNaN(escolha) || escolha < 1 || escolha > slice.length) {
-    await client.sendMessage(phoneNumber, `❌ Escolha inválida. Indique um número entre 1 e ${slice.length}${from + slice.length < arr.length ? ' ou "mais".' : '.'}`);
-    return;
-  }
-
-  const p = slice[escolha - 1];
-  conversa.data.pedidoId = p.ID ?? (p.Processo || `${from + escolha}`);
-  conversa.data.tecnicoNumero = p.Tecnico;
-  conversa.estado = STATES.WAITING_ESTADO;
-
-  const msg =
-    `✅ Pedido selecionado: *${p.Processo || conversa.data.pedidoId}*\n\n` +
-    `*2. Estado da Intervenção*\n` +
-    `1. Terminado\n2. Aguardar intervenção equipa Advir\n3. Em curso equipa Advir\n4. Reportado para Parceiro\n5. Aguarda resposta Cliente\n\n` +
-    `Digite o número (1-5):`;
   await client.sendMessage(phoneNumber, msg);
 }
 
-
-
-// Handle Pedido
-async function handlePedido(phoneNumber, messageText, conversa, client) {
-    const escolha = parseInt(messageText.trim());
-    const pedidos = conversa.data.pedidos;
-
-    if (isNaN(escolha) || escolha < 1 || escolha > pedidos.length) {
-        await client.sendMessage(
-            phoneNumber,
-            `❌ Por favor, digite um número entre 1 e ${pedidos.length}:`,
-        );
-        return;
-    }
-
-    const pedidoSelecionado = pedidos[escolha - 1];
-    conversa.data.pedidoId = pedidoSelecionado.ID;
-    conversa.data.tecnicoNumero = pedidoSelecionado.Tecnico;
-    conversa.estado = STATES.WAITING_ESTADO;
-
-    const message =
-        `✅ Pedido selecionado: *${pedidoSelecionado.Processo || `Ref. ${escolha}`}*\n\n` +
-        `*2. Estado da Intervenção*\n` +
-        `Selecione o estado atual da intervenção:\n\n` +
-        `1. Terminado\n` +
-        `2. Aguardar intervenção equipa Advir\n` +
-        `3. Em curso equipa Advir\n` +
-        `4. Reportado para Parceiro\n` +
-        `5. Aguarda resposta Cliente\n\n` +
-        `Digite o número correspondente (1-5):`;
-
-    await client.sendMessage(phoneNumber, message);
-}
 
 // Handle Estado
 async function handleEstado(phoneNumber, messageText, conversa, client) {
