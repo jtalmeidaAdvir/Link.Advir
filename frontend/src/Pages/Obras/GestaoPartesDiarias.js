@@ -96,6 +96,8 @@ const GestaoPartesDiarias = () => {
     const [equipamentosMap, setEquipamentosMap] = useState({});
     const [obrasResponsavel, setObrasResponsavel] = useState(new Set()); // Set com IDs das obras que sou responsável
     const [classesMap, setClassesMap] = useState({}); // Novo estado para o mapa de classes
+    const [classesList, setClassesList] = useState([]);
+    const [classesMapById, setClassesMapById] = useState({});
 
 
     const confirm = (title, message) =>
@@ -263,38 +265,178 @@ const GestaoPartesDiarias = () => {
         }
     };
 
-    // Nova função para buscar classes
-    const fetchClasses = async () => {
+const getClasseNomeById = (id) => {
+  if (id === null || id === undefined || id === '') return '—';
+  const k1 = String(id).trim();
+  const k2 = String(parseInt(k1, 10)); // tenta versão numérica (remove zeros à esquerda)
+  return (
+    classesMapById[k1] ||
+    classesMapById[k2] ||
+    (classesList.length ? `Classe ${k1}` : 'Classes não carregadas')
+  );
+};
+
+
+  const carregarClasses = useCallback(async () => {
+        const painelToken = await AsyncStorage.getItem("painelAdminToken");
+        const urlempresa = await AsyncStorage.getItem("urlempresa");
         try {
-            const token = await AsyncStorage.getItem('painelAdminToken');
-            const urlempresa = await AsyncStorage.getItem('urlempresa');
-
-            console.log('🔍 Buscando classes...');
-            const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses', {
-                headers: { Authorization: `Bearer ${token}`, urlempresa, 'Content-Type': 'application/json' }
-            });
-            if (!res.ok) throw new Error('Falha ao obter classes');
-            const data = await res.json();
-
-            console.log('📋 Dados das classes recebidos:', data);
-            const table = data?.DataSet?.Table || [];
-            const map = {};
-
-            table.forEach(item => {
-                const classeId = item.ID ?? item.id ?? item.ClasseID ?? null;
-                const descricao = item.Descricao ?? item.Desig ?? item.Nome ?? String(classeId ?? '');
-                if (classeId != null) {
-                    map[String(classeId)] = descricao;
-                    console.log(`📝 Classe mapeada: ID ${classeId} -> ${descricao}`);
-                }
-            });
-
-            console.log('🗺️ Mapa final de classes:', map);
-            setClassesMap(map);
+            const data = await fetchComRetentativas(
+                "https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses",
+                {
+                    headers: { Authorization: `Bearer ${painelToken}`, urlempresa },
+                },
+            );
+            const table = data?.DataSet?.Table;
+            const items = Array.isArray(table)
+                ? table.map((item) => ({
+                    classeId: item.ClasseId,
+                    descricao: item.Descricao,
+                    classe: item.Classe,
+                    cduCcs: item.CDU_CCS || item.Classe, // Usar CDU_CCS se disponível, senão usar Classe
+                }))
+                : [];
+            setClassesList(items);
         } catch (err) {
-            console.warn('Erro classes:', err.message);
+            console.error("Erro ao obter classes:", err);
+            Alert.alert("Erro", "Não foi possível carregar as classes");
         }
+    }, []);
+
+const getClasseDescricao = (classeId) => {
+  if (classeId === undefined || classeId === null || classeId === '') return 'Não definida';
+
+  // strings consistentes
+  const raw = String(classeId).trim();
+  const soDigitos = raw.replace(/\D/g, '');                   // "47.0" -> "470" (já vamos tratar)
+  const semZeros = raw.replace(/^0+/, '') || '0';
+  const semZerosDig = soDigitos.replace(/^0+/, '') || '0';
+
+  // tenta também interpretar como número
+  const numRaw = parseInt(semZeros, 10);
+  const numDig = parseInt(semZerosDig, 10);
+
+  const padLens = [2,3,4,5,6,7,8,9,10];
+
+  // candidatos em ordem de probabilidade
+  const candidatos = new Set([
+    raw,
+    semZeros,
+    soDigitos,
+    semZerosDig,
+    Number.isNaN(numRaw) ? null : String(numRaw),
+    Number.isNaN(numDig) ? null : String(numDig),
+    ...padLens.map(L => raw.padStart(L, '0')),
+    ...padLens.map(L => semZeros.padStart(L, '0')),
+    ...padLens.map(L => soDigitos.padStart(L, '0')),
+    ...(!Number.isNaN(numRaw) ? padLens.map(L => String(numRaw).padStart(L, '0')) : []),
+    ...(!Number.isNaN(numDig) ? padLens.map(L => String(numDig).padStart(L, '0')) : []),
+  ].filter(Boolean));
+
+  // 1ª passagem: devolver descrição “válida”
+  for (const k of candidatos) {
+    const hit = classesMap[k];
+    if (hit && hit !== k) return hit;
+  }
+  // 2ª passagem: se a entrada existe, devolve-a (mesmo que igual à chave)
+  for (const k of candidatos) {
+    if (classesMap[k]) return classesMap[k];
+  }
+
+  const total = Object.keys(classesMap).length;
+  return total === 0 ? 'Classes não carregadas' : `Classe ${classeId} (${total} classes disponíveis)`;
+};
+
+
+
+    // Nova função para buscar classes
+// === CLASSES ===
+const fetchClasses = async () => {
+  try {
+    const token = await AsyncStorage.getItem('painelAdminToken');
+    const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+    const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses', {
+      headers: { Authorization: `Bearer ${token}`, urlempresa, 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error('Falha ao obter classes');
+    const data = await res.json();
+
+    const table = data?.DataSet?.Table || data?.Table || data?.data || [];
+    const mapLoose = {};          // várias chaves possíveis -> descrição (mantém o teu comportamento atual)
+    const mapById = {};           // ID “canónico” -> descrição (para getClasseNomeById)
+    const listById = new Map();   // para construir lista única pro Picker
+
+    const put = (obj, k, v) => {
+      if (k === undefined || k === null) return;
+      const ks = String(k).trim();
+      if (!ks) return;
+      obj[ks] = v;
     };
+
+    table.forEach(item => {
+      // tentar apanhar tudo que costuma vir do serviço
+      const idRaw = item.ClasseId ?? item.ClasseID ?? item.ID ?? item.Id ?? item.id;
+      const codigoRaw = item.CDU_CCS ?? item.Classe ?? item.Codigo ?? item.Code ?? item.Cod;
+      const desc = item.Descricao ?? item.Desig ?? item.Nome ?? String(idRaw ?? codigoRaw ?? '');
+
+      // 1) mapById (apenas por ID canónico)
+      if (idRaw !== undefined && idRaw !== null) {
+        const idStr = String(idRaw).trim();
+        put(mapById, idStr, desc);
+        // construir lista única para o Picker
+        if (!listById.has(idStr)) {
+          listById.set(idStr, {
+            id: idStr,
+            codigo: codigoRaw ? String(codigoRaw).trim() : null,
+            descricao: desc,
+          });
+        }
+      }
+
+      // 2) mapLoose (todas as variantes como antes)
+      //    — ID com e sem zeros à esquerda e zero-pad comum
+      if (idRaw !== undefined && idRaw !== null) {
+        const idStr = String(idRaw).trim();
+        const idNoZeros = idStr.replace(/^0+/, '') || '0';
+        const idNum = parseInt(idNoZeros, 10);
+        put(mapLoose, idStr, desc);
+        put(mapLoose, idNoZeros, desc);
+        if (!Number.isNaN(idNum)) {
+          put(mapLoose, String(idNum), desc);
+          put(mapLoose, String(idNum).padStart(2, '0'), desc);
+          put(mapLoose, String(idNum).padStart(3, '0'), desc);
+        }
+      }
+      //    — Código com e sem zeros à esquerda
+      if (codigoRaw !== undefined && codigoRaw !== null) {
+        const codStr = String(codigoRaw).trim();
+        const codNoZeros = codStr.replace(/^0+/, '') || '0';
+        const codNum = parseInt(codNoZeros, 10);
+        put(mapLoose, codStr, desc);
+        put(mapLoose, codNoZeros, desc);
+        if (!Number.isNaN(codNum)) {
+          put(mapLoose, String(codNum), desc);
+          put(mapLoose, String(codNum).padStart(2, '0'), desc);
+          put(mapLoose, String(codNum).padStart(3, '0'), desc);
+        }
+      }
+    });
+
+    // lista ordenada alfabeticamente por descrição
+    const list = Array.from(listById.values()).sort((a, b) =>
+      String(a.descricao).localeCompare(String(b.descricao), 'pt', { sensitivity: 'base' })
+    );
+
+    setClassesMap(mapLoose);
+    setClassesMapById(mapById);
+    setClassesList(list);
+  } catch (err) {
+    console.warn('Erro classes:', err.message);
+  }
+};
+
+
 
 
     const abrirEdicaoItem = (item, cab, idx) => {
@@ -1121,6 +1263,20 @@ const GestaoPartesDiarias = () => {
                                                     </Text>
                                                 </View>
                                                 <View style={styles.itemPreviewRow}>
+                                                        <Text style={styles.itemPreviewLabel}>Classe:</Text>
+                                                        <Text style={styles.itemPreviewValue}>
+                                                            {getClasseNomeById(
+                                                            itemDetail.ClasseID ??
+                                                            itemDetail.ClasseId ??
+                                                            itemDetail.classeID ??
+                                                            itemDetail.classeId ??
+                                                            itemDetail.Classe ??
+                                                            null
+                                                            )}
+                                                        </Text>
+                                                        </View>
+
+                                                <View style={styles.itemPreviewRow}>
                                                     <Text style={styles.itemPreviewLabel}>Horas:</Text>
                                                     <View style={styles.itemPreviewHorasContainer}>
                                                         <Ionicons name="time-outline" size={14} color="#1792FE" />
@@ -1483,38 +1639,10 @@ const GestaoPartesDiarias = () => {
                                                             <View style={styles.itemDetailFull}>
                                                                 <Text style={styles.itemDetailLabel}>Classe</Text>
                                                                 <Text style={styles.itemDetailValue}>
-                                                                    {(() => {
-                                                                        if (!item.ClasseID) return 'Não definida';
-
-                                                                        const classeIdStr = String(item.ClasseID);
-
-                                                                        // Lista de possíveis chaves para procurar
-                                                                        const possiveisChaves = [
-                                                                            classeIdStr,
-                                                                            String(Number(classeIdStr)),
-                                                                            classeIdStr.padStart(2, '0'),
-                                                                            classeIdStr.padStart(3, '0'),
-                                                                            classeIdStr.replace(/^0+/, '') || '0'
-                                                                        ];
-
-                                                                        // Procurar pela primeira chave que funcione
-                                                                        for (const chave of possiveisChaves) {
-                                                                            const classeDesc = classesMap[chave];
-                                                                            if (classeDesc && classeDesc !== chave) {
-                                                                                return classeDesc;
-                                                                            }
-                                                                        }
-
-                                                                        // Se não encontrou, mostrar informação de debug
-                                                                        const totalClasses = Object.keys(classesMap).length;
-                                                                        if (totalClasses === 0) {
-                                                                            return 'Classes não carregadas';
-                                                                        }
-
-                                                                        return `Classe ${item.ClasseID} (${totalClasses} classes disponíveis)`;
-                                                                    })()}
+                                                                    {getClasseNomeById(item.ClasseID)}
                                                                 </Text>
-                                                            </View>
+                                                                </View>
+
 
                                                             {/* Status do Item */}
                                                             <View style={styles.itemStatusContainer}>
@@ -1707,8 +1835,9 @@ const GestaoPartesDiarias = () => {
                                         >
                                             <Picker.Item label="— Selecione uma classe —" value={null} />
                                             {Object.entries(classesMap).map(([id, descricao]) => (
-                                                <Picker.Item key={id} label={descricao} value={Number(id)} />
-                                            ))}
+  <Picker.Item key={id} label={descricao} value={id} />
+))}
+
                                         </Picker>
                                     </View>
                                 </View>
