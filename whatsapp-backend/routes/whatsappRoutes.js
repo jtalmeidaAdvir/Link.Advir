@@ -1019,9 +1019,17 @@ router.post("/contact-lists", async (req, res) => {
         if (individualContacts && Array.isArray(individualContacts)) {
             contactsToStore = individualContacts.map((contact) => {
                 return {
-                    ...contact,
-                    user_id:
-                        contact.user_id || contact.userID || user_id || null, // Support both user_id and userID fields
+                    phone: contact.phone || contact,
+                    numeroTecnico: contact.numeroTecnico || "",
+                    numeroCliente: contact.numeroCliente || "",
+                    canCreateTickets: !!contact.canCreateTickets,
+                    canRegisterPonto: !!contact.canRegisterPonto,
+                    user_id: contact.user_id || contact.userID || null,
+                    obrasAutorizadas: Array.isArray(contact.obrasAutorizadas)
+                        ? JSON.stringify(contact.obrasAutorizadas)
+                        : contact.obrasAutorizadas || "[]",
+                    dataInicioAutorizacao: contact.dataInicioAutorizacao || null,
+                    dataFimAutorizacao: contact.dataFimAutorizacao || null,
                 };
             });
         } else {
@@ -1035,12 +1043,17 @@ router.post("/contact-lists", async (req, res) => {
                         canCreateTickets: canCreateTickets || false,
                         canRegisterPonto: canRegisterPonto || false,
                         user_id: user_id || null,
+                        obrasAutorizadas: "[]",
+                        dataInicioAutorizacao: null,
+                        dataFimAutorizacao: null,
                     };
                 }
                 return {
                     ...contact,
-                    user_id:
-                        contact.user_id || contact.userID || user_id || null, // Support both field names
+                    user_id: contact.user_id || contact.userID || user_id || null,
+                    obrasAutorizadas: Array.isArray(contact.obrasAutorizadas)
+                        ? JSON.stringify(contact.obrasAutorizadas)
+                        : contact.obrasAutorizadas || "[]",
                 };
             });
         }
@@ -1141,9 +1154,17 @@ router.put("/contact-lists/:id", async (req, res) => {
         if (individualContacts && Array.isArray(individualContacts)) {
             contactsToStore = individualContacts.map((contact) => {
                 return {
-                    ...contact,
-                    user_id:
-                        contact.user_id || contact.userID || user_id || null, // Support both field names and preserve existing
+                    phone: contact.phone || contact,
+                    numeroTecnico: contact.numeroTecnico || "",
+                    numeroCliente: contact.numeroCliente || "",
+                    canCreateTickets: !!contact.canCreateTickets,
+                    canRegisterPonto: !!contact.canRegisterPonto,
+                    user_id: contact.user_id || contact.userID || null,
+                    obrasAutorizadas: Array.isArray(contact.obrasAutorizadas)
+                        ? JSON.stringify(contact.obrasAutorizadas)
+                        : contact.obrasAutorizadas || "[]",
+                    dataInicioAutorizacao: contact.dataInicioAutorizacao || null,
+                    dataFimAutorizacao: contact.dataFimAutorizacao || null,
                 };
             });
         } else {
@@ -2102,9 +2123,9 @@ function isPontoKeyword(message) {
 router.post("/force-execute/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         console.log(`🎯 FORÇANDO EXECUÇÃO do agendamento ${id}`);
-        
+
         const schedule = await Schedule.findByPk(id);
         if (!schedule) {
             return res.status(404).json({ error: "Agendamento não encontrado" });
@@ -2125,7 +2146,7 @@ router.post("/force-execute/:id", async (req, res) => {
 
         console.log(`🚀 DADOS DO AGENDAMENTO:`, scheduleData);
 
-        addLog(id, "info", "🔧 EXECUÇÃO FORÇADA pelo utilizador");
+        addLog(id, "info", "EXECUÇÃO FORÇADA pelo utilizador");
 
         let result;
         if (schedule.tipo === "verificacao_pontos_almoco") {
@@ -3229,7 +3250,7 @@ async function handleClientInput(phoneNumber, message, conversation) {
         conversation.data.cliente = validacao.cliente.Cliente;
         conversation.data.nomeCliente = validacao.cliente.Nome;
         conversation.data.contacto = null; // por defeito
-        conversation.data.userId = validacao.cliente.userId; // Tenta obter userId do cliente
+        conversationData.userId = validacao.cliente.userId; // Tenta obter userId do cliente
 
         // Buscar contratos do cliente
         const resultadoContratos = await buscarContratosCliente(
@@ -3507,7 +3528,7 @@ async function handleConfirmationInput(phoneNumber, message, conversation) {
 
         await client.sendMessage(
             phoneNumber,
-            "❌ Pedido cancelado com sucesso.\n\n💡 Para iniciar um novo pedido, envie 'pedido'.",
+            "❌ Pedido cancelado com sucesso.\n\n💡 Para iniciar um novo pedido, envie 'pedido' ou 'assistência'.",
         );
         return { success: false, cancelled: true };
     } else {
@@ -3827,7 +3848,7 @@ setInterval(async () => {
             console.log(`      • Hora atual: ${currentTime} | Hora agendada: ${scheduleTime}`);
             const horarioMatch = currentTime === scheduleTime;
             console.log(`      • Match de horário: ${horarioMatch ? '✅ Sim' : '❌ Não'}`);
-            
+
             // Se o horário não coincide, mas queremos executar a função de almoço quando coincidir
             if (!horarioMatch) {
                 console.log(`[${portugalTime.toLocaleString('pt-PT')}] INFO: Verificação de execução: Frequência customizada - Dia incluído`);
@@ -3846,14 +3867,6 @@ setInterval(async () => {
     } catch (dbError) {
         console.log(`\n❌ ERRO AO CONSULTAR BASE DE DADOS: ${dbError.message}`);
     }
-
-    // Informações sobre agendamentos em memória
-    console.log(`\n🧠 AGENDAMENTOS EM MEMÓRIA (${activeSchedules.size}):`);
-    let memoryIndex = 1;
-    activeSchedules.forEach((intervalId, scheduleId) => {
-        console.log(`   ${memoryIndex}. Schedule ID: ${scheduleId} | Interval ID: ${intervalId}`);
-        memoryIndex++;
-    });
 
     // Logs recentes (últimos 10)
     const recentLogs = scheduleLogs.slice(0, 10);
@@ -5076,7 +5089,7 @@ router.get("/next-executions", async (req, res) => {
                     });
                 }
 
-                const [hours, minutes] = scheduleTime.split(":");
+                const [hours, minutes] = scheduleTime.split(':').map(Number);
                 let nextExecution = new Date(portugalTime);
                 nextExecution.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
