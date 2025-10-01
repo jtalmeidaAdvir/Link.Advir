@@ -1104,7 +1104,7 @@ const GestaoPartesDiarias = () => {
                                                     <Text style={styles.itemPreviewLabel}>Nome:</Text>
                                                     <Text style={styles.itemPreviewValue}>
                                                         {externo
-                                                            ? '(Externo)'
+                                                            ? (itemDetail.Funcionario || 'Trabalhador Externo')
                                                             : cacheNomes[itemDetail.ColaboradorID] || itemDetail.ColaboradorID || 'N/A'}
                                                     </Text>
                                                 </View>
@@ -1463,7 +1463,7 @@ const GestaoPartesDiarias = () => {
                                                                     externo && { color: '#fd7e14', fontWeight: '600' }
                                                                 ]}>
                                                                     {externo
-                                                                        ? '(Externo)'
+                                                                        ? (item.Funcionario || 'Trabalhador Externo')
                                                                         : cacheNomes[item.ColaboradorID] || item.ColaboradorID}
                                                                 </Text>
                                                             </View>
@@ -1487,42 +1487,31 @@ const GestaoPartesDiarias = () => {
                                                                         if (!item.ClasseID) return 'Não definida';
 
                                                                         const classeIdStr = String(item.ClasseID);
-                                                                        console.log(`🔍 Procurando classe ID: ${classeIdStr}`);
 
-                                                                        // Primeiro tenta busca direta
-                                                                        let classeDesc = classesMap[classeIdStr];
-                                                                        if (classeDesc) {
-                                                                            console.log(`✅ Classe encontrada diretamente: ${classeDesc}`);
-                                                                            return classeDesc;
-                                                                        }
-
-                                                                        // Se não encontrou, tenta buscar por todas as variações possíveis
+                                                                        // Lista de possíveis chaves para procurar
                                                                         const possiveisChaves = [
                                                                             classeIdStr,
-                                                                            String(Number(classeIdStr)), // Garante formato numérico
-                                                                            classeIdStr.padStart(2, '0'), // Com zero à esquerda
-                                                                            classeIdStr.padStart(3, '0'), // Com dois zeros à esquerda
-                                                                            classeIdStr.replace(/^0+/, ''), // Remove zeros à esquerda
-                                                                            `00${classeIdStr}`, // Adiciona zeros à esquerda
-                                                                            `0${classeIdStr}` // Adiciona um zero à esquerda
-                                                                        ].filter((value, index, self) => self.indexOf(value) === index); // Remove duplicados
+                                                                            String(Number(classeIdStr)),
+                                                                            classeIdStr.padStart(2, '0'),
+                                                                            classeIdStr.padStart(3, '0'),
+                                                                            classeIdStr.replace(/^0+/, '') || '0'
+                                                                        ];
 
+                                                                        // Procurar pela primeira chave que funcione
                                                                         for (const chave of possiveisChaves) {
-                                                                            classeDesc = classesMap[chave];
-                                                                            if (classeDesc) {
-                                                                                console.log(`✅ Classe encontrada com chave "${chave}": ${classeDesc}`);
+                                                                            const classeDesc = classesMap[chave];
+                                                                            if (classeDesc && classeDesc !== chave) {
                                                                                 return classeDesc;
                                                                             }
                                                                         }
 
-                                                                        // Se ainda não encontrou, mostra debug info apenas uma vez
-                                                                        if (Math.random() < 0.1) { // Só 10% das vezes para evitar spam
-                                                                            console.log(`❌ Classe ${classeIdStr} não encontrada`);
-                                                                            console.log(`🗂️ Chaves disponíveis:`, Object.keys(classesMap).slice(0, 10));
-                                                                            console.log(`🔍 Tentou chaves:`, possiveisChaves);
+                                                                        // Se não encontrou, mostrar informação de debug
+                                                                        const totalClasses = Object.keys(classesMap).length;
+                                                                        if (totalClasses === 0) {
+                                                                            return 'Classes não carregadas';
                                                                         }
 
-                                                                        return `Classe ${item.ClasseID} não encontrada`;
+                                                                        return `Classe ${item.ClasseID} (${totalClasses} classes disponíveis)`;
                                                                     })()}
                                                                 </Text>
                                                             </View>
