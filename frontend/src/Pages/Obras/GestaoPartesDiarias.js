@@ -269,21 +269,27 @@ const GestaoPartesDiarias = () => {
             const token = await AsyncStorage.getItem('painelAdminToken');
             const urlempresa = await AsyncStorage.getItem('urlempresa');
 
+            console.log('🔍 Buscando classes...');
             const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses', {
                 headers: { Authorization: `Bearer ${token}`, urlempresa, 'Content-Type': 'application/json' }
             });
             if (!res.ok) throw new Error('Falha ao obter classes');
             const data = await res.json();
 
+            console.log('📋 Dados das classes recebidos:', data);
             const table = data?.DataSet?.Table || [];
             const map = {};
 
             table.forEach(item => {
-                const classeId = item.ID ?? item.id ?? null;
-                const descricao = item.Descricao ?? item.Desig ?? String(classeId ?? '');
-                if (classeId != null) map[String(classeId)] = descricao;
+                const classeId = item.ID ?? item.id ?? item.ClasseID ?? null;
+                const descricao = item.Descricao ?? item.Desig ?? item.Nome ?? String(classeId ?? '');
+                if (classeId != null) {
+                    map[String(classeId)] = descricao;
+                    console.log(`📝 Classe mapeada: ID ${classeId} -> ${descricao}`);
+                }
             });
 
+            console.log('🗺️ Mapa final de classes:', map);
             setClassesMap(map);
         } catch (err) {
             console.warn('Erro classes:', err.message);
@@ -1473,11 +1479,51 @@ const GestaoPartesDiarias = () => {
                                                                 </Text>
                                                             </View>
 
-                                                            {/* Adicionar exibição da Classe */}
+                                                            {/* Exibição da Classe */}
                                                             <View style={styles.itemDetailFull}>
                                                                 <Text style={styles.itemDetailLabel}>Classe</Text>
                                                                 <Text style={styles.itemDetailValue}>
-                                                                    {classesMap[String(item.ClasseID)] || item.ClasseID || 'Não definida'}
+                                                                    {(() => {
+                                                                        if (!item.ClasseID) return 'Não definida';
+
+                                                                        const classeIdStr = String(item.ClasseID);
+                                                                        console.log(`🔍 Procurando classe ID: ${classeIdStr}`);
+
+                                                                        // Primeiro tenta busca direta
+                                                                        let classeDesc = classesMap[classeIdStr];
+                                                                        if (classeDesc) {
+                                                                            console.log(`✅ Classe encontrada diretamente: ${classeDesc}`);
+                                                                            return classeDesc;
+                                                                        }
+
+                                                                        // Se não encontrou, tenta buscar por todas as variações possíveis
+                                                                        const possiveisChaves = [
+                                                                            classeIdStr,
+                                                                            String(Number(classeIdStr)), // Garante formato numérico
+                                                                            classeIdStr.padStart(2, '0'), // Com zero à esquerda
+                                                                            classeIdStr.padStart(3, '0'), // Com dois zeros à esquerda
+                                                                            classeIdStr.replace(/^0+/, ''), // Remove zeros à esquerda
+                                                                            `00${classeIdStr}`, // Adiciona zeros à esquerda
+                                                                            `0${classeIdStr}` // Adiciona um zero à esquerda
+                                                                        ].filter((value, index, self) => self.indexOf(value) === index); // Remove duplicados
+
+                                                                        for (const chave of possiveisChaves) {
+                                                                            classeDesc = classesMap[chave];
+                                                                            if (classeDesc) {
+                                                                                console.log(`✅ Classe encontrada com chave "${chave}": ${classeDesc}`);
+                                                                                return classeDesc;
+                                                                            }
+                                                                        }
+
+                                                                        // Se ainda não encontrou, mostra debug info apenas uma vez
+                                                                        if (Math.random() < 0.1) { // Só 10% das vezes para evitar spam
+                                                                            console.log(`❌ Classe ${classeIdStr} não encontrada`);
+                                                                            console.log(`🗂️ Chaves disponíveis:`, Object.keys(classesMap).slice(0, 10));
+                                                                            console.log(`🔍 Tentou chaves:`, possiveisChaves);
+                                                                        }
+
+                                                                        return `Classe ${item.ClasseID} não encontrada`;
+                                                                    })()}
                                                                 </Text>
                                                             </View>
 
