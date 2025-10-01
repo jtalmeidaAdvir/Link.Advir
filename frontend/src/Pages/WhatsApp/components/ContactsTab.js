@@ -251,62 +251,79 @@ const ContactsTab = ({
     }, []);
 
     // Function to save edited contacts
-    const saveEditedContacts = async (contactListData) => {
-        try {
-            const token = localStorage.getItem("loginToken");
+   const saveEditedContacts = async (contactListData) => {
+  try {
+    const token = localStorage.getItem("loginToken");
 
-            // Preparar dados dos contactos individuais
-            const contactsToSave = contactListData.contacts.map(contact => {
-                const contactData = {
-                    name: contactListData.name,
-                    contacts: JSON.stringify([{
-                        phone: contact.phone || contact,
-                        numeroTecnico: contact.numeroTecnico || "",
-                        numeroCliente: contact.numeroCliente || "",
-                        canCreateTickets: contact.canCreateTickets || false,
-                        canRegisterPonto: contact.canRegisterPonto || false,
-                        userID: contact.userID || contact.user_id || "",
-                        obrasAutorizadas: contact.obrasAutorizadas || [],
-                        dataInicioAutorizacao: contact.dataInicioAutorizacao || "",
-                        dataFimAutorizacao: contact.dataFimAutorizacao || ""
-                    }]),
-                    can_create_tickets: contact.canCreateTickets || false,
-                    can_register_ponto: contact.canRegisterPonto || false,
-                    numero_tecnico: contact.numeroTecnico || null,
-                    numero_cliente: contact.numeroCliente || null,
-                    user_id: contact.userID || contact.user_id || null,
-                    // Adicionar os novos campos específicos
-                    obrasAutorizadas: contact.obrasAutorizadas || [],
-                    dataInicioAutorizacao: contact.dataInicioAutorizacao || null,
-                    dataFimAutorizacao: contact.dataFimAutorizacao || null
-                };
+    const individualContacts = contactListData.contacts.map(c => ({
+      phone: c.phone || c,
+      numeroTecnico: c.numeroTecnico || "",
+      numeroCliente: c.numeroCliente || "",
+      canCreateTickets: !!c.canCreateTickets,
+      canRegisterPonto: !!c.canRegisterPonto,
+      user_id: c.userID || c.user_id || null,
+      obrasAutorizadas: c.obrasAutorizadas || [],
+      dataInicioAutorizacao: c.dataInicioAutorizacao || null,
+      dataFimAutorizacao: c.dataFimAutorizacao || null,
+    }));
 
-                return contactData;
-            });
-
-            // Salvar cada contacto individualmente
-            for (const contactData of contactsToSave) {
-                const response = await fetch(`https://backend.advir.pt/whatsapi/api/whatsapp/contacts`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(contactData)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Erro ao salvar contacto: ${response.statusText}`);
-                }
-            }
-
-            console.log('Contactos salvos com sucesso');
-
-        } catch (error) {
-            console.error('Erro ao salvar contactos editados:', error);
-            throw error;
-        }
+    const payload = {
+      name: contactListData.name,
+      individualContacts, // <- o backend já trata este formato
     };
+
+    const res = await fetch(`${API_BASE_URL}/contact-lists`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Falha ao criar lista: ${res.status} ${res.statusText} - ${txt}`);
+    }
+  } catch (error) {
+    console.error('Erro ao criar lista:', error);
+    throw error;
+  }
+};
+
+const updateContactList = async (contactListData) => {
+  const token = localStorage.getItem("loginToken");
+
+  const individualContacts = contactListData.contacts.map(c => ({
+    phone: c.phone || c,
+    numeroTecnico: c.numeroTecnico || "",
+    numeroCliente: c.numeroCliente || "",
+    canCreateTickets: !!c.canCreateTickets,
+    canRegisterPonto: !!c.canRegisterPonto,
+    user_id: c.userID || c.user_id || null,
+    obrasAutorizadas: c.obrasAutorizadas || [],
+    dataInicioAutorizacao: c.dataInicioAutorizacao || null,
+    dataFimAutorizacao: c.dataFimAutorizacao || null,
+  }));
+
+  const payload = { name: contactListData.name, individualContacts };
+
+  const res = await fetch(`${API_BASE_URL}/contact-lists/${contactListData.id}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Falha ao atualizar lista: ${res.status} ${res.statusText} - ${txt}`);
+  }
+};
+
+
 
 
     return (
@@ -318,18 +335,17 @@ const ContactsTab = ({
                     e.preventDefault();
                     // Preparar dados para salvar no novo formato
                     const contactsForSaving = {
-                        ...newContactList,
-                        contacts: newContactList.contacts.map(contact => ({
-                            ...contact,
-                            obrasAutorizadas: contact.obrasAutorizadas || [],
-                            dataInicioAutorizacao: contact.dataInicioAutorizacao || null,
-                            dataFimAutorizacao: contact.dataFimAutorizacao || null
-                        }))
-                    };
-
-                    await saveEditedContacts(contactsForSaving);
-                    await loadContactLists(); // Recarregar listas após criar
-                    setNewContactList({ name: "", contacts: [{ phone: "" }] }); // Limpar formulário
+    ...editingContactList,
+    contacts: editingContactList.contacts.map(contact => ({
+      ...contact,
+      obrasAutorizadas: contact.obrasAutorizadas || [],
+      dataInicioAutorizacao: contact.dataInicioAutorizacao || null,
+      dataFimAutorizacao: contact.dataFimAutorizacao || null
+    }))
+  };
+  await updateContactList(contactsForSaving);
+  await loadContactLists();
+  cancelEditingContactList();
                 }}>
                     <div style={styles.formGroup}>
                         <label style={styles.label}>Nome da Lista *</label>

@@ -328,48 +328,75 @@ const Perfil = ({ user }) => {
         }
     };
 
-    const alterarPassword = async () => {
-        setModalVisible(false);
-        setIsLoading(true);
-        try {
-            const userId = localStorage.getItem("userId");
-            const token = localStorage.getItem("loginToken");
+const alterarPassword = async () => {
+  setModalVisible(false);
+  setIsLoading(true);
 
-            const response = await fetch(
-                `https://backend.advir.pt/api/auth/change-password/${userId}`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        currentPassword: "", // Não é necessário enviar a password atual neste endpoint específico
-                        newPassword: newPassword,
-                    }),
-                },
-            );
+  try {
+    const token = localStorage.getItem("loginToken");
+    if (!token) {
+      showMessage("Sessão expirada. Por favor, inicia sessão novamente.", true);
+      // opcional: redirecionar para login
+      // navigate("/login");
+      return;
+    }
 
-            if (response.ok) {
-                showMessage("Palavra-passe alterada com sucesso!");
-                setNewPassword("");
-                setConfirmPassword("");
-            } else {
-                const errorData = await response.json();
-                showMessage(
-                    `Falha ao alterar palavra-passe: ${
-                        errorData.message || response.statusText
-                    }`,
-                    true,
-                );
-            }
-        } catch (error) {
-            console.error("Erro ao alterar palavra-passe:", error);
-            showMessage("Ocorreu um erro ao alterar a palavra-passe.", true);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    // validações simples no cliente
+    if (!newPassword || newPassword.length < 8) {
+      showMessage("A nova palavra-passe deve ter pelo menos 8 caracteres.", true);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showMessage("As palavras-passe não coincidem.", true);
+      return;
+    }
+
+    const resp = await fetch("https://backend.advir.pt/api/users/alterarPassword", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      // ⚠️ alinhar com o backend: enviar confirmNewPassword
+      body: JSON.stringify({
+        newPassword: newPassword,
+        confirmNewPassword: confirmPassword,
+      }),
+    });
+
+    // tentar ler JSON, mas sem rebentar se vier vazio
+    let data = {};
+    try { data = await resp.json(); } catch {}
+
+    if (resp.ok) {
+      showMessage(data.message || "Palavra-passe alterada com sucesso!");
+      setNewPassword("");
+      setConfirmPassword("");
+    } else {
+      // backend usa { error: "..." } nos erros
+      const msg = data.error || data.message || resp.statusText;
+
+      if (resp.status === 401) {
+        showMessage("Sessão expirada. Por favor, inicia sessão novamente.", true);
+        // opcional: redirecionar
+        // navigate("/login");
+      } else if (resp.status === 404) {
+        showMessage("Utilizador não encontrado.", true);
+      } else if (resp.status === 400) {
+        showMessage(msg || "Pedido inválido.", true);
+      } else {
+        showMessage(`Falha ao alterar palavra-passe: ${msg}`, true);
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao alterar palavra-passe:", e);
+    showMessage("Ocorreu um erro ao alterar a palavra-passe.", true);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 
     const loadProfileImage = () => {
         const savedImage = localStorage.getItem("profileImage");
