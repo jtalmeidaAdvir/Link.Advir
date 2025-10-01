@@ -95,7 +95,7 @@ const GestaoPartesDiarias = () => {
     const [integrandoIds, setIntegrandoIds] = useState(new Set());
     const [equipamentosMap, setEquipamentosMap] = useState({});
     const [obrasResponsavel, setObrasResponsavel] = useState(new Set()); // Set com IDs das obras que sou responsável
-
+    const [classesMap, setClassesMap] = useState({}); // Novo estado para o mapa de classes
 
 
     const confirm = (title, message) =>
@@ -156,6 +156,7 @@ const GestaoPartesDiarias = () => {
         subEmpId: null,       // SubEmpId (Mão de obra) ou ComponenteID (Equip)
         horasStr: '',         // input do utilizador (H:MM ou decimal)
         horaExtra: false,
+        classeID: null, // Adicionado para a classe
     });
 
     const [especialidadesList, setEspecialidadesList] = useState([]);
@@ -190,6 +191,7 @@ const GestaoPartesDiarias = () => {
         (async () => {
             await fetchEspecialidades();
             await fetchEquipamentos();
+            await fetchClasses(); // Adicionado chamada para buscar classes
             await fetchObras();
             await fetchCabecalhos();
         })();
@@ -261,6 +263,33 @@ const GestaoPartesDiarias = () => {
         }
     };
 
+    // Nova função para buscar classes
+    const fetchClasses = async () => {
+        try {
+            const token = await AsyncStorage.getItem('painelAdminToken');
+            const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+            const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses', {
+                headers: { Authorization: `Bearer ${token}`, urlempresa, 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) throw new Error('Falha ao obter classes');
+            const data = await res.json();
+
+            const table = data?.DataSet?.Table || [];
+            const map = {};
+
+            table.forEach(item => {
+                const classeId = item.ID ?? item.id ?? null;
+                const descricao = item.Descricao ?? item.Desig ?? String(classeId ?? '');
+                if (classeId != null) map[String(classeId)] = descricao;
+            });
+
+            setClassesMap(map);
+        } catch (err) {
+            console.warn('Erro classes:', err.message);
+        }
+    };
+
 
     const abrirEdicaoItem = (item, cab, idx) => {
         // Detecta categoria
@@ -296,6 +325,7 @@ const GestaoPartesDiarias = () => {
             subEmpId: found?.subEmpId ?? subId ?? null,
             horasStr,
             horaExtra,
+            classeID: item.ClasseID ?? null, // Adicionar ClasseID ao estado de edição
         });
         setEditItemModalVisible(true);
     };
@@ -332,7 +362,7 @@ const GestaoPartesDiarias = () => {
             // Campos obrigatórios no create (e inofensivos no update)
             const obrigatorios = {
                 Funcionario: prev.Funcionario ?? '',
-                ClasseID: prev.ClasseID ?? -1,
+                ClasseID: editItem.classeID ?? prev.ClasseID ?? -1, // Usar valor do editItem, ou anterior
                 PrecoUnit: prev.PrecoUnit ?? 0,
                 TipoEntidade: prev.TipoEntidade ?? 'O',
                 ColaboradorID: prev.ColaboradorID ?? null,
@@ -400,7 +430,7 @@ const GestaoPartesDiarias = () => {
                 NumHoras: (saved?.NumHoras ?? payload.NumHoras),
                 TipoHoraID: (saved?.TipoHoraID ?? payload.TipoHoraID),
                 Funcionario: (saved?.Funcionario ?? payload.Funcionario),
-                ClasseID: (saved?.ClasseID ?? payload.ClasseID),
+                ClasseID: (saved?.ClasseID ?? payload.ClasseID), // Atualiza ClasseID
                 PrecoUnit: (saved?.PrecoUnit ?? payload.PrecoUnit),
                 TipoEntidade: (saved?.TipoEntidade ?? payload.TipoEntidade),
                 ColaboradorID: (saved?.ColaboradorID ?? payload.ColaboradorID),
@@ -710,6 +740,19 @@ const GestaoPartesDiarias = () => {
             });
             if (!res.ok) throw new Error('Falha ao obter partes diárias.');
             const data = await res.json();
+
+            // Carregar nomes dos colaboradores e classes para todos os itens
+            for (const cab of data) {
+                if (cab?.ParteDiariaItems?.length > 0) {
+                    for (const item of cab.ParteDiariaItems) {
+                        if (!isExternoItem(item) && item.ColaboradorID) {
+                            await obterNomeFuncionario(item.ColaboradorID);
+                        }
+                        // As classes já estão a ser buscadas no fetchClasses, apenas precisamos do ID no item.
+                    }
+                }
+            }
+
             setCabecalhos(data);
             setError(null);
         } catch (err) {
@@ -854,7 +897,7 @@ const GestaoPartesDiarias = () => {
                 Alert.alert('Sucesso', 'Parte aceite (só externos) — marcado como integrado.');
                 fetchCabecalhos();
             } else {
-                Alert.alert('Erro', 'Não foi possível marcar como integrado.');
+                Alert.Alert.alert('Erro', 'Não foi possível marcar como integrado.');
             }
         } catch (err) {
             console.error('Erro ao aceitar só externos:', err);
@@ -1015,6 +1058,88 @@ const GestaoPartesDiarias = () => {
                                 <Text style={{ color: '#fd7e14', fontWeight: '600' }}>
                                     Apenas EXTERNOS — não será enviado para o Primavera.
                                 </Text>
+                            </View>
+                        )}
+
+                        {/* Prévia dos Itens */}
+                        {item.ParteDiariaItems && item.ParteDiariaItems.length > 0 && (
+                            <View style={styles.itemsPreviewContainer}>
+                                <View style={styles.itemsPreviewHeader}>
+                                    <Ionicons name="list-outline" size={16} color="#1792FE" />
+                                    <Text style={styles.itemsPreviewTitle}>Itens da Parte Diária</Text>
+                                </View>
+                                {item.ParteDiariaItems.slice(0, 3).map((itemDetail, index) => {
+                                    const externo = isExternoItem(itemDetail);
+                                    const isEquipamento = String(itemDetail.Categoria || '').toLowerCase() === 'equipamentos';
+                                    return (
+                                        <View key={`${String(itemDetail.ComponenteID)}-${index}`} style={styles.itemPreviewCard}>
+                                            <View style={styles.itemPreviewHeader}>
+                                                <View style={[
+                                                    styles.itemTypeBadgeSmall,
+                                                    { backgroundColor: isEquipamento ? '#6f42c1' : '#17a2b8' }
+                                                ]}>
+                                                    <Ionicons
+                                                        name={isEquipamento ? 'construct' : 'people'}
+                                                        size={10}
+                                                        color="#fff"
+                                                    />
+                                                </View>
+                                                <Text style={styles.itemPreviewType}>
+                                                    {isEquipamento ? 'Equipamento' : 'Pessoal'}
+                                                </Text>
+                                                {externo && (
+                                                    <View style={[styles.itemTypeBadgeSmall, { backgroundColor: '#fd7e14' }]}>
+                                                        <Text style={styles.itemTypeBadgeSmallText}>EXT</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                            <View style={styles.itemPreviewContent}>
+                                                <View style={styles.itemPreviewRow}>
+                                                    <Text style={styles.itemPreviewLabel}>Nome:</Text>
+                                                    <Text style={styles.itemPreviewValue}>
+                                                        {externo
+                                                            ? '(Externo)'
+                                                            : cacheNomes[itemDetail.ColaboradorID] || itemDetail.ColaboradorID || 'N/A'}
+                                                    </Text>
+                                                </View>
+                                                <View style={styles.itemPreviewRow}>
+                                                    <Text style={styles.itemPreviewLabel}>
+                                                        {isEquipamento ? 'Equipamento:' : 'Especialidade:'}
+                                                    </Text>
+                                                    <Text style={styles.itemPreviewValue}>
+                                                        {isEquipamento
+                                                            ? equipamentosMap[String(itemDetail.ComponenteID)] ||
+                                                              equipamentosMap[String(itemDetail.SubEmpID)] ||
+                                                              itemDetail.ComponenteID || itemDetail.SubEmpID || 'N/A'
+                                                            : especialidadesMap[String(itemDetail.SubEmpID)] || itemDetail.SubEmpID || 'N/A'}
+                                                    </Text>
+                                                </View>
+                                                <View style={styles.itemPreviewRow}>
+                                                    <Text style={styles.itemPreviewLabel}>Horas:</Text>
+                                                    <View style={styles.itemPreviewHorasContainer}>
+                                                        <Ionicons name="time-outline" size={14} color="#1792FE" />
+                                                        <Text style={styles.itemPreviewHorasValue}>
+                                                            {formatarHoras(itemDetail.NumHoras || 0)}
+                                                        </Text>
+                                                        {itemDetail.TipoHoraID && (
+                                                            <View style={styles.horaExtraBadge}>
+                                                                <Ionicons name="flash" size={10} color="#fff" />
+                                                                <Text style={styles.horaExtraText}>Extra</Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    );
+                                })}
+                                {item.ParteDiariaItems.length > 3 && (
+                                    <View style={styles.moreItemsIndicator}>
+                                        <Text style={styles.moreItemsText}>
+                                            +{item.ParteDiariaItems.length - 3} item(s) adicional(is)
+                                        </Text>
+                                    </View>
+                                )}
                             </View>
                         )}
                     </View>
@@ -1348,6 +1473,14 @@ const GestaoPartesDiarias = () => {
                                                                 </Text>
                                                             </View>
 
+                                                            {/* Adicionar exibição da Classe */}
+                                                            <View style={styles.itemDetailFull}>
+                                                                <Text style={styles.itemDetailLabel}>Classe</Text>
+                                                                <Text style={styles.itemDetailValue}>
+                                                                    {classesMap[String(item.ClasseID)] || item.ClasseID || 'Não definida'}
+                                                                </Text>
+                                                            </View>
+
                                                             {/* Status do Item */}
                                                             <View style={styles.itemStatusContainer}>
                                                                 <View style={[
@@ -1524,6 +1657,27 @@ const GestaoPartesDiarias = () => {
                                         </Picker>
                                     </View>
                                 </View>
+
+                                {/* Card de Classe */}
+                                <View style={styles.editCard}>
+                                    <View style={styles.editCardHeader}>
+                                        <Ionicons name="pricetag-outline" size={20} color="#1792FE" />
+                                        <Text style={styles.editCardTitle}>Classe</Text>
+                                    </View>
+                                    <View style={styles.editPickerContainer}>
+                                        <Picker
+                                            selectedValue={editItem.classeID}
+                                            onValueChange={(v) => setEditItem(s => ({ ...s, classeID: v }))}
+                                            style={styles.editPicker}
+                                        >
+                                            <Picker.Item label="— Selecione uma classe —" value={null} />
+                                            {Object.entries(classesMap).map(([id, descricao]) => (
+                                                <Picker.Item key={id} label={descricao} value={Number(id)} />
+                                            ))}
+                                        </Picker>
+                                    </View>
+                                </View>
+
 
                                 {/* Card de horas */}
                                 <View style={styles.editCard}>

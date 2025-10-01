@@ -382,4 +382,118 @@ export const styles = {
   itemText: { fontSize: 14, color: '#555', marginLeft: 8, flex: 1, lineHeight: 20 },
   categoriaChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 8, marginTop: 6 },
   categoriaChipText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  
+  // Estilos para prévia dos itens no card principal
+  itemsPreviewContainer: {
+    marginTop: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef'
+  },
+  itemsPreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 6
+  },
+  itemsPreviewTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1792FE'
+  },
+  itemPreviewCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef'
+  },
+  itemPreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6
+  },
+  itemTypeBadgeSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 2
+  },
+  itemTypeBadgeSmallText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: 'bold'
+  },
+  itemPreviewType: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1
+  },
+  itemPreviewContent: {
+    gap: 4
+  },
+  itemPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  itemPreviewLabel: {
+    fontSize: 11,
+    color: '#666',
+    fontWeight: '500',
+    flex: 1
+  },
+  itemPreviewValue: {
+    fontSize: 11,
+    color: '#333',
+    fontWeight: '600',
+    flex: 2,
+    textAlign: 'right'
+  },
+  itemPreviewHorasContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flex: 2,
+    justifyContent: 'flex-end'
+  },
+  itemPreviewHorasValue: {
+    fontSize: 11,
+    color: '#1792FE',
+    fontWeight: '700'
+  },
+  horaExtraBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#dc3545',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    gap: 2
+  },
+  horaExtraText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: 'bold'
+  },
+  moreItemsIndicator: {
+    alignItems: 'center',
+    paddingVertical: 6,
+    backgroundColor: 'rgba(23, 146, 254, 0.1)',
+    borderRadius: 6,
+    marginTop: 4
+  },
+  moreItemsText: {
+    fontSize: 11,
+    color: '#1792FE',
+    fontWeight: '600',
+    fontStyle: 'italic'
+  },
 };
