@@ -392,7 +392,7 @@ const CriarEquipa = () => {
                                             <FontAwesome name="user" size={16} color="#1792FE" style={styles.userIcon} />
                                             <View style={styles.memberInfo}>
                                                 <Text style={styles.memberName}>
-                                                    {user.nome || user.name || user.email.split('@')[0]}
+                                                    {user.nome || user.name || user.username || user.email.split('@')[0]}
                                                 </Text>
                                                 <Text style={styles.memberEmail}>{user.email}</Text>
                                             </View>
@@ -412,7 +412,7 @@ const CriarEquipa = () => {
                                     return (
                                         <View key={`preview-${memberId}`} style={styles.selectedMemberTag}>
                                             <Text style={styles.selectedMemberTagText}>
-                                                {user?.email?.split('@')[0] || 'Utilizador'}
+                                                {user?.nome || user?.name || user?.username || user?.email?.split('@')[0] || 'Utilizador'}
                                             </Text>
                                         </View>
                                     );
@@ -624,7 +624,7 @@ const CriarEquipa = () => {
                                                 <FontAwesome name="user" size={16} color="#1792FE" style={styles.userIcon} />
                                                 <View style={styles.memberInfo}>
                                                     <Text style={styles.memberName}>
-                                                        {user.nome || user.name || user.email.split('@')[0]}
+                                                        {user.nome || user.name || user.username || user.email.split('@')[0]}
                                                     </Text>
                                                     <Text style={styles.memberEmail}>{user.email}</Text>
                                                 </View>

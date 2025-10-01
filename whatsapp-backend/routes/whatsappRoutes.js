@@ -3250,7 +3250,7 @@ async function handleClientInput(phoneNumber, message, conversation) {
         conversation.data.cliente = validacao.cliente.Cliente;
         conversation.data.nomeCliente = validacao.cliente.Nome;
         conversation.data.contacto = null; // por defeito
-        conversationData.userId = validacao.cliente.userId; // Tenta obter userId do cliente
+        conversation.data.userId = validacao.cliente.userId; // Tenta obter userId do cliente
 
         // Buscar contratos do cliente
         const resultadoContratos = await buscarContratosCliente(
@@ -3980,26 +3980,26 @@ router.post("/schedule", async (req, res) => {
             if (!timeStr.includes(":")) {
                 timeStr = "09:00:00";
             }
-
+            
             const parts = timeStr.split(":");
             const hours = parseInt(parts[0]) || 0;
             const minutes = parseInt(parts[1]) || 0;
             const seconds = parseInt(parts[2]) || 0;
-
+            
             const date = new Date(0); // 1970-01-01T00:00:00Z
             date.setUTCHours(hours, minutes, seconds, 0);
             return date;
         }
 
         let formattedTimeStr = time || "09:00";
-
+        
         // Adicionar segundos se não existirem
         if (formattedTimeStr && !formattedTimeStr.includes(":")) {
             formattedTimeStr = "09:00";
         } else if (formattedTimeStr && formattedTimeStr.split(":").length === 2) {
             formattedTimeStr += ":00";
         }
-
+        
         if (!isValidTimeFormat(formattedTimeStr)) {
             return res.status(400).json({
                 error: "Formato de hora inválido. Utilize o formato HH:MM.",

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 // Assuming API_BASE_URL is defined elsewhere, e.g., in a config file
-const API_BASE_URL = "https://backend.advir.pt/whatsapi/api/whatsapp"; //https://backend.advir.pt/whatsapi/api/whatsapp
+const API_BASE_URL = "https://backend.advir.pt/whatsapi/api/whatsapp";
 const empresaId = localStorage.getItem("empresa_id");
 const ContactsTab = ({
     newContactList,
@@ -251,86 +251,86 @@ const ContactsTab = ({
     }, []);
 
     // Function to save edited contacts
-    const saveEditedContacts = async (contactListData) => {
-        try {
-            const token = localStorage.getItem("loginToken");
+   const saveEditedContacts = async (contactListData) => {
+  try {
+    const token = localStorage.getItem("loginToken");
 
-            const individualContacts = contactListData.contacts.map(c => ({
-                phone: c.phone || c,
-                numeroTecnico: c.numeroTecnico || "",
-                numeroCliente: c.numeroCliente || "",
-                canCreateTickets: !!c.canCreateTickets,
-                canRegisterPonto: !!c.canRegisterPonto,
-                user_id: c.userID || c.user_id || null,
-                obrasAutorizadas: c.obrasAutorizadas || [],
-                dataInicioAutorizacao: c.dataInicioAutorizacao || null,
-                dataFimAutorizacao: c.dataFimAutorizacao || null,
-            }));
+    const individualContacts = contactListData.contacts.map(c => ({
+      phone: c.phone || c,
+      numeroTecnico: c.numeroTecnico || "",
+      numeroCliente: c.numeroCliente || "",
+      canCreateTickets: !!c.canCreateTickets,
+      canRegisterPonto: !!c.canRegisterPonto,
+      user_id: c.userID || c.user_id || null,
+      obrasAutorizadas: c.obrasAutorizadas || [],
+      dataInicioAutorizacao: c.dataInicioAutorizacao || null,
+      dataFimAutorizacao: c.dataFimAutorizacao || null,
+    }));
 
-            const payload = {
-                name: contactListData.name,
-                contacts: individualContacts.map(c => c.phone), // Para compatibilidade com backend antigo
-                individualContacts, // Novo formato detalhado
-                canCreateTickets: individualContacts.some(c => c.canCreateTickets),
-                canRegisterPonto: individualContacts.some(c => c.canRegisterPonto),
-                numeroTecnico: individualContacts.find(c => c.numeroTecnico)?.numeroTecnico || "",
-                numeroCliente: individualContacts.find(c => c.numeroCliente)?.numeroCliente || "",
-                user_id: individualContacts.find(c => c.user_id)?.user_id || null,
-            };
-
-            const res = await fetch(`${API_BASE_URL}/contact-lists`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            });
-
-            if (!res.ok) {
-                const txt = await res.text();
-                throw new Error(`Falha ao criar lista: ${res.status} ${res.statusText} - ${txt}`);
-            }
-
-            const result = await res.json();
-            return result;
-        } catch (error) {
-            console.error('Erro ao criar lista:', error);
-            throw error;
-        }
+    const payload = {
+      name: contactListData.name,
+      contacts: individualContacts.map(c => c.phone), // Para compatibilidade com backend antigo
+      individualContacts, // Novo formato detalhado
+      canCreateTickets: individualContacts.some(c => c.canCreateTickets),
+      canRegisterPonto: individualContacts.some(c => c.canRegisterPonto),
+      numeroTecnico: individualContacts.find(c => c.numeroTecnico)?.numeroTecnico || "",
+      numeroCliente: individualContacts.find(c => c.numeroCliente)?.numeroCliente || "",
+      user_id: individualContacts.find(c => c.user_id)?.user_id || null,
     };
 
-    const updateContactList = async (contactListData) => {
-        const token = localStorage.getItem("loginToken");
+    const res = await fetch(`${API_BASE_URL}/contact-lists`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
-        const individualContacts = contactListData.contacts.map(c => ({
-            phone: c.phone || c,
-            numeroTecnico: c.numeroTecnico || "",
-            numeroCliente: c.numeroCliente || "",
-            canCreateTickets: !!c.canCreateTickets,
-            canRegisterPonto: !!c.canRegisterPonto,
-            user_id: c.userID || c.user_id || null,
-            obrasAutorizadas: c.obrasAutorizadas || [],
-            dataInicioAutorizacao: c.dataInicioAutorizacao || null,
-            dataFimAutorizacao: c.dataFimAutorizacao || null,
-        }));
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Falha ao criar lista: ${res.status} ${res.statusText} - ${txt}`);
+    }
 
-        const payload = { name: contactListData.name, individualContacts };
+    const result = await res.json();
+    return result;
+  } catch (error) {
+    console.error('Erro ao criar lista:', error);
+    throw error;
+  }
+};
 
-        const res = await fetch(`${API_BASE_URL}/contact-lists/${contactListData.id}`, {
-            method: 'PUT',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-        });
+const updateContactList = async (contactListData) => {
+  const token = localStorage.getItem("loginToken");
 
-        if (!res.ok) {
-            const txt = await res.text();
-            throw new Error(`Falha ao atualizar lista: ${res.status} ${res.statusText} - ${txt}`);
-        }
-    };
+  const individualContacts = contactListData.contacts.map(c => ({
+    phone: c.phone || c,
+    numeroTecnico: c.numeroTecnico || "",
+    numeroCliente: c.numeroCliente || "",
+    canCreateTickets: !!c.canCreateTickets,
+    canRegisterPonto: !!c.canRegisterPonto,
+    user_id: c.userID || c.user_id || null,
+    obrasAutorizadas: c.obrasAutorizadas || [],
+    dataInicioAutorizacao: c.dataInicioAutorizacao || null,
+    dataFimAutorizacao: c.dataFimAutorizacao || null,
+  }));
+
+  const payload = { name: contactListData.name, individualContacts };
+
+  const res = await fetch(`${API_BASE_URL}/contact-lists/${contactListData.id}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Falha ao atualizar lista: ${res.status} ${res.statusText} - ${txt}`);
+  }
+};
 
 
 

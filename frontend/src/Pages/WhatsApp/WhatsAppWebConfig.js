@@ -668,11 +668,20 @@ const WhatsAppWebConfig = () => {
         }
 
         try {
+            // Garantir formato correto da hora
+            let timeFormatted = newSchedule.time;
+            if (timeFormatted && !timeFormatted.includes(":")) {
+                timeFormatted = "09:00";
+            }
+            
             const scheduleWithTimezone = {
                 ...newSchedule,
+                time: timeFormatted,
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 timezoneOffset: new Date().getTimezoneOffset(),
             };
+
+            console.log("Enviando agendamento:", scheduleWithTimezone);
 
             const response = await fetch(`${API_BASE_URL}/schedule`, {
                 method: "POST",
