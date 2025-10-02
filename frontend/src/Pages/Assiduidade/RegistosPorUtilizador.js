@@ -2113,7 +2113,7 @@ const RegistosPorUtilizador = () => {
                                             }}>
                                                 <div style={{ fontSize: '0.9rem', color: '#742a2a' }}>
                                                     <div style={{ marginBottom: '10px' }}>
-                                                        <strong>⚠️ AVISO CRÍTICO:</strong>
+                                                        <strong>⚠️ ATENÇÃO:</strong>
                                                     </div>
                                                     <div style={{ marginBottom: '10px' }}>
                                                         Esta operação irá <strong>eliminar permanentemente</strong> todos os registos de ponto dos dias selecionados.
@@ -2185,26 +2185,6 @@ const RegistosPorUtilizador = () => {
                                                         ? `${obras.find(o => o.id.toString() === obraSelecionada.toString())?.nome || `Obra ${obraSelecionada}`} - Apenas registos desta obra serão eliminados`
                                                         : 'Todas as obras - Todos os registos dos dias serão eliminados'
                                                     }
-                                                </div>
-                                            </div>
-
-                                            <div style={{
-                                                ...styles.selectedCellsContainer,
-                                                backgroundColor: '#fef5e7',
-                                                border: '1px solid #f6e05e',
-                                                marginTop: '20px'
-                                            }}>
-                                                <div style={{ fontSize: '0.9rem', color: '#744210' }}>
-                                                    <div style={{ marginBottom: '10px' }}>
-                                                        <strong>📊 Resumo da Eliminação:</strong>
-                                                    </div>
-                                                    <div>• <strong>Total de seleções:</strong> {selectedCells.length}</div>
-                                                    <div>• <strong>Utilizadores afetados:</strong> {Object.keys(selectedCells.reduce((acc, cell) => {
-                                                        const userId = parseInt(cell.split('-')[0], 10);
-                                                        acc[userId] = true;
-                                                        return acc;
-                                                    }, {})).length}</div>
-                                                    <div>• <strong>Período:</strong> {mesSelecionado}/{anoSelecionado}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -2933,8 +2913,15 @@ const RegistosPorUtilizador = () => {
                                         <p style={styles.utilizadorEmail}>{resumo.utilizador.email}</p>
                                     </div>
                                     <div style={styles.horasDestaque}>
-                                        <span style={styles.horasNumero}>{resumo.totalHorasEstimadas}</span>
-                                        <span style={styles.horasLabel}>horas</span>
+                                        <span style={styles.horasNumero}>
+                                            {(() => {
+                                                const horasDecimal = parseFloat(resumo.totalHorasEstimadas);
+                                                const horas = Math.floor(horasDecimal);
+                                                const minutos = Math.round((horasDecimal - horas) * 60);
+                                                return minutos > 0 ? `${horas}h ${minutos}m` : `${horas}h`;
+                                            })()}
+                                        </span>
+                                        <span style={styles.horasLabel}>total</span>
                                     </div>
                                 </div>
 
@@ -3111,7 +3098,14 @@ const RegistosPorUtilizador = () => {
                                                     >
                                                         {estatisticas ? (
                                                             <div style={styles.gradeCellContent}>
-                                                                <div style={styles.gradeCellHoras}>{estatisticas.horasEstimadas}h</div>
+                                                                <div style={styles.gradeCellHoras}>
+                                                                    {(() => {
+                                                                        const horasDecimal = parseFloat(estatisticas.horasEstimadas);
+                                                                        const horas = Math.floor(horasDecimal);
+                                                                        const minutos = Math.round((horasDecimal - horas) * 60);
+                                                                        return minutos > 0 ? `${horas}h ${minutos}m` : `${horas}h`;
+                                                                    })()}
+                                                                </div>
                                                                 <div style={styles.gradeCellRegistos}>{estatisticas.totalRegistos}r</div>
                                                                 {estatisticas.faltas && estatisticas.faltas.length > 0 && (
                                                                     <div style={styles.gradeCellFaltas}>📅{estatisticas.faltas.length}</div>
@@ -3130,7 +3124,14 @@ const RegistosPorUtilizador = () => {
                                             })}
                                             <td style={{ ...styles.gradeCell, ...styles.gradeCellTotal }}>
                                                 <div style={styles.gradeTotalContent}>
-                                                    <div style={styles.gradeTotalHoras}>{item.totalHorasEstimadas}h</div>
+                                                    <div style={styles.gradeTotalHoras}>
+                                                        {(() => {
+                                                            const horasDecimal = parseFloat(item.totalHorasEstimadas);
+                                                            const horas = Math.floor(horasDecimal);
+                                                            const minutos = Math.round((horasDecimal - horas) * 60);
+                                                            return minutos > 0 ? `${horas}h ${minutos}m` : `${horas}h`;
+                                                        })()}
+                                                    </div>
                                                     <div style={styles.gradeTotalDias}>{item.totalDias} dias</div>
                                                     {item.totalFaltas > 0 && (
                                                         <div style={styles.gradeTotalFaltas}>{item.totalFaltas} faltas</div>
@@ -3238,7 +3239,6 @@ const RegistosPorUtilizador = () => {
                                                         <div style={styles.eventInfo}>
                                                             <span style={styles.infoLabel}>Status:</span>
                                                             <span style={{
-                                                                ...styles.infoValue,
                                                                 ...styles.statusBadge,
                                                                 ...(evento.is_confirmed ? styles.confirmed : styles.unconfirmed)
                                                             }}>
@@ -4326,10 +4326,12 @@ if (typeof document !== 'undefined') {
       cursor: not-allowed;
     }
 
-    .bulk-modal .time-input:focus,
-    .bulk-modal .obra-select:focus {
-      border-color: #3182ce !important;
-      box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+    .bulk-modal .time-input,
+    .bulk-modal .obra-select {
+      focus {
+        border-color: #3182ce !important;
+        box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+      }
     }
 
     .bulk-modal .periodo-container:hover {
