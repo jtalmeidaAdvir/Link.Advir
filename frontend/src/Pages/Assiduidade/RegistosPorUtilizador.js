@@ -709,7 +709,6 @@ const RegistosPorUtilizador = () => {
         // Cabeçalhos da tabela
         dadosExport.push([
             'Utilizador',
-            'Email',
             'Total Dias',
             'Total Registos',
             'Confirmados',
@@ -724,7 +723,6 @@ const RegistosPorUtilizador = () => {
         resumoUtilizadores.forEach(resumo => {
             dadosExport.push([
                 resumo.utilizador.nome,
-                resumo.utilizador.email,
                 resumo.totalDias,
                 resumo.totalRegistos,
                 resumo.registosConfirmados,
@@ -739,8 +737,7 @@ const RegistosPorUtilizador = () => {
         const worksheet = XLSX.utils.aoa_to_sheet(dadosExport);
 
         const wscols = [
-            { wch: 20 }, // Utilizador
-            { wch: 25 }, // Email
+            { wch: 25 }, // Utilizador
             { wch: 12 }, // Total Dias
             { wch: 15 }, // Total Registos
             { wch: 12 }, // Confirmados
@@ -779,14 +776,14 @@ const RegistosPorUtilizador = () => {
         dadosExport.push([]);
 
         // Cabeçalhos da tabela
-        const headers = ['Utilizador', 'Email'];
+        const headers = ['Utilizador'];
         diasDoMes.forEach(dia => headers.push(`Dia ${dia}`));
         headers.push('Total Dias', 'Total Horas');
         dadosExport.push(headers);
 
         // Dados dos utilizadores
         dadosGrade.forEach(item => {
-            const row = [item.utilizador.nome, item.utilizador.email];
+            const row = [item.utilizador.nome];
 
             diasDoMes.forEach(dia => {
                 const estatisticas = item.estatisticasDias[dia];
@@ -1838,7 +1835,7 @@ const RegistosPorUtilizador = () => {
                         >
                             <option value="">-- Todos os utilizadores --</option>
                             {utilizadores.map(u => (
-                                <option key={u.id} value={u.id}>{u.nome} ({u.email})</option>
+                                <option key={u.id} value={u.id}>{u.username} ({u.email})</option>
                             ))}
                         </select>
                     </div>
@@ -2910,6 +2907,8 @@ const RegistosPorUtilizador = () => {
                                         <h4 style={styles.utilizadorNome}>
                                             👤 {resumo.utilizador.nome}
                                         </h4>
+                                        
+                                       <p style={styles.utilizadorGradeNome}>{resumo.utilizador.username}</p>
                                         <p style={styles.utilizadorEmail}>{resumo.utilizador.email}</p>
                                     </div>
                                     <div style={styles.horasDestaque}>
@@ -3000,7 +2999,7 @@ const RegistosPorUtilizador = () => {
                             <table style={styles.gradeTable}>
                                 <thead>
                                     <tr>
-                                        <th style={{ ...styles.gradeHeader, ...styles.gradeHeaderFixed }}>Utilizador</th>
+                                        <th style={{ ...styles.gradeHeader, ...styles.gradeHeaderFixed }}>Nome</th>
                                         {diasDoMes.map(dia => {
                                             // certifica-te de transformar strings em números
                                             const y = parseInt(anoSelecionado, 10);
@@ -3035,7 +3034,7 @@ const RegistosPorUtilizador = () => {
                                                 }}
                                             >
                                                 <div style={styles.utilizadorGradeInfo}>
-                                                    <div style={styles.utilizadorGradeNome}>{item.utilizador.nome}</div>
+                                                    <div style={styles.utilizadorGradeNome}>{item.utilizador.username}</div>
                                                     <div style={styles.utilizadorGradeEmail}>{item.utilizador.email}</div>
                                                 </div>
                                             </td>
