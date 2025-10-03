@@ -1216,7 +1216,98 @@ router.post('/CriarPedido', async (req, res) => {
         });
     }
 });
+router.post('/CriarPedidoEmail', async (req, res) => {
+    try {
+        // Obter o token de autenticação do cabeçalho
+        const painelAdminToken = req.headers['authorization']?.split(' ')[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
+        }
 
+        // Obter a URL da empresa do cabeçalho usando a função getEmpresaUrl
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+        }
+
+        // Extraindo os parâmetros do corpo da requisição
+        const {
+            cliente,
+            descricaoObjecto,
+            descricaoProblema,
+            origem,
+            tipoProcesso,
+            prioridade,
+            tecnico,
+            objectoID,
+            tipoDoc,
+            serie,
+            estado,
+            seccao,
+            comoReproduzir, // Este pode ser nulo
+            contacto, // Este pode ser nulo
+            contratoID,
+            datahoraabertura,
+            datahorafimprevista
+
+        } = req.body;
+
+        // Construindo a URL da API
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/CriarPedido`;
+
+        // Cria um objeto com todos os dados a serem enviados
+        const requestData = {
+            cliente,
+            descricaoObjecto,
+            descricaoProblema,
+            origem,
+            tipoProcesso,
+            prioridade,
+            tecnico,
+            objectoID,
+            tipoDoc, //TODO
+            serie,
+            estado: Number(estado),
+            seccao,
+            comoReproduzir: comoReproduzir || null,
+            contacto: contacto || null,
+            contratoID,
+            datahoraabertura,
+            datahorafimprevista
+        };
+
+        console.log('Enviando solicitação para a URL:', apiUrl);
+        console.log('Dados a serem enviados:', requestData);
+
+        // Chamada para a API para criar o pedido
+        const response = await axios.post(apiUrl, requestData, {
+            headers: {
+                'Authorization': `Bearer ${painelAdminToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            }
+        });
+
+        if (response.status === 200) {
+            return res.status(200).json(response.data);
+        } else if (response.status === 404) {
+            return res.status(404).json({
+                error: 'Nenhum cliente encontrado.'
+            });
+        } else {
+            return res.status(response.status).json({
+                error: 'Falha ao criar pedido.',
+                details: response.data.ErrorMessage
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao criar pedido:', error.response ? error.response.data : error.message);
+        return res.status(500).json({
+            error: 'Erro inesperado ao criar pedido',
+            details: error.message
+        });
+    }
+});
 // Rota para criar um contacto
 router.post('/CriarContacto', async (req, res) => {
     try {
