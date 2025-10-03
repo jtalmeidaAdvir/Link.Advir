@@ -205,7 +205,28 @@ const RegistoPontoFacial = (props) => {
         await registarPontoParaUtilizador('entrada', obraId, nomeObra, userId, userName);
     };
 
-    
+    const processarPontoComValidacaoParaUtilizador = async (obraId, nomeObra, userId, userName, registosDoUtilizador) => {
+        // 1) Se já houver entrada ativa na MESMA obra → fazer SAÍDA
+        const ativaMesmaObra = getEntradaAtivaPorObra(obraId, registosDoUtilizador);
+
+        if (ativaMesmaObra) {
+            await registarPontoParaUtilizador('saida', obraId, nomeObra, userId, userName);
+            return;
+        }
+
+        // 2) Se houver entrada ativa noutra obra → fechar essa e abrir ENTRADA nesta
+        const ultimaAtiva = getUltimaEntradaAtiva(registosDoUtilizador);
+
+        if (ultimaAtiva && String(ultimaAtiva.obra_id) !== String(obraId)) {
+            const nomeAnterior = ultimaAtiva.Obra?.nome || 'Obra anterior';
+            await registarPontoParaUtilizador('saida', ultimaAtiva.obra_id, nomeAnterior, userId, userName);
+            // Reduzir tempo de espera para 200ms
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
+        // 3) Sem ativa ou após fechar anterior → ENTRADA nesta obra
+        await registarPontoParaUtilizador('entrada', obraId, nomeObra, userId, userName);
+    };
 
     // Carregar obras disponíveis
     useEffect(() => {
@@ -349,9 +370,7 @@ const RegistoPontoFacial = (props) => {
             setLoading(true);
             setStatusMessage('A autenticar...');
 
-            const token = localStorage.getItem('loginToken');
-
-            // Autenticar e registar em uma única chamada otimizada
+            // Autenticar utilizador com dados faciais
             const authRes = await fetch('https://backend.advir.pt/api/auth/biometric/authenticate-facial', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -360,14 +379,7 @@ const RegistoPontoFacial = (props) => {
 
             if (!authRes.ok) {
                 const authError = await authRes.json();
-                setModalData({
-                    type: 'error',
-                    message: authError.message || 'Utilizador não reconhecido',
-                    userName: '',
-                    action: 'Erro'
-                });
-                setShowResultModal(true);
-                setTimeout(() => handleCloseModal(), 1500);
+                setStatusMessage(`Falha: ${authError.message || 'Utilizador não reconhecido'}`);
                 return;
             }
 
@@ -377,61 +389,38 @@ const RegistoPontoFacial = (props) => {
 
             setStatusMessage(`${userName} - A registar...`);
 
-            // Registar ponto diretamente - o backend faz a validação
-            const [loc] = await Promise.all([getCurrentLocation()]);
-            const empresaNome = localStorage.getItem('empresa_areacliente');
-            const idemKey = `${userId}-${obraId}-${Date.now()}`;
+            // Obter registos do dia (chamada em paralelo com validação no backend)
+            const token = localStorage.getItem('loginToken');
+            const hoje = new Date().toISOString().split('T')[0];
+            
+            const registosUrl = `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?user_id=${userId}&ano=${new Date().getFullYear()}&mes=${String(new Date().getMonth() + 1).padStart(2, '0')}&data=${hoje}`;
 
-            const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'X-Idempotency-Key': idemKey
-                },
-                body: JSON.stringify({
-                    tipo: 'auto', // Backend decide entrada/saída
-                    obra_id: obraId,
-                    latitude: loc.coords.latitude,
-                    longitude: loc.coords.longitude,
-                    targetUserId: userId,
-                    empresa: empresaNome
-                })
-            });
+            const [registosRes] = await Promise.allSettled([
+                fetch(registosUrl, { headers: { 'Authorization': `Bearer ${token}` } })
+            ]);
 
-            if (res.ok) {
-                const data = await res.json();
-                const actionText = data.tipo === 'entrada' ? 'Entrada' : 'Saída';
-                setModalData({
-                    type: 'success',
-                    message: `${actionText} registada!`,
-                    userName: userName,
-                    action: actionText
-                });
-                setShowResultModal(true);
-                setTimeout(() => handleCloseModal(), 1500);
-            } else {
-                const errorData = await res.json();
-                setModalData({
-                    type: 'error',
-                    message: errorData.message || 'Erro ao registar',
-                    userName: userName,
-                    action: 'Erro'
-                });
-                setShowResultModal(true);
-                setTimeout(() => handleCloseModal(), 1500);
+            let registosUtilizadorIdentificado = [];
+            if (registosRes.status === 'fulfilled' && registosRes.value.ok) {
+                const data = await registosRes.value.json();
+                registosUtilizadorIdentificado = (data.filter ? data.filter(r => r.timestamp && r.timestamp.startsWith(hoje)) : data);
             }
+
+            // Formatar registos de forma simplificada
+            const registosFormatados = registosUtilizadorIdentificado.map(reg => ({
+                ...reg,
+                obra_id: reg.obra_id || reg.obraId,
+                timestamp: reg.timestamp || reg.createdAt,
+                tipo: reg.tipo,
+                User: reg.User || { nome: userName },
+                Obra: reg.Obra || { nome: nomeObra }
+            }));
+
+            // Processar registo imediatamente
+            await processarPontoComValidacaoParaUtilizador(obraId, nomeObra, userId, userName, registosFormatados);
 
         } catch (err) {
             console.error('❌ Erro:', err);
-            setModalData({
-                type: 'error',
-                message: 'Erro ao processar registo',
-                userName: '',
-                action: 'Erro'
-            });
-            setShowResultModal(true);
-            setTimeout(() => handleCloseModal(), 1500);
+            setStatusMessage('Erro ao processar registo');
         } finally {
             setLoading(false);
         }
