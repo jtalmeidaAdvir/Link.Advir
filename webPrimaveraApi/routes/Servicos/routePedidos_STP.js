@@ -1256,6 +1256,7 @@ router.post('/CriarPedidoEmail', async (req, res) => {
         const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/CriarPedido`;
 
         // Cria um objeto com todos os dados a serem enviados
+        
         const requestData = {
             cliente,
             descricaoObjecto,
@@ -1265,7 +1266,7 @@ router.post('/CriarPedidoEmail', async (req, res) => {
             prioridade,
             tecnico,
             objectoID,
-            tipoDoc, //TODO
+            tipoDoc:"OT", //TODO
             serie,
             estado: Number(estado),
             seccao,
