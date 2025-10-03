@@ -104,6 +104,10 @@ const RegistoPontoFacial = (props) => {
     registoLockRef.current = true;
     setIsRegistering(true);
     setStatusMessage(`A registar ${tipo}...`);
+
+    const [loc] = await Promise.all([
+      getCurrentLocation()
+    ]);
     
     const token = localStorage.getItem('loginToken');
     const empresaNome = localStorage.getItem('empresa_areacliente');
@@ -119,8 +123,8 @@ const RegistoPontoFacial = (props) => {
       body: JSON.stringify({
         tipo,
         obra_id: obraId,
-        latitude: null,
-        longitude: null,
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
         targetUserId: userId,
         empresa: empresaNome
       })
@@ -374,6 +378,7 @@ const RegistoPontoFacial = (props) => {
             setStatusMessage(`${userName} - A registar...`);
 
             // Registar ponto diretamente - o backend faz a validação
+            const [loc] = await Promise.all([getCurrentLocation()]);
             const empresaNome = localStorage.getItem('empresa_areacliente');
             const idemKey = `${userId}-${obraId}-${Date.now()}`;
 
@@ -387,8 +392,8 @@ const RegistoPontoFacial = (props) => {
                 body: JSON.stringify({
                     tipo: 'auto', // Backend decide entrada/saída
                     obra_id: obraId,
-                    latitude: null,
-                    longitude: null,
+                    latitude: loc.coords.latitude,
+                    longitude: loc.coords.longitude,
                     targetUserId: userId,
                     empresa: empresaNome
                 })
