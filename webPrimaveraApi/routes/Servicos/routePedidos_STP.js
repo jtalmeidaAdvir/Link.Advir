@@ -1173,7 +1173,7 @@ router.post('/CriarPedido', async (req, res) => {
             prioridade,
             tecnico,
             objectoID,
-            tipoDoc, //TODO
+            tipoDoc: "PA", //TODO
             serie,
             estado: Number(estado),
             seccao,
