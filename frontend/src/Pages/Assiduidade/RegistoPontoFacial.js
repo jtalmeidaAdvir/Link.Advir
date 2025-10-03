@@ -98,22 +98,19 @@ const RegistoPontoFacial = (props) => {
 
     const registarPontoParaUtilizador = async (tipo, obraId, nomeObra, userId, userName) => {
   try {
-    // 🔒 lock síncrono (não depende de re-render)
-    if (registoLockRef.current) {
-      console.log('⚠️ Registo em curso – pedido ignorado');
+    if (registoLockRef.current || isRegistering) {
       return false;
     }
     registoLockRef.current = true;
-
-    if (isRegistering) return false; // redundante mas ok
     setIsRegistering(true);
-    setStatusMessage(`A registar ponto ${tipo} para ${userName} na obra "${nomeObra}"...`);
+    setStatusMessage(`A registar ${tipo}...`);
 
-    const loc = await getCurrentLocation();
+    const [loc] = await Promise.all([
+      getCurrentLocation()
+    ]);
+    
     const token = localStorage.getItem('loginToken');
     const empresaNome = localStorage.getItem('empresa_areacliente');
-
-    // (opcional) chave de idempotência por tentativa
     const idemKey = `${userId}-${obraId}-${tipo}-${Date.now()}`;
 
     const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra', {
@@ -121,7 +118,7 @@ const RegistoPontoFacial = (props) => {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'X-Idempotency-Key': idemKey // se suportar no backend
+        'X-Idempotency-Key': idemKey
       },
       body: JSON.stringify({
         tipo,
@@ -138,32 +135,32 @@ const RegistoPontoFacial = (props) => {
                 const actionText = tipo === 'entrada' ? 'Entrada' : 'Saída';
                 setModalData({
                     type: 'success',
-                    message: `${actionText} registada com sucesso!`,
+                    message: `${actionText} registada!`,
                     userName: userName,
                     action: actionText
                 });
                 setShowResultModal(true);
                 
-                // Auto-fechar modal após 2 segundos
+                // Auto-fechar modal após 1.5 segundos
                 setTimeout(() => {
                     handleCloseModal();
-                }, 2000);
+                }, 1500);
                 
                 return true; // Indica sucesso
             } else {
                 const errorData = await res.json();
                 setModalData({
                     type: 'error',
-                    message: errorData.message || 'Erro desconhecido',
+                    message: errorData.message || 'Erro',
                     userName: userName,
                     action: 'Erro'
                 });
                 setShowResultModal(true);
                 
-                // Auto-fechar modal após 2 segundos
+                // Auto-fechar modal após 1.5 segundos
                 setTimeout(() => {
                     handleCloseModal();
-                }, 2000);
+                }, 1500);
                 
                 return false; // Indica falha
             }
@@ -171,16 +168,16 @@ const RegistoPontoFacial = (props) => {
             console.error('Erro ao registar ponto:', err);
             setModalData({
                 type: 'error',
-                message: 'Erro ao registar ponto',
+                message: 'Erro ao registar',
                 userName: userName,
                 action: 'Erro'
             });
             setShowResultModal(true);
             
-            // Auto-fechar modal após 2 segundos
+            // Auto-fechar modal após 1.5 segundos
             setTimeout(() => {
                 handleCloseModal();
-            }, 2000);
+            }, 1500);
             
             return false; // Indica falha
         } finally {
@@ -209,55 +206,25 @@ const RegistoPontoFacial = (props) => {
     };
 
     const processarPontoComValidacaoParaUtilizador = async (obraId, nomeObra, userId, userName, registosDoUtilizador) => {
-        console.log(`🎯 Processando ponto para ${userName} na obra ${nomeObra}`);
-        console.log('📋 Registos do utilizador:', registosDoUtilizador);
-        console.log('🏗️ Obra ID atual:', obraId);
-
-        // Debug: mostrar todos os registos de entrada
-        const entradas = registosDoUtilizador.filter(r => r.tipo === 'entrada');
-        const saidas = registosDoUtilizador.filter(r => r.tipo === 'saida');
-        console.log(`🔍 ${entradas.length} entradas encontradas:`, entradas.map(e => ({
-            obra_id: e.obra_id,
-            timestamp: e.timestamp,
-            obra_nome: e.Obra?.nome
-        })));
-        console.log(`🔍 ${saidas.length} saídas encontradas:`, saidas.map(s => ({
-            obra_id: s.obra_id,
-            timestamp: s.timestamp,
-            obra_nome: s.Obra?.nome
-        })));
-
         // 1) Se já houver entrada ativa na MESMA obra → fazer SAÍDA
         const ativaMesmaObra = getEntradaAtivaPorObra(obraId, registosDoUtilizador);
-        console.log('🏗️ Entrada ativa na mesma obra:', ativaMesmaObra ? {
-            obra_id: ativaMesmaObra.obra_id,
-            timestamp: ativaMesmaObra.timestamp
-        } : 'Nenhuma');
 
         if (ativaMesmaObra) {
-            console.log(`✅ ${userName} já tem entrada ativa na obra ${nomeObra}. Registando saída.`);
             await registarPontoParaUtilizador('saida', obraId, nomeObra, userId, userName);
             return;
         }
 
         // 2) Se houver entrada ativa noutra obra → fechar essa e abrir ENTRADA nesta
         const ultimaAtiva = getUltimaEntradaAtiva(registosDoUtilizador);
-        console.log('🔍 Última entrada ativa (qualquer obra):', ultimaAtiva ? {
-            obra_id: ultimaAtiva.obra_id,
-            timestamp: ultimaAtiva.timestamp,
-            obra_nome: ultimaAtiva.Obra?.nome
-        } : 'Nenhuma');
 
         if (ultimaAtiva && String(ultimaAtiva.obra_id) !== String(obraId)) {
             const nomeAnterior = ultimaAtiva.Obra?.nome || 'Obra anterior';
-            console.log(`🔄 ${userName} tem entrada ativa noutra obra (${nomeAnterior}). Fechando e abrindo nova entrada.`);
             await registarPontoParaUtilizador('saida', ultimaAtiva.obra_id, nomeAnterior, userId, userName);
-            // Reduzir tempo de espera para 500ms
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Reduzir tempo de espera para 200ms
+            await new Promise(resolve => setTimeout(resolve, 200));
         }
 
         // 3) Sem ativa ou após fechar anterior → ENTRADA nesta obra
-        console.log(`📝 Registando entrada para ${userName} na obra ${nomeObra}`);
         await registarPontoParaUtilizador('entrada', obraId, nomeObra, userId, userName);
     };
 
@@ -401,25 +368,18 @@ const RegistoPontoFacial = (props) => {
             }
 
             setLoading(true);
-            setStatusMessage('A autenticar utilizador pelo reconhecimento facial...');
+            setStatusMessage('A autenticar...');
 
-            console.log('🔍 Iniciando autenticação facial com dados:', facialData);
-
-            // Primeiro, autenticar o utilizador com os dados faciais (sem token)
+            // Autenticar utilizador com dados faciais
             const authRes = await fetch('https://backend.advir.pt/api/auth/biometric/authenticate-facial', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ facialData })
             });
 
-            console.log('📡 Resposta da autenticação facial:', authRes.status);
-
             if (!authRes.ok) {
                 const authError = await authRes.json();
-                console.error('❌ Erro na autenticação facial:', authError);
-                setStatusMessage(`Falha na autenticação facial: ${authError.message || 'Utilizador não reconhecido'}`);
+                setStatusMessage(`Falha: ${authError.message || 'Utilizador não reconhecido'}`);
                 return;
             }
 
@@ -427,57 +387,25 @@ const RegistoPontoFacial = (props) => {
             const userId = authData.userId;
             const userName = authData.userNome || authData.username;
 
-            console.log('✅ Utilizador identificado:', { userId, userName });
-            setStatusMessage(`Utilizador identificado: ${userName}. A verificar estado atual...`);
+            setStatusMessage(`${userName} - A registar...`);
 
-            // Obter registos do utilizador identificado para o dia
+            // Obter registos do dia (chamada em paralelo com validação no backend)
             const token = localStorage.getItem('loginToken');
             const hoje = new Date().toISOString().split('T')[0];
-            const isPOS = localStorage.getItem('isPOS') === 'true';
+            
+            const registosUrl = `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?user_id=${userId}&ano=${new Date().getFullYear()}&mes=${String(new Date().getMonth() + 1).padStart(2, '0')}&data=${hoje}`;
 
-            console.log('📅 A obter registos para a data:', hoje, 'do utilizador:', userId);
-            console.log('🏪 Modo POS ativo:', isPOS);
-
-            // Para POS, usar endpoint específico que não requer permissões de admin
-            let registosUrl;
-            if (isPOS) {
-                registosUrl = `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?user_id=${userId}&ano=${new Date().getFullYear()}&mes=${String(new Date().getMonth() + 1).padStart(2, '0')}&data=${hoje}`;
-            } else {
-                registosUrl = `https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}&userId=${userId}`;
-            }
-
-            const registosRes = await fetch(registosUrl, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const [registosRes] = await Promise.allSettled([
+                fetch(registosUrl, { headers: { 'Authorization': `Bearer ${token}` } })
+            ]);
 
             let registosUtilizadorIdentificado = [];
-            if (registosRes.ok) {
-                const data = await registosRes.json();
-                // Para o endpoint de período, os dados vêm num formato diferente
-                registosUtilizadorIdentificado = isPOS ? (data.filter ? data.filter(r => r.timestamp && r.timestamp.startsWith(hoje)) : data) : data;
-                console.log(`📊 ${registosUtilizadorIdentificado.length} registos encontrados para ${userName}`);
-            } else {
-                console.warn('⚠️ Não foi possível obter registos:', registosRes.status);
-                
-                // Fallback: tentar outro endpoint se o primeiro falhar
-                if (isPOS) {
-                    console.log('🔄 Tentando endpoint alternativo para POS...');
-                    try {
-                        const fallbackRes = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user?userId=${userId}`, {
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        if (fallbackRes.ok) {
-                            const fallbackData = await fallbackRes.json();
-                            registosUtilizadorIdentificado = fallbackData.filter(r => r.timestamp && r.timestamp.startsWith(hoje));
-                            console.log(`📊 Fallback: ${registosUtilizadorIdentificado.length} registos encontrados`);
-                        }
-                    } catch (fallbackErr) {
-                        console.error('❌ Fallback também falhou:', fallbackErr);
-                    }
-                }
+            if (registosRes.status === 'fulfilled' && registosRes.value.ok) {
+                const data = await registosRes.value.json();
+                registosUtilizadorIdentificado = (data.filter ? data.filter(r => r.timestamp && r.timestamp.startsWith(hoje)) : data);
             }
 
-            // Garantir que os registos estão no formato correto
+            // Formatar registos de forma simplificada
             const registosFormatados = registosUtilizadorIdentificado.map(reg => ({
                 ...reg,
                 obra_id: reg.obra_id || reg.obraId,
@@ -487,19 +415,12 @@ const RegistoPontoFacial = (props) => {
                 Obra: reg.Obra || { nome: nomeObra }
             }));
 
-            console.log(`Registos encontrados para ${userName}:`, registosFormatados);
-            console.log('🔍 Registos detalhados:', registosFormatados.map(r => ({
-                tipo: r.tipo,
-                obra_id: r.obra_id,
-                timestamp: r.timestamp
-            })));
-
-            // Processar com validação automática usando os registos formatados
+            // Processar registo imediatamente
             await processarPontoComValidacaoParaUtilizador(obraId, nomeObra, userId, userName, registosFormatados);
 
         } catch (err) {
-            console.error('❌ Erro na autenticação facial e registo de ponto:', err);
-            setStatusMessage('Erro ao processar reconhecimento facial e registo de ponto');
+            console.error('❌ Erro:', err);
+            setStatusMessage('Erro ao processar registo');
         } finally {
             setLoading(false);
         }
