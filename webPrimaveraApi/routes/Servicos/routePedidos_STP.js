@@ -1385,6 +1385,60 @@ router.post('/CriarContacto', async (req, res) => {
     }
 });
 
+
+
+router.get('/VerificaContacto/:cliente/:telefone', async (req, res) => {
+    try {
+        const painelAdminToken = req.headers['authorization']?.split(' ')[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: 'Token de administrador não encontrado. Faça login novamente.' });
+        }
+ 
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa não fornecido.' });
+        }
+ 
+        // Agora os parâmetros são extraídos diretamente da URL
+        const { cliente, telefone } = req.params;  // Use req.params para obter os parâmetros na URL
+ 
+        if (!cliente || !telefone) {
+            return res.status(400).json({ error: 'Parâmetros não fornecidos na URL.' });
+        }
+ 
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/VerificaContacto/${cliente}/${telefone}`;
+        console.log('Enviando solicitação para a URL:', apiUrl);
+ 
+        // Fazendo a requisição para o backend .NET
+        const response = await axios.get(apiUrl, {
+            params: {
+                cliente,
+                telefone,
+            },
+            headers: {
+                'Authorization': `Bearer ${painelAdminToken}`,
+                'Accept': 'application/json',
+            },
+        });
+ 
+        if (response.status === 201 || response.status === 200) {
+            return res.status(200).json(response.data);
+        } else {
+            return res.status(response.status).json({
+                error: 'Falha ao obter informações de cliente.',
+                details: response.data.ErrorMessage || 'Erro desconhecido',
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao obter informações de cliente:', error.response ? error.response.data : error.message);
+        return res.status(500).json({
+            error: 'Erro inesperado ao obter informações de cliente',
+            details: error.message,
+        });
+    }
+});
+
+
 router.get('/VerificaExisteObjeto/:Objeto/:Descricao', async (req, res) => {
     try {
         const painelAdminToken = req.headers['authorization']?.split(' ')[1];
