@@ -536,12 +536,8 @@ const handleFacialScanComplete = async (facialData) => {
         registoLockRef.current = false;
         scanLockRef.current = false;
         
-        // Recarregar apenas o resumo da obra sem refresh da página
-        if (obraSelecionada) {
-            setTimeout(() => {
-                carregarResumoObra(obraSelecionada);
-            }, 1000);
-        }
+        // Refresh completo da página
+        window.location.reload();
     };
 
     const isPOS = localStorage.getItem('isPOS') === 'true';
