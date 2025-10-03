@@ -542,7 +542,7 @@ const obterResumoObra = async (req, res) => {
     try {
         const { obraId } = req.params;
         const dataHoje = new Date().toISOString().split('T')[0];
-
+        
         console.log(`📊 Obtendo resumo da obra ${obraId} para a data ${dataHoje}`);
         console.log(`🔍 Query SQL: obra_id = ${obraId} AND DATE(timestamp) = '${dataHoje}'`);
 
@@ -567,7 +567,7 @@ const obterResumoObra = async (req, res) => {
         });
 
         console.log(`📋 Encontrados ${registosHoje.length} registos para hoje`);
-
+        
         if (registosHoje.length > 0) {
             console.log(`🔍 Primeiros registos:`);
             registosHoje.slice(0, 3).forEach((reg, idx) => {
@@ -595,10 +595,10 @@ const obterResumoObra = async (req, res) => {
             const registosUser = registosPorUser[userId].sort((a, b) => 
                 new Date(b.timestamp) - new Date(a.timestamp)
             );
-
+            
             const ultimoRegisto = registosUser[0];
             console.log(`👤 User ${userId} (${ultimoRegisto.User?.nome}): último registo = ${ultimoRegisto.tipo} às ${ultimoRegisto.timestamp}`);
-
+            
             // Se o registo mais recente é uma entrada, está ativo
             if (registosUser.length > 0 && registosUser[0].tipo === 'entrada') {
                 pessoasAtivas.add(parseInt(userId));
@@ -631,88 +631,6 @@ const obterResumoObra = async (req, res) => {
     }
 };
 
-// --- NOVO: registar ponto com lógica automática de entrada/saída ---
-const registarPontoObra = async (req, res) => {
-    try {
-        let { tipo, obra_id, latitude, longitude, targetUserId } = req.body;
-        const userId = targetUserId || req.user.id;
-        const empresaNome = req.body.empresa || req.user.empresa;
-
-        // Se tipo for 'auto', determinar automaticamente
-        if (tipo === 'auto') {
-            const hoje = new Date().toISOString().split('T')[0];
-            const registosHoje = await RegistoPontoObra.findAll({
-                where: {
-                    user_id: userId,
-                    timestamp: {
-                        [Op.gte]: `${hoje}T00:00:00`,
-                        [Op.lt]: `${hoje}T23:59:59`
-                    }
-                },
-                order: [['timestamp', 'DESC']]
-            });
-
-            // Verificar se tem entrada ativa na mesma obra
-            const entradaAtivaMesmaObra = registosHoje.find(r => 
-                r.tipo === 'entrada' && 
-                r.obra_id == obra_id && 
-                !registosHoje.some(s => 
-                    s.tipo === 'saida' && 
-                    s.obra_id == obra_id && 
-                    new Date(s.timestamp) > new Date(r.timestamp)
-                )
-            );
-
-            if (entradaAtivaMesmaObra) {
-                tipo = 'saida';
-            } else {
-                // Verificar se tem entrada ativa noutra obra
-                const ultimaEntradaAtiva = registosHoje
-                    .filter(r => r.tipo === 'entrada')
-                    .find(e => !registosHoje.some(s => 
-                        s.tipo === 'saida' && 
-                        new Date(s.timestamp) > new Date(e.timestamp)
-                    ));
-
-                if (ultimaEntradaAtiva && ultimaEntradaAtiva.obra_id != obra_id) {
-                    // Fechar entrada na obra anterior
-                    await RegistoPontoObra.create({
-                        user_id: userId,
-                        empresa_id: req.user.empresa_id,
-                        obra_id: ultimaEntradaAtiva.obra_id,
-                        tipo: 'saida',
-                        timestamp: new Date().toISOString(),
-                        latitude,
-                        longitude
-                    });
-                }
-                tipo = 'entrada';
-            }
-        }
-
-        const novoRegisto = await RegistoPontoObra.create({
-            user_id: userId,
-            obra_id,
-            tipo,
-            timestamp: new Date(),
-            latitude,
-            longitude,
-            empresa_id: req.user.empresa_id
-        });
-
-        await novoRegisto.save();
-
-        res.status(201).json({ 
-            message: 'Ponto registado com sucesso', 
-            registo: novoRegisto,
-            tipo: tipo
-        });
-    } catch (error) {
-        console.error('Erro ao registar ponto na obra:', error);
-        res.status(500).json({ message: 'Erro ao registar ponto na obra' });
-    }
-};
-
 
 module.exports = {
   registarPonto,
@@ -731,5 +649,4 @@ module.exports = {
   eliminarRegisto,
   obterRegistosObraPorDia,
   obterResumoObra,
-  registarPontoObra, // Adicionado a função exportada
 };
