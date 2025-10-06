@@ -1940,7 +1940,7 @@ const CalendarioHorasTrabalho = () => {
 
                                                     {isFeriado && (
                                                         <span className="horas-dia" style={{ fontSize: '0.65rem', color: '#5d4037' }}>
-                                                            Feriado
+                                                            Fe
                                                         </span>
                                                     )}
 

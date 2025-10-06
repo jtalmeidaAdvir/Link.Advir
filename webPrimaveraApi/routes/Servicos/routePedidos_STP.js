@@ -1439,6 +1439,49 @@ router.get('/VerificaContacto/:cliente/:telefone', async (req, res) => {
 });
 
 
+router.get('/GetPedidosByTecnico/:tecnico', async (req, res) => {
+    try {
+        const { tecnico } = req.params;
+        const painelAdminToken = req.headers['authorization']?.split(' ')[1];
+        if (!painelAdminToken) {
+            return res.status(401).json({ error: 'Token não encontrado. Faça login novamente.' });
+        }
+ 
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res.status(400).json({ error: 'URL da empresa não fornecida.' });
+        }
+ 
+        const apiUrl = `http://${urlempresa}/WebApi/ServicosTecnicos/GetPedidosByTecnico/${tecnico}`;
+        console.log('Enviando solicitação para a URL:', apiUrl);
+ 
+        const response = await axios.get(apiUrl, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+        });
+ 
+        if (response.status === 200) {
+            return res.status(200).json(response.data);
+        } else if (response.status === 404) {
+            return res.status(404).json({ error: 'Pedido não encontrado.' });
+        } else {
+            return res.status(400).json({
+                error: 'Falha ao obter o estado do pedido.',
+                details: response.data.ErrorMessage || 'Erro desconhecido.',
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao obter o estado do pedido:', error.response ? error.response.data : error.message);
+        return res.status(500).json({
+            error: 'Erro inesperado ao obter o estado do pedido.',
+            details: error.response?.data || error.message,
+        });
+    }
+});
+
 router.get('/VerificaExisteObjeto/:Objeto/:Descricao', async (req, res) => {
     try {
         const painelAdminToken = req.headers['authorization']?.split(' ')[1];
