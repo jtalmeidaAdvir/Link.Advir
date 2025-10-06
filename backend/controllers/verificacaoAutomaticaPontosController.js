@@ -136,8 +136,8 @@ const verificarEAdicionarPontosAlmoco = async (req, res) => {
                     const longitude = registosHoje[0].longitude;
 
                     // Criar horários de almoço
-                    const saidaAlmoco = new Date(`${dataAtual}T13:00:00.000Z`);
-                    const entradaAlmoco = new Date(`${dataAtual}T14:00:00.000Z`);
+                    const saidaAlmoco = new Date(`${dataAtual}T12:00:00.000Z`);
+                    const entradaAlmoco = new Date(`${dataAtual}T13:00:00.000Z`);
 
                     // Criar registo de saída para almoço (às 13:00)
                     const registoSaidaAlmoco = await RegistoPontoObra.create({
