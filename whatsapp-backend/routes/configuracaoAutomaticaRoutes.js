@@ -97,7 +97,8 @@ router.get('/listar-configuracoes', async (req, res) => {
                 minute: '2-digit'
             }),
             ativo: agendamento.enabled,
-            frequencia: "Dias úteis",
+            frequencia: "Dias úteis (Segunda a Sexta)",
+            criterio: "Utilizadores com +6h de trabalho e naotratapontosalmoco=false",
             ultimaExecucao: agendamento.last_sent,
             totalExecucoes: agendamento.total_sent
         }));
@@ -180,9 +181,10 @@ router.get('/status-agendamentos', async (req, res) => {
             }
 
             // Verificar se é dia útil
-            const diaSemana = proximaExecucao.getDay();
+            let diaSemana = proximaExecucao.getDay();
             while (diaSemana === 0 || diaSemana === 6) { // Saltar fins de semana
                 proximaExecucao.setDate(proximaExecucao.getDate() + 1);
+                diaSemana = proximaExecucao.getDay();
             }
 
             return {
@@ -198,7 +200,8 @@ router.get('/status-agendamentos', async (req, res) => {
                 totalExecucoes: agendamento.total_sent || 0,
                 ativo: agendamento.enabled,
                 jaExecutouHoje: agendamento.last_sent && 
-                    new Date(agendamento.last_sent).toDateString() === agora.toDateString()
+                    new Date(agendamento.last_sent).toDateString() === agora.toDateString(),
+                criterio: "Utilizadores ativos com +6h trabalho e naotratapontosalmoco=false"
             };
         });
 
@@ -208,7 +211,13 @@ router.get('/status-agendamentos', async (req, res) => {
             agendamentosAtivos: statusDetalhado,
             horaAtual: agora.toISOString(),
             proximaVerificacao: statusDetalhado.length > 0 ? 
-                Math.min(...statusDetalhado.map(s => s.minutosParaProxima)) : null
+                Math.min(...statusDetalhado.map(s => s.minutosParaProxima)) : null,
+            regrasProcessamento: {
+                diasExecucao: "Segunda a Sexta (dias úteis)",
+                utilizadoresAfetados: "Apenas com naotratapontosalmoco=false",
+                criterioHoras: "Mais de 6 horas de trabalho",
+                horariosAlmoco: "Saída 13:00 / Entrada 14:00"
+            }
         });
 
     } catch (error) {
@@ -218,8 +227,6 @@ router.get('/status-agendamentos', async (req, res) => {
         });
     }
 });
-
-
 
 // Endpoint para atualizar estatísticas de um agendamento
 router.post('/atualizar-estatisticas/:empresa_id', async (req, res) => {
@@ -322,7 +329,7 @@ router.get('/debug-agendamentos', async (req, res) => {
         });
 
         const statusSistema = {
-            sistemaAtivo: true, // Assumindo que está ativo se chegou aqui
+            sistemaAtivo: true,
             horaAtual: horaAtual,
             dataAtual: agora.toLocaleDateString('pt-PT'),
             servidorRodando: true,
@@ -332,7 +339,6 @@ router.get('/debug-agendamentos', async (req, res) => {
         // Verificar se os agendamentos estão realmente ativos no sistema
         let agendamentosAtivosNoSistema = 0;
         try {
-            // Esta informação viria das activeSchedules se tivéssemos acesso
             agendamentosAtivosNoSistema = agendamentosAtivos.length;
         } catch (error) {
             console.log("Não foi possível verificar agendamentos ativos no sistema");
@@ -348,6 +354,12 @@ router.get('/debug-agendamentos', async (req, res) => {
                     Math.min(...debug.verificacoesPendentes.map(v => v.minutosRestantes)) + " minutos" : "N/A"
             },
             statusSistema: statusSistema,
+            regrasVerificacao: {
+                criterioHoras: "Mais de 6 horas de trabalho",
+                utilizadores: "Apenas com naotratapontosalmoco=false",
+                diasExecucao: "Segunda a Sexta (dias úteis)",
+                horariosAlmoco: "Saída 13:00 / Entrada 14:00"
+            },
             recomendacoes: [
                 "✅ Verificar se o WhatsApp backend está em execução",
                 "✅ Confirmar se os agendamentos estão enabled=true",
@@ -355,6 +367,9 @@ router.get('/debug-agendamentos', async (req, res) => {
                 "💡 Testar execução manual primeiro",
                 "🔄 Agendamentos verificam a cada minuto se devem executar",
                 "⏰ Execuções apenas em dias úteis (Segunda a Sexta)",
+                "👥 Só processa utilizadores com naotratapontosalmoco=false",
+                "📊 Verifica se utilizador tem mais de 6h de trabalho",
+                "🍽️ Adiciona saída 13:00 e entrada 14:00 se critérios cumpridos",
                 "🔍 Verificar se o startSchedule() foi chamado para todos os agendamentos"
             ],
             proximasVerificacoes: debug.verificacoesPendentes.slice(0, 3)

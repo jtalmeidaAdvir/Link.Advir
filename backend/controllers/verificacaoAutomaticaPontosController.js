@@ -39,7 +39,7 @@ const verificarEAdicionarPontosAlmoco = async (req, res) => {
                     empresa_id: empresa_id
                 },
                 required: true,
-                attributes: [] // Não precisamos dos dados da tabela de junção
+                attributes: []
             }],
             where: {
                 naotratapontosalmoco: false, // Apenas utilizadores que devem ter tratamento automático
@@ -72,84 +72,107 @@ const verificarEAdicionarPontosAlmoco = async (req, res) => {
 
                 console.log(`👤 ${utilizador.nome}: ${registosHoje.length} registos encontrados`);
 
-                // Se tiver exatamente 2 picagens (entrada de manhã e saída final)
-                if (registosHoje.length === 2) {
-                    const primeiroRegisto = registosHoje[0];
-                    const segundoRegisto = registosHoje[1];
-
-                    // Verificar se é uma entrada seguida de uma saída
-                    if (primeiroRegisto.tipo === 'entrada' && segundoRegisto.tipo === 'saida') {
-                        console.log(`🍽️ Adicionando pontos de almoço para ${utilizador.nome}`);
-
-                        // Criar horários de almoço
-                        const saidaAlmoco = new Date(`${dataAtual}T12:00:00.000Z`);
-                        const entradaAlmoco = new Date(`${dataAtual}T13:00:00.000Z`);
-
-                        // Criar registo de saída para almoço (às 13:00)
-                        const registoSaidaAlmoco = await RegistoPontoObra.create({
-                            user_id: utilizador.id,
-                            obra_id: primeiroRegisto.obra_id, // Usar a mesma obra da entrada
-                            tipo: 'saida',
-                            timestamp: saidaAlmoco,
-                            latitude: primeiroRegisto.latitude,
-                            longitude: primeiroRegisto.longitude,
-                            is_confirmed: true,
-                            justificacao: 'Saída automática para almoço'
-                        });
-
-                        // Criar registo de entrada pós-almoço (às 14:00)
-                        const registoEntradaAlmoco = await RegistoPontoObra.create({
-                            user_id: utilizador.id,
-                            obra_id: primeiroRegisto.obra_id, // Usar a mesma obra
-                            tipo: 'entrada',
-                            timestamp: entradaAlmoco,
-                            latitude: primeiroRegisto.latitude,
-                            longitude: primeiroRegisto.longitude,
-                            is_confirmed: true,
-                            justificacao: 'Entrada automática pós-almoço'
-                        });
-
-                        pontosAdicionados += 2; // Saída + Entrada
-                        relatorio.push({
-                            utilizador: utilizador.nome,
-                            acao: 'Pontos de almoço adicionados',
-                            saidaAlmoco: saidaAlmoco.toLocaleTimeString('pt-PT'),
-                            entradaAlmoco: entradaAlmoco.toLocaleTimeString('pt-PT'),
-                            obraId: primeiroRegisto.obra_id,
-                            registoSaidaId: registoSaidaAlmoco.id,
-                            registoEntradaId: registoEntradaAlmoco.id,
-                            registosOriginais: registosHoje.length
-                        });
-
-                        console.log(`✅ Pontos de almoço adicionados para ${utilizador.nome}`);
-                    } else {
-                        console.log(`⚠️ ${utilizador.nome} tem 2 registos mas não são entrada->saída`);
-                        relatorio.push({
-                            utilizador: utilizador.nome,
-                            acao: 'Ignorado - sequência incorreta',
-                            detalhes: `Tipos: ${primeiroRegisto.tipo} -> ${segundoRegisto.tipo}`
-                        });
-                    }
-                } else if (registosHoje.length === 0) {
+                if (registosHoje.length === 0) {
                     console.log(`⚠️ ${utilizador.nome} não tem registos hoje`);
                     relatorio.push({
                         utilizador: utilizador.nome,
                         acao: 'Ignorado - sem registos',
                         detalhes: 'Nenhum registo encontrado para hoje'
                     });
-                } else if (registosHoje.length < 2) {
-                    console.log(`⚠️ ${utilizador.nome} tem apenas ${registosHoje.length} registo(s)`);
+                    continue;
+                }
+
+                // Verificar se já tem ponto de almoço (saída às 13:00 e entrada às 14:00)
+                const temAlmocoRegistado = registosHoje.some(r => {
+                    const hora = new Date(r.timestamp).getUTCHours();
+                    const minuto = new Date(r.timestamp).getUTCMinutes();
+                    return (hora === 13 && minuto === 0) || (hora === 14 && minuto === 0);
+                });
+
+                if (temAlmocoRegistado) {
+                    console.log(`ℹ️ ${utilizador.nome} já tem pontos de almoço registados`);
                     relatorio.push({
                         utilizador: utilizador.nome,
-                        acao: 'Ignorado - registos insuficientes',
-                        detalhes: `Apenas ${registosHoje.length} registo(s) encontrado(s)`
+                        acao: 'Ignorado - já tem almoço registado',
+                        detalhes: 'Pontos de almoço já existem'
                     });
-                } else {
-                    console.log(`ℹ️ ${utilizador.nome} já tem ${registosHoje.length} registos (suficientes)`);
+                    continue;
+                }
+
+                // Calcular total de horas trabalhadas
+                let totalHoras = 0;
+                const entradas = registosHoje.filter(r => r.tipo === 'entrada');
+                const saidas = registosHoje.filter(r => r.tipo === 'saida');
+
+                // Calcular horas entre pares de entrada/saída
+                for (let i = 0; i < Math.min(entradas.length, saidas.length); i++) {
+                    const entrada = new Date(entradas[i].timestamp);
+                    const saida = new Date(saidas[i].timestamp);
+                    const diferencaMs = saida - entrada;
+                    const diferencaHoras = diferencaMs / (1000 * 60 * 60);
+                    totalHoras += diferencaHoras;
+                }
+
+                console.log(`⏱️ ${utilizador.nome}: ${totalHoras.toFixed(2)} horas trabalhadas`);
+
+                // Verificar se tem mais de 6 horas de trabalho
+                if (totalHoras > 6) {
+                    console.log(`🍽️ Adicionando pontos de almoço para ${utilizador.nome}`);
+
+                    // Usar a obra do primeiro registo
+                    const obraId = registosHoje[0].obra_id;
+                    const latitude = registosHoje[0].latitude;
+                    const longitude = registosHoje[0].longitude;
+
+                    // Criar horários de almoço
+                    const saidaAlmoco = new Date(`${dataAtual}T13:00:00.000Z`);
+                    const entradaAlmoco = new Date(`${dataAtual}T14:00:00.000Z`);
+
+                    // Criar registo de saída para almoço (às 13:00)
+                    const registoSaidaAlmoco = await RegistoPontoObra.create({
+                        user_id: utilizador.id,
+                        obra_id: obraId,
+                        tipo: 'saida',
+                        timestamp: saidaAlmoco,
+                        latitude: latitude,
+                        longitude: longitude,
+                        is_confirmed: true,
+                        justificacao: 'Saída automática para almoço'
+                    });
+
+                    // Criar registo de entrada pós-almoço (às 14:00)
+                    const registoEntradaAlmoco = await RegistoPontoObra.create({
+                        user_id: utilizador.id,
+                        obra_id: obraId,
+                        tipo: 'entrada',
+                        timestamp: entradaAlmoco,
+                        latitude: latitude,
+                        longitude: longitude,
+                        is_confirmed: true,
+                        justificacao: 'Entrada automática pós-almoço'
+                    });
+
+                    pontosAdicionados += 2; // Saída + Entrada
                     relatorio.push({
                         utilizador: utilizador.nome,
-                        acao: 'Ignorado - já tem registos suficientes',
-                        detalhes: `${registosHoje.length} registos encontrados`
+                        acao: 'Pontos de almoço adicionados',
+                        horasTrabalhadas: totalHoras.toFixed(2),
+                        saidaAlmoco: '13:00',
+                        entradaAlmoco: '14:00',
+                        obraId: obraId,
+                        registoSaidaId: registoSaidaAlmoco.id,
+                        registoEntradaId: registoEntradaAlmoco.id,
+                        registosOriginais: registosHoje.length
+                    });
+
+                    console.log(`✅ Pontos de almoço adicionados para ${utilizador.nome}`);
+                } else {
+                    console.log(`⚠️ ${utilizador.nome} tem apenas ${totalHoras.toFixed(2)}h (< 6h)`);
+                    relatorio.push({
+                        utilizador: utilizador.nome,
+                        acao: 'Ignorado - menos de 6h de trabalho',
+                        horasTrabalhadas: totalHoras.toFixed(2),
+                        detalhes: 'Critério de 6h não cumprido'
                     });
                 }
 
@@ -220,7 +243,7 @@ const listarUtilizadoresComTratamento = async (req, res) => {
                     empresa_id: empresa_id
                 },
                 required: true,
-                attributes: [] // Não precisamos dos dados da tabela de junção
+                attributes: []
             }],
             where: {
                 isActive: true
