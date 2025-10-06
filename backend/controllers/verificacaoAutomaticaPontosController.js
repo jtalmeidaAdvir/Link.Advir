@@ -104,7 +104,7 @@ const verificarEAdicionarPontosAlmoco = async (req, res) => {
                 const entradas = registosHoje.filter(r => r.tipo === 'entrada');
                 const saidas = registosHoje.filter(r => r.tipo === 'saida');
 
-                // Calcular horas entre pares de entrada/saída
+                // Calcular horas entre pares de entrada/saída completos
                 for (let i = 0; i < Math.min(entradas.length, saidas.length); i++) {
                     const entrada = new Date(entradas[i].timestamp);
                     const saida = new Date(saidas[i].timestamp);
@@ -113,7 +113,18 @@ const verificarEAdicionarPontosAlmoco = async (req, res) => {
                     totalHoras += diferencaHoras;
                 }
 
-                console.log(`⏱️ ${utilizador.nome}: ${totalHoras.toFixed(2)} horas trabalhadas`);
+                // Se há mais entradas do que saídas, significa que há uma entrada ativa (ainda não deu saída)
+                // Calcular horas desde a última entrada até agora
+                if (entradas.length > saidas.length) {
+                    const ultimaEntrada = new Date(entradas[entradas.length - 1].timestamp);
+                    const agora = new Date();
+                    const diferencaMs = agora - ultimaEntrada;
+                    const diferencaHoras = diferencaMs / (1000 * 60 * 60);
+                    totalHoras += diferencaHoras;
+                    console.log(`⏰ ${utilizador.nome}: Entrada ativa há ${diferencaHoras.toFixed(2)}h (sem saída ainda)`);
+                }
+
+                console.log(`⏱️ ${utilizador.nome}: ${totalHoras.toFixed(2)} horas trabalhadas até ao momento`);
 
                 // Verificar se tem mais de 6 horas de trabalho
                 if (totalHoras > 6) {
@@ -157,8 +168,8 @@ const verificarEAdicionarPontosAlmoco = async (req, res) => {
                         utilizador: utilizador.nome,
                         acao: 'Pontos de almoço adicionados',
                         horasTrabalhadas: totalHoras.toFixed(2),
-                        saidaAlmoco: '13:00',
-                        entradaAlmoco: '14:00',
+                        saidaAlmoco: '12:00',
+                        entradaAlmoco: '13:00',
                         obraId: obraId,
                         registoSaidaId: registoSaidaAlmoco.id,
                         registoEntradaId: registoEntradaAlmoco.id,
