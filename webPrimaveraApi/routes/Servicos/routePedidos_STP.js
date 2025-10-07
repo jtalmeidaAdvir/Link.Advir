@@ -1533,6 +1533,7 @@ router.get('/VerificaExisteObjeto/:Objeto/:Descricao', async (req, res) => {
     }
 });
 
+
 router.get('/FecharPedido/:PedidoID', async (req, res) => {
     try {
         const { PedidoID } = req.params;
