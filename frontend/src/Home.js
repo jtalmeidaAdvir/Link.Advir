@@ -5,6 +5,8 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaFileContract, FaPhone, FaBoxOpen, FaQuestionCircle, FaBars } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import i18n from './Pages/i18n'; // Import do i18n
+// Import for Privacy Settings
+import PrivacySettings from './Pages/GDPR/PrivacySettings';
 
 // Função para simular AsyncStorage no browser
 const AsyncStorage = {
@@ -390,6 +392,7 @@ const mapearPrioridade = (prioridadeId) => {
         { title: t('Home.menu.products'), icon: <FaBoxOpen size={22} />, ref: productsRef },
         { title: t('Notícias'), icon: <FaQuestionCircle size={22} />, ref: noticiasRef },
         { title: t('Home.menu.faq'), icon: <FaQuestionCircle size={22} />, ref: faqRef },
+        { title: t('Definições de Privacidade'), icon: <span>🔒</span>, ref: null }, // Adicionado link para Definições de Privacidade
     ];
 
 
@@ -934,32 +937,67 @@ const mapearPrioridade = (prioridadeId) => {
                         </button>
                     </div>
                     <div className="drawer-content" style={{ padding: '20px 10px', marginTop: '10px' }}>
-                        {menus.map((menu, index) => (
-                            <a
-                                key={index}
-                                href="#"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    handleMenuClick(menu.title, menu.ref);
-                                    toggleDrawer();
-                                }}
-                                style={{
-                                    color: activeMenu === menu.title ? '#1792FE' : '#505050',
-                                    textDecoration: 'none',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    padding: '15px 20px',
-                                    borderRadius: '8px',
-                                    margin: '5px 10px',
-                                    backgroundColor: activeMenu === menu.title ? '#f0f7ff' : 'transparent',
-                                    transition: 'all 0.2s ease',
-                                    fontWeight: activeMenu === menu.title ? '600' : '400'
-                                }}
-                            >
-                                <span style={{ marginRight: '15px' }}>{menu.icon}</span>
-                                {menu.title}
-                            </a>
-                        ))}
+                        {menus.map((menu, index) => {
+                            // Handle the new Privacy Settings menu item
+                            if (menu.title === t('Definições de Privacidade')) {
+                                return (
+                                    <a
+                                        key={index}
+                                        href="#" // Link for Privacy Settings
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setActiveMenu(menu.title); // Set active menu
+                                            // Optionally scroll to a specific ref if needed, otherwise just navigate
+                                            // For now, we navigate directly
+                                            window.location.href = '/privacy-settings'; // Example navigation
+                                            toggleDrawer();
+                                        }}
+                                        style={{
+                                            color: activeMenu === menu.title ? '#1792FE' : '#505050',
+                                            textDecoration: 'none',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '15px 20px',
+                                            borderRadius: '8px',
+                                            margin: '5px 10px',
+                                            backgroundColor: activeMenu === menu.title ? '#f0f7ff' : 'transparent',
+                                            transition: 'all 0.2s ease',
+                                            fontWeight: activeMenu === menu.title ? '600' : '400'
+                                        }}
+                                    >
+                                        <span style={{ marginRight: '15px' }}>{menu.icon}</span>
+                                        {menu.title}
+                                    </a>
+                                );
+                            }
+                            // Render other menu items
+                            return (
+                                <a
+                                    key={index}
+                                    href="#"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        handleMenuClick(menu.title, menu.ref);
+                                        toggleDrawer();
+                                    }}
+                                    style={{
+                                        color: activeMenu === menu.title ? '#1792FE' : '#505050',
+                                        textDecoration: 'none',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '15px 20px',
+                                        borderRadius: '8px',
+                                        margin: '5px 10px',
+                                        backgroundColor: activeMenu === menu.title ? '#f0f7ff' : 'transparent',
+                                        transition: 'all 0.2s ease',
+                                        fontWeight: activeMenu === menu.title ? '600' : '400'
+                                    }}
+                                >
+                                    <span style={{ marginRight: '15px' }}>{menu.icon}</span>
+                                    {menu.title}
+                                </a>
+                            );
+                        })}
                         <div style={{ borderTop: '1px solid #eaeaea', margin: '15px 10px', paddingTop: '15px' }}>
                             <a href="#about" style={{
                                 color: '#505050',
@@ -1014,71 +1052,145 @@ const mapearPrioridade = (prioridadeId) => {
                         gap: '20px',
                         marginBottom: '50px',
                     }}>
-                        {menus.map((menu, index) => (
-                            <div
-                                key={index}
-                                onClick={() => handleMenuClick(menu.title, menu.ref)}
-                                style={{
-                                    width: '200px',
-                                    height: '140px',
-                                    backgroundColor: activeMenu === menu.title ? '#1976D2' : '#ffffff',
-                                    borderRadius: '20px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    color: activeMenu === menu.title ? '#FFFFFF' : '#1976D2',
-                                    cursor: 'pointer',
-                                    boxShadow: activeMenu === menu.title
-                                        ? '0 10px 20px rgba(25, 118, 210, 0.4)'
-                                        : '0 6px 15px rgba(0, 0, 0, 0.08)',
-                                    textAlign: 'center',
-                                    transition: 'all 0.3s ease',
-                                    border: activeMenu === menu.title ? 'none' : '1px solid #e0eaf6',
-                                    position: 'relative',
-                                    overflow: 'hidden'
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(-5px)';
-                                    e.currentTarget.style.boxShadow = activeMenu === menu.title
-                                        ? '0 15px 30px rgba(25, 118, 210, 0.5)'
-                                        : '0 10px 25px rgba(0, 0, 0, 0.1)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = activeMenu === menu.title
-                                        ? '0 10px 20px rgba(25, 118, 210, 0.4)'
-                                        : '0 6px 15px rgba(0, 0, 0, 0.08)';
-                                }}
-                            >
-                                {/* Background effect */}
-                                {activeMenu === menu.title && (
+                        {menus.map((menu, index) => {
+                            // Special handling for Privacy Settings link
+                            if (menu.title === t('Definições de Privacidade')) {
+                                return (
+                                    <div
+                                        key={index}
+                                        onClick={() => {
+                                            setActiveMenu(menu.title);
+                                            window.location.href = '/privacy-settings'; // Navigate to Privacy Settings page
+                                        }}
+                                        style={{
+                                            width: '200px',
+                                            height: '140px',
+                                            backgroundColor: activeMenu === menu.title ? '#1976D2' : '#ffffff',
+                                            borderRadius: '20px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            color: activeMenu === menu.title ? '#FFFFFF' : '#1976D2',
+                                            cursor: 'pointer',
+                                            boxShadow: activeMenu === menu.title
+                                                ? '0 10px 20px rgba(25, 118, 210, 0.4)'
+                                                : '0 6px 15px rgba(0, 0, 0, 0.08)',
+                                            textAlign: 'center',
+                                            transition: 'all 0.3s ease',
+                                            border: activeMenu === menu.title ? 'none' : '1px solid #e0eaf6',
+                                            position: 'relative',
+                                            overflow: 'hidden'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(-5px)';
+                                            e.currentTarget.style.boxShadow = activeMenu === menu.title
+                                                ? '0 15px 30px rgba(25, 118, 210, 0.5)'
+                                                : '0 10px 25px rgba(0, 0, 0, 0.1)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(0)';
+                                            e.currentTarget.style.boxShadow = activeMenu === menu.title
+                                                ? '0 10px 20px rgba(25, 118, 210, 0.4)'
+                                                : '0 6px 15px rgba(0, 0, 0, 0.08)';
+                                        }}
+                                    >
+                                        {/* Background effect */}
+                                        {activeMenu === menu.title && (
+                                            <div style={{
+                                                position: 'absolute',
+                                                top: '-20px',
+                                                right: '-20px',
+                                                width: '100px',
+                                                height: '100px',
+                                                borderRadius: '50%',
+                                                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                                zIndex: 0
+                                            }} />
+                                        )}
+                                        <div style={{
+                                            fontSize: '36px',
+                                            marginBottom: '15px',
+                                            color: activeMenu === menu.title ? '#FFFFFF' : '#1976D2',
+                                            zIndex: 1
+                                        }}>
+                                            {menu.icon}
+                                        </div>
+                                        <span style={{
+                                            fontSize: '18px',
+                                            fontWeight: '600',
+                                            zIndex: 1
+                                        }}>{menu.title}</span>
+                                    </div>
+                                );
+                            }
+                            // Render other menu items
+                            return (
+                                <div
+                                    key={index}
+                                    onClick={() => handleMenuClick(menu.title, menu.ref)}
+                                    style={{
+                                        width: '200px',
+                                        height: '140px',
+                                        backgroundColor: activeMenu === menu.title ? '#1976D2' : '#ffffff',
+                                        borderRadius: '20px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        color: activeMenu === menu.title ? '#FFFFFF' : '#1976D2',
+                                        cursor: 'pointer',
+                                        boxShadow: activeMenu === menu.title
+                                            ? '0 10px 20px rgba(25, 118, 210, 0.4)'
+                                            : '0 6px 15px rgba(0, 0, 0, 0.08)',
+                                        textAlign: 'center',
+                                        transition: 'all 0.3s ease',
+                                        border: activeMenu === menu.title ? 'none' : '1px solid #e0eaf6',
+                                        position: 'relative',
+                                        overflow: 'hidden'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(-5px)';
+                                        e.currentTarget.style.boxShadow = activeMenu === menu.title
+                                            ? '0 15px 30px rgba(25, 118, 210, 0.5)'
+                                            : '0 10px 25px rgba(0, 0, 0, 0.1)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = activeMenu === menu.title
+                                            ? '0 10px 20px rgba(25, 118, 210, 0.4)'
+                                            : '0 6px 15px rgba(0, 0, 0, 0.08)';
+                                    }}
+                                >
+                                    {/* Background effect */}
+                                    {activeMenu === menu.title && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '-20px',
+                                            right: '-20px',
+                                            width: '100px',
+                                            height: '100px',
+                                            borderRadius: '50%',
+                                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                            zIndex: 0
+                                        }} />
+                                    )}
                                     <div style={{
-                                        position: 'absolute',
-                                        top: '-20px',
-                                        right: '-20px',
-                                        width: '100px',
-                                        height: '100px',
-                                        borderRadius: '50%',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                                        zIndex: 0
-                                    }} />
-                                )}
-                                <div style={{
-                                    fontSize: '36px',
-                                    marginBottom: '15px',
-                                    color: activeMenu === menu.title ? '#FFFFFF' : '#1976D2',
-                                    zIndex: 1
-                                }}>
-                                    {menu.icon}
+                                        fontSize: '36px',
+                                        marginBottom: '15px',
+                                        color: activeMenu === menu.title ? '#FFFFFF' : '#1976D2',
+                                        zIndex: 1
+                                    }}>
+                                        {menu.icon}
+                                    </div>
+                                    <span style={{
+                                        fontSize: '18px',
+                                        fontWeight: '600',
+                                        zIndex: 1
+                                    }}>{menu.title}</span>
                                 </div>
-                                <span style={{
-                                    fontSize: '18px',
-                                    fontWeight: '600',
-                                    zIndex: 1
-                                }}>{menu.title}</span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                     {/* Content Based on Active Menu */}
                     <div ref={contractRef}>
@@ -2717,6 +2829,21 @@ const mapearPrioridade = (prioridadeId) => {
                             </motion.div>
                         )}
                     </div>
+                    
+                    {/* Privacy Settings Section (example, adjust as needed) */}
+                    {activeMenu === t('Definições de Privacidade') && (
+                        <div ref={null} style={{ maxWidth: '950px', margin: '0 auto', backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)' }}>
+                            <div style={{ backgroundColor: '#1976D2', padding: '25px 30px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                                <h2 style={{ fontWeight: '700', color: '#FFFFFF', margin: 0, fontSize: '28px', textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)' }}>
+                                    {t('Definições de Privacidade')}
+                                </h2>
+                            </div>
+                            <div style={{ padding: '40px 30px' }}>
+                                {/* Render the PrivacySettings component here */}
+                                <PrivacySettings /> 
+                            </div>
+                        </div>
+                    )}
                 </section>
 
 
