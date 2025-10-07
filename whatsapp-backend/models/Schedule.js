@@ -1,4 +1,3 @@
-
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
@@ -46,11 +45,16 @@ const Schedule = sequelize.define('Schedule', {
     },
     last_sent: {
         type: DataTypes.DATE,
-        allowNull: true
+        allowNull: true,
     },
     total_sent: {
         type: DataTypes.INTEGER,
-        defaultValue: 0
+        defaultValue: 0,
+    },
+    last_contact_index: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        comment: 'Índice do último contacto enviado para continuar em múltiplas execuções',
     },
     tipo: {
         type: DataTypes.STRING(100),

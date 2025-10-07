@@ -44,10 +44,7 @@ function isArtigoCommand(message) {
     const lowerMessage = message.toLowerCase();
 
     // Verificar comandos de artigos
-    if (
-        lowerMessage.includes("artigo") ||
-        lowerMessage.includes("material")
-    ) {
+    if (lowerMessage.includes("artigo") || lowerMessage.includes("material")) {
         return true;
     }
 
@@ -96,7 +93,8 @@ async function startNewIntervencao(phoneNumber, client) {
 Bem-vindo! Vamos registar a sua intervenção.
 
 *1. Cliente*
-Indique o código do cliente:`;
+Indique o código do cliente ou:
+• Digite *1* para ver os seus pedidos`;
 
     await client.sendMessage(phoneNumber, message);
 }
@@ -104,6 +102,18 @@ Indique o código do cliente:`;
 // Continuar conversa
 async function continuarConversa(phoneNumber, messageText, conversa, client) {
     conversa.lastActivity = Date.now();
+
+    // Verificar se o usuário quer cancelar a intervenção em qualquer estado
+    const lowerMsg = messageText.toLowerCase().trim();
+    if (lowerMsg === "cancelar" || lowerMsg === "sair") {
+        activeIntervencoes.delete(phoneNumber);
+        await client.sendMessage(
+            phoneNumber,
+            "❌ *Intervenção cancelada com sucesso!*\n\n" +
+            "Para iniciar uma nova intervenção, envie 'intervenção'."
+        );
+        return;
+    }
 
     switch (conversa.estado) {
         case STATES.WAITING_CLIENT:
@@ -211,10 +221,20 @@ async function continuarConversa(phoneNumber, messageText, conversa, client) {
             }
             break;
         case STATES.WAITING_NOME_ARTIGO:
-            await processarNomeArtigo(phoneNumber, messageText, client, conversa);
+            await processarNomeArtigo(
+                phoneNumber,
+                messageText,
+                client,
+                conversa,
+            );
             break;
         case STATES.WAITING_SELECAO_ARTIGO:
-            await processarSelecaoArtigo(phoneNumber, messageText, client, conversa);
+            await processarSelecaoArtigo(
+                phoneNumber,
+                messageText,
+                client,
+                conversa,
+            );
             break;
         case STATES.WAITING_QUANTIDADE_ARTIGO:
             await processarQuantidadeArtigo(
@@ -240,299 +260,365 @@ const BASE = "http://151.80.149.159:2018";
 const API_PREFIX = "/WebApi"; // se não tiver /WebApi, mete ""
 const ST = `${BASE}${API_PREFIX}/ServicosTecnicos`;
 
-function safe(v){ return (v ?? "").toString(); }
-function norm(v){
-  return safe(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+function safe(v) {
+    return (v ?? "").toString();
+}
+function norm(v) {
+    return safe(v)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
 }
 
 // Aceita vários formatos de resposta da API Primavera
-function toArrayFromPrimaveraResponse(raw){
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw?.DataSet?.Table)) return raw.DataSet.Table;
-  if (Array.isArray(raw?.Data?.Table)) return raw.Data.Table;
-  if (Array.isArray(raw?.Table)) return raw.Table;
-  // alguns endpoints metem várias tabelas dentro de DataSet
-  if (raw?.DataSet && typeof raw.DataSet === "object"){
-    return Object.values(raw.DataSet).flatMap(t => Array.isArray(t) ? t : []);
-  }
-  return [];
+function toArrayFromPrimaveraResponse(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray(raw?.DataSet?.Table)) return raw.DataSet.Table;
+    if (Array.isArray(raw?.Data?.Table)) return raw.Data.Table;
+    if (Array.isArray(raw?.Table)) return raw.Table;
+    // alguns endpoints metem várias tabelas dentro de DataSet
+    if (raw?.DataSet && typeof raw.DataSet === "object") {
+        return Object.values(raw.DataSet).flatMap((t) =>
+            Array.isArray(t) ? t : [],
+        );
+    }
+    return [];
 }
 
 // --- PATCH: handleCliente
 async function handleCliente(phoneNumber, messageText, conversa, client) {
-  const pesquisa = messageText.trim();
-  const q = norm(pesquisa);
+    const pesquisa = messageText.trim();
 
-  try {
-    const token = await getAuthToken(
-      { username: "AdvirWeb", password: "Advir2506##", company: "Advir", instance: "DEFAULT", line: "Evolution" },
-      "151.80.149.159:2018",
-    );
-    const headers = { Authorization: `Bearer ${token}` };
-
-    // Chama SEM filtros no servidor (como tens agora) e filtra no Node
-    const url = `${ST}/ObterPedidos`;
-    const r = await axios.get(url, { headers });
-
-    const todos = toArrayFromPrimaveraResponse(r.data);
-    console.log(`ObterPedidos devolveu ${todos.length} registos.`);
-
-    // Filtrar por Nome (parcial, sem acentos), por Cliente (exato)
-    // e, se quiseres, por Processo/NumProcesso (parcial)
-    const filtrados = todos.filter(p => {
-      const nome = norm(p.Nome);
-      const cod  = norm(p.Cliente);
-      const proc = norm(p.Processo || p.NumProcesso);
-      return nome.includes(q) || cod === q || (q.length >= 3 && proc.includes(q));
-    });
-
-    if (filtrados.length === 0) {
-      await client.sendMessage(
-        phoneNumber,
-        `❌ Não encontrei pedidos para "*${pesquisa}*". Tenta outro *código ou nome* do cliente:`
-      );
-      return;
+    // Verificar se o usuário quer ver seus próprios pedidos
+    if (pesquisa === "1") {
+        await listarPedidosPorTecnico(phoneNumber, conversa, client);
+        return;
     }
 
-    // Paginação simples (10 por página)
-    conversa.data.clienteId   = pesquisa;
-    conversa.data.cliente     = filtrados[0]?.Nome || pesquisa;
-    conversa.data.pedidosAll  = filtrados;
-    conversa.data.pedidosPage = 0;
-    conversa.estado = STATES.WAITING_PEDIDO;
+    const q = norm(pesquisa);
 
-    await enviarListaPedidosPagina(phoneNumber, client, conversa);
-  } catch (error) {
-    console.error("Erro ao buscar pedidos:", {
-      status: error.response?.status, data: error.response?.data, msg: error.message
-    });
-    await client.sendMessage(phoneNumber, "❌ Ocorreu um erro ao obter os pedidos. Tenta novamente.");
-  }
+    try {
+        const token = await getAuthToken(
+            {
+                username: "AdvirWeb",
+                password: "Advir2506##",
+                company: "ADVIR",
+                instance: "DEFAULT",
+                line: "Evolution",
+            },
+            "151.80.149.159:2018",
+        );
+        const headers = { Authorization: `Bearer ${token}` };
+
+        // Chama SEM filtros no servidor (como tens agora) e filtra no Node
+        const url = `${ST}/ObterPedidos`;
+        const r = await axios.get(url, { headers });
+
+        const todos = toArrayFromPrimaveraResponse(r.data);
+        console.log(`ObterPedidos devolveu ${todos.length} registos.`);
+
+        // Filtrar por Nome (parcial, sem acentos), por Cliente (exato)
+        // e, se quiseres, por Processo/NumProcesso (parcial)
+        const filtrados = todos.filter((p) => {
+            const nome = norm(p.Nome);
+            const cod = norm(p.Cliente);
+            const proc = norm(p.Processo || p.NumProcesso);
+            return (
+                nome.includes(q) ||
+                cod === q ||
+                (q.length >= 3 && proc.includes(q))
+            );
+        });
+
+        if (filtrados.length === 0) {
+            await client.sendMessage(
+                phoneNumber,
+                `❌ Não encontrei pedidos para "*${pesquisa}*".\n\nTenta outro *código ou nome* do cliente ou digite *1* para ver os seus pedidos:`,
+            );
+            return;
+        }
+
+        // Paginação simples (10 por página)
+        conversa.data.clienteId = pesquisa;
+        conversa.data.cliente = filtrados[0]?.Nome || pesquisa;
+        conversa.data.pedidosAll = filtrados;
+        conversa.data.pedidosPage = 0;
+        conversa.estado = STATES.WAITING_PEDIDO;
+
+        await enviarListaPedidosPagina(phoneNumber, client, conversa);
+    } catch (error) {
+        console.error("Erro ao buscar pedidos:", {
+            status: error.response?.status,
+            data: error.response?.data,
+            msg: error.message,
+        });
+        await client.sendMessage(
+            phoneNumber,
+            "❌ Ocorreu um erro ao obter os pedidos. Tenta novamente.",
+        );
+    }
 }
 
-// Mantém a tua função de paginação; aqui vai uma versão pronta
-// === manter como está se já tens esta função ===
+// Nova função para listar pedidos por técnico
+async function listarPedidosPorTecnico(phoneNumber, conversa, client) {
+    try {
+        await client.sendMessage(
+            phoneNumber,
+            "🔍 A procurar os seus pedidos...",
+        );
+
+        const token = await getAuthToken(
+            {
+                username: "AdvirWeb",
+                password: "Advir2506##",
+                company: "ADVIR",
+                instance: "DEFAULT",
+                line: "Evolution",
+            },
+            "151.80.149.159:2018",
+        );
+        const headers = { Authorization: `Bearer ${token}` };
+
+        // Buscar o contacto na base de dados local
+        const Contact = require("../models/Contact");
+        const cleanPhoneNumber = phoneNumber.replace("@c.us", "").replace(/\D/g, "");
+        let numeroTecnico = null;
+
+        try {
+            const contacts = await Contact.findAll();
+
+            for (const contact of contacts) {
+                let contactsData;
+                try {
+                    contactsData = typeof contact.contacts === "string"
+                        ? JSON.parse(contact.contacts)
+                        : contact.contacts;
+                } catch (e) {
+                    contactsData = Array.isArray(contact.contacts)
+                        ? contact.contacts
+                        : [];
+                }
+
+                if (Array.isArray(contactsData)) {
+                    for (const list of contactsData) {
+                        const contactPhone = list.phone?.replace(/\D/g, "");
+
+                        if (contactPhone?.includes(cleanPhoneNumber) || cleanPhoneNumber.includes(contactPhone)) {
+                            numeroTecnico = list.numeroTecnico || contact.numero_tecnico;
+                            console.log(`✅ Técnico associado ao contacto ${phoneNumber}: ${numeroTecnico}`);
+                            break;
+                        }
+                    }
+                }
+
+                if (numeroTecnico) break;
+            }
+        } catch (contactError) {
+            console.error("Erro ao buscar contacto na base de dados:", contactError.message);
+        }
+
+        if (!numeroTecnico) {
+            await client.sendMessage(
+                phoneNumber,
+                "❌ Não foi possível identificar o seu número de técnico. Por favor, indique o código do cliente.",
+            );
+            conversa.estado = STATES.WAITING_CLIENT;
+            return;
+        }
+
+        console.log(`Número do técnico: ${numeroTecnico}`);
+
+        // Obter pedidos do técnico usando o endpoint específico
+        const url = `${ST}/GetPedidosByTecnico/${numeroTecnico}`;
+        const r = await axios.get(url, { headers });
+
+        const pedidosTecnico = toArrayFromPrimaveraResponse(r.data);
+        console.log(
+            `GetPedidosByTecnico devolveu ${pedidosTecnico.length} pedidos para o técnico ${numeroTecnico}.`,
+        );
+
+        if (pedidosTecnico.length === 0) {
+            await client.sendMessage(
+                phoneNumber,
+                `❌ Não foram encontrados pedidos para o técnico "${numeroTecnico}".\n\n` +
+                `Por favor, indique o código do cliente:`,
+            );
+            conversa.estado = STATES.WAITING_CLIENT;
+            return;
+        }
+
+        // Configurar dados para listar os pedidos do técnico
+        conversa.data.clienteId = `Técnico ${numeroTecnico}`;
+        conversa.data.cliente = `Técnico ${numeroTecnico}`;
+        conversa.data.pedidosAll = pedidosTecnico;
+        conversa.data.pedidosPage = 0;
+        conversa.data.tecnicoNumero = numeroTecnico;
+        conversa.estado = STATES.WAITING_PEDIDO;
+
+        await client.sendMessage(
+            phoneNumber,
+            `✅ Encontrados ${pedidosTecnico.length} pedido(s) para o técnico ${numeroTecnico}.\n`,
+        );
+
+        await enviarListaPedidosPagina(phoneNumber, client, conversa);
+    } catch (error) {
+        console.error("Erro ao buscar pedidos do técnico:", {
+            status: error.response?.status,
+            data: error.response?.data,
+            msg: error.message,
+        });
+        await client.sendMessage(
+            phoneNumber,
+            "❌ Ocorreu um erro ao obter os pedidos. Por favor, indique o código do cliente ou tente novamente.",
+        );
+        conversa.estado = STATES.WAITING_CLIENT;
+    }
+}
+
 // Helper para listar a página atual (mantém se já tens igual)
 async function enviarListaPedidosPagina(phoneNumber, client, conversa) {
-  const pageSize = 10;
-  const page = conversa.data?.pedidosPage ?? 0;
+    const pageSize = 10;
+    const page = conversa.data?.pedidosPage ?? 0;
 
-  // escolhe a fonte: pedidosAll (novo) ou pedidos (legacy)
-  const arr = Array.isArray(conversa.data?.pedidosAll)
-    ? conversa.data.pedidosAll
-    : (Array.isArray(conversa.data?.pedidos) ? conversa.data.pedidos : []);
+    // escolhe a fonte: pedidosAll (novo) ou pedidos (legacy)
+    const arr = Array.isArray(conversa.data?.pedidosAll)
+        ? conversa.data.pedidosAll
+        : Array.isArray(conversa.data?.pedidos)
+            ? conversa.data.pedidos
+            : [];
 
-  const total = arr.length;
-  const from = page * pageSize;
-  const slice = arr.slice(from, Math.min(from + pageSize, total));
+    const total = arr.length;
+    const from = page * pageSize;
+    const slice = arr.slice(from, Math.min(from + pageSize, total));
 
-  if (slice.length === 0) {
-    await client.sendMessage(phoneNumber, "⚠️ Não há pedidos para listar. Volta a indicar o *nome ou código do cliente*.");
-    conversa.estado = STATES.WAITING_CLIENT;
-    return;
-  }
+    if (slice.length === 0) {
+        await client.sendMessage(
+            phoneNumber,
+            "⚠️ Não há pedidos para listar. Volta a indicar o *nome ou código do cliente*.",
+        );
+        conversa.estado = STATES.WAITING_CLIENT;
+        return;
+    }
 
-  let msg = `✅ Cliente: *${conversa.data?.cliente || conversa.data?.clienteId || "N/D"}*\n\n` +
-            `Foram encontrados ${total} pedido(s). A mostrar ${from + 1}-${from + slice.length}:\n\n`;
+    let msg =
+        `✅ Cliente: *${conversa.data?.cliente || conversa.data?.clienteId || "N/D"}*\n\n` +
+        `Foram encontrados ${total} pedido(s). A mostrar ${from + 1}-${from + slice.length}:\n\n`;
 
-  slice.forEach((p, i) => {
-    const idx = i + 1;
-    const desc = p.DescricaoProb || p.DescricaoProblema || "Sem descrição";
-    const ref  = p.Processo || p.NumProcesso || p.ID || "Sem ref.";
-    msg += `*${idx}.* ${ref}\n   ${desc}\n\n`;
-  });
+    slice.forEach((p, i) => {
+        const idx = i + 1;
+        const desc = p.DescricaoProb || p.DescricaoProblema || "Sem descrição";
+        const processoRef = p.Processo || p.NumProcesso || p.ID || "Sem ref.";
+        const nomeCliente = p.Nome || "";
 
-  msg += (from + slice.length < total)
-    ? `Responda com o número (1-${slice.length}) ou escreva "mais" para ver mais.`
-    : `Responda com o número (1-${slice.length}).`;
+        msg += `*${idx}.* ${processoRef}${nomeCliente ? ` - ${nomeCliente}` : ""}\n`;
+        msg += `   📝 ${desc}\n\n`;
+    });
 
-  await client.sendMessage(phoneNumber, msg);
+    msg +=
+        from + slice.length < total
+            ? `Responda com o número (1-${slice.length}) ou escreva "mais" para ver mais.`
+            : `Responda com o número (1-${slice.length}).`;
+
+    await client.sendMessage(phoneNumber, msg);
 }
 
 // PATCH: substitui o teu handlePedido por este
 async function handlePedido(phoneNumber, messageText, conversa, client) {
-  const txt = (messageText || "").trim().toLowerCase();
-  const pageSize = 10;
+    try {
+        const txt = (messageText || "").trim().toLowerCase();
+        const pageSize = 10;
 
-  // normaliza estrutura
-  conversa.data = conversa.data || {};
-  if (!Array.isArray(conversa.data.pedidosAll) && Array.isArray(conversa.data.pedidos)) {
-    conversa.data.pedidosAll = conversa.data.pedidos; // migração legacy -> novo
-  }
+        // Normalizar estrutura
+        conversa.data = conversa.data || {};
 
-  const arr = Array.isArray(conversa.data.pedidosAll) ? conversa.data.pedidosAll : [];
-  const hasList = arr.length > 0;
+        // Se ainda não existir pedidosAll mas existir pedidos (legacy), migra
+        if (
+            !Array.isArray(conversa.data.pedidosAll) &&
+            Array.isArray(conversa.data.pedidos)
+        ) {
+            conversa.data.pedidosAll = conversa.data.pedidos;
+        }
 
-  // Se não há lista carregada, volta a pedir o cliente
-  if (!hasList) {
-    await client.sendMessage(phoneNumber, "⚠️ Não tenho pedidos carregados. Indique o *nome ou código do cliente* novamente.");
-    conversa.estado = STATES.WAITING_CLIENT;
-    return;
-  }
+        const arr = Array.isArray(conversa.data.pedidosAll)
+            ? conversa.data.pedidosAll
+            : [];
+        const hasList = arr.length > 0;
 
-  // “mais” -> próxima página
-  if (txt === "mais" || txt === "m" || txt === ">") {
-    const nextFrom = ((conversa.data.pedidosPage ?? 0) + 1) * pageSize;
-    if (nextFrom >= arr.length) {
-      await client.sendMessage(phoneNumber, "⚠️ Já não há mais pedidos.");
-      return;
+        if (!hasList) {
+            // Nada carregado -> volta a pedir cliente (EVITA .length num undefined)
+            await client.sendMessage(
+                phoneNumber,
+                "⚠️ Não tenho pedidos carregados. Indique novamente o *nome ou código do cliente*.",
+            );
+            conversa.estado = STATES.WAITING_CLIENT;
+            return;
+        }
+
+        // "mais" -> próxima página
+        if (txt === "mais" || txt === "m" || txt === ">") {
+            const nextFrom = ((conversa.data.pedidosPage ?? 0) + 1) * pageSize;
+            if (nextFrom >= arr.length) {
+                await client.sendMessage(
+                    phoneNumber,
+                    "⚠️ Já não há mais pedidos.",
+                );
+                return;
+            }
+            conversa.data.pedidosPage = (conversa.data.pedidosPage ?? 0) + 1;
+            await enviarListaPedidosPagina(phoneNumber, client, conversa);
+            return;
+        }
+
+        // Seleção numérica 1..N da página atual
+        const escolha = parseInt(txt, 10);
+        if (Number.isNaN(escolha)) {
+            await client.sendMessage(
+                phoneNumber,
+                '❌ Escolha inválida. Indique o número do pedido ou escreva "mais".',
+            );
+            return;
+        }
+
+        const page = conversa.data.pedidosPage ?? 0;
+        const from = page * pageSize;
+        const slice = arr.slice(from, Math.min(from + pageSize, arr.length)); // slice é SEMPRE array
+
+        if (escolha < 1 || escolha > slice.length) {
+            await client.sendMessage(
+                phoneNumber,
+                `❌ Escolha inválida. Indique um número entre 1 e ${slice.length}${from + slice.length < arr.length ? ' ou "mais".' : "."}`,
+            );
+            return;
+        }
+
+        const p = slice[escolha - 1];
+
+        conversa.data.pedidoId =
+            p.ID || p.Processo || p.NumProcesso || `${from + escolha}`;
+        conversa.data.tecnicoNumero = p.Tecnico || "000";
+        conversa.estado = STATES.WAITING_ESTADO;
+
+        const ref = p.Processo || p.NumProcesso || conversa.data.pedidoId;
+        const msg =
+            `✅ Pedido selecionado: *${ref}*\n\n` +
+            `*2. Estado da Intervenção*\n` +
+            `1. Terminado\n` +
+            `2. Aguardar intervenção equipa Advir\n` +
+            `3. Em curso equipa Advir\n` +
+            `4. Reportado para Parceiro\n` +
+            `5. Aguarda resposta Cliente\n\n` +
+            `Digite o número (1-5):`;
+        await client.sendMessage(phoneNumber, msg);
+    } catch (err) {
+        console.error("handlePedido falhou:", err);
+        await client.sendMessage(
+            phoneNumber,
+            "❌ Ocorreu um erro ao selecionar o pedido. Tente novamente.",
+        );
     }
-    conversa.data.pedidosPage = (conversa.data.pedidosPage ?? 0) + 1;
-    await enviarListaPedidosPagina(phoneNumber, client, conversa);
-    return;
-  }
-
-  // seleção 1..N da página corrente
-  const escolha = parseInt(txt, 10);
-  if (Number.isNaN(escolha)) {
-    await client.sendMessage(phoneNumber, "❌ Escolha inválida. Indique o número do pedido ou escreva \"mais\".");
-    return;
-  }
-
-  const page = conversa.data.pedidosPage ?? 0;
-  const from = page * pageSize;
-  const slice = arr.slice(from, Math.min(from + pageSize, arr.length));
-
-  if (escolha < 1 || escolha > slice.length) {
-    await client.sendMessage(phoneNumber, `❌ Escolha inválida. Indique um número entre 1 e ${slice.length}${from + slice.length < arr.length ? ' ou "mais".' : '.'}`);
-    return;
-  }
-
-  const p = slice[escolha - 1];
-  conversa.data.pedidoId      = p.ID || p.Processo || p.NumProcesso || `${from + escolha}`;
-  conversa.data.tecnicoNumero = p.Tecnico || "000";
-  conversa.estado = STATES.WAITING_ESTADO;
-
-  const ref = p.Processo || p.NumProcesso || conversa.data.pedidoId;
-  const msg =
-    `✅ Pedido selecionado: *${ref}*\n\n` +
-    `*2. Estado da Intervenção*\n` +
-    `1. Terminado\n` +
-    `2. Aguardar intervenção equipa Advir\n` +
-    `3. Em curso equipa Advir\n` +
-    `4. Reportado para Parceiro\n` +
-    `5. Aguarda resposta Cliente\n\n` +
-    `Digite o número (1-5):`;
-  await client.sendMessage(phoneNumber, msg);
 }
-
-
-// === PATCH: substituir o teu handlePedido por este ===
-// ✅ Usa SEMPRE pedidosAll (novo) e só cai para pedidos (legacy) com segurança
-async function handlePedido(phoneNumber, messageText, conversa, client) {
-  try {
-    const txt = (messageText || "").trim().toLowerCase();
-    const pageSize = 10;
-
-    // Normalizar estrutura
-    conversa.data = conversa.data || {};
-
-    // Se ainda não existir pedidosAll mas existir pedidos (legacy), migra
-    if (!Array.isArray(conversa.data.pedidosAll) && Array.isArray(conversa.data.pedidos)) {
-      conversa.data.pedidosAll = conversa.data.pedidos;
-    }
-
-    const arr = Array.isArray(conversa.data.pedidosAll) ? conversa.data.pedidosAll : [];
-    const hasList = arr.length > 0;
-
-    if (!hasList) {
-      // Nada carregado -> volta a pedir cliente (EVITA .length num undefined)
-      await client.sendMessage(
-        phoneNumber,
-        "⚠️ Não tenho pedidos carregados. Indique novamente o *nome ou código do cliente*."
-      );
-      conversa.estado = STATES.WAITING_CLIENT;
-      return;
-    }
-
-    // "mais" -> próxima página
-    if (txt === "mais" || txt === "m" || txt === ">") {
-      const nextFrom = ((conversa.data.pedidosPage ?? 0) + 1) * pageSize;
-      if (nextFrom >= arr.length) {
-        await client.sendMessage(phoneNumber, "⚠️ Já não há mais pedidos.");
-        return;
-      }
-      conversa.data.pedidosPage = (conversa.data.pedidosPage ?? 0) + 1;
-      await enviarListaPedidosPagina(phoneNumber, client, conversa);
-      return;
-    }
-
-    // Seleção numérica 1..N da página atual
-    const escolha = parseInt(txt, 10);
-    if (Number.isNaN(escolha)) {
-      await client.sendMessage(phoneNumber, "❌ Escolha inválida. Indique o número do pedido ou escreva \"mais\".");
-      return;
-    }
-
-    const page = conversa.data.pedidosPage ?? 0;
-    const from = page * pageSize;
-    const slice = arr.slice(from, Math.min(from + pageSize, arr.length)); // slice é SEMPRE array
-
-    if (escolha < 1 || escolha > slice.length) {
-      await client.sendMessage(
-        phoneNumber,
-        `❌ Escolha inválida. Indique um número entre 1 e ${slice.length}${from + slice.length < arr.length ? ' ou "mais".' : '.'}`
-      );
-      return;
-    }
-
-    const p = slice[escolha - 1];
-
-    conversa.data.pedidoId      = p.ID || p.Processo || p.NumProcesso || `${from + escolha}`;
-    conversa.data.tecnicoNumero = p.Tecnico || "000";
-    conversa.estado = STATES.WAITING_ESTADO;
-
-    const ref = p.Processo || p.NumProcesso || conversa.data.pedidoId;
-    const msg =
-      `✅ Pedido selecionado: *${ref}*\n\n` +
-      `*2. Estado da Intervenção*\n` +
-      `1. Terminado\n` +
-      `2. Aguardar intervenção equipa Advir\n` +
-      `3. Em curso equipa Advir\n` +
-      `4. Reportado para Parceiro\n` +
-      `5. Aguarda resposta Cliente\n\n` +
-      `Digite o número (1-5):`;
-    await client.sendMessage(phoneNumber, msg);
-  } catch (err) {
-    console.error("handlePedido falhou:", err);
-    await client.sendMessage(phoneNumber, "❌ Ocorreu um erro ao selecionar o pedido. Tente novamente.");
-  }
-}
-
-// ✅ Listagem da página (usa pedidosAll e NUNCA lê .length de undefined)
-async function enviarListaPedidosPagina(phoneNumber, client, conversa) {
-  const pageSize = 10;
-  const page = conversa.data?.pedidosPage ?? 0;
-  const arr = Array.isArray(conversa.data?.pedidosAll) ? conversa.data.pedidosAll : [];
-  const total = arr.length;
-
-  const from = page * pageSize;
-  const slice = arr.slice(from, Math.min(from + pageSize, total));
-
-  if (slice.length === 0) {
-    await client.sendMessage(phoneNumber, "⚠️ Não há pedidos para listar. Indique o *nome ou código do cliente*.");
-    conversa.estado = STATES.WAITING_CLIENT;
-    return;
-  }
-
-  let msg = `✅ Cliente: *${conversa.data?.cliente || conversa.data?.clienteId || "N/D"}*\n\n` +
-            `Foram encontrados ${total} pedido(s). A mostrar ${from + 1}-${from + slice.length}:\n\n`;
-
-  slice.forEach((p, i) => {
-    const idx  = i + 1;
-    const desc = p.DescricaoProb || p.DescricaoProblema || "Sem descrição";
-    const ref  = p.Processo || p.NumProcesso || p.ID || "Sem ref.";
-    msg += `*${idx}.* ${ref}\n   ${desc}\n\n`;
-  });
-
-  msg += (from + slice.length < total)
-    ? `Responda com o número (1-${slice.length}) ou escreva "mais" para ver mais.`
-    : `Responda com o número (1-${slice.length}).`;
-
-  await client.sendMessage(phoneNumber, msg);
-}
-
 
 // Handle Estado
 async function handleEstado(phoneNumber, messageText, conversa, client) {
@@ -873,7 +959,10 @@ async function iniciarProcessoArtigos(phoneNumber, client, conversa) {
         `2. O sistema verifica se existe\n` +
         `3. Se existir, pede a quantidade\n` +
         `4. Pode adicionar mais artigos ou terminar\n\n` +
-        `Digite o nome do primeiro artigo:`,
+        `💬 *Comandos disponíveis:*\n` +
+        `• Digite o nome do artigo para adicionar\n` +
+        `• 'fim' para terminar adição de artigos\n` +
+        `• 'cancelar' para cancelar toda a intervenção`,
     );
 }
 
@@ -901,24 +990,7 @@ async function processarNomeArtigo(phoneNumber, messageText, client, conversa) {
         return;
     }
 
-    if (lowerMessage.includes("cancelar")) {
-        // Remover todos os artigos adicionados nesta sessão
-        conversa.data.artigos = [];
-        conversa.estado = STATES.WAITING_DATA_INICIO;
-        const hoje = new Date();
-        const dataFormatada = `${hoje.getDate().toString().padStart(2, "0")}/${(hoje.getMonth() + 1).toString().padStart(2, "0")}/${hoje.getFullYear()}`;
 
-        await client.sendMessage(
-            phoneNumber,
-            `❌ Adição de artigos cancelada. Continuando sem artigos.\n\n` +
-            `*6. Data de Início*\n` +
-            `Selecione a data de início da intervenção:\n\n` +
-            `1. Hoje (${dataFormatada})\n` +
-            `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
-            `Digite 1 ou 2:`,
-        );
-        return;
-    }
 
     try {
         // Buscar artigos na API
@@ -942,9 +1014,9 @@ async function processarNomeArtigo(phoneNumber, messageText, client, conversa) {
 
         // Primeiro, tentar encontrar uma correspondência exata
         const matchExato = artigos.find(
-            (artigo) => 
+            (artigo) =>
                 artigo.Descricao.toLowerCase() === nomeArtigo.toLowerCase() ||
-                artigo.Artigo.toLowerCase() === nomeArtigo.toLowerCase()
+                artigo.Artigo.toLowerCase() === nomeArtigo.toLowerCase(),
         );
 
         if (matchExato) {
@@ -964,11 +1036,17 @@ async function processarNomeArtigo(phoneNumber, messageText, client, conversa) {
         }
 
         // Se não houver match exato, procurar por correspondências parciais
-        const artigosSugeridos = artigos.filter(
-            (artigo) => 
-                artigo.Descricao.toLowerCase().includes(nomeArtigo.toLowerCase()) ||
-                artigo.Artigo.toLowerCase().includes(nomeArtigo.toLowerCase())
-        ).slice(0, 10); // Limitar a 10 sugestões
+        const artigosSugeridos = artigos
+            .filter(
+                (artigo) =>
+                    artigo.Descricao.toLowerCase().includes(
+                        nomeArtigo.toLowerCase(),
+                    ) ||
+                    artigo.Artigo.toLowerCase().includes(
+                        nomeArtigo.toLowerCase(),
+                    ),
+            )
+            .slice(0, 10); // Limitar a 10 sugestões
 
         if (artigosSugeridos.length === 0) {
             await client.sendMessage(
@@ -986,7 +1064,7 @@ async function processarNomeArtigo(phoneNumber, messageText, client, conversa) {
         conversa.estado = STATES.WAITING_SELECAO_ARTIGO;
 
         let mensagem = `🔍 Encontrei ${artigosSugeridos.length} artigo(s) semelhante(s) para "${nomeArtigo}":\n\n`;
-        
+
         artigosSugeridos.forEach((artigo, index) => {
             mensagem += `*${index + 1}.* ${artigo.Descricao}\n`;
             mensagem += `   Código: ${artigo.Artigo}\n\n`;
@@ -999,7 +1077,6 @@ async function processarNomeArtigo(phoneNumber, messageText, client, conversa) {
         mensagem += `• 'cancelar' para cancelar`;
 
         await client.sendMessage(phoneNumber, mensagem);
-
     } catch (error) {
         console.error("Erro ao buscar artigos:", error);
         await client.sendMessage(
@@ -1010,7 +1087,12 @@ async function processarNomeArtigo(phoneNumber, messageText, client, conversa) {
 }
 
 // Processar a seleção de artigo das sugestões
-async function processarSelecaoArtigo(phoneNumber, messageText, client, conversa) {
+async function processarSelecaoArtigo(
+    phoneNumber,
+    messageText,
+    client,
+    conversa,
+) {
     const resposta = messageText.trim().toLowerCase();
 
     // Verificar comandos especiais
@@ -1041,23 +1123,7 @@ async function processarSelecaoArtigo(phoneNumber, messageText, client, conversa
         return;
     }
 
-    if (resposta.includes("cancelar")) {
-        conversa.data.artigos = [];
-        conversa.estado = STATES.WAITING_DATA_INICIO;
-        const hoje = new Date();
-        const dataFormatada = `${hoje.getDate().toString().padStart(2, "0")}/${(hoje.getMonth() + 1).toString().padStart(2, "0")}/${hoje.getFullYear()}`;
 
-        await client.sendMessage(
-            phoneNumber,
-            `❌ Adição de artigos cancelada. Continuando sem artigos.\n\n` +
-            `*6. Data de Início*\n` +
-            `Selecione a data de início da intervenção:\n\n` +
-            `1. Hoje (${dataFormatada})\n` +
-            `2. Inserir manualmente (formato DD/MM/AAAA)\n\n` +
-            `Digite 1 ou 2:`,
-        );
-        return;
-    }
 
     // Processar seleção numérica
     const escolha = parseInt(messageText.trim());
@@ -1137,8 +1203,6 @@ async function processarQuantidadeArtigo(
 
     conversa.estado = STATES.WAITING_NOME_ARTIGO; // Voltar ao estado de inserção de artigos
 }
-
-
 
 // Criar intervenção via API
 async function criarIntervencao(phoneNumber, conversa, client) {
@@ -1221,6 +1285,27 @@ async function criarIntervencao(phoneNumber, conversa, client) {
             { headers: { Authorization: `Bearer ${token}` } },
         );
 
+        // Verificar se o estado é "Terminado" e fechar o pedido
+        if (conversa.data.estado === "Terminado") {
+            try {
+                console.log(`🔒 Fechando pedido ${conversa.data.pedidoId} pois estado é Terminado...`);
+                const fecharUrl = `http://151.80.149.159:2018/WebApi/ServicosTecnicos/FecharPedido/${conversa.data.pedidoId}`;
+
+                const fecharResponse = await axios.get(fecharUrl, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (fecharResponse.status === 200) {
+                    console.log(`✅ Pedido ${conversa.data.pedidoId} fechado com sucesso!`);
+                } else {
+                    console.warn(`⚠️ Aviso: Não foi possível fechar o pedido. Status: ${fecharResponse.status}`);
+                }
+            } catch (fecharError) {
+                console.error('⚠️ Erro ao fechar pedido:', fecharError.response?.data || fecharError.message);
+                // Não interromper o fluxo se falhar o fechamento
+            }
+        }
+
         // Mensagem de sucesso para o utilizador
         let successMessage = `✅ *INTERVENÇÃO CRIADA COM SUCESSO*
 
@@ -1243,9 +1328,14 @@ ${conversa.data.descricao}`;
             });
         }
 
-        successMessage += `\n\nA intervenção foi registada no sistema com sucesso!
+        successMessage += `\n\nA intervenção foi registada no sistema com sucesso!`;
 
-💡 Para criar nova intervenção, envie "intervenção" novamente.`;
+        // Adicionar informação sobre fechamento do pedido se aplicável
+        if (conversa.data.estado === "Terminado") {
+            successMessage += `\n🔒 *Pedido fechado automaticamente* (estado: Terminado)`;
+        }
+
+        successMessage += `\n\n💡 Para criar nova intervenção, envie "intervenção" novamente.`;
 
         await client.sendMessage(phoneNumber, successMessage);
         console.log(
@@ -1266,6 +1356,39 @@ ${conversa.data.descricao}`;
             console.warn(
                 "⚠️ Aviso: Erro conhecido 'Object reference not set...' recebido. A tentar reenviar mensagem de sucesso.",
             );
+
+            // Verificar se o estado é "Terminado" e fechar o pedido
+            if (conversa.data.estado === "Terminado") {
+                try {
+
+                    const token = await getAuthToken(
+                        {
+                            username: "AdvirWeb",
+                            password: "Advir2506##",
+                            company: "Advir",
+                            instance: "DEFAULT",
+                            line: "Evolution",
+                        },
+                        "151.80.149.159:2018",
+                    );
+
+                    console.log(`🔒 Fechando pedido ${conversa.data.pedidoId} pois estado é Terminado...`);
+                    const fecharUrl = `http://151.80.149.159:2018/WebApi/ServicosTecnicos/FecharPedido/${conversa.data.pedidoId}`;
+
+                    const fecharResponse = await axios.get(fecharUrl, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+
+                    if (fecharResponse.status === 200) {
+                        console.log(`✅ Pedido ${conversa.data.pedidoId} fechado com sucesso!`);
+                    } else {
+                        console.warn(`⚠️ Aviso: Não foi possível fechar o pedido. Status: ${fecharResponse.status}`);
+                    }
+                } catch (fecharError) {
+                    console.error('⚠️ Erro ao fechar pedido:', fecharError.response?.data || fecharError.message);
+                    // Não interromper o fluxo se falhar o fechamento
+                }
+            }
             await enviarMensagemSucessoGenerica(phoneNumber, conversa, client);
         } else if (
             typeof erroMsg === "string" &&

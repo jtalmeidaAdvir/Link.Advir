@@ -18,6 +18,11 @@ const {
     isIntervencaoKeyword,
     activeIntervencoes
 } = require("./whatsappIntervencoes");
+const {
+    processarMensagemFecharPedido,
+    isFecharPedidoKeyword,
+    activeFecharPedidos
+} = require("./whatsappFecharPedidos");
 let isInitializing = false;
 let isShuttingDown = false;
 // Função para inicializar o cliente WhatsApp Web
@@ -1299,6 +1304,8 @@ const CONVERSATION_STATES = {
     PONTO_WAITING_LOCATION: "ponto_waiting_location",
 };
 
+// Estados para fechar pedidos via WhatsApp (importado do módulo whatsappFecharPedidos)
+
 // Função para verificar se o contacto tem autorização para criar pedidos e obter dados do contacto
 async function checkContactAuthorization(phoneNumber) {
     try {
@@ -1390,6 +1397,15 @@ async function checkPontoAuthorization(phoneNumber) {
                     console.log(
                         `📱 Verificando contacto: ${contactPhone} vs ${cleanPhoneNumber}`,
                     );
+                    console.log(
+                        `📋 Dados do contacto:`,
+                        JSON.stringify({
+                            phone: contactData.phone,
+                            canRegisterPonto: contactData.canRegisterPonto,
+                            userID: contactData.userID || contactData.user_id,
+                            obrasAutorizadas: contactData.obrasAutorizadas
+                        }, null, 2)
+                    );
 
                     // Verificar se o número coincide (comparação mais flexível)
                     const phoneMatch =
@@ -1404,7 +1420,26 @@ async function checkPontoAuthorization(phoneNumber) {
                         `📞 Comparando phones: ${contactPhone} vs ${cleanPhoneNumber} = ${phoneMatch}`,
                     );
 
-                    if (phoneMatch && contactData.canRegisterPonto) {
+                    // Verificar autorização de ponto (usar fallback para lista inteira)
+                    const temAutorizacaoPonto = contactData.canRegisterPonto || contact.can_register_ponto;
+
+                    console.log(
+                        `🔐 Autorização ponto: contactData=${contactData.canRegisterPonto}, contact=${contact.can_register_ponto}, resultado=${temAutorizacaoPonto}`,
+                    );
+
+                    if (phoneMatch) {
+                        if (!temAutorizacaoPonto) {
+                            console.log(
+                                `❌ Contacto encontrado MAS sem autorização de ponto`,
+                                {
+                                    contactData_canRegisterPonto: contactData.canRegisterPonto,
+                                    contact_can_register_ponto: contact.can_register_ponto,
+                                    resultado: temAutorizacaoPonto
+                                }
+                            );
+                            continue; // Continuar a procurar noutros contactos
+                        }
+
                         console.log(
                             `✅ Contacto encontrado! Verificando autorização...`,
                         );
@@ -1451,6 +1486,8 @@ async function checkPontoAuthorization(phoneNumber) {
                                 error: `Autorização expirou em ${new Date(dataFim).toLocaleDateString("pt-PT")}`,
                             };
                         }
+
+                        console.log(`✅ Autorização válida para período ${dataInicio || 'sem início'} até ${dataFim || 'sem fim'}`);
 
                         // Se não tem nenhuma das datas ou está dentro do período válido, tem autorização
 
@@ -1901,15 +1938,49 @@ async function handleIncomingMessage(message) {
     if (messageText.toLowerCase().includes("cancelar")) {
         clearUserState(phoneNumber);
         activeConversations.delete(phoneNumber);
+        if (activeFecharPedidos) activeFecharPedidos.delete(phoneNumber);
 
         await client.sendMessage(
             phoneNumber,
-            "❌ *Processo Cancelado*\n\nPara iniciar novo processo, envie 'pedido', 'ponto' ou 'intervenção'.",
+            "❌ *Processo Cancelado*\n\nPara iniciar novo processo, envie 'pedido', 'ponto', 'intervenção' ou 'fechar pedido'.",
         );
         return;
     }
 
-    // QUARTO: Verificar se é uma palavra-chave para novo pedido
+    // QUARTO: Verificar se há conversa ATIVA de fechar pedido - PRIORIDADE MÁXIMA
+    if (activeFecharPedidos && activeFecharPedidos.has(phoneNumber)) {
+        console.log(`🔒 Processando mensagem dentro de conversa de fechar pedido ativa: "${messageText}"`);
+        await processarMensagemFecharPedido(phoneNumber, messageText, client);
+        return;
+    }
+
+    // QUINTO: Verificar se é palavra-chave para INICIAR novo fecho de pedido
+    const canInterruptForFecharPedido =
+        !conversation ||
+        conversation.state === CONVERSATION_STATES.INITIAL ||
+        conversation.state === CONVERSATION_STATES.WAITING_CONFIRMATION;
+
+    if (isFecharPedidoKeyword(messageText) && canInterruptForFecharPedido && !activeIntervencoes.has(phoneNumber) && !userState) {
+        console.log(`🎯 Palavra-chave para fechar pedido detectada: "${messageText}"`);
+
+        // Verificar autorização para fechar pedidos
+        const authResult = await checkContactAuthorization(phoneNumber);
+        if (!authResult.authorized) {
+            await client.sendMessage(
+                phoneNumber,
+                "❌ *Acesso Restrito*\n\nVocê não tem autorização para fechar pedidos de assistência técnica através deste sistema.\n\n" +
+                "Apenas utilizadores com permissão para criar pedidos podem fechar pedidos.\n\n" +
+                "📞 Contacte o administrador para mais informações.",
+            );
+            return;
+        }
+
+        // Usar função de fechar pedidos (já importada no topo)
+        await processarMensagemFecharPedido(phoneNumber, messageText, client);
+        return;
+    }
+
+    // SEXTO: Verificar se é uma palavra-chave para novo pedido (DEPOIS de verificar fechar pedido)
     // MAS APENAS se não há conversa ativa OU se a conversa está em estado inicial/confirmação
     const canInterruptForRequest =
         !conversation ||
@@ -1942,7 +2013,7 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // QUINTO: Verificar se é uma palavra-chave para registo de ponto
+    // SÉTIMO: Verificar se é uma palavra-chave para registo de ponto
     // APENAS se não há conversa ativa OU se a conversa está em estado inicial/confirmação
     const canInterruptForPonto =
         !conversation ||
@@ -2016,7 +2087,7 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // SEXTO: Verificar se é uma palavra-chave para iniciar nova conversa de pedidos
+    // OITAVO: Verificar se é uma palavra-chave para iniciar nova conversa de pedidos
     if (isRequestKeyword(messageText) && !conversation) {
         console.log(`🎯 Palavra-chave de início detectada: "${messageText}"`);
 
@@ -3980,26 +4051,26 @@ router.post("/schedule", async (req, res) => {
             if (!timeStr.includes(":")) {
                 timeStr = "09:00:00";
             }
-            
+
             const parts = timeStr.split(":");
             const hours = parseInt(parts[0]) || 0;
             const minutes = parseInt(parts[1]) || 0;
             const seconds = parseInt(parts[2]) || 0;
-            
+
             const date = new Date(0); // 1970-01-01T00:00:00Z
             date.setUTCHours(hours, minutes, seconds, 0);
             return date;
         }
 
         let formattedTimeStr = time || "09:00";
-        
+
         // Adicionar segundos se não existirem
         if (formattedTimeStr && !formattedTimeStr.includes(":")) {
             formattedTimeStr = "09:00";
         } else if (formattedTimeStr && formattedTimeStr.split(":").length === 2) {
             formattedTimeStr += ":00";
         }
-        
+
         if (!isValidTimeFormat(formattedTimeStr)) {
             return res.status(400).json({
                 error: "Formato de hora inválido. Utilize o formato HH:MM.",
