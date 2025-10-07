@@ -95,17 +95,17 @@ const GestaoPOS = () => {
             });
 
             if (response.ok) {
-                alert(editingPOS ? 'POS atualizado com sucesso!' : 'POS criado com sucesso!');
+                alert(editingPOS ? 'Terminal atualizado com sucesso!' : 'Terminal criado com sucesso!');
                 setShowModal(false);
                 resetForm();
                 fetchPOS();
             } else {
                 const error = await response.json();
-                alert(error.message || 'Erro ao salvar POS');
+                alert(error.message || 'Erro ao salvar Terminal');
             }
         } catch (error) {
-            console.error('Erro ao salvar POS:', error);
-            alert('Erro ao salvar POS');
+            console.error('Erro ao salvar Terminal:', error);
+            alert('Erro ao salvar Terminal');
         } finally {
             setLoading(false);
         }
@@ -169,12 +169,12 @@ const GestaoPOS = () => {
                 <div className="col-12">
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center">
-                            <h4 className="mb-0">Gestão de POS</h4>
+                            <h4 className="mb-0">Gestão de Terminal</h4>
                             <button
                                 className="btn btn-primary"
                                 onClick={() => setShowModal(true)}
                             >
-                                + Novo POS
+                                + Novo Terminal
                             </button>
                         </div>
                         <div className="card-body">
@@ -233,7 +233,7 @@ const GestaoPOS = () => {
                                 
                                 {posList.length === 0 && !loading && (
                                     <div className="text-center py-4 text-muted">
-                                        Nenhum POS encontrado
+                                        Nenhum Terminal encontrado
                                     </div>
                                 )}
                             </div>
@@ -249,7 +249,7 @@ const GestaoPOS = () => {
                         <div className="modal-content">
                             <div className="modal-header">
                                 <h5 className="modal-title">
-                                    {editingPOS ? 'Editar POS' : 'Novo POS'}
+                                    {editingPOS ? 'Editar Terminal' : 'Novo Terminal'}
                                 </h5>
                                 <button
                                     type="button"
@@ -260,7 +260,7 @@ const GestaoPOS = () => {
                             <form onSubmit={handleSubmit}>
                                 <div className="modal-body">
                                     <div className="mb-3">
-                                        <label className="form-label">Nome do POS</label>
+                                        <label className="form-label">Nome do Terminal</label>
                                         <input
                                             type="text"
                                             className="form-control"
@@ -330,7 +330,7 @@ const GestaoPOS = () => {
                                             onChange={(e) => setFormData({...formData, ativo: e.target.checked})}
                                         />
                                         <label className="form-check-label">
-                                            POS Ativo
+                                            Terminal Ativo
                                         </label>
                                     </div>
                                 </div>

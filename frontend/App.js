@@ -38,7 +38,7 @@ import VerificaConta from "./src/Pages/Autenticacao/VerificaConta";
 import SelecaoEmpresa from "./src/Pages/Autenticacao/pages/SelecaoEmpresa";
 import RecuperarPassword from "./src/Pages/Autenticacao/RecuperarPassword";
 import RedefinirPassword from "./src/Pages/Autenticacao/RedefinirPassword";
-import GestaoPOS from "./src/Pages/Autenticacao/GestaoPOS";
+import GestaoPOS from "./src/Pages/Autenticacao/GestaoTerminal";
 
 import ContratosList from "./src/Pages/BackOffice/ContratosList";
 
@@ -1229,7 +1229,7 @@ const CustomDrawerContent = ({
                                         <Text
                                             style={drawerStyles.submoduleText}
                                         >
-                                            Gestão POS
+                                            Gestão Terminais
                                         </Text>
                                     </TouchableOpacity>
                                 )}
@@ -2319,7 +2319,7 @@ const AppNavigator = () => {
                             name="GestaoPOS"
                             component={GestaoPOS}
                             options={{
-                                title: "AdvirLink - Gestão POS",
+                                title: "AdvirLink - Gestão Terminais",
                             }}
                         />
                     )}
