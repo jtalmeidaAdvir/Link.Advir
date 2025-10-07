@@ -62,41 +62,7 @@ async function startApp() {
             await Schedule.sync({ force: false });
             console.log('Tabelas do WhatsApp Web verificadas/criadas.');
 
-            // Verificar se o campo can_create_tickets existe na tabela contacts
-            try {
-                const [results] = await sequelize.query(`
-                    SELECT COLUMN_NAME 
-                    FROM INFORMATION_SCHEMA.COLUMNS 
-                    WHERE TABLE_NAME = 'contacts' 
-                    AND COLUMN_NAME = 'can_create_tickets'
-                    AND TABLE_SCHEMA = DATABASE()
-                `);
-
-                if (results.length === 0) {
-                    console.log('Campo can_create_tickets não encontrado. Adicionando...');
-                    await sequelize.query(`
-                        ALTER TABLE contacts 
-                        ADD COLUMN can_create_tickets BOOLEAN DEFAULT FALSE NOT NULL
-                    `);
-                    console.log('Campo can_create_tickets adicionado com sucesso à tabela contacts.');
-                } else {
-                    console.log('Campo can_create_tickets já existe na tabela contacts.');
-                }
-            } catch (columnErr) {
-                console.error('Erro ao verificar/criar campo can_create_tickets:', columnErr);
-
-                // Tentar com sintaxe alternativa se a primeira falhar
-                try {
-                    console.log('Tentando sintaxe alternativa para adicionar a coluna...');
-                    await sequelize.query(`
-                        ALTER TABLE contacts 
-                        ADD COLUMN can_create_tickets TINYINT(1) DEFAULT 0 NOT NULL
-                    `);
-                    console.log('Campo can_create_tickets adicionado com sucesso (sintaxe alternativa).');
-                } catch (altErr) {
-                    console.error('Erro com sintaxe alternativa também:', altErr);
-                }
-            }
+   
 
         } catch (whatsappErr) {
             console.error('Erro ao criar tabelas WhatsApp:', whatsappErr);
@@ -237,23 +203,7 @@ app.post('/api/fix-whatsapp-tables', async (req, res) => {
             const Contact = require('./models/contact');
             await Contact.sync({ force: true });
             console.log('Tabela contacts criada com sucesso');
-        } else {
-            // Verificar se a coluna can_create_tickets existe
-            const [columnsResult] = await sequelize.query(`
-                SHOW COLUMNS FROM contacts LIKE 'can_create_tickets'
-            `);
-
-            if (columnsResult.length === 0) {
-                console.log('Coluna can_create_tickets não encontrada. Adicionando...');
-                await sequelize.query(`
-                    ALTER TABLE contacts 
-                    ADD COLUMN can_create_tickets BOOLEAN DEFAULT FALSE NOT NULL
-                `);
-                console.log('Coluna can_create_tickets adicionada com sucesso');
-            } else {
-                console.log('Coluna can_create_tickets já existe');
-            }
-        }
+        } 
 
         // Verificar tabela schedules
         const [schedulesResult] = await sequelize.query(`
