@@ -118,7 +118,7 @@ const PrivacySettings = () => {
     return (
         <ScrollView style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.title}>🔒 Privacidade e Proteção de Dados</Text>
+                <Text style={styles.title}>Privacidade e Proteção de Dados</Text>
                 <Text style={styles.subtitle}>Conforme Regulamento Geral de Proteção de Dados (RGPD)</Text>
             </View>
 

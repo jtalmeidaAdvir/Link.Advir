@@ -293,7 +293,6 @@ app.use('/api/contacts', contactRoutes);
 app.use('/api/pos', posRoutes);
 app.use('/api', newsRoutes);
 app.use('/api/verificacao-automatica', require('./routes/verificacaoAutomaticaPontosRoutes'));
-app.use('/api/gdpr', require('./routes/gdprRoutes'));
 
 const PORT = process.env.PORT || 3010;
 app.listen(PORT, '0.0.0.0', () => {
