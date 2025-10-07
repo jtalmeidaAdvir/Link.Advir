@@ -41,7 +41,7 @@ app.use(fileUpload());
 // Configuração CORS para o frontend
 app.use(cors({
     origin: 'https://link.advir.pt', // domínio do frontend
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     credentials: true
 }));
 
