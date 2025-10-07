@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const { sequelize, initializeSequelize } = require('./config/db');
+const { sequelize, initializeSequelize, getDatabases } = require('./config/db');
+const fileUpload = require('express-fileupload');
+
+// Rotas
 const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
 const empresaRoutes = require('./routes/empresaRoutes');
@@ -23,72 +26,28 @@ const trabalhadoresExternosRoutes = require('./routes/trabalhadoresExternosRoute
 const mapaRegistosRoutes = require('./routes/mapaRegistosRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const posRoutes = require('./routes/posRoutes');
-
-
-const fileUpload = require('express-fileupload');
-const { getDatabases } = require('./config/db');
-
+const verificacaoAutomaticaRoutes = require('./routes/verificacaoAutomaticaPontosRoutes');
 
 // Importar associações
-require('./associations');  // Importa o ficheiro onde as associações estão definidas
-
-
+require('./associations');
 
 const app = express();
+
+// Middlewares
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-app.use(cors());
-app.use('/api/anexo-pedido', anexoPedidoRoutes);
-
 app.use(fileUpload());
 
-async function startApp() {
-    await initializeSequelize();
-
-    try {
-        console.log('Iniciando sincronização das tabelas...');
-
-        // Primeiro, tentar criar tabelas que não existem
-        await sequelize.sync({ force: false });
-        console.log('Tabelas sincronizadas com sucesso.');
-
-        // Tentar criar especificamente as tabelas do WhatsApp Web
-        try {
-            const Contact = require('./models/contact');
-            const Schedule = require('./models/schedule');
-
-            await Contact.sync({ force: false });
-            await Schedule.sync({ force: false });
-            console.log('Tabelas do WhatsApp Web verificadas/criadas.');
-
-   
-
-        } catch (whatsappErr) {
-            console.error('Erro ao criar tabelas WhatsApp:', whatsappErr);
-            console.log('Use o endpoint /api/init-whatsapp-tables para criar manualmente');
-        }
-
-    } catch (err) {
-        console.error('Erro na sincronização:', err);
-
-        try {
-            console.log('Tentando sincronização com alterações...');
-            // Fallback: tentar com alter para tabelas existentes
-            await sequelize.sync({ alter: true });
-            console.log('Sincronização com alterações concluída.');
-
-        } catch (alterErr) {
-            console.error('Erro na sincronização com alterações:', alterErr);
-            console.log('A aplicação continuará mesmo com erros de sincronização...');
-        }
-    }
-}
+// Configuração CORS para o frontend
+app.use(cors({
+    origin: 'https://link.advir.pt', // domínio do frontend
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true
+}));
 
 // Rotas
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
-//
 app.use('/api/empresas', empresaRoutes);
 app.use('/api/modulos', moduloRoutes);
 app.use('/api/submodulos', submoduloRoutes);
@@ -103,10 +62,14 @@ app.use('/api/faltas-ferias', faltasFeriasRoutes);
 app.use('/api', notificacaoRoutes);
 app.use('/api/parte-diaria', parteRoutes);
 app.use('/api/news', newsRoutes);
-
 app.use('/api/trabalhadores-externos', trabalhadoresExternosRoutes);
+app.use('/api/anexo-pedido', anexoPedidoRoutes);
+app.use('/api/mapa-registos', mapaRegistosRoutes);
+app.use('/api/contacts', contactRoutes);
+app.use('/api/pos', posRoutes);
+app.use('/api/verificacao-automatica', verificacaoAutomaticaRoutes);
 
-// Verificar se biometricRoutes está a ser carregado corretamente
+// Rotas biométricas com try/catch
 try {
     app.use('/api/auth/biometric', biometricRoutes);
     console.log('✅ Rotas biométricas registadas com sucesso');
@@ -114,66 +77,58 @@ try {
     console.error('❌ Erro ao registar rotas biométricas:', error);
 }
 
-// Endpoint de teste para listar todas as rotas disponíveis
+// Endpoint de teste para listar rotas
 app.get('/api/routes', (req, res) => {
     const routes = {
         biometric: {
             base: '/api/auth/biometric',
             endpoints: [
-                'POST /api/auth/biometric/register-challenge - Gerar challenge para registo biométrico',
-                'POST /api/auth/biometric/register - Registar credencial biométrica',
-                'POST /api/auth/biometric/login-challenge - Gerar challenge para login biométrico',
-                'POST /api/auth/biometric/login - Autenticar com biometria',
-                'POST /api/auth/biometric/check - Verificar se utilizador tem biometria registada'
+                'POST /api/auth/biometric/register-challenge',
+                'POST /api/auth/biometric/register',
+                'POST /api/auth/biometric/login-challenge',
+                'POST /api/auth/biometric/login',
+                'POST /api/auth/biometric/check'
             ]
         },
         other: {
             endpoints: [
-                'GET /api/routes - Listar todas as rotas disponíveis',
-                'POST /api/users/* - Rotas de utilizadores',
-                'POST /api/auth/* - Rotas de autenticação',
-                'GET /api/empresas/* - Rotas de empresas',
-                'GET /api/modulos/* - Rotas de módulos',
-                'GET /api/registoPonto/* - Rotas de registo de ponto',
-                'GET /api/analytics/* - Rotas de analytics',
-                'GET /api/obra/* - Rotas de obras',
-                'GET /api/whatsapp-web/* - Rotas WhatsApp Web'
+                'GET /api/routes',
+                'POST /api/users/*',
+                'POST /api/auth/*',
+                'GET /api/empresas/*',
+                'GET /api/modulos/*',
+                'GET /api/registoPonto/*',
+                'GET /api/analytics/*',
+                'GET /api/obra/*',
+                'GET /api/whatsapp-web/*'
             ]
         }
     };
-
     res.json({
         message: 'Rotas disponíveis no AdvirLink Backend',
-        server: `http://localhost:3000`,
-        routes: routes
+        server: `http://localhost:3010`,
+        routes
     });
 });
 
-
-
+// Endpoint para listar bases de dados
 app.get('/databases', async (req, res) => {
     try {
         const databases = await getDatabases();
         res.json(databases);
     } catch (error) {
-        res.status(500).json({ message: 'Erro ao obter as bases de dados' });
+        res.status(500).json({ message: 'Erro ao obter as bases de dados', error: error.message });
     }
 });
 
-// Endpoint para inicializar tabelas do WhatsApp Web
+// Endpoint para inicializar tabelas WhatsApp
 app.post('/api/init-whatsapp-tables', async (req, res) => {
     try {
         const Contact = require('./models/contact');
         const Schedule = require('./models/schedule');
 
-        console.log('Criando tabelas do WhatsApp Web...');
-
-        // Forçar criação das tabelas
         await Contact.sync({ force: true });
-        console.log('Tabela contacts criada com sucesso');
-
         await Schedule.sync({ force: true });
-        console.log('Tabela schedules criada com sucesso');
 
         res.json({
             message: 'Tabelas do WhatsApp Web criadas com sucesso',
@@ -188,73 +143,69 @@ app.post('/api/init-whatsapp-tables', async (req, res) => {
     }
 });
 
-// Endpoint para verificar e corrigir estrutura das tabelas WhatsApp
+// Endpoint para verificar/corrigir tabelas WhatsApp
 app.post('/api/fix-whatsapp-tables', async (req, res) => {
     try {
-        console.log('Verificando e corrigindo estrutura das tabelas WhatsApp...');
-
-        // Verificar se a tabela contacts existe
-        const [tablesResult] = await sequelize.query(`
-            SHOW TABLES LIKE 'contacts'
-        `);
-
+        const [tablesResult] = await sequelize.query(`SHOW TABLES LIKE 'contacts'`);
         if (tablesResult.length === 0) {
-            console.log('Tabela contacts não existe. Criando...');
             const Contact = require('./models/contact');
             await Contact.sync({ force: true });
-            console.log('Tabela contacts criada com sucesso');
-        } 
+        }
 
-        // Verificar tabela schedules
-        const [schedulesResult] = await sequelize.query(`
-            SHOW TABLES LIKE 'schedules'
-        `);
-
+        const [schedulesResult] = await sequelize.query(`SHOW TABLES LIKE 'schedules'`);
         if (schedulesResult.length === 0) {
-            console.log('Tabela schedules não existe. Criando...');
             const Schedule = require('./models/schedule');
             await Schedule.sync({ force: true });
-            console.log('Tabela schedules criada com sucesso');
         }
 
         res.json({
             message: 'Estrutura das tabelas WhatsApp verificada e corrigida com sucesso',
-            details: {
-                contactsTable: 'OK',
-                schedulesTable: 'OK',
-                canCreateTicketsColumn: 'OK'
-            }
+            details: { contactsTable: 'OK', schedulesTable: 'OK' }
         });
-
     } catch (error) {
         console.error('Erro ao corrigir tabelas WhatsApp:', error);
-        res.status(500).json({
-            message: 'Erro ao corrigir estrutura das tabelas',
-            error: error.message
-        });
+        res.status(500).json({ message: 'Erro ao corrigir estrutura das tabelas', error: error.message });
     }
 });
 
+// Função de inicialização do backend
+async function startApp() {
+    await initializeSequelize();
 
+    try {
+        console.log('Iniciando sincronização das tabelas...');
+        await sequelize.sync({ force: false });
+        console.log('Tabelas sincronizadas com sucesso.');
 
+        try {
+            const Contact = require('./models/contact');
+            const Schedule = require('./models/schedule');
 
-app.use('/api/mapa-registos', mapaRegistosRoutes);
-app.use('/api/contacts', contactRoutes);
-app.use('/api/pos', posRoutes);
-app.use('/api', newsRoutes);
-app.use('/api/verificacao-automatica', require('./routes/verificacaoAutomaticaPontosRoutes'));
+            await Contact.sync({ force: false });
+            await Schedule.sync({ force: false });
+            console.log('Tabelas do WhatsApp Web verificadas/criadas.');
+        } catch (whatsappErr) {
+            console.error('Erro ao criar tabelas WhatsApp:', whatsappErr);
+            console.log('Use /api/init-whatsapp-tables para criar manualmente');
+        }
+    } catch (err) {
+        console.error('Erro na sincronização:', err);
 
+        try {
+            console.log('Tentando sincronização com alterações...');
+            await sequelize.sync({ alter: true });
+            console.log('Sincronização com alterações concluída.');
+        } catch (alterErr) {
+            console.error('Erro na sincronização com alterações:', alterErr);
+        }
+    }
+}
+
+// Iniciar backend
 const PORT = process.env.PORT || 3010;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor iniciado na porta ${PORT}`);
     console.log(`Acesso disponível em: http://localhost:${PORT}`);
-    console.log('\n--- Rotas Biométricas Disponíveis ---');
-    console.log('POST /api/auth/biometric/register-challenge - Gerar challenge para registo');
-    console.log('POST /api/auth/biometric/register - Registar credencial biométrica');
-    console.log('POST /api/auth/biometric/login-challenge - Gerar challenge para login');
-    console.log('POST /api/auth/biometric/login - Autenticar com biometria');
-    console.log('POST /api/auth/biometric/check - Verificar se utilizador tem biometria');
-    console.log('-----------------------------------\n');
 });
 
 startApp();
