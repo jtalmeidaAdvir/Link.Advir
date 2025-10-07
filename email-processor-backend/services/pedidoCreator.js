@@ -1,67 +1,242 @@
 
 const axios = require('axios');
 
+const primaveraAuth = require('./primaveraAuth');
+
 class PedidoCreator {
     constructor() {
         this.backendUrl = process.env.BACKEND_API_URL || 'https://webapiprimavera.advir.pt';
-        this.authToken = process.env.PRIMAVERA_TOKEN; // Token de autenticação
-        this.urlEmpresa = process.env.PRIMAVERA_URL_EMPRESA; // URL da empresa Primavera
     }
 
     async createPedido(data) {
         try {
-            // Validar se temos as credenciais necessárias
-            if (!this.authToken || !this.urlEmpresa) {
-                console.error('⚠️ AVISO: PRIMAVERA_TOKEN ou PRIMAVERA_URL_EMPRESA não configurados');
-                throw new Error('Credenciais Primavera não configuradas');
+            // Obter token automaticamente
+            const authToken = await primaveraAuth.getToken();
+            const urlEmpresa = primaveraAuth.getUrlEmpresa();
+
+            // 🔍 VERIFICAR SE CLIENTE EXISTE
+            let codigoCliente = 'VD'; // Código padrão
+            if (data.cliente.nome) {
+                try {
+                    console.log('🔍 Verificando se cliente existe...');
+                    console.log(`   Nome do Cliente: ${data.cliente.nome}`);
+
+                    const verificaClienteResponse = await axios.get(
+                        `${this.backendUrl}/routePedidos_STP/VerificaCliente/${encodeURIComponent(data.cliente.nome)}`,
+                        {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${authToken}`,
+                                'urlempresa': urlEmpresa
+                            },
+                            timeout: 10000
+                        }
+                    );
+
+                    console.log('✅ Resposta da verificação de cliente:', JSON.stringify(verificaClienteResponse.data, null, 2));
+
+                    // Extrair código do cliente da resposta
+                    if (verificaClienteResponse.data?.DataSet?.Table?.[0]) {
+                        const clienteData = verificaClienteResponse.data.DataSet.Table[0];
+                        console.log('📋 Detalhes do cliente encontrado:');
+                        console.log(JSON.stringify(clienteData, null, 2));
+
+                        // Tentar extrair código do cliente
+                        codigoCliente = clienteData.Cliente ||
+                            clienteData.Codigo ||
+                            clienteData.CodigoCliente ||
+                            clienteData.ID ||
+                            'VD';
+
+                        console.log(`✅ Cliente encontrado com código: ${codigoCliente}`);
+                    } else {
+                        console.log('⚠️ Cliente não encontrado no formato esperado, usando código padrão');
+                    }
+
+                } catch (verificaClienteError) {
+                    console.error('⚠️ Erro ao verificar cliente:', verificaClienteError.message);
+                    console.log('   Continuando com código padrão VD...');
+                }
+            } else {
+                console.log('⚠️ Nome do cliente não disponível, usando código padrão');
+            }
+
+            // 🔍 VERIFICAR SE CONTACTO EXISTE
+            let codigoContacto = null;
+            if (data.cliente.contacto && data.cliente.telefone) {
+                try {
+                    console.log('🔍 Verificando se contacto existe...');
+                    console.log(`   Contacto: ${data.cliente.contacto}`);
+                    console.log(`   Telefone: ${data.cliente.telefone}`);
+
+                    const verificaContactoResponse = await axios.get(
+                        `${this.backendUrl}/routePedidos_STP/VerificaContacto/${encodeURIComponent(data.cliente.contacto)}/${encodeURIComponent(data.cliente.telefone)}`,
+                        {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${authToken}`,
+                                'urlempresa': urlEmpresa
+                            },
+                            timeout: 10000
+                        }
+                    );
+
+                    console.log('✅ Resposta da verificação de contacto:', JSON.stringify(verificaContactoResponse.data, null, 2));
+
+                    // Extrair código do contacto da resposta
+                    if (verificaContactoResponse.data?.DataSet?.Table?.[0]) {
+                        const contactoData = verificaContactoResponse.data.DataSet.Table[0];
+                        console.log('📋 Detalhes do contacto encontrado:');
+                        console.log(JSON.stringify(contactoData, null, 2));
+
+                        // Tentar extrair código do contacto
+                        codigoContacto = contactoData.Contacto ||
+                            contactoData.Codigo ||
+                            contactoData.CodigoContacto ||
+                            contactoData.ID ||
+                            contactoData.id;
+
+                        console.log(`✅ Contacto encontrado com código: ${codigoContacto}`);
+                    } else if (verificaContactoResponse.data?.id) {
+                        codigoContacto = verificaContactoResponse.data.id;
+                        console.log(`✅ Contacto encontrado com código: ${codigoContacto}`);
+                    } else if (verificaContactoResponse.data?.Contacto) {
+                        codigoContacto = verificaContactoResponse.data.Contacto;
+                        console.log(`✅ Contacto encontrado com código: ${codigoContacto}`);
+                    } else {
+                        console.log('⚠️ Contacto não encontrado no formato esperado');
+                    }
+
+                } catch (verificaContactoError) {
+                    console.error('⚠️ Erro ao verificar contacto:', verificaContactoError.message);
+                    if (verificaContactoError.response) {
+                        console.error('   Status:', verificaContactoError.response.status);
+                        console.error('   Data:', verificaContactoError.response.data);
+                    }
+                    console.log('   Continuando sem código de contacto...');
+                }
+            } else {
+                console.log('⚠️ Contacto ou telefone não disponíveis, pulando verificação de contacto');
+            }
+
+            // 🔍 VERIFICAR SE OBJETO/MPK EXISTE
+            let objectoID = null;
+            if (data.mpk && data.titulo) {
+                try {
+                    console.log('🔍 Verificando se objeto existe...');
+                    console.log(`   MPK: ${data.mpk}`);
+                    console.log(`   Título: ${data.titulo}`);
+
+                    const verificaResponse = await axios.get(
+                        `${this.backendUrl}/routePedidos_STP/VerificaExisteObjeto/${data.mpk}/${encodeURIComponent(data.titulo)}`,
+                        {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${authToken}`,
+                                'urlempresa': urlEmpresa
+                            },
+                            timeout: 10000
+                        }
+                    );
+
+                    console.log('✅ Resposta da verificação de objeto:', JSON.stringify(verificaResponse.data, null, 2));
+
+                    // Extrair detalhes do DataSet.Table
+                    if (verificaResponse.data?.DataSet?.Table?.[0]) {
+                        const objetoData = verificaResponse.data.DataSet.Table[0];
+                        console.log('📋 Detalhes do objeto encontrado:');
+                        console.log(JSON.stringify(objetoData, null, 2));
+
+                        // O ID está no campo 'id' (lowercase)
+                        objectoID = objetoData.id;
+
+                        if (objectoID) {
+                            console.log(`✅ Objeto encontrado/criado com ID: ${objectoID}`);
+                            console.log(`   MPK Objeto: ${objetoData.Objecto}`);
+                        } else {
+                            console.log('⚠️ ID não encontrado no objeto');
+                            console.log('⚠️ Campos disponíveis:', Object.keys(objetoData));
+                        }
+                    } else if (verificaResponse.data && verificaResponse.data.id) {
+                        objectoID = verificaResponse.data.id;
+                        console.log(`✅ Objeto encontrado/criado com ID: ${objectoID}`);
+                    } else if (verificaResponse.data && verificaResponse.data.ObjectoID) {
+                        objectoID = verificaResponse.data.ObjectoID;
+                        console.log(`✅ Objeto encontrado/criado com ID: ${objectoID}`);
+                    } else {
+                        console.log('⚠️ Resposta não contém ID do objeto, usando ID padrão');
+                    }
+
+                } catch (verificaError) {
+                    console.error('⚠️ Erro ao verificar objeto:', verificaError.message);
+                    console.log('   Continuando com ID padrão...');
+                }
+            } else {
+                console.log('⚠️ MPK ou Título não disponíveis, pulando verificação de objeto');
             }
 
             // Mapear dados do PDF para o formato esperado pela API Primavera
             const dataAtual = new Date();
-            const dataFimPrevista = new Date();
-            dataFimPrevista.setDate(dataAtual.getDate() + 30);
 
-            // Mapear nome de cliente para código (ajuste conforme necessário)
-            const codigoCliente = this.mapearCodigoCliente(data.cliente.nome);
+            // Usar a data do PDF se disponível, caso contrário usar data atual
+            let dataAbertura = dataAtual;
+            if (data.data) {
+                // Converter data do formato YYYY-MM-DD para objeto Date
+                const partesData = data.data.split('-');
+                if (partesData.length === 3) {
+                    dataAbertura = new Date(
+                        parseInt(partesData[0]), // ano
+                        parseInt(partesData[1]) - 1, // mês (0-11)
+                        parseInt(partesData[2]) // dia
+                    );
+                    console.log(`📅 Usando data do PDF para abertura: ${dataAbertura.toISOString()}`);
+                }
+            }
+
+            const dataFimPrevista = new Date(dataAbertura);
+            dataFimPrevista.setDate(dataAbertura.getDate() + 30);
 
             const anoAtual = new Date().getFullYear().toString();
 
             const pedidoData = {
-                cliente: 'VD', // Código do cliente
+                cliente: codigoCliente, // Código do cliente verificado
                 descricaoObjecto: 'ASS',
-                descricaoProblema: "teste",
+                descricaoProblema: data.descricao || "Sem descrição",
                 origem: 'EMAIL', // Origem do pedido
                 tipoProcesso: 'PASI', // Tipo de processo
                 prioridade: 1,
                 tecnico: '000', // Técnico padrão
-                objectoID: '066981FD-A039-11F0-944C-CA3F13F83C90', // ID do objeto
-                tipoDoc: 'PA',
+                objectoID: objectoID || '066981FD-A039-11F0-944C-CA3F13F83C90', // ID verificado ou padrão
+                tipoDoc: 'OT',
                 serie: '2025',
                 estado: 1, // Estado inicial
-                seccao: 'SD', // Secção padrão
+                seccao: 'ST', // Secção padrão
                 comoReproduzir: null,
-              //  contacto: data.cliente.contacto || data.fornecedor.email || data.emailOrigem,
+                contacto: codigoContacto || data.cliente.contacto || data.fornecedor.email || data.emailOrigem,
                 contratoID: null,
-                datahoraabertura: dataAtual.toISOString(),
-              //  datahorafimprevista: dataFimPrevista.toISOString()
+                datahoraabertura: dataAbertura.toISOString(),
+                datahorafimprevista: dataFimPrevista.toISOString()
             };
+
+            console.log('📋 ObjectoID sendo usado:', objectoID || '066981FD-A039-11F0-944C-CA3F13F83C90 (padrão)');
 
             console.log('📤 Enviando pedido para o backend:', this.backendUrl);
             console.log('🔑 Headers:', {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.authToken.substring(0, 20)}...`,
-                'urlempresa': this.urlEmpresa
+                'Authorization': `Bearer ${authToken.substring(0, 20)}...`,
+                'urlempresa': urlEmpresa
             });
+
             console.log('📋 Dados do pedido:', JSON.stringify(pedidoData, null, 2));
 
             const response = await axios.post(
-                `${this.backendUrl}/routePedidos_STP/CriarPedido`,
+                `${this.backendUrl}/routePedidos_STP/CriarPedidoEmail`,
                 pedidoData,
                 {
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${this.authToken}`,
-                        'urlempresa': this.urlEmpresa
+                        'Authorization': `Bearer ${authToken}`,
+                        'urlempresa': urlEmpresa
                     },
                     timeout: 30000,
                     validateStatus: function (status) {
@@ -89,82 +264,7 @@ class PedidoCreator {
                     // Aguardar 2 segundos para garantir que BD foi atualizado
                     await new Promise(resolve => setTimeout(resolve, 2000));
 
-                    // Tentar buscar o último pedido criado
-                    try {
-                        const lastPedidoResponse = await axios.get(
-                            `${this.backendUrl}/routePedidos_STP/LstUltimoPedido`,
-                            {
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${this.authToken}`,
-                                    'urlempresa': this.urlEmpresa
-                                },
-                                timeout: 10000
-                            }
-                        );
 
-                        if (lastPedidoResponse.status === 200 && lastPedidoResponse.data) {
-                            const ultimoPedido = lastPedidoResponse.data.DataSet?.Table?.[0] || lastPedidoResponse.data;
-
-                            // Verificar se foi criado há menos de 2 minutos (mais restritivo)
-                            const dataAbertura = new Date(ultimoPedido.DataHoraAbertura);
-                            const agora = new Date();
-                            const diferencaMinutos = (agora - dataAbertura) / (1000 * 60);
-                            const criadoRecentemente = diferencaMinutos < 2;
-
-                            // Validações adicionais (opcionais se criado recentemente)
-                            const tituloMatch = ultimoPedido.DescricaoObjecto?.includes(data.titulo?.substring(0, 15));
-                            const ordemMatch = ultimoPedido.DescricaoProb?.includes(data.numeroOrdem);
-                            const clienteMatch = ultimoPedido.Cliente === codigoCliente;
-
-                            console.log('🔍 Validação do pedido encontrado:', {
-                                ID: ultimoPedido.ID,
-                                NumProcesso: ultimoPedido.NumProcesso,
-                                DataAbertura: ultimoPedido.DataHoraAbertura,
-                                diferencaMinutos: diferencaMinutos.toFixed(2),
-                                criadoRecentemente,
-                                tituloMatch,
-                                ordemMatch,
-                                clienteMatch,
-                                Cliente: ultimoPedido.Cliente,
-                                CodigoEsperado: codigoCliente
-                            });
-
-                            // Se foi criado nos últimos 2 minutos, assume que é o pedido correto
-                            if (criadoRecentemente) {
-                                // Extra validação: pelo menos um match adicional
-                                if (tituloMatch || ordemMatch || clienteMatch) {
-                                    console.log('✅ Pedido recém-criado confirmado! (< 2 min + validação adicional)');
-                                    return {
-                                        success: true,
-                                        pedidoId: ultimoPedido.ID,
-                                        numProcesso: ultimoPedido.NumProcesso,
-                                        message: 'Pedido criado com sucesso (verificado)',
-                                        warning: 'Backend retornou erro 500 mas pedido foi criado'
-                                    };
-                                } else {
-                                    console.log('✅ Pedido recém-criado confirmado! (< 2 min, sem validação cruzada)');
-                                    return {
-                                        success: true,
-                                        pedidoId: ultimoPedido.ID,
-                                        numProcesso: ultimoPedido.NumProcesso,
-                                        message: 'Pedido criado com sucesso (verificado por tempo)',
-                                        warning: 'Verificado apenas por timestamp, validação cruzada falhou'
-                                    };
-                                }
-                            } else {
-                                console.warn(`⚠️ Último pedido é antigo (${diferencaMinutos.toFixed(2)} min)`);
-                                return {
-                                    success: true,
-                                    pedidoId: null,
-                                    message: 'Pedido criado mas ID não confirmado',
-                                    warning: 'Último pedido encontrado é antigo demais'
-                                };
-                            }
-                        }
-                    } catch (verifyError) {
-                        console.error('❌ Erro ao verificar último pedido:', verifyError.message);
-                    }
 
                     // Se não conseguiu verificar, assume sucesso parcial
                     return {

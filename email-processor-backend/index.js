@@ -198,6 +198,20 @@ app.get('/test-connection', async (req, res) => {
     }
 });
 
+app.get('/test-primavera-auth', async (req, res) => {
+    try {
+        const primaveraAuth = require('./services/primaveraAuth');
+        const token = await primaveraAuth.getToken();
+        res.json({
+            success: true,
+            message: 'Token Primavera obtido com sucesso',
+            token: token.substring(0, 20) + '...' // Mostra apenas início do token
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 app.get('/list-recent-emails', async (req, res) => {
     try {
         const emails = await emailService.fetchAllRecentEmails(20);
