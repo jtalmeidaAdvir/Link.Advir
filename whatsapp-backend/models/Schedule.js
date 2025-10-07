@@ -70,4 +70,5 @@ const Schedule = sequelize.define('Schedule', {
     timestamps: false
 });
 
+
 module.exports = Schedule;
