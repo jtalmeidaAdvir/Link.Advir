@@ -1,22 +1,33 @@
-// ==== POLYFILLS PARA NODE 16 — COLOCAR NO TOPO DO backend/index.js ====
+// ==== POLYFILLS PARA NODE 16 (COLOCAR NA PRIMEIRA LINHA DO ENTRYPOINT) ====
 
-// 1) Web Streams (Readable/Writable/Transform)
+// TextEncoder/Decoder (às vezes usados por libs web)
+try {
+  const { TextEncoder, TextDecoder } = require('util');
+  globalThis.TextEncoder ??= TextEncoder;
+  globalThis.TextDecoder ??= TextDecoder;
+} catch {}
+
+// Web Streams
 try {
   const web = require('stream/web');
   globalThis.ReadableStream  ??= web?.ReadableStream;
   globalThis.WritableStream  ??= web?.WritableStream;
   globalThis.TransformStream ??= web?.TransformStream;
-} catch { /* em Node 16 antigo, pode não existir */ }
+} catch {}
 
-// 2) Blob / File (do módulo 'buffer')
+// Blob (Node 16 já expõe via 'buffer')
 try {
-  const { Blob, File } = require('buffer');
+  const { Blob } = require('buffer');
   globalThis.Blob ??= Blob;
-  // File pode não existir em algumas versões; só define se houver
-  if (File && !globalThis.File) globalThis.File = File;
-} catch { /* ignora se não existir */ }
+} catch {}
 
-// 3) fetch / Headers / Request / Response / FormData (do undici 5.x)
+// File (NÃO existe em Node 16; usa fetch-blob)
+try {
+  // CommonJS require — funciona em Node 16
+  globalThis.File ??= require('fetch-blob/file.js');
+} catch {}
+
+// Só depois de File/Streams definidos é que puxamos undici
 try {
   const { fetch, Headers, Request, Response, FormData } = require('undici');
   globalThis.fetch    ??= fetch;
@@ -24,15 +35,13 @@ try {
   globalThis.Request  ??= Request;
   globalThis.Response ??= Response;
   globalThis.FormData ??= FormData;
-} catch { /* se falhar aqui, a versão do undici não é compatível */ }
+} catch {}
 
-// 4) AbortController (por via das dúvidas em Node 16)
+// AbortController (por via das dúvidas)
 try {
   globalThis.AbortController ??= require('abort-controller');
-} catch { /* se já existir, ótimo */ }
+} catch {}
 // ==== FIM POLYFILLS ====
-
-
 
 
 const express = require('express');
