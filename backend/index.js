@@ -60,7 +60,7 @@ const mapaRegistosRoutes = require('./routes/mapaRegistosRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const posRoutes = require('./routes/posRoutes');
 const verificacaoAutomaticaRoutes = require('./routes/verificacaoAutomaticaPontosRoutes');
-const gdprRoutes = require('./routes/gdprRoutes');
+//const gdprRoutes = require('./routes/gdprRoutes');
 
 
 
@@ -120,7 +120,7 @@ app.use('/api/contacts', contactRoutes);
 app.use('/api/pos', posRoutes);
 app.use('/api/verificacao-automatica', verificacaoAutomaticaRoutes);
 
-app.use('/api/gdpr', gdprRoutes);
+//app.use('/api/gdpr', gdprRoutes);
 
 
 
