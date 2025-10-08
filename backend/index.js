@@ -20,6 +20,15 @@ if (typeof File === 'undefined') {
 if (typeof fetch === 'undefined') {
   global.fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 }
+if (typeof DOMException === 'undefined') {
+  global.DOMException = class DOMException extends Error {
+    constructor(message, name = 'DOMException') {
+      super(message);
+      this.name = name;
+    }
+  };
+}
+
 
 
 const express = require('express');
