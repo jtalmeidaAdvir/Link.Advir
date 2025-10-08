@@ -1,18 +1,37 @@
-// --- Polyfills mínimos para Node 16 ---
+// ==== POLYFILLS PARA NODE 16 — COLOCAR NO TOPO DO backend/index.js ====
+
+// 1) Web Streams (Readable/Writable/Transform)
 try {
   const web = require('stream/web');
-  if (!globalThis.ReadableStream && web?.ReadableStream) {
-    globalThis.ReadableStream = web.ReadableStream;
-  }
-  if (!globalThis.WritableStream && web?.WritableStream) {
-    globalThis.WritableStream = web.WritableStream;
-  }
-  if (!globalThis.TransformStream && web?.TransformStream) {
-    globalThis.TransformStream = web.TransformStream;
-  }
-} catch (_) {
-  // Node 16 demasiado antigo sem stream/web disponível
-}
+  globalThis.ReadableStream  ??= web?.ReadableStream;
+  globalThis.WritableStream  ??= web?.WritableStream;
+  globalThis.TransformStream ??= web?.TransformStream;
+} catch { /* em Node 16 antigo, pode não existir */ }
+
+// 2) Blob / File (do módulo 'buffer')
+try {
+  const { Blob, File } = require('buffer');
+  globalThis.Blob ??= Blob;
+  // File pode não existir em algumas versões; só define se houver
+  if (File && !globalThis.File) globalThis.File = File;
+} catch { /* ignora se não existir */ }
+
+// 3) fetch / Headers / Request / Response / FormData (do undici 5.x)
+try {
+  const { fetch, Headers, Request, Response, FormData } = require('undici');
+  globalThis.fetch    ??= fetch;
+  globalThis.Headers  ??= Headers;
+  globalThis.Request  ??= Request;
+  globalThis.Response ??= Response;
+  globalThis.FormData ??= FormData;
+} catch { /* se falhar aqui, a versão do undici não é compatível */ }
+
+// 4) AbortController (por via das dúvidas em Node 16)
+try {
+  globalThis.AbortController ??= require('abort-controller');
+} catch { /* se já existir, ótimo */ }
+// ==== FIM POLYFILLS ====
+
 
 
 
