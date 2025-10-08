@@ -122,7 +122,7 @@ app.get('/api/routes', (req, res) => {
     };
     res.json({
         message: 'Rotas disponíveis no AdvirLink Backend',
-        server: `http://localhost:3010`,
+        server: `http://localhost:3000`,
         routes
     });
 });
@@ -218,7 +218,7 @@ async function startApp() {
 }
 
 // Iniciar backend
-const PORT = process.env.PORT || 3010;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor iniciado na porta ${PORT}`);
     console.log(`Acesso disponível em: http://localhost:${PORT}`);
