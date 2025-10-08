@@ -1,31 +1,4 @@
-// ---------------------- polyfills.js ----------------------
- 
-// Polyfill para ReadableStream
-if (typeof ReadableStream === 'undefined') {
-  global.ReadableStream = require('web-streams-polyfill/ponyfill/es2018').ReadableStream;
-}
- 
-// Polyfill para Blob
-if (typeof Blob === 'undefined') {
-  const BlobPolyfill = require('fetch-blob');
-  global.Blob = BlobPolyfill;
-}
- 
-// Polyfill para File
-if (typeof File === 'undefined') {
-  const BlobPolyfill = require('fetch-blob');
-  global.File = class File extends BlobPolyfill {
-    constructor(chunks, name, options) {
-      super(chunks, options);
-      this.name = name;
-    }
-  };
-}
- 
-// Polyfill para fetch
-if (typeof fetch === 'undefined') {
-  global.fetch = require('node-fetch');
-}
+
 
 
 const express = require('express');
