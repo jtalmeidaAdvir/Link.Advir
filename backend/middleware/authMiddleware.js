@@ -32,34 +32,6 @@ const authMiddleware = (req, res, next) => {
 };
 
 
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({ success: false, error: 'Token não fornecido' });
-    }
-
-    jwt.verify(token, process.env.JWT_SECRET || 'seusegredo', async (err, user) => {
-        if (err) {
-            console.error('Erro JWT:', err);
-            return res.status(403).json({ success: false, error: 'Token inválido' });
-        }
-
-        try {
-            const foundUser = await User.findByPk(user.id);
-            if (!foundUser) {
-                return res.status(404).json({ success: false, error: 'Utilizador não encontrado' });
-            }
-
-            req.user = foundUser;
-            next();
-        } catch (dbErr) {
-            console.error('Erro ao carregar utilizador:', dbErr);
-            res.status(500).json({ success: false, error: 'Erro interno ao validar utilizador' });
-        }
-    });
-};
 
 
-module.exports = { authMiddleware,authenticateToken };
+module.exports = authMiddleware;
