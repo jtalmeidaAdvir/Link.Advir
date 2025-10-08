@@ -53,6 +53,7 @@ const ADHome = () => {
         }
     };
 
+
     const fetchEmpresaModulos = async (empresaId) => {
         try {
             const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}/modulos`);

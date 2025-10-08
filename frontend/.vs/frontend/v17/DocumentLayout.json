@@ -1,31 +1,13 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\jtalm\\Desktop\\Link2.0\\Link.Advir\\frontend\\",
+  "WorkspaceRootPath": "C:\\Users\\jtalm\\Desktop\\li\\Link.Advir\\frontend\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\Login.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\li\\Link.Advir\\frontend\\src\\Pages\\BackOffice\\ADHome.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Pages\\BackOffice\\ADHome.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\RegistoAdmin.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\Link2.0\\Link.Advir\\frontend\\src\\Home.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Home.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\PainelAdmin.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\RegistoUser.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\UsersEmpresa.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\VerificaConta.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\Link2.0\\Link.Advir\\frontend\\App.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\li\\Link.Advir\\frontend\\App.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:App.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     }
   ],
@@ -36,102 +18,37 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "Home.js",
-              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\Link2.0\\Link.Advir\\frontend\\src\\Home.js",
-              "RelativeDocumentMoniker": "src\\Home.js",
-              "ToolTip": "C:\\Users\\jtalm\\Desktop\\Link2.0\\Link.Advir\\frontend\\src\\Home.js",
-              "RelativeToolTip": "src\\Home.js",
-              "ViewState": "AgIAAI8AAAAAAAAAAAAkwKwAAAASAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2024-10-16T13:28:00.385Z"
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "Login.js",
-              "DocumentMoniker": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\Login.js",
-              "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\Login.js",
-              "ToolTip": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\Login.js",
-              "RelativeToolTip": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\Login.js",
+              "Title": "ADHome.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\li\\Link.Advir\\frontend\\src\\Pages\\BackOffice\\ADHome.js",
+              "RelativeDocumentMoniker": "src\\Pages\\BackOffice\\ADHome.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\li\\Link.Advir\\frontend\\src\\Pages\\BackOffice\\ADHome.js",
+              "RelativeToolTip": "src\\Pages\\BackOffice\\ADHome.js",
+              "ViewState": "AgIAABkAAAAAAAAAAAAAAC4AAAANAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2024-10-16T13:27:57.552Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "PainelAdmin.js",
-              "DocumentMoniker": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\PainelAdmin.js",
-              "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\PainelAdmin.js",
-              "ToolTip": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\PainelAdmin.js",
-              "RelativeToolTip": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\PainelAdmin.js",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2024-10-16T13:27:56.635Z"
+              "WhenOpened": "2025-10-08T10:19:47.077Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "RegistoAdmin.js",
-              "DocumentMoniker": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\RegistoAdmin.js",
-              "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\RegistoAdmin.js",
-              "ToolTip": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\RegistoAdmin.js",
-              "RelativeToolTip": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\RegistoAdmin.js",
-              "ViewState": "AgIAAAwAAAAAAAAAAAAAABIAAAANAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2024-10-16T13:27:55.557Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "VerificaConta.js",
-              "DocumentMoniker": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\VerificaConta.js",
-              "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\VerificaConta.js",
-              "ToolTip": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\VerificaConta.js",
-              "RelativeToolTip": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\VerificaConta.js",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2024-10-16T13:25:05.588Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "RegistoUser.js",
-              "DocumentMoniker": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\RegistoUser.js",
-              "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\RegistoUser.js",
-              "ToolTip": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\RegistoUser.js",
-              "RelativeToolTip": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\RegistoUser.js",
-              "ViewState": "AgIAAFoAAAAAAAAAAAAiwG4AAAAaAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2024-10-16T13:24:45.416Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 7,
               "Title": "App.js",
-              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\Link2.0\\Link.Advir\\frontend\\App.js",
+              "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\li\\Link.Advir\\frontend\\App.js",
               "RelativeDocumentMoniker": "App.js",
-              "ToolTip": "C:\\Users\\jtalm\\Desktop\\Link2.0\\Link.Advir\\frontend\\App.js",
+              "ToolTip": "C:\\Users\\jtalm\\Desktop\\li\\Link.Advir\\frontend\\App.js",
               "RelativeToolTip": "App.js",
-              "ViewState": "AgIAADUAAAAAAAAAAAAQwEEAAAAGAAAAAAAAAA==",
+              "ViewState": "AgIAANYFAAAAAAAAAAAwwOIFAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2024-10-16T12:01:45.388Z"
+              "WhenOpened": "2025-10-08T10:14:15.582Z",
+              "EditorCaption": ""
             },
             {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "UsersEmpresa.js",
-              "DocumentMoniker": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\UsersEmpresa.js",
-              "RelativeDocumentMoniker": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\UsersEmpresa.js",
-              "ToolTip": "C:\\Users\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\UsersEmpresa.js",
-              "RelativeToolTip": "..\\..\\..\\..\\..\\jpval\\Desktop\\web_API\\frontend\\src\\Autenticacao\\UsersEmpresa.js",
-              "ViewState": "AgIAAE8AAAAAAAAAAAAiwHIAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2024-10-16T12:00:40.622Z"
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
             }
           ]
         }

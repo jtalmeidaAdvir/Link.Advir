@@ -39,11 +39,26 @@ app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload());
 
 // Configuração CORS para o frontend
+// Configuração CORS para o frontend (produção + desenvolvimento)
+const allowedOrigins = [
+    'https://link.advir.pt',   // produção
+    'http://localhost:19006',  // desenvolvimento (Expo ou React Native Web)
+];
+
 app.use(cors({
-    origin: 'https://link.advir.pt', // domínio do frontend
+    origin: function (origin, callback) {
+        // Permite requisições sem "origin" (ex: ferramentas internas, Postman)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.log('🚫 Bloqueado por CORS:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     credentials: true
 }));
+
 
 // Rotas
 app.use('/api/users', userRoutes);

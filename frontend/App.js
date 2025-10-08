@@ -102,13 +102,15 @@ const Drawer = createDrawerNavigator();
 const linking = {
     prefixes: [
         "https://link.advir.pt",
-        "https://backend.advir.pt:8081",
+        "http://backend.advir.pt:8081",
         "http://localhost:19006",
     ],
     config: {
         screens: {
             RedefinirPassword: {
                 path: "redefinir-password/:token",
+
+
                 parse: {
                     token: (token) => token,
                 },
