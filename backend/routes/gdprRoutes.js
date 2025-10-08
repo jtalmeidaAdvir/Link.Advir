@@ -3,138 +3,127 @@ const router = express.Router();
 const UserConsent = require('../models/userConsent');
 const DataProcessingLog = require('../models/dataProcessingLog');
 const User = require('../models/user');
-const { authenticateToken } = require('../middleware/authMiddleware'); // 🔒 Middleware correto
 
-// ✅ Rota: Registar ou retirar consentimento
-router.post('/consent', authenticateToken, async (req, res) => {
-    try {
-        const { consent_type, consent_given, consent_text } = req.body;
-        const user_id = req.user.id;
-        const ip_address = req.ip;
+const authMiddleware = require('../middleware/authMiddleware'); // <— sem {}
+const { requireConsent } = require('../middleware/consentMiddleware'); // <— com {}, e CHAMA
 
-        const consent = await UserConsent.create({
-            user_id,
-            consent_type,
-            consent_given,
-            consent_date: new Date(),
-            consent_method: 'web',
-            ip_address,
-            consent_text,
-            is_active: consent_given
-        });
+// POST /api/gdpr/consent — registar/retirar consentimento
+router.post('/consent', authMiddleware, async (req, res) => {
+  try {
+    const { consent_type, consent_given, consent_text } = req.body;
+    const user_id = req.user.id;
 
-        await DataProcessingLog.create({
-            user_id,
-            action_type: consent_given ? 'consent_given' : 'consent_withdrawn',
-            data_category: consent_type,
-            action_description: `Consentimento ${consent_given ? 'dado' : 'retirado'} para ${consent_type}`,
-            ip_address,
-            performed_by: user_id,
-            legal_basis: 'Art. 6(1)(a) GDPR - Consent'
-        });
+    const consent = await UserConsent.create({
+      user_id,
+      consent_type,
+      consent_given,
+      consent_date: new Date(),
+      consent_method: 'web',
+      ip_address: req.ip,
+      consent_text,
+      is_active: consent_given
+    });
 
-        res.json({
-            success: true,
-            message: `Consentimento ${consent_given ? 'registado' : 'retirado'} com sucesso`,
-            consent
-        });
-    } catch (error) {
-        console.error('Erro ao registar consentimento:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
+    await DataProcessingLog.create({
+      user_id,
+      action_type: consent_given ? 'consent_given' : 'consent_withdrawn',
+      data_category: consent_type,
+      action_description: `Consentimento ${consent_given ? 'dado' : 'retirado'} para ${consent_type}`,
+      ip_address: req.ip,
+      performed_by: user_id,
+      legal_basis: 'Art. 6(1)(a) GDPR - Consent'
+    });
+
+    return res.json({ success:true, message:`Consentimento ${consent_given ? 'registado' : 'retirado'} com sucesso`, consent });
+  } catch (e) {
+    return res.status(500).json({ success:false, error:e.message });
+  }
 });
 
-// ✅ Rota: Obter consentimentos ativos do utilizador
-router.get('/consents', authenticateToken, async (req, res) => {
-    try {
-        const consents = await UserConsent.findAll({
-            where: { user_id: req.user.id, is_active: true }
-        });
-        res.json({ success: true, consents });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
+// GET /api/gdpr/consents — lista de consentimentos ativos
+router.get('/consents', authMiddleware, async (req, res) => {
+  try {
+    const consents = await UserConsent.findAll({ where: { user_id: req.user.id, is_active: true } });
+    return res.json({ success:true, consents });
+  } catch (e) {
+    return res.status(500).json({ success:false, error:e.message });
+  }
 });
 
-// ✅ Rota: Exportar dados (Direito à Portabilidade)
-router.get('/export-data', authenticateToken, async (req, res) => {
-    try {
-        const user_id = req.user.id;
+// GET /api/gdpr/export-data — portabilidade (requer consentimento data_processing)
+router.get('/export-data', authMiddleware, requireConsent('data_processing'), async (req, res) => {
+  try {
+    const user_id = req.user.id;
 
-        const userData = await User.findByPk(user_id, {
-            include: ['empresas', 'modulos', 'submodulos']
-        });
+    const userData = await User.findByPk(user_id, { include: ['empresas','modulos','submodulos'] });
 
-        const RegistoPontoObra = require('../models/registoPontoObra');
-        const FaltasFerias = require('../models/faltas_ferias');
+    const RegistoPontoObra = require('../models/registoPontoObra');
+    // Atenção ao nome do ficheiro/modelo: se o teu ficheiro é `faltasFerias.js`, usa esse:
+    const FaltasFerias = require('../models/faltasFerias'); // ← evita `faltas_ferias` se o ficheiro não existe assim
 
-        const [registosPonto, faltasFerias, consents] = await Promise.all([
-            RegistoPontoObra.findAll({ where: { user_id } }),
-            FaltasFerias.findAll({ where: { user_id } }),
-            UserConsent.findAll({ where: { user_id } })
-        ]);
+    const [registosPonto, faltasFerias, consents] = await Promise.all([
+      RegistoPontoObra.findAll({ where: { user_id } }),
+      FaltasFerias.findAll({ where: { user_id } }),
+      UserConsent.findAll({ where: { user_id } })
+    ]);
 
-        const exportData = {
-            user_data: userData,
-            time_records: registosPonto,
-            absences_holidays: faltasFerias,
-            consents,
-            export_date: new Date().toISOString(),
-            format: 'JSON'
-        };
+    const exportData = {
+      user_data: userData,
+      time_records: registosPonto,
+      absences_holidays: faltasFerias,
+      consents,
+      export_date: new Date().toISOString(),
+      format: 'JSON'
+    };
 
-        await DataProcessingLog.create({
-            user_id,
-            action_type: 'data_export',
-            action_description: 'Exportação completa de dados pessoais',
-            ip_address: req.ip,
-            performed_by: user_id,
-            legal_basis: 'Art. 20 GDPR - Right to data portability'
-        });
+    await DataProcessingLog.create({
+      user_id,
+      action_type: 'data_export',
+      action_description: 'Exportação completa de dados pessoais',
+      ip_address: req.ip,
+      performed_by: user_id,
+      legal_basis: 'Art. 20 GDPR - Right to data portability'
+    });
 
-        res.json({ success: true, message: 'Dados exportados com sucesso', data: exportData });
-    } catch (error) {
-        console.error('Erro ao exportar dados:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
+    return res.json({ success:true, message:'Dados exportados com sucesso', data: exportData });
+  } catch (e) {
+    return res.status(500).json({ success:false, error:e.message });
+  }
 });
 
-// ✅ Rota: Pedido de eliminação de dados
-router.post('/request-deletion', authenticateToken, async (req, res) => {
-    try {
-        const user_id = req.user.id;
-        const { reason } = req.body;
+// POST /api/gdpr/request-deletion — direito ao apagamento (podes exigir também consentimento se quiseres)
+router.post('/request-deletion', authMiddleware, async (req, res) => {
+  try {
+    const user_id = req.user.id;
+    const { reason } = req.body;
 
-        await DataProcessingLog.create({
-            user_id,
-            action_type: 'data_deletion',
-            action_description: `Pedido de eliminação de dados. Motivo: ${reason || 'Não especificado'}`,
-            ip_address: req.ip,
-            performed_by: user_id,
-            legal_basis: 'Art. 17 GDPR - Right to erasure'
-        });
+    await DataProcessingLog.create({
+      user_id,
+      action_type: 'data_deletion',
+      action_description: `Pedido de eliminação de dados. Motivo: ${reason || 'Não especificado'}`,
+      ip_address: req.ip,
+      performed_by: user_id,
+      legal_basis: 'Art. 17 GDPR - Right to erasure'
+    });
 
-        res.json({
-            success: true,
-            message: 'Pedido de eliminação de dados registado. Será processado nos próximos 30 dias conforme o RGPD.'
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
+    return res.json({ success:true, message:'Pedido registado. Será processado nos próximos 30 dias.' });
+  } catch (e) {
+    return res.status(500).json({ success:false, error:e.message });
+  }
 });
 
-// ✅ Rota: Histórico de logs (tratamento de dados)
-router.get('/processing-history', authenticateToken, async (req, res) => {
-    try {
-        const logs = await DataProcessingLog.findAll({
-            where: { user_id: req.user.id },
-            order: [['createdAt', 'DESC']],
-            limit: 100
-        });
-        res.json({ success: true, logs });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
+// GET /api/gdpr/processing-history — histórico de tratamentos
+router.get('/processing-history', authMiddleware, async (req, res) => {
+  try {
+    const logs = await DataProcessingLog.findAll({
+      where: { user_id: req.user.id },
+      order: [['createdAt','DESC']],
+      limit: 100
+    });
+    return res.json({ success:true, logs });
+  } catch (e) {
+    return res.status(500).json({ success:false, error:e.message });
+  }
 });
 
 module.exports = router;
