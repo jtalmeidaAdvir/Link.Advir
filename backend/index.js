@@ -1,3 +1,20 @@
+// --- Polyfills mínimos para Node 16 ---
+try {
+  const web = require('stream/web');
+  if (!globalThis.ReadableStream && web?.ReadableStream) {
+    globalThis.ReadableStream = web.ReadableStream;
+  }
+  if (!globalThis.WritableStream && web?.WritableStream) {
+    globalThis.WritableStream = web.WritableStream;
+  }
+  if (!globalThis.TransformStream && web?.TransformStream) {
+    globalThis.TransformStream = web.TransformStream;
+  }
+} catch (_) {
+  // Node 16 demasiado antigo sem stream/web disponível
+}
+
+
 
 const express = require('express');
 const cors = require('cors');
