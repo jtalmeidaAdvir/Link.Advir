@@ -18,6 +18,8 @@ const PrivacySettings = () => {
         fetchConsents();
     }, []);
 
+    
+
     const fetchConsents = async () => {
         try {
             const token = localStorage.getItem('loginToken');
@@ -80,31 +82,80 @@ const PrivacySettings = () => {
         }
     };
 
-    const exportData = async () => {
-        try {
-            const token = localStorage.getItem('loginToken');
-            const response = await fetch('https://backend.advir.pt/api/gdpr/export-data', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+    const ensureEssentialConsent = async () => {
+  const token = localStorage.getItem('loginToken');
+  // 1) Lê os consentimentos atuais
+  const res = await fetch('https://backend.advir.pt/api/gdpr/consents', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const data = await res.json();
 
-            const data = await response.json();
-            if (data.success) {
-                const dataStr = JSON.stringify(data.data, null, 2);
-                const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(dataBlob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `meus_dados_${new Date().toISOString()}.json`;
-                link.click();
-                Alert.alert('Sucesso', 'Dados exportados com sucesso');
-            }
-        } catch (error) {
-            console.error('Erro ao exportar dados:', error);
-            Alert.alert('Erro', 'Não foi possível exportar os dados');
-        }
-    };
+  const hasDataProcessing =
+    data?.success &&
+    Array.isArray(data.consents) &&
+    data.consents.some(c => c.consent_type === 'data_processing' && c.consent_given === true);
+
+  if (!hasDataProcessing) {
+    // 2) Cria o consentimento essencial
+    const setRes = await fetch('https://backend.advir.pt/api/gdpr/consent', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        consent_type: 'data_processing',
+        consent_given: true,
+        consent_text: 'Consentimento essencial para funcionamento e exercício de direitos RGPD.'
+      })
+    });
+
+    const setData = await setRes.json();
+    if (!setData?.success) {
+      throw new Error(setData?.error || 'Falha ao definir consentimento essencial');
+    }
+  }
+};
+
+const exportData = async () => {
+  try {
+    const token = localStorage.getItem('loginToken');
+
+    // (apenas se o backend exige) garante consentimento essencial
+    await ensureEssentialConsent();
+
+    const response = await fetch('https://backend.advir.pt/api/gdpr/export-data', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (response.status === 401) {
+      Alert.alert('Sessão expirada', 'Por favor, faça login novamente.');
+      return;
+    }
+    if (response.status === 403) {
+      Alert.alert('Acesso negado', 'Precisa de autorizar o processamento de dados.');
+      return;
+    }
+
+    const data = await response.json();
+    if (data.success) {
+      const dataStr = JSON.stringify(data.data, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `meus_dados_${new Date().toISOString()}.json`;
+      link.click();
+      Alert.alert('Sucesso', 'Dados exportados com sucesso');
+    } else {
+      Alert.alert('Erro', data.error || 'Não foi possível exportar os dados');
+    }
+  } catch (error) {
+    console.error('Erro ao exportar dados:', error);
+    Alert.alert('Erro', error.message || 'Não foi possível exportar os dados');
+  }
+};
+
 
     const consentLabels = {
         biometric_facial: 'Reconhecimento Facial',
