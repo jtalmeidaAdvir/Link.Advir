@@ -28,6 +28,7 @@ const contactRoutes = require('./routes/contactRoutes');
 const posRoutes = require('./routes/posRoutes');
 const verificacaoAutomaticaRoutes = require('./routes/verificacaoAutomaticaPontosRoutes');
 
+
 // Importar associações
 require('./associations');
 
