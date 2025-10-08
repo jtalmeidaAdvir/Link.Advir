@@ -1,3 +1,8 @@
+if (typeof ReadableStream === 'undefined') {
+  global.ReadableStream = require('stream/web').ReadableStream;
+}
+
+
 const express = require('express');
 const cors = require('cors');
 const { sequelize, initializeSequelize, getDatabases } = require('./config/db');
