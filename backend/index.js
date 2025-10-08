@@ -1,5 +1,24 @@
+// --- Polyfills para Node 16 (Undici / Cheerio) ---
 if (typeof ReadableStream === 'undefined') {
   global.ReadableStream = require('stream/web').ReadableStream;
+}
+if (typeof TransformStream === 'undefined') {
+  global.TransformStream = require('stream/web').TransformStream;
+}
+if (typeof Blob === 'undefined') {
+  global.Blob = require('buffer').Blob;
+}
+if (typeof File === 'undefined') {
+  global.File = class File extends Blob {
+    constructor(chunks, filename, options = {}) {
+      super(chunks, options);
+      this.name = filename;
+      this.lastModified = options.lastModified || Date.now();
+    }
+  };
+}
+if (typeof fetch === 'undefined') {
+  global.fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 }
 
 
