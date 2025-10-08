@@ -1,3 +1,23 @@
+// --- Polyfills para Node 16 ---
+const { ReadableStream, WritableStream, TransformStream } = require('stream/web');
+global.ReadableStream  = global.ReadableStream  || ReadableStream;
+global.WritableStream  = global.WritableStream  || WritableStream;
+global.TransformStream = global.TransformStream || TransformStream;
+
+// Blob existe em Node 16 via buffer
+const { Blob } = require('buffer');
+global.Blob = global.Blob || Blob;
+
+// Se precisares de fetch nativo via undici (opcional, só se usares fetch)
+try {
+  const { fetch, Headers, Request, Response } = require('undici');
+  global.fetch   = global.fetch   || fetch;
+  global.Headers = global.Headers || Headers;
+  global.Request = global.Request || Request;
+  global.Response= global.Response|| Response;
+} catch (_) { /* ignora se não usares undici diretamente */ }
+
+
 const express = require('express');
 const cors = require('cors');
 const { sequelize, initializeSequelize, getDatabases } = require('./config/db');
@@ -87,6 +107,8 @@ app.use('/api/verificacao-automatica', verificacaoAutomaticaRoutes);
 
 
 app.use('/api/gdpr', gdprRoutes);
+
+
 
 // Rotas biométricas com try/catch
 try {
