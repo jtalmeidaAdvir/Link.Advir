@@ -1,4 +1,4 @@
-// --- Polyfills Web para Node 16 (antes de qualquer outro require) ---
+// --- Polyfills Web para Node 16 (muito antes de qualquer require) ---
 const { ReadableStream, WritableStream, TransformStream } = require('stream/web');
 global.ReadableStream  = global.ReadableStream  || ReadableStream;
 global.WritableStream  = global.WritableStream  || WritableStream;
@@ -7,7 +7,7 @@ global.TransformStream = global.TransformStream || TransformStream;
 const { Blob } = require('buffer');
 global.Blob = global.Blob || Blob;
 
-// File não existe em Node 16 → shim simples baseado em Blob
+// File (Node 16 não tem)
 if (typeof global.File === 'undefined') {
   global.File = class File extends Blob {
     constructor(parts, name, opts = {}) {
@@ -19,7 +19,18 @@ if (typeof global.File === 'undefined') {
   };
 }
 
-// (Opcional) expor fetch/Headers/Request/Response/FormData do undici como globais
+// DOMException (Node 16 não tem)
+if (typeof global.DOMException === 'undefined') {
+  global.DOMException = class DOMException extends Error {
+    constructor(message = '', name = 'DOMException') {
+      super(message);
+      this.name = name;
+    }
+    get [Symbol.toStringTag]() { return 'DOMException'; }
+  };
+}
+
+// (Opcional) expor fetch/Headers/Request/Response/FormData do undici
 try {
   const { fetch, Headers, Request, Response, FormData } = require('undici');
   global.fetch    = global.fetch    || fetch;
