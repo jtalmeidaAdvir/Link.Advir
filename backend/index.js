@@ -1,47 +1,31 @@
-// ==== POLYFILLS PARA NODE 16 (COLOCAR NA PRIMEIRA LINHA DO ENTRYPOINT) ====
-
-// TextEncoder/Decoder (às vezes usados por libs web)
-try {
-  const { TextEncoder, TextDecoder } = require('util');
-  globalThis.TextEncoder ??= TextEncoder;
-  globalThis.TextDecoder ??= TextDecoder;
-} catch {}
-
-// Web Streams
-try {
-  const web = require('stream/web');
-  globalThis.ReadableStream  ??= web?.ReadableStream;
-  globalThis.WritableStream  ??= web?.WritableStream;
-  globalThis.TransformStream ??= web?.TransformStream;
-} catch {}
-
-// Blob (Node 16 já expõe via 'buffer')
-try {
-  const { Blob } = require('buffer');
-  globalThis.Blob ??= Blob;
-} catch {}
-
-// File (NÃO existe em Node 16; usa fetch-blob)
-try {
-  // CommonJS require — funciona em Node 16
-  globalThis.File ??= require('fetch-blob/file.js');
-} catch {}
-
-// Só depois de File/Streams definidos é que puxamos undici
-try {
-  const { fetch, Headers, Request, Response, FormData } = require('undici');
-  globalThis.fetch    ??= fetch;
-  globalThis.Headers  ??= Headers;
-  globalThis.Request  ??= Request;
-  globalThis.Response ??= Response;
-  globalThis.FormData ??= FormData;
-} catch {}
-
-// AbortController (por via das dúvidas)
-try {
-  globalThis.AbortController ??= require('abort-controller');
-} catch {}
-// ==== FIM POLYFILLS ====
+// ---------------------- polyfills.js ----------------------
+ 
+// Polyfill para ReadableStream
+if (typeof ReadableStream === 'undefined') {
+  global.ReadableStream = require('web-streams-polyfill/ponyfill/es2018').ReadableStream;
+}
+ 
+// Polyfill para Blob
+if (typeof Blob === 'undefined') {
+  const BlobPolyfill = require('fetch-blob');
+  global.Blob = BlobPolyfill;
+}
+ 
+// Polyfill para File
+if (typeof File === 'undefined') {
+  const BlobPolyfill = require('fetch-blob');
+  global.File = class File extends BlobPolyfill {
+    constructor(chunks, name, options) {
+      super(chunks, options);
+      this.name = name;
+    }
+  };
+}
+ 
+// Polyfill para fetch
+if (typeof fetch === 'undefined') {
+  global.fetch = require('node-fetch');
+}
 
 
 const express = require('express');
