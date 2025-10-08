@@ -1,21 +1,33 @@
-// --- Polyfills para Node 16 ---
+// --- Polyfills Web para Node 16 (antes de qualquer outro require) ---
 const { ReadableStream, WritableStream, TransformStream } = require('stream/web');
 global.ReadableStream  = global.ReadableStream  || ReadableStream;
 global.WritableStream  = global.WritableStream  || WritableStream;
 global.TransformStream = global.TransformStream || TransformStream;
 
-// Blob existe em Node 16 via buffer
 const { Blob } = require('buffer');
 global.Blob = global.Blob || Blob;
 
-// Se precisares de fetch nativo via undici (opcional, só se usares fetch)
+// File não existe em Node 16 → shim simples baseado em Blob
+if (typeof global.File === 'undefined') {
+  global.File = class File extends Blob {
+    constructor(parts, name, opts = {}) {
+      super(parts, opts);
+      this.name = String(name);
+      this.lastModified = typeof opts.lastModified === 'number' ? opts.lastModified : Date.now();
+    }
+    get [Symbol.toStringTag]() { return 'File'; }
+  };
+}
+
+// (Opcional) expor fetch/Headers/Request/Response/FormData do undici como globais
 try {
-  const { fetch, Headers, Request, Response } = require('undici');
-  global.fetch   = global.fetch   || fetch;
-  global.Headers = global.Headers || Headers;
-  global.Request = global.Request || Request;
-  global.Response= global.Response|| Response;
-} catch (_) { /* ignora se não usares undici diretamente */ }
+  const { fetch, Headers, Request, Response, FormData } = require('undici');
+  global.fetch    = global.fetch    || fetch;
+  global.Headers  = global.Headers  || Headers;
+  global.Request  = global.Request  || Request;
+  global.Response = global.Response || Response;
+  global.FormData = global.FormData || FormData;
+} catch (_) { /* ok se não usares undici diretamente */ }
 
 
 const express = require('express');
