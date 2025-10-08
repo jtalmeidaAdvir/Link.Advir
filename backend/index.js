@@ -1,6 +1,3 @@
-
-
-
 const express = require('express');
 const cors = require('cors');
 const { sequelize, initializeSequelize, getDatabases } = require('./config/db');
@@ -30,7 +27,7 @@ const mapaRegistosRoutes = require('./routes/mapaRegistosRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const posRoutes = require('./routes/posRoutes');
 const verificacaoAutomaticaRoutes = require('./routes/verificacaoAutomaticaPontosRoutes');
-const gdprRoutes = require('./routes/gdprRoutes');
+
 
 // Importar associações
 require('./associations');
@@ -87,11 +84,6 @@ app.use('/api/mapa-registos', mapaRegistosRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/pos', posRoutes);
 app.use('/api/verificacao-automatica', verificacaoAutomaticaRoutes);
-
-
-//app.use('/api/gdpr', gdprRoutes);
-
-
 
 // Rotas biométricas com try/catch
 try {
