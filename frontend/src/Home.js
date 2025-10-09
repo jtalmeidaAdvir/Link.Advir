@@ -393,7 +393,7 @@ const mapearPrioridade = (prioridadeId) => {
         { title: t('Home.menu.products'), icon: <FaBoxOpen size={22} />, ref: productsRef },
         { title: t('Notícias'), icon: <FaQuestionCircle size={22} />, ref: noticiasRef },
         { title: t('Home.menu.faq'), icon: <FaQuestionCircle size={22} />, ref: faqRef },
-        { title: t('Definições de Privacidade'), icon: <span></span>, ref: privacyRef },
+        //{ title: t('Definições de Privacidade'), icon: <span></span>, ref: privacyRef },
     ];
 
 
@@ -2728,7 +2728,7 @@ const mapearPrioridade = (prioridadeId) => {
                         )}
                     </div>
                     
-                    {/* Privacy Settings Section */}
+                    {/* Privacy Settings Section 
                     <div ref={privacyRef}>
                         {activeMenu === t('Definições de Privacidade') && (
                             <motion.div
@@ -2748,7 +2748,9 @@ const mapearPrioridade = (prioridadeId) => {
                             </motion.div>
                         )}
                     </div>
+                    */}
                 </section>
+
 
 
             </div>

@@ -23,6 +23,8 @@ const RegistosPorUtilizador = () => {
     const [viewMode, setViewMode] = useState('resumo'); // 'resumo', 'grade', 'detalhes'
     const [dadosGrade, setDadosGrade] = useState([]);
     const [loadingGrade, setLoadingGrade] = useState(false);
+    const [loadingProgress, setLoadingProgress] = useState(0);
+    const [loadingMessage, setLoadingMessage] = useState('');
     const [diasDoMes, setDiasDoMes] = useState([]);
     const [tiposFaltas, setTiposFaltas] = useState({});
 
@@ -227,30 +229,32 @@ const RegistosPorUtilizador = () => {
             });
             const data = await res.json();
             
-            // Ordenar utilizadores por codFuncionario
-            const utilizadoresOrdenados = Array.isArray(data) 
-                ? data.sort((a, b) => {
-                    const codA = a.codFuncionario || a.username || a.email || '';
-                    const codB = b.codFuncionario || b.username || b.email || '';
-                    
-                    // Tentar converter para número se possível
-                    const numA = parseInt(codA);
-                    const numB = parseInt(codB);
-                    
-                    // Se ambos são números, comparar numericamente
-                    if (!isNaN(numA) && !isNaN(numB)) {
-                        return numA - numB;
-                    }
-                    
-                    // Caso contrário, comparar alfabeticamente com suporte numérico
-                    return codA.toString().localeCompare(codB.toString(), undefined, { 
-                        numeric: true, 
-                        sensitivity: 'base' 
-                    });
-                  })
+            // Filtrar e ordenar utilizadores (ignorar jose.pedroeb1@gmail.com)
+            const utilizadoresFiltrados = Array.isArray(data) 
+                ? data.filter(u => u.email !== 'jose.pedroeb1@gmail.com')
                 : [];
             
-            console.log('Utilizadores ordenados por codFuncionario:', utilizadoresOrdenados.map(u => ({
+            const utilizadoresOrdenados = utilizadoresFiltrados.sort((a, b) => {
+                const codA = a.codFuncionario || a.username || a.email || '';
+                const codB = b.codFuncionario || b.username || b.email || '';
+                
+                // Tentar converter para número se possível
+                const numA = parseInt(codA);
+                const numB = parseInt(codB);
+                
+                // Se ambos são números, comparar numericamente
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return numA - numB;
+                }
+                
+                // Caso contrário, comparar alfabeticamente com suporte numérico
+                return codA.toString().localeCompare(codB.toString(), undefined, { 
+                    numeric: true, 
+                    sensitivity: 'base' 
+                });
+            });
+            
+            console.log('Utilizadores ordenados (excluindo jose.pedroeb1@gmail.com):', utilizadoresOrdenados.map(u => ({
                 id: u.id,
                 codFuncionario: u.codFuncionario,
                 nome: u.nome
@@ -303,213 +307,214 @@ const RegistosPorUtilizador = () => {
         }
 
         setLoadingGrade(true);
+        setLoadingProgress(0);
+        setLoadingMessage('Iniciando carregamento...');
         setDadosGrade([]);
 
         try {
             const dias = gerarDiasDoMes(parseInt(anoSelecionado), parseInt(mesSelecionado));
             setDiasDoMes(dias);
 
+            setLoadingProgress(10);
+            setLoadingMessage('Identificando utilizadores...');
+
             let utilizadoresParaPesquisar = utilizadores;
 
-            // Se tiver obra selecionada, filtrar utilizadores dessa obra
+            // Se tiver obra selecionada, filtrar utilizadores dessa obra (otimizado)
             if (obraSelecionada) {
-                const promises = dias.map(dia => {
+                setLoadingMessage('Filtrando utilizadores por obra...');
+                
+                // Fazer apenas 1 request para todo o mês em vez de 1 por dia
+                const dataInicio = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-01`;
+                const ultimoDia = new Date(parseInt(anoSelecionado), parseInt(mesSelecionado), 0).getDate();
+                const dataFim = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+                
+                const promises = [];
+                for (let dia = 1; dia <= ultimoDia; dia++) {
                     const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-                    return fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-obra-e-dia?obra_id=${obraSelecionada}&data=${dataFormatada}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    }).then(res => res.json()).catch(() => []);
-                });
-
+                    promises.push(
+                        fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-obra-e-dia?obra_id=${obraSelecionada}&data=${dataFormatada}`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        }).then(res => res.json()).catch(() => [])
+                    );
+                }
+                
                 const resultados = await Promise.all(promises);
                 const userIdsObra = [...new Set(resultados.flat().map(reg => reg.User?.id).filter(Boolean))];
                 utilizadoresParaPesquisar = utilizadores.filter(u => userIdsObra.includes(u.id));
             }
 
+            setLoadingProgress(20);
+
             const dadosGradeTemp = [];
+            const totalUsers = utilizadoresParaPesquisar.length;
+            const progressPerUser = 70 / totalUsers;
 
-            for (const user of utilizadoresParaPesquisar) {
-                try {
-                    // Carregar registos de ponto
-                    let query = `user_id=${user.id}&ano=${anoSelecionado}&mes=${String(mesSelecionado).padStart(2, '0')}`;
-                    if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
+            // Processar em lotes paralelos para otimizar
+            const BATCH_SIZE = 30; // Processar 5 utilizadores em paralelo
+            
+            for (let i = 0; i < utilizadoresParaPesquisar.length; i += BATCH_SIZE) {
+                const batch = utilizadoresParaPesquisar.slice(i, Math.min(i + BATCH_SIZE, utilizadoresParaPesquisar.length));
+                
+                await Promise.all(batch.map(async (user, batchIndex) => {
+                    const index = i + batchIndex;
+                    setLoadingMessage(`Carregando dados (${index + 1}/${totalUsers})...`);
+                    
+                    try {
+                        // Carregar registos de ponto
+                        let query = `user_id=${user.id}&ano=${anoSelecionado}&mes=${String(mesSelecionado).padStart(2, '0')}`;
+                        if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
 
-                    const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
+                        const [resRegistos] = await Promise.all([
+                            fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
+                                headers: { Authorization: `Bearer ${token}` }
+                            })
+                        ]);
 
-                    // Carregar faltas do utilizador
-                    const painelAdminToken = localStorage.getItem('painelAdminToken');
-                    const urlempresa = localStorage.getItem('urlempresa');
-                    const loginToken = localStorage.getItem('loginToken');
+                        // Carregar faltas do utilizador (em paralelo)
+                        const painelAdminToken = localStorage.getItem('painelAdminToken');
+                        const urlempresa = localStorage.getItem('urlempresa');
+                        const loginToken = localStorage.getItem('loginToken');
 
-                    console.log(`[DEBUG] Carregando faltas para ${user.nome} (ID: ${user.id})`);
-                    console.log(`[DEBUG] painelAdminToken:`, painelAdminToken ? 'Existe' : 'Não existe');
-                    console.log(`[DEBUG] urlempresa:`, urlempresa);
-                    console.log(`[DEBUG] loginToken:`, loginToken ? 'Existe' : 'Não existe');
-
-                    let faltasUtilizador = [];
-                    if (painelAdminToken && urlempresa && loginToken) {
-                        try {
-                            // Primeiro, obter o codFuncionario do backend
-                            console.log(`[DEBUG] Obtendo codFuncionario para userId: ${user.id}`);
-                            const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
-                                method: 'GET',
-                                headers: {
-                                    'Authorization': `Bearer ${loginToken}`,
-                                    'Content-Type': 'application/json',
-                                },
-                            });
-
-                            if (!resCodFuncionario.ok) {
-                                const errorText = await resCodFuncionario.text();
-                                console.warn(`[DEBUG] Erro ao obter codFuncionario para ${user.nome}:`, errorText);
-                                throw new Error(`Erro ao obter código do funcionário: ${errorText}`);
-                            }
-
-                            const dataCodFuncionario = await resCodFuncionario.json();
-                            const codFuncionario = dataCodFuncionario.codFuncionario;
-
-                            if (!codFuncionario) {
-                                console.warn(`[DEBUG] codFuncionario não encontrado para ${user.nome}`);
-                                throw new Error('Código do funcionário não encontrado');
-                            }
-
-                            console.log(`[DEBUG] codFuncionario obtido para ${user.nome}:`, codFuncionario);
-
-                            // Agora usar o codFuncionario para buscar as faltas
-                            const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
-                            console.log(`[DEBUG] URL chamada para faltas:`, urlFaltas);
-
-                            const resFaltas = await fetch(urlFaltas, {
-                                method: 'GET',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    Authorization: `Bearer ${painelAdminToken}`,
-                                    urlempresa: urlempresa,
-
-                                },
-                            });
-
-                            console.log(`[DEBUG] Status da resposta faltas:`, resFaltas.status);
-
-                            if (resFaltas.ok) {
-                                const dataFaltas = await resFaltas.json();
-                                console.log(`[DEBUG] Resposta completa das faltas para ${user.nome} (codFuncionario: ${codFuncionario}):`, dataFaltas);
-
-                                const listaFaltas = dataFaltas?.DataSet?.Table ?? [];
-                                console.log(`[DEBUG] Lista de faltas extraída:`, listaFaltas);
-                                console.log(`[DEBUG] Número total de faltas encontradas:`, listaFaltas.length);
-
-                                // Filtrar faltas do mês/ano atual
-                                faltasUtilizador = listaFaltas.filter(f => {
-                                    const dataFalta = new Date(f.Data);
-                                    const anoFalta = dataFalta.getFullYear();
-                                    const mesFalta = dataFalta.getMonth();
-                                    const filtroMatch = anoFalta === parseInt(anoSelecionado) && mesFalta === parseInt(mesSelecionado) - 1;
-
-                                    console.log(`[DEBUG] Falta: ${f.Data} - Ano: ${anoFalta}, Mês: ${mesFalta + 1}, Match: ${filtroMatch}`);
-
-                                    return filtroMatch;
+                        let faltasUtilizador = [];
+                        if (painelAdminToken && urlempresa && loginToken) {
+                            try {
+                                const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
+                                    method: 'GET',
+                                    headers: {
+                                        'Authorization': `Bearer ${loginToken}`,
+                                        'Content-Type': 'application/json',
+                                    },
                                 });
 
-                                console.log(`[DEBUG] Faltas filtradas para ${user.nome} (${mesSelecionado}/${anoSelecionado}):`, faltasUtilizador);
-                            } else {
-                                const errorText = await resFaltas.text();
-                                console.error(`[DEBUG] Erro na resposta das faltas (status: ${resFaltas.status}):`, errorText);
-                            }
-                        } catch (faltaErr) {
-                            console.error(`[DEBUG] Erro completo ao carregar faltas para ${user.nome}:`, faltaErr);
-                        }
-                    } else {
-                        console.warn(`[DEBUG] Tokens em falta - painelAdminToken: ${!!painelAdminToken}, urlempresa: ${!!urlempresa}, loginToken: ${!!loginToken}`);
-                    }
+                                if (resCodFuncionario.ok) {
+                                    const dataCodFuncionario = await resCodFuncionario.json();
+                                    const codFuncionario = dataCodFuncionario.codFuncionario;
 
-                    if (res.ok) {
-                        const registos = await res.json();
+                                    if (codFuncionario) {
+                                        const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
 
-                        // Organizar registos por dia
-                        const registosPorDia = {};
-                        registos.forEach(reg => {
-                            const dia = new Date(reg.timestamp).getDate();
-                            if (!registosPorDia[dia]) registosPorDia[dia] = [];
-                            registosPorDia[dia].push(reg);
-                        });
+                                        const resFaltas = await fetch(urlFaltas, {
+                                            method: 'GET',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                Authorization: `Bearer ${painelAdminToken}`,
+                                                urlempresa: urlempresa,
+                                            },
+                                        });
 
-                        // Organizar faltas por dia
-                        const faltasPorDia = {};
-                        faltasUtilizador.forEach(falta => {
-                            const dia = new Date(falta.Data).getDate();
-                            if (!faltasPorDia[dia]) faltasPorDia[dia] = [];
-                            faltasPorDia[dia].push(falta);
-                        });
+                                        if (resFaltas.ok) {
+                                            const dataFaltas = await resFaltas.json();
+                                            const listaFaltas = dataFaltas?.DataSet?.Table ?? [];
 
-                        // Calcular estatísticas por dia
-                        const estatisticasDias = {};
-
-                        // Processar todos os dias do mês
-                        dias.forEach(dia => {
-                            const regs = registosPorDia[dia] || [];
-                            const faltas = faltasPorDia[dia] || [];
-
-                            if (regs.length > 0 || faltas.length > 0) {
-                                const entradas = regs.filter(r => r.tipo === 'entrada').length;
-                                const saidas = regs.filter(r => r.tipo === 'saida').length;
-                                const confirmados = regs.filter(r => r.is_confirmed).length;
-                                const naoConfirmados = regs.length - confirmados;
-
-                                // Calcular horas estimadas
-                                let horasEstimadas = 0;
-                                const eventosOrdenados = regs
-                                    .filter(r => r.tipo === 'entrada' || r.tipo === 'saida')
-                                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-                                let ultimaEntrada = null;
-                                eventosOrdenados.forEach(reg => {
-                                    if (reg.tipo === 'entrada') {
-                                        ultimaEntrada = new Date(reg.timestamp);
-                                    } else if (reg.tipo === 'saida' && ultimaEntrada) {
-                                        const saida = new Date(reg.timestamp);
-                                        const diff = (saida - ultimaEntrada) / (1000 * 60 * 60);
-                                        if (diff > 0 && diff < 24) {
-                                            horasEstimadas += diff;
+                                            // Filtrar faltas do mês/ano atual
+                                            faltasUtilizador = listaFaltas.filter(f => {
+                                                const dataFalta = new Date(f.Data);
+                                                const anoFalta = dataFalta.getFullYear();
+                                                const mesFalta = dataFalta.getMonth();
+                                                return anoFalta === parseInt(anoSelecionado) && mesFalta === parseInt(mesSelecionado) - 1;
+                                            });
                                         }
-                                        ultimaEntrada = null;
                                     }
-                                });
-
-                                estatisticasDias[dia] = {
-                                    totalRegistos: regs.length,
-                                    entradas,
-                                    saidas,
-                                    confirmados,
-                                    naoConfirmados,
-                                    horasEstimadas: horasEstimadas.toFixed(1),
-                                    primeiroRegisto: regs.length > 0 ? new Date(Math.min(...regs.map(r => new Date(r.timestamp)))).toLocaleTimeString('pt-PT') : null,
-                                    ultimoRegisto: regs.length > 0 ? new Date(Math.max(...regs.map(r => new Date(r.timestamp)))).toLocaleTimeString('pt-PT') : null,
-                                    obras: [...new Set(regs.map(r => r.Obra?.nome).filter(Boolean))],
-                                    faltas: faltas
-                                };
+                                }
+                            } catch (faltaErr) {
+                                console.error(`Erro ao carregar faltas para ${user.nome}:`, faltaErr);
                             }
-                        });
+                        }
 
-                        const totalDiasComRegistos = Object.keys(registosPorDia).length;
-                        const totalHorasEstimadas = Object.values(estatisticasDias).reduce((acc, dia) => acc + parseFloat(dia?.horasEstimadas || 0), 0);
+                        if (resRegistos.ok) {
+                            const registos = await resRegistos.json();
 
-                        const dadosUtilizador = {
-                            utilizador: user,
-                            estatisticasDias,
-                            totalDias: totalDiasComRegistos,
-                            totalRegistos: registos.length,
-                            totalHorasEstimadas: totalHorasEstimadas.toFixed(1),
-                            totalFaltas: faltasUtilizador.length
-                        };
+                            // Organizar registos por dia (otimizado)
+                            const registosPorDia = {};
+                            const faltasPorDia = {};
+                            
+                            registos.forEach(reg => {
+                                const dia = new Date(reg.timestamp).getDate();
+                                if (!registosPorDia[dia]) registosPorDia[dia] = [];
+                                registosPorDia[dia].push(reg);
+                            });
 
-                        console.log(`[DEBUG] Dados finais para ${user.nome}:`, dadosUtilizador);
-                        console.log(`[DEBUG] Estatísticas por dia para ${user.nome}:`, estatisticasDias);
+                            faltasUtilizador.forEach(falta => {
+                                const dia = new Date(falta.Data).getDate();
+                                if (!faltasPorDia[dia]) faltasPorDia[dia] = [];
+                                faltasPorDia[dia].push(falta);
+                            });
 
-                        dadosGradeTemp.push(dadosUtilizador);
-                    } else {
-                        // Mesmo se não houver registos, adicionar o utilizador com dados vazios
+                            // Calcular estatísticas por dia (otimizado)
+                            const estatisticasDias = {};
+                            let totalDiasComRegistos = 0;
+                            let totalHorasEstimadas = 0;
+
+                            dias.forEach(dia => {
+                                const regs = registosPorDia[dia] || [];
+                                const faltas = faltasPorDia[dia] || [];
+
+                                if (regs.length > 0 || faltas.length > 0) {
+                                    if (regs.length > 0) totalDiasComRegistos++;
+                                    
+                                    const entradas = regs.filter(r => r.tipo === 'entrada').length;
+                                    const saidas = regs.filter(r => r.tipo === 'saida').length;
+                                    const confirmados = regs.filter(r => r.is_confirmed).length;
+
+                                    // Calcular horas (otimizado)
+                                    let horasEstimadas = 0;
+                                    const eventosOrdenados = regs
+                                        .filter(r => r.tipo === 'entrada' || r.tipo === 'saida')
+                                        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                                    let ultimaEntrada = null;
+                                    eventosOrdenados.forEach(reg => {
+                                        if (reg.tipo === 'entrada') {
+                                            ultimaEntrada = new Date(reg.timestamp);
+                                        } else if (reg.tipo === 'saida' && ultimaEntrada) {
+                                            const diff = (new Date(reg.timestamp) - ultimaEntrada) / 3600000;
+                                            if (diff > 0 && diff < 24) {
+                                                horasEstimadas += diff;
+                                            }
+                                            ultimaEntrada = null;
+                                        }
+                                    });
+
+                                    totalHorasEstimadas += horasEstimadas;
+
+                                    const timestamps = regs.map(r => new Date(r.timestamp).getTime());
+                                    
+                                    estatisticasDias[dia] = {
+                                        totalRegistos: regs.length,
+                                        entradas,
+                                        saidas,
+                                        confirmados,
+                                        naoConfirmados: regs.length - confirmados,
+                                        horasEstimadas: horasEstimadas.toFixed(1),
+                                        primeiroRegisto: timestamps.length > 0 ? new Date(Math.min(...timestamps)).toLocaleTimeString('pt-PT') : null,
+                                        ultimoRegisto: timestamps.length > 0 ? new Date(Math.max(...timestamps)).toLocaleTimeString('pt-PT') : null,
+                                        obras: [...new Set(regs.map(r => r.Obra?.nome).filter(Boolean))],
+                                        faltas: faltas
+                                    };
+                                }
+                            });
+
+                            dadosGradeTemp.push({
+                                utilizador: user,
+                                estatisticasDias,
+                                totalDias: totalDiasComRegistos,
+                                totalRegistos: registos.length,
+                                totalHorasEstimadas: totalHorasEstimadas.toFixed(1),
+                                totalFaltas: faltasUtilizador.length
+                            });
+                        } else {
+                            dadosGradeTemp.push({
+                                utilizador: user,
+                                estatisticasDias: {},
+                                totalDias: 0,
+                                totalRegistos: 0,
+                                totalHorasEstimadas: '0.0',
+                                totalFaltas: 0
+                            });
+                        }
+                    } catch (err) {
+                        console.error(`Erro ao carregar dados do utilizador ${user.nome}:`, err);
                         dadosGradeTemp.push({
                             utilizador: user,
                             estatisticasDias: {},
@@ -519,30 +524,45 @@ const RegistosPorUtilizador = () => {
                             totalFaltas: 0
                         });
                     }
-                } catch (err) {
-                    console.error(`Erro ao carregar dados do utilizador ${user.nome}:`, err);
-                    // Adicionar utilizador com dados vazios em caso de erro
-                    dadosGradeTemp.push({
-                        utilizador: user,
-                        estatisticasDias: {},
-                        totalDias: 0,
-                        totalRegistos: 0,
-                        totalHorasEstimadas: '0.0',
-                        totalFaltas: 0
-                    });
-                }
+                    
+                    setLoadingProgress(20 + ((index + 1) * progressPerUser));
+                }));
             }
 
-            // Ordenar por total de horas (decrescente)
-            dadosGradeTemp.sort((a, b) => parseFloat(b.totalHorasEstimadas) - parseFloat(a.totalHorasEstimadas));
-            setDadosGrade(dadosGradeTemp);
+            setLoadingProgress(90);
+            setLoadingMessage('Organizando dados...');
 
-            console.log('Dados carregados para a grade:', dadosGradeTemp);
+            // Ordenar (otimizado)
+            dadosGradeTemp.sort((a, b) => {
+                const codA = a.utilizador.codFuncionario || a.utilizador.username || a.utilizador.email || '';
+                const codB = b.utilizador.codFuncionario || b.utilizador.username || b.utilizador.email || '';
+                
+                const numA = parseInt(codA);
+                const numB = parseInt(codB);
+                
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return numA - numB;
+                }
+                
+                return codA.toString().localeCompare(codB.toString(), undefined, { 
+                    numeric: true, 
+                    sensitivity: 'base' 
+                });
+            });
+            
+            setDadosGrade(dadosGradeTemp);
+            setLoadingProgress(100);
+            setLoadingMessage('Concluído!');
 
         } catch (err) {
             console.error('Erro ao carregar dados da grade:', err);
+            setLoadingMessage('Erro ao carregar dados');
         } finally {
-            setLoadingGrade(false);
+            setTimeout(() => {
+                setLoadingGrade(false);
+                setLoadingProgress(0);
+                setLoadingMessage('');
+            }, 500);
         }
     };
 
@@ -3228,11 +3248,25 @@ const RegistosPorUtilizador = () => {
                 </div>
             </div>
 
-            {/* Loading */}
+            {/* Loading com Progress Bar */}
             {(loading || loadingGrade) && (
                 <div style={styles.loadingCard}>
                     <div style={styles.spinner}></div>
-                    <p>A carregar dados...</p>
+                    <p style={styles.loadingText}>{loadingMessage || 'A carregar dados...'}</p>
+                    {loadingGrade && (
+                        <div style={styles.progressBarContainer}>
+                            <div style={styles.progressBarBackground}>
+                                <div 
+                                    style={{
+                                        ...styles.progressBarFill,
+                                        width: `${loadingProgress}%`
+                                    }}
+                                >
+                                    <span style={styles.progressBarText}>{Math.round(loadingProgress)}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -3937,7 +3971,12 @@ const styles = {
         borderRadius: '16px',
         padding: '60px',
         textAlign: 'center',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+        boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+        minHeight: '250px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center'
     },
     spinner: {
         width: '40px',
@@ -3947,6 +3986,43 @@ const styles = {
         borderRadius: '50%',
         animation: 'spin 1s linear infinite',
         margin: '0 auto 20px'
+    },
+    loadingText: {
+        fontSize: '1.1rem',
+        color: '#4a5568',
+        marginBottom: '20px',
+        fontWeight: '500'
+    },
+    progressBarContainer: {
+        width: '100%',
+        maxWidth: '500px',
+        marginTop: '20px'
+    },
+    progressBarBackground: {
+        width: '100%',
+        height: '30px',
+        backgroundColor: '#e2e8f0',
+        borderRadius: '15px',
+        overflow: 'hidden',
+        position: 'relative',
+        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
+    },
+    progressBarFill: {
+        height: '100%',
+        background: 'linear-gradient(90deg, #3182ce, #4299e1)',
+        borderRadius: '15px',
+        transition: 'width 0.3s ease',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        minWidth: '30px'
+    },
+    progressBarText: {
+        color: 'white',
+        fontWeight: '700',
+        fontSize: '0.9rem',
+        textShadow: '0 1px 2px rgba(0,0,0,0.2)'
     },
     resumoSection: {
         backgroundColor: '#ffffff',

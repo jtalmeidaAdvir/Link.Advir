@@ -748,3 +748,4 @@ const RegistoPontoFacial = (props) => {
 };
 
 export default RegistoPontoFacial;
+

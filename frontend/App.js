@@ -96,6 +96,10 @@ import MapaRegistos from "./src/Pages/Obras/MapaRegistos";
 import { TokenManager } from "./src/utils/TokenManager";
 import { ThemeProvider } from "./ThemeContext";
 
+
+import PrivacySettings from "./src/Pages/GDPR/PrivacySettings";
+
+
 const Drawer = createDrawerNavigator();
 
 // Configuração de deep linking para reconhecer URLs com parâmetros dinâmicos como o token
@@ -1831,6 +1835,20 @@ const AppNavigator = () => {
                                                     Perfil
                                                 </Text>
                                             </TouchableOpacity>
+<View style={profileMenuStyles.divider} />
+
+                                            <TouchableOpacity
+  style={[profileMenuStyles.menuItem, profileMenuStyles.buttonStyle]}
+  onPress={() => {
+    setProfileMenuVisible(false);
+    navigation.navigate("PrivacySettings");
+  }}
+  activeOpacity={0.6}
+>
+  <FontAwesome name="lock" size={16} color="#1792FE" />
+  <Text style={profileMenuStyles.menuText}>Privacidade</Text>
+</TouchableOpacity>
+
 
                                             <View
                                                 style={
@@ -2006,6 +2024,15 @@ const AppNavigator = () => {
                             drawerItemStyle: { display: "none" },
                         }}
                     />
+                    <Drawer.Screen
+  name="PrivacySettings"
+  component={PrivacySettings}
+  options={{
+    title: "AdvirLink - Privacidade",
+    drawerItemStyle: { display: "none" },
+  }}
+/>
+
                     <Drawer.Screen
                         name="LeitorQRCode"
                         component={LeitorQRCode}
