@@ -494,8 +494,7 @@ const AprovacaoFaltaFerias = () => {
                 const data = await res.json();
                 membros = data.map((u) => ({
                     codigo: u.id,
-                    nome: u.nome ? `${u.nome} (${u.email})` : u.email,
-                }));
+                    nome: u.nome             }));
             } else {
                 const res = await fetch(
                     "https://backend.advir.pt/api/equipa-obra/minhas-agrupadas",

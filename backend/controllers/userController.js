@@ -378,7 +378,7 @@ const getUsersByEmpresa = async (req, res) => {
         const empresa = await Empresa.findByPk(empresaId, {
             include: {
                 model: User,
-                attributes: ["id", "username", "email"],
+                attributes: ["id", "username", "email","nome","codFuncionario"], // Ajusta conforme o teu modelo
             },
         });
 
