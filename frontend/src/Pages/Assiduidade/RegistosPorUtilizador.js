@@ -81,6 +81,12 @@ const RegistosPorUtilizador = () => {
     const [tipoFaltaSelecionado, setTipoFaltaSelecionado] = useState('');
     const [duracaoFalta, setDuracaoFalta] = useState(''); // 'd' for day, 'h' for hour
 
+    // State for bulk falta modal
+    const [bulkFaltaDialogOpen, setBulkFaltaDialogOpen] = useState(false);
+    const [tipoFaltaSelecionadoBulk, setTipoFaltaSelecionadoBulk] = useState('');
+    const [duracaoFaltaBulk, setDuracaoFaltaBulk] = useState('');
+    const [loadingBulkFalta, setLoadingBulkFalta] = useState(false);
+
     // State for auto-fill modal
     const [autoFillDialogOpen, setAutoFillDialogOpen] = useState(false);
     const [funcionarioSelecionadoAutoFill, setFuncionarioSelecionadoAutoFill] = useState('');
@@ -91,6 +97,11 @@ const RegistosPorUtilizador = () => {
     const [funcionarioSelecionadoClear, setFuncionarioSelecionadoClear] = useState('');
     const [diaSelecionadoClear, setDiaSelecionadoClear] = useState('');
     const [loadingClear, setLoadingClear] = useState(false);
+
+    // State for remover falta modal
+    const [removerFaltaDialogOpen, setRemoverFaltaDialogOpen] = useState(false);
+    const [faltaParaRemover, setFaltaParaRemover] = useState(null);
+    const [loadingRemoverFalta, setLoadingRemoverFalta] = useState(false);
 
 
     const handleBulkConfirm = async () => {
@@ -215,7 +226,14 @@ const RegistosPorUtilizador = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await res.json();
-            setUtilizadores(Array.isArray(data) ? data : []);
+            const utilizadoresOrdenados = Array.isArray(data) 
+                ? data.sort((a, b) => {
+                    const codA = a.codFuncionario || '';
+                    const codB = b.codFuncionario || '';
+                    return codA.localeCompare(codB, undefined, { numeric: true, sensitivity: 'base' });
+                  })
+                : [];
+            setUtilizadores(utilizadoresOrdenados);
         } catch (err) {
             console.error('Erro ao carregar utilizadores:', err);
             setUtilizadores([]);
@@ -990,6 +1008,57 @@ const RegistosPorUtilizador = () => {
         }
     };
 
+    const removerFalta = async () => {
+        if (!faltaParaRemover) return;
+
+        setLoadingRemoverFalta(true);
+
+        try {
+            const painelToken = localStorage.getItem('painelAdminToken');
+            const urlempresa = localStorage.getItem('urlempresa');
+
+            if (!painelToken || !urlempresa) {
+                throw new Error('Tokens do Primavera não encontrados');
+            }
+
+            const { funcionarioId, data, falta } = faltaParaRemover;
+
+            // Formatar a data para o formato esperado pelo endpoint (YYYY-MM-DD)
+            const dataFormatada = new Date(data).toISOString().split('T')[0];
+
+            // Chamar endpoint para eliminar falta no ERP usando parâmetros de rota
+            const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionarioId}/${dataFormatada}/${falta.Falta}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${painelToken}`,
+                    urlempresa
+                }
+            });
+
+            if (res.ok) {
+                alert('✅ Falta eliminada com sucesso!');
+                
+                // Recarregar dados
+                if (viewMode === 'grade') {
+                    carregarDadosGrade();
+                }
+
+                setRemoverFaltaDialogOpen(false);
+                setFaltaParaRemover(null);
+            } else {
+                const errorText = await res.text();
+                throw new Error(`Erro ao eliminar falta: ${errorText}`);
+            }
+
+        } catch (err) {
+            console.error('Erro ao remover falta:', err);
+            alert(`Erro ao remover falta: ${err.message}`);
+        } finally {
+            setLoadingRemoverFalta(false);
+        }
+    };
+
     const limparPontosDoDia = async () => {
         if (!funcionarioSelecionadoClear || !diaSelecionadoClear) {
             return alert('Por favor, selecione um funcionário e um dia.');
@@ -1546,7 +1615,6 @@ const RegistosPorUtilizador = () => {
         const tempoNumerico = parseInt(duracaoFalta) || 1;
 
         // Verificar se a falta selecionada desconta alimentação (assumindo que temos essa info nos tipos)
-        const tipoFalta = Object.keys(tiposFaltas).find(key => key === tipoFaltaSelecionado);
         const descontaAlimentacao = false; // Pode ser configurado baseado no tipo de falta
 
         const dadosPrincipal = {
@@ -1568,204 +1636,294 @@ const RegistosPorUtilizador = () => {
         try {
             setCarregando(true);
 
-            // 1. Submeter o pedido de falta
-            const res = await fetch('https://backend.advir.pt/api/faltas-ferias/aprovacao', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                    urlempresa: empresaId
-                },
-                body: JSON.stringify(dadosPrincipal)
-            });
+            // 1. Integrar diretamente no ERP (sem pedido intermédio)
+            if (painelToken && urlempresa) {
+                const dadosERP = {
+                    Funcionario: funcionarioId,
+                    Data: new Date(dataFormatada).toISOString(),
+                    Falta: tipoFaltaSelecionado,
+                    Horas: isHoras ? 1 : 0,
+                    Tempo: tempoNumerico,
+                    DescontaVenc: 0,
+                    DescontaRem: 0,
+                    ExcluiProc: 0,
+                    ExcluiEstat: 0,
+                    Observacoes: 'Registado via interface de administração',
+                    CalculoFalta: 1,
+                    DescontaSubsAlim: descontaAlimentacao ? 1 : 0,
+                    DataProc: null,
+                    NumPeriodoProcessado: 0,
+                    JaProcessado: 0,
+                    InseridoBloco: 0,
+                    ValorDescontado: 0,
+                    AnoProcessado: 0,
+                    NumProc: 0,
+                    Origem: "2",
+                    PlanoCurso: null,
+                    IdGDOC: null,
+                    CambioMBase: 0,
+                    CambioMAlt: 0,
+                    CotizaPeloMinimo: 0,
+                    Acerto: 0,
+                    MotivoAcerto: null,
+                    NumLinhaDespesa: null,
+                    NumRelatorioDespesa: null,
+                    FuncComplementosBaixaId: null,
+                    DescontaSubsTurno: 0,
+                    SubTurnoProporcional: 0,
+                    SubAlimProporcional: 0
+                };
 
-            if (res.ok) {
-                const pedidoData = await res.json();
-                console.log('Pedido de falta criado:', pedidoData);
+                console.log('📤 Enviando falta para ERP Primavera:', dadosERP);
 
-                // 2. Aprovar automaticamente o pedido (como administrador)
-                const resAprovar = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${pedidoData.id}/aprovar`, {
-                    method: 'PUT',
+                const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                        urlempresa: empresaId
+                        Authorization: `Bearer ${painelToken}`,
+                        urlempresa
                     },
-                    body: JSON.stringify({
-                        aprovadoPor: userNome || 'Administrador',
-                        observacoesResposta: 'Aprovado automaticamente via interface de administração.'
-                    })
+                    body: JSON.stringify(dadosERP)
                 });
 
-                if (!resAprovar.ok) {
-                    throw new Error('Erro ao aprovar pedido automaticamente');
+                if (resERP.ok) {
+                    console.log('✅ Falta integrada no ERP com sucesso');
+                    alert('Falta registada e integrada automaticamente no ERP com sucesso!');
+                } else {
+                    const errorText = await resERP.text();
+                    console.error('❌ Erro ao integrar no ERP:', errorText);
+                    throw new Error(`Erro ao integrar falta no ERP: ${errorText}`);
                 }
+            } else {
+                throw new Error('Tokens do Primavera não encontrados. Configure o acesso ao ERP.');
+            }
 
-                // 3. Integrar diretamente no ERP (mesma lógica do AprovacaoFaltaFerias.js)
-                if (painelToken && urlempresa) {
-                    const dadosERP = {
-                        Funcionario: funcionarioId,
-                        Data: new Date(dataFormatada).toISOString(),
-                        Falta: tipoFaltaSelecionado,
-                        Horas: isHoras ? 1 : 0,
-                        Tempo: tempoNumerico,
-                        DescontaVenc: 0,
-                        DescontaRem: 0,
-                        ExcluiProc: 0,
-                        ExcluiEstat: 0,
-                        Observacoes: 'Registado via interface de administração',
-                        CalculoFalta: 1,
-                        DescontaSubsAlim: 0,
-                        DataProc: null,
-                        NumPeriodoProcessado: 0,
-                        JaProcessado: 0,
-                        InseridoBloco: 0,
-                        ValorDescontado: 0,
-                        AnoProcessado: 0,
-                        NumProc: 0,
-                        Origem: "2",
-                        PlanoCurso: null,
-                        IdGDOC: null,
-                        CambioMBase: 0,
-                        CambioMAlt: 0,
-                        CotizaPeloMinimo: 0,
-                        Acerto: 0,
-                        MotivoAcerto: null,
-                        NumLinhaDespesa: null,
-                        NumRelatorioDespesa: null,
-                        FuncComplementosBaixaId: null,
-                        DescontaSubsTurno: 0,
-                        SubTurnoProporcional: 0,
-                        SubAlimProporcional: 0
-                    };
+            // Resetar formulários
+            setFaltaDialogOpen(false);
+            setDialogOpen(false);
+            setTipoFaltaSelecionado('');
+            setDuracaoFalta('');
 
-                    const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${painelToken}`,
-                            urlempresa
-                        },
-                        body: JSON.stringify(dadosERP)
-                    });
-
-                    if (resERP.ok) {
-                        console.log('Falta integrada no ERP com sucesso');
-                    } else {
-                        console.warn('Erro ao integrar no ERP:', await resERP.text());
-                    }
-                }
-
-                // Submeter F40 automático se aplicável
-                if (descontaAlimentacao) {
-                    const dadosF40 = {
-                        ...dadosPrincipal,
-                        falta: 'F40',
-                        justificacao: 'Submetida automaticamente (desconto alimentação)',
-                        observacoes: '',
-                    };
-
-                    const resF40 = await fetch('https://backend.advir.pt/api/faltas-ferias/aprovacao', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${token}`,
-                            urlempresa: empresaId
-                        },
-                        body: JSON.stringify(dadosF40)
-                    });
-
-                    if (resF40.ok) {
-                        const f40Data = await resF40.json();
-
-                        // Aprovar F40 automaticamente também
-                        await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${f40Data.id}/aprovar`, {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${token}`,
-                                urlempresa: empresaId
-                            },
-                            body: JSON.stringify({
-                                aprovadoPor: userNome || 'Administrador',
-                                observacoesResposta: 'F40 aprovado automaticamente.'
-                            })
-                        });
-
-                        console.log('Falta F40 submetida e aprovada automaticamente.');
-                    } else {
-                        console.warn('Erro ao submeter falta F40:', await resF40.text());
-                    }
-                }
-
-                alert('Falta registada e integrada automaticamente no ERP com sucesso!');
-
-                // Resetar formulários
-                setFaltaDialogOpen(false);
-                setDialogOpen(false);
-                setTipoFaltaSelecionado('');
-                setDuracaoFalta('');
-
-                // Atualização optimista da UI
-                if (viewMode === 'grade') {
-                    // Atualizar imediatamente a célula da grade
-                    setDadosGrade(prevDados => {
-                        return prevDados.map(item => {
-                            if (item.utilizador.id === userToRegistar) {
-                                const estatisticasAtualizadas = { ...item.estatisticasDias };
-                                if (!estatisticasAtualizadas[diaToRegistar]) {
-                                    estatisticasAtualizadas[diaToRegistar] = {
-                                        totalRegistos: 0,
-                                        entradas: 0,
-                                        saidas: 0,
-                                        confirmados: 0,
-                                        naoConfirmados: 0,
-                                        horasEstimadas: '0.0',
-                                        primeiroRegisto: null,
-                                        ultimoRegisto: null,
-                                        obras: [],
-                                        faltas: []
-                                    };
-                                }
-
-                                // Adicionar a falta às estatísticas do dia
-                                const novaFalta = {
-                                    Falta: tipoFaltaSelecionado,
-                                    Data: dataFormatada,
-                                    Tempo: tempoNumerico,
-                                    Horas: isHoras
-                                };
-                                estatisticasAtualizadas[diaToRegistar].faltas = [
-                                    ...(estatisticasAtualizadas[diaToRegistar].faltas || []),
-                                    novaFalta
-                                ];
-
-                                return {
-                                    ...item,
-                                    estatisticasDias: estatisticasAtualizadas,
-                                    totalFaltas: (item.totalFaltas || 0) + 1
+            // Atualização optimista da UI
+            if (viewMode === 'grade') {
+                // Atualizar imediatamente a célula da grade
+                setDadosGrade(prevDados => {
+                    return prevDados.map(item => {
+                        if (item.utilizador.id === userToRegistar) {
+                            const estatisticasAtualizadas = { ...item.estatisticasDias };
+                            if (!estatisticasAtualizadas[diaToRegistar]) {
+                                estatisticasAtualizadas[diaToRegistar] = {
+                                    totalRegistos: 0,
+                                    entradas: 0,
+                                    saidas: 0,
+                                    confirmados: 0,
+                                    naoConfirmados: 0,
+                                    horasEstimadas: '0.0',
+                                    primeiroRegisto: null,
+                                    ultimoRegisto: null,
+                                    obras: [],
+                                    faltas: []
                                 };
                             }
-                            return item;
-                        });
+
+                            // Adicionar a falta às estatísticas do dia
+                            const novaFalta = {
+                                Falta: tipoFaltaSelecionado,
+                                Data: dataFormatada,
+                                Tempo: tempoNumerico,
+                                Horas: isHoras
+                            };
+                            estatisticasAtualizadas[diaToRegistar].faltas = [
+                                ...(estatisticasAtualizadas[diaToRegistar].faltas || []),
+                                novaFalta
+                            ];
+
+                            return {
+                                ...item,
+                                estatisticasDias: estatisticasAtualizadas,
+                                totalFaltas: (item.totalFaltas || 0) + 1
+                            };
+                        }
+                        return item;
                     });
+                });
 
-                    // Recarregar dados completos em background
-                    setTimeout(() => {
-                        carregarDadosGrade();
-                    }, 500);
-                }
-
-            } else {
-                const erro = await res.text();
-                alert('Erro ao submeter falta: ' + erro);
+                // Recarregar dados completos em background
+                setTimeout(() => {
+                    carregarDadosGrade();
+                }, 500);
             }
 
         } catch (err) {
-            console.error('Erro ao submeter falta:', err);
-            alert('Erro inesperado ao submeter falta.');
+            console.error('❌ Erro ao submeter falta:', err);
+            alert('Erro ao registar falta: ' + err.message);
         } finally {
             setCarregando(false);
+        }
+    };
+
+    const registarFaltasEmBloco = async () => {
+        if (selectedCells.length === 0) {
+            return alert('Nenhuma célula selecionada.');
+        }
+
+        if (!tipoFaltaSelecionadoBulk || !duracaoFaltaBulk) {
+            return alert('Por favor, selecione o tipo de falta e a duração.');
+        }
+
+        const painelToken = localStorage.getItem('painelAdminToken');
+        const urlempresa = localStorage.getItem('urlempresa');
+        const empresaId = localStorage.getItem('empresa_id');
+
+        if (!painelToken || !urlempresa) {
+            return alert('Tokens do Primavera não encontrados. Configure o acesso ao ERP.');
+        }
+
+        // Agrupar células por utilizador
+        const cellsByUser = {};
+        selectedCells.forEach(cellKey => {
+            const [userId, dia] = cellKey.split('-');
+            const userIdNumber = parseInt(userId, 10);
+            if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
+            cellsByUser[userIdNumber].push(parseInt(dia, 10));
+        });
+
+        // Criar mensagem de confirmação
+        let mensagemConfirmacao = `📅 Vai registar faltas para:\n\n`;
+        
+        for (const [userId, dias] of Object.entries(cellsByUser)) {
+            const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
+            if (funcionario) {
+                mensagemConfirmacao += `• ${funcionario.utilizador.nome}: dias ${dias.join(', ')}\n`;
+            }
+        }
+
+        mensagemConfirmacao += `\nTipo de falta: ${tiposFaltas[tipoFaltaSelecionadoBulk] || tipoFaltaSelecionadoBulk}\n`;
+        mensagemConfirmacao += `Duração: ${duracaoFaltaBulk}\n`;
+        mensagemConfirmacao += `\nTotal: ${selectedCells.length} faltas\n\nDeseja continuar?`;
+
+        const confirmacao = confirm(mensagemConfirmacao);
+        if (!confirmacao) return;
+
+        setLoadingBulkFalta(true);
+
+        try {
+            const isHoras = duracaoFaltaBulk && duracaoFaltaBulk.toString().includes('h');
+            const tempoNumerico = parseInt(duracaoFaltaBulk) || 1;
+            const descontaAlimentacao = false;
+
+            let faltasRegistadas = 0;
+            let erros = 0;
+
+            // Processar cada utilizador separadamente
+            for (const [userId, dias] of Object.entries(cellsByUser)) {
+                const userIdNumber = parseInt(userId, 10);
+                
+                // Obter codFuncionario uma vez por utilizador
+                const funcionarioId = await obterCodFuncionario(userIdNumber);
+
+                if (!funcionarioId) {
+                    console.error(`Código do funcionário não encontrado para userId ${userIdNumber}`);
+                    erros += dias.length;
+                    continue;
+                }
+
+                // Registar falta para cada dia deste utilizador
+                for (const dia of dias) {
+                    try {
+                        const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+
+                        const dadosERP = {
+                            Funcionario: funcionarioId,
+                            Data: new Date(dataFormatada).toISOString(),
+                            Falta: tipoFaltaSelecionadoBulk,
+                            Horas: isHoras ? 1 : 0,
+                            Tempo: tempoNumerico,
+                            DescontaVenc: 0,
+                            DescontaRem: 0,
+                            ExcluiProc: 0,
+                            ExcluiEstat: 0,
+                            Observacoes: 'Registado em bloco via interface de administração',
+                            CalculoFalta: 1,
+                            DescontaSubsAlim: descontaAlimentacao ? 1 : 0,
+                            DataProc: null,
+                            NumPeriodoProcessado: 0,
+                            JaProcessado: 0,
+                            InseridoBloco: 0,
+                            ValorDescontado: 0,
+                            AnoProcessado: 0,
+                            NumProc: 0,
+                            Origem: "2",
+                            PlanoCurso: null,
+                            IdGDOC: null,
+                            CambioMBase: 0,
+                            CambioMAlt: 0,
+                            CotizaPeloMinimo: 0,
+                            Acerto: 0,
+                            MotivoAcerto: null,
+                            NumLinhaDespesa: null,
+                            NumRelatorioDespesa: null,
+                            FuncComplementosBaixaId: null,
+                            DescontaSubsTurno: 0,
+                            SubTurnoProporcional: 0,
+                            SubAlimProporcional: 0
+                        };
+
+                        const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${painelToken}`,
+                                urlempresa
+                            },
+                            body: JSON.stringify(dadosERP)
+                        });
+
+                        if (resERP.ok) {
+                            faltasRegistadas++;
+                            console.log(`✅ Falta registada: ${funcionarioId} - dia ${dia}`);
+                        } else {
+                            const errorText = await resERP.text();
+                            console.error(`Erro ao registar falta para dia ${dia}:`, errorText);
+                            erros++;
+                        }
+
+                        // Pequena pausa entre cada registo
+                        await new Promise(resolve => setTimeout(resolve, 150));
+
+                    } catch (diaErr) {
+                        console.error(`Erro ao processar dia ${dia}:`, diaErr);
+                        erros++;
+                    }
+                }
+            }
+
+            // Mostrar resultado
+            let mensagemResultado = `✅ Registo de faltas em bloco concluído!\n\n`;
+            mensagemResultado += `• Faltas registadas: ${faltasRegistadas}\n`;
+            if (erros > 0) {
+                mensagemResultado += `• Erros encontrados: ${erros}\n`;
+                mensagemResultado += `• Verifique o console para detalhes dos erros\n`;
+            }
+
+            alert(mensagemResultado);
+
+            // Limpar seleções e fechar modal
+            setSelectedCells([]);
+            setBulkFaltaDialogOpen(false);
+            setTipoFaltaSelecionadoBulk('');
+            setDuracaoFaltaBulk('');
+
+            // Recarregar dados da grade
+            if (viewMode === 'grade') {
+                carregarDadosGrade();
+            }
+
+        } catch (err) {
+            console.error('Erro ao registar faltas em bloco:', err);
+            alert(`Erro ao registar faltas em bloco: ${err.message}`);
+        } finally {
+            setLoadingBulkFalta(false);
         }
     };
 
@@ -1925,6 +2083,13 @@ const RegistosPorUtilizador = () => {
                                         onClick={() => setBulkDialogOpen(true)}
                                     >
                                         🗓️ Registar em bloco ({selectedCells.length} dias)
+                                    </button>
+
+                                    <button
+                                        style={{ ...styles.primaryButton, backgroundColor: '#d69e2e' }}
+                                        onClick={() => setBulkFaltaDialogOpen(true)}
+                                    >
+                                        📅 Registar Faltas ({selectedCells.length} dias)
                                     </button>
 
                                     <button
@@ -2384,6 +2549,15 @@ const RegistosPorUtilizador = () => {
                                             >
                                                 📅 Registar Falta
                                             </button>
+                                            <button
+                                                style={{ ...styles.confirmButton, backgroundColor: '#6c757d', marginTop: '10px' }}
+                                                onClick={() => {
+                                                    setDialogOpen(false);
+                                                    abrirEdicaoDirecta(userToRegistar, diaToRegistar, utilizadores.find(u => u.id === userToRegistar)?.nome);
+                                                }}
+                                            >
+                                                ✏️ Editar Pontos
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -2495,6 +2669,161 @@ const RegistosPorUtilizador = () => {
                                                     </>
                                                 ) : (
                                                     '📅 Confirmar Falta'
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Modal para registo de faltas em bloco */}
+                            {bulkFaltaDialogOpen && (
+                                <div style={styles.modalOverlay}>
+                                    <div style={styles.bulkModal}>
+                                        <div style={{ ...styles.bulkModalHeader, background: 'linear-gradient(135deg, #d69e2e, #b7791f)' }}>
+                                            <h3 style={styles.bulkModalTitle}>
+                                                📅 Registar Faltas em Bloco
+                                            </h3>
+                                            <p style={styles.bulkModalSubtitle}>
+                                                Registando faltas para {selectedCells.length} seleções
+                                            </p>
+                                            <button
+                                                style={styles.closeButton}
+                                                onClick={() => setBulkFaltaDialogOpen(false)}
+                                                aria-label="Fechar"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+
+                                        <div style={styles.bulkModalContent}>
+                                            <div style={styles.selectedCellsContainer}>
+                                                <span style={styles.selectedCellsLabel}>Dias selecionados para registo de falta:</span>
+
+                                                {(() => {
+                                                    const cellsByUser = {};
+                                                    selectedCells.forEach(cellKey => {
+                                                        const [userId, dia] = cellKey.split('-');
+                                                        const userIdNumber = parseInt(userId, 10);
+                                                        if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
+                                                        cellsByUser[userIdNumber].push(parseInt(dia, 10));
+                                                    });
+
+                                                    return Object.entries(cellsByUser).map(([userId, dias]) => {
+                                                        const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
+                                                        if (!funcionario) return null;
+
+                                                        return (
+                                                            <div key={userId} style={{
+                                                                marginBottom: '15px',
+                                                                padding: '12px',
+                                                                backgroundColor: '#fff3cd',
+                                                                borderRadius: '8px',
+                                                                border: '1px solid #ffeaa7'
+                                                            }}>
+                                                                <div style={{
+                                                                    fontWeight: '600',
+                                                                    marginBottom: '8px',
+                                                                    color: '#2d3748'
+                                                                }}>
+                                                                    👤 {funcionario.utilizador.nome}
+                                                                </div>
+                                                                <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>
+                                                                    <strong>Dias:</strong> {dias.sort((a, b) => a - b).join(', ')}
+                                                                </div>
+                                                                <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>
+                                                                    {dias.length} dia{dias.length !== 1 ? 's' : ''} selecionado{dias.length !== 1 ? 's' : ''}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    });
+                                                })()}
+                                            </div>
+
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>Tipo de Falta</label>
+                                                <select
+                                                    style={styles.select}
+                                                    value={tipoFaltaSelecionadoBulk}
+                                                    onChange={e => setTipoFaltaSelecionadoBulk(e.target.value)}
+                                                >
+                                                    <option value="">-- Selecione o tipo de falta --</option>
+                                                    {Object.entries(tiposFaltas).map(([key, value]) => (
+                                                        <option key={key} value={key}>{value} ({key})</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>Duração</label>
+                                                <div style={{ display: 'flex', gap: '10px' }}>
+                                                    <input
+                                                        type="number"
+                                                        style={{ ...styles.input, flex: 1 }}
+                                                        min="1"
+                                                        value={parseInt(duracaoFaltaBulk) || ''}
+                                                        onChange={e => {
+                                                            const valor = e.target.value;
+                                                            const unidade = duracaoFaltaBulk?.endsWith('h') ? 'h' : 'd';
+                                                            setDuracaoFaltaBulk(valor ? `${valor}${unidade}` : '');
+                                                        }}
+                                                        placeholder="Quantidade"
+                                                    />
+                                                    <select
+                                                        style={{ ...styles.select, flex: 0.5 }}
+                                                        value={duracaoFaltaBulk === '' ? '' : duracaoFaltaBulk?.endsWith('h') ? 'h' : 'd'}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            const quantidade = parseInt(duracaoFaltaBulk) || 1;
+                                                            if (value === 'd') setDuracaoFaltaBulk(`${quantidade}d`);
+                                                            else if (value === 'h') setDuracaoFaltaBulk(`${quantidade}h`);
+                                                        }}
+                                                    >
+                                                        <option value="">-- Unidade --</option>
+                                                        <option value="d">Dia(s)</option>
+                                                        <option value="h">Hora(s)</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            {tipoFaltaSelecionadoBulk && tiposFaltas[tipoFaltaSelecionadoBulk] && (
+                                                <div style={{
+                                                    ...styles.selectedCellsContainer,
+                                                    backgroundColor: '#e6fffa',
+                                                    border: '1px solid #81e6d9'
+                                                }}>
+                                                    <div style={{ fontSize: '0.9rem', color: '#234e52' }}>
+                                                        <div><strong>Tipo de Falta:</strong> {tiposFaltas[tipoFaltaSelecionadoBulk]}</div>
+                                                        <div><strong>Código:</strong> {tipoFaltaSelecionadoBulk}</div>
+                                                        <div><strong>Duração:</strong> {duracaoFaltaBulk || '1d'}</div>
+                                                        <div><strong>Total de faltas a registar:</strong> {selectedCells.length}</div>
+                                                        <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#285e61' }}>
+                                                            Estas faltas serão integradas diretamente no ERP Primavera.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={styles.bulkModalActions}>
+                                            <button
+                                                style={styles.cancelButton}
+                                                onClick={() => setBulkFaltaDialogOpen(false)}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                style={{ ...styles.confirmButton, backgroundColor: '#d69e2e' }}
+                                                onClick={registarFaltasEmBloco}
+                                                disabled={!tipoFaltaSelecionadoBulk || !duracaoFaltaBulk || loadingBulkFalta}
+                                            >
+                                                {loadingBulkFalta ? (
+                                                    <>
+                                                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                                        A registar...
+                                                    </>
+                                                ) : (
+                                                    '📅 Confirmar Faltas em Bloco'
                                                 )}
                                             </button>
                                         </div>
@@ -2990,7 +3319,7 @@ const RegistosPorUtilizador = () => {
                             </div>
                         </div>
                         <div style={{ marginTop: '15px', fontSize: '0.9rem', color: '#4a5568', fontStyle: 'italic' }}>
-                            <strong>💡 Instruções:</strong> Clique normal = <strong>abrir editor de pontos avançado</strong> | Ctrl + Clique = seleção múltipla
+                            <strong>💡 Instruções:</strong> Clique normal = <strong>abrir editor de pontos</strong> (se houver falta, permite remover) | Ctrl + Clique = seleção múltipla
                         </div>
                     </div>
 
@@ -3044,7 +3373,7 @@ const RegistosPorUtilizador = () => {
 
                                                 return (
                                                     <td
-                                                        onClick={e => {
+                                                        onClick={async (e) => {
                                                             // Garantir que os valores são números válidos antes de criar a cellKey
                                                             const userId = parseInt(item.utilizador.id, 10);
                                                             const diaNum = parseInt(dia, 10);
@@ -3067,8 +3396,27 @@ const RegistosPorUtilizador = () => {
                                                                     return newCells;
                                                                 });
                                                             } else {
-                                                                // Clique normal = Sempre abrir editor (mesmo se não há registos)
-                                                                abrirEdicaoDirecta(userId, diaNum, item.utilizador.nome);
+                                                                // Verificar se há faltas neste dia
+                                                                const estatisticas = item.estatisticasDias[diaNum];
+                                                                if (estatisticas && estatisticas.faltas && estatisticas.faltas.length > 0) {
+                                                                    // Há falta(s) - abrir modal de remoção
+                                                                    const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaNum).padStart(2, '0')}`;
+                                                                    
+                                                                    // Obter codFuncionario
+                                                                    const codFunc = await obterCodFuncionario(userId);
+                                                                    
+                                                                    setFaltaParaRemover({
+                                                                        funcionarioId: codFunc,
+                                                                        funcionarioNome: item.utilizador.nome,
+                                                                        dia: diaNum,
+                                                                        data: new Date(dataFormatada).toISOString(),
+                                                                        falta: estatisticas.faltas[0]
+                                                                    });
+                                                                    setRemoverFaltaDialogOpen(true);
+                                                                } else {
+                                                                    // Não há falta - abrir editor normal
+                                                                    abrirEdicaoDirecta(userId, diaNum, item.utilizador.nome);
+                                                                }
                                                             }
                                                         }}
                                                         style={{
@@ -3278,7 +3626,85 @@ const RegistosPorUtilizador = () => {
                 </div>
             )}
 
-            {/* Modal de Edição Direta */}
+            {/* Modal para remover falta */}
+                            {removerFaltaDialogOpen && faltaParaRemover && (
+                                <div style={styles.modalOverlay}>
+                                    <div style={styles.bulkModal}>
+                                        <div style={{ ...styles.bulkModalHeader, background: 'linear-gradient(135deg, #e53e3e, #c53030)' }}>
+                                            <h3 style={styles.bulkModalTitle}>
+                                                🗑️ Remover Falta
+                                            </h3>
+                                            <p style={styles.bulkModalSubtitle}>
+                                                Confirmar remoção de falta
+                                            </p>
+                                            <button
+                                                style={styles.closeButton}
+                                                onClick={() => {
+                                                    setRemoverFaltaDialogOpen(false);
+                                                    setFaltaParaRemover(null);
+                                                }}
+                                                aria-label="Fechar"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+
+                                        <div style={styles.bulkModalContent}>
+                                            <div style={{
+                                                ...styles.selectedCellsContainer,
+                                                backgroundColor: '#fed7d7',
+                                                border: '1px solid #fc8181'
+                                            }}>
+                                                <div style={{ fontSize: '0.9rem', color: '#742a2a' }}>
+                                                    <div style={{ marginBottom: '10px' }}>
+                                                        <strong>⚠️ ATENÇÃO:</strong>
+                                                    </div>
+                                                    <div style={{ marginBottom: '10px' }}>
+                                                        Vai eliminar a falta:
+                                                    </div>
+                                                    <div style={{ padding: '15px', backgroundColor: '#fff', borderRadius: '8px', marginTop: '10px' }}>
+                                                        <div><strong>Funcionário:</strong> {faltaParaRemover.funcionarioNome}</div>
+                                                        <div><strong>Dia:</strong> {faltaParaRemover.dia}/{mesSelecionado}/{anoSelecionado}</div>
+                                                        <div><strong>Tipo:</strong> {tiposFaltas[faltaParaRemover.falta.Falta] || faltaParaRemover.falta.Falta}</div>
+                                                        <div><strong>Duração:</strong> {faltaParaRemover.falta.Tempo}{faltaParaRemover.falta.Horas ? 'h' : 'd'}</div>
+                                                    </div>
+                                                    <div style={{ marginTop: '15px', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                                        Esta ação <strong>NÃO pode ser desfeita</strong>!
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style={styles.bulkModalActions}>
+                                            <button
+                                                style={styles.cancelButton}
+                                                onClick={() => {
+                                                    setRemoverFaltaDialogOpen(false);
+                                                    setFaltaParaRemover(null);
+                                                }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                style={{ ...styles.confirmButton, backgroundColor: '#e53e3e' }}
+                                                onClick={removerFalta}
+                                                disabled={loadingRemoverFalta}
+                                            >
+                                                {loadingRemoverFalta ? (
+                                                    <>
+                                                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                                        A remover...
+                                                    </>
+                                                ) : (
+                                                    '🗑️ Confirmar Remoção'
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Modal de Edição Direta */}
             {editModalOpen && registoParaEditar && (
                 <EditarRegistoModal
                     registo={registoParaEditar}

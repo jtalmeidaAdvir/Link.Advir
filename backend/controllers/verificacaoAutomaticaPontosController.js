@@ -30,15 +30,15 @@ const verificarEAdicionarPontosAlmoco = async (req, res) => {
         console.log(`📅 Verificando pontos para a data: ${dataAtual}`);
 
         // Buscar todos os utilizadores da empresa através da tabela user_empresa
-        const User_Empresa = require('../models/user_empresa');
-
         const utilizadores = await User.findAll({
             include: [{
-                model: User_Empresa,
+                model: Empresa,
                 where: {
-                    empresa_id: empresa_id
+                    id: empresa_id
                 },
-                required: true,
+                through: {
+                    attributes: []
+                },
                 attributes: []
             }],
             where: {
