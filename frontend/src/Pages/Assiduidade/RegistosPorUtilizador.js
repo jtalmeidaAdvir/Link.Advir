@@ -226,13 +226,36 @@ const RegistosPorUtilizador = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await res.json();
+            
+            // Ordenar utilizadores por codFuncionario
             const utilizadoresOrdenados = Array.isArray(data) 
                 ? data.sort((a, b) => {
-                    const codA = a.codFuncionario || '';
-                    const codB = b.codFuncionario || '';
-                    return codA.localeCompare(codB, undefined, { numeric: true, sensitivity: 'base' });
+                    const codA = a.codFuncionario || a.username || a.email || '';
+                    const codB = b.codFuncionario || b.username || b.email || '';
+                    
+                    // Tentar converter para número se possível
+                    const numA = parseInt(codA);
+                    const numB = parseInt(codB);
+                    
+                    // Se ambos são números, comparar numericamente
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        return numA - numB;
+                    }
+                    
+                    // Caso contrário, comparar alfabeticamente com suporte numérico
+                    return codA.toString().localeCompare(codB.toString(), undefined, { 
+                        numeric: true, 
+                        sensitivity: 'base' 
+                    });
                   })
                 : [];
+            
+            console.log('Utilizadores ordenados por codFuncionario:', utilizadoresOrdenados.map(u => ({
+                id: u.id,
+                codFuncionario: u.codFuncionario,
+                nome: u.nome
+            })));
+            
             setUtilizadores(utilizadoresOrdenados);
         } catch (err) {
             console.error('Erro ao carregar utilizadores:', err);
