@@ -8,9 +8,9 @@ const criar = async (req, res) => {
 
         // Validação básica
         if (!Nome || !Qrcode) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Nome e Qrcode são obrigatórios.' 
+                message: 'Nome e Qrcode são obrigatórios.'
             });
         }
 
@@ -40,10 +40,10 @@ const criar = async (req, res) => {
         });
     } catch (error) {
         console.error('Erro ao criar registo ExternosJPA:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
             message: 'Erro interno do servidor.',
-            error: error.message 
+            error: error.message
         });
     }
 };
@@ -60,10 +60,10 @@ const listar = async (req, res) => {
         });
     } catch (error) {
         console.error('Erro ao listar ExternosJPA:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
             message: 'Erro interno do servidor.',
-            error: error.message 
+            error: error.message
         });
     }
 };
@@ -149,7 +149,7 @@ const registarPonto = async (req, res) => {
         });
 
         let action = 'entrada';
-        
+
         // Se já existe entrada sem saída, registar saída
         if (ultimoRegistoResults.length > 0 && ultimoRegistoResults[0].tipo === 'entrada') {
             action = 'saida';
@@ -213,7 +213,7 @@ const registarPonto = async (req, res) => {
     }
 };
 
-// GET /api/externos-jpa/resumo-obra?obra_id=X&empresa_id=Y https://backend.advir.pt/api/externos-jpa/resumo-obra?obra_id=32&empresa_id=5
+// GET /api/externos-jpa/resumo-obra?obra_id=X&empresa_id=Y
 const resumoObra = async (req, res) => {
     try {
         const { obra_id, empresa_id } = req.query;
@@ -255,7 +255,7 @@ const resumoObra = async (req, res) => {
 
         // Buscar últimas entradas/saídas de externos (limitado a 10)
         const queryRegistos = `
-            SELECT TOP 10
+            SELECT 
                 rpe.id,
                 rpe.externo_id,
                 rpe.tipo,
