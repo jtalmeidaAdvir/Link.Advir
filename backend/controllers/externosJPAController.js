@@ -136,7 +136,7 @@ const registarPonto = async (req, res) => {
             SELECT TOP 1 * FROM RegistoPontoExternos 
             WHERE externo_id = :externo_id 
             AND obra_id = :obra_id
-            AND CAST(timestamp AS DATE) = :hoje
+            AND CONVERT(DATE, timestamp) = CONVERT(DATE, :hoje)
             ORDER BY timestamp DESC
         `;
 
@@ -157,18 +157,21 @@ const registarPonto = async (req, res) => {
 
         // Criar tabela se não existir
         await sequelize.query(`
-            CREATE TABLE IF NOT EXISTS RegistoPontoExternos (
-                id INT IDENTITY(1,1) PRIMARY KEY,
-                externo_id INT NOT NULL,
-                obra_id INT NOT NULL,
-                empresa_id INT NOT NULL,
-                tipo VARCHAR(10) NOT NULL,
-                timestamp DATETIME NOT NULL,
-                latitude DECIMAL(10, 8),
-                longitude DECIMAL(11, 8),
-                nome VARCHAR(100),
-                FOREIGN KEY (externo_id) REFERENCES ExternosJPA(id)
-            )
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'RegistoPontoExternos')
+            BEGIN
+                CREATE TABLE RegistoPontoExternos (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    externo_id INT NOT NULL,
+                    obra_id INT NOT NULL,
+                    empresa_id INT NOT NULL,
+                    tipo VARCHAR(10) NOT NULL,
+                    timestamp DATETIME NOT NULL,
+                    latitude DECIMAL(10, 8),
+                    longitude DECIMAL(11, 8),
+                    nome VARCHAR(100),
+                    FOREIGN KEY (externo_id) REFERENCES ExternosJPA(id)
+                )
+            END
         `);
 
         // Inserir registo
