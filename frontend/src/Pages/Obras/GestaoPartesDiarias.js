@@ -1243,46 +1243,37 @@ const fetchClasses = async () => {
                                             </View>
                                             <View style={styles.itemPreviewContent}>
                                                 <View style={styles.itemPreviewRow}>
-                                                    <Text style={styles.itemPreviewLabel}>Nome:</Text>
-                                                    <Text style={styles.itemPreviewValue}>
-                                                        {externo
+                                                    <Text style={styles.itemPreviewLabel}><b>Nome:</b> {externo
                                                             ? (itemDetail.Funcionario || 'Trabalhador Externo')
-                                                            : cacheNomes[itemDetail.ColaboradorID] || itemDetail.ColaboradorID || 'N/A'}
-                                                    </Text>
+                                                            : cacheNomes[itemDetail.ColaboradorID] || itemDetail.ColaboradorID || 'N/A'}</Text>
+                                                    
                                                 </View>
                                                 <View style={styles.itemPreviewRow}>
                                                     <Text style={styles.itemPreviewLabel}>
-                                                        {isEquipamento ? 'Equipamento:' : 'Especialidade:'}
-                                                    </Text>
-                                                    <Text style={styles.itemPreviewValue}>
-                                                        {isEquipamento
+                                                        {isEquipamento ? <b>'Equipamento:'</b> : <b>'Especialidade:'</b>}  {isEquipamento
                                                             ? equipamentosMap[String(itemDetail.ComponenteID)] ||
                                                               equipamentosMap[String(itemDetail.SubEmpID)] ||
                                                               itemDetail.ComponenteID || itemDetail.SubEmpID || 'N/A'
                                                             : especialidadesMap[String(itemDetail.SubEmpID)] || itemDetail.SubEmpID || 'N/A'}
                                                     </Text>
+                                                
                                                 </View>
                                                 <View style={styles.itemPreviewRow}>
-                                                        <Text style={styles.itemPreviewLabel}>Classe:</Text>
-                                                        <Text style={styles.itemPreviewValue}>
-                                                            {getClasseNomeById(
+                                                        <Text style={styles.itemPreviewLabel}><b>Classe:</b> {getClasseNomeById(
                                                             itemDetail.ClasseID ??
                                                             itemDetail.ClasseId ??
                                                             itemDetail.classeID ??
                                                             itemDetail.classeId ??
                                                             itemDetail.Classe ??
                                                             null
-                                                            )}
-                                                        </Text>
+                                                            )}</Text>
+                                                    
                                                         </View>
 
                                                 <View style={styles.itemPreviewRow}>
-                                                    <Text style={styles.itemPreviewLabel}>Horas:</Text>
+                                                    <Text style={styles.itemPreviewLabel}><b>Horas:</b> {formatarHoras(itemDetail.NumHoras || 0)}</Text>
                                                     <View style={styles.itemPreviewHorasContainer}>
-                                                        <Ionicons name="time-outline" size={14} color="#1792FE" />
-                                                        <Text style={styles.itemPreviewHorasValue}>
-                                                            {formatarHoras(itemDetail.NumHoras || 0)}
-                                                        </Text>
+                                                        
                                                         {itemDetail.TipoHoraID && (
                                                             <View style={styles.horaExtraBadge}>
                                                                 <Ionicons name="flash" size={10} color="#fff" />

@@ -213,7 +213,7 @@ const registarPonto = async (req, res) => {
     }
 };
 
-// GET /api/externos-jpa/resumo-obra?obra_id=X&empresa_id=Y
+// GET /api/externos-jpa/resumo-obra?obra_id=X&empresa_id=Y https://backend.advir.pt/api/externos-jpa/resumo-obra?obra_id=32&empresa_id=5
 const resumoObra = async (req, res) => {
     try {
         const { obra_id, empresa_id } = req.query;
