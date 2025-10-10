@@ -72,18 +72,15 @@ const listar = async (req, res) => {
 const buscar = async (req, res) => {
     try {
         const { qrcode } = req.params;
-        const { empresa_id } = req.query;
 
         const query = `
             SELECT TOP 1 * FROM ExternosJPA 
-            WHERE Qrcode = :qrcode 
-            AND (empresa = :empresa OR empresa IS NULL)
+            WHERE Qrcode = :qrcode
         `;
 
         const [results] = await sequelize.query(query, {
             replacements: {
-                qrcode: qrcode,
-                empresa: empresa_id
+                qrcode: qrcode
             }
         });
 
