@@ -3047,30 +3047,7 @@ const PartesDiarias = ({ navigation }) => {
                                 ))}
 
                                 {/* Botão de submeter */}
-                                <TouchableOpacity
-                                    onPress={submeterExternos}
-                                    disabled={linhasExternos.length === 0}
-                                    style={[
-                                        styles.externosSubmitButton,
-                                        linhasExternos.length === 0 &&
-                                        styles.externosSubmitButtonDisabled,
-                                    ]}
-                                >
-                                    <LinearGradient
-                                        colors={
-                                            linhasExternos.length === 0
-                                                ? ["#ccc", "#999"]
-                                                : ["#1792FE", "#1792FE"]
-                                        }
-                                        style={styles.externosSubmitButtonGradient}
-                                    >
-                                        <Ionicons name="cloud-upload" size={18} color="#fff" />
-                                        <Text style={styles.externosSubmitButtonText}>
-                                            Submeter {linhasExternos.length} Item
-                                            {linhasExternos.length !== 1 ? "s" : ""}
-                                        </Text>
-                                    </LinearGradient>
-                                </TouchableOpacity>
+                                
                             </View>
                         )}
                     </ScrollView>

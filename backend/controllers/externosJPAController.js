@@ -213,9 +213,94 @@ const registarPonto = async (req, res) => {
     }
 };
 
+// GET /api/externos-jpa/resumo-obra?obra_id=X&empresa_id=Y
+const resumoObra = async (req, res) => {
+    try {
+        const { obra_id, empresa_id } = req.query;
+
+        if (!obra_id || !empresa_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'obra_id e empresa_id são obrigatórios'
+            });
+        }
+
+        const hoje = new Date().toISOString().split('T')[0];
+
+        // Contar externos a trabalhar (última entrada sem saída correspondente hoje)
+        const queryExternosATrabalhar = `
+            SELECT COUNT(DISTINCT rpe.externo_id) as total
+            FROM RegistoPontoExternos rpe
+            WHERE rpe.obra_id = :obra_id
+            AND rpe.empresa_id = :empresa_id
+            AND CONVERT(DATE, rpe.timestamp) = CONVERT(DATE, :hoje)
+            AND rpe.tipo = 'entrada'
+            AND NOT EXISTS (
+                SELECT 1 FROM RegistoPontoExternos rpe2
+                WHERE rpe2.externo_id = rpe.externo_id
+                AND rpe2.obra_id = rpe.obra_id
+                AND rpe2.tipo = 'saida'
+                AND CONVERT(DATE, rpe2.timestamp) = CONVERT(DATE, :hoje)
+                AND rpe2.timestamp > rpe.timestamp
+            )
+        `;
+
+        const [resultExternos] = await sequelize.query(queryExternosATrabalhar, {
+            replacements: {
+                obra_id: obra_id,
+                empresa_id: empresa_id,
+                hoje: hoje
+            }
+        });
+
+        // Buscar últimas entradas/saídas de externos (limitado a 10)
+        const queryRegistos = `
+            SELECT TOP 10
+                rpe.id,
+                rpe.externo_id,
+                rpe.tipo,
+                rpe.timestamp,
+                rpe.nome
+            FROM RegistoPontoExternos rpe
+            WHERE rpe.obra_id = :obra_id
+            AND rpe.empresa_id = :empresa_id
+            AND CONVERT(DATE, rpe.timestamp) = CONVERT(DATE, :hoje)
+            ORDER BY rpe.timestamp DESC
+        `;
+
+        const [registos] = await sequelize.query(queryRegistos, {
+            replacements: {
+                obra_id: obra_id,
+                empresa_id: empresa_id,
+                hoje: hoje
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            externosATrabalhar: resultExternos[0]?.total || 0,
+            entradasSaidas: registos.map(r => ({
+                id: r.id,
+                tipo: r.tipo,
+                timestamp: r.timestamp,
+                nome: r.nome,
+                tipoEntidade: 'externo'
+            }))
+        });
+    } catch (error) {
+        console.error('Erro ao obter resumo de externos:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno do servidor.',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     criar,
     listar,
     buscar,
-    registarPonto
+    registarPonto,
+    resumoObra
 };

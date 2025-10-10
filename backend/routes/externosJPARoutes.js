@@ -12,6 +12,11 @@ router.get('/', ctrl.listar);
 // GET - Buscar externo por QR code
 router.get('/buscar/:qrcode', ctrl.buscar);
 
+
+// GET - Resumo de externos por obra
+router.get('/resumo-obra', ctrl.resumoObra);
+
+
 // POST - Registar ponto
 router.post('/registar-ponto', ctrl.registarPonto);
 
