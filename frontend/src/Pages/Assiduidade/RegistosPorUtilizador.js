@@ -228,38 +228,38 @@ const RegistosPorUtilizador = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await res.json();
-            
+
             // Filtrar e ordenar utilizadores (ignorar jose.pedroeb1@gmail.com)
             const utilizadoresFiltrados = Array.isArray(data) 
                 ? data.filter(u => u.email !== 'jose.pedroeb1@gmail.com')
                 : [];
-            
+
             const utilizadoresOrdenados = utilizadoresFiltrados.sort((a, b) => {
                 const codA = a.codFuncionario || a.username || a.email || '';
                 const codB = b.codFuncionario || b.username || b.email || '';
-                
+
                 // Tentar converter para número se possível
                 const numA = parseInt(codA);
                 const numB = parseInt(codB);
-                
+
                 // Se ambos são números, comparar numericamente
                 if (!isNaN(numA) && !isNaN(numB)) {
                     return numA - numB;
                 }
-                
+
                 // Caso contrário, comparar alfabeticamente com suporte numérico
                 return codA.toString().localeCompare(codB.toString(), undefined, { 
                     numeric: true, 
                     sensitivity: 'base' 
                 });
             });
-            
+
             console.log('Utilizadores ordenados (excluindo jose.pedroeb1@gmail.com):', utilizadoresOrdenados.map(u => ({
                 id: u.id,
                 codFuncionario: u.codFuncionario,
                 nome: u.nome
             })));
-            
+
             setUtilizadores(utilizadoresOrdenados);
         } catch (err) {
             console.error('Erro ao carregar utilizadores:', err);
@@ -320,15 +320,20 @@ const RegistosPorUtilizador = () => {
 
             let utilizadoresParaPesquisar = utilizadores;
 
+            // Se tiver utilizador específico selecionado, usar apenas esse
+            if (utilizadorSelecionado) {
+                const userSelecionado = utilizadores.find(u => u.id.toString() === utilizadorSelecionado.toString());
+                utilizadoresParaPesquisar = userSelecionado ? [userSelecionado] : [];
+            }
             // Se tiver obra selecionada, filtrar utilizadores dessa obra (otimizado)
-            if (obraSelecionada) {
+            else if (obraSelecionada) {
                 setLoadingMessage('Filtrando utilizadores por obra...');
-                
+
                 // Fazer apenas 1 request para todo o mês em vez de 1 por dia
                 const dataInicio = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-01`;
                 const ultimoDia = new Date(parseInt(anoSelecionado), parseInt(mesSelecionado), 0).getDate();
                 const dataFim = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
-                
+
                 const promises = [];
                 for (let dia = 1; dia <= ultimoDia; dia++) {
                     const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
@@ -338,7 +343,7 @@ const RegistosPorUtilizador = () => {
                         }).then(res => res.json()).catch(() => [])
                     );
                 }
-                
+
                 const resultados = await Promise.all(promises);
                 const userIdsObra = [...new Set(resultados.flat().map(reg => reg.User?.id).filter(Boolean))];
                 utilizadoresParaPesquisar = utilizadores.filter(u => userIdsObra.includes(u.id));
@@ -352,14 +357,14 @@ const RegistosPorUtilizador = () => {
 
             // Processar em lotes paralelos para otimizar
             const BATCH_SIZE = 30; // Processar 5 utilizadores em paralelo
-            
+
             for (let i = 0; i < utilizadoresParaPesquisar.length; i += BATCH_SIZE) {
                 const batch = utilizadoresParaPesquisar.slice(i, Math.min(i + BATCH_SIZE, utilizadoresParaPesquisar.length));
-                
+
                 await Promise.all(batch.map(async (user, batchIndex) => {
                     const index = i + batchIndex;
                     setLoadingMessage(`Carregando dados (${index + 1}/${totalUsers})...`);
-                    
+
                     try {
                         // Carregar registos de ponto
                         let query = `user_id=${user.id}&ano=${anoSelecionado}&mes=${String(mesSelecionado).padStart(2, '0')}`;
@@ -428,7 +433,7 @@ const RegistosPorUtilizador = () => {
                             // Organizar registos por dia (otimizado)
                             const registosPorDia = {};
                             const faltasPorDia = {};
-                            
+
                             registos.forEach(reg => {
                                 const dia = new Date(reg.timestamp).getDate();
                                 if (!registosPorDia[dia]) registosPorDia[dia] = [];
@@ -452,7 +457,7 @@ const RegistosPorUtilizador = () => {
 
                                 if (regs.length > 0 || faltas.length > 0) {
                                     if (regs.length > 0) totalDiasComRegistos++;
-                                    
+
                                     const entradas = regs.filter(r => r.tipo === 'entrada').length;
                                     const saidas = regs.filter(r => r.tipo === 'saida').length;
                                     const confirmados = regs.filter(r => r.is_confirmed).length;
@@ -479,7 +484,7 @@ const RegistosPorUtilizador = () => {
                                     totalHorasEstimadas += horasEstimadas;
 
                                     const timestamps = regs.map(r => new Date(r.timestamp).getTime());
-                                    
+
                                     estatisticasDias[dia] = {
                                         totalRegistos: regs.length,
                                         entradas,
@@ -524,7 +529,7 @@ const RegistosPorUtilizador = () => {
                             totalFaltas: 0
                         });
                     }
-                    
+
                     setLoadingProgress(20 + ((index + 1) * progressPerUser));
                 }));
             }
@@ -536,20 +541,20 @@ const RegistosPorUtilizador = () => {
             dadosGradeTemp.sort((a, b) => {
                 const codA = a.utilizador.codFuncionario || a.utilizador.username || a.utilizador.email || '';
                 const codB = b.utilizador.codFuncionario || b.utilizador.username || b.utilizador.email || '';
-                
+
                 const numA = parseInt(codA);
                 const numB = parseInt(codB);
-                
+
                 if (!isNaN(numA) && !isNaN(numB)) {
                     return numA - numB;
                 }
-                
+
                 return codA.toString().localeCompare(codB.toString(), undefined, { 
                     numeric: true, 
                     sensitivity: 'base' 
                 });
             });
-            
+
             setDadosGrade(dadosGradeTemp);
             setLoadingProgress(100);
             setLoadingMessage('Concluído!');
@@ -1081,7 +1086,7 @@ const RegistosPorUtilizador = () => {
 
             if (res.ok) {
                 alert('✅ Falta eliminada com sucesso!');
-                
+
                 // Recarregar dados
                 if (viewMode === 'grade') {
                     carregarDadosGrade();
@@ -1231,7 +1236,7 @@ const RegistosPorUtilizador = () => {
     };
 
     const preencherPontosEmFalta = async () => {
-        if (!funcionarioSelecionadoAutoFill || !obraSelecionada) {
+        if (!funcionarioSelecionadoAutoFill || !obraNoDialog) { // Mudança: verificar obraNoDialog em vez de obraSelecionada
             return alert('Por favor, selecione um funcionário e uma obra.');
         }
 
@@ -1303,7 +1308,7 @@ const RegistosPorUtilizador = () => {
                             },
                             body: JSON.stringify({
                                 tipo: tipos[i],
-                                obra_id: Number(obraSelecionada),
+                                obra_id: Number(obraNoDialog), // Usar obra do modal
                                 user_id: Number(funcionarioSelecionadoAutoFill),
                                 timestamp: timestamp
                             })
@@ -1833,7 +1838,7 @@ const RegistosPorUtilizador = () => {
 
         // Criar mensagem de confirmação
         let mensagemConfirmacao = `📅 Vai registar faltas para:\n\n`;
-        
+
         for (const [userId, dias] of Object.entries(cellsByUser)) {
             const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
             if (funcionario) {
@@ -1861,7 +1866,7 @@ const RegistosPorUtilizador = () => {
             // Processar cada utilizador separadamente
             for (const [userId, dias] of Object.entries(cellsByUser)) {
                 const userIdNumber = parseInt(userId, 10);
-                
+
                 // Obter codFuncionario uma vez por utilizador
                 const funcionarioId = await obterCodFuncionario(userIdNumber);
 
@@ -2036,7 +2041,7 @@ const RegistosPorUtilizador = () => {
                         >
                             <option value="">-- Todos os utilizadores --</option>
                             {utilizadores.map(u => (
-                                <option key={u.id} value={u.id}>{u.username} ({u.email})</option>
+                                <option key={u.id} value={u.id}>{u.codFuncionario} - {u.nome}</option>
                             ))}
                         </select>
                     </div>
@@ -2148,7 +2153,10 @@ const RegistosPorUtilizador = () => {
                                 <>
                                     <button
                                         style={{ ...styles.primaryButton, backgroundColor: '#805ad5' }}
-                                        onClick={() => setAutoFillDialogOpen(true)}
+                                        onClick={() => {
+                                            setObraNoDialog(obraSelecionada || '');
+                                            setAutoFillDialogOpen(true);
+                                        }}
                                     >
                                         🤖 Preencher Pontos em Falta
                                     </button>
@@ -2376,7 +2384,7 @@ const RegistosPorUtilizador = () => {
                                             <div style={styles.obraContainer}>
                                                 <label style={styles.obraLabel}>
                                                     <span style={styles.obraIcon}>🏗️</span>
-                                                    Obra Selecionada (Filtro Aplicado)
+                                                    Obra Selecionada (Filtro)
                                                 </label>
                                                 <div style={{
                                                     padding: '12px 16px',
@@ -2923,7 +2931,7 @@ const RegistosPorUtilizador = () => {
                                                     <option value="">-- Selecione um funcionário --</option>
                                                     {dadosGrade.map(item => (
                                                         <option key={item.utilizador.id} value={item.utilizador.id}>
-                                                            {item.utilizador.nome} ({item.utilizador.email})
+                                                            {item.utilizador.nome} ({item.utilizador.codFuncionario})
                                                         </option>
                                                     ))}
                                                 </select>
@@ -3064,7 +3072,7 @@ const RegistosPorUtilizador = () => {
                                                     <option value="">-- Selecione um funcionário --</option>
                                                     {dadosGrade.map(item => (
                                                         <option key={item.utilizador.id} value={item.utilizador.id}>
-                                                            {item.utilizador.nome} ({item.utilizador.email})
+                                                            {item.utilizador.nome} ({item.utilizador.codFuncionario})
                                                         </option>
                                                     ))}
                                                 </select>
@@ -3176,21 +3184,18 @@ const RegistosPorUtilizador = () => {
                                             <div style={styles.obraContainer}>
                                                 <label style={styles.obraLabel}>
                                                     <span style={styles.obraIcon}>🏗️</span>
-                                                    Obra Selecionada
+                                                    Selecionar Obra
                                                 </label>
-                                                <div style={{
-                                                    padding: '12px 16px',
-                                                    border: '2px solid #e2e8f0',
-                                                    borderRadius: '12px',
-                                                    backgroundColor: '#f8f9fa',
-                                                    fontSize: '1rem',
-                                                    color: obraSelecionada ? '#2d3748' : '#718096'
-                                                }}>
-                                                    {obraSelecionada
-                                                        ? obras.find(o => o.id.toString() === obraSelecionada.toString())?.nome || `Obra ${obraSelecionada}`
-                                                        : 'Nenhuma obra selecionada - por favor, selecione uma obra nos filtros acima'
-                                                    }
-                                                </div>
+                                                <select
+                                                    style={styles.obraSelect}
+                                                    value={obraNoDialog}
+                                                    onChange={e => setObraNoDialog(e.target.value)}
+                                                >
+                                                    <option value="">-- Selecione uma obra --</option>
+                                                    {obras.map(o => (
+                                                        <option key={o.id} value={o.id}>{o.nome}</option>
+                                                    ))}
+                                                </select>
                                             </div>
                                         </div>
 
@@ -3204,7 +3209,7 @@ const RegistosPorUtilizador = () => {
                                             <button
                                                 style={{ ...styles.confirmButton, backgroundColor: '#805ad5' }}
                                                 onClick={preencherPontosEmFalta}
-                                                disabled={!funcionarioSelecionadoAutoFill || !obraSelecionada || loadingAutoFill}
+                                                disabled={!funcionarioSelecionadoAutoFill || !obraNoDialog || loadingAutoFill}
                                             >
                                                 {loadingAutoFill ? (
                                                     <>
@@ -3293,9 +3298,9 @@ const RegistosPorUtilizador = () => {
                                         <h4 style={styles.utilizadorNome}>
                                             👤 {resumo.utilizador.nome}
                                         </h4>
-                                        
+
                                        <p style={styles.utilizadorGradeNome}>{resumo.utilizador.username}</p>
-                                        <p style={styles.utilizadorEmail}>{resumo.utilizador.email}</p>
+                                        <p style={styles.utilizadorEmail}>{resumo.utilizador.codFuncionario}</p>
                                     </div>
                                     <div style={styles.horasDestaque}>
                                         <span style={styles.horasNumero}>
@@ -3421,7 +3426,7 @@ const RegistosPorUtilizador = () => {
                                             >
                                                 <div style={styles.utilizadorGradeInfo}>
                                                     <div style={styles.utilizadorGradeNome}>{item.utilizador.username}</div>
-                                                    <div style={styles.utilizadorGradeEmail}>{item.utilizador.email}</div>
+                                                    <div style={styles.utilizadorGradeEmail}>{item.utilizador.codFuncionario}</div>
                                                 </div>
                                             </td>
                                             {diasDoMes.map(dia => {
@@ -3458,10 +3463,10 @@ const RegistosPorUtilizador = () => {
                                                                 if (estatisticas && estatisticas.faltas && estatisticas.faltas.length > 0) {
                                                                     // Há falta(s) - abrir modal de remoção
                                                                     const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaNum).padStart(2, '0')}`;
-                                                                    
+
                                                                     // Obter codFuncionario
                                                                     const codFunc = await obterCodFuncionario(userId);
-                                                                    
+
                                                                     setFaltaParaRemover({
                                                                         funcionarioId: codFunc,
                                                                         funcionarioNome: item.utilizador.nome,
