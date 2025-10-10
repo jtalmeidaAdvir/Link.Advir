@@ -2028,8 +2028,9 @@ const CalendarioHorasTrabalho = () => {
                             {diaSelecionado ? (
                                 <div className="card card-moderno sidebar-sticky" style={{ marginBottom: '100px' }}>
                                     <div className="card-body p-3 p-md-4">
-                                        {detalhesHorario && feriasTotalizador && (
-                                            <div className="mb-3">
+                                        {detalhesHorario && feriasTotalizador && (<div></div>
+                                           /* 
+                                           <div className="mb-3">
                                                 <h6 className="fw-bold text-muted mb-2">Horário Contratual & Férias</h6>
                                                 <div className="row g-2">
                                                     <div className="col-12 col-md-6">
@@ -2050,6 +2051,7 @@ const CalendarioHorasTrabalho = () => {
                                                     </div>
                                                 </div>
                                             </div>
+                                            */
                                         )}
 
                                         <h5 className="card-title d-flex align-items-center mb-3 mb-md-4" style={{ fontSize: 'clamp(1rem, 3vw, 1.25rem)' }}>

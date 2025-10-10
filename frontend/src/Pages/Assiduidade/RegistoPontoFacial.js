@@ -91,6 +91,11 @@ const RegistoPontoFacial = (props) => {
     });
     const [visitanteEncontrado, setVisitanteEncontrado] = useState(null);
 
+    // Estados para externos (QR code)
+    const [showExternoQRModal, setShowExternoQRModal] = useState(false);
+    const [qrScannerActive, setQrScannerActive] = useState(false);
+    const [externoNome, setExternoNome] = useState("");
+
     // Verificar se é empresa JPA (ID = 5)
     const empresaId = localStorage.getItem("empresa_id") || "";
     const isEmpresaJPA = empresaId === "5";
@@ -670,6 +675,90 @@ const RegistoPontoFacial = (props) => {
         setVisitanteEncontrado(null);
     };
 
+    const handleAbrirModalExternoQR = () => {
+        if (!obraSelecionada) {
+            alert("Por favor, selecione um local antes de registar externo");
+            return;
+        }
+        setShowExternoQRModal(true);
+        setQrScannerActive(true);
+        setExternoNome("");
+    };
+
+    const handleQRCodeScan = async (qrCodeData) => {
+        if (!qrCodeData || !obraSelecionada) return;
+
+        try {
+            setQrScannerActive(false);
+            setStatusMessage("A processar QR code...");
+
+            const token = localStorage.getItem("loginToken");
+            const empresaId = localStorage.getItem("empresa_id");
+
+            // Buscar dados do externo na tabela ExternosJPA
+            const resExterno = await fetch(
+                `https://backend.advir.pt/api/externos-jpa/buscar/${qrCodeData}?empresa_id=${empresaId}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            );
+
+            if (!resExterno.ok) {
+                throw new Error("Externo não encontrado");
+            }
+
+            const externo = await resExterno.json();
+            setExternoNome(externo.nome);
+
+            // Obter localização
+            let loc = { coords: { latitude: null, longitude: null } };
+            try {
+                loc = await getCurrentLocation();
+            } catch { }
+
+            // Registar ponto do externo
+            const resRegisto = await fetch(
+                "https://backend.advir.pt/api/externos-jpa/registar-ponto",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        externo_id: externo.id,
+                        obra_id: obraSelecionada,
+                        empresa_id: empresaId,
+                        latitude: loc.coords.latitude,
+                        longitude: loc.coords.longitude,
+                    }),
+                }
+            );
+
+            if (resRegisto.ok) {
+                const result = await resRegisto.json();
+                setModalData({
+                    type: "success",
+                    message: `${result.action === "entrada" ? "Entrada" : "Saída"} registada!`,
+                    userName: externo.nome,
+                    action: result.action === "entrada" ? "Entrada" : "Saída",
+                });
+                setShowResultModal(true);
+                setShowExternoQRModal(false);
+                carregarResumoObra(obraSelecionada);
+            } else {
+                const error = await resRegisto.json();
+                throw new Error(error.message || "Erro ao registar ponto");
+            }
+        } catch (error) {
+            console.error("Erro ao processar QR code:", error);
+            alert(error.message || "Erro ao processar QR code");
+            setQrScannerActive(true);
+        } finally {
+            setStatusMessage("");
+        }
+    };
+
     const handleBuscarVisitante = async () => {
         if (!numeroContribuinte) {
             alert("Por favor, insira o número de contribuinte");
@@ -847,14 +936,14 @@ const RegistoPontoFacial = (props) => {
           transform: none;
         }
         .btn-visitante {
-          background: linear-gradient(45deg, #28a745, #20c997);
+          background: linear-gradient(45deg, #1792fe, #0d7efe);
           border: none;
           border-radius: 12px;
           padding: 1rem 2rem;
           color: white;
           font-weight: 600;
           transition: all 0.3s ease;
-          box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+          box-shadow: 0 4px 15px rgba(23, 146, 254, 0.3);
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -862,10 +951,33 @@ const RegistoPontoFacial = (props) => {
         }
         .btn-visitante:hover {
           transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+          box-shadow: 0 6px 20px rgba(23, 146, 254, 0.4);
           color: white;
         }
         .btn-visitante:disabled {
+          opacity: 0.7;
+          transform: none;
+        }
+        .btn-externo {
+          background: linear-gradient(45deg, #1792fe, #0d7efe);
+          border: none;
+          border-radius: 12px;
+          padding: 1rem 2rem;
+          color: white;
+          font-weight: 600;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 15px rgba(23, 146, 254, 0.3);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+        }
+        .btn-externo:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(23, 146, 254, 0.4);
+          color: white;
+        }
+        .btn-externo:disabled {
           opacity: 0.7;
           transform: none;
         }
@@ -1105,6 +1217,20 @@ const RegistoPontoFacial = (props) => {
                                             </div>
                                         )}
 
+                                        {/* Botão de Registo de Externos via QR - Apenas para JPA */}
+                                        {isEmpresaJPA && (
+                                            <div className="text-center mb-4">
+                                                <button
+                                                    className="btn btn-externo w-100 w-md-auto"
+                                                    onClick={handleAbrirModalExternoQR}
+                                                    disabled={!obraSelecionada || isRegistering}
+                                                >
+                                                    <FaQrcode className="me-2" />
+                                                    Registo de Externos (QR)
+                                                </button>
+                                            </div>
+                                        )}
+
                                         {/* Status Message */}
                                         {statusMessage && (
                                             <div className="status-message mb-4">{statusMessage}</div>
@@ -1209,6 +1335,87 @@ const RegistoPontoFacial = (props) => {
                 onStopScan={handleStopFacialScan}
                 t={(key) => key}
             />
+
+            {/* Modal de Externos - QR Scanner */}
+            {showExternoQRModal && (
+                <div
+                    className="result-modal-overlay"
+                    onClick={() => {
+                        setShowExternoQRModal(false);
+                        setQrScannerActive(false);
+                    }}
+                >
+                    <div
+                        className="result-modal"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ maxWidth: "500px" }}
+                    >
+                        <div className="result-modal-header">
+                            <h3 className="modal-title">Registo de Externo - QR Code</h3>
+                        </div>
+                        <div className="result-modal-body">
+                            {qrScannerActive ? (
+                                <>
+                                    <p className="mb-3">
+                                        Aponte a câmera para o QR code do trabalhador externo:
+                                    </p>
+                                    <div
+                                        style={{
+                                            position: "relative",
+                                            width: "100%",
+                                            maxWidth: "300px",
+                                            margin: "0 auto",
+                                        }}
+                                    >
+                                        <video
+                                            id="qr-video"
+                                            style={{
+                                                width: "100%",
+                                                borderRadius: "8px",
+                                                border: "2px solid #6f42c1",
+                                            }}
+                                            autoPlay
+                                            playsInline
+                                            ref={(video) => {
+                                                if (video && qrScannerActive) {
+                                                    import("qr-scanner").then(({ default: QrScanner }) => {
+                                                        const qrScanner = new QrScanner(
+                                                            video,
+                                                            (result) => {
+                                                                handleQRCodeScan(result.data);
+                                                                qrScanner.stop();
+                                                            },
+                                                            {
+                                                                returnDetailedScanResult: true,
+                                                                highlightScanRegion: true,
+                                                            }
+                                                        );
+                                                        qrScanner.start();
+                                                    });
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <button
+                                        className="btn btn-secondary w-100 mt-3"
+                                        onClick={() => {
+                                            setShowExternoQRModal(false);
+                                            setQrScannerActive(false);
+                                        }}
+                                    >
+                                        Cancelar
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="mb-3">A processar...</p>
+                                    {externoNome && <p className="fw-bold">{externoNome}</p>}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Modal de Visitantes */}
             {showVisitanteModal && (
