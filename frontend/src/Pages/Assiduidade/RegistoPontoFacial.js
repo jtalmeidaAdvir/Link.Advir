@@ -144,9 +144,7 @@ const RegistoPontoFacial = (props) => {
     );
   const getEntradaAtivaPorObra = (obraId, lista) =>
     lista
-      .filter(
-        (r) => r.tipo === "entrada" && String(r.obra_id) === String(obraId),
-      )
+      .filter((r) => r.tipo === "entrada" && String(r.obra_id) === String(obraId))
       .sort((a, b) => dataRegisto(b) - dataRegisto(a))
       .find((e) => !temSaidaPosterior(e, lista));
   const getUltimaEntradaAtiva = (lista) =>
@@ -287,14 +285,15 @@ const RegistoPontoFacial = (props) => {
         // Processar dados dos externos
         if (resExternos.ok) {
           const dataExternos = await resExternos.json();
+
           pessoasAConsultar += dataExternos.externosATrabalhar ?? 0;
 
           if (Array.isArray(dataExternos.entradasSaidas)) {
             const externosRegistos = dataExternos.entradasSaidas.map(
               (reg) => ({
                 ...reg,
-                tipoEntidade: "externo",
-                User: { nome: reg.nome },
+                tipoEntidade: reg.tipoEntidade || "externo",
+                User: { nome: reg.nome || "Externo Desconhecido" },
               }),
             );
             entradasSaidas = [...entradasSaidas, ...externosRegistos];

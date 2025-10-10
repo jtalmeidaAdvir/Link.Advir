@@ -260,7 +260,10 @@ const resumoObra = async (req, res) => {
                 rpe.externo_id,
                 rpe.tipo,
                 rpe.timestamp,
-                rpe.nome
+                rpe.nome,
+                rpe.latitude,
+                rpe.longitude,
+                'externo' as tipoEntidade
             FROM RegistoPontoExternos rpe
             WHERE rpe.obra_id = :obra_id
             AND rpe.empresa_id = :empresa_id
@@ -281,10 +284,13 @@ const resumoObra = async (req, res) => {
             externosATrabalhar: resultExternos[0]?.total || 0,
             entradasSaidas: registos.map(r => ({
                 id: r.id,
+                externo_id: r.externo_id,
                 tipo: r.tipo,
                 timestamp: r.timestamp,
                 nome: r.nome,
-                tipoEntidade: 'externo'
+                latitude: r.latitude,
+                longitude: r.longitude,
+                tipoEntidade: r.tipoEntidade
             }))
         });
     } catch (error) {
