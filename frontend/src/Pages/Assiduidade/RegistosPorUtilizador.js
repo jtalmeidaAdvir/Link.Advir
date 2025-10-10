@@ -137,12 +137,7 @@ const RegistosPorUtilizador = () => {
                                 'Content-Type': 'application/json',
                                 Authorization: `Bearer ${token}`
                             },
-                            body: JSON.stringify({
-                                tipo: tipos[i],
-                                obra_id: Number(obraNoDialog),
-                                user_id: userIdNumber,
-                                timestamp: timestamp
-                            })
+                            body: JSON.stringify({ tipo: tipos[i], obra_id: Number(obraNoDialog), user_id: userIdNumber, timestamp: timestamp })
                         }
                     );
                     if (!res.ok) throw new Error('Falha ao criar ponto');
@@ -230,7 +225,7 @@ const RegistosPorUtilizador = () => {
             const data = await res.json();
 
             // Filtrar e ordenar utilizadores (ignorar jose.pedroeb1@gmail.com)
-            const utilizadoresFiltrados = Array.isArray(data) 
+            const utilizadoresFiltrados = Array.isArray(data)
                 ? data.filter(u => u.email !== 'jose.pedroeb1@gmail.com')
                 : [];
 
@@ -248,9 +243,9 @@ const RegistosPorUtilizador = () => {
                 }
 
                 // Caso contrário, comparar alfabeticamente com suporte numérico
-                return codA.toString().localeCompare(codB.toString(), undefined, { 
-                    numeric: true, 
-                    sensitivity: 'base' 
+                return codA.toString().localeCompare(codB.toString(), undefined, {
+                    numeric: true,
+                    sensitivity: 'base'
                 });
             });
 
@@ -549,9 +544,9 @@ const RegistosPorUtilizador = () => {
                     return numA - numB;
                 }
 
-                return codA.toString().localeCompare(codB.toString(), undefined, { 
-                    numeric: true, 
-                    sensitivity: 'base' 
+                return codA.toString().localeCompare(codB.toString(), undefined, {
+                    numeric: true,
+                    sensitivity: 'base'
                 });
             });
 
@@ -1497,7 +1492,6 @@ const RegistosPorUtilizador = () => {
         }
     };
 
-    // Função para abrir modal de edição direta
     const abrirEdicaoDirecta = async (userId, dia, utilizadorNome) => {
         if (!anoSelecionado || !mesSelecionado) {
             alert('Por favor, selecione o ano e mês para editar.');
@@ -1662,8 +1656,16 @@ const RegistosPorUtilizador = () => {
         const isHoras = duracaoFalta && duracaoFalta.toString().includes('h');
         const tempoNumerico = parseInt(duracaoFalta) || 1;
 
-        // Verificar se a falta selecionada desconta alimentação (assumindo que temos essa info nos tipos)
-        const descontaAlimentacao = false; // Pode ser configurado baseado no tipo de falta
+        // Verificar se a falta selecionada desconta alimentação consultando os tipos de falta
+        const faltaSelecionada = Object.values(tiposFaltas).find(t => 
+            (typeof t === 'object' && t.Falta === tipoFaltaSelecionado) || 
+            (typeof t === 'string' && t === tipoFaltaSelecionado)
+        );
+        
+        const descontaAlimentacao = faltaSelecionada && 
+            (faltaSelecionada.DescontaSubsAlim === 1 || 
+             faltaSelecionada.DescontaSubsAlim === '1' ||
+             faltaSelecionada.DescontaSubsAlim === true);
 
         const dadosPrincipal = {
             tipoPedido: 'FALTA',
@@ -1734,9 +1736,77 @@ const RegistosPorUtilizador = () => {
                     body: JSON.stringify(dadosERP)
                 });
 
+                // Adicionar validação automática para gerar falta F40 quando houver desconto de subsídio de alimentação
                 if (resERP.ok) {
                     console.log('✅ Falta integrada no ERP com sucesso');
-                    alert('Falta registada e integrada automaticamente no ERP com sucesso!');
+                    console.log('🔍 Debug - Tipo de falta:', tipoFaltaSelecionado);
+                    console.log('🔍 Debug - Desconta alimentação?:', descontaAlimentacao);
+                    console.log('🔍 Debug - Falta selecionada:', faltaSelecionada);
+
+                    // Se a falta desconta alimentação, criar automaticamente a falta F40
+                    if (descontaAlimentacao) {
+                        console.log('📌 Criando falta F40 automática (desconto alimentação)...');
+
+                        const dadosF40 = {
+                            Funcionario: funcionarioId,
+                            Data: new Date(dataFormatada + 'T00:00:00.000Z').toISOString(),
+                            Falta: 'F40',
+                            Horas: 0,
+                            Tempo: 1,
+                            DescontaVenc: 0,
+                            DescontaRem: 0,
+                            ExcluiProc: 0,
+                            ExcluiEstat: 0,
+                            Observacoes: 'Gerada automaticamente (desconto alimentação)',
+                            CalculoFalta: 1,
+                            DescontaSubsAlim: 0,
+                            DataProc: null,
+                            NumPeriodoProcessado: 0,
+                            JaProcessado: 0,
+                            InseridoBloco: 0,
+                            ValorDescontado: 0,
+                            AnoProcessado: 0,
+                            NumProc: 0,
+                            Origem: "2",
+                            PlanoCurso: null,
+                            IdGDOC: null,
+                            CambioMBase: 0,
+                            CambioMAlt: 0,
+                            CotizaPeloMinimo: 0,
+                            Acerto: 0,
+                            MotivoAcerto: null,
+                            NumLinhaDespesa: null,
+                            NumRelatorioDespesa: null,
+                            FuncComplementosBaixaId: null,
+                            DescontaSubsTurno: 0,
+                            SubTurnoProporcional: 0,
+                            SubAlimProporcional: 0
+                        };
+
+                        console.log('📤 Enviando falta F40:', dadosF40);
+
+                        const resF40 = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${painelToken}`,
+                                urlempresa
+                            },
+                            body: JSON.stringify(dadosF40)
+                        });
+
+                        if (resF40.ok) {
+                            console.log('✅ Falta F40 (desconto alimentação) criada automaticamente');
+                            alert('✅ Falta registada e integrada automaticamente no ERP com sucesso!\n\n⚠️ Falta F40 (desconto alimentação) também foi criada automaticamente.');
+                        } else {
+                            const errorF40 = await resF40.text();
+                            console.error('❌ Erro ao criar falta F40 automática:', errorF40);
+                            alert('✅ Falta principal registada com sucesso!\n\n⚠️ Aviso: Não foi possível criar a falta F40 (desconto alimentação) automaticamente. Por favor, crie-a manualmente.');
+                        }
+                    } else {
+                        console.log('ℹ️ Esta falta não desconta alimentação, F40 não será criada');
+                        alert('✅ Falta registada e integrada automaticamente no ERP com sucesso!');
+                    }
                 } else {
                     const errorText = await resERP.text();
                     console.error('❌ Erro ao integrar no ERP:', errorText);
@@ -1858,7 +1928,7 @@ const RegistosPorUtilizador = () => {
         try {
             const isHoras = duracaoFaltaBulk && duracaoFaltaBulk.toString().includes('h');
             const tempoNumerico = parseInt(duracaoFaltaBulk) || 1;
-            const descontaAlimentacao = false;
+            const descontaAlimentacao = false; // Adicionar lógica de verificação se necessário
 
             let faltasRegistadas = 0;
             let erros = 0;
@@ -3261,7 +3331,7 @@ const RegistosPorUtilizador = () => {
                     {loadingGrade && (
                         <div style={styles.progressBarContainer}>
                             <div style={styles.progressBarBackground}>
-                                <div 
+                                <div
                                     style={{
                                         ...styles.progressBarFill,
                                         width: `${loadingProgress}%`
@@ -3789,7 +3859,7 @@ const RegistosPorUtilizador = () => {
                 </div>
             )}
 
-            {viewMode === 'grade' && !loadingGrade && dadosGrade.length === 0 && anoSelecionado && mesSelecionado && (
+            {viewMode === 'grade' && !loadingGrade && (anoSelecionado && mesSelecionado) && (
                 <div style={styles.emptyState}>
                     <span style={styles.emptyIcon}>📅</span>
                     <h3>Nenhum utilizador encontrado para a grade</h3>
