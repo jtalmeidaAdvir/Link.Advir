@@ -8,9 +8,9 @@ const criar = async (req, res) => {
 
         // Validação básica
         if (!Nome || !Qrcode) {
-            return res.status(400).json({
+            return res.status(400).json({ 
                 success: false,
-                message: 'Nome e Qrcode são obrigatórios.'
+                message: 'Nome e Qrcode são obrigatórios.' 
             });
         }
 
@@ -40,10 +40,10 @@ const criar = async (req, res) => {
         });
     } catch (error) {
         console.error('Erro ao criar registo ExternosJPA:', error);
-        res.status(500).json({
+        res.status(500).json({ 
             success: false,
             message: 'Erro interno do servidor.',
-            error: error.message
+            error: error.message 
         });
     }
 };
@@ -60,10 +60,10 @@ const listar = async (req, res) => {
         });
     } catch (error) {
         console.error('Erro ao listar ExternosJPA:', error);
-        res.status(500).json({
+        res.status(500).json({ 
             success: false,
             message: 'Erro interno do servidor.',
-            error: error.message
+            error: error.message 
         });
     }
 };
@@ -75,10 +75,9 @@ const buscar = async (req, res) => {
         const { empresa_id } = req.query;
 
         const query = `
-            SELECT * FROM ExternosJPA 
+            SELECT TOP 1 * FROM ExternosJPA 
             WHERE Qrcode = :qrcode 
             AND (empresa = :empresa OR empresa IS NULL)
-            LIMIT 1
         `;
 
         const [results] = await sequelize.query(query, {
@@ -137,12 +136,11 @@ const registarPonto = async (req, res) => {
 
         // Verificar se já existe entrada hoje
         const queryUltimoRegisto = `
-            SELECT * FROM RegistoPontoExternos 
+            SELECT TOP 1 * FROM RegistoPontoExternos 
             WHERE externo_id = :externo_id 
             AND obra_id = :obra_id
-            AND DATE(timestamp) = :hoje
-            ORDER BY timestamp DESC 
-            LIMIT 1
+            AND CAST(timestamp AS DATE) = :hoje
+            ORDER BY timestamp DESC
         `;
 
         const [ultimoRegistoResults] = await sequelize.query(queryUltimoRegisto, {
@@ -154,7 +152,7 @@ const registarPonto = async (req, res) => {
         });
 
         let action = 'entrada';
-
+        
         // Se já existe entrada sem saída, registar saída
         if (ultimoRegistoResults.length > 0 && ultimoRegistoResults[0].tipo === 'entrada') {
             action = 'saida';
