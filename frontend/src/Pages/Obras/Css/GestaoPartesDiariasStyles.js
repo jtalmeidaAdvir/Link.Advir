@@ -313,6 +313,9 @@ export const styles = {
   filtroBotaoAtivo: { backgroundColor: '#1792FE', elevation: 2, shadowColor: '#1792FE', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 },
   filtroTexto: { color: '#1792FE', fontWeight: '500', fontSize: 14 },
   filtroTextoAtivo: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  botoesAcoesGlobaisContainer: { flexDirection: 'row', marginHorizontal: 16, marginTop: 8, marginBottom: 12, gap: 12 },
+  botaoIntegrarTudo: { flex: 1, borderRadius: 12, overflow: 'hidden', elevation: 3, shadowColor: '#28a745', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 },
+  botaoRejeitarTudo: { flex: 1, borderRadius: 12, overflow: 'hidden', elevation: 3, shadowColor: '#dc3545', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 },
   modalContainer: { flex: 1, backgroundColor: '#f8f9fa' },
   modalHeader: { paddingTop: 20, paddingBottom: 15, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
   modalHeaderContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20 },
@@ -435,6 +438,20 @@ export const styles = {
     fontWeight: '600',
     color: '#333',
     flex: 1
+  },
+  itemPreviewEditButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(23, 146, 254, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 3
+  },
+  itemPreviewEditText: {
+    color: '#1792FE',
+    fontSize: 10,
+    fontWeight: '600'
   },
   itemPreviewContent: {
     gap: 4

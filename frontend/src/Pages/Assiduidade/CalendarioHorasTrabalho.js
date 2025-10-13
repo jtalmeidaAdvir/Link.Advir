@@ -41,6 +41,8 @@ const CalendarioHorasTrabalho = () => {
         DescontaAlimentacao: false,
         DescontaSubsidioTurno: false
     });
+    const [anexosFalta, setAnexosFalta] = useState([]);
+    const [uploadingAnexo, setUploadingAnexo] = useState(false);
     const [novaFaltaFerias, setNovaFaltaFerias] = useState({
         dataInicio: '',
         dataFim: '',
@@ -353,6 +355,68 @@ const CalendarioHorasTrabalho = () => {
         }
     };
 
+    const handleAnexoFaltaChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Ficheiro demasiado grande. Máximo 10MB.');
+            e.target.value = '';
+            return;
+        }
+
+        const allowedTypes = [
+            'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'text/plain'
+        ];
+
+        if (!allowedTypes.includes(file.type)) {
+            alert('Tipo de ficheiro não permitido. Use: JPG, PNG, GIF, PDF, DOC, DOCX ou TXT.');
+            e.target.value = '';
+            return;
+        }
+
+        const token = localStorage.getItem('loginToken');
+        const formData = new FormData();
+        formData.append('arquivo', file); // ✅ nome certo
+
+        try {
+            setUploadingAnexo(true);
+
+            const res = await fetch('https://backend.advir.pt/api/anexo-falta/upload-temp', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}` // ✅ sem Content-Type
+                },
+                body: formData
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setAnexosFalta(prev => [...prev, data.arquivo_temp]);
+                alert('Anexo adicionado com sucesso!');
+            } else {
+                const erro = await res.text();
+                console.error('Erro do servidor:', erro);
+                alert('Erro ao fazer upload: ' + erro);
+            }
+        } catch (err) {
+            console.error('Erro no upload:', err);
+            alert('Erro ao fazer upload do anexo: ' + err.message);
+        } finally {
+            setUploadingAnexo(false);
+            e.target.value = '';
+        }
+    };
+
+
+    const removerAnexoFalta = (index) => {
+        setAnexosFalta(prev => prev.filter((_, i) => i !== index));
+    };
+
     const submeterFalta = async (e) => {
         e.preventDefault();
 
@@ -394,6 +458,36 @@ const CalendarioHorasTrabalho = () => {
             });
 
             if (res.ok) {
+                const pedidoCriado = await res.json();
+
+                // Associar anexos ao pedido se existirem
+                if (anexosFalta.length > 0 && pedidoCriado.id) {
+                    try {
+                        const resAnexos = await fetch('https://backend.advir.pt/api/anexo-falta/associar-temp', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`,
+                                'urlempresa': localStorage.getItem('empresa_id')
+                            },
+                            body: JSON.stringify({
+                                pedido_falta_id: pedidoCriado.id.toString(),
+                                anexos_temp: anexosFalta
+                            })
+                        });
+
+                        if (!resAnexos.ok) {
+                            const erroTexto = await resAnexos.text();
+                            console.warn('Erro ao associar anexos:', erroTexto);
+                        } else {
+                            const resultAnexos = await resAnexos.json();
+                            console.log('Anexos associados com sucesso:', resultAnexos);
+                        }
+                    } catch (errAnexo) {
+                        console.error('Erro ao associar anexos:', errAnexo);
+                    }
+                }
+
                 alert('Pedido de falta submetido com sucesso para aprovação.');
 
                 if (novaFalta.DescontaAlimentacao) {
@@ -472,6 +566,7 @@ const CalendarioHorasTrabalho = () => {
 
                 setMostrarFormularioFalta(false);
                 setNovaFalta({ Falta: '', Horas: false, Tempo: 1, Observacoes: '', DescontaAlimentacao: false, DescontaSubsidioTurno: false });
+                setAnexosFalta([]);
 
                 setDiaSelecionado(null);
                 setDetalhes([]);
@@ -2029,29 +2124,29 @@ const CalendarioHorasTrabalho = () => {
                                 <div className="card card-moderno sidebar-sticky" style={{ marginBottom: '100px' }}>
                                     <div className="card-body p-3 p-md-4">
                                         {detalhesHorario && feriasTotalizador && (<div></div>
-                                           /* 
-                                           <div className="mb-3">
-                                                <h6 className="fw-bold text-muted mb-2">Horário Contratual & Férias</h6>
-                                                <div className="row g-2">
-                                                    <div className="col-12 col-md-6">
-                                                        <div className="border-start border-info border-3 ps-3 small">
-                                                            <div><strong>Descrição:</strong> {detalhesHorario.Descricao}</div>
-                                                            <div><strong>Horas por dia:</strong> {detalhesHorario.Horas1}</div>
-                                                            <div><strong>Total Horas Semanais:</strong> {detalhesHorario.TotalHoras}</div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="col-12 col-md-6">
-                                                        <div className="border-start border-success border-3 ps-3 small">
-                                                            <div><strong>Dias Direito:</strong> {feriasTotalizador.DiasDireito} dias</div>
-                                                            <div><strong>Dias Ano Anterior:</strong> {feriasTotalizador.DiasAnoAnterior} dias</div>
-                                                            <div><strong>Total Dias:</strong> {feriasTotalizador.TotalDias} dias</div>
-                                                            <div><strong>Dias Já Gozados:</strong> {feriasTotalizador.DiasJaGozados} dias</div>
-                                                            <div><strong>Total Por Gozar:</strong> {feriasTotalizador.DiasPorGozar} dias</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            */
+                                            /* 
+                                            <div className="mb-3">
+                                                 <h6 className="fw-bold text-muted mb-2">Horário Contratual & Férias</h6>
+                                                 <div className="row g-2">
+                                                     <div className="col-12 col-md-6">
+                                                         <div className="border-start border-info border-3 ps-3 small">
+                                                             <div><strong>Descrição:</strong> {detalhesHorario.Descricao}</div>
+                                                             <div><strong>Horas por dia:</strong> {detalhesHorario.Horas1}</div>
+                                                             <div><strong>Total Horas Semanais:</strong> {detalhesHorario.TotalHoras}</div>
+                                                         </div>
+                                                     </div>
+                                                     <div className="col-12 col-md-6">
+                                                         <div className="border-start border-success border-3 ps-3 small">
+                                                             <div><strong>Dias Direito:</strong> {feriasTotalizador.DiasDireito} dias</div>
+                                                             <div><strong>Dias Ano Anterior:</strong> {feriasTotalizador.DiasAnoAnterior} dias</div>
+                                                             <div><strong>Total Dias:</strong> {feriasTotalizador.TotalDias} dias</div>
+                                                             <div><strong>Dias Já Gozados:</strong> {feriasTotalizador.DiasJaGozados} dias</div>
+                                                             <div><strong>Total Por Gozar:</strong> {feriasTotalizador.DiasPorGozar} dias</div>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                             */
                                         )}
 
                                         <h5 className="card-title d-flex align-items-center mb-3 mb-md-4" style={{ fontSize: 'clamp(1rem, 3vw, 1.25rem)' }}>
@@ -2400,6 +2495,40 @@ const CalendarioHorasTrabalho = () => {
                                                             value={novaFalta.Observacoes}
                                                             onChange={(e) => setNovaFalta({ ...novaFalta, Observacoes: e.target.value })}
                                                         />
+                                                    </div>
+
+                                                    <div className="mb-3">
+                                                        <label className="form-label small fw-semibold">Anexos (opcional)</label>
+                                                        <input
+                                                            type="file"
+                                                            className="form-control form-moderno"
+                                                            onChange={handleAnexoFaltaChange}
+                                                            disabled={uploadingAnexo}
+                                                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                        />
+                                                        {uploadingAnexo && (
+                                                            <div className="text-primary small mt-1">
+                                                                <span className="spinner-border spinner-border-sm me-1"></span>
+                                                                A enviar...
+                                                            </div>
+                                                        )}
+                                                        {anexosFalta.length > 0 && (
+                                                            <div className="mt-2">
+                                                                <small className="text-muted">Anexos adicionados:</small>
+                                                                {anexosFalta.map((anexo, idx) => (
+                                                                    <div key={idx} className="d-flex align-items-center justify-content-between border rounded p-2 mt-1">
+                                                                        <span className="small text-truncate">{anexo.nome_arquivo}</span>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn btn-sm btn-outline-danger"
+                                                                            onClick={() => removerAnexoFalta(idx)}
+                                                                        >
+                                                                            ×
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     {novaFalta.Falta && (

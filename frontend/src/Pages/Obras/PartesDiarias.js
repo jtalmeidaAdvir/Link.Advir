@@ -77,6 +77,230 @@ const PartesDiarias = ({ navigation }) => {
         new Set(),
     );
 
+
+    // === PESSOAL/EQUIPAMENTOS ===
+const [modalPessoalEquipVisible, setModalPessoalEquipVisible] = useState(false);
+const [linhasPessoalEquip, setLinhasPessoalEquip] = useState([]);
+const [linhaPessoalEquipAtual, setLinhaPessoalEquipAtual] = useState({
+  obraId: "",
+  dia: "",
+  colaboradorId: "",
+  horas: "",
+  horaExtra: false,
+  categoria: "MaoObra",          // "MaoObra" | "Equipamentos"
+  especialidadeCodigo: "",
+  subEmpId: null,
+  classeId: null,
+  observacoes: "",
+});
+
+// Colaboradores únicos vindos das tuas equipas (internos)
+const colaboradoresDisponiveis = useMemo(() => {
+  const map = new Map(); // id -> { id, nome, codFuncionario }
+  equipas.forEach(eq => (eq.membros || []).forEach(mb => {
+    if (!mb?.id) return;
+    if (!map.has(mb.id)) {
+      map.set(mb.id, { id: mb.id, nome: mb.nome, codFuncionario: codMap[mb.id] ?? null });
+    }
+  }));
+  // ordenar por nome
+  return [...map.values()].sort((a,b) => (a.nome || "").localeCompare(b.nome || ""));
+}, [equipas, codMap]);
+
+
+const abrirModalPessoalEquip = () => {
+  setLinhaPessoalEquipAtual({
+    obraId: "",
+    dia: "",
+    colaboradorId: "",
+    horas: "",
+    horaExtra: false,
+    categoria: "MaoObra",
+    especialidadeCodigo: "",
+    subEmpId: null,
+    classeId: null,
+    observacoes: "",
+  });
+  setLinhasPessoalEquip([]);
+  setModalPessoalEquipVisible(true);
+};
+
+const adicionarLinhaPessoalEquip = () => {
+  const {
+    obraId, dia, colaboradorId, horas, categoria,
+    especialidadeCodigo, subEmpId, classeId, observacoes
+  } = linhaPessoalEquipAtual;
+
+  if (!obraId || !dia || !colaboradorId || !horas) {
+    Alert.alert("Validação", "Seleciona Obra, Dia, Colaborador e Horas.");
+    return;
+  }
+  if (!especialidadeCodigo || (categoria === "MaoObra" && !classeId)) {
+    Alert.alert("Validação", "Seleciona a especialidade/equipamento e a classe.");
+    return;
+  }
+
+  const col = colaboradoresDisponiveis.find(c => String(c.id) === String(colaboradorId));
+  if (!col || !col.codFuncionario) {
+    Alert.alert("Validação", "Colaborador inválido ou sem código de funcionário.");
+    return;
+  }
+
+  const minutos = parseHorasToMinutos(horas);
+  if (minutos <= 0) {
+    Alert.alert("Validação", "Horas inválidas.");
+    return;
+  }
+
+  // validar 8h normais/dia no buffer local (por colaborador/dia)
+  if (!linhaPessoalEquipAtual.horaExtra) {
+    const outrasHorasNormaisDia = linhasPessoalEquip
+      .filter(l => l.dia === dia && l.colaboradorId === colaboradorId && !l.horaExtra)
+      .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
+
+    if (outrasHorasNormaisDia + minutos > 8 * 60) {
+      Alert.alert(
+        "Limite de Horas Excedido",
+        `Não é possível registar mais de 8 horas normais por dia para este colaborador.\n\nJá registadas: ${formatarHorasMinutos(outrasHorasNormaisDia)}\n\nPara mais horas, marque como "Hora Extra".`
+      );
+      return;
+    }
+  }
+
+  const lista = categoria === "Equipamentos" ? equipamentosList : especialidadesList;
+  const sel   = lista.find(x => x.codigo === especialidadeCodigo);
+
+  setLinhasPessoalEquip(prev => ([
+    ...prev,
+    {
+      key: `${obraId}-${dia}-${colaboradorId}-${Date.now()}`,
+      obraId: Number(obraId),
+      dia: Number(dia),
+      colaboradorId: Number(colaboradorId),
+      colaboradorNome: col.nome,
+      codFuncionario: String(col.codFuncionario),
+      horas,            // string original (ex.: "2:30")
+      horasMin: minutos,
+      horaExtra: !!linhaPessoalEquipAtual.horaExtra,
+      categoria,
+      especialidadeCodigo,
+      especialidadeDesc: sel?.descricao ?? "",
+      subEmpId: sel?.subEmpId ?? null,
+      classeId: categoria === "Equipamentos" ? -1 : (classeId || null),
+      observacoes: observacoes || "",
+    }
+  ]));
+
+  // reset campos variáveis
+  setLinhaPessoalEquipAtual(p => ({
+    ...p,
+    colaboradorId: "",
+    horas: "",
+    horaExtra: false,
+    especialidadeCodigo: "",
+    subEmpId: null,
+    classeId: categoria === "Equipamentos" ? -1 : null,
+    observacoes: "",
+  }));
+};
+
+const removerLinhaPessoalEquip = (key) => {
+  setLinhasPessoalEquip(prev => prev.filter(l => l.key !== key));
+};
+
+const submeterPessoalEquip = async () => {
+  if (linhasPessoalEquip.length === 0) {
+    Alert.alert("Aviso", "Não há linhas para submeter.");
+    return;
+  }
+
+  try {
+    const painelToken = await AsyncStorage.getItem("painelAdminToken");
+    const userLogado  = (await AsyncStorage.getItem("userNome")) || "";
+
+    // Agrupar por (obraId, diaISO, colaboradorId) → 1 cabeçalho por colaborador/dia/obra
+    const grupos = new Map();
+    for (const l of linhasPessoalEquip) {
+      const dataISO = `${mesAno.ano}-${String(mesAno.mes).padStart(2,"0")}-${String(l.dia).padStart(2,"0")}`;
+      const key = `${l.obraId}|${dataISO}|${l.colaboradorId}`;
+      if (!grupos.has(key)) grupos.set(key, {
+        obraId: l.obraId, dataISO, colaboradorId: l.colaboradorId,
+        codFuncionario: l.codFuncionario, linhas: []
+      });
+      grupos.get(key).linhas.push(l);
+    }
+
+    for (const [, grp] of grupos.entries()) {
+      // 1) Cabeçalho com ColaboradorID (interno)
+      const cabecalho = {
+        ObraID: grp.obraId,
+        Data: grp.dataISO,
+        Notas: "Parte diária (Pessoal/Equipamentos)",
+        CriadoPor: userLogado,
+        Utilizador: userLogado,
+        TipoEntidade: "O",
+        ColaboradorID: grp.codFuncionario, // <- chave para internos
+      };
+
+      const respCab = await fetch("https://backend.advir.pt/api/parte-diaria/cabecalhos", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${painelToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(cabecalho),
+      });
+      if (!respCab.ok) {
+        const err = await respCab.json().catch(()=> ({}));
+        throw new Error(err?.message || "Falha ao criar cabeçalho.");
+      }
+      const cab = await respCab.json();
+
+      // 2) Itens do cabeçalho
+      for (let i=0; i<grp.linhas.length; i++) {
+        const l = grp.linhas[i];
+        const [yyyy, mm, dd] = grp.dataISO.split("-").map(Number);
+        const tipoHoraId = l.horaExtra
+          ? (isFimDeSemana(yyyy, mm, dd) ? "H06" : "H01")
+          : null;
+
+        const item = {
+          DocumentoID: cab.DocumentoID,
+          ObraID: grp.obraId,
+          Data: grp.dataISO,
+          Numero: i + 1,
+          ColaboradorID: grp.codFuncionario,   // interno → vai com ColaboradorID
+          Funcionario: String(grp.codFuncionario),
+          ClasseID: l.classeId || 1,
+          SubEmpID: l.subEmpId ?? null,
+          NumHoras: l.horasMin,
+          PrecoUnit: 0,
+          categoria: l.categoria || "MaoObra",
+          TipoHoraID: tipoHoraId,
+          Observacoes: l.observacoes || "",
+        };
+
+        const respItem = await fetch("https://backend.advir.pt/api/parte-diaria/itens", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${painelToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify(item),
+        });
+        if (!respItem.ok) {
+          const err = await respItem.json().catch(()=> ({}));
+          throw new Error(err?.message || `Falha ao criar item do colaborador ${l.colaboradorNome}.`);
+        }
+      }
+    }
+
+    setModalPessoalEquipVisible(false);
+    setLinhasPessoalEquip([]);
+    Alert.alert("Sucesso", "Registos de Pessoal/Equipamentos submetidos.");
+    await carregarItensSubmetidos();
+    await carregarDados();
+  } catch (e) {
+    console.error("Erro ao submeter Pessoal/Equipamentos:", e);
+    Alert.alert("Erro", e.message || "Ocorreu um erro ao submeter Pessoal/Equipamentos.");
+  }
+};
+
+
     // Especialidades disponíveis
     const [especialidades, setEspecialidades] = useState([]);
 
@@ -2523,6 +2747,16 @@ const PartesDiarias = ({ navigation }) => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                style={styles.actionButton}
+                onPress={abrirModalPessoalEquip}
+                >
+                <LinearGradient colors={["#1792FE", "#1792FE"]} style={styles.buttonGradient}>
+                    <Ionicons name="person-add" size={16} color="#fff" />
+                    <Text style={styles.buttonText}>Pessoal/Equipamentos</Text>
+                </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
                     style={styles.actionButton}
                     onPress={abrirModalExternos}
                 >
@@ -3055,6 +3289,313 @@ const PartesDiarias = ({ navigation }) => {
             </View>
         </Modal>
     );
+    const renderPessoalEquipModal = () => (
+  <Modal
+    animationType="slide"
+    transparent
+    visible={modalPessoalEquipVisible}
+    onRequestClose={() => setModalPessoalEquipVisible(false)}
+  >
+    <View style={styles.externosModalContainer}>
+      <View style={styles.externosModalContent}>
+        <LinearGradient colors={["#1792FE", "#1792FE"]} style={styles.externosModalHeader}>
+          <View style={styles.externosModalHeaderContent}>
+            <View style={styles.externosModalTitleContainer}>
+              <Ionicons name="people-circle" size={24} color="#fff" />
+              <Text style={styles.externosModalTitle}>Pessoal / Equipamentos</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setModalPessoalEquipVisible(false)}
+              style={styles.externosCloseButton}
+            >
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.externosModalSubtitle}>
+            Adicionar registos de colaboradores internos e equipamentos
+          </Text>
+        </LinearGradient>
+
+        <ScrollView style={styles.externosModalBody} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+          <View style={styles.externosFormCard}>
+            <Text style={styles.externosFormTitle}>
+              <Ionicons name="document-text" size={16} color="#1792FE" /> Novo Registo
+            </Text>
+
+            {/* Obra & Dia */}
+            <View style={styles.externosFormGrid}>
+              <View style={styles.externosInputGroup}>
+                <Text style={styles.externosInputLabel}><Ionicons name="business" size={14} color="#666" /> Obra *</Text>
+                <View style={styles.externosPickerWrapper}>
+                  <Picker
+                    selectedValue={linhaPessoalEquipAtual.obraId}
+                    onValueChange={(v) => setLinhaPessoalEquipAtual(p => ({...p, obraId: v}))}
+                    style={styles.externosPicker}
+                  >
+                    <Picker.Item label="— Selecionar obra —" value="" />
+                    {obrasParaPickers.map(o => (
+                      <Picker.Item key={o.id} label={o.nome} value={o.id} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+
+              <View style={styles.externosInputGroup}>
+                <Text style={styles.externosInputLabel}><Ionicons name="calendar" size={14} color="#666" /> Dia *</Text>
+                <View style={styles.externosPickerWrapper}>
+                  <Picker
+                    selectedValue={linhaPessoalEquipAtual.dia}
+                    onValueChange={(v) => setLinhaPessoalEquipAtual(p => ({...p, dia: v}))}
+                    style={styles.externosPicker}
+                  >
+                    <Picker.Item label="— Selecionar dia —" value="" />
+                    {diasDoMes.map(d => <Picker.Item key={d} label={`Dia ${d}`} value={d} />)}
+                  </Picker>
+                </View>
+              </View>
+            </View>
+
+            {/* Colaborador interno */}
+            <View style={styles.externosInputGroup}>
+              <Text style={styles.externosInputLabel}><Ionicons name="person" size={14} color="#666" /> Colaborador *</Text>
+              <View style={styles.externosPickerWrapper}>
+                <Picker
+                  selectedValue={linhaPessoalEquipAtual.colaboradorId}
+                  onValueChange={(v) => setLinhaPessoalEquipAtual(p => ({...p, colaboradorId: v}))}
+                  style={styles.externosPicker}
+                >
+                  <Picker.Item label="— Selecionar colaborador —" value="" />
+                  {colaboradoresDisponiveis.map(c => (
+                    <Picker.Item
+                      key={c.id}
+                      label={`${c.nome}${c.codFuncionario ? ` [${String(c.codFuncionario).padStart(3,"0")}]` : ""}`}
+                      value={c.id}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            {/* Categoria */}
+            <View style={styles.externosInputGroup}>
+              <Text style={styles.externosInputLabel}><Ionicons name="layers" size={14} color="#666" /> Categoria *</Text>
+              <View style={styles.externosCategoryButtons}>
+                {[{label:"Mão de Obra", value:"MaoObra", icon:"people"},
+                  {label:"Equipamentos", value:"Equipamentos", icon:"construct"}].map(opt => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      styles.externosCategoryButton,
+                      linhaPessoalEquipAtual.categoria === opt.value && styles.externosCategoryButtonActive,
+                    ]}
+                    onPress={() => {
+                      const novaClasse = opt.value === "Equipamentos" ? -1 : null;
+                      setLinhaPessoalEquipAtual(p => ({
+                        ...p,
+                        categoria: opt.value,
+                        especialidadeCodigo: "",
+                        subEmpId: null,
+                        classeId: novaClasse,
+                      }));
+                    }}
+                  >
+                    <Ionicons
+                      name={opt.icon}
+                      size={16}
+                      color={linhaPessoalEquipAtual.categoria === opt.value ? "#fff" : "#1792FE"}
+                    />
+                    <Text
+                      style={[
+                        styles.externosCategoryButtonText,
+                        linhaPessoalEquipAtual.categoria === opt.value && styles.externosCategoryButtonTextActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Especialidade / Equipamento */}
+            <View style={styles.externosInputGroup}>
+              <Text style={styles.externosInputLabel}>
+                <Ionicons name={linhaPessoalEquipAtual.categoria === "Equipamentos" ? "construct" : "hammer"} size={14} color="#666" />{" "}
+                {linhaPessoalEquipAtual.categoria === "Equipamentos" ? "Equipamento" : "Especialidade"} *
+              </Text>
+              <View style={styles.externosPickerWrapper}>
+                <Picker
+                  selectedValue={linhaPessoalEquipAtual.especialidadeCodigo}
+                  onValueChange={(cod) => {
+                    const lista = linhaPessoalEquipAtual.categoria === "Equipamentos" ? equipamentosList : especialidadesList;
+                    const sel = lista.find(x => x.codigo === cod);
+                    const classesComp = getClassesCompativeis(cod, linhaPessoalEquipAtual.categoria);
+                    const primeiraClasse = classesComp.length > 0
+                      ? classesComp[0].classeId
+                      : (linhaPessoalEquipAtual.categoria === "Equipamentos" ? -1 : null);
+
+                    setLinhaPessoalEquipAtual(p => ({
+                      ...p,
+                      especialidadeCodigo: cod,
+                      subEmpId: sel?.subEmpId ?? null,
+                      classeId: primeiraClasse,
+                    }));
+                  }}
+                  style={styles.externosPicker}
+                >
+                  <Picker.Item label={`— Selecionar ${linhaPessoalEquipAtual.categoria === "Equipamentos" ? "equipamento" : "especialidade"} —`} value="" />
+                  {(linhaPessoalEquipAtual.categoria === "Equipamentos" ? equipamentosList : especialidadesList)
+                    .map(opt => <Picker.Item key={opt.codigo} label={opt.descricao} value={opt.codigo} />)}
+                </Picker>
+              </View>
+            </View>
+
+            {/* Classe */}
+            <View style={styles.externosInputGroup}>
+              <Text style={styles.externosInputLabel}><Ionicons name="library" size={14} color="#666" /> Classe *</Text>
+              <View style={styles.externosPickerWrapper}>
+                <Picker
+                  selectedValue={linhaPessoalEquipAtual.classeId}
+                  onValueChange={(v) => setLinhaPessoalEquipAtual(p => ({...p, classeId: v}))}
+                  style={styles.externosPicker}
+                  enabled={linhaPessoalEquipAtual.categoria !== "Equipamentos"}
+                >
+                  <Picker.Item label={linhaPessoalEquipAtual.categoria === "Equipamentos" ? "N/A" : "— Selecionar classe —"} value={linhaPessoalEquipAtual.categoria === "Equipamentos" ? -1 : null} />
+                  {getClassesCompativeis(linhaPessoalEquipAtual.especialidadeCodigo, linhaPessoalEquipAtual.categoria)
+                    .map(cl => <Picker.Item key={cl.classeId} label={`${cl.classe} - ${cl.descricao}`} value={cl.classeId} />)}
+                </Picker>
+              </View>
+            </View>
+
+            {/* Horas + Extra */}
+            <View style={styles.externosFormGrid}>
+              <View style={[styles.externosInputGroup, { flex: 2 }]}>
+                <Text style={styles.externosInputLabel}><Ionicons name="time" size={14} color="#666" /> Horas *</Text>
+                <TextInput
+                  style={styles.externosTextInput}
+                  value={linhaPessoalEquipAtual.horas}
+                  onChangeText={(v) => {
+                    const { colaboradorId, dia, obraId } = linhaPessoalEquipAtual;
+                    if (!colaboradorId || !dia || !obraId) {
+                      Alert.alert("Validação", "Preencha primeiro Obra, Dia e Colaborador.");
+                      return;
+                    }
+                    const minutos = parseHorasToMinutos(v);
+                    if (minutos <= 0 && v !== "") {
+                      Alert.alert("Validação", "Formato de horas inválido. Use H:MM ou H.MM (ex: 2:30 ou 2.5)");
+                      return;
+                    }
+                    if (!linhaPessoalEquipAtual.horaExtra) {
+                      const outras = linhasPessoalEquip
+                        .filter(l => l.dia === dia && l.colaboradorId === colaboradorId && !l.horaExtra)
+                        .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
+                      if (outras + minutos > 8*60 && v !== "") {
+                        Alert.alert("Limite de Horas Excedido",
+                          `Não é possível registar mais de 8 horas normais por dia.\n\nJá registadas: ${formatarHorasMinutos(outras)}\n\nPara mais horas, marque como "Hora Extra".`
+                        );
+                        return;
+                      }
+                    }
+                    setLinhaPessoalEquipAtual(p => ({...p, horas: v}));
+                  }}
+                  placeholder="0:00"
+                  keyboardType="default"
+                />
+              </View>
+
+              <View style={[styles.externosInputGroup, { flex: 1 }]}>
+                <Text style={styles.externosInputLabel}><Ionicons name="flash" size={14} color="#666" /> Extra</Text>
+                <TouchableOpacity
+                  style={[styles.externosCheckboxContainer, linhaPessoalEquipAtual.horaExtra && styles.externosCheckboxContainerActive]}
+                  onPress={() => setLinhaPessoalEquipAtual(p => ({...p, horaExtra: !p.horaExtra}))}
+                >
+                  <Ionicons name={linhaPessoalEquipAtual.horaExtra ? "checkmark-circle" : "ellipse-outline"} size={20} color={linhaPessoalEquipAtual.horaExtra ? "#fff" : "#1792FE"} />
+                  <Text style={[styles.externosCheckboxText, linhaPessoalEquipAtual.horaExtra && styles.externosCheckboxTextActive]}>Sim</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Observações */}
+            <View style={styles.externosInputGroup}>
+              <Text style={styles.externosInputLabel}><Ionicons name="chatbubble-ellipses" size={14} color="#666" /> Observações</Text>
+              <TextInput
+                style={styles.externosTextInput}
+                value={linhaPessoalEquipAtual.observacoes}
+                onChangeText={(v) => setLinhaPessoalEquipAtual(p => ({...p, observacoes: v}))}
+                placeholder="Notas adicionais"
+                multiline
+                numberOfLines={2}
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* Adicionar */}
+            <TouchableOpacity onPress={adicionarLinhaPessoalEquip} style={styles.externosAddButton}>
+              <LinearGradient colors={["#1792FE", "#1792FE"]} style={styles.externosAddButtonGradient}>
+                <Ionicons name="add-circle" size={18} color="#fff" />
+                <Text style={styles.externosAddButtonText}>Adicionar à Lista</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+
+          {/* Lista */}
+          {linhasPessoalEquip.length > 0 && (
+            <View style={styles.externosListCard}>
+              <Text style={styles.externosListTitle}>
+                <Ionicons name="list" size={16} color="#1792FE" /> Itens para Submeter ({linhasPessoalEquip.length})
+              </Text>
+
+              {linhasPessoalEquip.map(l => (
+                <View key={l.key} style={styles.externosListItem}>
+                  <View style={styles.externosListItemContent}>
+                    <View style={styles.externosListItemHeader}>
+                      <Text style={styles.externosListItemName}>
+                        {l.colaboradorNome} {l.codFuncionario ? ` [${String(l.codFuncionario).padStart(3,"0")}]` : ""}
+                      </Text>
+                      <View style={styles.externosListItemBadge}>
+                        <Text style={styles.externosListItemBadgeText}>{formatarHorasMinutos(l.horasMin)}</Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.externosListItemDetails}>
+                      <Ionicons name="business" size={12} color="#666" /> Obra {l.obraId}
+                      {" • "}
+                      <Ionicons name="calendar" size={12} color="#666" /> Dia {l.dia}
+                      {l.horaExtra && " • Extra"}
+                    </Text>
+
+                    <Text style={styles.externosListItemCategory}>
+                      {l.categoria === "Equipamentos" ? "🔧" : "👷"} {l.especialidadeDesc || l.especialidadeCodigo}
+                    </Text>
+
+                    {!!l.observacoes && (
+                      <Text style={styles.externosListItemObservations}>
+                        <Ionicons name="chatbubble-ellipses" size={12} color="#1792FE" /> {l.observacoes}
+                      </Text>
+                    )}
+                  </View>
+
+                  <TouchableOpacity onPress={() => removerLinhaPessoalEquip(l.key)} style={styles.externosListItemDelete}>
+                    <Ionicons name="trash" size={18} color="#dc3545" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              {/* Submeter 
+              <TouchableOpacity onPress={submeterPessoalEquip} style={[styles.externosAddButton, { marginTop: 8 }]}>
+                <LinearGradient colors={["#1792FE", "#0B5ED7"]} style={styles.externosAddButtonGradient}>
+                  <Ionicons name="cloud-upload" size={18} color="#fff" />
+                  <Text style={styles.externosAddButtonText}>Submeter</Text>
+                </LinearGradient>
+              </TouchableOpacity>*/}
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    </View>
+  </Modal>
+);
+
 
     const renderDataSheet = () => {
         if (dadosProcessados.length === 0) {
@@ -4604,6 +5145,8 @@ const PartesDiarias = ({ navigation }) => {
                         {renderConfirmModal()}
                         {renderEditModal()}
                         {renderExternosModal()}
+                        {renderPessoalEquipModal()}
+
                     </View>
                 </ScrollView>
             </SafeAreaView>

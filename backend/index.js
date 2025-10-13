@@ -54,6 +54,7 @@ const notificacaoRoutes = require('./routes/notificacaoRoutes');
 const parteRoutes = require('./routes/parteDiariaRoutes');
 const newsRoutes = require('./routes/newsRoutes');
 const anexoPedidoRoutes = require('./routes/anexoPedidoRoutes');
+const anexoFaltaRoutes = require('./routes/anexoFaltaRoutes');
 const biometricRoutes = require('./routes/biometricRoutes');
 const trabalhadoresExternosRoutes = require('./routes/trabalhadoresExternosRoutes');
 const mapaRegistosRoutes = require('./routes/mapaRegistosRoutes');
@@ -73,7 +74,7 @@ const app = express();
 // Middlewares
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(fileUpload());
+//app.use(fileUpload());
 
 // Configuração CORS para o frontend
 // Configuração CORS para o frontend (produção + desenvolvimento)
@@ -116,6 +117,7 @@ app.use('/api/parte-diaria', parteRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/trabalhadores-externos', trabalhadoresExternosRoutes);
 app.use('/api/anexo-pedido', anexoPedidoRoutes);
+app.use('/api/anexo-falta', anexoFaltaRoutes);
 app.use('/api/mapa-registos', mapaRegistosRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/pos', posRoutes);
@@ -166,7 +168,7 @@ app.get('/api/routes', (req, res) => {
     };
     res.json({
         message: 'Rotas disponíveis no AdvirLink Backend',
-        server: `http://localhost:3000`,
+        server: `https://backend.advir.pt`,
         routes
     });
 });
