@@ -36,6 +36,10 @@ const AprovacaoFaltaFerias = () => {
     const [minhasEquipas, setMinhasEquipas] = useState([]);
 
     const [operacaoFiltro, setOperacaoFiltro] = useState("");
+    const [anexosPorPedido, setAnexosPorPedido] = useState({});
+    const [modalAnexoVisible, setModalAnexoVisible] = useState(false);
+    const [anexoPreview, setAnexoPreview] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
 
     const getOperacaoInfo = (op) => {
         const o = (op || "CRIAR").toUpperCase();
@@ -471,7 +475,7 @@ const AprovacaoFaltaFerias = () => {
             console.error("Erro detalhado ao aprovar:", err);
             alert(
                 "Erro inesperado ao aprovar: " +
-                    (err.message || "Erro desconhecido"),
+                (err.message || "Erro desconhecido"),
             );
         }
     };
@@ -494,7 +498,8 @@ const AprovacaoFaltaFerias = () => {
                 const data = await res.json();
                 membros = data.map((u) => ({
                     codigo: u.id,
-                    nome: u.nome             }));
+                    nome: u.nome
+                }));
             } else {
                 const res = await fetch(
                     "https://backend.advir.pt/api/equipa-obra/minhas-agrupadas",
@@ -687,7 +692,7 @@ const AprovacaoFaltaFerias = () => {
             if (res.ok) {
                 const resposta = await res.json();
                 console.log("✅ Pedido criado no backend:", resposta);
-                
+
                 // 3. Aprovar automaticamente o pedido
                 await fetch(
                     `https://backend.advir.pt/api/faltas-ferias/aprovacao/${resposta.id}/aprovar`,
@@ -802,6 +807,99 @@ const AprovacaoFaltaFerias = () => {
         return listaEnriquecida;
     };
 
+    const carregarAnexosPedido = async (pedidoId) => {
+        try {
+            const res = await fetch(
+                `https://backend.advir.pt/api/anexo-falta/falta/${pedidoId}`,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (res.ok) {
+                const data = await res.json();
+                setAnexosPorPedido(prev => ({
+                    ...prev,
+                    [pedidoId]: data.anexos || []
+                }));
+            }
+        } catch (err) {
+            console.error('Erro ao carregar anexos:', err);
+        }
+    };
+
+    const isImageFile = (tipo) => {
+        return tipo && tipo.startsWith('image/');
+    };
+
+    const isPdfFile = (tipo) => {
+        return tipo === 'application/pdf';
+    };
+
+    const abrirPreviewAnexo = async (anexo) => {
+        try {
+            const res = await fetch(
+                `https://backend.advir.pt/api/anexo-falta/download/${anexo.id}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                setPreviewUrl(url);
+                setAnexoPreview(anexo);
+                setModalAnexoVisible(true);
+            }
+        } catch (err) {
+            console.error('Erro ao abrir preview:', err);
+            alert('Erro ao abrir preview do anexo');
+        }
+    };
+
+    const fecharPreview = () => {
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+        setModalAnexoVisible(false);
+        setAnexoPreview(null);
+        setPreviewUrl(null);
+    };
+
+    const downloadAnexo = async (anexoId, nomeArquivo) => {
+        try {
+            const res = await fetch(
+                `https://backend.advir.pt/api/anexo-falta/download/${anexoId}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = nomeArquivo;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        } catch (err) {
+            console.error('Erro ao fazer download:', err);
+            alert('Erro ao fazer download do anexo');
+        }
+    };
+
     const carregarTodosPedidos = async () => {
         try {
             setLoading(true);
@@ -857,6 +955,11 @@ const AprovacaoFaltaFerias = () => {
                 ...rejeitados,
             ]);
             //console.log('Todos os pedidos enriquecidos:', todos.length);
+
+            // Carregar anexos para todos os pedidos
+            for (const pedido of todos) {
+                await carregarAnexosPedido(pedido.id);
+            }
 
             // Apenas após ter todos os nomes carregados, definir os estados
             setTodosPedidos(todos);
@@ -1300,200 +1403,200 @@ const AprovacaoFaltaFerias = () => {
                     {["Encarregado", "Diretor", "Administrador"].includes(
                         tipoUser,
                     ) && (
-                        <>
-                            <div className="card card-moderno mb-4">
-                                <div className="card-body">
-                                    <h5 className="text-primary fw-bold mb-3">
-                                        Registar Falta de um Colaborador
-                                    </h5>
+                            <>
+                                <div className="card card-moderno mb-4">
+                                    <div className="card-body">
+                                        <h5 className="text-primary fw-bold mb-3">
+                                            Registar Falta de um Colaborador
+                                        </h5>
 
-                                    <button
-                                        className="btn btn-outline-secondary btn-sm mb-3"
-                                        type="button"
-                                        onClick={() =>
-                                            setMostrarFormulario(
-                                                !mostrarFormulario,
-                                            )
-                                        }
-                                    >
-                                        {mostrarFormulario
-                                            ? "Esconder"
-                                            : "Mostrar"}{" "}
-                                        Formulário
-                                    </button>
-
-                                    {mostrarFormulario && (
-                                        <form
-                                            onSubmit={submeterFaltaEquipa}
-                                            className="row g-2"
+                                        <button
+                                            className="btn btn-outline-secondary btn-sm mb-3"
+                                            type="button"
+                                            onClick={() =>
+                                                setMostrarFormulario(
+                                                    !mostrarFormulario,
+                                                )
+                                            }
                                         >
-                                            <div className="col-md-4">
-                                                <label className="form-label small fw-semibold">
-                                                    Colaborador
-                                                </label>
-                                                <select
-                                                    className="form-select form-moderno"
-                                                    value={
-                                                        novaFaltaEquipa.funcionario
-                                                    }
-                                                    onChange={(e) =>
-                                                        setNovaFaltaEquipa({
-                                                            ...novaFaltaEquipa,
-                                                            funcionario:
-                                                                e.target.value,
-                                                        })
-                                                    }
-                                                    required
-                                                >
-                                                    <option value="">
-                                                        Seleciona...
-                                                    </option>
-                                                    {colaboradoresEquipa.map(
-                                                        (c, i) => (
+                                            {mostrarFormulario
+                                                ? "Esconder"
+                                                : "Mostrar"}{" "}
+                                            Formulário
+                                        </button>
+
+                                        {mostrarFormulario && (
+                                            <form
+                                                onSubmit={submeterFaltaEquipa}
+                                                className="row g-2"
+                                            >
+                                                <div className="col-md-4">
+                                                    <label className="form-label small fw-semibold">
+                                                        Colaborador
+                                                    </label>
+                                                    <select
+                                                        className="form-select form-moderno"
+                                                        value={
+                                                            novaFaltaEquipa.funcionario
+                                                        }
+                                                        onChange={(e) =>
+                                                            setNovaFaltaEquipa({
+                                                                ...novaFaltaEquipa,
+                                                                funcionario:
+                                                                    e.target.value,
+                                                            })
+                                                        }
+                                                        required
+                                                    >
+                                                        <option value="">
+                                                            Seleciona...
+                                                        </option>
+                                                        {colaboradoresEquipa.map(
+                                                            (c, i) => (
+                                                                <option
+                                                                    key={i}
+                                                                    value={c.codigo}
+                                                                >
+                                                                    {c.nome}
+                                                                </option>
+                                                            ),
+                                                        )}
+                                                    </select>
+                                                </div>
+
+                                                <div className="col-md-2">
+                                                    <label className="form-label small fw-semibold">
+                                                        Data da Falta
+                                                    </label>
+                                                    <input
+                                                        type="date"
+                                                        className="form-control form-moderno"
+                                                        value={novaFaltaEquipa.Data}
+                                                        onChange={(e) =>
+                                                            setNovaFaltaEquipa({
+                                                                ...novaFaltaEquipa,
+                                                                Data: e.target
+                                                                    .value,
+                                                            })
+                                                        }
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div className="col-md-4">
+                                                    <label className="form-label small fw-semibold">
+                                                        Tipo de Falta
+                                                    </label>
+                                                    <select
+                                                        className="form-select form-moderno"
+                                                        value={
+                                                            novaFaltaEquipa.Falta
+                                                        }
+                                                        onChange={(e) => {
+                                                            const falta =
+                                                                tiposFalta.find(
+                                                                    (f) =>
+                                                                        f.Falta ===
+                                                                        e.target
+                                                                            .value,
+                                                                );
+                                                            setNovaFaltaEquipa({
+                                                                ...novaFaltaEquipa,
+                                                                Falta: falta.Falta,
+                                                                Horas: !!falta.Horas,
+                                                                Tempo: 1,
+                                                                DescontaAlimentacao:
+                                                                    !!falta.DescontaSubsAlim,
+                                                                DescontaSubsidioTurno:
+                                                                    !!falta.DescontaSubsTurno,
+                                                            });
+                                                        }}
+                                                        required
+                                                    >
+                                                        <option value="">
+                                                            Seleciona tipo...
+                                                        </option>
+                                                        {tiposFalta.map((f, i) => (
                                                             <option
                                                                 key={i}
-                                                                value={c.codigo}
+                                                                value={f.Falta}
                                                             >
-                                                                {c.nome}
+                                                                {f.Falta} –{" "}
+                                                                {f.Descricao}
                                                             </option>
-                                                        ),
+                                                        ))}
+                                                    </select>
+                                                    {/* preview da descrição da falta selecionada */}
+                                                    {novaFaltaEquipa.Falta && (
+                                                        <div className="form-text">
+                                                            {novaFaltaEquipa.Falta}{" "}
+                                                            —{" "}
+                                                            {getDescricaoFalta(
+                                                                novaFaltaEquipa.Falta,
+                                                            )}
+                                                        </div>
                                                     )}
-                                                </select>
-                                            </div>
+                                                </div>
 
-                                            <div className="col-md-2">
-                                                <label className="form-label small fw-semibold">
-                                                    Data da Falta
-                                                </label>
-                                                <input
-                                                    type="date"
-                                                    className="form-control form-moderno"
-                                                    value={novaFaltaEquipa.Data}
-                                                    onChange={(e) =>
-                                                        setNovaFaltaEquipa({
-                                                            ...novaFaltaEquipa,
-                                                            Data: e.target
-                                                                .value,
-                                                        })
-                                                    }
-                                                    required
-                                                />
-                                            </div>
-
-                                            <div className="col-md-4">
-                                                <label className="form-label small fw-semibold">
-                                                    Tipo de Falta
-                                                </label>
-                                                <select
-                                                    className="form-select form-moderno"
-                                                    value={
-                                                        novaFaltaEquipa.Falta
-                                                    }
-                                                    onChange={(e) => {
-                                                        const falta =
-                                                            tiposFalta.find(
-                                                                (f) =>
-                                                                    f.Falta ===
+                                                <div className="col-md-2">
+                                                    <label className="form-label small fw-semibold">
+                                                        Tempo
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-control form-moderno"
+                                                        value={
+                                                            novaFaltaEquipa.Tempo
+                                                        }
+                                                        min={1}
+                                                        onChange={(e) =>
+                                                            setNovaFaltaEquipa({
+                                                                ...novaFaltaEquipa,
+                                                                Tempo: parseInt(
                                                                     e.target
-                                                                        .value,
-                                                            );
-                                                        setNovaFaltaEquipa({
-                                                            ...novaFaltaEquipa,
-                                                            Falta: falta.Falta,
-                                                            Horas: !!falta.Horas,
-                                                            Tempo: 1,
-                                                            DescontaAlimentacao:
-                                                                !!falta.DescontaSubsAlim,
-                                                            DescontaSubsidioTurno:
-                                                                !!falta.DescontaSubsTurno,
-                                                        });
-                                                    }}
-                                                    required
-                                                >
-                                                    <option value="">
-                                                        Seleciona tipo...
-                                                    </option>
-                                                    {tiposFalta.map((f, i) => (
-                                                        <option
-                                                            key={i}
-                                                            value={f.Falta}
-                                                        >
-                                                            {f.Falta} –{" "}
-                                                            {f.Descricao}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                {/* preview da descrição da falta selecionada */}
-                                                {novaFaltaEquipa.Falta && (
-                                                    <div className="form-text">
-                                                        {novaFaltaEquipa.Falta}{" "}
-                                                        —{" "}
-                                                        {getDescricaoFalta(
-                                                            novaFaltaEquipa.Falta,
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="col-md-2">
-                                                <label className="form-label small fw-semibold">
-                                                    Tempo
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    className="form-control form-moderno"
-                                                    value={
-                                                        novaFaltaEquipa.Tempo
-                                                    }
-                                                    min={1}
-                                                    onChange={(e) =>
-                                                        setNovaFaltaEquipa({
-                                                            ...novaFaltaEquipa,
-                                                            Tempo: parseInt(
-                                                                e.target
-                                                                    .value ||
+                                                                        .value ||
                                                                     "1",
-                                                                10,
-                                                            ),
-                                                        })
-                                                    }
-                                                />
-                                            </div>
+                                                                    10,
+                                                                ),
+                                                            })
+                                                        }
+                                                    />
+                                                </div>
 
-                                            <div className="col-md-12">
-                                                <label className="form-label small fw-semibold">
-                                                    Observações
-                                                </label>
-                                                <textarea
-                                                    className="form-control form-moderno"
-                                                    rows="2"
-                                                    value={
-                                                        novaFaltaEquipa.Observacoes
-                                                    }
-                                                    onChange={(e) =>
-                                                        setNovaFaltaEquipa({
-                                                            ...novaFaltaEquipa,
-                                                            Observacoes:
-                                                                e.target.value,
-                                                        })
-                                                    }
-                                                />
-                                            </div>
+                                                <div className="col-md-12">
+                                                    <label className="form-label small fw-semibold">
+                                                        Observações
+                                                    </label>
+                                                    <textarea
+                                                        className="form-control form-moderno"
+                                                        rows="2"
+                                                        value={
+                                                            novaFaltaEquipa.Observacoes
+                                                        }
+                                                        onChange={(e) =>
+                                                            setNovaFaltaEquipa({
+                                                                ...novaFaltaEquipa,
+                                                                Observacoes:
+                                                                    e.target.value,
+                                                            })
+                                                        }
+                                                    />
+                                                </div>
 
-                                            <div className="col-12">
-                                                <button
-                                                    type="submit"
-                                                    className="btn btn-danger w-100 rounded-pill"
-                                                >
-                                                    Registar Falta
-                                                </button>
-                                            </div>
-                                        </form>
-                                    )}
+                                                <div className="col-12">
+                                                    <button
+                                                        type="submit"
+                                                        className="btn btn-danger w-100 rounded-pill"
+                                                    >
+                                                        Registar Falta
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        </>
-                    )}
+                            </>
+                        )}
 
                     {/* Filtros e Controles */}
                     <div className="card card-moderno mb-4">
@@ -1609,8 +1712,8 @@ const AprovacaoFaltaFerias = () => {
                                             {estadoFiltro === "pendentes"
                                                 ? "Não há pedidos pendentes de aprovação."
                                                 : estadoFiltro === "aprovados"
-                                                  ? "Não há pedidos aprovados."
-                                                  : "Não há pedidos rejeitados."}
+                                                    ? "Não há pedidos aprovados."
+                                                    : "Não há pedidos rejeitados."}
                                         </p>
                                     </div>
                                 </div>
@@ -1643,8 +1746,8 @@ const AprovacaoFaltaFerias = () => {
                                         opInfo.key === "cancelar"
                                             ? "card-op-cancelar"
                                             : opInfo.key === "editar"
-                                              ? "card-op-editar"
-                                              : "card-op-agendar";
+                                                ? "card-op-editar"
+                                                : "card-op-agendar";
 
                                     const descFalta =
                                         pedido.tipoPedido === "FALTA"
@@ -1674,13 +1777,13 @@ const AprovacaoFaltaFerias = () => {
                                                                 title={
                                                                     pedido.tipoPedido ===
                                                                         "FALTA" &&
-                                                                    descFalta
+                                                                        descFalta
                                                                         ? `${pedido.falta} — ${descFalta}`
                                                                         : undefined
                                                                 }
                                                             >
                                                                 {pedido.tipoPedido ===
-                                                                "FALTA"
+                                                                    "FALTA"
                                                                     ? "🚫 FALTA"
                                                                     : "🌴 FÉRIAS"}
                                                             </span>
@@ -1722,7 +1825,7 @@ const AprovacaoFaltaFerias = () => {
                                                     <div className="mb-3 flex-grow-1">
                                                         <div className="border-start border-primary border-3 ps-3">
                                                             {pedido.tipoPedido ===
-                                                            "FALTA" ? (
+                                                                "FALTA" ? (
                                                                 <>
                                                                     <div className="d-flex justify-content-between mb-1">
                                                                         <small className="text-muted">
@@ -1863,6 +1966,34 @@ const AprovacaoFaltaFerias = () => {
                                                                 </div>
                                                             </div>
                                                         )}
+
+                                                        {anexosPorPedido[pedido.id] && anexosPorPedido[pedido.id].length > 0 && (
+                                                            <div className="mt-3">
+                                                                <small className="text-muted fw-semibold">
+                                                                    Anexos ({anexosPorPedido[pedido.id].length}):
+                                                                </small>
+                                                                <div className="d-flex flex-wrap gap-2 mt-2">
+                                                                    {anexosPorPedido[pedido.id].map((anexo) => (
+                                                                        <div key={anexo.id} className="d-flex gap-1">
+                                                                            <button
+                                                                                className="btn btn-sm btn-outline-primary"
+                                                                                onClick={() => abrirPreviewAnexo(anexo)}
+                                                                                title={anexo.nome_arquivo}
+                                                                            >
+                                                                                👁️ {anexo.nome_arquivo.substring(0, 15)}...
+                                                                            </button>
+                                                                            <button
+                                                                                className="btn btn-sm btn-outline-success"
+                                                                                onClick={() => downloadAnexo(anexo.id, anexo.nome_arquivo)}
+                                                                                title="Download"
+                                                                            >
+                                                                                ⬇️
+                                                                            </button>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     {/* Ações */}
@@ -1949,6 +2080,54 @@ const AprovacaoFaltaFerias = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Modal de Preview de Anexos */}
+            {modalAnexoVisible && (
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-lg modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">{anexoPreview?.nome_arquivo}</h5>
+                                <button type="button" className="btn-close" onClick={fecharPreview}></button>
+                            </div>
+                            <div className="modal-body text-center" style={{ maxHeight: '70vh', overflow: 'auto' }}>
+                                {anexoPreview && isImageFile(anexoPreview.tipo_arquivo) ? (
+                                    <img
+                                        src={previewUrl}
+                                        alt={anexoPreview.nome_arquivo}
+                                        style={{ maxWidth: '100%', maxHeight: '60vh' }}
+                                    />
+                                ) : anexoPreview && isPdfFile(anexoPreview.tipo_arquivo) ? (
+                                    <iframe
+                                        src={previewUrl}
+                                        style={{ width: '100%', height: '60vh', border: 'none' }}
+                                        title="PDF Preview"
+                                    />
+                                ) : (
+                                    <div className="text-center py-5">
+                                        <p className="text-muted">Preview não disponível para este tipo de arquivo</p>
+                                        <p className="small">Tipo: {anexoPreview?.tipo_arquivo}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <small className="text-muted me-auto">
+                                    Tamanho: {Math.round((anexoPreview?.tamanho || 0) / 1024)} KB
+                                </small>
+                                <button
+                                    className="btn btn-success"
+                                    onClick={() => downloadAnexo(anexoPreview.id, anexoPreview.nome_arquivo)}
+                                >
+                                    ⬇️ Download
+                                </button>
+                                <button className="btn btn-secondary" onClick={fecharPreview}>
+                                    Fechar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

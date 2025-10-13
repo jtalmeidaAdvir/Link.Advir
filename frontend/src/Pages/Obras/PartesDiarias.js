@@ -170,26 +170,105 @@ const adicionarLinhaPessoalEquip = () => {
   const lista = categoria === "Equipamentos" ? equipamentosList : especialidadesList;
   const sel   = lista.find(x => x.codigo === especialidadeCodigo);
 
-  setLinhasPessoalEquip(prev => ([
-    ...prev,
-    {
-      key: `${obraId}-${dia}-${colaboradorId}-${Date.now()}`,
-      obraId: Number(obraId),
-      dia: Number(dia),
-      colaboradorId: Number(colaboradorId),
-      colaboradorNome: col.nome,
-      codFuncionario: String(col.codFuncionario),
-      horas,            // string original (ex.: "2:30")
-      horasMin: minutos,
-      horaExtra: !!linhaPessoalEquipAtual.horaExtra,
-      categoria,
-      especialidadeCodigo,
-      especialidadeDesc: sel?.descricao ?? "",
-      subEmpId: sel?.subEmpId ?? null,
-      classeId: categoria === "Equipamentos" ? -1 : (classeId || null),
-      observacoes: observacoes || "",
+  const novaLinha = {
+    key: `${obraId}-${dia}-${colaboradorId}-${Date.now()}`,
+    obraId: Number(obraId),
+    dia: Number(dia),
+    colaboradorId: Number(colaboradorId),
+    colaboradorNome: col.nome,
+    codFuncionario: String(col.codFuncionario),
+    horas,            // string original (ex.: "2:30")
+    horasMin: minutos,
+    horaExtra: !!linhaPessoalEquipAtual.horaExtra,
+    categoria,
+    especialidadeCodigo,
+    especialidadeDesc: sel?.descricao ?? "",
+    subEmpId: sel?.subEmpId ?? null,
+    classeId: categoria === "Equipamentos" ? -1 : (classeId || null),
+    observacoes: observacoes || "",
+  };
+
+  setLinhasPessoalEquip(prev => [...prev, novaLinha]);
+
+  // ✅ ATUALIZAR A GRADE PRINCIPAL
+  setDadosProcessados(prev => {
+    const itemKey = `${colaboradorId}-${obraId}`;
+    const itemExistente = prev.find(it => 
+      it.userId === Number(colaboradorId) && it.obraId === Number(obraId)
+    );
+
+    if (itemExistente) {
+      // Atualizar item existente
+      return prev.map(it => {
+        if (it.userId === Number(colaboradorId) && it.obraId === Number(obraId)) {
+          const horasAtuais = it.horasPorDia[dia] || 0;
+          const novasEspecialidades = [...(it.especialidades || [])];
+          
+          novasEspecialidades.push({
+            dia: Number(dia),
+            especialidade: especialidadeCodigo,
+            categoria,
+            horas: minutos / 60,
+            subEmpId,
+            horaExtra: !!linhaPessoalEquipAtual.horaExtra,
+            classeId,
+            observacoes: observacoes || "",
+            obraId: Number(obraId)
+          });
+
+          return {
+            ...it,
+            horasPorDia: {
+              ...it.horasPorDia,
+              [dia]: horasAtuais + minutos
+            },
+            especialidades: novasEspecialidades
+          };
+        }
+        return it;
+      });
+    } else {
+      // Criar novo item
+      const obraMeta = obrasParaPickers.find(o => Number(o.id) === Number(obraId)) || {
+        nome: `Obra ${obraId}`,
+        codigo: `OBR${String(obraId).padStart(3, "0")}`
+      };
+
+      const baseHoras = Object.fromEntries(diasDoMes.map(d => [d, 0]));
+      baseHoras[dia] = minutos;
+
+      return [...prev, {
+        id: itemKey,
+        userId: Number(colaboradorId),
+        userName: col.nome,
+        codFuncionario: String(col.codFuncionario),
+        obraId: Number(obraId),
+        obraNome: obraMeta.nome,
+        obraCodigo: obraMeta.codigo,
+        horasPorDia: baseHoras,
+        horasOriginais: {},
+        especialidades: [{
+          dia: Number(dia),
+          especialidade: especialidadeCodigo,
+          categoria,
+          horas: minutos / 60,
+          subEmpId,
+          horaExtra: !!linhaPessoalEquipAtual.horaExtra,
+          classeId,
+          observacoes: observacoes || "",
+          obraId: Number(obraId)
+        }],
+        isOriginal: false
+      }];
     }
-  ]));
+  });
+
+  // Marcar dia como editado manualmente
+  setDiasEditadosManualmente(prev => {
+    const s = new Set(prev);
+    s.add(`${colaboradorId}-${obraId}-${dia}`);
+    return s;
+  });
 
   // reset campos variáveis
   setLinhaPessoalEquipAtual(p => ({
@@ -230,6 +309,8 @@ const submeterPessoalEquip = async () => {
       grupos.get(key).linhas.push(l);
     }
 
+    let totalSubmetidos = 0;
+    
     for (const [, grp] of grupos.entries()) {
       // 1) Cabeçalho com ColaboradorID (interno)
       const cabecalho = {
@@ -286,12 +367,28 @@ const submeterPessoalEquip = async () => {
           const err = await respItem.json().catch(()=> ({}));
           throw new Error(err?.message || `Falha ao criar item do colaborador ${l.colaboradorNome}.`);
         }
+        totalSubmetidos++;
       }
     }
 
+    // Fechar modal e limpar dados
     setModalPessoalEquipVisible(false);
     setLinhasPessoalEquip([]);
-    Alert.alert("Sucesso", "Registos de Pessoal/Equipamentos submetidos.");
+    setLinhaPessoalEquipAtual({
+      obraId: "",
+      dia: "",
+      colaboradorId: "",
+      horas: "",
+      horaExtra: false,
+      categoria: "MaoObra",
+      especialidadeCodigo: "",
+      subEmpId: null,
+      classeId: null,
+      observacoes: "",
+    });
+    
+    Alert.alert("Sucesso", `${totalSubmetidos} registo${totalSubmetidos !== 1 ? 's' : ''} de Pessoal/Equipamentos submetido${totalSubmetidos !== 1 ? 's' : ''} com sucesso.`);
+    
     await carregarItensSubmetidos();
     await carregarDados();
   } catch (e) {
@@ -518,7 +615,7 @@ const submeterPessoalEquip = async () => {
             classeId: null, // Reset classeId
             observacoes: "", // Reset observacoes
         });
-        setLinhasExternos([]);
+        //setLinhasExternos([]);
         setModalExternosVisible(true);
     };
 
@@ -2728,6 +2825,7 @@ const submeterPessoalEquip = async () => {
                     onPress={async () => {
                         setLoading(true); // ativa o loading e barra de progresso
                         setDiasEditadosManualmente(new Set()); // limpa marcações manuais (se quiseres manter)
+                        setLinhasExternos([]);
                         await carregarItensSubmetidos(); // recarrega os submetidos
                         console.log(
                             "🔍 submittedSet contém:",
@@ -3581,14 +3679,7 @@ const submeterPessoalEquip = async () => {
                 </View>
               ))}
 
-              {/* Submeter 
-              <TouchableOpacity onPress={submeterPessoalEquip} style={[styles.externosAddButton, { marginTop: 8 }]}>
-                <LinearGradient colors={["#1792FE", "#0B5ED7"]} style={styles.externosAddButtonGradient}>
-                  <Ionicons name="cloud-upload" size={18} color="#fff" />
-                  <Text style={styles.externosAddButtonText}>Submeter</Text>
-                </LinearGradient>
-              </TouchableOpacity>*/}
-            </View>
+              </View>
           )}
         </ScrollView>
       </View>

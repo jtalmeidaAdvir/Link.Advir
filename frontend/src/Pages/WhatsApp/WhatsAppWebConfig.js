@@ -4,6 +4,7 @@ import ContactsTab from "./components/ContactsTab";
 import ScheduleTab from "./components/ScheduleTab";
 
 import ConfiguracaoAutomaticaTab from "./components/ConfiguracaoAutomaticaTab";
+import RelatoriosTab from "./components/RelatoriosTab";
 import useWhatsAppData from "./hooks/useWhatsAppData";
 import { getWhatsAppStyles } from "./styles/whatsAppStyles";
 
@@ -673,7 +674,7 @@ const WhatsAppWebConfig = () => {
             if (timeFormatted && !timeFormatted.includes(":")) {
                 timeFormatted = "09:00";
             }
-            
+
             const scheduleWithTimezone = {
                 ...newSchedule,
                 time: timeFormatted,
@@ -1027,6 +1028,13 @@ const WhatsAppWebConfig = () => {
         />
     );
 
+    const renderRelatoriosTab = () => (
+        <RelatoriosTab
+            styles={styles}
+            API_BASE_URL={API_BASE_URL}
+        />
+    );
+
     return (
         <div
             style={{
@@ -1051,6 +1059,7 @@ const WhatsAppWebConfig = () => {
                     { id: "contacts", icon: "👥", label: "Contactos" },
                     { id: "schedule", icon: "⏰", label: "Agendamento" },
                     { id: "configuracao", icon: "🍽️", label: "Almoços" },
+                    { id: "relatorios", icon: "📧", label: "Relatórios" },
                 ].map((tab) => (
                     <button
                         key={tab.id}
@@ -1071,6 +1080,7 @@ const WhatsAppWebConfig = () => {
                 {activeTab === "contacts" && renderContactsTab()}
                 {activeTab === "schedule" && renderScheduleTab()}
                 {activeTab === "configuracao" && renderConfiguracaoAutomaticaTab()}
+                {activeTab === "relatorios" && renderRelatoriosTab()}
             </div>
         </div>
     );
