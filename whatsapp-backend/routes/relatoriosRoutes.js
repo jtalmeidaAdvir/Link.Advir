@@ -248,12 +248,11 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
             }
         }
     } else {
-        // Se não especificar, buscar todas as obras
-        const todasObras = await Obra.findAll();
-        obrasParaFiltrar = todasObras.map(o => o.id);
-        if (obrasParaFiltrar.length > 0) {
-            whereClause.obra_id = { [Op.in]: obrasParaFiltrar };
-        }
+        // Se não especificar empresa ou obra, não retornar dados
+        return {
+            html: '<p>Por favor, selecione uma empresa ou obra específica para gerar o relatório.</p>',
+            assunto: `📊 Relatório Diário - Filtro necessário - ${hoje}`
+        };
     }
 
     const registos = await RegistoPontoObra.findAll({
@@ -419,8 +418,20 @@ async function gerarRelatorioResumoMensal(empresa_ou_obra_id) {
                 
                 const empresaNome = empresaResult.length > 0 ? empresaResult[0].empresa : `Empresa ${empresa_ou_obra_id}`;
                 obraNome = `Resumo Mensal - ${empresaNome} - ${mes}/${ano}`;
+            } else {
+                // Nenhuma obra encontrada para esta empresa
+                return {
+                    html: '<p>Nenhuma obra encontrada para esta empresa.</p>',
+                    assunto: `📅 Resumo Mensal - Sem dados - ${mes}/${ano}`
+                };
             }
         }
+    } else {
+        // Se não especificar empresa ou obra, não retornar dados
+        return {
+            html: '<p>Por favor, selecione uma empresa ou obra específica para gerar o relatório.</p>',
+            assunto: `📅 Resumo Mensal - Filtro necessário - ${mes}/${ano}`
+        };
     }
 
     const registos = await RegistoPontoObra.findAll({
