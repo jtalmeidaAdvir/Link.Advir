@@ -1927,10 +1927,16 @@ const RegistosPorUtilizador = () => {
                     console.log('🔍 Debug - Desconta alimentação?:', descontaAlimentacao);
                     console.log('🔍 Debug - Falta selecionada completa:', faltaSelecionadaCompleta);
 
-                    // Verificar se é fim de semana
-                    const dataFalta = new Date(dataFormatada);
+                    // Verificar se é fim de semana usando os valores numéricos diretamente
+                    const y = parseInt(anoSelecionado, 10);
+                    const m = parseInt(mesSelecionado, 10) - 1; // JavaScript meses são 0-based
+                    const d = parseInt(diaToRegistar, 10);
+                    const dataFalta = new Date(y, m, d);
                     const diaSemana = dataFalta.getDay();
                     const isFimDeSemana = diaSemana === 0 || diaSemana === 6; // 0 = Domingo, 6 = Sábado
+                    
+                    console.log('🔍 Debug - Data da falta:', dataFormatada);
+                    console.log('🔍 Debug - Dia da semana:', diaSemana, isFimDeSemana ? '(FIM DE SEMANA)' : '(DIA ÚTIL)');
 
                     // Se a falta desconta alimentação E NÃO é fim de semana, criar automaticamente a falta F40
                     if (descontaAlimentacao && !isFimDeSemana) {

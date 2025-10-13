@@ -143,16 +143,17 @@ const listarVisitantes = async (req, res) => {
 // Obter resumo de visitantes por obra
 const obterResumoObraVisitantes = async (req, res) => {
   try {
-    const { obra_id, empresa_id } = req.query;
+    const { obra_id, empresa_id, data } = req.query;
 
     if (!obra_id || !empresa_id) {
       return res.status(400).json({ message: 'obra_id e empresa_id são obrigatórios' });
     }
 
-    console.log('📊 Obtendo resumo de visitantes - obra:', obra_id, 'empresa:', empresa_id);
+    console.log('📊 Obtendo resumo de visitantes - obra:', obra_id, 'empresa:', empresa_id, 'data:', data);
 
-    const hoje = new Date();
-    const inicioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    // Usar a data fornecida ou a data atual
+    const dataBase = data ? new Date(data) : new Date();
+    const inicioDia = new Date(dataBase.getFullYear(), dataBase.getMonth(), dataBase.getDate());
     const fimDia = new Date(inicioDia);
     fimDia.setDate(fimDia.getDate() + 1);
 
@@ -168,7 +169,7 @@ const obterResumoObraVisitantes = async (req, res) => {
       },
       include: [{
         model: Visitante,
-        attributes: ['id', 'primeiroNome', 'ultimoNome', 'numeroContribuinte']
+        attributes: ['id', 'primeiroNome', 'ultimoNome', 'numeroContribuinte', 'nomeEmpresa', 'nifEmpresa']
       }],
       order: [['timestamp', 'DESC']]
     });
@@ -205,11 +206,11 @@ const obterResumoObraVisitantes = async (req, res) => {
     console.log(`👥 ${visitantesATrabalhar} visitantes a trabalhar`);
 
     // Formatar registos para exibição
-    const entradasSaidas = registosHoje.slice(0, 10).map(r => ({
+    const entradasSaidas = registosHoje.map(r => ({
       id: r.id,
       visitante_id: r.visitante_id,
       nome: `${r.Visitante.primeiroNome} ${r.Visitante.ultimoNome}`,
-      nomeEmpresa: r.Visitante.nomeEmpresa,
+      nomeEmpresa: r.Visitante.nomeEmpresa || 'N/A',
       numeroContribuinte: r.Visitante.numeroContribuinte,
       tipo: r.tipo,
       timestamp: r.timestamp,
