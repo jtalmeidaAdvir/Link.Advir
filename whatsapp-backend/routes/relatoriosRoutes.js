@@ -140,10 +140,31 @@ router.post("/relatorios-agendados/:id/executar", async (req, res) => {
 
 // Função para executar o relatório
 async function executarRelatorio(schedule) {
+    console.log(`📧 executarRelatorio chamado para schedule ID: ${schedule.id}`);
+    console.log(`📋 Dados do schedule:`, {
+        id: schedule.id,
+        tipo: schedule.tipo,
+        priority: schedule.priority,
+        empresa_id: schedule.empresa_id,
+        message: schedule.message?.substring(0, 50)
+    });
+
     try {
         const tipo = schedule.priority || "registos_obra_dia";
         const emails = JSON.parse(schedule.contact_list);
-        const obra_id = schedule.empresa_id; // Use o empresa_id do schedule
+        const empresa_ou_obra_id = schedule.empresa_id; // Usar empresa_id do schedule
+
+        console.log(`📊 Tipo de relatório: ${tipo}`);
+        console.log(`📧 Destinatários: ${emails.join(', ')}`);
+        console.log(`🏢 Empresa/Obra ID: ${empresa_ou_obra_id}`);
+
+        if (!empresa_ou_obra_id) {
+            console.log(`❌ ERRO: empresa_id está vazio!`);
+            return {
+                success: false,
+                error: "empresa_id não definido no agendamento"
+            };
+        }
 
         let dadosRelatorio = "";
         let assunto = "";
@@ -151,51 +172,74 @@ async function executarRelatorio(schedule) {
         // Gerar dados do relatório baseado no tipo
         switch (tipo) {
             case "registos_obra_dia":
-                const resultado = await gerarRelatorioRegistosDia(obra_id); // Passa obra_id (que pode ser o empresa_id)
+                console.log(`📊 Gerando relatório de registos do dia para empresa/obra ${empresa_ou_obra_id}...`);
+                const resultado = await gerarRelatorioRegistosDia(empresa_ou_obra_id);
                 dadosRelatorio = resultado.html;
                 assunto = resultado.assunto;
+                console.log(`✅ Relatório gerado - Assunto: ${assunto}`);
                 break;
 
             case "resumo_mensal":
-                const resultadoMensal =
-                    await gerarRelatorioResumoMensal(obra_id);
+                console.log(`📊 Gerando resumo mensal para empresa/obra ${empresa_ou_obra_id}...`);
+                const resultadoMensal = await gerarRelatorioResumoMensal(empresa_ou_obra_id);
                 dadosRelatorio = resultadoMensal.html;
                 assunto = resultadoMensal.assunto;
+                console.log(`✅ Resumo mensal gerado - Assunto: ${assunto}`);
                 break;
 
             case "mapa_registos":
+                console.log(`📊 Gerando mapa de registos...`);
                 const resultadoMapa = await gerarRelatorioMapaRegistos();
                 dadosRelatorio = resultadoMapa.html;
                 assunto = resultadoMapa.assunto;
+                console.log(`✅ Mapa gerado - Assunto: ${assunto}`);
                 break;
 
             default:
+                console.log(`❌ Tipo de relatório não reconhecido: ${tipo}`);
                 dadosRelatorio = "<p>Tipo de relatório não reconhecido</p>";
                 assunto = "Relatório Advir";
         }
 
         // Enviar email para cada destinatário
+        console.log(`📤 Enviando emails para ${emails.length} destinatário(s)...`);
         for (const email of emails) {
+            console.log(`📧 Enviando para: ${email}`);
             await transporter.sendMail({
                 from: "noreply.advir@gmail.com",
                 to: email,
                 subject: assunto,
                 html: dadosRelatorio,
             });
+            console.log(`✅ Email enviado para: ${email}`);
         }
 
-        // Atualizar última execução
-        await schedule.update({
-            last_sent: new Date(),
-            total_sent: (schedule.total_sent || 0) + emails.length,
-        });
+        // Atualizar última execução APENAS se for um schedule da BD
+        if (schedule.update && typeof schedule.update === 'function') {
+            await schedule.update({
+                last_sent: new Date(),
+                total_sent: (schedule.total_sent || 0) + emails.length,
+            });
+            console.log(`✅ Schedule atualizado na BD`);
+        } else if (schedule.id && !schedule.id.toString().startsWith('TEST_')) {
+            // Atualizar manualmente via Sequelize
+            await Schedule.update(
+                {
+                    last_sent: new Date(),
+                    total_sent: (schedule.total_sent || 0) + emails.length,
+                },
+                { where: { id: schedule.id } }
+            );
+            console.log(`✅ Schedule ${schedule.id} atualizado manualmente na BD`);
+        }
 
+        console.log(`✅ executarRelatorio concluído com sucesso`);
         return {
             success: true,
             message: `Relatório enviado para ${emails.length} destinatário(s)`,
         };
     } catch (error) {
-        console.error("Erro ao executar relatório:", error);
+        console.error(`❌ Erro ao executar relatório:`, error);
         return {
             success: false,
             error: error.message,
@@ -205,6 +249,11 @@ async function executarRelatorio(schedule) {
 
 // Gerar relatório de registos do dia
 async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
+    console.log(`📊 gerarRelatorioRegistosDia chamado com empresa_ou_obra_id: ${empresa_ou_obra_id}`);
+    console.log(`📊 Tipo de empresa_ou_obra_id: ${typeof empresa_ou_obra_id}`);
+    console.log(`📊 Valor é null? ${empresa_ou_obra_id === null}`);
+    console.log(`📊 Valor é undefined? ${empresa_ou_obra_id === undefined}`);
+
     const hoje = new Date().toISOString().split("T")[0];
     const dataInicio = new Date(`${hoje}T00:00:00.000Z`);
     const dataFim = new Date(`${hoje}T23:59:59.999Z`);
@@ -216,54 +265,65 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
     let obraNome = "Todas as Obras";
     let obrasParaFiltrar = [];
 
-    if (empresa_ou_obra_id) {
-        // Primeiro tentar como obra
-        const obra = await Obra.findByPk(empresa_ou_obra_id);
-
-        if (obra && obra.empresa_id) {
-            // É uma obra específica
-            whereClause.obra_id = obra.id;
-            obrasParaFiltrar.push(obra.id);
-            obraNome = `${obra.codigo} - ${obra.nome}`;
-        } else {
-            // Tentar como empresa_id
-            const obrasDaEmpresa = await Obra.findAll({
-                where: { empresa_id: empresa_ou_obra_id },
-            });
-
-            if (obrasDaEmpresa.length > 0) {
-                obrasParaFiltrar = obrasDaEmpresa.map((o) => o.id);
-                whereClause.obra_id = { [Op.in]: obrasParaFiltrar };
-
-                // Buscar nome da empresa
-                const { sequelize } = require("../config/database");
-                const empresaResult = await sequelize.query(
-                    "SELECT empresa FROM empresa WHERE id = ?",
-                    {
-                        replacements: [empresa_ou_obra_id],
-                        type: sequelize.QueryTypes.SELECT,
-                    },
-                );
-
-                const empresaNome =
-                    empresaResult.length > 0
-                        ? empresaResult[0].empresa
-                        : `Empresa ${empresa_ou_obra_id}`;
-                obraNome = ` ${empresaNome}`;
-            } else {
-                // Nenhuma obra encontrada para esta empresa
-                return {
-                    html: "<p>Nenhuma obra encontrada para esta empresa.</p>",
-                    assunto: `📊 Relatório Diário - Sem dados - ${hoje}`,
-                };
-            }
-        }
-    } else {
-        // Se não especificar empresa ou obra, não retornar dados
+    // Validação mais rigorosa - aceitar 0 como válido, mas rejeitar null/undefined
+    if (empresa_ou_obra_id === null || empresa_ou_obra_id === undefined) {
+        // Se não especificar empresa ou obra, retornar erro
+        console.log(`❌ Nenhum filtro especificado - empresa_ou_obra_id está vazio`);
         return {
             html: "<p>Por favor, selecione uma empresa ou obra específica para gerar o relatório.</p>",
             assunto: `📊 Relatório Diário - Filtro necessário - ${hoje}`,
         };
+    }
+
+    // Primeiro tentar como obra
+    const obra = await Obra.findByPk(empresa_ou_obra_id);
+    console.log(`🔍 Busca por obra ID ${empresa_ou_obra_id}:`, obra ? `Encontrada - ${obra.nome}` : 'Não encontrada');
+
+    if (obra && obra.empresa_id) {
+        // É uma obra específica
+        whereClause.obra_id = obra.id;
+        obrasParaFiltrar.push(obra.id);
+        obraNome = `${obra.codigo} - ${obra.nome}`;
+        console.log(`✅ Filtro definido para obra específica: ${obraNome}`);
+    } else {
+        // Tentar como empresa_id
+        console.log(`🔍 Tentando buscar como empresa_id: ${empresa_ou_obra_id}`);
+        const obrasDaEmpresa = await Obra.findAll({
+            where: {
+                empresa_id: empresa_ou_obra_id,
+                estado: 'Ativo'
+            },
+        });
+        console.log(`📋 Obras encontradas para empresa ${empresa_ou_obra_id}: ${obrasDaEmpresa.length}`);
+
+        if (obrasDaEmpresa.length > 0) {
+            obrasParaFiltrar = obrasDaEmpresa.map((o) => o.id);
+            whereClause.obra_id = { [Op.in]: obrasParaFiltrar };
+
+            // Buscar nome da empresa
+            const { sequelize } = require("../config/database");
+            const empresaResult = await sequelize.query(
+                "SELECT empresa FROM empresa WHERE id = ?",
+                {
+                    replacements: [empresa_ou_obra_id],
+                    type: sequelize.QueryTypes.SELECT,
+                },
+            );
+
+            const empresaNome =
+                empresaResult.length > 0
+                    ? empresaResult[0].empresa
+                    : `Empresa ${empresa_ou_obra_id}`;
+            obraNome = `${empresaNome}`;
+            console.log(`✅ Filtro definido para empresa: ${obraNome} (${obrasParaFiltrar.length} obras)`);
+        } else {
+            // Nenhuma obra encontrada para esta empresa
+            console.log(`❌ Nenhuma obra ativa encontrada para empresa ${empresa_ou_obra_id}`);
+            return {
+                html: "<p>Nenhuma obra ativa encontrada para esta empresa.</p>",
+                assunto: `📊 Relatório Diário - Sem obras ativas - ${hoje}`,
+            };
+        }
     }
 
     const registos = await RegistoPontoObra.findAll({

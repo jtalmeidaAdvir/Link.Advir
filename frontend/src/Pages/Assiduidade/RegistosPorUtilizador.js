@@ -60,6 +60,9 @@ const RegistosPorUtilizador = () => {
         saidaTarde: '18:00'
     });
 
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [initError, setInitError] = useState(null);
+
     const pad = (n) => String(n).padStart(2, '0');
 
     // Converte (ano, mes 1-12, dia, hh, mm) local → ISO UTC com 'Z'
@@ -176,38 +179,106 @@ const RegistosPorUtilizador = () => {
     };
 
     useEffect(() => {
-        carregarUtilizadores();
-        carregarObras();
-        carregarTiposFaltas();
+        const inicializarComponente = async () => {
+            setIsInitialized(false);
+            setInitError(null);
+            
+            try {
+                console.log('🔄 Iniciando carregamento de dados essenciais...');
+                
+                // Validar tokens antes de começar
+                const painelAdminToken = localStorage.getItem('painelAdminToken');
+                const urlempresa = localStorage.getItem('urlempresa');
+                const loginToken = localStorage.getItem('loginToken');
+                
+                if (!painelAdminToken || !urlempresa) {
+                    throw new Error('⚠️ Tokens do Primavera não encontrados. Por favor, configure o acesso ao ERP.');
+                }
+                
+                if (!loginToken) {
+                    throw new Error('⚠️ Token de autenticação não encontrado. Por favor, faça login novamente.');
+                }
+                
+                // Carregar dados essenciais em paralelo com validação
+                const resultados = await Promise.allSettled([
+                    carregarUtilizadores(),
+                    carregarObras(),
+                    carregarTiposFaltas()
+                ]);
+                
+                // Verificar se algum carregamento falhou
+                const falhas = resultados.filter(r => r.status === 'rejected');
+                
+                if (falhas.length > 0) {
+                    const erros = falhas.map(f => f.reason?.message || 'Erro desconhecido').join('; ');
+                    throw new Error(`Falha ao carregar dados essenciais: ${erros}`);
+                }
+                
+                console.log('✅ Todos os dados essenciais carregados com sucesso');
+                setIsInitialized(true);
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar componente:', error);
+                setInitError(error.message);
+                setIsInitialized(false);
+            }
+        };
+        
+        inicializarComponente();
     }, []);
 
     const carregarTiposFaltas = async () => {
         const painelAdminToken = localStorage.getItem('painelAdminToken');
         const urlempresa = localStorage.getItem('urlempresa');
 
-        if (!painelAdminToken || !urlempresa) return;
+        if (!painelAdminToken || !urlempresa) {
+            throw new Error('Tokens do Primavera não configurados');
+        }
 
-        try {
-            const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${painelAdminToken}`,
-                    urlempresa: urlempresa,
-                },
-            });
+        let tentativas = 0;
+        const maxTentativas = 3;
 
-            if (res.ok) {
-                const data = await res.json();
-                const tipos = data?.DataSet?.Table ?? [];
-                const mapaFaltas = {};
-                tipos.forEach(t => {
-                    mapaFaltas[t.Falta] = t.Descricao;
+        while (tentativas < maxTentativas) {
+            try {
+                const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${painelAdminToken}`,
+                        urlempresa: urlempresa,
+                    },
                 });
-                setTiposFaltas(mapaFaltas);
+
+                if (res.ok) {
+                    const data = await res.json();
+                    const tipos = data?.DataSet?.Table ?? [];
+                    
+                    if (!Array.isArray(tipos) || tipos.length === 0) {
+                        throw new Error('Nenhum tipo de falta retornado do servidor');
+                    }
+
+                    const mapaFaltas = {};
+                    tipos.forEach(t => {
+                        mapaFaltas[t.Falta] = t.Descricao;
+                    });
+                    setTiposFaltas(mapaFaltas);
+                    console.log('✅ Tipos de faltas carregados com sucesso:', tipos.length);
+                    return true;
+                } else {
+                    const errorText = await res.text();
+                    throw new Error(`Erro HTTP ${res.status}: ${errorText}`);
+                }
+            } catch (err) {
+                tentativas++;
+                console.error(`❌ Tentativa ${tentativas}/${maxTentativas} falhou ao carregar tipos de faltas:`, err.message);
+                
+                if (tentativas >= maxTentativas) {
+                    throw new Error(`Falha ao carregar tipos de faltas após ${maxTentativas} tentativas: ${err.message}`);
+                }
+                
+                // Aguardar 1 segundo antes de tentar novamente
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
-        } catch (err) {
-            console.error('Erro ao carregar tipos de faltas:', err);
         }
     };
 
@@ -218,16 +289,33 @@ const RegistosPorUtilizador = () => {
     }, [utilizadorSelecionado, mesSelecionado, anoSelecionado]);
 
     const carregarUtilizadores = async () => {
+        const empresaId = localStorage.getItem('empresa_id');
+        
+        if (!empresaId) {
+            throw new Error('ID da empresa não encontrado');
+        }
+
         try {
-            const res = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${localStorage.getItem('empresa_id')}`, {
+            const res = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+
+            if (!res.ok) {
+                throw new Error(`Erro ao carregar utilizadores: HTTP ${res.status}`);
+            }
+
             const data = await res.json();
 
+            if (!Array.isArray(data)) {
+                throw new Error('Formato de resposta inválido ao carregar utilizadores');
+            }
+
             // Filtrar e ordenar utilizadores (ignorar jose.pedroeb1@gmail.com)
-            const utilizadoresFiltrados = Array.isArray(data)
-                ? data.filter(u => u.email !== 'jose.pedroeb1@gmail.com')
-                : [];
+            const utilizadoresFiltrados = data.filter(u => u.email !== 'jose.pedroeb1@gmail.com');
+
+            if (utilizadoresFiltrados.length === 0) {
+                console.warn('⚠️ Nenhum utilizador encontrado para esta empresa');
+            }
 
             const utilizadoresOrdenados = utilizadoresFiltrados.sort((a, b) => {
                 const codA = a.codFuncionario || a.username || a.email || '';
@@ -249,16 +337,12 @@ const RegistosPorUtilizador = () => {
                 });
             });
 
-            console.log('Utilizadores ordenados (excluindo jose.pedroeb1@gmail.com):', utilizadoresOrdenados.map(u => ({
-                id: u.id,
-                codFuncionario: u.codFuncionario,
-                nome: u.nome
-            })));
-
+            console.log('✅ Utilizadores carregados:', utilizadoresOrdenados.length);
             setUtilizadores(utilizadoresOrdenados);
+            return true;
         } catch (err) {
-            console.error('Erro ao carregar utilizadores:', err);
-            setUtilizadores([]);
+            console.error('❌ Erro ao carregar utilizadores:', err);
+            throw err;
         }
     };
 
@@ -266,18 +350,30 @@ const RegistosPorUtilizador = () => {
         const empresaId = localStorage.getItem('empresa_id');
 
         if (!empresaId) {
-            console.error('ID da empresa não encontrado');
-            return;
+            throw new Error('ID da empresa não encontrado');
         }
 
         try {
             const res = await fetch(`https://backend.advir.pt/api/obra/por-empresa?empresa_id=${empresaId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+
+            if (!res.ok) {
+                throw new Error(`Erro ao carregar obras: HTTP ${res.status}`);
+            }
+
             const data = await res.json();
-            setObras(Array.isArray(data) ? data : []);
+
+            if (!Array.isArray(data)) {
+                throw new Error('Formato de resposta inválido ao carregar obras');
+            }
+
+            console.log('✅ Obras carregadas:', data.length);
+            setObras(data);
+            return true;
         } catch (err) {
-            console.error('Erro ao carregar obras:', err);
+            console.error('❌ Erro ao carregar obras:', err);
+            throw err;
         }
     };
 
@@ -307,6 +403,31 @@ const RegistosPorUtilizador = () => {
         setDadosGrade([]);
 
         try {
+            // 1) Validar e carregar tipos de faltas primeiro
+            console.log('🔍 [GRADE] Etapa 1: Validando tipos de faltas...');
+            setLoadingMessage('Validando tipos de faltas...');
+            
+            const painelAdminToken = localStorage.getItem('painelAdminToken');
+            const urlempresa = localStorage.getItem('urlempresa');
+            
+            if (!painelAdminToken || !urlempresa) {
+                console.error('❌ [GRADE] Erro: Tokens do Primavera não encontrados');
+                alert('Tokens do Primavera não encontrados. Por favor, configure o acesso ao ERP.');
+                setLoadingGrade(false);
+                return;
+            }
+            
+            // Carregar tipos de faltas com validação
+            try {
+                await carregarTiposFaltas();
+                console.log('✅ [GRADE] Tipos de faltas validados com sucesso');
+            } catch (err) {
+                console.error('❌ [GRADE] Erro ao validar tipos de faltas:', err);
+                alert('Erro ao carregar tipos de faltas. Por favor, tente novamente.');
+                setLoadingGrade(false);
+                return;
+            }
+
             const dias = gerarDiasDoMes(parseInt(anoSelecionado), parseInt(mesSelecionado));
             setDiasDoMes(dias);
 
@@ -371,7 +492,7 @@ const RegistosPorUtilizador = () => {
                             })
                         ]);
 
-                        // Carregar faltas do utilizador (em paralelo)
+                        // Carregar faltas do utilizador (em paralelo) com validação
                         const painelAdminToken = localStorage.getItem('painelAdminToken');
                         const urlempresa = localStorage.getItem('urlempresa');
                         const loginToken = localStorage.getItem('loginToken');
@@ -387,7 +508,9 @@ const RegistosPorUtilizador = () => {
                                     },
                                 });
 
-                                if (resCodFuncionario.ok) {
+                                if (!resCodFuncionario.ok) {
+                                    console.warn(`⚠️ [GRADE] Não foi possível obter codFuncionario para ${user.nome}`);
+                                } else {
                                     const dataCodFuncionario = await resCodFuncionario.json();
                                     const codFuncionario = dataCodFuncionario.codFuncionario;
 
@@ -405,21 +528,35 @@ const RegistosPorUtilizador = () => {
 
                                         if (resFaltas.ok) {
                                             const dataFaltas = await resFaltas.json();
-                                            const listaFaltas = dataFaltas?.DataSet?.Table ?? [];
+                                            
+                                            // Validar estrutura de resposta
+                                            if (!dataFaltas || !dataFaltas.DataSet || !Array.isArray(dataFaltas.DataSet.Table)) {
+                                                console.warn(`⚠️ [GRADE] Formato de resposta inválido ao carregar faltas para ${user.nome}`);
+                                            } else {
+                                                const listaFaltas = dataFaltas.DataSet.Table;
 
-                                            // Filtrar faltas do mês/ano atual
-                                            faltasUtilizador = listaFaltas.filter(f => {
-                                                const dataFalta = new Date(f.Data);
-                                                const anoFalta = dataFalta.getFullYear();
-                                                const mesFalta = dataFalta.getMonth();
-                                                return anoFalta === parseInt(anoSelecionado) && mesFalta === parseInt(mesSelecionado) - 1;
-                                            });
+                                                // Filtrar faltas do mês/ano atual
+                                                faltasUtilizador = listaFaltas.filter(f => {
+                                                    const dataFalta = new Date(f.Data);
+                                                    const anoFalta = dataFalta.getFullYear();
+                                                    const mesFalta = dataFalta.getMonth();
+                                                    return anoFalta === parseInt(anoSelecionado) && mesFalta === parseInt(mesSelecionado) - 1;
+                                                });
+                                                
+                                                console.log(`✅ [GRADE] ${user.nome}: ${faltasUtilizador.length} faltas carregadas para ${mesSelecionado}/${anoSelecionado}`);
+                                            }
+                                        } else {
+                                            console.warn(`⚠️ [GRADE] Erro HTTP ${resFaltas.status} ao carregar faltas para ${user.nome}`);
                                         }
+                                    } else {
+                                        console.warn(`⚠️ [GRADE] codFuncionario não encontrado para ${user.nome}`);
                                     }
                                 }
                             } catch (faltaErr) {
-                                console.error(`Erro ao carregar faltas para ${user.nome}:`, faltaErr);
+                                console.error(`❌ [GRADE] Erro ao carregar faltas para ${user.nome}:`, faltaErr);
                             }
+                        } else {
+                            console.warn(`⚠️ [GRADE] Tokens não disponíveis para carregar faltas de ${user.nome}`);
                         }
 
                         if (resRegistos.ok) {
@@ -550,13 +687,32 @@ const RegistosPorUtilizador = () => {
                 });
             });
 
+            // Validação final da integridade dos dados
+            console.log('🔍 [GRADE] Validação final da grade...');
+            console.log(`📊 [GRADE] Total de utilizadores na grade: ${dadosGradeTemp.length}`);
+            
+            const totalFaltasNaGrade = dadosGradeTemp.reduce((sum, user) => sum + (user.totalFaltas || 0), 0);
+            const totalRegistosNaGrade = dadosGradeTemp.reduce((sum, user) => sum + (user.totalRegistos || 0), 0);
+            
+            console.log(`📊 [GRADE] Total de faltas na grade: ${totalFaltasNaGrade}`);
+            console.log(`📊 [GRADE] Total de registos na grade: ${totalRegistosNaGrade}`);
+            
+            if (dadosGradeTemp.length === 0) {
+                console.warn('⚠️ [GRADE] Nenhum utilizador com dados para o período selecionado');
+            }
+            
+            console.log('✅ [GRADE] Validação final concluída - definindo grade');
+
             setDadosGrade(dadosGradeTemp);
             setLoadingProgress(100);
             setLoadingMessage('Concluído!');
+            
+            console.log('✅ [GRADE] Grade carregada com sucesso!');
 
         } catch (err) {
-            console.error('Erro ao carregar dados da grade:', err);
+            console.error('❌ [GRADE] Erro ao carregar dados da grade:', err);
             setLoadingMessage('Erro ao carregar dados');
+            alert(`Erro ao carregar grade: ${err.message || 'Erro desconhecido'}\n\nPor favor, tente novamente.`);
         } finally {
             setTimeout(() => {
                 setLoadingGrade(false);
@@ -2148,6 +2304,71 @@ const RegistosPorUtilizador = () => {
         }
     };
 
+
+    // Mostrar erro de inicialização se houver
+    if (initError) {
+        return (
+            <div style={styles.container}>
+                <div style={{
+                    ...styles.loadingCard,
+                    backgroundColor: '#fed7d7',
+                    border: '2px solid #fc8181',
+                    padding: '40px',
+                    textAlign: 'center'
+                }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '20px' }}>⚠️</div>
+                    <h2 style={{ color: '#742a2a', marginBottom: '20px' }}>Erro ao Carregar Página</h2>
+                    <p style={{ color: '#742a2a', marginBottom: '30px', fontSize: '1.1rem' }}>
+                        {initError}
+                    </p>
+                    <button
+                        style={{
+                            ...styles.primaryButton,
+                            backgroundColor: '#e53e3e',
+                            fontSize: '1.1rem',
+                            padding: '15px 30px'
+                        }}
+                        onClick={() => window.location.reload()}
+                    >
+                        🔄 Tentar Novamente
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Mostrar loading enquanto inicializa
+    if (!isInitialized) {
+        return (
+            <div style={styles.container}>
+                <div style={{
+                    ...styles.loadingCard,
+                    padding: '60px',
+                    textAlign: 'center'
+                }}>
+                    <div style={styles.spinner}></div>
+                    <h2 style={{ marginTop: '30px', color: '#2d3748' }}>A carregar dados essenciais...</h2>
+                    <p style={{ color: '#718096', marginTop: '15px', fontSize: '1rem' }}>
+                        A validar ligação ao ERP e carregar tipos de faltas...
+                    </p>
+                    <div style={{
+                        marginTop: '30px',
+                        padding: '20px',
+                        backgroundColor: '#e6fffa',
+                        borderRadius: '12px',
+                        border: '1px solid #81e6d9'
+                    }}>
+                        <div style={{ fontSize: '0.9rem', color: '#234e52', lineHeight: '1.8' }}>
+                            <div>✓ A verificar tokens de autenticação...</div>
+                            <div>✓ A carregar utilizadores...</div>
+                            <div>✓ A carregar obras...</div>
+                            <div>✓ A validar tipos de faltas do ERP...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={styles.container}>
