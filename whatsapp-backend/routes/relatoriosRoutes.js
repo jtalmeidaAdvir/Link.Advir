@@ -205,12 +205,22 @@ async function gerarRelatorioRegistosDia(obra_id) {
         timestamp: { [Op.between]: [dataInicio, dataFim] }
     };
 
-    let obraNome = 'Todas as Obras';
+    let obraNome = 'Escritório - Advir';
 
     if (obra_id) {
         whereClause.obra_id = obra_id;
         const obra = await Obra.findByPk(obra_id);
         obraNome = obra ? `${obra.codigo} - ${obra.nome}` : `Obra ${obra_id}`;
+    } else {
+        // Se não especificar obra, buscar apenas o escritório (código 2009.003)
+        const obraEscritorio = await Obra.findOne({
+            where: { codigo: '2009.003' }
+        });
+        
+        if (obraEscritorio) {
+            whereClause.obra_id = obraEscritorio.id;
+            obraNome = `${obraEscritorio.codigo} - ${obraEscritorio.nome}`;
+        }
     }
 
     const registos = await RegistoPontoObra.findAll({
