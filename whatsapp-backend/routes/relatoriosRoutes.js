@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const Schedule = require('../models/Schedule');
@@ -123,7 +122,7 @@ router.post('/relatorios-agendados/:id/executar', async (req, res) => {
         }
 
         const resultado = await executarRelatorio(relatorio);
-        
+
         res.json(resultado);
     } catch (error) {
         console.error('Erro ao executar relatório:', error);
@@ -217,42 +216,102 @@ async function gerarRelatorioRegistosDia(obra_id) {
     const registos = await RegistoPontoObra.findAll({
         where: whereClause,
         include: [
-            { model: User, attributes: ['nome'] },
-            { model: Obra, attributes: ['codigo', 'nome'] }
+            {
+                model: User,
+                attributes: ['id', 'nome'],
+            },
+            {
+                model: Obra,
+                attributes: ['id', 'codigo', 'nome'],
+            },
         ],
-        order: [['timestamp', 'ASC']]
+        order: [['user_id', 'ASC'], ['obra_id', 'ASC'], ['timestamp', 'ASC']],
+    });
+
+    // Agrupar por utilizador + obra
+    const agrupados = {};
+
+    registos.forEach((r) => {
+        const key = `${r.user_id}_${r.obra_id}`;
+
+        if (!agrupados[key]) {
+            agrupados[key] = {
+                utilizador: r.User?.nome || 'Desconhecido',
+                obra: r.Obra ? `${r.Obra.codigo} - ${r.Obra.nome}` : 'Sem obra',
+                registos: []
+            };
+        }
+
+        agrupados[key].registos.push({
+            tipo: r.tipo,
+            timestamp: new Date(r.timestamp)
+        });
+    });
+
+    // Calcular horas trabalhadas
+    const registosProcessados = Object.values(agrupados).map((grupo) => {
+        const registosOrdenados = grupo.registos.sort((a, b) => a.timestamp - b.timestamp);
+        const ultimoRegisto = registosOrdenados[registosOrdenados.length - 1];
+
+        let horasTrabalhadas = 0;
+
+        // Calcular horas entre entradas e saídas
+        for (let i = 0; i < registosOrdenados.length; i++) {
+            if (registrosOrdenados[i].tipo === 'entrada') {
+                const entrada = registrosOrdenados[i].timestamp;
+                const saida = registrosOrdenados[i + 1]?.tipo === 'saida'
+                    ? registrosOrdenados[i + 1].timestamp
+                    : new Date(); // Se não tem saída, usa agora
+
+                const diff = (saida - entrada) / (1000 * 60 * 60); // Converter para horas
+                horasTrabalhadas += diff;
+            }
+        }
+
+        return {
+            utilizador: grupo.utilizador,
+            obra: grupo.obra,
+            tipo: ultimoRegisto.tipo.toUpperCase(),
+            hora: ultimoRegisto.timestamp.toLocaleTimeString('pt-PT', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            }),
+            horasTrabalhadas: horasTrabalhadas.toFixed(2) + 'h'
+        };
     });
 
     let html = `
         <h2>📊 Relatório de Registos de Ponto - ${new Date().toLocaleDateString('pt-PT')}</h2>
         <h3>🏗️ ${obraNome}</h3>
-        <p><strong>Total de registos:</strong> ${registos.length}</p>
+        <p><strong>Total de registos únicos (utilizador/obra):</strong> ${registosProcessados.length}</p>
         <hr>
         <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%;">
             <thead>
-                <tr style="background-color: #f2f2f2;">
+                <tr>
                     <th>Utilizador</th>
                     <th>Obra</th>
-                    <th>Tipo</th>
-                    <th>Hora</th>
+                    <th>Estado Atual</th>
+                    <th>Última Ação</th>
+                    <th>Horas Trabalhadas</th>
                 </tr>
             </thead>
             <tbody>
-    `;
-
-    registos.forEach(reg => {
-        const emoji = reg.tipo === 'entrada' ? '🟢' : '🔴';
-        html += `
-            <tr>
-                <td>${reg.User?.nome || 'N/A'}</td>
-                <td>${reg.Obra ? `${reg.Obra.codigo} - ${reg.Obra.nome}` : 'N/A'}</td>
-                <td>${emoji} ${reg.tipo.toUpperCase()}</td>
-                <td>${new Date(reg.timestamp).toLocaleTimeString('pt-PT')}</td>
-            </tr>
-        `;
-    });
-
-    html += `
+                ${registosProcessados
+                    .map(
+                        (r) => `
+                    <tr>
+                        <td>${r.utilizador}</td>
+                        <td>${r.obra}</td>
+                        <td>
+                            ${r.tipo === 'ENTRADA' ? '🟢 ENTRADA' : '🔴 SAÍDA'}
+                        </td>
+                        <td>${r.hora}</td>
+                        <td><strong>${r.horasTrabalhadas}</strong></td>
+                    </tr>
+                `,
+                    )
+                    .join('')}
             </tbody>
         </table>
         <br>
