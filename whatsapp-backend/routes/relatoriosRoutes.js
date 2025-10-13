@@ -268,6 +268,10 @@ async function gerarRelatorioRegistosDia(obra_id) {
             }
         }
 
+        // Converter horas decimais para formato HH:MM
+        const horas = Math.floor(horasTrabalhadas);
+        const minutos = Math.round((horasTrabalhadas - horas) * 60);
+
         return {
             utilizador: grupo.utilizador,
             obra: grupo.obra,
@@ -277,7 +281,7 @@ async function gerarRelatorioRegistosDia(obra_id) {
                 minute: '2-digit',
                 second: '2-digit',
             }),
-            horasTrabalhadas: horasTrabalhadas.toFixed(2) + 'h'
+            horasTrabalhadas: `${horas}h${minutos > 0 ? ` ${minutos}min` : ''}`
         };
     });
 
