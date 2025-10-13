@@ -257,10 +257,10 @@ async function gerarRelatorioRegistosDia(obra_id) {
 
         // Calcular horas entre entradas e saídas
         for (let i = 0; i < registosOrdenados.length; i++) {
-            if (registrosOrdenados[i].tipo === 'entrada') {
-                const entrada = registrosOrdenados[i].timestamp;
-                const saida = registrosOrdenados[i + 1]?.tipo === 'saida'
-                    ? registrosOrdenados[i + 1].timestamp
+            if (registosOrdenados[i].tipo === 'entrada') {
+                const entrada = registosOrdenados[i].timestamp;
+                const saida = registosOrdenados[i + 1]?.tipo === 'saida'
+                    ? registosOrdenados[i + 1].timestamp
                     : new Date(); // Se não tem saída, usa agora
 
                 const diff = (saida - entrada) / (1000 * 60 * 60); // Converter para horas
