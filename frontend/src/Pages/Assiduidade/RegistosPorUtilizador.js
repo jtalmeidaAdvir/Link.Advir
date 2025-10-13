@@ -30,7 +30,7 @@ const RegistosPorUtilizador = () => {
 
     const token = localStorage.getItem('loginToken');
 
-    // State for loading status in grade view
+    // State for loading status in grid view
     const [carregando, setCarregando] = useState(false);
 
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -182,48 +182,48 @@ const RegistosPorUtilizador = () => {
         const inicializarComponente = async () => {
             setIsInitialized(false);
             setInitError(null);
-            
+
             try {
                 console.log('🔄 Iniciando carregamento de dados essenciais...');
-                
+
                 // Validar tokens antes de começar
                 const painelAdminToken = localStorage.getItem('painelAdminToken');
                 const urlempresa = localStorage.getItem('urlempresa');
                 const loginToken = localStorage.getItem('loginToken');
-                
+
                 if (!painelAdminToken || !urlempresa) {
                     throw new Error('⚠️ Tokens do Primavera não encontrados. Por favor, configure o acesso ao ERP.');
                 }
-                
+
                 if (!loginToken) {
                     throw new Error('⚠️ Token de autenticação não encontrado. Por favor, faça login novamente.');
                 }
-                
+
                 // Carregar dados essenciais em paralelo com validação
                 const resultados = await Promise.allSettled([
                     carregarUtilizadores(),
                     carregarObras(),
                     carregarTiposFaltas()
                 ]);
-                
+
                 // Verificar se algum carregamento falhou
                 const falhas = resultados.filter(r => r.status === 'rejected');
-                
+
                 if (falhas.length > 0) {
                     const erros = falhas.map(f => f.reason?.message || 'Erro desconhecido').join('; ');
                     throw new Error(`Falha ao carregar dados essenciais: ${erros}`);
                 }
-                
+
                 console.log('✅ Todos os dados essenciais carregados com sucesso');
                 setIsInitialized(true);
-                
+
             } catch (error) {
                 console.error('❌ Erro ao inicializar componente:', error);
                 setInitError(error.message);
                 setIsInitialized(false);
             }
         };
-        
+
         inicializarComponente();
     }, []);
 
@@ -252,7 +252,7 @@ const RegistosPorUtilizador = () => {
                 if (res.ok) {
                     const data = await res.json();
                     const tipos = data?.DataSet?.Table ?? [];
-                    
+
                     if (!Array.isArray(tipos) || tipos.length === 0) {
                         throw new Error('Nenhum tipo de falta retornado do servidor');
                     }
@@ -271,11 +271,11 @@ const RegistosPorUtilizador = () => {
             } catch (err) {
                 tentativas++;
                 console.error(`❌ Tentativa ${tentativas}/${maxTentativas} falhou ao carregar tipos de faltas:`, err.message);
-                
+
                 if (tentativas >= maxTentativas) {
                     throw new Error(`Falha ao carregar tipos de faltas após ${maxTentativas} tentativas: ${err.message}`);
                 }
-                
+
                 // Aguardar 1 segundo antes de tentar novamente
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
@@ -290,7 +290,7 @@ const RegistosPorUtilizador = () => {
 
     const carregarUtilizadores = async () => {
         const empresaId = localStorage.getItem('empresa_id');
-        
+
         if (!empresaId) {
             throw new Error('ID da empresa não encontrado');
         }
@@ -406,17 +406,17 @@ const RegistosPorUtilizador = () => {
             // 1) Validar e carregar tipos de faltas primeiro
             console.log('🔍 [GRADE] Etapa 1: Validando tipos de faltas...');
             setLoadingMessage('Validando tipos de faltas...');
-            
+
             const painelAdminToken = localStorage.getItem('painelAdminToken');
             const urlempresa = localStorage.getItem('urlempresa');
-            
+
             if (!painelAdminToken || !urlempresa) {
                 console.error('❌ [GRADE] Erro: Tokens do Primavera não encontrados');
                 alert('Tokens do Primavera não encontrados. Por favor, configure o acesso ao ERP.');
                 setLoadingGrade(false);
                 return;
             }
-            
+
             // Carregar tipos de faltas com validação
             try {
                 await carregarTiposFaltas();
@@ -528,7 +528,7 @@ const RegistosPorUtilizador = () => {
 
                                         if (resFaltas.ok) {
                                             const dataFaltas = await resFaltas.json();
-                                            
+
                                             // Validar estrutura de resposta
                                             if (!dataFaltas || !dataFaltas.DataSet || !Array.isArray(dataFaltas.DataSet.Table)) {
                                                 console.warn(`⚠️ [GRADE] Formato de resposta inválido ao carregar faltas para ${user.nome}`);
@@ -542,7 +542,7 @@ const RegistosPorUtilizador = () => {
                                                     const mesFalta = dataFalta.getMonth();
                                                     return anoFalta === parseInt(anoSelecionado) && mesFalta === parseInt(mesSelecionado) - 1;
                                                 });
-                                                
+
                                                 console.log(`✅ [GRADE] ${user.nome}: ${faltasUtilizador.length} faltas carregadas para ${mesSelecionado}/${anoSelecionado}`);
                                             }
                                         } else {
@@ -690,23 +690,23 @@ const RegistosPorUtilizador = () => {
             // Validação final da integridade dos dados
             console.log('🔍 [GRADE] Validação final da grade...');
             console.log(`📊 [GRADE] Total de utilizadores na grade: ${dadosGradeTemp.length}`);
-            
+
             const totalFaltasNaGrade = dadosGradeTemp.reduce((sum, user) => sum + (user.totalFaltas || 0), 0);
             const totalRegistosNaGrade = dadosGradeTemp.reduce((sum, user) => sum + (user.totalRegistos || 0), 0);
-            
+
             console.log(`📊 [GRADE] Total de faltas na grade: ${totalFaltasNaGrade}`);
             console.log(`📊 [GRADE] Total de registos na grade: ${totalRegistosNaGrade}`);
-            
+
             if (dadosGradeTemp.length === 0) {
                 console.warn('⚠️ [GRADE] Nenhum utilizador com dados para o período selecionado');
             }
-            
+
             console.log('✅ [GRADE] Validação final concluída - definindo grade');
 
             setDadosGrade(dadosGradeTemp);
             setLoadingProgress(100);
             setLoadingMessage('Concluído!');
-            
+
             console.log('✅ [GRADE] Grade carregada com sucesso!');
 
         } catch (err) {
@@ -1220,35 +1220,48 @@ const RegistosPorUtilizador = () => {
                 throw new Error('Tokens do Primavera não encontrados');
             }
 
-            const { funcionarioId, data, falta } = faltaParaRemover;
+            const { funcionarioId, data, falta, todasFaltas } = faltaParaRemover; // Recebe todasFaltas
 
             // Formatar a data para o formato esperado pelo endpoint (YYYY-MM-DD)
             const dataFormatada = new Date(data).toISOString().split('T')[0];
 
-            // Chamar endpoint para eliminar falta no ERP usando parâmetros de rota
-            const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionarioId}/${dataFormatada}/${falta.Falta}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${painelToken}`,
-                    urlempresa
+            // Lógica para remover todas as faltas do dia
+            let falhasNaRemocao = 0;
+            for (const faltaItem of todasFaltas) {
+                try {
+                    const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/EliminarFalta/${funcionarioId}/${dataFormatada}/${faltaItem.Falta}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${painelToken}`,
+                            urlempresa
+                        }
+                    });
+
+                    if (!res.ok) {
+                        falhasNaRemocao++;
+                        const errorText = await res.text();
+                        console.error(`Erro ao eliminar falta ${faltaItem.Falta} no dia ${dataFormatada}: ${errorText}`);
+                    }
+                } catch (err) {
+                    falhasNaRemocao++;
+                    console.error(`Erro inesperado ao eliminar falta ${faltaItem.Falta}:`, err);
                 }
-            });
-
-            if (res.ok) {
-                alert('✅ Falta eliminada com sucesso!');
-
-                // Recarregar dados
-                if (viewMode === 'grade') {
-                    carregarDadosGrade();
-                }
-
-                setRemoverFaltaDialogOpen(false);
-                setFaltaParaRemover(null);
-            } else {
-                const errorText = await res.text();
-                throw new Error(`Erro ao eliminar falta: ${errorText}`);
             }
+
+            if (falhasNaRemocao === 0) {
+                alert('✅ Todas as faltas do dia eliminadas com sucesso!');
+            } else {
+                alert(`⚠️ Eliminação de faltas concluída com ${falhasNaRemocao} erro(s).\nConsulte a consola para mais detalhes.`);
+            }
+
+            // Recarregar dados
+            if (viewMode === 'grade') {
+                carregarDadosGrade();
+            }
+
+            setRemoverFaltaDialogOpen(false);
+            setFaltaParaRemover(null);
 
         } catch (err) {
             console.error('Erro ao remover falta:', err);
@@ -1832,7 +1845,7 @@ const RegistosPorUtilizador = () => {
         } catch (err) {
             console.error('Erro ao carregar dados completos da falta:', err);
         }
-        
+
         const descontaAlimentacao = faltaSelecionadaCompleta && 
             (faltaSelecionadaCompleta.DescontaSubsAlim === 1 || 
              faltaSelecionadaCompleta.DescontaSubsAlim === '1' ||
@@ -1914,8 +1927,13 @@ const RegistosPorUtilizador = () => {
                     console.log('🔍 Debug - Desconta alimentação?:', descontaAlimentacao);
                     console.log('🔍 Debug - Falta selecionada completa:', faltaSelecionadaCompleta);
 
-                    // Se a falta desconta alimentação, criar automaticamente a falta F40
-                    if (descontaAlimentacao) {
+                    // Verificar se é fim de semana
+                    const dataFalta = new Date(dataFormatada);
+                    const diaSemana = dataFalta.getDay();
+                    const isFimDeSemana = diaSemana === 0 || diaSemana === 6; // 0 = Domingo, 6 = Sábado
+
+                    // Se a falta desconta alimentação E NÃO é fim de semana, criar automaticamente a falta F40
+                    if (descontaAlimentacao && !isFimDeSemana) {
                         console.log('📌 Criando falta F40 automática (desconto alimentação)...');
 
                         const dadosF40 = {
@@ -1974,6 +1992,9 @@ const RegistosPorUtilizador = () => {
                             console.error('❌ Erro ao criar falta F40 automática:', errorF40);
                             alert('✅ Falta principal registada com sucesso!\n\n⚠️ Aviso: Não foi possível criar a falta F40 (desconto alimentação) automaticamente. Por favor, crie-a manualmente.');
                         }
+                    } else if (descontaAlimentacao && isFimDeSemana) {
+                        console.log('ℹ️ Falta ao fim de semana - F40 não será criada');
+                        alert('✅ Falta registada e integrada automaticamente no ERP com sucesso!\n\nℹ️ Nota: Falta F40 não foi criada porque é fim de semana.');
                     } else {
                         console.log('ℹ️ Esta falta não desconta alimentação, F40 não será criada');
                         alert('✅ Falta registada e integrada automaticamente no ERP com sucesso!');
@@ -2725,7 +2746,7 @@ const RegistosPorUtilizador = () => {
                                                     <div style={{ marginBottom: '10px' }}>
                                                         Esta operação irá <strong>eliminar permanentemente</strong> todos os registos de ponto dos dias selecionados.
                                                     </div>
-                                                    <div style={{ marginBottom: '15px', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                                    <div style={{ marginTop: '15px', fontSize: '0.85rem', fontStyle: 'italic' }}>
                                                         Esta ação <strong>NÃO pode ser desfeita</strong>!
                                                     </div>
                                                 </div>
@@ -3775,7 +3796,7 @@ const RegistosPorUtilizador = () => {
                             </div>
                         </div>
                         <div style={{ marginTop: '15px', fontSize: '0.9rem', color: '#4a5568', fontStyle: 'italic' }}>
-                            <strong>💡 Instruções:</strong> Clique normal = <strong>abrir editor de pontos</strong> (se houver falta, permite remover) | Ctrl + Clique = seleção múltipla
+                            <strong>Instruções:</strong> Clique normal = <strong>abrir editor de pontos</strong> (se houver falta, permite remover) | Ctrl + Clique = seleção múltipla
                         </div>
                     </div>
 
@@ -3866,7 +3887,8 @@ const RegistosPorUtilizador = () => {
                                                                         funcionarioNome: item.utilizador.nome,
                                                                         dia: diaNum,
                                                                         data: new Date(dataFormatada).toISOString(),
-                                                                        falta: estatisticas.faltas[0]
+                                                                        falta: estatisticas.faltas[0],
+                                                                        todasFaltas: estatisticas.faltas // Passar todas as faltas do dia
                                                                     });
                                                                     setRemoverFaltaDialogOpen(true);
                                                                 } else {
