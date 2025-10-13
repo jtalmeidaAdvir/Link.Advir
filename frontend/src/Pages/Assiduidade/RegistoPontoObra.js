@@ -45,6 +45,39 @@ const RegistoPontoObra = (props) => {
     const [mostrarManual, setMostrarManual] = useState(false);
     const [mostrarEquipa, setMostrarEquipa] = useState(false);
 
+    const [cameras, setCameras] = useState([]);
+const [currentCamIdx, setCurrentCamIdx] = useState(0);
+
+const startScannerWith = async (cameraId) => {
+  // garante que não existem instâncias anteriores
+  if (scannerRef.current) {
+    try { await scannerRef.current.stop(); } catch (_) {}
+    scannerRef.current = null;
+  }
+
+  scannerRef.current = new Html5Qrcode("reader");
+  await scannerRef.current.start(
+    cameraId,
+    {
+      fps: 10,
+      qrbox: { width: 250, height: 250 },
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+    },
+    async (decodedText) => {
+      if (isProcessing) return;
+      setIsProcessing(true);
+      try {
+        await scannerRef.current.stop();
+      } catch (_) {}
+      scannerRef.current = null;
+      setScannerVisible(false);
+      await onScanSuccess(decodedText);
+      setIsProcessing(false);
+    }
+  );
+};
+
+
     // Hook para renovar tokens automaticamente quando o app volta ao primeiro plano
     useAppStateRefresh();
 
@@ -340,51 +373,46 @@ const RegistoPontoObra = (props) => {
 
     const toggleScanner = () => setScannerVisible(!scannerVisible);
 
-    // Configurar scanner
-    useEffect(() => {
-        if (!scannerVisible) return;
+  useEffect(() => {
+  if (!scannerVisible) return;
 
-        const startScanner = async () => {
-            try {
-                scannerRef.current = new Html5Qrcode("reader");
-                const cameras = await Html5Qrcode.getCameras();
-                const backCamera = cameras.find(c => /back/i.test(c.label)) || cameras[0];
+  const init = async () => {
+    try {
+      // obter lista de câmaras
+      const found = await Html5Qrcode.getCameras();
+      if (!found?.length) {
+        alert("Não foram encontradas câmaras.");
+        setScannerVisible(false);
+        return;
+      }
 
-                await scannerRef.current.start(
-                    backCamera.id,
-                    {
-                        fps: 10,
-                        qrbox: { width: 250, height: 250 },
-                        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
-                    },
-                    async decodedText => {
-                        if (isProcessing) return;
-                        setIsProcessing(true);
-                        try {
-                            await scannerRef.current.stop();
-                        } catch (_) { }
-                        scannerRef.current = null;
-                        setScannerVisible(false);
-                        await onScanSuccess(decodedText);
-                        setIsProcessing(false);
-                    }
-                );
-            } catch (err) {
-                console.error("Erro ao iniciar scanner:", err);
-                alert("Erro ao iniciar câmera");
-                setScannerVisible(false);
-            }
-        };
+      setCameras(found);
 
-        startScanner();
+      // escolher por defeito: traseira/environment se existir
+      const preferida =
+        found.find(c => /back|rear|environment|trás/i.test(c.label)) || found[0];
 
-        return () => {
-            if (scannerRef.current) {
-                scannerRef.current.stop().catch(() => { });
-                scannerRef.current = null;
-            }
-        };
-    }, [scannerVisible, isProcessing]);
+      const idx = found.findIndex(c => c.id === preferida.id);
+      setCurrentCamIdx(idx >= 0 ? idx : 0);
+
+      await startScannerWith(preferida.id);
+    } catch (err) {
+      console.error("Erro ao iniciar scanner:", err);
+      alert("Erro ao iniciar câmera");
+      setScannerVisible(false);
+    }
+  };
+
+  init();
+
+  return () => {
+    if (scannerRef.current) {
+      scannerRef.current.stop().catch(() => {});
+      scannerRef.current = null;
+    }
+  };
+}, [scannerVisible]); // <— remove 'isProcessing' daqui
+
 
     // Substituir a handleManualAction por:
     const handlePicagemManual = async () => {
@@ -397,6 +425,28 @@ const RegistoPontoObra = (props) => {
         await processarPorQR(obra.id, obra.nome);
     };
 
+
+    const handleSwitchCamera = async () => {
+  if (!scannerVisible || !cameras.length) return;
+  if (isProcessing) return;
+  setIsProcessing(true);
+  try {
+    const nextIdx = (currentCamIdx + 1) % cameras.length;
+    // parar a atual
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop(); } catch (_) {}
+      scannerRef.current = null;
+    }
+    // iniciar com a próxima
+    await startScannerWith(cameras[nextIdx].id);
+    setCurrentCamIdx(nextIdx);
+  } catch (e) {
+    console.error("Erro ao trocar câmara:", e);
+    alert("Não foi possível trocar de câmara.");
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
 
 
@@ -610,6 +660,20 @@ const RegistoPontoObra = (props) => {
                                                 <div id="reader" style={{ width: '100%', minHeight: '300px' }}></div>
                                             </div>
                                         )}
+                                        {scannerVisible && cameras.length > 1 && (
+                                            <div className="d-flex justify-content-end mb-2">
+                                                <button
+                                                className="btn btn-outline-primary btn-sm"
+                                                onClick={handleSwitchCamera}
+                                                disabled={isProcessing}
+                                                title="Alternar entre câmaras"
+                                                >
+                                                Rodar câmara
+                                                </button>
+                                            </div>
+                                            )}
+                                        
+
 
                                         {/* Manual Registration */}
                                         <div className="border border-primary rounded mb-3">

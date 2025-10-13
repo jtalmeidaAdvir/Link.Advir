@@ -18,6 +18,9 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
         enabled: true,
     });
 
+
+    
+
     useEffect(() => {
         carregarRelatorios();
         carregarEmpresas();
