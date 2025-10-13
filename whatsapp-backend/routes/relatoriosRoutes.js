@@ -57,7 +57,7 @@ router.post('/relatorios-agendados', async (req, res) => {
             contact_list: JSON.stringify(emailsArray),
             frequency: frequency || 'daily',
             time: new Date(`1970-01-01T${time}:00.000Z`),
-            days: days ? JSON.stringify(days) : JSON.stringify([1,2,3,4,5]),
+            days: days ? JSON.stringify(days) : JSON.stringify([1, 2, 3, 4, 5]),
             enabled: enabled !== undefined ? enabled : true
         });
 
@@ -222,21 +222,21 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
             const obrasDaEmpresa = await Obra.findAll({
                 where: { empresa_id: empresa_ou_obra_id }
             });
-            
+
             if (obrasDaEmpresa.length > 0) {
                 obrasParaFiltrar = obrasDaEmpresa.map(o => o.id);
                 whereClause.obra_id = { [Op.in]: obrasParaFiltrar };
-                
+
                 // Buscar nome da empresa
                 const { sequelize } = require('../config/database');
                 const empresaResult = await sequelize.query(
-                    'SELECT empresa FROM empresas WHERE id = ?',
+                    'SELECT empresa FROM empresa WHERE id = ?',
                     {
                         replacements: [empresa_ou_obra_id],
                         type: sequelize.QueryTypes.SELECT
                     }
                 );
-                
+
                 const empresaNome = empresaResult.length > 0 ? empresaResult[0].empresa : `Empresa ${empresa_ou_obra_id}`;
                 obraNome = `Todas as obras - ${empresaNome}`;
             } else {
@@ -344,8 +344,8 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
             </thead>
             <tbody>
                 ${registosProcessados
-                    .map(
-                        (r) => `
+            .map(
+                (r) => `
                     <tr>
                         <td>${r.utilizador}</td>
                         <td>${r.obra}</td>
@@ -356,8 +356,8 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                         <td><strong>${r.horasTrabalhadas}</strong></td>
                     </tr>
                 `,
-                    )
-                    .join('')}
+            )
+            .join('')}
             </tbody>
         </table>
         <br>
@@ -401,21 +401,21 @@ async function gerarRelatorioResumoMensal(empresa_ou_obra_id) {
             const obrasDaEmpresa = await Obra.findAll({
                 where: { empresa_id: empresa_ou_obra_id }
             });
-            
+
             if (obrasDaEmpresa.length > 0) {
                 const obrasIds = obrasDaEmpresa.map(o => o.id);
                 whereClause.obra_id = { [Op.in]: obrasIds };
-                
+
                 // Buscar nome da empresa
                 const { sequelize } = require('../config/database');
                 const empresaResult = await sequelize.query(
-                    'SELECT empresa FROM empresas WHERE id = ?',
+                    'SELECT empresa FROM empresa WHERE id = ?',
                     {
                         replacements: [empresa_ou_obra_id],
                         type: sequelize.QueryTypes.SELECT
                     }
                 );
-                
+
                 const empresaNome = empresaResult.length > 0 ? empresaResult[0].empresa : `Empresa ${empresa_ou_obra_id}`;
                 obraNome = `Resumo Mensal - ${empresaNome} - ${mes}/${ano}`;
             } else {
