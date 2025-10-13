@@ -199,6 +199,9 @@ const CustomDrawerContent = ({
                         )}
                         labelStyle={drawerStyles.menuItemLabel}
                         style={drawerStyles.menuItem}
+                        activeBackgroundColor="transparent"
+                        activeTintColor="#1792FE"
+                        inactiveTintColor="#1792FE"
                     />
                     <DrawerItem
                         label="Registo Admin"
@@ -214,6 +217,9 @@ const CustomDrawerContent = ({
                         )}
                         labelStyle={drawerStyles.menuItemLabel}
                         style={drawerStyles.menuItem}
+                        activeBackgroundColor="transparent"
+                        activeTintColor="#1792FE"
+                        inactiveTintColor="#1792FE"
                     />
 
                     <View style={drawerStyles.bottomSection}>
@@ -229,6 +235,9 @@ const CustomDrawerContent = ({
                             )}
                             labelStyle={drawerStyles.menuItemLabel}
                             style={drawerStyles.menuItem}
+                            activeBackgroundColor="transparent"
+                            activeTintColor="#1792FE"
+                            inactiveTintColor="#1792FE"
                         />
                         <DrawerItem
                             label="Sair"
@@ -245,6 +254,9 @@ const CustomDrawerContent = ({
                                 { color: "#4A9EFF" },
                             ]}
                             style={drawerStyles.logoutItem}
+                            activeBackgroundColor="transparent"
+                            activeTintColor="#FFF"
+                            inactiveTintColor="#FFF"
                         />
                     </View>
                 </DrawerContentScrollView>
@@ -281,6 +293,9 @@ const CustomDrawerContent = ({
                         )}
                         labelStyle={drawerStyles.menuItemLabel}
                         style={drawerStyles.menuItem}
+                        activeBackgroundColor="transparent"
+                        activeTintColor="#1792FE"
+                        inactiveTintColor="#1792FE"
                     />
                     <View style={drawerStyles.bottomSection}>
                         <DrawerItem
@@ -298,6 +313,9 @@ const CustomDrawerContent = ({
                                 { color: "#4A9EFF" },
                             ]}
                             style={drawerStyles.logoutItem}
+                            activeBackgroundColor="transparent"
+                            activeTintColor="#FFF"
+                            inactiveTintColor="#FFF"
                         />
                     </View>
                 </DrawerContentScrollView>
@@ -326,7 +344,7 @@ const CustomDrawerContent = ({
         "GestaoExternos", // GestaoTrabalhadoresExternos
         "GestaoPartes", // GestaoPartesDiarias
         "MapaRegistos", // MapaRegistos
-   
+
     ];
 
     // Organizar módulos para drawer
@@ -423,7 +441,7 @@ const CustomDrawerContent = ({
 
         // Se o tipoUser parece ser um JWT (contém pontos), permitir todos os módulos temporariamente
         if (tipoUser && tipoUser.includes(".")) {
-            
+
             return true;
         }
 
@@ -436,10 +454,10 @@ const CustomDrawerContent = ({
                 tipoUser === "Trabalhador" // Permitir Trabalhadores terem acesso ao módulo Obras
             )
         ) {
-      
+
             return false;
         }
-       
+
         return true;
     });
 
@@ -499,7 +517,7 @@ const CustomDrawerContent = ({
                     </TouchableOpacity>
                 </View>
                 <View style={drawerStyles.moduleContainer}>
-                    
+
                 </View>
 
                 {/* Selecionar Empresa */}
@@ -874,7 +892,7 @@ const CustomDrawerContent = ({
                                                         submodulo.nome
                                                         ];
                                                     if (!screenName) {
-                                                        
+
                                                         return null;
                                                     }
 
@@ -885,7 +903,7 @@ const CustomDrawerContent = ({
                                                         submodulo.nome ===
                                                         "Agenda"
                                                     ) {
-                                                   
+
                                                     }
 
                                                     // Verificar permissões especiais
@@ -928,10 +946,10 @@ const CustomDrawerContent = ({
                                                                 "Agenda"
                                                             )
                                                         ) {
-                                                            
+
                                                             return null;
                                                         }
-                                                        
+
                                                     }
 
                                                     if (
@@ -1260,6 +1278,9 @@ const CustomDrawerContent = ({
                             )}
                             labelStyle={drawerStyles.menuItemLabel}
                             style={drawerStyles.menuItem}
+                            activeBackgroundColor="transparent"
+                            activeTintColor="#1792FE"
+                            inactiveTintColor="#1792FE"
                         />
                     )}
                     {localStorage.getItem("loginToken") && (
@@ -1278,6 +1299,9 @@ const CustomDrawerContent = ({
                                 { color: "#FFFFFF" },
                             ]}
                             style={drawerStyles.logoutItem}
+                            activeBackgroundColor="transparent"
+                            activeTintColor="#FFF"
+                            inactiveTintColor="#FFF"
                         />
                     )}
                 </View>
@@ -1367,7 +1391,7 @@ const AppNavigator = () => {
 
         // Verificar se tipoUser é um token JWT e tentar corrigir
         if (tipoUserLs && tipoUserLs.includes(".")) {
-          
+
             tipoUserLs =
                 localStorage.getItem("userTipo") ||
                 localStorage.getItem("tipo_user") ||
@@ -1375,13 +1399,13 @@ const AppNavigator = () => {
 
             // Se ainda não encontramos, definir como vazio para forçar nova seleção
             if (!tipoUserLs || tipoUserLs.includes(".")) {
-                
+
                 localStorage.removeItem("tipoUser");
                 tipoUserLs = "";
             }
         }
 
-        
+
 
         // Verificar se o token existe e é válido
         if (token && isTokenValid(token)) {
@@ -1458,7 +1482,7 @@ const AppNavigator = () => {
         const userId = localStorage.getItem("userId");
         const empresaId = localStorage.getItem("empresa_id");
 
-      
+
 
         if (userId && token) {
             try {
@@ -1482,7 +1506,7 @@ const AppNavigator = () => {
                 setModules([]);
             }
         } else {
-            
+
         }
     };
 
@@ -1713,7 +1737,7 @@ const AppNavigator = () => {
                                 {/* Botão de perfil/login */}
                                 <TouchableOpacity
                                     onPress={() => {
-                                        
+
                                         if (isLoggedIn) {
                                             toggleProfileMenu();
                                         } else {

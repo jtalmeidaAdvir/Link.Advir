@@ -1947,14 +1947,14 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // QUARTO: Verificar se há conversa ATIVA de fechar pedido - PRIORIDADE MÁXIMA
+    // TERCEIRO: Verificar se há conversa ATIVA de fechar pedido - PRIORIDADE MÁXIMA
     if (activeFecharPedidos && activeFecharPedidos.has(phoneNumber)) {
         console.log(`🔒 Processando mensagem dentro de conversa de fechar pedido ativa: "${messageText}"`);
         await processarMensagemFecharPedido(phoneNumber, messageText, client);
         return;
     }
 
-    // QUINTO: Verificar se é palavra-chave para INICIAR novo fecho de pedido
+    // QUARTO: Verificar se é palavra-chave para INICIAR novo fecho de pedido
     const canInterruptForFecharPedido =
         !conversation ||
         conversation.state === CONVERSATION_STATES.INITIAL ||
@@ -1980,7 +1980,7 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // SEXTO: Verificar se é uma palavra-chave para novo pedido (DEPOIS de verificar fechar pedido)
+    // QUINTO: Verificar se é uma palavra-chave para novo pedido (DEPOIS de verificar fechar pedido)
     // MAS APENAS se não há conversa ativa OU se a conversa está em estado inicial/confirmação
     const canInterruptForRequest =
         !conversation ||
@@ -2013,7 +2013,7 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // SÉTIMO: Verificar se é uma palavra-chave para registo de ponto
+    // SEXTO: Verificar se é uma palavra-chave para registo de ponto
     // APENAS se não há conversa ativa OU se a conversa está em estado inicial/confirmação
     const canInterruptForPonto =
         !conversation ||
@@ -2087,7 +2087,7 @@ async function handleIncomingMessage(message) {
         return;
     }
 
-    // OITAVO: Verificar se é uma palavra-chave para iniciar nova conversa de pedidos
+    // Sétimo: Verificar se é uma palavra-chave para iniciar nova conversa de pedidos
     if (isRequestKeyword(messageText) && !conversation) {
         console.log(`🎯 Palavra-chave de início detectada: "${messageText}"`);
 
@@ -4637,16 +4637,10 @@ function startSchedule(schedule) {
                     try {
                         let result;
                         if (schedule.tipo === "verificacao_pontos_almoco") {
-                            // Executar verificação automática de pontos
-                            const currentTime = new Date().toLocaleTimeString('pt-PT');
-                            addLog(schedule.id, "info", `🍽️ Chamando executarVerificacaoPontosAlmoco às ${currentTime}...`);
                             console.log(`🍽️ CHAMANDO executarVerificacaoPontosAlmoco para agendamento ${schedule.id}`);
                             result = await executarVerificacaoPontosAlmoco(schedule);
                             console.log(`📋 RESULTADO da verificação de pontos:`, result);
                         } else if (schedule.tipo === "relatorio_email") {
-                            // Executar envio de relatório por email
-                            const currentTime = new Date().toLocaleTimeString('pt-PT');
-                            addLog(schedule.id, "info", `📧 Chamando executarRelatorio às ${currentTime}...`);
                             console.log(`📧 CHAMANDO executarRelatorio para agendamento ${schedule.id}`);
 
                             // Importar a função de executar relatório
@@ -4654,8 +4648,6 @@ function startSchedule(schedule) {
                             result = await executarRelatorio(schedule);
                             console.log(`📋 RESULTADO do envio de relatório:`, result);
                         } else {
-                            // Executar mensagem normal
-                            addLog(schedule.id, "info", "📩 Chamando executeScheduledMessage...");
                             console.log(`📩 CHAMANDO executeScheduledMessage para agendamento ${schedule.id}`);
                             result = await executeScheduledMessage(schedule);
                             console.log(`📋 RESULTADO do envio de mensagem:`, result);
@@ -4720,30 +4712,62 @@ function startSchedule(schedule) {
 
 // Função para verificar se deve executar hoje
 function shouldExecuteToday(schedule, now) {
-    // Garantir que estamos a usar a hora de Portugal
+    // Garantir que estamos a usar a hora de Lisboa/Portugal
     const portugalTime = new Date(
         now.toLocaleString("en-US", { timeZone: "Europe/Lisbon" }),
     );
     const today = portugalTime.getDay(); // 0 = Domingo, 1 = Segunda, etc.
     const todayDate = portugalTime.toISOString().split("T")[0];
 
+    // Verificação de intervalo mínimo de 3 minutos entre execuções (TODOS os tipos)
+    if (schedule.last_sent) {
+        const lastSentTime = schedule.last_sent instanceof Date
+            ? schedule.last_sent
+            : new Date(schedule.last_sent);
+
+        const timeDiffMinutes = (portugalTime - lastSentTime) / (1000 * 60);
+        const INTERVALO_MINIMO_MINUTOS = 3;
+
+        if (timeDiffMinutes < INTERVALO_MINIMO_MINUTOS) {
+            const minutosRestantes = Math.ceil(INTERVALO_MINIMO_MINUTOS - timeDiffMinutes);
+            const tipoTexto = schedule.tipo === "relatorio_email" ? "Relatório email" :
+                schedule.tipo === "verificacao_pontos_almoco" ? "Verificação automática" :
+                    "Agendamento normal";
+
+            addLog(
+                schedule.id,
+                "warning",
+                `⏱️ AGUARDANDO INTERVALO: ${tipoTexto} - última execução há ${Math.floor(timeDiffMinutes)} min. Aguardar ${minutosRestantes} min`
+            );
+            console.log(`⏱️ AGENDAMENTO ${schedule.id} - INTERVALO INSUFICIENTE: ${Math.floor(timeDiffMinutes)}min de ${INTERVALO_MINIMO_MINUTOS}min`);
+            return false;
+        }
+
+        addLog(
+            schedule.id,
+            "info",
+            `✅ INTERVALO OK: Última execução há ${Math.floor(timeDiffMinutes)} min (mínimo: ${INTERVALO_MINIMO_MINUTOS} min)`
+        );
+        console.log(`✅ AGENDAMENTO ${schedule.id} - INTERVALO VÁLIDO: ${Math.floor(timeDiffMinutes)} minutos`);
+    }
+
     // Verificação se já foi executado hoje (APENAS para agendamentos normais e relatórios)
     // EXCLUIR verificações automáticas de pontos (podem executar múltiplas vezes)
-    if (schedule.tipo !== "verificacao_pontos_almoco" && schedule.lastSent) {
+    if (schedule.tipo !== "verificacao_pontos_almoco" && schedule.last_sent) {
         let lastSentDate;
 
-        if (schedule.lastSent instanceof Date) {
-            lastSentDate = schedule.lastSent.toISOString().split("T")[0];
-        } else if (typeof schedule.lastSent === "string") {
+        if (schedule.last_sent instanceof Date) {
+            lastSentDate = schedule.last_sent.toISOString().split("T")[0];
+        } else if (typeof schedule.last_sent === "string") {
             // Se for string, pode ser formato ISO ou formato português
-            if (schedule.lastSent.includes("/")) {
+            if (schedule.last_sent.includes("/")) {
                 // Formato português: dd/mm/yyyy, hh:mm:ss
-                const datePart = schedule.lastSent.split(",")[0].trim();
+                const datePart = schedule.last_sent.split(",")[0].trim();
                 const [day, month, year] = datePart.split("/");
                 lastSentDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
             } else {
                 // Formato ISO
-                lastSentDate = new Date(schedule.lastSent).toISOString().split("T")[0];
+                lastSentDate = new Date(schedule.last_sent).toISOString().split("T")[0];
             }
         }
 
@@ -4758,10 +4782,10 @@ function shouldExecuteToday(schedule, now) {
         console.log(`✅ AGENDAMENTO ${schedule.id} PODE EXECUTAR - Última: ${lastSentDate}, Hoje: ${todayDate}`);
     }
 
-    // Para verificações automáticas de pontos, SEMPRE permitir execução múltipla
+    // Para verificações automáticas de pontos, permitir execução múltipla (com intervalo de 3 min)
     if (schedule.tipo === "verificacao_pontos_almoco") {
-        addLog(schedule.id, "success", `🔥 VERIFICAÇÃO AUTOMÁTICA - SEMPRE PODE EXECUTAR (múltiplas por dia)`);
-        console.log(`🔥 AGENDAMENTO ${schedule.id} - VERIFICAÇÃO AUTOMÁTICA SEMPRE PODE EXECUTAR`);
+        addLog(schedule.id, "success", `🔥 VERIFICAÇÃO AUTOMÁTICA - PODE EXECUTAR (múltiplas por dia com intervalo 3 min)`);
+        console.log(`🔥 AGENDAMENTO ${schedule.id} - VERIFICAÇÃO AUTOMÁTICA PODE EXECUTAR`);
     }
 
     // Verificação do dia da semana

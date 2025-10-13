@@ -71,7 +71,7 @@ const makeDetectorOpts = () => new faceapi.TinyFaceDetectorOptions({
       setStatusMessage('Tempo esgotado. Nenhuma face detectada.');
       setScanProgress(0);
       if (onStopScan) onStopScan();
-    }, 8000);
+    }, 1000);
   };
 
   // HUD
