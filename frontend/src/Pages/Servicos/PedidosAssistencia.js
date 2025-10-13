@@ -1,5 +1,5 @@
 ﻿
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
     View,
     Text,
@@ -55,6 +55,8 @@ const PedidosAssistencia = ({ navigation }) => {
     const [filterPrioridade, setFilterPrioridade] = useState("");
     const [filterSerie, setFilterSerie] = useState("2025");
     const [filterEstado, setFilterEstado] = useState("1");
+    const [filterTecnico, setFilterTecnico] = useState("");
+    const [tecnicos, setTecnicos] = useState([]);
     const [showFilters, setShowFilters] = useState(false);
     const { t } = useTranslation();
     const [filteredData, setFilteredData] = useState([]);
@@ -94,79 +96,8 @@ const PedidosAssistencia = ({ navigation }) => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    useEffect(() => {
-        const groupedData = Object.values(
-            applyFilters().reduce((acc, pedido) => {
-                const numProcesso = pedido.NumProcesso;
-                if (!acc[numProcesso]) {
-                    acc[numProcesso] = [];
-                }
-                acc[numProcesso].push(pedido);
-                return acc;
-            }, {}),
-        );
-
-        const sortedData = groupedData.sort((a, b) => {
-            return b[0].NumProcesso - a[0].NumProcesso;
-        });
-
-        setFilteredData(sortedData);
-    }, [pedidos, searchTerm, filterPrioridade, filterEstado, filterSerie]);
-
-    // Fetch pedidos quando o componente monta ou a tela recebe foco
-    useFocusEffect(
-        React.useCallback(() => {
-            const fetchPedidos = async () => {
-                const token = localStorage.getItem("painelAdminToken");
-                const urlempresa = localStorage.getItem("urlempresa");
-
-                try {
-                    const response = await fetch(
-                        "https://webapiprimavera.advir.pt/listarPedidos/listarPedidos",
-                        {
-                            method: "GET",
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                                urlempresa: urlempresa,
-                                "Content-Type": "application/json",
-                            },
-                        }
-                    );
-
-                    if (!response.ok) throw new Error(`Error: ${response.statusText}`);
-
-                    const data = await response.json();
-
-                    // carregar pedidos
-                    let pedidosComAnexos = await Promise.all(
-                        data.DataSet.Table.map(async (p) => {
-                            try {
-                                const resp = await fetch(`${ANEXOS_BASE}/pedido/${p.ID}`);
-                                if (resp.ok) {
-                                    const anexos = await resp.json();
-                                    return { ...p, TotalAnexos: (anexos.anexos || []).length };
-                                }
-                            } catch (e) {
-                                console.error("Erro ao contar anexos", e);
-                            }
-                            return { ...p, TotalAnexos: 0 }; // fallback
-                        })
-                    );
-
-                    setPedidos(pedidosComAnexos);
-                } catch (error) {
-                    console.error("Error fetching pedidos:", error);
-                    setErrorMessage("Não foi possível carregar os pedidos. Tente novamente.");
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            fetchPedidos();
-        }, []),
-    );
-
-    const applyFilters = () => {
+    // Mover applyFilters ANTES do useMemo
+    const applyFilters = React.useCallback(() => {
         let filteredPedidos = [...pedidos];
 
         filteredPedidos = filteredPedidos.filter(
@@ -212,6 +143,14 @@ const PedidosAssistencia = ({ navigation }) => {
             );
         }
 
+        if (filterTecnico && filterTecnico.trim()) {
+            filteredPedidos = filteredPedidos.filter(
+                (pedido) =>
+                    pedido.Tecnico?.toString().trim() ===
+                    filterTecnico.trim(),
+            );
+        }
+
         if (filterEstado) {
             if (filterEstado === "pendentes") {
                 const estadosPendentes = ["2", "3", "4"];
@@ -226,7 +165,98 @@ const PedidosAssistencia = ({ navigation }) => {
         }
 
         return filteredPedidos;
-    };
+    }, [pedidos, searchTerm, filterPrioridade, filterEstado, filterSerie, filterTecnico, isAdmin, userTecnicoID]);
+
+    // Otimizar filtros com useMemo
+    const filteredAndGroupedData = React.useMemo(() => {
+        let filtered = applyFilters();
+
+        const grouped = Object.values(
+            filtered.reduce((acc, pedido) => {
+                const numProcesso = pedido.NumProcesso;
+                if (!acc[numProcesso]) {
+                    acc[numProcesso] = [];
+                }
+                acc[numProcesso].push(pedido);
+                return acc;
+            }, {}),
+        );
+
+        return grouped.sort((a, b) => {
+            return b[0].NumProcesso - a[0].NumProcesso;
+        });
+    }, [applyFilters]);
+
+    useEffect(() => {
+        setFilteredData(filteredAndGroupedData);
+    }, [filteredAndGroupedData]);
+
+    // Fetch pedidos quando o componente monta ou a tela recebe foco
+    useFocusEffect(
+        React.useCallback(() => {
+            const fetchPedidos = async () => {
+                const token = localStorage.getItem("painelAdminToken");
+                const urlempresa = localStorage.getItem("urlempresa");
+
+                try {
+                    const response = await fetch(
+                        "https://webapiprimavera.advir.pt/listarPedidos/listarPedidos",
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                urlempresa: urlempresa,
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+
+                    if (!response.ok) throw new Error(`Error: ${response.statusText}`);
+
+                    const data = await response.json();
+
+                    // Não carregar anexos no início - apenas inicializar com 0
+                    const pedidosIniciais = data.DataSet.Table.map(p => ({
+                        ...p,
+                        TotalAnexos: 0
+                    }));
+
+                    setPedidos(pedidosIniciais);
+
+                    // Buscar lista de técnicos
+                    try {
+                        const tecnicosResponse = await fetch(
+                            "https://webapiprimavera.advir.pt/routePedidos_STP/LstTecnicosTodos",
+                            {
+                                method: "GET",
+                                headers: {
+                                    Authorization: `Bearer ${token}`,
+                                    urlempresa: urlempresa,
+                                    "Content-Type": "application/json",
+                                },
+                            }
+                        );
+
+                        if (tecnicosResponse.ok) {
+                            const tecnicosData = await tecnicosResponse.json();
+                            if (tecnicosData.DataSet?.Table) {
+                                setTecnicos(tecnicosData.DataSet.Table);
+                            }
+                        }
+                    } catch (tecnicoError) {
+                        console.error("Erro ao buscar técnicos:", tecnicoError);
+                    }
+                } catch (error) {
+                    console.error("Error fetching pedidos:", error);
+                    setErrorMessage("Não foi possível carregar os pedidos. Tente novamente.");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            fetchPedidos();
+        }, []),
+    );
 
     // Delete pedido
     const deletePedido = async (id) => {
@@ -323,7 +353,7 @@ const PedidosAssistencia = ({ navigation }) => {
                 setAnexosPedido(anexos);
                 setModalAnexosVisible(true);
 
-                // Atualizar contador no pedido
+                // Atualizar contador no pedido - agora carrega sob demanda
                 setPedidos((prev) =>
                     prev.map((p) =>
                         p.ID === pedidoId ? { ...p, TotalAnexos: anexos.length } : p
@@ -335,6 +365,30 @@ const PedidosAssistencia = ({ navigation }) => {
         } catch (error) {
             console.error("Erro ao carregar anexos:", error);
             setErrorMessage("Erro ao carregar anexos do pedido.");
+        }
+    };
+
+    // Carregar contagem de anexos apenas quando necessário
+    const carregarContagemAnexos = async (pedidoId) => {
+        if (pedidos.find(p => p.ID === pedidoId)?.TotalAnexos !== undefined &&
+            pedidos.find(p => p.ID === pedidoId)?.TotalAnexos > 0) {
+            return; // Já carregado
+        }
+
+        try {
+            const response = await fetch(`${ANEXOS_BASE}/pedido/${pedidoId}`);
+            if (response.ok) {
+                const data = await response.json();
+                const anexos = data.anexos || [];
+
+                setPedidos((prev) =>
+                    prev.map((p) =>
+                        p.ID === pedidoId ? { ...p, TotalAnexos: anexos.length } : p
+                    )
+                );
+            }
+        } catch (error) {
+            console.error("Erro ao carregar contagem de anexos:", error);
         }
     };
 
@@ -390,10 +444,10 @@ const PedidosAssistencia = ({ navigation }) => {
 
     const isImageFile = (tipo) => {
         return tipo && (
-            tipo.includes('image/') || 
-            tipo.includes('jpeg') || 
-            tipo.includes('jpg') || 
-            tipo.includes('png') || 
+            tipo.includes('image/') ||
+            tipo.includes('jpeg') ||
+            tipo.includes('jpg') ||
+            tipo.includes('png') ||
             tipo.includes('gif')
         );
     };
@@ -759,7 +813,7 @@ const PedidosAssistencia = ({ navigation }) => {
         <View
             style={[styles.filterMenu, !showFilters && styles.filterMenuClosed]}
         >
-            
+
 
             {showFilters && (
                 <View style={styles.filterContent}>
@@ -845,6 +899,32 @@ const PedidosAssistencia = ({ navigation }) => {
                                 </Text>
                             </TouchableOpacity>
                         ))}
+                    </View>
+
+                    <Text style={styles.filterLabel}>Técnico</Text>
+                    <View style={styles.filterGroup}>
+                        <select
+                            value={filterTecnico}
+                            onChange={(e) => setFilterTecnico(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '10px',
+                                borderRadius: '8px',
+                                border: '1px solid #e0e0e0',
+                                backgroundColor: filterTecnico ? '#1792FE' : '#f8f9fa',
+                                color: filterTecnico ? '#fff' : '#555',
+                                fontSize: '13px',
+                                fontWeight: '500',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <option value="">Todos os Técnicos</option>
+                            {tecnicos.map((tecnico) => (
+                                <option key={tecnico.Tecnico} value={tecnico.Tecnico}>
+                                    {tecnico.Nome}
+                                </option>
+                            ))}
+                        </select>
                     </View>
                 </View>
             )}
@@ -966,8 +1046,9 @@ const PedidosAssistencia = ({ navigation }) => {
 
                         <TouchableOpacity
                             style={[styles.actionButton, styles.secondaryActionButton]}
-                            onPress={() => {
+                            onPress={async () => {
                                 setPedidoAnexos(item[0]);
+                                await carregarContagemAnexos(item[0].ID);
                                 carregarAnexos(item[0].ID);
                             }}
                         >

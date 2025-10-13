@@ -1250,7 +1250,7 @@ const fetchClasses = async () => {
                                                 </View>
                                                 <View style={styles.itemPreviewRow}>
                                                     <Text style={styles.itemPreviewLabel}>
-                                                        {isEquipamento ? <b>'Equipamento:'</b> : <b>'Especialidade:'</b>}  {isEquipamento
+                                                        {isEquipamento ? <b>Equipamento:</b> : <b>Especialidade:</b>}  {isEquipamento
                                                             ? equipamentosMap[String(itemDetail.ComponenteID)] ||
                                                               equipamentosMap[String(itemDetail.SubEmpID)] ||
                                                               itemDetail.ComponenteID || itemDetail.SubEmpID || 'N/A'
