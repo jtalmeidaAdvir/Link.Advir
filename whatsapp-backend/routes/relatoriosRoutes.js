@@ -249,7 +249,7 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                     empresaResult.length > 0
                         ? empresaResult[0].empresa
                         : `Empresa ${empresa_ou_obra_id}`;
-                obraNome = `Todas as obras - ${empresaNome}`;
+                obraNome = ` ${empresaNome}`;
             } else {
                 // Nenhuma obra encontrada para esta empresa
                 return {
@@ -290,12 +290,14 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
 
     registos.forEach((r) => {
         const obraId = r.obra_id;
-        const obraInfo = r.Obra ? `${r.Obra.codigo} - ${r.Obra.nome}` : "Sem obra";
-        
+        const obraInfo = r.Obra
+            ? `${r.Obra.codigo} - ${r.Obra.nome}`
+            : "Sem obra";
+
         if (!agrupadosPorObra[obraId]) {
             agrupadosPorObra[obraId] = {
                 obraInfo: obraInfo,
-                utilizadores: {}
+                utilizadores: {},
             };
         }
 
@@ -303,62 +305,71 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
         if (!agrupadosPorObra[obraId].utilizadores[userId]) {
             agrupadosPorObra[obraId].utilizadores[userId] = {
                 utilizador: r.User?.nome || "Desconhecido",
-                registos: []
+                registos: [],
             };
         }
 
         agrupadosPorObra[obraId].utilizadores[userId].registos.push({
             tipo: r.tipo,
-            timestamp: new Date(r.timestamp)
+            timestamp: new Date(r.timestamp),
         });
     });
 
     // Processar cada obra
-    const obrasSections = Object.entries(agrupadosPorObra).map(([obraId, obraData]) => {
-        const registosProcessados = Object.values(obraData.utilizadores).map((userGroup) => {
-            const registosOrdenados = userGroup.registos.sort(
-                (a, b) => a.timestamp - b.timestamp
-            );
-            const ultimoRegisto = registosOrdenados[registosOrdenados.length - 1];
+    const obrasSections = Object.entries(agrupadosPorObra)
+        .map(([obraId, obraData]) => {
+            const registosProcessados = Object.values(
+                obraData.utilizadores,
+            ).map((userGroup) => {
+                const registosOrdenados = userGroup.registos.sort(
+                    (a, b) => a.timestamp - b.timestamp,
+                );
+                const ultimoRegisto =
+                    registosOrdenados[registosOrdenados.length - 1];
 
-            let horasTrabalhadas = 0;
+                let horasTrabalhadas = 0;
 
-            // Calcular horas entre entradas e saídas
-            for (let i = 0; i < registosOrdenados.length; i++) {
-                if (registosOrdenados[i].tipo === "entrada") {
-                    const entrada = registosOrdenados[i].timestamp;
-                    const saida =
-                        registosOrdenados[i + 1]?.tipo === "saida"
-                            ? registosOrdenados[i + 1].timestamp
-                            : new Date();
+                // Calcular horas entre entradas e saídas
+                for (let i = 0; i < registosOrdenados.length; i++) {
+                    if (registosOrdenados[i].tipo === "entrada") {
+                        const entrada = registosOrdenados[i].timestamp;
+                        const saida =
+                            registosOrdenados[i + 1]?.tipo === "saida"
+                                ? registosOrdenados[i + 1].timestamp
+                                : new Date();
 
-                    const diff = (saida - entrada) / (1000 * 60 * 60);
-                    horasTrabalhadas += diff;
+                        const diff = (saida - entrada) / (1000 * 60 * 60);
+                        horasTrabalhadas += diff;
+                    }
                 }
-            }
 
-            const horas = Math.floor(horasTrabalhadas);
-            const minutos = Math.round((horasTrabalhadas - horas) * 60);
+                const horas = Math.floor(horasTrabalhadas);
+                const minutos = Math.round((horasTrabalhadas - horas) * 60);
 
-            return {
-                utilizador: userGroup.utilizador,
-                tipo: ultimoRegisto.tipo.toUpperCase(),
-                hora: ultimoRegisto.timestamp.toLocaleTimeString("pt-PT", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit"
-                }),
-                horasTrabalhadas: `${horas}h${minutos > 0 ? ` ${minutos}min` : ""}`
-            };
-        });
+                // Adicionar 1 hora para corrigir timezone
+                const timestampCorrigido = new Date(
+                    ultimoRegisto.timestamp.getTime() + 60 * 60 * 1000,
+                );
 
-        return `
+                return {
+                    utilizador: userGroup.utilizador,
+                    tipo: ultimoRegisto.tipo.toUpperCase(),
+                    hora: timestampCorrigido.toLocaleTimeString("pt-PT", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                    }),
+                    horasTrabalhadas: `${horas}h${minutos > 0 ? ` ${minutos}min` : ""}`,
+                };
+            });
+
+            return `
             <h3 style="margin-top: 20px; color: #333;">🏗️ ${obraData.obraInfo}</h3>
-            <p><strong>Total de utilizadores:</strong> ${registosProcessados.length}</p>
+            <p><strong>Total de trabalhadores:</strong> ${registosProcessados.length}</p>
             <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%; margin-bottom: 20px;">
                 <thead style="background-color: #f0f0f0;">
                     <tr>
-                        <th>Utilizador</th>
+                        <th>Trabalhador</th>
                         <th>Estado Atual</th>
                         <th>Última Ação</th>
                         <th>Horas Trabalhadas</th>
@@ -376,20 +387,21 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                             <td>${r.hora}</td>
                             <td><strong>${r.horasTrabalhadas}</strong></td>
                         </tr>
-                    `
+                    `,
                         )
                         .join("")}
                 </tbody>
             </table>
         `;
-    }).join("");
+        })
+        .join("");
 
     const totalRegistos = registos.length;
 
     let html = `
         <h2>📊 Relatório de Registos de Ponto - ${new Date().toLocaleDateString("pt-PT")}</h2>
         <h3 style="color: #0066cc;">📋 ${obraNome}</h3>
-        <p><strong>Total de registos:</strong> ${totalRegistos}</p>
+      
         <hr>
         ${obrasSections}
         <br>
