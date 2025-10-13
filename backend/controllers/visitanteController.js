@@ -206,17 +206,27 @@ const obterResumoObraVisitantes = async (req, res) => {
     console.log(`👥 ${visitantesATrabalhar} visitantes a trabalhar`);
 
     // Formatar registos para exibição
-    const entradasSaidas = registosHoje.map(r => ({
-      id: r.id,
-      visitante_id: r.visitante_id,
-      nome: `${r.Visitante.primeiroNome} ${r.Visitante.ultimoNome}`,
-      nomeEmpresa: r.Visitante.nomeEmpresa || 'N/A',
-      numeroContribuinte: r.Visitante.numeroContribuinte,
-      tipo: r.tipo,
-      timestamp: r.timestamp,
-      latitude: r.latitude,
-      longitude: r.longitude
-    }));
+    const entradasSaidas = registosHoje.map(r => {
+      const dadosFormatados = {
+        id: r.id,
+        visitante_id: r.visitante_id,
+        nome: `${r.Visitante.primeiroNome} ${r.Visitante.ultimoNome}`,
+        nomeEmpresa: r.Visitante.nomeEmpresa || 'N/A',
+        numeroContribuinte: r.Visitante.numeroContribuinte,
+        tipo: r.tipo,
+        timestamp: r.timestamp,
+        latitude: r.latitude,
+        longitude: r.longitude
+      };
+      
+      console.log('📋 Formatando visitante:', {
+        nome: dadosFormatados.nome,
+        nomeEmpresa: dadosFormatados.nomeEmpresa,
+        visitanteData: r.Visitante
+      });
+      
+      return dadosFormatados;
+    });
 
     res.json({
       visitantesATrabalhar,
