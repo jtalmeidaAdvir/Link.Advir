@@ -1656,16 +1656,31 @@ const RegistosPorUtilizador = () => {
         const isHoras = duracaoFalta && duracaoFalta.toString().includes('h');
         const tempoNumerico = parseInt(duracaoFalta) || 1;
 
-        // Verificar se a falta selecionada desconta alimentação consultando os tipos de falta
-        const faltaSelecionada = Object.values(tiposFaltas).find(t => 
-            (typeof t === 'object' && t.Falta === tipoFaltaSelecionado) || 
-            (typeof t === 'string' && t === tipoFaltaSelecionado)
-        );
+        // Carregar dados completos do tipo de falta do ERP
+        let faltaSelecionadaCompleta = null;
+        try {
+            const resFaltasERP = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${painelToken}`,
+                    urlempresa: urlempresa,
+                },
+            });
+
+            if (resFaltasERP.ok) {
+                const dataFaltasERP = await resFaltasERP.json();
+                const listaFaltasERP = dataFaltasERP?.DataSet?.Table ?? [];
+                faltaSelecionadaCompleta = listaFaltasERP.find(f => f.Falta === tipoFaltaSelecionado);
+            }
+        } catch (err) {
+            console.error('Erro ao carregar dados completos da falta:', err);
+        }
         
-        const descontaAlimentacao = faltaSelecionada && 
-            (faltaSelecionada.DescontaSubsAlim === 1 || 
-             faltaSelecionada.DescontaSubsAlim === '1' ||
-             faltaSelecionada.DescontaSubsAlim === true);
+        const descontaAlimentacao = faltaSelecionadaCompleta && 
+            (faltaSelecionadaCompleta.DescontaSubsAlim === 1 || 
+             faltaSelecionadaCompleta.DescontaSubsAlim === '1' ||
+             faltaSelecionadaCompleta.DescontaSubsAlim === true);
 
         const dadosPrincipal = {
             tipoPedido: 'FALTA',
@@ -1741,7 +1756,7 @@ const RegistosPorUtilizador = () => {
                     console.log('✅ Falta integrada no ERP com sucesso');
                     console.log('🔍 Debug - Tipo de falta:', tipoFaltaSelecionado);
                     console.log('🔍 Debug - Desconta alimentação?:', descontaAlimentacao);
-                    console.log('🔍 Debug - Falta selecionada:', faltaSelecionada);
+                    console.log('🔍 Debug - Falta selecionada completa:', faltaSelecionadaCompleta);
 
                     // Se a falta desconta alimentação, criar automaticamente a falta F40
                     if (descontaAlimentacao) {
@@ -1749,7 +1764,7 @@ const RegistosPorUtilizador = () => {
 
                         const dadosF40 = {
                             Funcionario: funcionarioId,
-                            Data: new Date(dataFormatada + 'T00:00:00.000Z').toISOString(),
+                            Data: new Date(dataFormatada).toISOString(),
                             Falta: 'F40',
                             Horas: 0,
                             Tempo: 1,
@@ -1897,6 +1912,32 @@ const RegistosPorUtilizador = () => {
             return alert('Tokens do Primavera não encontrados. Configure o acesso ao ERP.');
         }
 
+        // Carregar dados completos do tipo de falta do ERP
+        let faltaSelecionadaCompleta = null;
+        try {
+            const resFaltasERP = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${painelToken}`,
+                    urlempresa: urlempresa,
+                },
+            });
+
+            if (resFaltasERP.ok) {
+                const dataFaltasERP = await resFaltasERP.json();
+                const listaFaltasERP = dataFaltasERP?.DataSet?.Table ?? [];
+                faltaSelecionadaCompleta = listaFaltasERP.find(f => f.Falta === tipoFaltaSelecionadoBulk);
+            }
+        } catch (err) {
+            console.error('Erro ao carregar dados completos da falta:', err);
+        }
+
+        const descontaAlimentacao = faltaSelecionadaCompleta && 
+            (faltaSelecionadaCompleta.DescontaSubsAlim === 1 || 
+             faltaSelecionadaCompleta.DescontaSubsAlim === '1' ||
+             faltaSelecionadaCompleta.DescontaSubsAlim === true);
+
         // Agrupar células por utilizador
         const cellsByUser = {};
         selectedCells.forEach(cellKey => {
@@ -1918,6 +1959,9 @@ const RegistosPorUtilizador = () => {
 
         mensagemConfirmacao += `\nTipo de falta: ${tiposFaltas[tipoFaltaSelecionadoBulk] || tipoFaltaSelecionadoBulk}\n`;
         mensagemConfirmacao += `Duração: ${duracaoFaltaBulk}\n`;
+        if (descontaAlimentacao) {
+            mensagemConfirmacao += `\n⚠️ Nota: Esta falta desconta alimentação, será criada automaticamente uma falta F40 para cada dia.\n`;
+        }
         mensagemConfirmacao += `\nTotal: ${selectedCells.length} faltas\n\nDeseja continuar?`;
 
         const confirmacao = confirm(mensagemConfirmacao);
@@ -1928,9 +1972,9 @@ const RegistosPorUtilizador = () => {
         try {
             const isHoras = duracaoFaltaBulk && duracaoFaltaBulk.toString().includes('h');
             const tempoNumerico = parseInt(duracaoFaltaBulk) || 1;
-            const descontaAlimentacao = false; // Adicionar lógica de verificação se necessário
 
             let faltasRegistadas = 0;
+            let faltasF40Registadas = 0;
             let erros = 0;
 
             // Processar cada utilizador separadamente
@@ -2000,6 +2044,62 @@ const RegistosPorUtilizador = () => {
                         if (resERP.ok) {
                             faltasRegistadas++;
                             console.log(`✅ Falta registada: ${funcionarioId} - dia ${dia}`);
+
+                            // Se desconta alimentação, criar F40 automaticamente
+                            if (descontaAlimentacao) {
+                                const dadosF40 = {
+                                    Funcionario: funcionarioId,
+                                    Data: new Date(dataFormatada).toISOString(),
+                                    Falta: 'F40',
+                                    Horas: 0,
+                                    Tempo: 1,
+                                    DescontaVenc: 0,
+                                    DescontaRem: 0,
+                                    ExcluiProc: 0,
+                                    ExcluiEstat: 0,
+                                    Observacoes: 'Gerada automaticamente (desconto alimentação - registo em bloco)',
+                                    CalculoFalta: 1,
+                                    DescontaSubsAlim: 0,
+                                    DataProc: null,
+                                    NumPeriodoProcessado: 0,
+                                    JaProcessado: 0,
+                                    InseridoBloco: 0,
+                                    ValorDescontado: 0,
+                                    AnoProcessado: 0,
+                                    NumProc: 0,
+                                    Origem: "2",
+                                    PlanoCurso: null,
+                                    IdGDOC: null,
+                                    CambioMBase: 0,
+                                    CambioMAlt: 0,
+                                    CotizaPeloMinimo: 0,
+                                    Acerto: 0,
+                                    MotivoAcerto: null,
+                                    NumLinhaDespesa: null,
+                                    NumRelatorioDespesa: null,
+                                    FuncComplementosBaixaId: null,
+                                    DescontaSubsTurno: 0,
+                                    SubTurnoProporcional: 0,
+                                    SubAlimProporcional: 0
+                                };
+
+                                const resF40 = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        Authorization: `Bearer ${painelToken}`,
+                                        urlempresa
+                                    },
+                                    body: JSON.stringify(dadosF40)
+                                });
+
+                                if (resF40.ok) {
+                                    faltasF40Registadas++;
+                                    console.log(`✅ Falta F40 automática registada: ${funcionarioId} - dia ${dia}`);
+                                } else {
+                                    console.error(`Erro ao registar falta F40 para dia ${dia}:`, await resF40.text());
+                                }
+                            }
                         } else {
                             const errorText = await resERP.text();
                             console.error(`Erro ao registar falta para dia ${dia}:`, errorText);
@@ -2019,6 +2119,9 @@ const RegistosPorUtilizador = () => {
             // Mostrar resultado
             let mensagemResultado = `✅ Registo de faltas em bloco concluído!\n\n`;
             mensagemResultado += `• Faltas registadas: ${faltasRegistadas}\n`;
+            if (faltasF40Registadas > 0) {
+                mensagemResultado += `• Faltas F40 automáticas criadas: ${faltasF40Registadas}\n`;
+            }
             if (erros > 0) {
                 mensagemResultado += `• Erros encontrados: ${erros}\n`;
                 mensagemResultado += `• Verifique o console para detalhes dos erros\n`;

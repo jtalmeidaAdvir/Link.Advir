@@ -377,8 +377,8 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                 </thead>
                 <tbody>
                     ${registosProcessados
-                        .map(
-                            (r) => `
+                    .map(
+                        (r) => `
                         <tr>
                             <td>${r.utilizador}</td>
                             <td>
@@ -388,8 +388,8 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                             <td><strong>${r.horasTrabalhadas}</strong></td>
                         </tr>
                     `,
-                        )
-                        .join("")}
+                    )
+                    .join("")}
                 </tbody>
             </table>
         `;

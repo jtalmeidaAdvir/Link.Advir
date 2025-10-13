@@ -2223,6 +2223,10 @@ router.post("/force-execute/:id", async (req, res) => {
         if (schedule.tipo === "verificacao_pontos_almoco") {
             console.log(`🍽️ CHAMANDO executarVerificacaoPontosAlmoco FORÇADAMENTE`);
             result = await executarVerificacaoPontosAlmoco(scheduleData);
+        } else if (schedule.tipo === "relatorio_email") {
+            console.log(`📧 CHAMANDO executarRelatorio FORÇADAMENTE`);
+            const { executarRelatorio } = require('./relatoriosRoutes');
+            result = await executarRelatorio(scheduleData);
         } else {
             console.log(`📩 CHAMANDO executeScheduledMessage FORÇADAMENTE`);
             result = await executeScheduledMessage(scheduleData);
@@ -3920,18 +3924,31 @@ setInterval(async () => {
             const horarioMatch = currentTime === scheduleTime;
             console.log(`      • Match de horário: ${horarioMatch ? '✅ Sim' : '❌ Não'}`);
 
-            // Se o horário não coincide, mas queremos executar a função de almoço quando coincidir
+            // Se o horário não coincide, apenas logar
             if (!horarioMatch) {
                 console.log(`[${portugalTime.toLocaleString('pt-PT')}] INFO: Verificação de execução: Frequência customizada - Dia incluído`);
                 console.log(`      • Deve executar hoje: ✅ Sim`);
                 console.log(`      • Hora atual: ${currentTime} | Hora agendada: ${scheduleTime}`);
                 console.log(`      • Match de horário: ❌ Não`);
             } else if (horarioMatch && shouldExecute) {
-                // Se horário coincide E deve executar hoje, chamar função de almoço
-                console.log(`🍽️ EXECUTANDO função de verificação de pontos de almoço - Horário coincide!`);
-                executarVerificacaoPontosAlmoco(schedule).catch(error => {
-                    console.error(`❌ Erro ao executar verificação de pontos:`, error);
-                });
+                // Se horário coincide E deve executar hoje, chamar função CORRETA baseada no tipo
+                if (schedule.tipo === "verificacao_pontos_almoco") {
+                    console.log(`🍽️ EXECUTANDO verificação de pontos de almoço - Horário coincide!`);
+                    executarVerificacaoPontosAlmoco(schedule).catch(error => {
+                        console.error(`❌ Erro ao executar verificação de pontos:`, error);
+                    });
+                } else if (schedule.tipo === "relatorio_email") {
+                    console.log(`📧 EXECUTANDO relatório por email - Horário coincide!`);
+                    const { executarRelatorio } = require('./relatoriosRoutes');
+                    executarRelatorio(schedule).catch(error => {
+                        console.error(`❌ Erro ao executar relatório:`, error);
+                    });
+                } else {
+                    console.log(`📩 EXECUTANDO mensagem agendada - Horário coincide!`);
+                    executeScheduledMessage(schedule).catch(error => {
+                        console.error(`❌ Erro ao executar mensagem:`, error);
+                    });
+                }
             }
         });
 
@@ -4626,6 +4643,16 @@ function startSchedule(schedule) {
                             console.log(`🍽️ CHAMANDO executarVerificacaoPontosAlmoco para agendamento ${schedule.id}`);
                             result = await executarVerificacaoPontosAlmoco(schedule);
                             console.log(`📋 RESULTADO da verificação de pontos:`, result);
+                        } else if (schedule.tipo === "relatorio_email") {
+                            // Executar envio de relatório por email
+                            const currentTime = new Date().toLocaleTimeString('pt-PT');
+                            addLog(schedule.id, "info", `📧 Chamando executarRelatorio às ${currentTime}...`);
+                            console.log(`📧 CHAMANDO executarRelatorio para agendamento ${schedule.id}`);
+
+                            // Importar a função de executar relatório
+                            const { executarRelatorio } = require('./relatoriosRoutes');
+                            result = await executarRelatorio(schedule);
+                            console.log(`📋 RESULTADO do envio de relatório:`, result);
                         } else {
                             // Executar mensagem normal
                             addLog(schedule.id, "info", "📩 Chamando executeScheduledMessage...");
@@ -4700,7 +4727,8 @@ function shouldExecuteToday(schedule, now) {
     const today = portugalTime.getDay(); // 0 = Domingo, 1 = Segunda, etc.
     const todayDate = portugalTime.toISOString().split("T")[0];
 
-    // Verificação se já foi executado hoje (APENAS para agendamentos normais)
+    // Verificação se já foi executado hoje (APENAS para agendamentos normais e relatórios)
+    // EXCLUIR verificações automáticas de pontos (podem executar múltiplas vezes)
     if (schedule.tipo !== "verificacao_pontos_almoco" && schedule.lastSent) {
         let lastSentDate;
 
@@ -4720,8 +4748,9 @@ function shouldExecuteToday(schedule, now) {
         }
 
         if (lastSentDate === todayDate) {
-            addLog(schedule.id, "warning", `🚫 BLOQUEADO: Agendamento normal já executado hoje (${lastSentDate})`);
-            console.log(`🚫 AGENDAMENTO ${schedule.id} BLOQUEADO - JÁ EXECUTADO HOJE`);
+            const tipoTexto = schedule.tipo === "relatorio_email" ? "Relatório email" : "Agendamento normal";
+            addLog(schedule.id, "warning", `🚫 BLOQUEADO: ${tipoTexto} já executado hoje (${lastSentDate})`);
+            console.log(`🚫 AGENDAMENTO ${schedule.id} (${tipoTexto}) BLOQUEADO - JÁ EXECUTADO HOJE`);
             return false;
         }
 
@@ -4782,6 +4811,13 @@ async function executeScheduledMessage(schedule) {
     // Verificar se é uma verificação automática de pontos
     if (schedule.tipo === "verificacao_pontos_almoco") {
         return await executarVerificacaoPontosAlmoco(schedule);
+    }
+
+    // Verificar se é um relatório por email
+    if (schedule.tipo === "relatorio_email") {
+        console.log(`📧 Redirecionando para executarRelatorio - tipo: relatorio_email`);
+        const { executarRelatorio } = require('./relatoriosRoutes');
+        return await executarRelatorio(schedule);
     }
 
     // Log inicial da execução
