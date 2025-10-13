@@ -196,7 +196,7 @@ async function executarRelatorio(schedule) {
 }
 
 // Gerar relatório de registos do dia
-async function gerarRelatorioRegistosDia(obra_id) { // Recebe o ID que pode ser de obra ou empresa
+async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
     const hoje = new Date().toISOString().split('T')[0];
     const dataInicio = new Date(`${hoje}T00:00:00.000Z`);
     const dataFim = new Date(`${hoje}T23:59:59.999Z`);
@@ -205,48 +205,54 @@ async function gerarRelatorioRegistosDia(obra_id) { // Recebe o ID que pode ser 
         timestamp: { [Op.between]: [dataInicio, dataFim] }
     };
 
-    let obraNome = 'Escritório - Advir';
+    let obraNome = 'Todas as Obras';
     let obrasParaFiltrar = [];
 
-    if (obra_id) {
-        // Se obra_id foi passado, verificar se é uma obra ou uma empresa
-        const obra = await Obra.findByPk(obra_id);
+    if (empresa_ou_obra_id) {
+        // Primeiro tentar como obra
+        const obra = await Obra.findByPk(empresa_ou_obra_id);
 
-        if (obra) {
+        if (obra && obra.empresa_id) {
             // É uma obra específica
             whereClause.obra_id = obra.id;
             obrasParaFiltrar.push(obra.id);
             obraNome = `${obra.codigo} - ${obra.nome}`;
         } else {
-            // Pode ser um ID de empresa, então buscamos todas as obras dessa empresa
+            // Tentar como empresa_id
             const obrasDaEmpresa = await Obra.findAll({
-                where: { empresa_id: obra_id }
+                where: { empresa_id: empresa_ou_obra_id }
             });
-            obrasParaFiltrar = obrasDaEmpresa.map(o => o.id);
-            if (obrasParaFiltrar.length > 0) {
+            
+            if (obrasDaEmpresa.length > 0) {
+                obrasParaFiltrar = obrasDaEmpresa.map(o => o.id);
                 whereClause.obra_id = { [Op.in]: obrasParaFiltrar };
-                // Tentar pegar o nome da primeira obra para o título, ou usar um placeholder
-                obraNome = obrasDaEmpresa[0] ? `${obrasDaEmpresa[0].codigo} - ${obrasDaEmpresa[0].nome}` : `Obras da Empresa ${obra_id}`;
+                
+                // Buscar nome da empresa
+                const { sequelize } = require('../config/database');
+                const empresaResult = await sequelize.query(
+                    'SELECT empresa FROM empresas WHERE id = ?',
+                    {
+                        replacements: [empresa_ou_obra_id],
+                        type: sequelize.QueryTypes.SELECT
+                    }
+                );
+                
+                const empresaNome = empresaResult.length > 0 ? empresaResult[0].empresa : `Empresa ${empresa_ou_obra_id}`;
+                obraNome = `Todas as obras - ${empresaNome}`;
             } else {
-                 // Se não encontrar obras para a empresa, usa o escritório como fallback
-                 const obraEscritorio = await Obra.findOne({ where: { codigo: '2009.003' } });
-                 if (obraEscritorio) {
-                    whereClause.obra_id = obraEscritorio.id;
-                    obraNome = `${obraEscritorio.codigo} - ${obraEscritorio.nome}`;
-                 } else {
-                    obraNome = `Empresa ${obra_id} (sem obras encontradas)`;
-                 }
+                // Nenhuma obra encontrada para esta empresa
+                return {
+                    html: '<p>Nenhuma obra encontrada para esta empresa.</p>',
+                    assunto: `📊 Relatório Diário - Sem dados - ${hoje}`
+                };
             }
         }
     } else {
-        // Se não especificar obra_id, buscar apenas o escritório (código 2009.003)
-        const obraEscritorio = await Obra.findOne({
-            where: { codigo: '2009.003' }
-        });
-
-        if (obraEscritorio) {
-            whereClause.obra_id = obraEscritorio.id;
-            obraNome = `${obraEscritorio.codigo} - ${obraEscritorio.nome}`;
+        // Se não especificar, buscar todas as obras
+        const todasObras = await Obra.findAll();
+        obrasParaFiltrar = todasObras.map(o => o.id);
+        if (obrasParaFiltrar.length > 0) {
+            whereClause.obra_id = { [Op.in]: obrasParaFiltrar };
         }
     }
 
@@ -269,11 +275,6 @@ async function gerarRelatorioRegistosDia(obra_id) { // Recebe o ID que pode ser 
     const agrupados = {};
 
     registos.forEach((r) => {
-        // Verifica se o registo pertence a uma obra da empresa correta, se a empresa foi especificada
-        if (obra_id && r.Obra && r.Obra.empresa_id !== obra_id && !obrasParaFiltrar.includes(r.obra_id)) {
-            return; // Pula este registo se não pertencer à empresa correta
-        }
-
         const key = `${r.user_id}_${r.obra_id}`;
 
         if (!agrupados[key]) {
@@ -374,7 +375,7 @@ async function gerarRelatorioRegistosDia(obra_id) { // Recebe o ID que pode ser 
 }
 
 // Gerar relatório resumo mensal
-async function gerarRelatorioResumoMensal(obra_id) {
+async function gerarRelatorioResumoMensal(empresa_ou_obra_id) {
     const hoje = new Date();
     const ano = hoje.getFullYear();
     const mes = hoje.getMonth() + 1;
@@ -387,17 +388,38 @@ async function gerarRelatorioResumoMensal(obra_id) {
         timestamp: { [Op.between]: [dataInicio, dataFim] }
     };
 
-    if (obra_id) {
-        // Buscar obras da empresa especificada
-        const obrasDaEmpresa = await Obra.findAll({
-            where: { empresa_id: obra_id }
-        });
-        const obrasIds = obrasDaEmpresa.map(o => o.id);
-        if (obrasIds.length > 0) {
-            whereClause.obra_id = { [Op.in]: obrasIds };
+    let obraNome = `Resumo Mensal - ${mes}/${ano}`;
+
+    if (empresa_ou_obra_id) {
+        // Primeiro tentar como obra
+        const obra = await Obra.findByPk(empresa_ou_obra_id);
+
+        if (obra && obra.empresa_id) {
+            whereClause.obra_id = obra.id;
+            obraNome = `Resumo Mensal - ${obra.codigo} - ${obra.nome} - ${mes}/${ano}`;
         } else {
-            // Se não houver obras para a empresa, o relatório ficará vazio ou com um aviso
-            // Por agora, vamos permitir que continue para ver se há registos de escritório associados
+            // Tentar como empresa_id
+            const obrasDaEmpresa = await Obra.findAll({
+                where: { empresa_id: empresa_ou_obra_id }
+            });
+            
+            if (obrasDaEmpresa.length > 0) {
+                const obrasIds = obrasDaEmpresa.map(o => o.id);
+                whereClause.obra_id = { [Op.in]: obrasIds };
+                
+                // Buscar nome da empresa
+                const { sequelize } = require('../config/database');
+                const empresaResult = await sequelize.query(
+                    'SELECT empresa FROM empresas WHERE id = ?',
+                    {
+                        replacements: [empresa_ou_obra_id],
+                        type: sequelize.QueryTypes.SELECT
+                    }
+                );
+                
+                const empresaNome = empresaResult.length > 0 ? empresaResult[0].empresa : `Empresa ${empresa_ou_obra_id}`;
+                obraNome = `Resumo Mensal - ${empresaNome} - ${mes}/${ano}`;
+            }
         }
     }
 
@@ -410,38 +432,15 @@ async function gerarRelatorioResumoMensal(obra_id) {
         order: [['timestamp', 'ASC']]
     });
 
-    // Filtrar registos para garantir que pertencem à empresa correta (se obra_id foi fornecido)
-    const registosFiltrados = obra_id
-        ? registos.filter(r => r.Obra && r.Obra.empresa_id === obra_id)
-        : registos;
-
-
-    let obraNome = `Resumo Mensal - ${mes}/${ano}`;
-    if (obra_id) {
-        const empresa = await Obra.findOne({ where: { id: obra_id } }); // Assumindo que obra_id pode ser o ID da empresa
-        if(empresa) {
-            obraNome = `Resumo Mensal - ${empresa.nome} - ${mes}/${ano}`;
-        } else {
-             // Tenta buscar o nome da empresa se obra_id não for um ID de obra válido
-            const empresaNomeInfo = await Obra.findOne({ where: { id: obra_id } });
-            if (empresaNomeInfo) {
-                obraNome = `Resumo Mensal - ${empresaNomeInfo.nome} - ${mes}/${ano}`;
-            } else {
-                obraNome = `Resumo Mensal (Empresa ${obra_id}) - ${mes}/${ano}`;
-            }
-        }
-    }
-
-
     const html = `
         <h2>📅 ${obraNome}</h2>
-        <p><strong>Total de registos:</strong> ${registosFiltrados.length}</p>
+        <p><strong>Total de registos:</strong> ${registos.length}</p>
         <p>Este é um relatório resumido. Detalhes completos disponíveis no sistema.</p>
     `;
 
     return {
         html,
-        assunto: `📅 Resumo Mensal ${mes}/${ano}`
+        assunto: `📅 ${obraNome}`
     };
 }
 
