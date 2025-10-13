@@ -18,9 +18,6 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
         enabled: true,
     });
 
-
-    
-
     useEffect(() => {
         carregarRelatorios();
         carregarEmpresas();
@@ -112,7 +109,10 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify(novoRelatorio),
+                    body: JSON.stringify({
+                        ...novoRelatorio,
+                        obra_id: novoRelatorio.obra_id || novoRelatorio.empresa_id
+                    }),
                 },
             );
 
@@ -307,7 +307,7 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
                                                 obra_id: e.target.value,
                                             })
                                         }
-                                        disabled={!novoRelatorio.empresa_id}
+                                        disabled={!novoRelatorio.empresa_id && empresas.length > 0}
                                     >
                                         <option value="">
                                             {novoRelatorio.empresa_id
