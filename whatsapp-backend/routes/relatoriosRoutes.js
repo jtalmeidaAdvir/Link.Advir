@@ -360,13 +360,13 @@ const visitantesQuery = `
     FROM registo_ponto_visitantes rpv
     INNER JOIN visitantes v ON v.id = rpv.visitante_id
     WHERE rpv.obra_id ${obrasParaFiltrar.length > 0 ? 'IN (' + obrasParaFiltrar.join(',') + ')' : '= ' + empresa_ou_obra_id}
-    AND CONVERT(DATE, rpv.timestamp) = CONVERT(DATE, :hoje)
+    AND CONVERT(DATE, rpv.timestamp) = @hoje
     ORDER BY rpv.timestamp ASC
 `;
 
 
 const visitantes = await sequelize.query(visitantesQuery, {
-    replacements: { hoje: hoje }, // :hoje será substituído pelo valor de hoje
+    bind: { hoje }, // :hoje será substituído pelo valor de hoje
     type: sequelize.QueryTypes.SELECT
 });
 
@@ -389,7 +389,7 @@ const externosQuery = `
 `;
 
 const externos = await sequelize.query(externosQuery, {
-    replacements: { hoje: hoje },
+    bind: { hoje }, 
     type: sequelize.QueryTypes.SELECT
 });
 
