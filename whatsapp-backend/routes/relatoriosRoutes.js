@@ -379,14 +379,10 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
         FROM RegistoPontoExternos rpe
         LEFT JOIN ExternosJPA e ON e.id = rpe.externo_id
         WHERE rpe.obra_id ${obrasParaFiltrar.length > 0 ? 'IN (' + obrasParaFiltrar.join(',') + ')' : '= ' + empresa_ou_obra_id}
-        AND CONVERT(DATE, rpe.timestamp) = CONVERT(DATE, @hoje)
+        AND CONVERT(DATE, rpe.timestamp) = CONVERT(DATE, GETDATE())
         ORDER BY rpe.timestamp ASC
     `;
 
-    const externos = await sequelize.query(externosQuery, {
-        replacements: { hoje: hoje },
-        type: sequelize.QueryTypes.SELECT
-    });
 
     // Agrupar por obra primeiro, depois por utilizador
     const agrupadosPorObra = {};
