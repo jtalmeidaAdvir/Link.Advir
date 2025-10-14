@@ -347,51 +347,46 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
 
     // Buscar visitantes
     const { sequelize } = require("../config/database");
-const visitantesQuery = `
-    SELECT 
-        rpv.id,
-        rpv.visitante_id,
-        rpv.obra_id,
-        rpv.tipo,
-        rpv.timestamp,
-        v.primeiroNome + ' ' + v.ultimoNome as nome,
-        v.nomeEmpresa,
-        'visitante' as tipoEntidade
-    FROM registo_ponto_visitantes rpv
-    INNER JOIN visitantes v ON v.id = rpv.visitante_id
-    WHERE rpv.obra_id ${obrasParaFiltrar.length > 0 ? 'IN (' + obrasParaFiltrar.join(',') + ')' : '= ' + empresa_ou_obra_id}
-    AND CONVERT(DATE, rpv.timestamp) = @hoje
-    ORDER BY rpv.timestamp ASC
-`;
+    const visitantesQuery = `
+        SELECT 
+            rpv.id,
+            rpv.visitante_id,
+            rpv.obra_id,
+            rpv.tipo,
+            rpv.timestamp,
+            v.primeiroNome + ' ' + v.ultimoNome as nome,
+            v.nomeEmpresa,
+            'visitante' as tipoEntidade
+        FROM registo_ponto_visitantes rpv
+        INNER JOIN visitantes v ON v.id = rpv.visitante_id
+        WHERE rpv.obra_id ${obrasParaFiltrar.length > 0 ? 'IN (' + obrasParaFiltrar.join(',') + ')' : '= ' + empresa_ou_obra_id}
+        AND CONVERT(DATE, rpv.timestamp) = CONVERT(DATE, GETDATE())
+        ORDER BY rpv.timestamp ASC
+    `;
 
-
-const visitantes = await sequelize.query(visitantesQuery, {
-    bind: { hoje }, // :hoje será substituído pelo valor de hoje
-    type: sequelize.QueryTypes.SELECT
-});
 
     // Buscar externos
-const externosQuery = `
-    SELECT 
-        rpe.id,
-        rpe.externo_id,
-        rpe.obra_id,
-        rpe.tipo,
-        rpe.timestamp,
-        rpe.nome,
-        e.empresa as nomeEmpresa,
-        'externo' as tipoEntidade
-    FROM RegistoPontoExternos rpe
-    LEFT JOIN ExternosJPA e ON e.id = rpe.externo_id
-    WHERE rpe.obra_id ${obrasParaFiltrar.length > 0 ? 'IN (' + obrasParaFiltrar.join(',') + ')' : '= ' + empresa_ou_obra_id}
-    AND CONVERT(DATE, rpe.timestamp) = CONVERT(DATE, :hoje)
-    ORDER BY rpe.timestamp ASC
-`;
+    const externosQuery = `
+        SELECT 
+            rpe.id,
+            rpe.externo_id,
+            rpe.obra_id,
+            rpe.tipo,
+            rpe.timestamp,
+            rpe.nome,
+            e.empresa as nomeEmpresa,
+            'externo' as tipoEntidade
+        FROM RegistoPontoExternos rpe
+        LEFT JOIN ExternosJPA e ON e.id = rpe.externo_id
+        WHERE rpe.obra_id ${obrasParaFiltrar.length > 0 ? 'IN (' + obrasParaFiltrar.join(',') + ')' : '= ' + empresa_ou_obra_id}
+        AND CONVERT(DATE, rpe.timestamp) = CONVERT(DATE, @hoje)
+        ORDER BY rpe.timestamp ASC
+    `;
 
-const externos = await sequelize.query(externosQuery, {
-    bind: { hoje }, 
-    type: sequelize.QueryTypes.SELECT
-});
+    const externos = await sequelize.query(externosQuery, {
+        replacements: { hoje: hoje },
+        type: sequelize.QueryTypes.SELECT
+    });
 
     // Agrupar por obra primeiro, depois por utilizador
     const agrupadosPorObra = {};
