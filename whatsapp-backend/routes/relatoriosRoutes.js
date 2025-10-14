@@ -357,7 +357,7 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
             v.primeiroNome + ' ' + v.ultimoNome as nome,
             v.nomeEmpresa,
             'visitante' as tipoEntidade
-        FROM RegistoPontoVisitante rpv
+        FROM registo_ponto_visitantes rpv
         INNER JOIN visitantes v ON v.id = rpv.visitante_id
         WHERE rpv.obra_id ${obrasParaFiltrar.length > 0 ? 'IN (' + obrasParaFiltrar.join(',') + ')' : '= ' + empresa_ou_obra_id}
         AND CONVERT(DATE, rpv.timestamp) = CONVERT(DATE, @hoje)
