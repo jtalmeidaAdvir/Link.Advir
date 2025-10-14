@@ -144,7 +144,9 @@ const RegistoPontoFacial = (props) => {
     );
   const getEntradaAtivaPorObra = (obraId, lista) =>
     lista
-      .filter((r) => r.tipo === "entrada" && String(r.obra_id) === String(obraId))
+      .filter(
+        (r) => r.tipo === "entrada" && String(r.obra_id) === String(obraId),
+      )
       .sort((a, b) => dataRegisto(b) - dataRegisto(a))
       .find((e) => !temSaidaPosterior(e, lista));
   const getUltimaEntradaAtiva = (lista) =>
@@ -289,13 +291,11 @@ const RegistoPontoFacial = (props) => {
           pessoasAConsultar += dataExternos.externosATrabalhar ?? 0;
 
           if (Array.isArray(dataExternos.entradasSaidas)) {
-            const externosRegistos = dataExternos.entradasSaidas.map(
-              (reg) => ({
-                ...reg,
-                tipoEntidade: reg.tipoEntidade || "externo",
-                User: { nome: reg.nome || "Externo Desconhecido" },
-              }),
-            );
+            const externosRegistos = dataExternos.entradasSaidas.map((reg) => ({
+              ...reg,
+              tipoEntidade: reg.tipoEntidade || "externo",
+              User: { nome: reg.nome || "Externo Desconhecido" },
+            }));
             entradasSaidas = [...entradasSaidas, ...externosRegistos];
           }
         }
@@ -478,16 +478,26 @@ const RegistoPontoFacial = (props) => {
       const userName = authData.userNome || authData.username || "Utilizador";
 
       setIsAuthLoading(false);
-      setStatusMessage(`${userName} identificado. A obter localização...`);
 
-      // 2) Localização (usa pré-aquecimento se existir)
+      // 2) Localização - Verificar se é POS CASAPEDOME para pular obtenção de localização
+      const posNome = localStorage.getItem('posNome');
       let loc = null;
-      try {
-        loc = locationPromiseRef.current
-          ? await locationPromiseRef.current
-          : await getCurrentLocation();
-      } catch {
-        loc = { coords: { latitude: null, longitude: null } };
+      
+      if (posNome === 'CASAPEDOME') {
+        // Para CASAPEDOME, não obter localização (mais rápido)
+        console.log('📍 POS CASAPEDOME detectado - localização desativada');
+        setStatusMessage(`${userName} identificado. A registar ponto...`);
+        loc = { coords: { latitude: "41.636771", longitude: "-8.433331" } }; 
+      } else {
+        // Para outros POS, obter localização normalmente
+        setStatusMessage(`${userName} identificado. A obter localização...`);
+        try {
+          loc = locationPromiseRef.current
+            ? await locationPromiseRef.current
+            : await getCurrentLocation();
+        } catch {
+          loc = { coords: { latitude: null, longitude: null } };
+        }
       }
 
       setStatusMessage(`${userName} — a registar ponto...`);
@@ -620,8 +630,11 @@ const RegistoPontoFacial = (props) => {
       alert("Aguarde, ainda está a processar o registo anterior...");
       return;
     }
-    // Pré-aquecer localização
-    locationPromiseRef.current = getCurrentLocation();
+    // Pré-aquecer localização apenas se não for CASAPEDOME
+    const posNome = localStorage.getItem('posNome');
+    if (posNome !== 'CASAPEDOME') {
+      locationPromiseRef.current = getCurrentLocation();
+    }
     setIsFacialScanning(true);
     setStatusMessage("Iniciando reconhecimento facial...");
     setFacialScanResult(null);
@@ -736,11 +749,15 @@ const RegistoPontoFacial = (props) => {
       const externo = await resExterno.json();
       setExternoNome(externo.nome);
 
-      // Obter localização
+      // Obter localização apenas se não for CASAPEDOME
+      const posNome = localStorage.getItem('posNome');
       let loc = { coords: { latitude: null, longitude: null } };
-      try {
-        loc = await getCurrentLocation();
-      } catch {}
+      
+      if (posNome !== 'CASAPEDOME') {
+        try {
+          loc = await getCurrentLocation();
+        } catch {}
+      }
 
       // Registar ponto do externo
       const resRegisto = await fetch(
@@ -864,11 +881,16 @@ const RegistoPontoFacial = (props) => {
     try {
       const token = localStorage.getItem("loginToken");
       const empresaId = localStorage.getItem("empresa_id");
+      const posNome = localStorage.getItem('posNome');
 
       let loc = { coords: { latitude: null, longitude: null } };
-      try {
-        loc = await getCurrentLocation();
-      } catch {}
+      
+      // Apenas obter localização se não for CASAPEDOME
+      if (posNome !== 'CASAPEDOME') {
+        try {
+          loc = await getCurrentLocation();
+        } catch {}
+      }
 
       const res = await fetch(
         "https://backend.advir.pt/api/visitantes/registar-ponto",
@@ -1537,7 +1559,7 @@ const RegistoPontoFacial = (props) => {
                     type="text"
                     className="form-control mb-3"
                     placeholder="Nome Empresa *"
-                    value={visitanteData.nomeEmpresa || ''}
+                    value={visitanteData.nomeEmpresa || ""}
                     onChange={(e) =>
                       setVisitanteData({
                         ...visitanteData,
@@ -1549,7 +1571,7 @@ const RegistoPontoFacial = (props) => {
                     type="text"
                     className="form-control mb-3"
                     placeholder="NIF Empresa *"
-                    value={visitanteData.nifEmpresa || ''}
+                    value={visitanteData.nifEmpresa || ""}
                     onChange={(e) =>
                       setVisitanteData({
                         ...visitanteData,
