@@ -570,9 +570,22 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                     ${registosProcessados
                         .map(
                             (r) => {
-                                const nomeCompleto = r.nomeEmpresa 
-                                    ? `${r.utilizador} (${r.nomeEmpresa})`
-                                    : r.utilizador;
+                                let nomeCompleto = r.utilizador;
+                                
+                                // Adicionar tipo e empresa se aplicável
+                                if (r.tipoEntidade === 'visitante') {
+                                    nomeCompleto = r.nomeEmpresa 
+                                        ? `👤 ${r.utilizador} (${r.nomeEmpresa})`
+                                        : `👤 ${r.utilizador}`;
+                                } else if (r.tipoEntidade === 'externo') {
+                                    nomeCompleto = r.nomeEmpresa 
+                                        ? `🔧 ${r.utilizador} (${r.nomeEmpresa})`
+                                        : `🔧 ${r.utilizador}`;
+                                } else {
+                                    // Colaborador
+                                    nomeCompleto = `👷 ${r.utilizador}`;
+                                }
+                                
                                 return `
                         <tr>
                             <td>${nomeCompleto}</td>
