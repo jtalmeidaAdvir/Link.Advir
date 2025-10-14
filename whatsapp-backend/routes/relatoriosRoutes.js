@@ -140,13 +140,15 @@ router.post("/relatorios-agendados/:id/executar", async (req, res) => {
 
 // Função para executar o relatório
 async function executarRelatorio(schedule) {
-    console.log(`📧 executarRelatorio chamado para schedule ID: ${schedule.id}`);
+    console.log(
+        `📧 executarRelatorio chamado para schedule ID: ${schedule.id}`,
+    );
     console.log(`📋 Dados do schedule:`, {
         id: schedule.id,
         tipo: schedule.tipo,
         priority: schedule.priority,
         empresa_id: schedule.empresa_id,
-        message: schedule.message?.substring(0, 50)
+        message: schedule.message?.substring(0, 50),
     });
 
     try {
@@ -155,14 +157,14 @@ async function executarRelatorio(schedule) {
         const empresa_ou_obra_id = schedule.empresa_id; // Usar empresa_id do schedule
 
         console.log(`📊 Tipo de relatório: ${tipo}`);
-        console.log(`📧 Destinatários: ${emails.join(', ')}`);
+        console.log(`📧 Destinatários: ${emails.join(", ")}`);
         console.log(`🏢 Empresa/Obra ID: ${empresa_ou_obra_id}`);
 
         if (!empresa_ou_obra_id) {
             console.log(`❌ ERRO: empresa_id está vazio!`);
             return {
                 success: false,
-                error: "empresa_id não definido no agendamento"
+                error: "empresa_id não definido no agendamento",
             };
         }
 
@@ -172,16 +174,22 @@ async function executarRelatorio(schedule) {
         // Gerar dados do relatório baseado no tipo
         switch (tipo) {
             case "registos_obra_dia":
-                console.log(`📊 Gerando relatório de registos do dia para empresa/obra ${empresa_ou_obra_id}...`);
-                const resultado = await gerarRelatorioRegistosDia(empresa_ou_obra_id);
+                console.log(
+                    `📊 Gerando relatório de registos do dia para empresa/obra ${empresa_ou_obra_id}...`,
+                );
+                const resultado =
+                    await gerarRelatorioRegistosDia(empresa_ou_obra_id);
                 dadosRelatorio = resultado.html;
                 assunto = resultado.assunto;
                 console.log(`✅ Relatório gerado - Assunto: ${assunto}`);
                 break;
 
             case "resumo_mensal":
-                console.log(`📊 Gerando resumo mensal para empresa/obra ${empresa_ou_obra_id}...`);
-                const resultadoMensal = await gerarRelatorioResumoMensal(empresa_ou_obra_id);
+                console.log(
+                    `📊 Gerando resumo mensal para empresa/obra ${empresa_ou_obra_id}...`,
+                );
+                const resultadoMensal =
+                    await gerarRelatorioResumoMensal(empresa_ou_obra_id);
                 dadosRelatorio = resultadoMensal.html;
                 assunto = resultadoMensal.assunto;
                 console.log(`✅ Resumo mensal gerado - Assunto: ${assunto}`);
@@ -202,7 +210,9 @@ async function executarRelatorio(schedule) {
         }
 
         // Enviar email para cada destinatário
-        console.log(`📤 Enviando emails para ${emails.length} destinatário(s)...`);
+        console.log(
+            `📤 Enviando emails para ${emails.length} destinatário(s)...`,
+        );
         for (const email of emails) {
             console.log(`📧 Enviando para: ${email}`);
             await transporter.sendMail({
@@ -215,22 +225,24 @@ async function executarRelatorio(schedule) {
         }
 
         // Atualizar última execução APENAS se for um schedule da BD
-        if (schedule.update && typeof schedule.update === 'function') {
+        if (schedule.update && typeof schedule.update === "function") {
             await schedule.update({
                 last_sent: new Date(),
                 total_sent: (schedule.total_sent || 0) + emails.length,
             });
             console.log(`✅ Schedule atualizado na BD`);
-        } else if (schedule.id && !schedule.id.toString().startsWith('TEST_')) {
+        } else if (schedule.id && !schedule.id.toString().startsWith("TEST_")) {
             // Atualizar manualmente via Sequelize
             await Schedule.update(
                 {
                     last_sent: new Date(),
                     total_sent: (schedule.total_sent || 0) + emails.length,
                 },
-                { where: { id: schedule.id } }
+                { where: { id: schedule.id } },
             );
-            console.log(`✅ Schedule ${schedule.id} atualizado manualmente na BD`);
+            console.log(
+                `✅ Schedule ${schedule.id} atualizado manualmente na BD`,
+            );
         }
 
         console.log(`✅ executarRelatorio concluído com sucesso`);
@@ -249,7 +261,9 @@ async function executarRelatorio(schedule) {
 
 // Gerar relatório de registos do dia
 async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
-    console.log(`📊 gerarRelatorioRegistosDia chamado com empresa_ou_obra_id: ${empresa_ou_obra_id}`);
+    console.log(
+        `📊 gerarRelatorioRegistosDia chamado com empresa_ou_obra_id: ${empresa_ou_obra_id}`,
+    );
     console.log(`📊 Tipo de empresa_ou_obra_id: ${typeof empresa_ou_obra_id}`);
     console.log(`📊 Valor é null? ${empresa_ou_obra_id === null}`);
     console.log(`📊 Valor é undefined? ${empresa_ou_obra_id === undefined}`);
@@ -268,7 +282,9 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
     // Validação mais rigorosa - aceitar 0 como válido, mas rejeitar null/undefined
     if (empresa_ou_obra_id === null || empresa_ou_obra_id === undefined) {
         // Se não especificar empresa ou obra, retornar erro
-        console.log(`❌ Nenhum filtro especificado - empresa_ou_obra_id está vazio`);
+        console.log(
+            `❌ Nenhum filtro especificado - empresa_ou_obra_id está vazio`,
+        );
         return {
             html: "<p>Por favor, selecione uma empresa ou obra específica para gerar o relatório.</p>",
             assunto: `📊 Relatório Diário - Filtro necessário - ${hoje}`,
@@ -277,7 +293,10 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
 
     // Primeiro tentar como obra
     const obra = await Obra.findByPk(empresa_ou_obra_id);
-    console.log(`🔍 Busca por obra ID ${empresa_ou_obra_id}:`, obra ? `Encontrada - ${obra.nome}` : 'Não encontrada');
+    console.log(
+        `🔍 Busca por obra ID ${empresa_ou_obra_id}:`,
+        obra ? `Encontrada - ${obra.nome}` : "Não encontrada",
+    );
 
     if (obra && obra.empresa_id) {
         // É uma obra específica
@@ -287,14 +306,18 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
         console.log(`✅ Filtro definido para obra específica: ${obraNome}`);
     } else {
         // Tentar como empresa_id
-        console.log(`🔍 Tentando buscar como empresa_id: ${empresa_ou_obra_id}`);
+        console.log(
+            `🔍 Tentando buscar como empresa_id: ${empresa_ou_obra_id}`,
+        );
         const obrasDaEmpresa = await Obra.findAll({
             where: {
                 empresa_id: empresa_ou_obra_id,
-                estado: 'Ativo'
+                estado: "Ativo",
             },
         });
-        console.log(`📋 Obras encontradas para empresa ${empresa_ou_obra_id}: ${obrasDaEmpresa.length}`);
+        console.log(
+            `📋 Obras encontradas para empresa ${empresa_ou_obra_id}: ${obrasDaEmpresa.length}`,
+        );
 
         if (obrasDaEmpresa.length > 0) {
             obrasParaFiltrar = obrasDaEmpresa.map((o) => o.id);
@@ -315,10 +338,14 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                     ? empresaResult[0].empresa
                     : `Empresa ${empresa_ou_obra_id}`;
             obraNome = `${empresaNome}`;
-            console.log(`✅ Filtro definido para empresa: ${obraNome} (${obrasParaFiltrar.length} obras)`);
+            console.log(
+                `✅ Filtro definido para empresa: ${obraNome} (${obrasParaFiltrar.length} obras)`,
+            );
         } else {
             // Nenhuma obra encontrada para esta empresa
-            console.log(`❌ Nenhuma obra ativa encontrada para empresa ${empresa_ou_obra_id}`);
+            console.log(
+                `❌ Nenhuma obra ativa encontrada para empresa ${empresa_ou_obra_id}`,
+            );
             return {
                 html: "<p>Nenhuma obra ativa encontrada para esta empresa.</p>",
                 assunto: `📊 Relatório Diário - Sem obras ativas - ${hoje}`,
@@ -359,14 +386,13 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
             'visitante' as tipoEntidade
         FROM registo_ponto_visitantes rpv
         INNER JOIN visitantes v ON v.id = rpv.visitante_id
-        WHERE rpv.obra_id ${obrasParaFiltrar.length > 0 ? 'IN (' + obrasParaFiltrar.join(',') + ')' : '= ' + empresa_ou_obra_id}
+        WHERE rpv.obra_id ${obrasParaFiltrar.length > 0 ? "IN (" + obrasParaFiltrar.join(",") + ")" : "= " + empresa_ou_obra_id}
         AND CONVERT(DATE, rpv.timestamp) = CONVERT(DATE, GETDATE())
         ORDER BY rpv.timestamp ASC
     `;
 
     const visitantes = await sequelize.query(visitantesQuery, {
-   
-        type: sequelize.QueryTypes.SELECT
+        type: sequelize.QueryTypes.SELECT,
     });
 
     // Buscar externos
@@ -382,14 +408,13 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
             'externo' as tipoEntidade
         FROM RegistoPontoExternos rpe
         LEFT JOIN ExternosJPA e ON e.id = rpe.externo_id
-        WHERE rpe.obra_id ${obrasParaFiltrar.length > 0 ? 'IN (' + obrasParaFiltrar.join(',') + ')' : '= ' + empresa_ou_obra_id}
+        WHERE rpe.obra_id ${obrasParaFiltrar.length > 0 ? "IN (" + obrasParaFiltrar.join(",") + ")" : "= " + empresa_ou_obra_id}
         AND CONVERT(DATE, rpe.timestamp) = CONVERT(DATE,GETDATE())
         ORDER BY rpe.timestamp ASC
     `;
 
     const externos = await sequelize.query(externosQuery, {
- 
-        type: sequelize.QueryTypes.SELECT
+        type: sequelize.QueryTypes.SELECT,
     });
 
     // Agrupar por obra primeiro, depois por utilizador
@@ -412,7 +437,7 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
         if (!agrupadosPorObra[obraId].utilizadores[userId]) {
             agrupadosPorObra[obraId].utilizadores[userId] = {
                 utilizador: r.User?.nome || "Desconhecido",
-                tipoEntidade: 'colaborador',
+                tipoEntidade: "colaborador",
                 registos: [],
             };
         }
@@ -440,7 +465,7 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
             agrupadosPorObra[obraId].utilizadores[visitanteKey] = {
                 utilizador: v.nome,
                 nomeEmpresa: v.nomeEmpresa,
-                tipoEntidade: 'visitante',
+                tipoEntidade: "visitante",
                 registos: [],
             };
         }
@@ -468,7 +493,7 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
             agrupadosPorObra[obraId].utilizadores[externoKey] = {
                 utilizador: e.nome,
                 nomeEmpresa: e.nomeEmpresa,
-                tipoEntidade: 'externo',
+                tipoEntidade: "externo",
                 registos: [],
             };
         }
@@ -517,7 +542,7 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
 
                 return {
                     utilizador: userGroup.utilizador,
-                    tipoEntidade: userGroup.tipoEntidade || 'colaborador',
+                    tipoEntidade: userGroup.tipoEntidade || "colaborador",
                     nomeEmpresa: userGroup.nomeEmpresa || null,
                     tipo: ultimoRegisto.tipo.toUpperCase(),
                     hora: timestampCorrigido.toLocaleTimeString("pt-PT", {
@@ -536,8 +561,6 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                 <thead style="background-color: #f0f0f0;">
                     <tr>
                         <th>Trabalhador</th>
-                        <th>Tipo</th>
-                        <th>Empresa</th>
                         <th>Estado Atual</th>
                         <th>Última Ação</th>
                         <th>Horas Trabalhadas</th>
@@ -545,21 +568,24 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                 </thead>
                 <tbody>
                     ${registosProcessados
-                    .map(
-                        (r) => `
+                        .map(
+                            (r) => {
+                                const nomeCompleto = r.nomeEmpresa 
+                                    ? `${r.utilizador} (${r.nomeEmpresa})`
+                                    : r.utilizador;
+                                return `
                         <tr>
-                            <td>${r.utilizador}</td>
-                            <td>${r.tipoEntidade === 'visitante' ? '👤 Visitante' : r.tipoEntidade === 'externo' ? '🔧 Externo' : '👷 Colaborador'}</td>
-                            <td>${r.nomeEmpresa || '-'}</td>
+                            <td>${nomeCompleto}</td>
                             <td>
                                 ${r.tipo === "ENTRADA" ? "🟢 ENTRADA" : "🔴 SAÍDA"}
                             </td>
                             <td>${r.hora}</td>
                             <td><strong>${r.horasTrabalhadas}</strong></td>
                         </tr>
-                    `,
-                    )
-                    .join("")}
+                    `;
+                            }
+                        )
+                        .join("")}
                 </tbody>
             </table>
         `;
@@ -571,7 +597,7 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
     let html = `
         <h2>📊 Relatório de Registos de Ponto - ${new Date().toLocaleDateString("pt-PT")}</h2>
         <h3 style="color: #0066cc;">📋 ${obraNome}</h3>
-      
+
         <hr>
         ${obrasSections}
         <br>
