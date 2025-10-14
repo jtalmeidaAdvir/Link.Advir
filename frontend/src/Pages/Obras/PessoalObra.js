@@ -104,6 +104,7 @@ const PessoalObra = ({ route }) => {
                         longitude: r.longitude,
                         tipo_pessoa: 'externo',
                         nome: r.nome,
+                        nomeEmpresa: r.empresa || 'N/A',
                         User: { nome: r.nome }
                     }))
                 ];
@@ -315,19 +316,10 @@ const PessoalObra = ({ route }) => {
         const tipoPessoaLabel = tipoPessoa === 'visitante' ? '👤 Visitante' :
             tipoPessoa === 'externo' ? '🔧 Externo' : '👷 Colaborador';
 
-        // Obter nome da empresa se for visitante
-        const nomeEmpresa = tipoPessoa === 'visitante' && funcionario.eventos?.[0]?.nomeEmpresa
+        // Obter nome da empresa (funciona para visitantes e externos)
+        const nomeEmpresa = funcionario.eventos?.[0]?.nomeEmpresa
             ? funcionario.eventos[0].nomeEmpresa
             : null;
-
-        // Debug: Log para verificar os dados do visitante
-        if (tipoPessoa === 'visitante') {
-            console.log('🔍 Dados do visitante:', {
-                nome: funcionario.nome,
-                nomeEmpresa,
-                eventos: funcionario.eventos
-            });
-        }
 
         return (
             <div key={index} style={styles.employeeCard}>

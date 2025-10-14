@@ -253,7 +253,7 @@ const resumoObra = async (req, res) => {
             }
         });
 
-        // Buscar últimas entradas/saídas de externos (limitado a 10)
+        // Buscar últimas entradas/saídas de externos com empresa
         const queryRegistos = `
             SELECT 
                 rpe.id,
@@ -263,8 +263,10 @@ const resumoObra = async (req, res) => {
                 rpe.nome,
                 rpe.latitude,
                 rpe.longitude,
+                e.empresa,
                 'externo' as tipoEntidade
             FROM RegistoPontoExternos rpe
+            LEFT JOIN ExternosJPA e ON e.id = rpe.externo_id
             WHERE rpe.obra_id = :obra_id
             AND rpe.empresa_id = :empresa_id
             AND CONVERT(DATE, rpe.timestamp) = CONVERT(DATE, :hoje)
@@ -290,6 +292,7 @@ const resumoObra = async (req, res) => {
                 nome: r.nome,
                 latitude: r.latitude,
                 longitude: r.longitude,
+                empresa: r.empresa,
                 tipoEntidade: r.tipoEntidade
             }))
         });

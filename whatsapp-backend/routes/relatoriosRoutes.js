@@ -345,6 +345,53 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
         ],
     });
 
+    // Buscar visitantes
+    const { sequelize } = require("../config/database");
+    const visitantesQuery = `
+        SELECT 
+            rpv.id,
+            rpv.visitante_id,
+            rpv.obra_id,
+            rpv.tipo,
+            rpv.timestamp,
+            v.primeiroNome + ' ' + v.ultimoNome as nome,
+            v.nomeEmpresa,
+            'visitante' as tipoEntidade
+        FROM RegistoPontoVisitante rpv
+        INNER JOIN visitantes v ON v.id = rpv.visitante_id
+        WHERE rpv.obra_id ${obrasParaFiltrar.length > 0 ? 'IN (' + obrasParaFiltrar.join(',') + ')' : '= ' + empresa_ou_obra_id}
+        AND CONVERT(DATE, rpv.timestamp) = CONVERT(DATE, @hoje)
+        ORDER BY rpv.timestamp ASC
+    `;
+
+    const visitantes = await sequelize.query(visitantesQuery, {
+        replacements: { hoje: hoje },
+        type: sequelize.QueryTypes.SELECT
+    });
+
+    // Buscar externos
+    const externosQuery = `
+        SELECT 
+            rpe.id,
+            rpe.externo_id,
+            rpe.obra_id,
+            rpe.tipo,
+            rpe.timestamp,
+            rpe.nome,
+            e.empresa as nomeEmpresa,
+            'externo' as tipoEntidade
+        FROM RegistoPontoExternos rpe
+        LEFT JOIN ExternosJPA e ON e.id = rpe.externo_id
+        WHERE rpe.obra_id ${obrasParaFiltrar.length > 0 ? 'IN (' + obrasParaFiltrar.join(',') + ')' : '= ' + empresa_ou_obra_id}
+        AND CONVERT(DATE, rpe.timestamp) = CONVERT(DATE, @hoje)
+        ORDER BY rpe.timestamp ASC
+    `;
+
+    const externos = await sequelize.query(externosQuery, {
+        replacements: { hoje: hoje },
+        type: sequelize.QueryTypes.SELECT
+    });
+
     // Agrupar por obra primeiro, depois por utilizador
     const agrupadosPorObra = {};
 
@@ -365,6 +412,7 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
         if (!agrupadosPorObra[obraId].utilizadores[userId]) {
             agrupadosPorObra[obraId].utilizadores[userId] = {
                 utilizador: r.User?.nome || "Desconhecido",
+                tipoEntidade: 'colaborador',
                 registos: [],
             };
         }
@@ -372,6 +420,62 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
         agrupadosPorObra[obraId].utilizadores[userId].registos.push({
             tipo: r.tipo,
             timestamp: new Date(r.timestamp),
+        });
+    });
+
+    // Adicionar visitantes ao agrupamento
+    visitantes.forEach((v) => {
+        const obraId = v.obra_id;
+        const obraInfo = `Obra ${obraId}`; // Poderia buscar nome da obra se necessário
+
+        if (!agrupadosPorObra[obraId]) {
+            agrupadosPorObra[obraId] = {
+                obraInfo: obraInfo,
+                utilizadores: {},
+            };
+        }
+
+        const visitanteKey = `visitante_${v.visitante_id}`;
+        if (!agrupadosPorObra[obraId].utilizadores[visitanteKey]) {
+            agrupadosPorObra[obraId].utilizadores[visitanteKey] = {
+                utilizador: v.nome,
+                nomeEmpresa: v.nomeEmpresa,
+                tipoEntidade: 'visitante',
+                registos: [],
+            };
+        }
+
+        agrupadosPorObra[obraId].utilizadores[visitanteKey].registos.push({
+            tipo: v.tipo,
+            timestamp: new Date(v.timestamp),
+        });
+    });
+
+    // Adicionar externos ao agrupamento
+    externos.forEach((e) => {
+        const obraId = e.obra_id;
+        const obraInfo = `Obra ${obraId}`;
+
+        if (!agrupadosPorObra[obraId]) {
+            agrupadosPorObra[obraId] = {
+                obraInfo: obraInfo,
+                utilizadores: {},
+            };
+        }
+
+        const externoKey = `externo_${e.externo_id}`;
+        if (!agrupadosPorObra[obraId].utilizadores[externoKey]) {
+            agrupadosPorObra[obraId].utilizadores[externoKey] = {
+                utilizador: e.nome,
+                nomeEmpresa: e.nomeEmpresa,
+                tipoEntidade: 'externo',
+                registos: [],
+            };
+        }
+
+        agrupadosPorObra[obraId].utilizadores[externoKey].registos.push({
+            tipo: e.tipo,
+            timestamp: new Date(e.timestamp),
         });
     });
 
@@ -413,6 +517,8 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
 
                 return {
                     utilizador: userGroup.utilizador,
+                    tipoEntidade: userGroup.tipoEntidade || 'colaborador',
+                    nomeEmpresa: userGroup.nomeEmpresa || null,
                     tipo: ultimoRegisto.tipo.toUpperCase(),
                     hora: timestampCorrigido.toLocaleTimeString("pt-PT", {
                         hour: "2-digit",
@@ -430,6 +536,8 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                 <thead style="background-color: #f0f0f0;">
                     <tr>
                         <th>Trabalhador</th>
+                        <th>Tipo</th>
+                        <th>Empresa</th>
                         <th>Estado Atual</th>
                         <th>Última Ação</th>
                         <th>Horas Trabalhadas</th>
@@ -441,6 +549,8 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                         (r) => `
                         <tr>
                             <td>${r.utilizador}</td>
+                            <td>${r.tipoEntidade === 'visitante' ? '👤 Visitante' : r.tipoEntidade === 'externo' ? '🔧 Externo' : '👷 Colaborador'}</td>
+                            <td>${r.nomeEmpresa || '-'}</td>
                             <td>
                                 ${r.tipo === "ENTRADA" ? "🟢 ENTRADA" : "🔴 SAÍDA"}
                             </td>
