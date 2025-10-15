@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity,
@@ -416,7 +415,7 @@ const GestaoTrabalhadoresExternos = () => {
                 await fetchRegistos();
                 Alert.alert('Sucesso', 'Registo ativado.');
             } catch (e) {
-                Alert.alert('Erro', e.message);
+                Alert.Alert.alert('Erro', e.message);
             }
         },
         'Ativar',
@@ -443,6 +442,171 @@ const GestaoTrabalhadoresExternos = () => {
     const fecharDetalhe = () => { setDetalhe(null); setModalDetalheVisible(false); };
 
     const listaFiltrada = useMemo(() => registos, [registos]);
+
+    // === PARTES DIÁRIAS DOS EXTERNOS (GRADE MENSAL) ===
+    const [modalGradeVisible, setModalGradeVisible] = useState(false);
+    const [gradeLoading, setGradeLoading] = useState(false);
+    const [gradesMensais, setGradesMensais] = useState({
+        externos: [],
+        mesAtual: new Date().getMonth() + 1,
+        anoAtual: new Date().getFullYear(),
+        diasNoMes: new Date().getDate(),
+    });
+    const [classesList, setClassesList] = useState([]);
+    const [especialidadesList, setEspecialidadesList] = useState([]);
+
+    // Carregar listas de classes e especialidades
+    const carregarClassesEspecialidades = useCallback(async () => {
+        try {
+            const painelToken = await AsyncStorage.getItem('painelAdminToken');
+            const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+            const headers = {
+                Authorization: `Bearer ${painelToken}`,
+                urlempresa,
+                'Content-Type': 'application/json'
+            };
+
+            const [resClasses, resEsp, resEquip] = await Promise.all([
+                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses', { headers }),
+                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades', { headers }),
+                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos', { headers })
+            ]);
+
+            if (resClasses.ok) {
+                const data = await resClasses.json();
+                const table = data?.DataSet?.Table;
+                const items = Array.isArray(table) ? table.map(item => ({
+                    classeId: item.ClasseId,
+                    descricao: item.Descricao,
+                    classe: item.Classe
+                })) : [];
+                setClassesList(items);
+            }
+
+            if (resEsp.ok) {
+                const data = await resEsp.json();
+                const table = data?.DataSet?.Table;
+                const items = Array.isArray(table) ? table.map(item => ({
+                    codigo: item.SubEmp,
+                    descricao: item.Descricao,
+                    subEmpId: item.SubEmpId
+                })) : [];
+                setEspecialidadesList(prev => [...prev, ...items]);
+            }
+
+            if (resEquip.ok) {
+                const data = await resEquip.json();
+                const raw = data?.DataSet?.Table;
+                const table = Array.isArray(raw) ? raw : raw ? [raw] : [];
+                const items = table
+                    .filter(item => typeof item?.Codigo === 'string' && item.Codigo.trim().toUpperCase().startsWith('L'))
+                    .map(item => ({
+                        codigo: item.Codigo.trim(),
+                        descricao: item.Desig,
+                        subEmpId: item.ComponenteID
+                    }));
+                setEspecialidadesList(prev => [...prev, ...items]);
+            }
+        } catch (err) {
+            console.error('Erro ao carregar classes/especialidades:', err);
+        }
+    }, []);
+
+    const fetchPartesGrade = useCallback(async () => {
+        setGradeLoading(true);
+        const hoje = new Date();
+        const mes = hoje.getMonth() + 1;
+        const ano = hoje.getFullYear();
+        const diasNoMes = new Date(ano, mes, 0).getDate();
+
+        try {
+            const painelToken = await AsyncStorage.getItem('painelAdminToken');
+            const res = await fetch('https://backend.advir.pt/api/parte-diaria/cabecalhos', {
+                headers: { Authorization: `Bearer ${painelToken}` }
+            });
+
+            if (!res.ok) throw new Error('Erro ao carregar partes diárias');
+
+            const all = await res.json();
+
+            const partesDesteMes = (all || []).filter(cab => {
+                const dataCab = new Date(cab.Data);
+                return dataCab.getMonth() + 1 === mes && dataCab.getFullYear() === ano;
+            });
+
+            const externosProcessados = [];
+const mapNomeParaHoras = new Map();
+
+
+
+            partesDesteMes.forEach(cab => {
+                const itensExternos = (cab.ParteDiariaItems || []).filter(it => {
+                    const semColab = it.ColaboradorID === null ||
+                                    it.ColaboradorID === undefined ||
+                                    String(it.ColaboradorID).trim() === '';
+                    const marca = /\bexterno\b/i.test(String(it.Funcionario || ''));
+                    return semColab || marca;
+                });
+
+                itensExternos.forEach(item => {
+                    const nome = String(item.Funcionario || 'Externo').replace(/\s*\(Externo\)\s*$/i, '').trim();
+                    const dataItem = new Date(cab.Data);
+                    const dia = dataItem.getDate();
+                    const minutos = Number(item.NumHoras || 0);
+
+                    if (!mapNomeParaHoras.has(nome)) {
+                        mapNomeParaHoras.set(nome, {});
+                    }
+const horasDoDia = mapNomeParaHoras.get(nome);
+                    horasDoDia[dia] = (horasDoDia[dia] || 0) + minutos;
+                });
+            });
+
+            mapNomeParaHoras.forEach((diasHoras, nome) => {
+                externosProcessados.push({ nome, diasHoras });
+            });
+
+            setGradesMensais({
+                externos: externosProcessados,
+                mesAtual: mes,
+                anoAtual: ano,
+                diasNoMes: diasNoMes,
+            });
+
+        } catch (err) {
+            console.error('Erro ao carregar partes diárias:', err);
+            Alert.alert('Erro', 'Não foi possível carregar as partes diárias dos externos.');
+        } finally {
+            setGradeLoading(false);
+        }
+    }, []);
+
+    const abrirGradePartes = async () => {
+        setModalGradeVisible(true);
+        await carregarClassesEspecialidades();
+        await fetchPartesGrade();
+    };
+
+    const fecharGradePartes = () => {
+        setModalGradeVisible(false);
+        setGradesMensais({
+            externos: [],
+            mesAtual: new Date().getMonth() + 1,
+            anoAtual: new Date().getFullYear(),
+            diasNoMes: new Date().getDate(),
+        });
+    };
+
+    const getClasseDescricao = (classeId) => {
+        const classe = classesList.find(c => c.classeId === classeId);
+        return classe?.descricao || `Classe ${classeId}`;
+    };
+
+    const getEspecialidadeDescricao = (subEmpId) => {
+        const esp = especialidadesList.find(e => e.subEmpId === subEmpId);
+        return esp?.descricao || '—';
+    };
 
     // === RESUMO EXTERNOS: data sources
     const fetchObrasResumo = useCallback(async () => {
@@ -886,6 +1050,13 @@ const GestaoTrabalhadoresExternos = () => {
                                     <LinearGradient colors={['#1792FE', '#0B5ED7']} style={styles.modernButtonGradient}>
                                         <Ionicons name="analytics" size={18} color="#fff" />
                                         <Text style={styles.modernButtonText}>Resumo Analytics</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity onPress={abrirGradePartes} style={[styles.modernButton, styles.warningButton]}>
+                                    <LinearGradient colors={['#17a2b8', '#138496']} style={styles.modernButtonGradient}>
+                                        <Ionicons name="grid" size={18} color="#fff" />
+                                        <Text style={styles.modernButtonText}>Grade Partes Diárias</Text>
                                     </LinearGradient>
                                 </TouchableOpacity>
                             </View>
@@ -1381,7 +1552,7 @@ const GestaoTrabalhadoresExternos = () => {
                                 </View>
 
                                 <View style={styles.controlSection}>
-                                    <Text style={styles.controlSectionTitle}>Filtros Avançados</Text>
+                                    <Text style={styles.controlSectionTitle}>Filtros de Avançados</Text>
                                     <View style={styles.advancedFilters}>
                                         <View style={styles.filterDropdown}>
                                             <Text style={styles.filterLabel}>Empresa</Text>
@@ -1514,6 +1685,138 @@ const GestaoTrabalhadoresExternos = () => {
                                 </View>
                             )}
                         </ScrollView>
+                    </SafeAreaView>
+                </Modal>
+
+                {/* Modal Grade Partes Diárias (Mensal) */}
+                <Modal visible={modalGradeVisible} animationType="slide" onRequestClose={fecharGradePartes}>
+                    <SafeAreaView style={styles.modalContainer}>
+                        <LinearGradient colors={['#17a2b8', '#138496']} style={styles.modalHeader}>
+                            <View style={styles.modalHeaderContent}>
+                                <View style={styles.modalTitleContainer}>
+                                    <View style={styles.modalIcon}>
+                                        <Ionicons name="grid" size={24} color="#fff" />
+                                    </View>
+                                    <Text style={styles.modalTitle}>Grade Mensal - Partes Diárias Externos</Text>
+                                </View>
+                                <TouchableOpacity onPress={fecharGradePartes} style={styles.modalCloseBtn}>
+                                    <Ionicons name="close" size={24} color="#fff" />
+                                </TouchableOpacity>
+                            </View>
+                        </LinearGradient>
+
+                        {gradeLoading ? (
+                            <View style={styles.centerContainer}>
+                                <LinearGradient colors={['#17a2b8', '#138496']} style={styles.loadingCard}>
+                                    <ActivityIndicator size="large" color="#fff" />
+                                    <Text style={styles.loadingText}>A carregar partes diárias...</Text>
+                                </LinearGradient>
+                            </View>
+                        ) : gradesMensais.externos.length === 0 ? (
+                            <View style={styles.emptyStateContainer}>
+                                <View style={styles.emptyStateCard}>
+                                    <LinearGradient
+                                        colors={['rgba(23, 162, 184, 0.1)', 'rgba(19, 132, 150, 0.05)']}
+                                        style={styles.emptyStateIcon}
+                                    >
+                                        <Ionicons name="grid-outline" size={80} color="#17a2b8" />
+                                    </LinearGradient>
+                                    <Text style={styles.emptyStateTitle}>Sem partes diárias de externos</Text>
+                                    <Text style={styles.emptyStateText}>
+                                        Ainda não existem partes diárias registadas para trabalhadores externos no mês atual.
+                                    </Text>
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={{ padding: 20 }}>
+                                {/* Cabeçalho da Grade Mensal */}
+                                <View style={styles.gradeMensalHeader}>
+                                    <Text style={styles.gradeMensalTitulo}>
+                                        Grade Mensal - {gradesMensais.mesAtual}/{gradesMensais.anoAtual}
+                                    </Text>
+                                    <Text style={styles.gradeMensalSubtitulo}>
+                                        {gradesMensais.externos.length} externo{gradesMensais.externos.length !== 1 ? 's' : ''}
+                                    </Text>
+                                </View>
+
+                                {/* Tabela com scroll horizontal */}
+                                <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                                    <View>
+                                        {/* Cabeçalho dos dias */}
+                                        <View style={styles.gradeMensalTableHeader}>
+                                            <View style={[styles.gradeMensalHeaderCell, styles.gradeMensalNomeCell]}>
+                                                <Text style={styles.gradeMensalHeaderText}>Nome</Text>
+                                            </View>
+                                            {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map(dia => {
+                                                const data = new Date(gradesMensais.anoAtual, gradesMensais.mesAtual - 1, dia);
+                                                const isFds = data.getDay() === 0 || data.getDay() === 6;
+                                                return (
+                                                    <View
+                                                        key={dia}
+                                                        style={[
+                                                            styles.gradeMensalHeaderCell,
+                                                            styles.gradeMensalDiaCell,
+                                                            isFds && styles.gradeMensalFimDeSemana
+                                                        ]}
+                                                    >
+                                                        <Text style={[styles.gradeMensalHeaderText, isFds && { color: '#dc3545' }]}>
+                                                            {dia}
+                                                        </Text>
+                                                    </View>
+                                                );
+                                            })}
+                                        </View>
+
+                                        {/* Linhas dos externos */}
+                                        {gradesMensais.externos.map((externo, idx) => (
+                                            <View
+                                                key={externo.nome}
+                                                style={[
+                                                    styles.gradeMensalRow,
+                                                    idx % 2 === 0 && styles.gradeMensalRowPar
+                                                ]}
+                                            >
+                                                <View style={[styles.gradeMensalCell, styles.gradeMensalNomeCell]}>
+                                                    <Text style={styles.gradeMensalNomeText} numberOfLines={1}>
+                                                        {externo.nome}
+                                                    </Text>
+                                                </View>
+                                                {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map(dia => {
+                                                    const minutos = externo.diasHoras[dia] || 0;
+                                                    const data = new Date(gradesMensais.anoAtual, gradesMensais.mesAtual - 1, dia);
+                                                    const isFds = data.getDay() === 0 || data.getDay() === 6;
+                                                    const temHoras = minutos > 0;
+
+                                                    return (
+                                                        <View
+                                                            key={dia}
+                                                            style={[
+                                                                styles.gradeMensalCell,
+                                                                styles.gradeMensalDiaCell,
+                                                                isFds && styles.gradeMensalFimDeSemana,
+                                                                temHoras && styles.gradeMensalCellComHoras
+                                                            ]}
+                                                        >
+                                                            <Text style={[
+                                                                styles.gradeMensalCellText,
+                                                                temHoras && styles.gradeMensalCellTextComHoras
+                                                            ]}>
+                                                                {minutos > 0
+                                                                    ? minutos >= 60
+                                                                        ? `${Math.floor(minutos / 60)}h${minutos % 60 > 0 ? `${minutos % 60}` : ''}`
+                                                                        : `${minutos}m`
+                                                                    : '—'
+                                                                }
+                                                            </Text>
+                                                        </View>
+                                                    );
+                                                })}
+                                            </View>
+                                        ))}
+                                    </View>
+                                </ScrollView>
+                            </View>
+                        )}
                     </SafeAreaView>
                 </Modal>
 
@@ -1970,6 +2273,7 @@ const styles = StyleSheet.create({
     emptyStateButtonGradient: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         paddingVertical: 12,
         paddingHorizontal: 20,
         gap: 8,
@@ -2526,6 +2830,208 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         color: '#fff',
+    },
+
+    // Grade Partes Diárias Styles
+    gradeCard: {
+        backgroundColor: '#fff',
+        borderRadius: 15,
+        marginBottom: 20,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        overflow: 'hidden',
+    },
+    gradeCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 15,
+        backgroundColor: '#f8f9fa',
+        borderBottomWidth: 2,
+        borderBottomColor: '#e9ecef',
+    },
+    gradeHeaderIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(23, 162, 184, 0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    gradeCardTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#333',
+        marginBottom: 4,
+    },
+    gradeCardSubtitle: {
+        fontSize: 14,
+        color: '#666',
+    },
+    gradeCardBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#17a2b8',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 15,
+        gap: 4,
+    },
+    gradeCardBadgeText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    gradeTableContainer: {
+        padding: 15,
+    },
+    gradeTableHeader: {
+        flexDirection: 'row',
+        paddingVertical: 10,
+        paddingHorizontal: 8,
+        backgroundColor: '#e9ecef',
+        borderRadius: 8,
+        marginBottom: 8,
+    },
+    gradeTableHeaderCell: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#495057',
+        paddingHorizontal: 4,
+    },
+    gradeTableRow: {
+        flexDirection: 'row',
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f3f4',
+        alignItems: 'center',
+    },
+    gradeTableCell: {
+        fontSize: 14,
+        color: '#333',
+        paddingHorizontal: 4,
+    },
+    categoriaBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 10,
+        alignSelf: 'flex-start',
+    },
+    categoriaBadgeMaoObra: {
+        backgroundColor: '#28a745',
+    },
+    categoriaBadgeEquipamento: {
+        backgroundColor: '#fd7e14',
+    },
+    categoriaBadgeText: {
+        color: '#fff',
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    gradeNotasContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#e2e8f0'
+    },
+    gradeNotasText: {
+        flex: 1,
+        fontSize: 13,
+        color: '#4a5568',
+        fontStyle: 'italic'
+    },
+
+    // Grade Mensal Styles
+    gradeMensalHeader: {
+        marginBottom: 20,
+        padding: 15,
+        backgroundColor: '#f7fafc',
+        borderRadius: 12,
+        borderLeftWidth: 4,
+        borderLeftColor: '#17a2b8'
+    },
+    gradeMensalTitulo: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#2d3748',
+        marginBottom: 5
+    },
+    gradeMensalSubtitulo: {
+        fontSize: 14,
+        color: '#718096'
+    },
+    gradeMensalTableHeader: {
+        flexDirection: 'row',
+        backgroundColor: '#17a2b8',
+        borderTopLeftRadius: 8,
+        borderTopRightRadius: 8
+    },
+    gradeMensalHeaderCell: {
+        padding: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRightWidth: 1,
+        borderRightColor: 'rgba(255, 255, 255, 0.2)'
+    },
+    gradeMensalHeaderText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#fff',
+        textAlign: 'center'
+    },
+    gradeMensalNomeCell: {
+        width: 180,
+        minWidth: 180,
+        maxWidth: 180,
+        paddingHorizontal: 12,
+        justifyContent: 'center',
+        alignItems: 'flex-start'
+    },
+    gradeMensalDiaCell: {
+        width: 50,
+        minWidth: 50,
+        maxWidth: 50
+    },
+    gradeMensalRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e2e8f0'
+    },
+    gradeMensalRowPar: {
+        backgroundColor: '#f7fafc'
+    },
+    gradeMensalCell: {
+        padding: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRightWidth: 1,
+        borderRightColor: '#e2e8f0'
+    },
+    gradeMensalNomeText: {
+        fontSize: 13,
+        color: '#2d3748',
+        fontWeight: '500'
+    },
+    gradeMensalCellText: {
+        fontSize: 11,
+        color: '#a0aec0',
+        textAlign: 'center'
+    },
+    gradeMensalCellComHoras: {
+        backgroundColor: '#e6fffa'
+    },
+    gradeMensalCellTextComHoras: {
+        color: '#17a2b8',
+        fontWeight: 'bold'
+    },
+    gradeMensalFimDeSemana: {
+        backgroundColor: '#fff5f5'
     },
 });
 

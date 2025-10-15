@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { FaCalendarAlt, FaFileAlt, FaCheckCircle, FaTimesCircle, FaClock, FaSync } from 'react-icons/fa';
+import { FaCalendarAlt, FaFileAlt, FaCheckCircle, FaTimesCircle, FaClock, FaSync, FaPaperclip, FaTrash, FaDownload } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
 const Ausencias = () => {
@@ -8,6 +8,10 @@ const Ausencias = () => {
     const [loading, setLoading] = useState(true);
     const [filtroTipo, setFiltroTipo] = useState('TODAS');
     const [filtroEstado, setFiltroEstado] = useState('TODOS');
+    const [uploadingAnexo, setUploadingAnexo] = useState(false);
+    const [anexosPorFalta, setAnexosPorFalta] = useState({});
+    const [mostrarModalAnexo, setMostrarModalAnexo] = useState(false);
+    const [faltaSelecionada, setFaltaSelecionada] = useState(null);
 
     const token = localStorage.getItem('loginToken');
     const empresaId = localStorage.getItem('empresa_id');
@@ -38,12 +42,169 @@ const Ausencias = () => {
                     (pedido) => pedido.funcionario === codFuncionario
                 );
                 setAusencias(minhasAusencias);
+                
+                // Carregar anexos para cada ausência
+                minhasAusencias.forEach(ausencia => {
+                    carregarAnexosDaFalta(ausencia.id);
+                });
             }
         } catch (error) {
             console.error('Erro ao carregar ausências:', error);
         } finally {
             setLoading(false);
         }
+    };
+
+    const carregarAnexosDaFalta = async (faltaId) => {
+        try {
+            const response = await fetch(
+                `https://backend.advir.pt/api/anexo-falta/falta/${faltaId}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                setAnexosPorFalta(prev => ({
+                    ...prev,
+                    [faltaId]: data.anexos || []
+                }));
+            }
+        } catch (error) {
+            console.error('Erro ao carregar anexos:', error);
+        }
+    };
+
+    const handleUploadAnexo = async (event, faltaId) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Ficheiro demasiado grande. Máximo 10MB.');
+            event.target.value = '';
+            return;
+        }
+
+        const allowedTypes = [
+            'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'text/plain'
+        ];
+
+        if (!allowedTypes.includes(file.type)) {
+            alert('Tipo de ficheiro não permitido. Use: JPG, PNG, GIF, PDF, DOC, DOCX ou TXT.');
+            event.target.value = '';
+            return;
+        }
+
+        setUploadingAnexo(true);
+        const formData = new FormData();
+        formData.append('arquivo', file);
+
+        try {
+            // Upload temporário
+            const uploadRes = await fetch('https://backend.advir.pt/api/anexo-falta/upload-temp', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!uploadRes.ok) {
+                throw new Error('Erro no upload temporário');
+            }
+
+            const uploadData = await uploadRes.json();
+
+            // Associar ao pedido
+            const associarRes = await fetch('https://backend.advir.pt/api/anexo-falta/associar-temp', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    pedido_falta_id: faltaId,
+                    anexos_temp: [uploadData.arquivo_temp]
+                })
+            });
+
+            if (!associarRes.ok) {
+                throw new Error('Erro ao associar anexo');
+            }
+
+            alert('Anexo adicionado com sucesso!');
+            carregarAnexosDaFalta(faltaId);
+            event.target.value = '';
+        } catch (error) {
+            console.error('Erro ao fazer upload:', error);
+            alert('Erro ao fazer upload do anexo');
+        } finally {
+            setUploadingAnexo(false);
+        }
+    };
+
+    const handleDownloadAnexo = async (anexoId) => {
+        try {
+            const response = await fetch(
+                `https://backend.advir.pt/api/anexo-falta/download/${anexoId}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `anexo_${anexoId}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }
+        } catch (error) {
+            console.error('Erro ao fazer download:', error);
+            alert('Erro ao fazer download do anexo');
+        }
+    };
+
+    const handleDeletarAnexo = async (anexoId, faltaId) => {
+        if (!window.confirm('Deseja realmente eliminar este anexo?')) return;
+
+        try {
+            const response = await fetch(
+                `https://backend.advir.pt/api/anexo-falta/${anexoId}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (response.ok) {
+                alert('Anexo eliminado com sucesso!');
+                carregarAnexosDaFalta(faltaId);
+            }
+        } catch (error) {
+            console.error('Erro ao eliminar anexo:', error);
+            alert('Erro ao eliminar anexo');
+        }
+    };
+
+    const abrirModalAnexos = (ausencia) => {
+        setFaltaSelecionada(ausencia);
+        setMostrarModalAnexo(true);
     };
 
     const formatarData = (data) => {
@@ -69,8 +230,12 @@ const Ausencias = () => {
     });
 
     return (
-        <div className="container-fluid bg-light min-vh-100 py-4" style={{
-            background: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)'
+        <div className="container-fluid bg-light py-4" style={{
+            background: 'linear-gradient(to bottom, #e3f2fd, #bbdefb, #90caf9)',
+            minHeight: '100vh',
+            maxHeight: '100vh',
+            overflowY: 'auto',
+            overflowX: 'hidden'
         }}>
             <style jsx>{`
                 .card-moderno {
@@ -262,9 +427,18 @@ const Ausencias = () => {
                                                 )}
 
                                                 <div className="mt-3 pt-3 border-top">
-                                                    <small className="text-muted">
-                                                        Criado em: {formatarData(ausencia.dataCriacao)}
-                                                    </small>
+                                                    <div className="d-flex justify-content-between align-items-center">
+                                                        <small className="text-muted">
+                                                            Criado em: {formatarData(ausencia.dataCriacao)}
+                                                        </small>
+                                                        <button
+                                                            className="btn btn-sm btn-outline-primary rounded-pill"
+                                                            onClick={() => abrirModalAnexos(ausencia)}
+                                                        >
+                                                            <FaPaperclip className="me-1" />
+                                                            Anexos ({anexosPorFalta[ausencia.id]?.length || 0})
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </motion.div>
@@ -275,6 +449,92 @@ const Ausencias = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Modal de Anexos */}
+            {mostrarModalAnexo && faltaSelecionada && (
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-lg modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">
+                                    <FaPaperclip className="me-2" />
+                                    Anexos - {faltaSelecionada.tipoPedido === 'FALTA' ? 'Falta' : 'Férias'}
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    onClick={() => setMostrarModalAnexo(false)}
+                                ></button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="mb-4">
+                                    <label className="form-label fw-semibold">Adicionar novo anexo</label>
+                                    <input
+                                        type="file"
+                                        className="form-control"
+                                        onChange={(e) => handleUploadAnexo(e, faltaSelecionada.id)}
+                                        disabled={uploadingAnexo}
+                                        accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.txt"
+                                    />
+                                    {uploadingAnexo && (
+                                        <small className="text-muted">
+                                            <span className="spinner-border spinner-border-sm me-2"></span>
+                                            A carregar...
+                                        </small>
+                                    )}
+                                    <small className="text-muted d-block mt-1">
+                                        Tipos permitidos: JPG, PNG, GIF, PDF, DOC, DOCX, TXT (máx. 10MB)
+                                    </small>
+                                </div>
+
+                                <div className="border-top pt-3">
+                                    <h6 className="mb-3">Anexos existentes:</h6>
+                                    {anexosPorFalta[faltaSelecionada.id]?.length > 0 ? (
+                                        <div className="list-group">
+                                            {anexosPorFalta[faltaSelecionada.id].map((anexo) => (
+                                                <div key={anexo.id} className="list-group-item d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <FaFileAlt className="me-2 text-primary" />
+                                                        <strong>{anexo.nome_arquivo}</strong>
+                                                        <small className="text-muted ms-2">
+                                                            ({(anexo.tamanho / 1024).toFixed(2)} KB)
+                                                        </small>
+                                                    </div>
+                                                    <div>
+                                                        <button
+                                                            className="btn btn-sm btn-outline-primary me-2"
+                                                            onClick={() => handleDownloadAnexo(anexo.id)}
+                                                        >
+                                                            <FaDownload />
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-sm btn-outline-danger"
+                                                            onClick={() => handleDeletarAnexo(anexo.id, faltaSelecionada.id)}
+                                                        >
+                                                            <FaTrash />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted text-center py-3">Nenhum anexo adicionado</p>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setMostrarModalAnexo(false)}
+                                >
+                                    Fechar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

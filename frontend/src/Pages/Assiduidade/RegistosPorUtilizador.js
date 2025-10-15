@@ -4203,24 +4203,13 @@ const RegistosPorUtilizador = () => {
             )}
 
             {/* Empty States */}
-            {viewMode === 'resumo' && !loading && resumoUtilizadores.length === 0 && (
-                <div style={styles.emptyState}>
-                    <span style={styles.emptyIcon}>👥</span>
-                    <h3>Nenhum utilizador encontrado</h3>
-                    <p>Não foram encontrados registos para os critérios selecionados.</p>
-                </div>
-            )}
+           
 
             {viewMode === 'grade' && !loadingGrade && (anoSelecionado && mesSelecionado) && (
                 <div style={styles.emptyState}>
-                    <span style={styles.emptyIcon}>📅</span>
-                    <h3>Nenhum utilizador encontrado para a grade</h3>
-                    <p>Não foram encontrados utilizadores para {mesSelecionado}/{anoSelecionado} com os critérios selecionados.</p>
+                    <span style={styles.emptyIcon}></span>
                     <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '10px' }}>
-                        Verifique se:
-                        <br />• Os utilizadores têm registos no período selecionado
-                        <br />• A obra selecionada tem utilizadores associados
-                        <br />• Os filtros estão corretos
+                    
                     </p>
                 </div>
             )}
@@ -4626,22 +4615,28 @@ const styles = {
     },
     gradeScrollContainer: {
         overflowX: 'auto',
-        overflowY: 'visible'
+        overflowY: 'auto',
+        maxHeight: '50vh'
     },
     gradeTable: {
         width: '100%',
+        position: 'relative',
         borderCollapse: 'collapse',
         minWidth: '1200px'
     },
     gradeHeader: {
         backgroundColor: '#f7fafc',
-        padding: '12px 8px',
+        padding: '6px 4px',
         textAlign: 'center',
-        fontSize: '0.9rem',
+        fontSize: '0.8rem',
         fontWeight: '600',
         color: '#4a5568',
         border: '1px solid #e2e8f0',
-        minWidth: '60px'
+        minWidth: '50px',
+        height: '35px',
+        position: 'sticky',
+        top: 0,
+        zIndex: 15
     },
     // Destacar cabeçalhos de fim-de-semana
     weekendHeader: {
@@ -4654,7 +4649,7 @@ const styles = {
     gradeHeaderFixed: {
         position: 'sticky',
         left: 0,
-        zIndex: 10,
+        zIndex: 20,
         minWidth: '200px',
         maxWidth: '200px',
         backgroundColor: '#edf2f7'
@@ -4666,13 +4661,14 @@ const styles = {
         backgroundColor: '#f9fafb'
     },
     gradeCell: {
-        padding: '8px',
+        padding: '4px',
         border: '1px solid #e2e8f0',
         textAlign: 'center',
-        fontSize: '0.8rem',
+        fontSize: '0.7rem',
         verticalAlign: 'middle',
-        minWidth: '60px',
-        maxWidth: '60px'
+        minWidth: '50px',
+        maxWidth: '50px',
+        height: '40px'
     },
     gradeCellFixed: {
         position: 'sticky',
