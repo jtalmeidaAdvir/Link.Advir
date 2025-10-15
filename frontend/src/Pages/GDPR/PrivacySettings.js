@@ -198,27 +198,16 @@ const exportData = async () => {
                     <Text style={styles.buttonText}>📥 Exportar Os Meus Dados</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
-                    style={[styles.button, styles.dangerButton]}
-                    onPress={() => Alert.alert(
-                        'Eliminar Dados',
-                        'Esta ação irá eliminar permanentemente todos os seus dados. Confirma?',
-                        [
-                            { text: 'Cancelar', style: 'cancel' },
-                            { text: 'Confirmar', onPress: () => {
-                                // Implementar eliminação
-                            }}
-                        ]
-                    )}
-                >
-                    <Text style={styles.buttonText}>🗑️ Solicitar Eliminação de Dados</Text>
-                </TouchableOpacity>
+                
             </View>
 
             <View style={styles.info}>
                 <Text style={styles.infoText}>
+                    ℹ️ Se pretender eliminar a sua conta, não exite em nos contactar através do email support@advir.pt
+                </Text>
+                <Text style={styles.infoText}>
                     ℹ️ Para mais informações sobre como tratamos os seus dados pessoais, 
-                    consulte a nossa Política de Privacidade.
+                    consulte a nossa Política de Privacidade em advir.pt
                 </Text>
             </View>
         </ScrollView>
