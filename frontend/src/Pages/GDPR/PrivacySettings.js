@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { View, Text, Switch, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 
@@ -18,7 +17,7 @@ const PrivacySettings = () => {
         fetchConsents();
     }, []);
 
-    
+
 
     const fetchConsents = async () => {
         try {
@@ -137,6 +136,11 @@ const exportData = async () => {
       return;
     }
 
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Erro HTTP: ${response.status}`);
+    }
+
     const data = await response.json();
     if (data.success) {
       const dataStr = JSON.stringify(data.data, null, 2);
@@ -189,7 +193,7 @@ const exportData = async () => {
 
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Os Seus Direitos RGPD</Text>
-                
+
                 <TouchableOpacity style={styles.button} onPress={exportData}>
                     <Text style={styles.buttonText}>📥 Exportar Os Meus Dados</Text>
                 </TouchableOpacity>

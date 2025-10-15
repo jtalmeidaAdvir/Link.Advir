@@ -59,7 +59,7 @@ router.get('/export-data', authMiddleware, requireConsent('data_processing'), as
 
     const RegistoPontoObra = require('../models/registoPontoObra');
     // Atenção ao nome do ficheiro/modelo: se o teu ficheiro é `faltasFerias.js`, usa esse:
-    const FaltasFerias = require('../models/faltasFerias'); // ← evita `faltas_ferias` se o ficheiro não existe assim
+    const FaltasFerias = require('../models/faltas_ferias'); // ← evita `faltas_ferias` se o ficheiro não existe assim
 
     const [registosPonto, faltasFerias, consents] = await Promise.all([
       RegistoPontoObra.findAll({ where: { user_id } }),
