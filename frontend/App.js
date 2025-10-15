@@ -56,6 +56,7 @@ import PontoBotao from "./src/Pages/Assiduidade/PontoBotao";
 import RegistoPontoAdmin from "./src/Pages/Assiduidade/RegistoPontoAdmin";
 import PedidosAlteracaoAdmin from "./src/Pages/Assiduidade/PedidosAlteracaoAdmin";
 import ListarRegistos from "./src/Pages/Assiduidade/ListarRegistos";
+import Ausencias from "./src/Pages/Assiduidade/Ausencias";
 
 
 import AnaliseComplotaPontos from "./src/Pages/Assiduidade/AnaliseComplotaPontos";
@@ -538,6 +539,29 @@ const CustomDrawerContent = ({
                                 />
                                 <Text style={drawerStyles.moduleText}>
                                     Selecionar Empresa
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {isLoggedIn && (
+                    <View style={drawerStyles.moduleContainer}>
+                        <TouchableOpacity
+                            style={drawerStyles.moduleHeader}
+                            onPress={() =>
+                                props.navigation.navigate("Ausencias")
+                            }
+                            activeOpacity={0.7}
+                        >
+                            <View style={drawerStyles.moduleTitle}>
+                                <FontAwesome
+                                    name="building"
+                                    size={18}
+                                    color="#1792FE"
+                                />
+                                <Text style={drawerStyles.moduleText}>
+                                    Ausencias
                                 </Text>
                             </View>
                         </TouchableOpacity>
@@ -2305,6 +2329,26 @@ const AppNavigator = () => {
                         >
                             {(props) => (
                                 <SelecaoEmpresa
+                                    {...props}
+                                    setEmpresa={setEmpresa}
+                                />
+                            )}
+                        </Drawer.Screen>
+                    )}
+                    {isLoggedIn && (
+                        <Drawer.Screen
+                            name="Ausencias"
+                            options={{
+                                title: "AdvirLink - Empresa",
+                                drawerItemStyle: { display: "none" },
+                                swipeEnabled: false,
+                                gestureEnabled: false,
+                                headerLeft: () => null,
+                                drawerLockMode: "locked-closed",
+                            }}
+                        >
+                            {(props) => (
+                                <Ausencias
                                     {...props}
                                     setEmpresa={setEmpresa}
                                 />

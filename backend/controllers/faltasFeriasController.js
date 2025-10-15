@@ -220,7 +220,24 @@ const eliminarPedido = async (req, res) => {
   }
 };
 
+const listarMinhaLista = async (req, res) => {
+  try {
+    const empresaId = req.headers.urlempresa;
+    if (!empresaId) {
+      return res.status(400).json({ erro: 'ID da empresa é obrigatório' });
+    }
 
+    const pedidos = await AprovacaoFaltaFerias.findAll({
+      where: { 
+        empresaId: empresaId
+      },
+      order: [['dataCriacao', 'DESC']]
+    });
+    res.json(pedidos);
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao listar ausências' });
+  }
+};
 
 module.exports = {
   criarPedido,
@@ -229,7 +246,8 @@ module.exports = {
   confirmarNivel2,
   aprovarPedido,
   rejeitarPedido,
-    listarAprovados,
-    listarRejeitados,
-    eliminarPedido
+  listarAprovados,
+  listarRejeitados,
+  eliminarPedido,
+  listarMinhaLista
 };

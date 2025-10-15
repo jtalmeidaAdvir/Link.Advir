@@ -9,7 +9,8 @@ const {
     rejeitarPedido,
     listarAprovados,
     listarRejeitados,
-    eliminarPedido
+    eliminarPedido,
+    listarMinhaLista
     
 } = require('../controllers/faltasFeriasController');
 const authMiddleware = require('../middleware/authMiddleware');
@@ -19,6 +20,7 @@ router.post('/aprovacao', authMiddleware,criarPedido);
 router.get('/aprovacao/pendentes', authMiddleware,listarPendentes);
 router.get('/aprovacao/aprovados', authMiddleware, listarAprovados);
 router.get('/aprovacao/rejeitados', authMiddleware, listarRejeitados);
+router.get('/aprovacao/minha-lista', authMiddleware, listarMinhaLista);
 
 router.put('/aprovacao/:id/confirmar-nivel1', authMiddleware,confirmarNivel1);
 router.put('/aprovacao/:id/confirmar-nivel2', authMiddleware,confirmarNivel2);
