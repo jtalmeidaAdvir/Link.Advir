@@ -55,7 +55,7 @@ router.get('/export-data', authMiddleware, requireConsent('data_processing'), as
   try {
     const user_id = req.user.id;
 
-    const userData = await User.findByPk(user_id, { include: ['empresa','modulos','submodulos'] });
+    const userData = await User.findByPk(user_id, { include: ['modulos','submodulos'] });
 
     const RegistoPontoObra = require('../models/registoPontoObra');
     // Atenção ao nome do ficheiro/modelo: se o teu ficheiro é `faltasFerias.js`, usa esse:
