@@ -63,7 +63,6 @@ router.get('/export-data', authMiddleware, requireConsent('data_processing'), as
 
     const [registosPonto, faltasFerias, consents] = await Promise.all([
       RegistoPontoObra.findAll({ where: { user_id } }),
-      FaltasFerias.findAll({ where: { user_id } }),
       UserConsent.findAll({ where: { user_id } })
     ]);
 
