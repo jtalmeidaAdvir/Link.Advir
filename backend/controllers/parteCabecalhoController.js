@@ -3,7 +3,7 @@ const ParteDiariaCabecalho = require('../models/parteDiariaCabecalho');
 const ParteDiariaItem = require('../models/parteDiariaItem');
 
 exports.listar = async (req, res) => {
-  const { integrado } = req.query;
+  const { integrado, tipoUser } = req.query;
   const where = {};
 
   if (integrado === 'true') where.IntegradoERP = true;
