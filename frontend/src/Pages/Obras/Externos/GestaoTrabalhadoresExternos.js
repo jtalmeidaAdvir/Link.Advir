@@ -123,6 +123,24 @@ const GestaoTrabalhadoresExternos = () => {
     const [externoResumoFiltro, setExternoResumoFiltro] = useState('');
     const [especialidadeResumoFiltro, setEspecialidadeResumoFiltro] = useState('');
 
+    // === GRADE MENSAL EXTERNOS ===
+    const [modalGradeVisible, setModalGradeVisible] = useState(false);
+    const [gradeLoading, setGradeLoading] = useState(false);
+    const [gradesMensais, setGradesMensais] = useState({
+        externos: [],
+        mesAtual: new Date().getMonth() + 1,
+        anoAtual: new Date().getFullYear(),
+        diasNoMes: new Date().getDate(),
+    });
+    const [classesList, setClassesList] = useState([]);
+    const [especialidadesList, setEspecialidadesList] = useState([]);
+
+    // Filtros da grade mensal
+    const [empresaGradeFiltro, setEmpresaGradeFiltro] = useState('');
+    const [externoGradeFiltro, setExternoGradeFiltro] = useState('');
+    const [especialidadeGradeFiltro, setEspecialidadeGradeFiltro] = useState('');
+    const [agruparGradePor, setAgruparGradePor] = useState('geral');
+
     const carregarCombos = useCallback(async () => {
         try {
             const loginToken = await AsyncStorage.getItem('loginToken');
@@ -444,74 +462,21 @@ const GestaoTrabalhadoresExternos = () => {
     const listaFiltrada = useMemo(() => registos, [registos]);
 
     // === PARTES DIÁRIAS DOS EXTERNOS (GRADE MENSAL) ===
-    const [modalGradeVisible, setModalGradeVisible] = useState(false);
-    const [gradeLoading, setGradeLoading] = useState(false);
-    const [gradesMensais, setGradesMensais] = useState({
-        externos: [],
-        mesAtual: new Date().getMonth() + 1,
-        anoAtual: new Date().getFullYear(),
-        diasNoMes: new Date().getDate(),
-    });
-    const [classesList, setClassesList] = useState([]);
-    const [especialidadesList, setEspecialidadesList] = useState([]);
 
-    // Carregar listas de classes e especialidades
-    const carregarClassesEspecialidades = useCallback(async () => {
-        try {
-            const painelToken = await AsyncStorage.getItem('painelAdminToken');
-            const urlempresa = await AsyncStorage.getItem('urlempresa');
-
-            const headers = {
-                Authorization: `Bearer ${painelToken}`,
-                urlempresa,
-                'Content-Type': 'application/json'
+    // Info por externo (valor hora / moeda / empresa), indexado por nome normalizado
+    const nomeToInfo = useMemo(() => {
+        const m = {};
+        (registos || []).forEach(r => {
+            const key = normalizeName(r?.funcionario || '');
+            if (!key) return;
+            m[key] = {
+                empresa: r?.empresa || '—',
+                valorHora: Number(r?.valor) || 0,
+                moeda: (r?.moeda || 'EUR').toUpperCase(),
             };
-
-            const [resClasses, resEsp, resEquip] = await Promise.all([
-                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses', { headers }),
-                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades', { headers }),
-                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos', { headers })
-            ]);
-
-            if (resClasses.ok) {
-                const data = await resClasses.json();
-                const table = data?.DataSet?.Table;
-                const items = Array.isArray(table) ? table.map(item => ({
-                    classeId: item.ClasseId,
-                    descricao: item.Descricao,
-                    classe: item.Classe
-                })) : [];
-                setClassesList(items);
-            }
-
-            if (resEsp.ok) {
-                const data = await resEsp.json();
-                const table = data?.DataSet?.Table;
-                const items = Array.isArray(table) ? table.map(item => ({
-                    codigo: item.SubEmp,
-                    descricao: item.Descricao,
-                    subEmpId: item.SubEmpId
-                })) : [];
-                setEspecialidadesList(prev => [...prev, ...items]);
-            }
-
-            if (resEquip.ok) {
-                const data = await resEquip.json();
-                const raw = data?.DataSet?.Table;
-                const table = Array.isArray(raw) ? raw : raw ? [raw] : [];
-                const items = table
-                    .filter(item => typeof item?.Codigo === 'string' && item.Codigo.trim().toUpperCase().startsWith('L'))
-                    .map(item => ({
-                        codigo: item.Codigo.trim(),
-                        descricao: item.Desig,
-                        subEmpId: item.ComponenteID
-                    }));
-                setEspecialidadesList(prev => [...prev, ...items]);
-            }
-        } catch (err) {
-            console.error('Erro ao carregar classes/especialidades:', err);
-        }
-    }, []);
+        });
+        return m;
+    }, [registos]);
 
     const fetchPartesGrade = useCallback(async () => {
         setGradeLoading(true);
@@ -536,35 +501,86 @@ const GestaoTrabalhadoresExternos = () => {
             });
 
             const externosProcessados = [];
-const mapNomeParaHoras = new Map();
-
-
+            const mapGrupoParaHoras = new Map();
+            const mapGrupoParaInfo = new Map();
 
             partesDesteMes.forEach(cab => {
                 const itensExternos = (cab.ParteDiariaItems || []).filter(it => {
                     const semColab = it.ColaboradorID === null ||
-                                    it.ColaboradorID === undefined ||
-                                    String(it.ColaboradorID).trim() === '';
+                        it.ColaboradorID === undefined ||
+                        String(it.ColaboradorID).trim() === '';
                     const marca = /\bexterno\b/i.test(String(it.Funcionario || ''));
                     return semColab || marca;
                 });
 
                 itensExternos.forEach(item => {
                     const nome = String(item.Funcionario || 'Externo').replace(/\s*\(Externo\)\s*$/i, '').trim();
+                    const nomeKey = normalizeName(nome);
+                    
+                    // Tentar obter empresa dos registos ou usar do item
+                    const empresaDoRegisto = nomeToInfo[nomeKey]?.empresa;
+                    const empresa = empresaDoRegisto || item.Empresa || '—';
+                    
+                    const especialidade = getEspecialidade(item) || '—';
+                    const obra = obrasMap[String(cab.ObraID)];
+                    const obraLabel = obra ? `${obra.codigo} — ${obra.nome}` : `Obra ${cab.ObraID}`;
+                    
                     const dataItem = new Date(cab.Data);
                     const dia = dataItem.getDate();
                     const minutos = Number(item.NumHoras || 0);
 
-                    if (!mapNomeParaHoras.has(nome)) {
-                        mapNomeParaHoras.set(nome, {});
+                    // Determinar a chave de agrupamento
+                    let grupoKey = nome;
+                    let grupoLabel = nome;
+                    
+                    switch (agruparGradePor) {
+                        case 'obra':
+                            grupoKey = obraLabel;
+                            grupoLabel = obraLabel;
+                            break;
+                        case 'empresa':
+                            grupoKey = empresa;
+                            grupoLabel = empresa;
+                            break;
+                        case 'externo':
+                            grupoKey = nome;
+                            grupoLabel = nome;
+                            break;
+                        case 'especialidade':
+                            grupoKey = especialidade;
+                            grupoLabel = especialidade;
+                            break;
+                        case 'geral':
+                        default:
+                            grupoKey = nome;
+                            grupoLabel = nome;
+                            break;
                     }
-const horasDoDia = mapNomeParaHoras.get(nome);
+
+                    // Armazenar informações do grupo (atualizar se já existe para garantir empresa correta)
+                    const infoAtual = mapGrupoParaInfo.get(grupoKey) || {};
+                    mapGrupoParaInfo.set(grupoKey, {
+                        empresa: empresa,
+                        especialidade: especialidade,
+                        nome: grupoLabel,
+                    });
+
+                    if (!mapGrupoParaHoras.has(grupoKey)) {
+                        mapGrupoParaHoras.set(grupoKey, {});
+                    }
+                    const horasDoDia = mapGrupoParaHoras.get(grupoKey);
                     horasDoDia[dia] = (horasDoDia[dia] || 0) + minutos;
                 });
             });
 
-            mapNomeParaHoras.forEach((diasHoras, nome) => {
-                externosProcessados.push({ nome, diasHoras });
+            mapGrupoParaHoras.forEach((diasHoras, grupoKey) => {
+                const info = mapGrupoParaInfo.get(grupoKey) || {};
+                externosProcessados.push({ 
+                    nome: info.nome || grupoKey, 
+                    empresa: info.empresa || '—',
+                    especialidade: info.especialidade || '—',
+                    diasHoras 
+                });
             });
 
             setGradesMensais({
@@ -580,13 +596,23 @@ const horasDoDia = mapNomeParaHoras.get(nome);
         } finally {
             setGradeLoading(false);
         }
-    }, []);
+    }, [agruparGradePor, obrasMap, nomeToInfo]);
 
     const abrirGradePartes = async () => {
         setModalGradeVisible(true);
-        await carregarClassesEspecialidades();
-        await fetchPartesGrade();
+        await Promise.all([
+            carregarClassesEspecialidades(),
+            fetchObrasResumo(),
+            fetchPartesGrade()
+        ]);
     };
+
+    // Recarregar grade quando agrupamento muda
+    useEffect(() => {
+        if (modalGradeVisible) {
+            fetchPartesGrade();
+        }
+    }, [agruparGradePor, modalGradeVisible]);
 
     const fecharGradePartes = () => {
         setModalGradeVisible(false);
@@ -596,6 +622,11 @@ const horasDoDia = mapNomeParaHoras.get(nome);
             anoAtual: new Date().getFullYear(),
             diasNoMes: new Date().getDate(),
         });
+        // Resetar filtros da grade
+        setEmpresaGradeFiltro('');
+        setExternoGradeFiltro('');
+        setEspecialidadeGradeFiltro('');
+        setAgruparGradePor('geral');
     };
 
     const getClasseDescricao = (classeId) => {
@@ -607,6 +638,36 @@ const horasDoDia = mapNomeParaHoras.get(nome);
         const esp = especialidadesList.find(e => e.subEmpId === subEmpId);
         return esp?.descricao || '—';
     };
+
+    // Opções dos pickers na Grade Mensal
+    const gradeOptions = useMemo(() => {
+        const empresas = new Set();
+        const externos = new Set();
+        const especialidades = new Set();
+
+        (gradesMensais.externos || []).forEach(ext => {
+            if (ext.empresa && ext.empresa !== '—') empresas.add(ext.empresa);
+            if (ext.nome) externos.add(ext.nome);
+            if (ext.especialidade && ext.especialidade !== '—') especialidades.add(ext.especialidade);
+        });
+
+        return {
+            empresas: ['', ...Array.from(empresas).sort()],
+            externos: ['', ...Array.from(externos).sort()],
+            especialidades: ['', ...Array.from(especialidades).sort()],
+        };
+    }, [gradesMensais.externos]);
+
+    // Filtrar externos para a grade
+    const externosFiltradosGrade = useMemo(() => {
+        return gradesMensais.externos.filter(externo => {
+            const matchEmpresa = !empresaGradeFiltro || externo.empresa === empresaGradeFiltro;
+            const matchExterno = !externoGradeFiltro || externo.nome === externoGradeFiltro;
+            const matchEspecialidade = !especialidadeGradeFiltro || externo.especialidade === especialidadeGradeFiltro;
+            return matchEmpresa && matchExterno && matchEspecialidade;
+        });
+    }, [gradesMensais.externos, empresaGradeFiltro, externoGradeFiltro, especialidadeGradeFiltro]);
+
 
     // === RESUMO EXTERNOS: data sources
     const fetchObrasResumo = useCallback(async () => {
@@ -665,20 +726,63 @@ const horasDoDia = mapNomeParaHoras.get(nome);
         return m;
     }, [registos]);
 
-    // Info por externo (valor hora / moeda / empresa), indexado por nome normalizado
-    const nomeToInfo = useMemo(() => {
-        const m = {};
-        (registos || []).forEach(r => {
-            const key = normalizeName(r?.funcionario || '');
-            if (!key) return;
-            m[key] = {
-                empresa: r?.empresa || '—',
-                valorHora: Number(r?.valor) || 0,
-                moeda: (r?.moeda || 'EUR').toUpperCase(),
+    // Carregar listas de classes e especialidades
+    const carregarClassesEspecialidades = useCallback(async () => {
+        try {
+            const painelToken = await AsyncStorage.getItem('painelAdminToken');
+            const urlempresa = await AsyncStorage.getItem('urlempresa');
+
+            const headers = {
+                Authorization: `Bearer ${painelToken}`,
+                urlempresa,
+                'Content-Type': 'application/json'
             };
-        });
-        return m;
-    }, [registos]);
+
+            const [resClasses, resEsp, resEquip] = await Promise.all([
+                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses', { headers }),
+                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades', { headers }),
+                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos', { headers })
+            ]);
+
+            if (resClasses.ok) {
+                const data = await resClasses.json();
+                const table = data?.DataSet?.Table;
+                const items = Array.isArray(table) ? table.map(item => ({
+                    classeId: item.ClasseId,
+                    descricao: item.Descricao,
+                    classe: item.Classe
+                })) : [];
+                setClassesList(items);
+            }
+
+            if (resEsp.ok) {
+                const data = await resEsp.json();
+                const table = data?.DataSet?.Table;
+                const items = Array.isArray(table) ? table.map(item => ({
+                    codigo: item.SubEmp,
+                    descricao: item.Descricao,
+                    subEmpId: item.SubEmpId
+                })) : [];
+                setEspecialidadesList(prev => [...prev, ...items]);
+            }
+
+            if (resEquip.ok) {
+                const data = await resEquip.json();
+                const raw = data?.DataSet?.Table;
+                const table = Array.isArray(raw) ? raw : raw ? [raw] : [];
+                const items = table
+                    .filter(item => typeof item?.Codigo === 'string' && item.Codigo.trim().toUpperCase().startsWith('L'))
+                    .map(item => ({
+                        codigo: item.Codigo.trim(),
+                        descricao: item.Desig,
+                        subEmpId: item.ComponenteID
+                    }));
+                setEspecialidadesList(prev => [...prev, ...items]);
+            }
+        } catch (err) {
+            console.error('Erro ao carregar classes/especialidades:', err);
+        }
+    }, []);
 
     // Helpers resumo
     const getPeriodParts = (iso) => {
@@ -1728,94 +1832,191 @@ const horasDoDia = mapNomeParaHoras.get(nome);
                                 </View>
                             </View>
                         ) : (
-                            <View style={{ padding: 20 }}>
-                                {/* Cabeçalho da Grade Mensal */}
-                                <View style={styles.gradeMensalHeader}>
-                                    <Text style={styles.gradeMensalTitulo}>
-                                        Grade Mensal - {gradesMensais.mesAtual}/{gradesMensais.anoAtual}
-                                    </Text>
-                                    <Text style={styles.gradeMensalSubtitulo}>
-                                        {gradesMensais.externos.length} externo{gradesMensais.externos.length !== 1 ? 's' : ''}
-                                    </Text>
-                                </View>
+                            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                                <View style={{ padding: 20 }}>
+                                    {/* Cabeçalho da Grade Mensal */}
+                                    <View style={styles.gradeMensalHeader}>
+                                        <Text style={styles.gradeMensalTitulo}>
+                                            Grade Mensal - {gradesMensais.mesAtual}/{gradesMensais.anoAtual}
+                                        </Text>
+                                        <Text style={styles.gradeMensalSubtitulo}>
+                                            {externosFiltradosGrade.length} de {gradesMensais.externos.length} externo{gradesMensais.externos.length !== 1 ? 's' : ''}
+                                        </Text>
+                                    </View>
 
-                                {/* Tabela com scroll horizontal */}
-                                <ScrollView horizontal showsHorizontalScrollIndicator={true}>
-                                    <View>
-                                        {/* Cabeçalho dos dias */}
-                                        <View style={styles.gradeMensalTableHeader}>
-                                            <View style={[styles.gradeMensalHeaderCell, styles.gradeMensalNomeCell]}>
-                                                <Text style={styles.gradeMensalHeaderText}>Nome</Text>
+                                    {/* Agrupamento da Grade */}
+                                    <View style={styles.controlSection}>
+                                        <Text style={styles.controlSectionTitle}>Agrupamento de Dados</Text>
+                                        <View style={styles.chipContainer}>
+                                            {[
+                                                { k: 'geral', label: 'Geral', icon: 'grid-outline' },
+                                                { k: 'obra', label: 'Por Obra', icon: 'business-outline' },
+                                                { k: 'empresa', label: 'Por Empresa', icon: 'storefront-outline' },
+                                                { k: 'externo', label: 'Por Colaborador', icon: 'person-outline' },
+                                                { k: 'especialidade', label: 'Por Especialidade', icon: 'construct-outline' },
+                                            ].map(op => (
+                                                <TouchableOpacity
+                                                    key={op.k}
+                                                    onPress={() => setAgruparGradePor(op.k)}
+                                                    style={[styles.chip, agruparGradePor === op.k && styles.chipActive]}
+                                                >
+                                                    <Ionicons name={op.icon} size={14} color={agruparGradePor === op.k ? '#fff' : '#666'} />
+                                                    <Text style={agruparGradePor === op.k ? styles.chipTextActive : styles.chipText}>
+                                                        {op.label}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </View>
+
+                                    {/* Filtros da Grade */}
+                                    <View style={styles.controlSection}>
+                                        <Text style={styles.controlSectionTitle}>Filtros de Pesquisa</Text>
+                                        <View style={styles.advancedFilters}>
+                                            <View style={styles.filterDropdown}>
+                                                <Text style={styles.filterLabel}>Empresa</Text>
+                                                <View style={styles.modernPicker}>
+                                                    <Picker
+                                                        selectedValue={empresaGradeFiltro}
+                                                        onValueChange={setEmpresaGradeFiltro}
+                                                        style={styles.pickerStyle}
+                                                    >
+                                                        <Picker.Item label="🏢 Todas as empresas" value="" />
+                                                        {gradeOptions.empresas.filter(e => e !== '').map((e, idx) => (
+                                                            <Picker.Item key={`emp-grade-${idx}`} label={`🏢 ${e}`} value={e} />
+                                                        ))}
+                                                    </Picker>
+                                                </View>
                                             </View>
-                                            {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map(dia => {
-                                                const data = new Date(gradesMensais.anoAtual, gradesMensais.mesAtual - 1, dia);
-                                                const isFds = data.getDay() === 0 || data.getDay() === 6;
-                                                return (
+
+                                            <View style={styles.filterDropdown}>
+                                                <Text style={styles.filterLabel}>Colaborador</Text>
+                                                <View style={styles.modernPicker}>
+                                                    <Picker
+                                                        selectedValue={externoGradeFiltro}
+                                                        onValueChange={setExternoGradeFiltro}
+                                                        style={styles.pickerStyle}
+                                                    >
+                                                        <Picker.Item label="👤 Todos os colaboradores" value="" />
+                                                        {gradeOptions.externos.filter(e => e !== '').map((e, idx) => (
+                                                            <Picker.Item key={`ext-grade-${idx}`} label={`👤 ${e}`} value={e} />
+                                                        ))}
+                                                    </Picker>
+                                                </View>
+                                            </View>
+
+                                            <View style={styles.filterDropdown}>
+                                                <Text style={styles.filterLabel}>Especialidade</Text>
+                                                <View style={styles.modernPicker}>
+                                                    <Picker
+                                                        selectedValue={especialidadeGradeFiltro}
+                                                        onValueChange={setEspecialidadeGradeFiltro}
+                                                        style={styles.pickerStyle}
+                                                    >
+                                                        <Picker.Item label="⚒️ Todas as especialidades" value="" />
+                                                        {gradeOptions.especialidades.filter(e => e !== '').map((e, idx) => (
+                                                            <Picker.Item key={`esp-grade-${idx}`} label={`⚒️ ${e}`} value={e} />
+                                                        ))}
+                                                    </Picker>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    </View>
+
+                                    {externosFiltradosGrade.length === 0 ? (
+                                        <View style={styles.emptyStateContainer}>
+                                            <View style={styles.emptyStateCard}>
+                                                <LinearGradient
+                                                    colors={['rgba(23, 162, 184, 0.1)', 'rgba(19, 132, 150, 0.05)']}
+                                                    style={styles.emptyStateIcon}
+                                                >
+                                                    <Ionicons name="filter-outline" size={80} color="#17a2b8" />
+                                                </LinearGradient>
+                                                <Text style={styles.emptyStateTitle}>Nenhum externo encontrado</Text>
+                                                <Text style={styles.emptyStateText}>
+                                                    Ajuste os filtros para visualizar os dados.
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    ) : (
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                                            <View>
+                                                {/* Cabeçalho dos dias */}
+                                                <View style={styles.gradeMensalTableHeader}>
+                                                    <View style={[styles.gradeMensalHeaderCell, styles.gradeMensalNomeCell]}>
+                                                        <Text style={styles.gradeMensalHeaderText}>Nome</Text>
+                                                    </View>
+                                                    {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map(dia => {
+                                                        const data = new Date(gradesMensais.anoAtual, gradesMensais.mesAtual - 1, dia);
+                                                        const isFds = data.getDay() === 0 || data.getDay() === 6;
+                                                        return (
+                                                            <View
+                                                                key={dia}
+                                                                style={[
+                                                                    styles.gradeMensalHeaderCell,
+                                                                    styles.gradeMensalDiaCell,
+                                                                    isFds && styles.gradeMensalFimDeSemana
+                                                                ]}
+                                                            >
+                                                                <Text style={[styles.gradeMensalHeaderText, isFds && { color: '#dc3545' }]}>
+                                                                    {dia}
+                                                                </Text>
+                                                            </View>
+                                                        );
+                                                    })}
+                                                </View>
+
+                                                {/* Linhas dos externos */}
+                                                {externosFiltradosGrade.map((externo, idx) => (
                                                     <View
-                                                        key={dia}
+                                                        key={externo.nome}
                                                         style={[
-                                                            styles.gradeMensalHeaderCell,
-                                                            styles.gradeMensalDiaCell,
-                                                            isFds && styles.gradeMensalFimDeSemana
+                                                            styles.gradeMensalRow,
+                                                            idx % 2 === 0 && styles.gradeMensalRowPar
                                                         ]}
                                                     >
-                                                        <Text style={[styles.gradeMensalHeaderText, isFds && { color: '#dc3545' }]}>
-                                                            {dia}
-                                                        </Text>
-                                                    </View>
-                                                );
-                                            })}
-                                        </View>
-
-                                        {/* Linhas dos externos */}
-                                        {gradesMensais.externos.map((externo, idx) => (
-                                            <View
-                                                key={externo.nome}
-                                                style={[
-                                                    styles.gradeMensalRow,
-                                                    idx % 2 === 0 && styles.gradeMensalRowPar
-                                                ]}
-                                            >
-                                                <View style={[styles.gradeMensalCell, styles.gradeMensalNomeCell]}>
-                                                    <Text style={styles.gradeMensalNomeText} numberOfLines={1}>
-                                                        {externo.nome}
-                                                    </Text>
-                                                </View>
-                                                {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map(dia => {
-                                                    const minutos = externo.diasHoras[dia] || 0;
-                                                    const data = new Date(gradesMensais.anoAtual, gradesMensais.mesAtual - 1, dia);
-                                                    const isFds = data.getDay() === 0 || data.getDay() === 6;
-                                                    const temHoras = minutos > 0;
-
-                                                    return (
-                                                        <View
-                                                            key={dia}
-                                                            style={[
-                                                                styles.gradeMensalCell,
-                                                                styles.gradeMensalDiaCell,
-                                                                isFds && styles.gradeMensalFimDeSemana,
-                                                                temHoras && styles.gradeMensalCellComHoras
-                                                            ]}
-                                                        >
-                                                            <Text style={[
-                                                                styles.gradeMensalCellText,
-                                                                temHoras && styles.gradeMensalCellTextComHoras
-                                                            ]}>
-                                                                {minutos > 0
-                                                                    ? minutos >= 60
-                                                                        ? `${Math.floor(minutos / 60)}h${minutos % 60 > 0 ? `${minutos % 60}` : ''}`
-                                                                        : `${minutos}m`
-                                                                    : '—'
-                                                                }
+                                                        <View style={[styles.gradeMensalCell, styles.gradeMensalNomeCell]}>
+                                                            <Text style={styles.gradeMensalNomeText} numberOfLines={1}>
+                                                                {externo.nome}
                                                             </Text>
                                                         </View>
-                                                    );
-                                                })}
+                                                        {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map(dia => {
+                                                            const minutos = externo.diasHoras[dia] || 0;
+                                                            const data = new Date(gradesMensais.anoAtual, gradesMensais.mesAtual - 1, dia);
+                                                            const isFds = data.getDay() === 0 || data.getDay() === 6;
+                                                            const temHoras = minutos > 0;
+
+                                                            return (
+                                                                <View
+                                                                    key={dia}
+                                                                    style={[
+                                                                        styles.gradeMensalCell,
+                                                                        styles.gradeMensalDiaCell,
+                                                                        isFds && styles.gradeMensalFimDeSemana,
+                                                                        temHoras && styles.gradeMensalCellComHoras
+                                                                    ]}
+                                                                >
+                                                                    <Text style={[
+                                                                        styles.gradeMensalCellText,
+                                                                        temHoras && styles.gradeMensalCellTextComHoras
+                                                                    ]}>
+                                                                        {minutos > 0
+                                                                            ? minutos >= 60
+                                                                                ? `${Math.floor(minutos / 60)}h${minutos % 60 > 0 ? `${minutos % 60}` : ''}`
+                                                                                : `${minutos}m`
+                                                                            : '—'
+                                                                        }
+                                                                    </Text>
+                                                                </View>
+                                                            );
+                                                        })}
+                                                    </View>
+                                                ))}
                                             </View>
-                                        ))}
-                                    </View>
-                                </ScrollView>
-                            </View>
+                                        </ScrollView>
+                                    )}
+                                </View>
+                            </ScrollView>
                         )}
                     </SafeAreaView>
                 </Modal>
