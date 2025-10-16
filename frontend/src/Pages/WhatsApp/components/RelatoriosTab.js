@@ -266,11 +266,15 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
                             <option value="obras_ativas">
                                 Resumo de Obras Ativas
                             </option>
+                            <option value="resumo_ausentes_dia">
+                                Resumo de Ausentes (Dia)
+                            </option>
                         </select>
                     </div>
 
                     {(novoRelatorio.tipo === "registos_obra_dia" ||
-                        novoRelatorio.tipo === "resumo_mensal") && (
+                        novoRelatorio.tipo === "resumo_mensal" ||
+                        novoRelatorio.tipo === "resumo_ausentes_dia") && (
                             <>
                                 <div style={styles.formGroup}>
                                     <label style={styles.label}>Empresa (opcional)</label>
@@ -503,10 +507,11 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
                                             ? "Registos Diários"
                                             : relatorio.tipo === "resumo_mensal"
                                                 ? "Resumo Mensal"
-                                                : relatorio.tipo ===
-                                                    "mapa_registos"
+                                                : relatorio.tipo === "mapa_registos"
                                                     ? "Mapa de Registos"
-                                                    : "Obras Ativas"}
+                                                    : relatorio.tipo === "resumo_ausentes_dia"
+                                                        ? "Resumo de Ausentes"
+                                                        : "Obras Ativas"}
                                     </div>
                                     <div style={styles.listMeta}>
                                         📧 {relatorio.emails.split(",").length}{" "}
