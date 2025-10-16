@@ -2301,7 +2301,7 @@ const GestaoPartesDiarias = () => {
                     <Text style={styles.headerSubtitle}>
                         {cabecalhosFiltrados.length}{" "}
                         {cabecalhosFiltrados.length === 1 ? "parte" : "partes"}{" "}
-                        {obrasResponsavel.size === obras.length ? "de todas as obras" : "das suas obras"}
+                        {obrasResponsavel.size === Object.keys(obrasMap).length ? "de todas as obras" : "das suas obras"}
                     </Text>
                 </LinearGradient>
 
