@@ -1,3 +1,9 @@
 # Ignorar sessões/cache do WhatsApp
 whatsapp-backend/whatsapp-session/
 whatsapp-backend/.wwebjs_cache/
+
+# Ignorar dependências
+node_modules/
+**/node_modules/
+# Ignorar variáveis de ambiente
+.env

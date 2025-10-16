@@ -203,6 +203,17 @@ async function executarRelatorio(schedule) {
                 console.log(`✅ Mapa gerado - Assunto: ${assunto}`);
                 break;
 
+            case "ausentes_dia":
+                console.log(
+                    `📊 Gerando relatório de ausentes para empresa/obra ${empresa_ou_obra_id}...`,
+                );
+                const resultadoAusentes =
+                    await gerarRelatorioAusentesDia(empresa_ou_obra_id);
+                dadosRelatorio = resultadoAusentes.html;
+                assunto = resultadoAusentes.assunto;
+                console.log(`✅ Relatório de ausentes gerado - Assunto: ${assunto}`);
+                break;
+
             default:
                 console.log(`❌ Tipo de relatório não reconhecido: ${tipo}`);
                 dadosRelatorio = "<p>Tipo de relatório não reconhecido</p>";
@@ -723,6 +734,218 @@ async function gerarRelatorioMapaRegistos() {
     return {
         html,
         assunto: `🗺️ Mapa de Registos - ${new Date().toLocaleDateString("pt-PT")}`,
+    };
+}
+
+// Gerar relatório de ausentes do dia
+async function gerarRelatorioAusentesDia(empresa_ou_obra_id) {
+    console.log(
+        `📊 gerarRelatorioAusentesDia chamado com empresa_ou_obra_id: ${empresa_ou_obra_id}`,
+    );
+
+    const hoje = new Date().toISOString().split("T")[0];
+    const dataInicio = new Date(`${hoje}T00:00:00.000Z`);
+    const dataFim = new Date(`${hoje}T23:59:59.999Z`);
+
+    let obraNome = "Todas as Obras";
+    let obrasParaFiltrar = [];
+    let empresaNome = "";
+
+    // Validação
+    if (empresa_ou_obra_id === null || empresa_ou_obra_id === undefined) {
+        console.log(
+            `❌ Nenhum filtro especificado - empresa_ou_obra_id está vazio`,
+        );
+        return {
+            html: "<p>Por favor, selecione uma empresa ou obra específica para gerar o relatório.</p>",
+            assunto: `❌ Relatório de Ausentes - Filtro necessário - ${hoje}`,
+        };
+    }
+
+    // Primeiro tentar como obra
+    const obra = await Obra.findByPk(empresa_ou_obra_id);
+
+    if (obra && obra.empresa_id) {
+        // É uma obra específica
+        obrasParaFiltrar.push(obra.id);
+        obraNome = `${obra.codigo} - ${obra.nome}`;
+        console.log(`✅ Filtro definido para obra específica: ${obraNome}`);
+    } else {
+        // Tentar como empresa_id
+        console.log(
+            `🔍 Tentando buscar como empresa_id: ${empresa_ou_obra_id}`,
+        );
+        const obrasDaEmpresa = await Obra.findAll({
+            where: {
+                empresa_id: empresa_ou_obra_id,
+                estado: "Ativo",
+            },
+        });
+
+        if (obrasDaEmpresa.length > 0) {
+            obrasParaFiltrar = obrasDaEmpresa.map((o) => o.id);
+
+            // Buscar nome da empresa
+            const { sequelize } = require("../config/database");
+            const empresaResult = await sequelize.query(
+                "SELECT empresa FROM empresa WHERE id = ?",
+                {
+                    replacements: [empresa_ou_obra_id],
+                    type: sequelize.QueryTypes.SELECT,
+                },
+            );
+
+            empresaNome =
+                empresaResult.length > 0
+                    ? empresaResult[0].empresa
+                    : `Empresa ${empresa_ou_obra_id}`;
+            obraNome = `${empresaNome}`;
+            console.log(
+                `✅ Filtro definido para empresa: ${obraNome} (${obrasParaFiltrar.length} obras)`,
+            );
+        } else {
+            console.log(
+                `❌ Nenhuma obra ativa encontrada para empresa ${empresa_ou_obra_id}`,
+            );
+            return {
+                html: "<p>Nenhuma obra ativa encontrada para esta empresa.</p>",
+                assunto: `❌ Relatório de Ausentes - Sem obras ativas - ${hoje}`,
+            };
+        }
+    }
+
+    // Buscar todos os utilizadores ativos da empresa com equipas nas obras
+    const { sequelize } = require("../config/database");
+    
+    const utilizadoresQuery = `
+        SELECT DISTINCT 
+            u.id,
+            u.nome,
+            u.email
+        FROM [user] u
+        INNER JOIN user_empresa ue ON u.id = ue.user_id
+        INNER JOIN equipaObra eo ON u.id = eo.user_id
+        WHERE ue.empresa_id = ?
+        AND u.ativo = 1
+        AND eo.obra_id IN (${obrasParaFiltrar.join(',')})
+        ORDER BY u.nome ASC
+    `;
+
+    const todosUtilizadores = await sequelize.query(utilizadoresQuery, {
+        replacements: [obra ? obra.empresa_id : empresa_ou_obra_id],
+        type: sequelize.QueryTypes.SELECT,
+    });
+
+    console.log(`👥 Total de utilizadores esperados: ${todosUtilizadores.length}`);
+
+    // Buscar registos de ponto do dia
+    const registos = await RegistoPontoObra.findAll({
+        where: {
+            obra_id: { [Op.in]: obrasParaFiltrar },
+            timestamp: { [Op.between]: [dataInicio, dataFim] },
+        },
+        attributes: ['user_id'],
+        group: ['user_id'],
+        raw: true,
+    });
+
+    const idsComRegisto = new Set(registos.map((r) => r.user_id));
+    console.log(`✅ Utilizadores que deram ponto: ${idsComRegisto.size}`);
+
+    // Buscar visitantes do dia
+    const visitantesQuery = `
+        SELECT DISTINCT visitante_id
+        FROM registo_ponto_visitantes
+        WHERE obra_id IN (${obrasParaFiltrar.join(',')})
+        AND CONVERT(DATE, timestamp) = CONVERT(DATE, GETDATE())
+    `;
+
+    const visitantes = await sequelize.query(visitantesQuery, {
+        type: sequelize.QueryTypes.SELECT,
+    });
+
+    // Buscar externos do dia
+    const externosQuery = `
+        SELECT DISTINCT externo_id
+        FROM RegistoPontoExternos
+        WHERE obra_id IN (${obrasParaFiltrar.join(',')})
+        AND CONVERT(DATE, timestamp) = CONVERT(DATE, GETDATE())
+    `;
+
+    const externos = await sequelize.query(externosQuery, {
+        type: sequelize.QueryTypes.SELECT,
+    });
+
+    // Filtrar ausentes
+    const ausentes = todosUtilizadores.filter(
+        (user) => !idsComRegisto.has(user.id),
+    );
+
+    console.log(`❌ Utilizadores ausentes: ${ausentes.length}`);
+
+    // Construir HTML
+    let ausenciasHTML = "";
+
+    if (ausentes.length === 0) {
+        ausenciasHTML = `
+            <div style="background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                <p style="color: #155724; margin: 0; font-weight: bold;">
+                    ✅ Todos os colaboradores registaram ponto hoje!
+                </p>
+            </div>
+        `;
+    } else {
+        ausenciasHTML = `
+            <h3 style="color: #d9534f; margin-top: 20px;">❌ Colaboradores Ausentes (${ausentes.length})</h3>
+            <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%; margin-bottom: 20px;">
+                <thead style="background-color: #f8d7da;">
+                    <tr>
+                        <th style="text-align: left;">Nome</th>
+                        <th style="text-align: left;">Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${ausentes
+                        .map(
+                            (user) => `
+                        <tr>
+                            <td>👤 ${user.nome}</td>
+                            <td>${user.email || 'Não disponível'}</td>
+                        </tr>
+                    `,
+                        )
+                        .join("")}
+                </tbody>
+            </table>
+        `;
+    }
+
+    const html = `
+        <h2>❌ Relatório de Ausências - ${new Date().toLocaleDateString("pt-PT")}</h2>
+        <h3 style="color: #0066cc;">📋 ${obraNome}</h3>
+        
+        <hr>
+        
+        <div style="margin: 20px 0;">
+            <p><strong>👥 Total de colaboradores esperados:</strong> ${todosUtilizadores.length}</p>
+            <p><strong>✅ Registaram ponto:</strong> ${idsComRegisto.size}</p>
+            <p><strong>❌ Ausentes:</strong> ${ausentes.length}</p>
+            <p><strong>👤 Visitantes:</strong> ${visitantes.length}</p>
+            <p><strong>🔧 Externos:</strong> ${externos.length}</p>
+        </div>
+
+        ${ausenciasHTML}
+        
+        <br>
+        <p style="color: #666; font-size: 12px;">
+            Relatório gerado automaticamente por Advir Link<br>
+            Data/Hora: ${new Date().toLocaleString("pt-PT")}
+        </p>
+    `;
+
+    return {
+        html,
+        assunto: `❌ Relatório de Ausências - ${obraNome} - ${new Date().toLocaleDateString("pt-PT")}`,
     };
 }
 
