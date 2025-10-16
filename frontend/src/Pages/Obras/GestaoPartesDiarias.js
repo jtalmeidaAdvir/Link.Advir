@@ -1044,6 +1044,8 @@ const GestaoPartesDiarias = () => {
     const fetchObras = async () => {
         try {
             const logintoken = await AsyncStorage.getItem("loginToken");
+            const tipoUser = await AsyncStorage.getItem("tipoUser");
+            
             const res = await fetch("https://backend.advir.pt/api/obra", {
                 headers: {
                     Authorization: `Bearer ${logintoken}`,
@@ -1054,7 +1056,20 @@ const GestaoPartesDiarias = () => {
             const obras = await res.json();
             const map = {};
 
-            // Obter o responsável atual do localStorage
+            // Se for administrador, adicionar todas as obras
+            if (tipoUser === "Administrador") {
+                const todasAsObras = new Set();
+                obras.forEach((obra) => {
+                    const key = String(obra.id || obra.ID);
+                    map[key] = { codigo: obra.codigo, descricao: obra.nome };
+                    todasAsObras.add(Number(key));
+                });
+                setObrasMap(map);
+                setObrasResponsavel(todasAsObras);
+                return;
+            }
+
+            // Obter o responsável atual do localStorage (para não-administradores)
             const codRecursosHumanos = await AsyncStorage.getItem("codRecursosHumanos");
             const obrasDoResponsavel = new Set();
 
@@ -2286,7 +2301,7 @@ const GestaoPartesDiarias = () => {
                     <Text style={styles.headerSubtitle}>
                         {cabecalhosFiltrados.length}{" "}
                         {cabecalhosFiltrados.length === 1 ? "parte" : "partes"}{" "}
-                        das suas obras
+                        {obrasResponsavel.size === obras.length ? "de todas as obras" : "das suas obras"}
                     </Text>
                 </LinearGradient>
 

@@ -1571,6 +1571,8 @@ const submeterPessoalEquip = async () => {
 
     const carregarDadosReais = async () => {
         const token = await AsyncStorage.getItem("loginToken");
+        const tipoUser = await AsyncStorage.getItem("tipoUser");
+        
         if (!token) {
             Alert.alert("Erro", "Token de autenticação não encontrado");
             return;
@@ -1579,20 +1581,54 @@ const submeterPessoalEquip = async () => {
         try {
             setLoadingProgress(0); // resetar progresso
 
-            // 1. Buscar minhas equipas primeiro
+            // 1. Buscar equipas (todas para admin, minhas para outros)
             console.log("Carregando equipas...");
-            const equipasResponse = await fetch(
-                "https://backend.advir.pt/api/equipa-obra/minhas-agrupadas",
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                },
-            );
+            let equipasData;
+            
+            if (tipoUser === "Administrador") {
+                // Administradores veem todos os colaboradores
+                const empresaId = await AsyncStorage.getItem("empresa_id");
+                const usersResponse = await fetch(
+                    `https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaId}`,
+                    {
+                        headers: { Authorization: `Bearer ${token}` },
+                    },
+                );
 
-            if (!equipasResponse.ok) {
-                throw new Error("Erro ao carregar equipas");
+                if (!usersResponse.ok) {
+                    throw new Error("Erro ao carregar utilizadores");
+                }
+
+                const users = await usersResponse.json();
+                
+                // Criar uma "equipa" virtual com todos os utilizadores
+                equipasData = [{
+                    id: 0,
+                    nome: "Todos os Colaboradores",
+                    encarregado_id: null,
+                    obraId: null,
+                    membros: users.map(u => ({
+                        id: u.id,
+                        nome: u.nome,
+                        codFuncionario: u.codFuncionario
+                    }))
+                }];
+            } else {
+                // Utilizadores normais veem apenas suas equipas
+                const equipasResponse = await fetch(
+                    "https://backend.advir.pt/api/equipa-obra/minhas-agrupadas",
+                    {
+                        headers: { Authorization: `Bearer ${token}` },
+                    },
+                );
+
+                if (!equipasResponse.ok) {
+                    throw new Error("Erro ao carregar equipas");
+                }
+
+                equipasData = await equipasResponse.json();
             }
-
-            const equipasData = await equipasResponse.json();
+            
             setLoadingProgress(10);
 
             // Transformar dados para o formato esperado
