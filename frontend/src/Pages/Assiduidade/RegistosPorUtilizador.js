@@ -85,6 +85,8 @@ const RegistosPorUtilizador = () => {
     const [faltaDialogOpen, setFaltaDialogOpen] = useState(false);
     const [tipoFaltaSelecionado, setTipoFaltaSelecionado] = useState('');
     const [duracaoFalta, setDuracaoFalta] = useState(''); // 'd' for day, 'h' for hour
+    const [faltaIntervalo, setFaltaIntervalo] = useState(false);
+    const [dataFimFalta, setDataFimFalta] = useState('');
 
     // State for bulk falta modal
     const [bulkFaltaDialogOpen, setBulkFaltaDialogOpen] = useState(false);
@@ -1807,13 +1809,16 @@ const RegistosPorUtilizador = () => {
             return alert('Por favor, preencha todos os campos para registar a falta.');
         }
 
+        if (faltaIntervalo && !dataFimFalta) {
+            return alert('Por favor, selecione a data de fim do intervalo.');
+        }
+
         const token = localStorage.getItem('loginToken');
         const painelToken = localStorage.getItem('painelAdminToken');
         const urlempresa = localStorage.getItem('urlempresa');
         const userNome = localStorage.getItem('userNome');
         const empresaId = localStorage.getItem('empresa_id');
-        const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaToRegistar).padStart(2, '0')}`;
-
+        
         // Obter o codFuncionario através do endpoint
         const funcionarioId = await obterCodFuncionario(userToRegistar);
 
@@ -1824,6 +1829,43 @@ const RegistosPorUtilizador = () => {
         // Determinar se é por horas baseado na duração
         const isHoras = duracaoFalta && duracaoFalta.toString().includes('h');
         const tempoNumerico = parseInt(duracaoFalta) || 1;
+
+        // Criar lista de datas a processar
+        const datasParaProcessar = [];
+        
+        if (faltaIntervalo && dataFimFalta) {
+            // Calcular todas as datas no intervalo
+            const dataInicio = new Date(`${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaToRegistar).padStart(2, '0')}`);
+            const dataFim = new Date(dataFimFalta);
+            
+            if (dataFim < dataInicio) {
+                return alert('A data de fim deve ser posterior à data de início.');
+            }
+            
+            let dataAtual = new Date(dataInicio);
+            while (dataAtual <= dataFim) {
+                const dia = dataAtual.getDate();
+                const mes = dataAtual.getMonth() + 1;
+                const ano = dataAtual.getFullYear();
+                datasParaProcessar.push(`${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`);
+                dataAtual.setDate(dataAtual.getDate() + 1);
+            }
+
+            // Confirmação adicional para intervalos
+            const confirmacao = confirm(
+                `⚠️ Vai registar a falta "${tiposFaltas[tipoFaltaSelecionado] || tipoFaltaSelecionado}" para ${datasParaProcessar.length} dias.\n\n` +
+                `De: ${new Date(dataInicio).toLocaleDateString('pt-PT')}\n` +
+                `Até: ${new Date(dataFim).toLocaleDateString('pt-PT')}\n\n` +
+                `Deseja continuar?`
+            );
+            
+            if (!confirmacao) {
+                return;
+            }
+        } else {
+            // Apenas uma data
+            datasParaProcessar.push(`${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaToRegistar).padStart(2, '0')}`);
+        }
 
         // Carregar dados completos do tipo de falta do ERP
         let faltaSelecionadaCompleta = null;
@@ -1851,110 +1893,31 @@ const RegistosPorUtilizador = () => {
              faltaSelecionadaCompleta.DescontaSubsAlim === '1' ||
              faltaSelecionadaCompleta.DescontaSubsAlim === true);
 
-        const dadosPrincipal = {
-            tipoPedido: 'FALTA',
-            funcionario: funcionarioId,
-            empresaId: empresaId,
-            dataPedido: dataFormatada,
-            falta: tipoFaltaSelecionado,
-            horas: isHoras ? 1 : 0,
-            tempo: tempoNumerico,
-            justificacao: 'Registado via interface de administração',
-            observacoes: '',
-            usuarioCriador: localStorage.getItem('codFuncionario') || funcionarioId,
-            origem: 'ADMIN',
-            descontaAlimentacao: descontaAlimentacao ? 1 : 0,
-            descontaSubsidioTurno: 0
-        };
-
         try {
             setCarregando(true);
 
-            // 1. Integrar diretamente no ERP (sem pedido intermédio)
-            if (painelToken && urlempresa) {
-                const dadosERP = {
-                    Funcionario: funcionarioId,
-                    Data: new Date(dataFormatada).toISOString(),
-                    Falta: tipoFaltaSelecionado,
-                    Horas: isHoras ? 1 : 0,
-                    Tempo: tempoNumerico,
-                    DescontaVenc: 0,
-                    DescontaRem: 0,
-                    ExcluiProc: 0,
-                    ExcluiEstat: 0,
-                    Observacoes: 'Registado via interface de administração',
-                    CalculoFalta: 1,
-                    DescontaSubsAlim: descontaAlimentacao ? 1 : 0,
-                    DataProc: null,
-                    NumPeriodoProcessado: 0,
-                    JaProcessado: 0,
-                    InseridoBloco: 0,
-                    ValorDescontado: 0,
-                    AnoProcessado: 0,
-                    NumProc: 0,
-                    Origem: "2",
-                    PlanoCurso: null,
-                    IdGDOC: null,
-                    CambioMBase: 0,
-                    CambioMAlt: 0,
-                    CotizaPeloMinimo: 0,
-                    Acerto: 0,
-                    MotivoAcerto: null,
-                    NumLinhaDespesa: null,
-                    NumRelatorioDespesa: null,
-                    FuncComplementosBaixaId: null,
-                    DescontaSubsTurno: 0,
-                    SubTurnoProporcional: 0,
-                    SubAlimProporcional: 0
-                };
+            let faltasRegistadas = 0;
+            let faltasF40Registadas = 0;
+            let erros = 0;
 
-                console.log('📤 Enviando falta para ERP Primavera:', dadosERP);
-
-                const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${painelToken}`,
-                        urlempresa
-                    },
-                    body: JSON.stringify(dadosERP)
-                });
-
-                // Adicionar validação automática para gerar falta F40 quando houver desconto de subsídio de alimentação
-                if (resERP.ok) {
-                    console.log('✅ Falta integrada no ERP com sucesso');
-                    console.log('🔍 Debug - Tipo de falta:', tipoFaltaSelecionado);
-                    console.log('🔍 Debug - Desconta alimentação?:', descontaAlimentacao);
-                    console.log('🔍 Debug - Falta selecionada completa:', faltaSelecionadaCompleta);
-
-                    // Verificar se é fim de semana usando os valores numéricos diretamente
-                    const y = parseInt(anoSelecionado, 10);
-                    const m = parseInt(mesSelecionado, 10) - 1; // JavaScript meses são 0-based
-                    const d = parseInt(diaToRegistar, 10);
-                    const dataFalta = new Date(y, m, d);
-                    const diaSemana = dataFalta.getDay();
-                    const isFimDeSemana = diaSemana === 0 || diaSemana === 6; // 0 = Domingo, 6 = Sábado
-                    
-                    console.log('🔍 Debug - Data da falta:', dataFormatada);
-                    console.log('🔍 Debug - Dia da semana:', diaSemana, isFimDeSemana ? '(FIM DE SEMANA)' : '(DIA ÚTIL)');
-
-                    // Se a falta desconta alimentação E NÃO é fim de semana, criar automaticamente a falta F40
-                    if (descontaAlimentacao && !isFimDeSemana) {
-                        console.log('📌 Criando falta F40 automática (desconto alimentação)...');
-
-                        const dadosF40 = {
+            // Processar cada data
+            for (const dataFormatada of datasParaProcessar) {
+                try {
+                    // 1. Integrar diretamente no ERP (sem pedido intermédio)
+                    if (painelToken && urlempresa) {
+                        const dadosERP = {
                             Funcionario: funcionarioId,
                             Data: new Date(dataFormatada).toISOString(),
-                            Falta: 'F40',
-                            Horas: 0,
-                            Tempo: 1,
+                            Falta: tipoFaltaSelecionado,
+                            Horas: isHoras ? 1 : 0,
+                            Tempo: tempoNumerico,
                             DescontaVenc: 0,
                             DescontaRem: 0,
                             ExcluiProc: 0,
                             ExcluiEstat: 0,
-                            Observacoes: 'Gerada automaticamente (desconto alimentação)',
+                            Observacoes: faltaIntervalo ? 'Registado via interface de administração (intervalo)' : 'Registado via interface de administração',
                             CalculoFalta: 1,
-                            DescontaSubsAlim: 0,
+                            DescontaSubsAlim: descontaAlimentacao ? 1 : 0,
                             DataProc: null,
                             NumPeriodoProcessado: 0,
                             JaProcessado: 0,
@@ -1978,41 +1941,104 @@ const RegistosPorUtilizador = () => {
                             SubAlimProporcional: 0
                         };
 
-                        console.log('📤 Enviando falta F40:', dadosF40);
-
-                        const resF40 = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+                        const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 Authorization: `Bearer ${painelToken}`,
                                 urlempresa
                             },
-                            body: JSON.stringify(dadosF40)
+                            body: JSON.stringify(dadosERP)
                         });
 
-                        if (resF40.ok) {
-                            console.log('✅ Falta F40 (desconto alimentação) criada automaticamente');
-                            alert('✅ Falta registada e integrada automaticamente no ERP com sucesso!\n\n⚠️ Falta F40 (desconto alimentação) também foi criada automaticamente.');
+                        if (resERP.ok) {
+                            faltasRegistadas++;
+                            
+                            // Verificar se é fim de semana
+                            const dataObj = new Date(dataFormatada);
+                            const diaSemana = dataObj.getDay();
+                            const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
+
+                            // Se a falta desconta alimentação E NÃO é fim de semana, criar automaticamente a falta F40
+                            if (descontaAlimentacao && !isFimDeSemana) {
+                                const dadosF40 = {
+                                    Funcionario: funcionarioId,
+                                    Data: new Date(dataFormatada).toISOString(),
+                                    Falta: 'F40',
+                                    Horas: 0,
+                                    Tempo: 1,
+                                    DescontaVenc: 0,
+                                    DescontaRem: 0,
+                                    ExcluiProc: 0,
+                                    ExcluiEstat: 0,
+                                    Observacoes: 'Gerada automaticamente (desconto alimentação)',
+                                    CalculoFalta: 1,
+                                    DescontaSubsAlim: 0,
+                                    DataProc: null,
+                                    NumPeriodoProcessado: 0,
+                                    JaProcessado: 0,
+                                    InseridoBloco: 0,
+                                    ValorDescontado: 0,
+                                    AnoProcessado: 0,
+                                    NumProc: 0,
+                                    Origem: "2",
+                                    PlanoCurso: null,
+                                    IdGDOC: null,
+                                    CambioMBase: 0,
+                                    CambioMAlt: 0,
+                                    CotizaPeloMinimo: 0,
+                                    Acerto: 0,
+                                    MotivoAcerto: null,
+                                    NumLinhaDespesa: null,
+                                    NumRelatorioDespesa: null,
+                                    FuncComplementosBaixaId: null,
+                                    DescontaSubsTurno: 0,
+                                    SubTurnoProporcional: 0,
+                                    SubAlimProporcional: 0
+                                };
+
+                                const resF40 = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        Authorization: `Bearer ${painelToken}`,
+                                        urlempresa
+                                    },
+                                    body: JSON.stringify(dadosF40)
+                                });
+
+                                if (resF40.ok) {
+                                    faltasF40Registadas++;
+                                }
+                            }
                         } else {
-                            const errorF40 = await resF40.text();
-                            console.error('❌ Erro ao criar falta F40 automática:', errorF40);
-                            alert('✅ Falta principal registada com sucesso!\n\n⚠️ Aviso: Não foi possível criar a falta F40 (desconto alimentação) automaticamente. Por favor, crie-a manualmente.');
+                            erros++;
                         }
-                    } else if (descontaAlimentacao && isFimDeSemana) {
-                        console.log('ℹ️ Falta ao fim de semana - F40 não será criada');
-                        alert('✅ Falta registada e integrada automaticamente no ERP com sucesso!\n\nℹ️ Nota: Falta F40 não foi criada porque é fim de semana.');
+
+                        // Pequena pausa entre cada registo
+                        if (datasParaProcessar.length > 1) {
+                            await new Promise(resolve => setTimeout(resolve, 150));
+                        }
                     } else {
-                        console.log('ℹ️ Esta falta não desconta alimentação, F40 não será criada');
-                        alert('✅ Falta registada e integrada automaticamente no ERP com sucesso!');
+                        throw new Error('Tokens do Primavera não encontrados. Configure o acesso ao ERP.');
                     }
-                } else {
-                    const errorText = await resERP.text();
-                    console.error('❌ Erro ao integrar no ERP:', errorText);
-                    throw new Error(`Erro ao integrar falta no ERP: ${errorText}`);
+                } catch (dataErr) {
+                    console.error(`Erro ao processar data ${dataFormatada}:`, dataErr);
+                    erros++;
                 }
-            } else {
-                throw new Error('Tokens do Primavera não encontrados. Configure o acesso ao ERP.');
             }
+
+            // Mostrar resultado
+            let mensagemResultado = `✅ Registo de falta${datasParaProcessar.length > 1 ? 's' : ''} concluído!\n\n`;
+            mensagemResultado += `• Faltas registadas: ${faltasRegistadas}\n`;
+            if (faltasF40Registadas > 0) {
+                mensagemResultado += `• Faltas F40 automáticas criadas: ${faltasF40Registadas}\n`;
+            }
+            if (erros > 0) {
+                mensagemResultado += `• Erros encontrados: ${erros}\n`;
+            }
+
+            alert(mensagemResultado);
 
             // Resetar formulários
             setFaltaDialogOpen(false);
@@ -2583,6 +2609,26 @@ const RegistosPorUtilizador = () => {
                                     </button>
 
                                     <button
+                                        style={{ ...styles.primaryButton, backgroundColor: '#d69e2e' }}
+                                        onClick={() => {
+                                            // Abrir modal para registar falta individual
+                                            const primeiroFuncionario = dadosGrade[0];
+                                            if (primeiroFuncionario) {
+                                                setUserToRegistar(primeiroFuncionario.utilizador.id);
+                                                setDiaToRegistar(1); // Dia 1 por defeito
+                                                setObraNoDialog(obraSelecionada || '');
+                                                setFaltaIntervalo(false);
+                                                setDataFimFalta('');
+                                                setTipoFaltaSelecionado('');
+                                                setDuracaoFalta('');
+                                                setFaltaDialogOpen(true);
+                                            }
+                                        }}
+                                    >
+                                        📅 Registar Falta
+                                    </button>
+
+                                    <button
                                         style={{ ...styles.primaryButton, backgroundColor: '#e53e3e' }}
                                         onClick={() => setClearPointsDialogOpen(true)}
                                     >
@@ -3017,6 +3063,9 @@ const RegistosPorUtilizador = () => {
                                                 onClick={() => {
                                                     setDialogOpen(false);
                                                     setFaltaDialogOpen(true);
+                                                    // Inicializar com data única
+                                                    setFaltaIntervalo(false);
+                                                    setDataFimFalta('');
                                                 }}
                                             >
                                                 📅 Registar Falta
@@ -3044,7 +3093,7 @@ const RegistosPorUtilizador = () => {
                                                 📅 Registar Falta
                                             </h3>
                                             <p style={styles.individualModalSubtitle}>
-                                                Dia {diaToRegistar} - {utilizadores.find(u => u.id === userToRegistar)?.nome}
+                                                {userToRegistar ? `${utilizadores.find(u => u.id === userToRegistar)?.nome || 'Utilizador'} - Dia ${diaToRegistar}` : 'Selecione um funcionário'}
                                             </p>
                                             <button
                                                 style={styles.closeButton}
@@ -3056,6 +3105,68 @@ const RegistosPorUtilizador = () => {
                                         </div>
 
                                         <div style={styles.individualModalContent}>
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>Funcionário</label>
+                                                <select
+                                                    style={styles.select}
+                                                    value={userToRegistar || ''}
+                                                    onChange={e => setUserToRegistar(parseInt(e.target.value))}
+                                                >
+                                                    <option value="">-- Selecione um funcionário --</option>
+                                                    {dadosGrade.map(item => (
+                                                        <option key={item.utilizador.id} value={item.utilizador.id}>
+                                                            {item.utilizador.nome} ({item.utilizador.codFuncionario})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>Dia do Mês</label>
+                                                <select
+                                                    style={styles.select}
+                                                    value={diaToRegistar || ''}
+                                                    onChange={e => setDiaToRegistar(parseInt(e.target.value))}
+                                                >
+                                                    <option value="">-- Selecione um dia --</option>
+                                                    {diasDoMes.map(dia => (
+                                                        <option key={dia} value={dia}>
+                                                            Dia {dia} ({mesSelecionado}/{anoSelecionado})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={faltaIntervalo}
+                                                        onChange={e => {
+                                                            setFaltaIntervalo(e.target.checked);
+                                                            if (!e.target.checked) {
+                                                                setDataFimFalta('');
+                                                            }
+                                                        }}
+                                                        style={{ marginRight: '8px' }}
+                                                    />
+                                                    Registar para intervalo de datas
+                                                </label>
+                                            </div>
+
+                                            {faltaIntervalo && (
+                                                <div style={styles.filterGroup}>
+                                                    <label style={styles.label}>Data de Fim</label>
+                                                    <input
+                                                        type="date"
+                                                        style={styles.input}
+                                                        value={dataFimFalta}
+                                                        onChange={e => setDataFimFalta(e.target.value)}
+                                                        min={`${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaToRegistar).padStart(2, '0')}`}
+                                                    />
+                                                </div>
+                                            )}
+
                                             <div style={styles.filterGroup}>
                                                 <label style={styles.label}>Tipo de Falta</label>
                                                 <select
@@ -3105,17 +3216,32 @@ const RegistosPorUtilizador = () => {
                                             {tipoFaltaSelecionado && tiposFaltas[tipoFaltaSelecionado] && (
                                                 <div style={{
                                                     ...styles.filterGroup,
-                                                    backgroundColor: '#f8f9fa',
-                                                    border: '1px solid #dee2e6',
+                                                    backgroundColor: faltaIntervalo ? '#e3f2fd' : '#f8f9fa',
+                                                    border: `1px solid ${faltaIntervalo ? '#90caf9' : '#dee2e6'}`,
                                                     borderRadius: '8px',
                                                     padding: '12px'
                                                 }}>
                                                     <div style={{ fontSize: '0.9rem', color: '#495057' }}>
                                                         <div><strong>Tipo de Falta:</strong> {tiposFaltas[tipoFaltaSelecionado]}</div>
                                                         <div><strong>Código:</strong> {tipoFaltaSelecionado}</div>
-                                                        <div><strong>Duração:</strong> {duracaoFalta || '1d'}</div>
+                                                        {faltaIntervalo && dataFimFalta ? (
+                                                            <>
+                                                                <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#fff3cd', borderRadius: '4px', border: '1px solid #ffc107' }}>
+                                                                    <div style={{ fontWeight: 'bold', color: '#856404', marginBottom: '4px' }}>📅 Intervalo de Datas:</div>
+                                                                    <div><strong>Início:</strong> {`${diaToRegistar}/${mesSelecionado}/${anoSelecionado}`}</div>
+                                                                    <div><strong>Fim:</strong> {new Date(dataFimFalta).toLocaleDateString('pt-PT')}</div>
+                                                                    <div><strong>Total de dias:</strong> {(() => {
+                                                                        const inicio = new Date(`${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaToRegistar).padStart(2, '0')}`);
+                                                                        const fim = new Date(dataFimFalta);
+                                                                        return Math.ceil((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+                                                                    })()} dias consecutivos</div>
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div><strong>Duração:</strong> {duracaoFalta || '1d'}</div>
+                                                        )}
                                                         <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#6c757d' }}>
-                                                            Esta falta será submetida para aprovação.
+                                                            {faltaIntervalo ? '⚠️ Faltas serão registadas para TODOS os dias do intervalo (incluindo fins de semana).' : 'Esta falta será registada no ERP.'}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -3132,7 +3258,7 @@ const RegistosPorUtilizador = () => {
                                             <button
                                                 style={styles.confirmButton}
                                                 onClick={registarFalta}
-                                                disabled={!tipoFaltaSelecionado || !duracaoFalta || carregando}
+                                                disabled={!userToRegistar || !diaToRegistar || !tipoFaltaSelecionado || !duracaoFalta || carregando}
                                             >
                                                 {carregando ? (
                                                     <>
@@ -3898,7 +4024,7 @@ const RegistosPorUtilizador = () => {
                                                                     });
                                                                     setRemoverFaltaDialogOpen(true);
                                                                 } else {
-                                                                    // Não há falta - abrir editor normal
+                                                                    // Não há falta - abrir editor (funciona para células vazias ou com registos)
                                                                     abrirEdicaoDirecta(userId, diaNum, item.utilizador.nome);
                                                                 }
                                                             }

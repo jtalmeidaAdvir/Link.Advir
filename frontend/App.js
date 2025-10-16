@@ -345,6 +345,7 @@ const CustomDrawerContent = ({
         "GestaoExternos", // GestaoTrabalhadoresExternos
         "GestaoPartes", // GestaoPartesDiarias
         "MapaRegistos", // MapaRegistos
+        "Ausencias", 
 
     ];
 
@@ -547,24 +548,7 @@ const CustomDrawerContent = ({
 
                 {isLoggedIn && (
                     <View style={drawerStyles.moduleContainer}>
-                        <TouchableOpacity
-                            style={drawerStyles.moduleHeader}
-                            onPress={() =>
-                                props.navigation.navigate("Ausencias")
-                            }
-                            activeOpacity={0.7}
-                        >
-                            <View style={drawerStyles.moduleTitle}>
-                                <FontAwesome
-                                    name="building"
-                                    size={18}
-                                    color="#1792FE"
-                                />
-                                <Text style={drawerStyles.moduleText}>
-                                    Ausencias
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
+                     
                     </View>
                 )}
 
@@ -909,6 +893,7 @@ const CustomDrawerContent = ({
                                                         Aprovacoes:
                                                             "ConcursosAprovacao",
                                                             Complota: "AnaliseComplotaPontos",
+                                                            Ausencias: "Ausencias",
                                                     };
 
                                                     const screenName =
@@ -2194,6 +2179,10 @@ const AppNavigator = () => {
                                     name="PartesDiarias"
                                     component={PartesDiarias}
                                 />
+                                     <Drawer.Screen
+                                    name="Ausencias"
+                                    component={Ausencias}
+                                />
                                 <Drawer.Screen
                                     name="CriarEquipa"
                                     component={CriarEquipa}
@@ -2335,26 +2324,7 @@ const AppNavigator = () => {
                             )}
                         </Drawer.Screen>
                     )}
-                    {isLoggedIn && (
-                        <Drawer.Screen
-                            name="Ausencias"
-                            options={{
-                                title: "AdvirLink - Empresa",
-                                drawerItemStyle: { display: "none" },
-                                swipeEnabled: false,
-                                gestureEnabled: false,
-                                headerLeft: () => null,
-                                drawerLockMode: "locked-closed",
-                            }}
-                        >
-                            {(props) => (
-                                <Ausencias
-                                    {...props}
-                                    setEmpresa={setEmpresa}
-                                />
-                            )}
-                        </Drawer.Screen>
-                    )}
+                
                     <Drawer.Screen
                         name="RecuperarPassword"
                         component={RecuperarPassword}
