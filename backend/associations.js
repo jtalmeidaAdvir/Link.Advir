@@ -21,6 +21,9 @@ const ParteDiariaCabecalho = require('./models/parteDiariaCabecalho');
 const ParteDiariaItem = require('./models/parteDiariaItem');
 const AnexoPedido = require('./models/anexoPedido');
 const POS = require('./models/pos');
+const Visitante = require('./models/visitante');
+const RegistoPontoVisitante = require('./models/registoPontoVisitante');
+const Configuracao = require('./models/configuracao');
 
 // Nota: Contact e Schedule são tabelas independentes para o WhatsApp Web
 // sem relações diretas com outras tabelas
@@ -127,5 +130,8 @@ module.exports = {
     ParteDiariaItem,
     AnexoPedido,
     BiometricCredential,
-    POS
+    POS,
+    Visitante,
+    RegistoPontoVisitante,
+    Configuracao
 };

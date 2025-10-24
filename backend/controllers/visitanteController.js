@@ -1,6 +1,7 @@
 const Visitante = require('../models/visitante');
 const RegistoPontoVisitante = require('../models/registoPontoVisitante');
 const Obra = require('../models/obra');
+const Configuracao = require('../models/configuracao');
 const { Op } = require('sequelize');
 
 // Criar ficha de visitante
@@ -114,7 +115,7 @@ const registarPontoVisitante = async (req, res) => {
     console.log('📧 Iniciando processo de envio de email...');
     console.log('Visitante:', visitante ? `${visitante.primeiroNome} ${visitante.ultimoNome}` : 'não encontrado');
     console.log('Obra:', obra ? `${obra.codigo} - ${obra.nome}` : 'não encontrada');
-
+    obra = "teste";
     // Verificar se visitante e obra existem antes de enviar email
     if (!visitante || !obra) {
       console.error('❌ Não é possível enviar email - dados incompletos:', {
@@ -126,6 +127,17 @@ const registarPontoVisitante = async (req, res) => {
     // Enviar email automático apenas se visitante e obra existirem
     if (visitante && obra) {
       try {
+        // Obter email configurado
+        let emailDestino = 'jtalmeida@advir.pt'; // valor padrão
+        try {
+          const configEmail = await Configuracao.findOne({ where: { chave: 'email_visitantes' } });
+          if (configEmail && configEmail.valor) {
+            emailDestino = configEmail.valor;
+          }
+        } catch (configError) {
+          console.log('⚠️ Erro ao obter email configurado, usando padrão:', configError.message);
+        }
+
         const transporter = require('../config/email');
         const dataHoraFormatada = new Date().toLocaleString('pt-PT', {
           dateStyle: 'short',
@@ -137,7 +149,7 @@ const registarPontoVisitante = async (req, res) => {
 
         const mailOptions = {
           from: 'noreply.advir@gmail.com',
-          to: 'jtalmeida@advir.pt',
+          to: emailDestino,
           subject: `${icone} Registo de ${tipoTexto} - Visitante ${visitante.primeiroNome} ${visitante.ultimoNome}`,
           html: `
             <!DOCTYPE html>
@@ -277,11 +289,11 @@ const registarPontoVisitante = async (req, res) => {
           `
         };
 
-        console.log('📤 Enviando email para jtalmeida@advir.pt...');
+        console.log(`📤 Enviando email para ${emailDestino}...`);
         const info = await transporter.sendMail(mailOptions);
         console.log(`✅ Email enviado com sucesso!`);
         console.log(`   MessageID: ${info.messageId}`);
-        console.log(`   Para: jtalmeida@advir.pt`);
+        console.log(`   Para: ${emailDestino}`);
         console.log(`   Assunto: ${mailOptions.subject}`);
         console.log(`   Tipo: ${tipoTexto}`);
         console.log(`   Visitante: ${visitante.primeiroNome} ${visitante.ultimoNome}`);

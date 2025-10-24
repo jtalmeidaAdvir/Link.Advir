@@ -64,6 +64,7 @@ const verificacaoAutomaticaRoutes = require('./routes/verificacaoAutomaticaPonto
 const gdprRoutes = require('./routes/gdprRoutes');
 const visitanteRoutes = require('./routes/visitanteRoutes');
 const externosJPARoutes = require('./routes/externosJPARoutes');
+const configuracaoRoutes = require('./routes/configuracaoRoutes');
 
 
 // Importar associações
@@ -124,6 +125,7 @@ app.use('/api/pos', posRoutes);
 app.use('/api/verificacao-automatica', verificacaoAutomaticaRoutes);
 app.use('/api/visitantes', visitanteRoutes);
 app.use('/api/externos-jpa', externosJPARoutes);
+app.use('/api/configuracoes', configuracaoRoutes);
 
 
 app.use('/api/gdpr', gdprRoutes);
