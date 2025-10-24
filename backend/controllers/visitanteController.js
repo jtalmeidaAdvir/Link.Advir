@@ -140,62 +140,140 @@ const registarPontoVisitante = async (req, res) => {
           to: 'jtalmeida@advir.pt',
           subject: `${icone} Registo de ${tipoTexto} - Visitante ${visitante.primeiroNome} ${visitante.ultimoNome}`,
           html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f5f5f5; padding: 20px;">
-              <div style="background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <!-- Header -->
-                <div style="background: linear-gradient(135deg, ${tipo === 'entrada' ? '#10b981' : '#ef4444'} 0%, ${tipo === 'entrada' ? '#059669' : '#dc2626'} 100%); color: white; padding: 20px; text-align: center;">
-                  <h1 style="margin: 0; font-size: 24px;">${icone} Registo de ${tipoTexto}</h1>
-                </div>
+            <!DOCTYPE html>
+            <html lang="pt">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0f2f5; padding: 20px 0;">
+                <tr>
+                  <td align="center">
+                    <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                      
+                      <!-- Header com Gradiente -->
+                      <tr>
+                        <td style="background: linear-gradient(135deg, ${tipo === 'entrada' ? '#10b981 0%, #059669' : '#ef4444 0%, #dc2626'} 100%); padding: 40px 30px; text-align: center;">
+                          <div style="font-size: 48px; margin-bottom: 10px;">${icone}</div>
+                          <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600; letter-spacing: -0.5px;">
+                            Registo de ${tipoTexto}
+                          </h1>
+                          <p style="margin: 8px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 14px;">
+                            ${dataHoraFormatada}
+                          </p>
+                        </td>
+                      </tr>
 
-                <!-- Body -->
-                <div style="padding: 30px;">
-                  <h2 style="color: #1e3a8a; margin-top: 0;">Detalhes do Registo</h2>
+                      <!-- Informação do Visitante -->
+                      <tr>
+                        <td style="padding: 35px 30px;">
+                          <div style="background: linear-gradient(to right, ${tipo === 'entrada' ? '#d1fae5' : '#fee2e2'}, transparent); border-left: 4px solid ${tipo === 'entrada' ? '#10b981' : '#ef4444'}; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                            <h2 style="margin: 0 0 5px 0; color: #1f2937; font-size: 20px; font-weight: 600;">
+                              ${visitante.primeiroNome} ${visitante.ultimoNome}
+                            </h2>
+                            <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                              NIF: ${visitante.numeroContribuinte}
+                            </p>
+                          </div>
 
-                  <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                    <tr style="border-bottom: 1px solid #e5e7eb;">
-                      <td style="padding: 12px 0; font-weight: bold; color: #374151; width: 40%;">Visitante:</td>
-                      <td style="padding: 12px 0; color: #6b7280;">${visitante.primeiroNome} ${visitante.ultimoNome}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid #e5e7eb;">
-                      <td style="padding: 12px 0; font-weight: bold; color: #374151;">NIF:</td>
-                      <td style="padding: 12px 0; color: #6b7280;">${visitante.numeroContribuinte}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid #e5e7eb;">
-                      <td style="padding: 12px 0; font-weight: bold; color: #374151;">Empresa:</td>
-                      <td style="padding: 12px 0; color: #6b7280;">${visitante.nomeEmpresa || 'N/A'}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid #e5e7eb;">
-                      <td style="padding: 12px 0; font-weight: bold; color: #374151;">NIF Empresa:</td>
-                      <td style="padding: 12px 0; color: #6b7280;">${visitante.nifEmpresa || 'N/A'}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid #e5e7eb;">
-                      <td style="padding: 12px 0; font-weight: bold; color: #374151;">Obra:</td>
-                      <td style="padding: 12px 0; color: #6b7280;">${obra.codigo} - ${obra.nome}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid #e5e7eb;">
-                      <td style="padding: 12px 0; font-weight: bold; color: #374151;">Tipo de Registo:</td>
-                      <td style="padding: 12px 0; color: #6b7280; font-weight: bold;">${tipoTexto}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid #e5e7eb;">
-                      <td style="padding: 12px 0; font-weight: bold; color: #374151;">Data/Hora:</td>
-                      <td style="padding: 12px 0; color: #6b7280;">${dataHoraFormatada}</td>
-                    </tr>
-                    ${latitude && longitude ? `
-                    <tr>
-                      <td style="padding: 12px 0; font-weight: bold; color: #374151;">Coordenadas:</td>
-                      <td style="padding: 12px 0; color: #6b7280;">${latitude.toFixed(6)}, ${longitude.toFixed(6)}</td>
-                    </tr>
-                    ` : ''}
-                  </table>
-                </div>
+                          <!-- Tabela de Detalhes -->
+                          <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+                            <tr>
+                              <td colspan="2" style="padding-bottom: 15px;">
+                                <h3 style="margin: 0; color: #374151; font-size: 16px; font-weight: 600; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">
+                                  📋 Detalhes do Registo
+                                </h3>
+                              </td>
+                            </tr>
+                            
+                            <tr>
+                              <td style="padding: 12px 0; color: #6b7280; font-size: 14px; width: 45%;">
+                                <strong style="color: #374151;">🏢 Empresa Visitante:</strong>
+                              </td>
+                              <td style="padding: 12px 0; color: #1f2937; font-size: 14px;">
+                                ${visitante.nomeEmpresa || 'N/A'}
+                              </td>
+                            </tr>
+                            
+                            <tr style="background-color: #f9fafb;">
+                              <td style="padding: 12px 0; color: #6b7280; font-size: 14px;">
+                                <strong style="color: #374151;">🆔 NIF Empresa:</strong>
+                              </td>
+                              <td style="padding: 12px 0; color: #1f2937; font-size: 14px;">
+                                ${visitante.nifEmpresa || 'N/A'}
+                              </td>
+                            </tr>
+                            
+                            <tr>
+                              <td style="padding: 12px 0; color: #6b7280; font-size: 14px;">
+                                <strong style="color: #374151;">🏗️ Obra:</strong>
+                              </td>
+                              <td style="padding: 12px 0; color: #1f2937; font-size: 14px;">
+                                <strong>${obra.codigo}</strong> - ${obra.nome}
+                              </td>
+                            </tr>
+                            
+                            <tr style="background-color: #f9fafb;">
+                              <td style="padding: 12px 0; color: #6b7280; font-size: 14px;">
+                                <strong style="color: #374151;">⏰ Tipo de Registo:</strong>
+                              </td>
+                              <td style="padding: 12px 0;">
+                                <span style="display: inline-block; background-color: ${tipo === 'entrada' ? '#d1fae5' : '#fee2e2'}; color: ${tipo === 'entrada' ? '#065f46' : '#991b1b'}; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;">
+                                  ${tipo === 'entrada' ? '🟢' : '🔴'} ${tipoTexto.toUpperCase()}
+                                </span>
+                              </td>
+                            </tr>
+                            
+                            ${latitude && longitude ? `
+                            <tr>
+                              <td style="padding: 12px 0; color: #6b7280; font-size: 14px;">
+                                <strong style="color: #374151;">📍 Coordenadas GPS:</strong>
+                              </td>
+                              <td style="padding: 12px 0; color: #1f2937; font-size: 14px; font-family: 'Courier New', monospace;">
+                                ${latitude.toFixed(6)}, ${longitude.toFixed(6)}
+                              </td>
+                            </tr>
+                            ` : ''}
+                          </table>
 
-                <!-- Footer -->
-                <div style="background-color: #f8fafc; padding: 15px; text-align: center; border-top: 1px solid #e5e7eb;">
-                  <p style="margin: 0; font-size: 12px; color: #6b7280;">AdvirLink - Sistema de Gestão de Visitantes</p>
-                  <p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Advir Plan Consultoria</p>
-                </div>
-              </div>
-            </div>
+                          <!-- Info Box -->
+                          <div style="margin-top: 30px; background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 6px;">
+                            <p style="margin: 0; color: #1e40af; font-size: 13px; line-height: 1.6;">
+                              <strong>ℹ️ Informação:</strong> Este registo foi efetuado automaticamente através do sistema AdvirLink. 
+                              Para consultar mais detalhes ou histórico, aceda à plataforma de gestão.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+
+                      <!-- Footer -->
+                      <tr>
+                        <td style="background: linear-gradient(to bottom, #f8fafc, #e5e7eb); padding: 25px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                          <div style="margin-bottom: 12px;">
+                            <p style="margin: 0; color: #1f2937; font-size: 14px; font-weight: 600;">
+                              AdvirLink - Sistema de Gestão de Visitantes
+                            </p>
+                          </div>
+                          <div style="margin-bottom: 15px;">
+                            <p style="margin: 5px 0; color: #6b7280; font-size: 12px;">
+                              📧 support@advir.pt | ☎️ +351 253 176 493
+                            </p>
+                          </div>
+                          <div style="padding-top: 12px; border-top: 1px solid #cbd5e1;">
+                            <p style="margin: 0; color: #9ca3af; font-size: 11px;">
+                              © ${new Date().getFullYear()} Advir Plan Consultoria - Todos os direitos reservados
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
           `
         };
 
