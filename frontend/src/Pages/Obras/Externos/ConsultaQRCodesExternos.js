@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
 
 const API_BASE = 'https://backend.advir.pt/api/externos-jpa';
+const EMAIL_API = 'https://webapiprimavera.advir.pt/send-email-externos';
 
 const ConsultaQRCodesExternos = () => {
     const [externos, setExternos] = useState([]);
@@ -33,6 +34,14 @@ const ConsultaQRCodesExternos = () => {
     // Modal de detalhes
     const [modalVisible, setModalVisible] = useState(false);
     const [externoSelecionado, setExternoSelecionado] = useState(null);
+    
+    // Modal de envio de email
+    const [modalEmailVisible, setModalEmailVisible] = useState(false);
+    const [emailDestinatario, setEmailDestinatario] = useState('');
+    const [enviandoEmail, setEnviandoEmail] = useState(false);
+    
+    // Referência para o QR code
+    const qrCodeRef = useRef(null);
 
     // Carregar externos
     const fetchExternos = useCallback(async () => {
@@ -102,6 +111,208 @@ const ConsultaQRCodesExternos = () => {
     const fecharModal = () => {
         setModalVisible(false);
         setExternoSelecionado(null);
+    };
+
+    // Abrir modal de email
+    const abrirModalEmail = () => {
+        setEmailDestinatario('');
+        setModalEmailVisible(true);
+    };
+
+    // Fechar modal de email
+    const fecharModalEmail = () => {
+        setModalEmailVisible(false);
+        setEmailDestinatario('');
+    };
+
+    // Enviar QR code por email
+    const enviarQRCodePorEmail = async () => {
+        if (!emailDestinatario.trim()) {
+            Alert.alert('Atenção', 'Por favor, insira um email válido');
+            return;
+        }
+
+        if (!externoSelecionado) {
+            Alert.alert('Erro', 'Nenhum trabalhador selecionado');
+            return;
+        }
+
+        setEnviandoEmail(true);
+
+        try {
+            // Obter a imagem do QR code em base64
+            qrCodeRef.current.toDataURL((dataURL) => {
+                enviarEmailComQRCode(dataURL);
+            });
+        } catch (error) {
+            console.error('Erro ao gerar QR code:', error);
+            Alert.alert('Erro', 'Erro ao gerar o QR code para envio');
+            setEnviandoEmail(false);
+        }
+    };
+
+    const enviarEmailComQRCode = async (qrCodeDataURL) => {
+        try {
+            // Converte data URL para base64 puro
+            const base64Image = qrCodeDataURL.replace(/^data:image\/(png|jpg|jpeg);base64,/, '');
+            
+            const emailPayload = {
+                emailDestinatario: emailDestinatario.trim(),
+                assunto: `QR Code - ${externoSelecionado.nome}`,
+                texto: `
+                    <!DOCTYPE html>
+                    <html lang="pt">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+                        <title>QR Code - Trabalhador Externo</title>
+                        <style>
+                            @media only screen and (max-width: 600px) {
+                                .email-container {
+                                    width: 100% !important;
+                                    margin: 0 !important;
+                                    padding: 10px !important;
+                                }
+                                .email-content {
+                                    padding: 20px 15px !important;
+                                }
+                                .email-header {
+                                    padding: 20px 15px !important;
+                                }
+                                .email-header h1 {
+                                    font-size: 20px !important;
+                                }
+                                .section-title {
+                                    font-size: 18px !important;
+                                }
+                                .info-table td {
+                                    display: block !important;
+                                    width: 100% !important;
+                                    padding: 8px 0 !important;
+                                }
+                                .info-table tr {
+                                    display: block !important;
+                                    margin-bottom: 15px !important;
+                                    border-bottom: 1px solid #e5e7eb !important;
+                                }
+                                .info-label {
+                                    font-weight: bold !important;
+                                    color: #1792FE !important;
+                                    margin-bottom: 5px !important;
+                                }
+                                .qr-container {
+                                    padding: 15px !important;
+                                }
+                                .qr-container img {
+                                    width: 100% !important;
+                                    max-width: 280px !important;
+                                    height: auto !important;
+                                }
+                                .qr-title {
+                                    font-size: 16px !important;
+                                }
+                                .qr-instructions {
+                                    font-size: 13px !important;
+                                    padding: 0 10px !important;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f5f5f5;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f5f5f5;">
+                            <tr>
+                                <td style="padding: 20px 10px;">
+                                    <table class="email-container" role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                                        <!-- Header -->
+                                        <tr>
+                                            <td class="email-header" style="background: linear-gradient(135deg, #1792FE 0%, #0B5ED7 100%); color: white; padding: 30px 20px; text-align: center;">
+                                                <h1 style="margin: 0; font-size: 24px; font-weight: bold; line-height: 1.3;">QR Code - Trabalhador Externo</h1>
+                                            </td>
+                                        </tr>
+                                        
+                                        <!-- Content -->
+                                        <tr>
+                                            <td class="email-content" style="padding: 30px;">
+                                                <h2 class="section-title" style="color: #1792FE; margin: 0 0 20px 0; font-size: 20px;">Informações do Trabalhador</h2>
+                                                
+                                                <table class="info-table" role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                                                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                                                        <td class="info-label" style="padding: 12px 0; font-weight: bold; color: #374151; vertical-align: top;">Nome:</td>
+                                                        <td style="padding: 12px 0; color: #6b7280; word-break: break-word;">${externoSelecionado.nome}</td>
+                                                    </tr>
+                                                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                                                        <td class="info-label" style="padding: 12px 0; font-weight: bold; color: #374151; vertical-align: top;">Empresa:</td>
+                                                        <td style="padding: 12px 0; color: #6b7280; word-break: break-word;">${externoSelecionado.empresa || 'Sem empresa'}</td>
+                                                    </tr>
+                                                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                                                        <td class="info-label" style="padding: 12px 0; font-weight: bold; color: #374151; vertical-align: top;">Código QR:</td>
+                                                        <td style="padding: 12px 0; color: #6b7280; font-family: 'Courier New', monospace; word-break: break-all;">${externoSelecionado.Qrcode}</td>
+                                                    </tr>
+                                                </table>
+
+                                                <!-- QR Code Section -->
+                                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                                                    <tr>
+                                                        <td style="text-align: center; padding: 20px 0;">
+                                                            <h3 class="qr-title" style="color: #1792FE; margin: 0 0 20px 0; font-size: 18px;">QR Code para Registo de Ponto</h3>
+                                                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+                                                                <tr>
+                                                                    <td class="qr-container" style="padding: 20px; background-color: #f8f9fa; border-radius: 10px;">
+                                                                        <img src="data:image/png;base64,${base64Image}" alt="QR Code" style="display: block; width: 250px; height: 250px; max-width: 100%; height: auto;" />
+                                                                    </td>
+                                                                </tr>
+                                                            </table>
+                                                            <p class="qr-instructions" style="margin: 20px 0 0 0; color: #666; font-size: 14px; line-height: 1.6;">
+                                                                Use este QR code para registar entrada/saída do trabalhador
+                                                            </p>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                        
+                                        <!-- Footer -->
+                                        <tr>
+                                            <td style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                                                <p style="margin: 0; font-size: 12px; color: #6b7280;">Advir Plan Consultoria</p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </body>
+                    </html>
+                `,
+                remetente: 'noreply.advir@gmail.com'
+            };
+
+            console.log('📧 Enviando email para:', emailPayload.emailDestinatario);
+
+            const response = await fetch(EMAIL_API, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(emailPayload)
+            });
+
+            const responseData = await response.json();
+            console.log('📧 Resposta do servidor:', responseData);
+
+            if (!response.ok) {
+                throw new Error(responseData.error || responseData.details || 'Erro ao enviar email');
+            }
+
+            Alert.alert('Sucesso', 'QR code enviado por email com sucesso!');
+            fecharModalEmail();
+        } catch (error) {
+            console.error('❌ Erro ao enviar email:', error);
+            Alert.alert('Erro', `Não foi possível enviar o email: ${error.message}`);
+        } finally {
+            setEnviandoEmail(false);
+        }
     };
 
     // Empresas únicas para filtro
@@ -341,15 +552,108 @@ const ConsultaQRCodesExternos = () => {
                                             size={250}
                                             color="#333"
                                             backgroundColor="#fff"
+                                            getRef={(ref) => (qrCodeRef.current = ref)}
                                         />
                                     </View>
                                     <Text style={styles.qrCodeInstructions}>
                                         Use este QR code para registar entrada/saída do trabalhador
                                     </Text>
+                                    
+                                    <TouchableOpacity 
+                                        style={styles.emailButton}
+                                        onPress={abrirModalEmail}
+                                    >
+                                        <LinearGradient
+                                            colors={['#1792FE', '#0B5ED7']}
+                                            style={styles.emailButtonGradient}
+                                        >
+                                            <Ionicons name="mail" size={20} color="#fff" />
+                                            <Text style={styles.emailButtonText}>Enviar por Email</Text>
+                                        </LinearGradient>
+                                    </TouchableOpacity>
                                 </View>
                             </ScrollView>
                         )}
                     </SafeAreaView>
+                </Modal>
+
+                {/* Modal de Envio de Email */}
+                <Modal
+                    visible={modalEmailVisible}
+                    animationType="slide"
+                    transparent={true}
+                    onRequestClose={fecharModalEmail}
+                >
+                    <View style={styles.modalEmailOverlay}>
+                        <View style={styles.modalEmailContainer}>
+                            <View style={styles.modalEmailHeader}>
+                                <View style={styles.modalEmailTitleContainer}>
+                                    <Ionicons name="mail" size={24} color="#1792FE" />
+                                    <Text style={styles.modalEmailTitle}>Enviar QR Code por Email</Text>
+                                </View>
+                                <TouchableOpacity onPress={fecharModalEmail}>
+                                    <Ionicons name="close-circle" size={28} color="#999" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.modalEmailBody}>
+                                <Text style={styles.modalEmailLabel}>Email do destinatário:</Text>
+                                <TextInput
+                                    style={styles.modalEmailInput}
+                                    placeholder="exemplo@email.com"
+                                    value={emailDestinatario}
+                                    onChangeText={setEmailDestinatario}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    placeholderTextColor="#999"
+                                />
+
+                                {externoSelecionado && (
+                                    <View style={styles.emailPreviewCard}>
+                                        <Text style={styles.emailPreviewTitle}>Será enviado:</Text>
+                                        <Text style={styles.emailPreviewText}>
+                                            • QR Code de {externoSelecionado.nome}
+                                        </Text>
+                                        <Text style={styles.emailPreviewText}>
+                                            • Empresa: {externoSelecionado.empresa || 'Sem empresa'}
+                                        </Text>
+                                        <Text style={styles.emailPreviewText}>
+                                            • Código: {externoSelecionado.Qrcode}
+                                        </Text>
+                                    </View>
+                                )}
+
+                                <View style={styles.modalEmailButtons}>
+                                    <TouchableOpacity
+                                        style={styles.modalEmailCancelButton}
+                                        onPress={fecharModalEmail}
+                                    >
+                                        <Text style={styles.modalEmailCancelText}>Cancelar</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={styles.modalEmailSendButton}
+                                        onPress={enviarQRCodePorEmail}
+                                        disabled={enviandoEmail}
+                                    >
+                                        <LinearGradient
+                                            colors={['#1792FE', '#0B5ED7']}
+                                            style={styles.modalEmailSendGradient}
+                                        >
+                                            {enviandoEmail ? (
+                                                <ActivityIndicator size="small" color="#fff" />
+                                            ) : (
+                                                <>
+                                                    <Ionicons name="send" size={18} color="#fff" />
+                                                    <Text style={styles.modalEmailSendText}>Enviar</Text>
+                                                </>
+                                            )}
+                                        </LinearGradient>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
                 </Modal>
             </SafeAreaView>
         </LinearGradient>
@@ -655,6 +959,129 @@ const styles = StyleSheet.create({
         color: '#666',
         textAlign: 'center',
         lineHeight: 20,
+        marginBottom: 20,
+    },
+    emailButton: {
+        borderRadius: 15,
+        overflow: 'hidden',
+        marginTop: 10,
+    },
+    emailButtonGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 15,
+        paddingHorizontal: 20,
+        gap: 10,
+    },
+    emailButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    modalEmailOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalEmailContainer: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        width: '100%',
+        maxWidth: 500,
+        maxHeight: '80%',
+    },
+    modalEmailHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f3f4',
+    },
+    modalEmailTitleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    modalEmailTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#333',
+    },
+    modalEmailBody: {
+        padding: 20,
+    },
+    modalEmailLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 10,
+    },
+    modalEmailInput: {
+        borderWidth: 1,
+        borderColor: '#e9ecef',
+        borderRadius: 12,
+        padding: 15,
+        fontSize: 16,
+        color: '#333',
+        backgroundColor: '#f8f9fa',
+    },
+    emailPreviewCard: {
+        backgroundColor: '#f0f9ff',
+        borderRadius: 12,
+        padding: 15,
+        marginTop: 20,
+        borderWidth: 1,
+        borderColor: '#0ea5e9',
+    },
+    emailPreviewTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#0c4a6e',
+        marginBottom: 8,
+    },
+    emailPreviewText: {
+        fontSize: 14,
+        color: '#0c4a6e',
+        marginBottom: 4,
+    },
+    modalEmailButtons: {
+        flexDirection: 'row',
+        gap: 10,
+        marginTop: 20,
+    },
+    modalEmailCancelButton: {
+        flex: 1,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: '#e9ecef',
+        paddingVertical: 15,
+        alignItems: 'center',
+    },
+    modalEmailCancelText: {
+        color: '#666',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    modalEmailSendButton: {
+        flex: 1,
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    modalEmailSendGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 15,
+        gap: 8,
+    },
+    modalEmailSendText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '700',
     },
 });
 
