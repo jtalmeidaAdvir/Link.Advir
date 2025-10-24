@@ -12,6 +12,10 @@ router.get('/', ctrl.listar);
 router.get('/resumo-obra', ctrl.resumoObra);
 console.log('✅ Rota /resumo-obra definida');
 
+// GET - Listar QR codes dos externos
+router.get('/qrcodes', ctrl.listarQRCodes);
+console.log('✅ Rota /qrcodes definida');
+
 // GET - Buscar externo por QR code
 router.get('/buscar/:qrcode', ctrl.buscar);
 

@@ -1,5 +1,4 @@
-
-const { sequelize } = require('../config/db');
+const { sequelize } = require("../config/db");
 
 // POST /api/externos-jpa
 const criar = async (req, res) => {
@@ -10,7 +9,7 @@ const criar = async (req, res) => {
         if (!Nome || !Qrcode) {
             return res.status(400).json({
                 success: false,
-                message: 'Nome e Qrcode são obrigatórios.'
+                message: "Nome e Qrcode são obrigatórios.",
             });
         }
 
@@ -24,26 +23,26 @@ const criar = async (req, res) => {
             replacements: {
                 nome: Nome,
                 qrcode: Qrcode,
-                empresa: Empresa || null
+                empresa: Empresa || null,
             },
-            type: sequelize.QueryTypes.INSERT
+            type: sequelize.QueryTypes.INSERT,
         });
 
         res.status(201).json({
             success: true,
-            message: 'Registo criado com sucesso',
+            message: "Registo criado com sucesso",
             data: {
                 Nome,
                 Qrcode,
-                Empresa: Empresa || null
-            }
+                Empresa: Empresa || null,
+            },
         });
     } catch (error) {
-        console.error('Erro ao criar registo ExternosJPA:', error);
+        console.error("Erro ao criar registo ExternosJPA:", error);
         res.status(500).json({
             success: false,
-            message: 'Erro interno do servidor.',
-            error: error.message
+            message: "Erro interno do servidor.",
+            error: error.message,
         });
     }
 };
@@ -51,19 +50,19 @@ const criar = async (req, res) => {
 // GET /api/externos-jpa (opcional - listar todos)
 const listar = async (req, res) => {
     try {
-        const query = 'SELECT * FROM ExternosJPA ORDER BY id DESC';
+        const query = "SELECT * FROM ExternosJPA ORDER BY id DESC";
         const [results] = await sequelize.query(query);
 
         res.status(200).json({
             success: true,
-            data: results
+            data: results,
         });
     } catch (error) {
-        console.error('Erro ao listar ExternosJPA:', error);
+        console.error("Erro ao listar ExternosJPA:", error);
         res.status(500).json({
             success: false,
-            message: 'Erro interno do servidor.',
-            error: error.message
+            message: "Erro interno do servidor.",
+            error: error.message,
         });
     }
 };
@@ -80,24 +79,24 @@ const buscar = async (req, res) => {
 
         const [results] = await sequelize.query(query, {
             replacements: {
-                qrcode: qrcode
-            }
+                qrcode: qrcode,
+            },
         });
 
         if (results.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Externo não encontrado'
+                message: "Externo não encontrado",
             });
         }
 
         res.status(200).json(results[0]);
     } catch (error) {
-        console.error('Erro ao buscar externo:', error);
+        console.error("Erro ao buscar externo:", error);
         res.status(500).json({
             success: false,
-            message: 'Erro interno do servidor.',
-            error: error.message
+            message: "Erro interno do servidor.",
+            error: error.message,
         });
     }
 };
@@ -105,30 +104,31 @@ const buscar = async (req, res) => {
 // POST /api/externos-jpa/registar-ponto
 const registarPonto = async (req, res) => {
     try {
-        const { externo_id, obra_id, empresa_id, latitude, longitude } = req.body;
+        const { externo_id, obra_id, empresa_id, latitude, longitude } =
+            req.body;
 
         if (!externo_id || !obra_id || !empresa_id) {
             return res.status(400).json({
                 success: false,
-                message: 'Externo, obra e empresa são obrigatórios.'
+                message: "Externo, obra e empresa são obrigatórios.",
             });
         }
 
         // Buscar dados do externo
-        const queryExterno = 'SELECT * FROM ExternosJPA WHERE id = :id';
+        const queryExterno = "SELECT * FROM ExternosJPA WHERE id = :id";
         const [externoResults] = await sequelize.query(queryExterno, {
-            replacements: { id: externo_id }
+            replacements: { id: externo_id },
         });
 
         if (externoResults.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'Externo não encontrado'
+                message: "Externo não encontrado",
             });
         }
 
         const externo = externoResults[0];
-        const hoje = new Date().toISOString().split('T')[0];
+        const hoje = new Date().toISOString().split("T")[0];
         const agora = new Date().toISOString();
 
         // Verificar se já existe entrada hoje
@@ -140,19 +140,25 @@ const registarPonto = async (req, res) => {
             ORDER BY timestamp DESC
         `;
 
-        const [ultimoRegistoResults] = await sequelize.query(queryUltimoRegisto, {
-            replacements: {
-                externo_id: externo_id,
-                obra_id: obra_id,
-                hoje: hoje
-            }
-        });
+        const [ultimoRegistoResults] = await sequelize.query(
+            queryUltimoRegisto,
+            {
+                replacements: {
+                    externo_id: externo_id,
+                    obra_id: obra_id,
+                    hoje: hoje,
+                },
+            },
+        );
 
-        let action = 'entrada';
+        let action = "entrada";
 
         // Se já existe entrada sem saída, registar saída
-        if (ultimoRegistoResults.length > 0 && ultimoRegistoResults[0].tipo === 'entrada') {
-            action = 'saida';
+        if (
+            ultimoRegistoResults.length > 0 &&
+            ultimoRegistoResults[0].tipo === "entrada"
+        ) {
+            action = "saida";
         }
 
         // Criar tabela se não existir
@@ -189,9 +195,9 @@ const registarPonto = async (req, res) => {
                 timestamp: agora,
                 latitude: latitude || null,
                 longitude: longitude || null,
-                nome: externo.nome
+                nome: externo.nome,
             },
-            type: sequelize.QueryTypes.INSERT
+            type: sequelize.QueryTypes.INSERT,
         });
 
         res.status(201).json({
@@ -200,15 +206,15 @@ const registarPonto = async (req, res) => {
             externo: {
                 id: externo.id,
                 nome: externo.nome,
-                qrcode: externo.Qrcode
-            }
+                qrcode: externo.Qrcode,
+            },
         });
     } catch (error) {
-        console.error('Erro ao registar ponto externo:', error);
+        console.error("Erro ao registar ponto externo:", error);
         res.status(500).json({
             success: false,
-            message: 'Erro interno do servidor.',
-            error: error.message
+            message: "Erro interno do servidor.",
+            error: error.message,
         });
     }
 };
@@ -221,11 +227,11 @@ const resumoObra = async (req, res) => {
         if (!obra_id || !empresa_id) {
             return res.status(400).json({
                 success: false,
-                message: 'obra_id e empresa_id são obrigatórios'
+                message: "obra_id e empresa_id são obrigatórios",
             });
         }
 
-        const hoje = new Date().toISOString().split('T')[0];
+        const hoje = new Date().toISOString().split("T")[0];
 
         // Contar externos a trabalhar (última entrada sem saída correspondente hoje)
         const queryExternosATrabalhar = `
@@ -245,13 +251,16 @@ const resumoObra = async (req, res) => {
             )
         `;
 
-        const [resultExternos] = await sequelize.query(queryExternosATrabalhar, {
-            replacements: {
-                obra_id: obra_id,
-                empresa_id: empresa_id,
-                hoje: hoje
-            }
-        });
+        const [resultExternos] = await sequelize.query(
+            queryExternosATrabalhar,
+            {
+                replacements: {
+                    obra_id: obra_id,
+                    empresa_id: empresa_id,
+                    hoje: hoje,
+                },
+            },
+        );
 
         // Buscar últimas entradas/saídas de externos com empresa
         const queryRegistos = `
@@ -277,14 +286,14 @@ const resumoObra = async (req, res) => {
             replacements: {
                 obra_id: obra_id,
                 empresa_id: empresa_id,
-                hoje: hoje
-            }
+                hoje: hoje,
+            },
         });
 
         res.status(200).json({
             success: true,
             externosATrabalhar: resultExternos[0]?.total || 0,
-            entradasSaidas: registos.map(r => ({
+            entradasSaidas: registos.map((r) => ({
                 id: r.id,
                 externo_id: r.externo_id,
                 tipo: r.tipo,
@@ -293,15 +302,44 @@ const resumoObra = async (req, res) => {
                 latitude: r.latitude,
                 longitude: r.longitude,
                 empresa: r.empresa,
-                tipoEntidade: r.tipoEntidade
-            }))
+                tipoEntidade: r.tipoEntidade,
+            })),
         });
     } catch (error) {
-        console.error('Erro ao obter resumo de externos:', error);
+        console.error("Erro ao obter resumo de externos:", error);
         res.status(500).json({
             success: false,
-            message: 'Erro interno do servidor.',
-            error: error.message
+            message: "Erro interno do servidor.",
+            error: error.message,
+        });
+    }
+};
+
+// GET /api/externos-jpa/qrcodes
+const listarQRCodes = async (req, res) => {
+    try {
+        const empresaId = req.headers["x-empresa-id"];
+
+        let query = "SELECT id, nome, Qrcode, empresa FROM ExternosJPA";
+        const replacements = {};
+
+        query += " ORDER BY nome ASC";
+
+        const results = await sequelize.query(query, {
+            replacements,
+            type: sequelize.QueryTypes.SELECT,
+        });
+
+        res.status(200).json({
+            success: true,
+            data: results,
+        });
+    } catch (error) {
+        console.error("Erro ao listar QR codes de externos:", error);
+        res.status(500).json({
+            success: false,
+            message: "Erro interno do servidor.",
+            error: error.message,
         });
     }
 };
@@ -311,5 +349,6 @@ module.exports = {
     listar,
     buscar,
     registarPonto,
-    resumoObra
+    resumoObra,
+    listarQRCodes,
 };

@@ -78,6 +78,7 @@ import Escritorio from "./src/Pages/Obras/Escritorio";
 import PartesDiarias from "./src/Pages/Obras/PartesDiarias";
 
 import PessoalObra from "./src/Pages/Obras/PessoalObra";
+import ConsultaQRCodesExternos from "./src/Pages/Obras/Externos/ConsultaQRCodesExternos";
 
 import CriarEquipa from "./src/Pages/Obras/CriarEquipa";
 
@@ -346,6 +347,7 @@ const CustomDrawerContent = ({
         "GestaoPartes", // GestaoPartesDiarias
         "MapaRegistos", // MapaRegistos
         "Ausencias", 
+        "ConsultaQRCodesExternos"
 
     ];
 
@@ -404,6 +406,7 @@ const CustomDrawerContent = ({
             QrCode: "qrcode",
             Botao: "clock-o",
             Aprovacoes: "check-square-o",
+            ConsultaQRCodesExternos: "qrcode",
         };
         return icons[submoduleName] || "circle-o";
     };
@@ -873,6 +876,8 @@ const CustomDrawerContent = ({
                                                             "Escritorio",
                                                         PartesDiarias:
                                                             "PartesDiarias",
+                                                        ConsultaQRCodesExternos:
+                                                            "ConsultaQRCodesExternos",
                                                         Equipas: "CriarEquipa",
                                                         Agenda: "CalendarioHorasTrabalho",
                                                         GestaoFaltas:
@@ -989,6 +994,8 @@ const CustomDrawerContent = ({
                                                                 "Ponto Facial",
                                                             PartesDiarias:
                                                                 "Partes Diárias",
+                                                            ConsultaQRCodesExternos:
+                                                                "ConsultaQRCodesExternos",
                                                             GestaoFaltas:
                                                                 "Gestão Faltas",
                                                             GestaoPontos:
@@ -2179,6 +2186,10 @@ const AppNavigator = () => {
                                     name="PartesDiarias"
                                     component={PartesDiarias}
                                 />
+                                <Drawer.Screen
+                                    name="ConsultaQRCodesExternos"
+                                    component={ConsultaQRCodesExternos}
+                                />
                                      <Drawer.Screen
                                     name="Ausencias"
                                     component={Ausencias}
@@ -2194,6 +2205,7 @@ const AppNavigator = () => {
                                         drawerItemStyle: { display: "none" },
                                     }}
                                 />
+                             
                                 {/* Adicionar a nova tela ao Drawer.Navigator */}
                                 <Drawer.Screen
                                     name="MapaRegistos"
