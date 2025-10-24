@@ -115,7 +115,7 @@ const registarPontoVisitante = async (req, res) => {
     console.log('📧 Iniciando processo de envio de email...');
     console.log('Visitante:', visitante ? `${visitante.primeiroNome} ${visitante.ultimoNome}` : 'não encontrado');
     console.log('Obra:', obra ? `${obra.codigo} - ${obra.nome}` : 'não encontrada');
-    obra = "teste";
+  
     // Verificar se visitante e obra existem antes de enviar email
     if (!visitante || !obra) {
       console.error('❌ Não é possível enviar email - dados incompletos:', {
