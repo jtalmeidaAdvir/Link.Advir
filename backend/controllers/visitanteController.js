@@ -79,27 +79,9 @@ const registarPontoVisitante = async (req, res) => {
   try {
     const { visitante_id, obra_id, empresa_id, latitude, longitude } = req.body;
 
-    console.log('📥 Dados recebidos:', { visitante_id, obra_id, empresa_id });
-
     if (!visitante_id || !obra_id || !empresa_id) {
       return res.status(400).json({ message: 'Dados incompletos' });
     }
-
-    // Validar visitante e obra ANTES de criar registo
-    const visitante = await Visitante.findByPk(visitante_id);
-    if (!visitante) {
-      console.error(`❌ Visitante ${visitante_id} não encontrado`);
-      return res.status(404).json({ message: 'Visitante não encontrado' });
-    }
-
-    const obra = await Obra.findByPk(obra_id);
-    if (!obra) {
-      console.error(`❌ Obra ${obra_id} não encontrada`);
-      return res.status(404).json({ message: 'Obra não encontrada' });
-    }
-
-    console.log('✅ Visitante encontrado:', `${visitante.primeiroNome} ${visitante.ultimoNome}`);
-    console.log('✅ Obra encontrada:', `${obra.codigo} - ${obra.nome}`);
 
     // Verificar última entrada/saída
     const hoje = new Date().toISOString().split('T')[0];
@@ -126,11 +108,25 @@ const registarPontoVisitante = async (req, res) => {
       longitude
     });
 
-    console.log('📧 Iniciando processo de envio de email...');
+    const visitante = await Visitante.findByPk(visitante_id);
+    const obra = await Obra.findByPk(obra_id);
 
-    // Enviar email automático
-    try {
-      const transporter = require('../config/email');
+    console.log('📧 Iniciando processo de envio de email...');
+    console.log('Visitante:', visitante ? `${visitante.primeiroNome} ${visitante.ultimoNome}` : 'não encontrado');
+    console.log('Obra:', obra ? `${obra.codigo} - ${obra.nome}` : 'não encontrada');
+
+    // Verificar se visitante e obra existem antes de enviar email
+    if (!visitante || !obra) {
+      console.error('❌ Não é possível enviar email - dados incompletos:', {
+        visitante: visitante ? 'OK' : 'NÃO ENCONTRADO',
+        obra: obra ? 'OK' : 'NÃO ENCONTRADA'
+      });
+    }
+
+    // Enviar email automático apenas se visitante e obra existirem
+    if (visitante && obra) {
+      try {
+        const transporter = require('../config/email');
         const dataHoraFormatada = new Date().toLocaleString('pt-PT', {
           dateStyle: 'short',
           timeStyle: 'short'
@@ -218,9 +214,6 @@ const registarPontoVisitante = async (req, res) => {
         console.error('   Code:', emailError.code);
         // Não falhar o registo se o email falhar
       }
-    } catch (emailError) {
-      console.error('❌ ERRO INESPERADO AO PROCESSAR EMAIL:');
-      console.error('   Erro:', emailError.message);
     }
 
     res.status(201).json({
@@ -230,7 +223,10 @@ const registarPontoVisitante = async (req, res) => {
       obra,
       action: tipo
     });
-
+  } catch (error) {
+    console.error('Erro ao registar ponto visitante:', error);
+    res.status(500).json({ message: 'Erro ao registar ponto' });
+  }
 };
 
 // Listar todos os visitantes
