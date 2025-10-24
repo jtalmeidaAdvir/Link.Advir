@@ -99,6 +99,10 @@ const RegistoPontoFacial = (props) => {
   // Verificar se é empresa JPA (ID = 5)
   const empresaId = localStorage.getItem("empresa_id") || "";
   const isEmpresaJPA = empresaId === "5";
+  
+  // Verificar se é administrador
+  const tipoUser = localStorage.getItem("tipoUser") || "";
+  const isAdmin = tipoUser === "Administrador";
 
   // Bloqueios / locks
   const [isRegistering, setIsRegistering] = useState(false);
@@ -106,6 +110,11 @@ const RegistoPontoFacial = (props) => {
   const [isProcessingScan, setIsProcessingScan] = useState(false);
   const registoLockRef = useRef(false);
   const scanLockRef = useRef(false);
+
+  // Estados para modal de definições
+  const [showDefinicoesModal, setShowDefinicoesModal] = useState(false);
+  const [emailVisitantes, setEmailVisitantes] = useState('');
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   // Pré-aquecer localização quando o utilizador inicia o scan
   const locationPromiseRef = useRef(null);
@@ -681,6 +690,55 @@ const RegistoPontoFacial = (props) => {
     }
   };
 
+  const handleAbrirDefinicoes = async () => {
+    setShowDefinicoesModal(true);
+    // Carregar email atual
+    try {
+      const token = localStorage.getItem("loginToken");
+      const res = await fetch("https://backend.advir.pt/api/configuracoes/email_visitantes", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const config = await res.json();
+        setEmailVisitantes(config.valor || '');
+      }
+    } catch (error) {
+      console.error("Erro ao carregar configurações:", error);
+    }
+  };
+
+  const handleSalvarDefinicoes = async () => {
+    if (!emailVisitantes || !emailVisitantes.includes('@')) {
+      alert('Por favor, insira um email válido');
+      return;
+    }
+
+    try {
+      setIsSavingConfig(true);
+      const token = localStorage.getItem("loginToken");
+      const res = await fetch("https://backend.advir.pt/api/configuracoes/email_visitantes", {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ valor: emailVisitantes })
+      });
+
+      if (res.ok) {
+        alert('Configurações salvas com sucesso!');
+        setShowDefinicoesModal(false);
+      } else {
+        alert('Erro ao salvar configurações');
+      }
+    } catch (error) {
+      console.error("Erro ao salvar configurações:", error);
+      alert('Erro ao salvar configurações');
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
   const handleLogoutPOS = () => {
     localStorage.clear();
     if (navigation) {
@@ -1161,15 +1219,26 @@ const RegistoPontoFacial = (props) => {
             {/* Header */}
             <div className="card card-moderno mb-3 mb-md-4">
               <div className="card-body py-3 py-md-4">
-                <div className="text-center">
-                  <h1 className="h4 h3-md mb-2 text-primary">
-                    <FaUserCheck className="me-2" />
-                    Identificação Facial e Registo de Ponto
-                  </h1>
-                  <p className="text-muted mb-0 small">
-                    Selecione o local e use o reconhecimento facial para
-                    identificar o utilizador e registar o seu ponto
-                  </p>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <div className="flex-grow-1 text-center">
+                    <h1 className="h4 h3-md mb-2 text-primary">
+                      <FaUserCheck className="me-2" />
+                      Identificação Facial e Registo de Ponto
+                    </h1>
+                    <p className="text-muted mb-0 small">
+                      Selecione o local e use o reconhecimento facial para
+                      identificar o utilizador e registar o seu ponto
+                    </p>
+                  </div>
+                  {isAdmin && (
+                    <button
+                      className="btn btn-sm btn-outline-primary"
+                      onClick={handleAbrirDefinicoes}
+                      style={{ minWidth: '100px' }}
+                    >
+                      ⚙️ Definições
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1595,6 +1664,64 @@ const RegistoPontoFacial = (props) => {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Definições */}
+      {showDefinicoesModal && (
+        <div
+          className="result-modal-overlay"
+          onClick={() => setShowDefinicoesModal(false)}
+        >
+          <div
+            className="result-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "500px" }}
+          >
+            <div className="result-modal-header">
+              <h3 className="modal-title">⚙️ Definições de Visitantes</h3>
+            </div>
+            <div className="result-modal-body">
+              <div className="mb-3 text-start">
+                <label className="form-label fw-semibold">
+                  Email para Notificações de Visitantes:
+                </label>
+                <input
+                  type="email"
+                  className="form-control"
+                  placeholder="exemplo@advir.pt"
+                  value={emailVisitantes}
+                  onChange={(e) => setEmailVisitantes(e.target.value)}
+                />
+                <small className="text-muted">
+                  Este email receberá notificações sempre que um visitante registar entrada/saída
+                </small>
+              </div>
+              <div className="d-flex gap-2 mt-4">
+                <button
+                  className="btn btn-secondary flex-grow-1"
+                  onClick={() => setShowDefinicoesModal(false)}
+                  disabled={isSavingConfig}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="modal-close-btn flex-grow-1"
+                  onClick={handleSalvarDefinicoes}
+                  disabled={isSavingConfig}
+                >
+                  {isSavingConfig ? (
+                    <>
+                      <FaSpinner className="me-2 spin" />
+                      A guardar...
+                    </>
+                  ) : (
+                    'Guardar'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
