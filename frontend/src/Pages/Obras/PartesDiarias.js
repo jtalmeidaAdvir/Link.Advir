@@ -48,6 +48,7 @@ const PartesDiarias = ({ navigation }) => {
     });
     const [dadosProcessados, setDadosProcessados] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
+    const [modalResumoVisible, setModalResumoVisible] = useState(false);
     const [modalExternosVisible, setModalExternosVisible] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [selectedTrabalhador, setSelectedTrabalhador] = useState(null);
@@ -645,7 +646,6 @@ const submeterPessoalEquip = async () => {
             return;
         }
         if (!classeId) {
-            // Validation for classeId
             Alert.alert("Validação", "Seleciona a Classe.");
             return;
         }
@@ -658,25 +658,42 @@ const submeterPessoalEquip = async () => {
             return;
         }
 
+        // ✅ VALIDAÇÃO: Verificar se já existe registo para este trabalhador/dia/obra
+        const jaExiste = linhasExternos.some(
+            (l) => String(l.trabalhadorId) === String(trabalhadorId) && 
+                   l.dia === dia && 
+                   String(l.obraId) === String(obraId)
+        );
+
+        if (jaExiste) {
+            Alert.alert(
+                "Registo Duplicado",
+                `Já existe um registo para ${trab.funcionario} no dia ${dia} nesta obra.\n\nPor favor, escolha outro dia ou edite o registo existente.`,
+                [{ text: "OK" }]
+            );
+            return;
+        }
+
         const minutos = parseHorasToMinutos(horas);
         if (minutos <= 0) {
             Alert.alert("Validação", "Horas inválidas.");
             return;
         }
 
-        // Validação de horas: 8h normais por dia
+        // Validação de horas: 8h normais por dia (por trabalhador)
         if (!linhaAtual.horaExtra) {
             const outrasHorasNormaisDia = linhasExternos
-                .filter((l) => l.dia === dia && !l.horaExtra)
+                .filter((l) => String(l.trabalhadorId) === String(trabalhadorId) && 
+                              l.dia === dia && 
+                              !l.horaExtra)
                 .reduce((total, l) => total + parseHorasToMinutos(l.horas), 0);
 
             const totalHorasNormais = outrasHorasNormaisDia + minutos;
 
             if (totalHorasNormais > 8 * 60) {
-                // 8 horas em minutos
                 Alert.alert(
                     "Limite de Horas Excedido",
-                    `Não é possível registar mais de 8 horas normais por dia.\n\nHoras normais já registadas neste dia: ${formatarHorasMinutos(outrasHorasNormaisDia)}\n\nPara mais horas, marque como "Hora Extra".`,
+                    `Não é possível registar mais de 8 horas normais por dia para ${trab.funcionario}.\n\nHoras normais já registadas neste dia: ${formatarHorasMinutos(outrasHorasNormaisDia)}\n\nPara mais horas, marque como "Hora Extra".`,
                     [{ text: "OK" }],
                 );
                 return;
@@ -1592,7 +1609,7 @@ const submeterPessoalEquip = async () => {
             let equipasData;
 
             if (tipoUser === "Administrador") {
-                // Administradores veem todos os colaboradores
+                // Administradores veem todos os utilizadores
                 const empresaId = await AsyncStorage.getItem("empresa_id");
                 const usersResponse = await fetch(
                     `https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaId}`,
@@ -2113,11 +2130,11 @@ const submeterPessoalEquip = async () => {
 
             const especialidadesDia =
                 trabalhador.especialidades?.filter((esp) => esp.dia === dia) || [];
-            
+
             // Verificar se o utilizador atual é diretor
             const userId = await AsyncStorage.getItem("userId");
             const isProprioUtilizador = String(trabalhador.userId) === String(userId);
-            
+
             // Encontrar a especialidade e classe por defeito
             let especialidadeDefeito = trabalhador.especialidade || "";
             let classeIdDefeito = trabalhador.classeId || null;
@@ -2126,7 +2143,7 @@ const submeterPessoalEquip = async () => {
             if (isProprioUtilizador && especialidadesDia.length === 0) {
                 // Procurar a especialidade "Edificações de Estaleiro"
                 const espDefeito = especialidadesList.find(
-                    (e) => e.descricao && e.descricao.toLowerCase().includes("edificaç") && 
+                    (e) => e.descricao && e.descricao.toLowerCase().includes("edificaç") &&
                            e.descricao.toLowerCase().includes("estaleiro")
                 );
                 if (espDefeito) {
@@ -2220,7 +2237,7 @@ const submeterPessoalEquip = async () => {
         if (campo === "especialidade" && subEmpId != null) {
             novas[index].subEmpId = subEmpId;
 
-            // Automaticamente selecionar a primeira classe compatível quando especialidade muda
+            // Automaticamente selecionar a primeira classe compatível
             const categoria = novas[index].categoria || "MaoObra";
             const classesCompativeis = getClassesCompativeis(valor, categoria);
             if (classesCompativeis.length > 0) {
@@ -2576,8 +2593,8 @@ const submeterPessoalEquip = async () => {
             return;
         }
 
-        // Mostrar o modal de resumo
-        setModalVisible(true);
+        // Mostrar apenas o modal de resumo (não o modal de confirmação antigo)
+        setModalResumoVisible(true);
     };
 
     const criarParteDiaria = async () => {
@@ -3085,9 +3102,24 @@ const submeterPessoalEquip = async () => {
                                             style={styles.externosPicker}
                                         >
                                             <Picker.Item label="— Selecionar dia —" value="" />
-                                            {diasDoMes.map((d) => (
-                                                <Picker.Item key={d} label={`Dia ${d}`} value={d} />
-                                            ))}
+                                            {diasDoMes.map((d) => {
+                                                // Verificar se já existe registo para este dia/trabalhador/obra
+                                                const jaRegistado = linhaAtual.trabalhadorId && linhaAtual.obraId && 
+                                                    linhasExternos.some(
+                                                        (l) => String(l.trabalhadorId) === String(linhaAtual.trabalhadorId) && 
+                                                               l.dia === d && 
+                                                               String(l.obraId) === String(linhaAtual.obraId)
+                                                    );
+                                                
+                                                return (
+                                                    <Picker.Item 
+                                                        key={d} 
+                                                        label={jaRegistado ? `Dia ${d} ✓ (já registado)` : `Dia ${d}`} 
+                                                        value={d}
+                                                        color={jaRegistado ? "#28a745" : "#000"}
+                                                    />
+                                                );
+                                            })}
                                         </Picker>
                                     </View>
                                 </View>
@@ -3121,11 +3153,10 @@ const submeterPessoalEquip = async () => {
                                 </View>
                             </View>
 
-                            {/* Trabalhador Externo - campo largo */}
+                            {/* Trabalhador Externo */}
                             <View style={styles.externosInputGroup}>
                                 <Text style={styles.externosInputLabel}>
-                                    <Ionicons name="person" size={14} color="#666" /> Trabalhador
-                                    Externo *
+                                    <Ionicons name="person" size={14} color="#666" /> Trabalhador Externo *
                                 </Text>
                                 <View style={styles.externosPickerWrapper}>
                                     <Picker
@@ -3136,16 +3167,65 @@ const submeterPessoalEquip = async () => {
                                         style={styles.externosPicker}
                                     >
                                         <Picker.Item label="— Selecionar trabalhador —" value="" />
-                                        {externosFiltrados.map((t) => (
-                                            <Picker.Item
-                                                key={t.id}
-                                                label={`${t.funcionario} (${t.empresa})`}
-                                                value={t.id}
-                                            />
-                                        ))}
+                                        {externosLista.map((ext) => {
+                                            // Obtém os dias já registados para este trabalhador e obra selecionada
+                                            const diasRegistados = linhasExternos
+                                                .filter(l => String(l.trabalhadorId) === String(ext.id) && 
+                                                           String(l.obraId) === String(linhaAtual.obraId))
+                                                .map(l => l.dia)
+                                                .sort((a, b) => a - b);
+
+                                            // Formata a label para incluir os dias já registados
+                                            const labelExtra = diasRegistados.length > 0 
+                                                ? ` (Dias: ${diasRegistados.join(', ')})` 
+                                                : '';
+
+                                            return (
+                                                <Picker.Item
+                                                    key={ext.id}
+                                                    label={`${ext.funcionario} - ${ext.empresa}${labelExtra}`}
+                                                    value={ext.id}
+                                                />
+                                            );
+                                        })}
                                     </Picker>
                                 </View>
                             </View>
+
+                            {/* Indicador de dias já registados - MELHORADO */}
+                            {linhaAtual.trabalhadorId && linhaAtual.obraId && (
+                                (() => {
+                                    const diasRegistados = linhasExternos
+                                        .filter(l => String(l.trabalhadorId) === String(linhaAtual.trabalhadorId) && 
+                                                   String(l.obraId) === String(linhaAtual.obraId))
+                                        .map(l => l.dia)
+                                        .sort((a, b) => a - b);
+                                    
+                                    const trabalhadorNome = externosLista.find(e => String(e.id) === String(linhaAtual.trabalhadorId))?.funcionario || 'Trabalhador';
+                                    const obraNome = obrasParaPickers.find(o => String(o.id) === String(linhaAtual.obraId))?.nome || 'Obra';
+                                    
+                                    return (
+                                        <View style={{
+                                            backgroundColor: diasRegistados.length > 0 ? '#fff3cd' : '#e7f3ff',
+                                            padding: 12,
+                                            borderRadius: 8,
+                                            marginBottom: 10,
+                                            borderLeftWidth: 4,
+                                            borderLeftColor: diasRegistados.length > 0 ? '#ffc107' : '#1792FE'
+                                        }}>
+                                            <Text style={{ fontSize: 13, color: '#333', fontWeight: '600', marginBottom: 4 }}>
+                                                {diasRegistados.length > 0 ? '⚠️' : 'ℹ️'} {trabalhadorNome} - {obraNome}
+                                            </Text>
+                                            <Text style={{ fontSize: 12, color: '#666' }}>
+                                                {diasRegistados.length > 0 
+                                                    ? `Dias já registados: ${diasRegistados.join(', ')}`
+                                                    : 'Nenhum registo ainda. Selecione um dia disponível.'
+                                                }
+                                            </Text>
+                                        </View>
+                                    );
+                                })()
+                            )}
 
                             {/* Categoria com botões melhorados */}
                             <View style={styles.externosInputGroup}>
@@ -3985,19 +4065,66 @@ const submeterPessoalEquip = async () => {
                                                     </View>
                                                 </View>
                                             ))}
-                                            {/* 🔹 EXTERNOS (SUBMETIDOS) – vindos do servidor */}
+                                            {/* 🔹 EXTERNOS CONSOLIDADOS (SUBMETIDOS + PENDENTES) */}
                                             {(() => {
                                                 const extMapSub = externosSubmetidosPorObraPessoa.get(
                                                     obraGroup.obraInfo.id,
                                                 );
-                                                if (!extMapSub || extMapSub.size === 0) return null;
+                                                const extMapPend = externosPorObraPessoa.get(
+                                                    obraGroup.obraInfo.id,
+                                                );
+                                                
+                                                // Criar mapa consolidado por identificador único
+                                                const consolidado = new Map();
+                                                
+                                                // Adicionar submetidos
+                                                if (extMapSub) {
+                                                    extMapSub.forEach((row) => {
+                                                        const key = row.funcionario.toLowerCase().trim();
+                                                        consolidado.set(key, {
+                                                            funcionario: row.funcionario,
+                                                            empresa: "",
+                                                            horasPorDia: { ...row.horasPorDia },
+                                                            totalMin: row.totalMin,
+                                                            temSubmetido: true,
+                                                            temPendente: false
+                                                        });
+                                                    });
+                                                }
+                                                
+                                                // Adicionar/somar pendentes
+                                                if (extMapPend) {
+                                                    extMapPend.forEach((row) => {
+                                                        const key = row.funcionario.toLowerCase().trim();
+                                                        if (consolidado.has(key)) {
+                                                            const existing = consolidado.get(key);
+                                                            diasDoMes.forEach(dia => {
+                                                                existing.horasPorDia[dia] = (existing.horasPorDia[dia] || 0) + (row.horasPorDia[dia] || 0);
+                                                            });
+                                                            existing.totalMin += row.totalMin;
+                                                            existing.temPendente = true;
+                                                            existing.empresa = row.empresa || existing.empresa;
+                                                        } else {
+                                                            consolidado.set(key, {
+                                                                funcionario: row.funcionario,
+                                                                empresa: row.empresa || "",
+                                                                horasPorDia: { ...row.horasPorDia },
+                                                                totalMin: row.totalMin,
+                                                                temSubmetido: false,
+                                                                temPendente: true
+                                                            });
+                                                        }
+                                                    });
+                                                }
+                                                
+                                                if (consolidado.size === 0) return null;
 
-                                                return [...extMapSub.values()].map((row) => (
+                                                return [...consolidado.values()].map((row, idx) => (
                                                     <View
-                                                        key={`ext-sub-${obraGroup.obraInfo.id}-${row.funcionario}`}
+                                                        key={`ext-consolidado-${obraGroup.obraInfo.id}-${idx}`}
                                                         style={[
                                                             styles.tableRow,
-                                                            styles.externoSubmetidoRow,
+                                                            row.temPendente && !row.temSubmetido ? styles.externoResumoRow : styles.externoSubmetidoRow,
                                                         ]}
                                                     >
                                                         {/* Coluna do nome */}
@@ -4010,70 +4137,16 @@ const submeterPessoalEquip = async () => {
                                                                     (Externo)
                                                                 </Text>
                                                             </Text>
-                                                            <Text style={styles.cellSubText}>
-                                                                ✓ submetido
-                                                            </Text>
-                                                        </View>
-
-                                                        {/* Colunas dos dias */}
-                                                        {diasDoMes.map((dia) => (
-                                                            <View
-                                                                key={`ext-sub-${obraGroup.obraInfo.id}-${row.funcionario}-${dia}`}
-                                                                style={[styles.tableCell, { width: 50 }]}
-                                                            >
-                                                                <Text
-                                                                    style={[
-                                                                        styles.cellText,
-                                                                        { textAlign: "center" },
-                                                                        row.horasPorDia[dia] > 0 &&
-                                                                        styles.hoursText,
-                                                                    ]}
-                                                                >
-                                                                    {row.horasPorDia[dia] > 0
-                                                                        ? formatarHorasMinutos(row.horasPorDia[dia])
-                                                                        : "-"}
+                                                            {row.temSubmetido && row.temPendente && (
+                                                                <Text style={[styles.cellSubText, { color: "#1792FE" }]}>
+                                                                    ✓ submetido + pendente
                                                                 </Text>
-                                                            </View>
-                                                        ))}
-
-                                                        {/* Total */}
-                                                        <View style={[styles.tableCell, { width: 70 }]}>
-                                                            <Text
-                                                                style={[
-                                                                    styles.cellText,
-                                                                    styles.totalText,
-                                                                    { textAlign: "center" },
-                                                                ]}
-                                                            >
-                                                                {formatarHorasMinutos(row.totalMin)}
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-                                                ));
-                                            })()}
-
-                                            {/* 🔹 LINHA AGREGADA DE EXTERNOS POR OBRA (se existir) */}
-                                            {(() => {
-                                                const extMap = externosPorObraPessoa.get(
-                                                    obraGroup.obraInfo.id,
-                                                );
-                                                if (!extMap || extMap.size === 0) return null;
-
-                                                return [...extMap.values()].map((row) => (
-                                                    <View
-                                                        key={`ext-${obraGroup.obraInfo.id}-${row.trabalhadorId}`}
-                                                        style={[styles.tableRow, styles.externoResumoRow]}
-                                                    >
-                                                        {/* Coluna do nome */}
-                                                        <View style={[styles.tableCell, { width: 120 }]}>
-                                                            <Text
-                                                                style={[styles.cellText, { fontWeight: "700" }]}
-                                                            >
-                                                                {row.funcionario}{" "}
-                                                                <Text style={{ fontWeight: "400" }}>
-                                                                    (Externo)
+                                                            )}
+                                                            {row.temSubmetido && !row.temPendente && (
+                                                                <Text style={styles.cellSubText}>
+                                                                    ✓ submetido
                                                                 </Text>
-                                                            </Text>
+                                                            )}
                                                             {!!row.empresa && (
                                                                 <Text style={styles.cellSubText}>
                                                                     {row.empresa}
@@ -4084,21 +4157,18 @@ const submeterPessoalEquip = async () => {
                                                         {/* Colunas dos dias */}
                                                         {diasDoMes.map((dia) => (
                                                             <View
-                                                                key={`ext-${obraGroup.obraInfo.id}-${row.trabalhadorId}-${dia}`}
+                                                                key={`ext-consolidado-${obraGroup.obraInfo.id}-${idx}-${dia}`}
                                                                 style={[styles.tableCell, { width: 50 }]}
                                                             >
                                                                 <Text
                                                                     style={[
                                                                         styles.cellText,
                                                                         { textAlign: "center" },
-                                                                        row.horasPorDia[dia] > 0 &&
-                                                                        styles.hoursText,
+                                                                        row.horasPorDia[dia] > 0 && styles.hoursText,
                                                                     ]}
                                                                 >
                                                                     {row.horasPorDia[dia] > 0
-                                                                        ? formatarHorasMinutos(
-                                                                            row.horasPorDia[dia],
-                                                                        )
+                                                                        ? formatarHorasMinutos(row.horasPorDia[dia])
                                                                         : "-"}
                                                                 </Text>
                                                             </View>
@@ -4452,8 +4522,8 @@ const submeterPessoalEquip = async () => {
             <Modal
                 animationType="slide"
                 transparent={true}
-                visible={modalVisible}
-                onRequestClose={() => setModalVisible(false)}
+                visible={modalResumoVisible}
+                onRequestClose={() => setModalResumoVisible(false)}
             >
                 <View style={styles.resumoModalContainer}>
                     <View style={styles.resumoModalContent}>
@@ -4470,7 +4540,7 @@ const submeterPessoalEquip = async () => {
                                     </Text>
                                 </View>
                                 <TouchableOpacity
-                                    onPress={() => setModalVisible(false)}
+                                    onPress={() => setModalResumoVisible(false)}
                                     style={styles.resumoCloseButton}
                                 >
                                     <Ionicons name="close" size={24} color="#fff" />
@@ -4694,7 +4764,7 @@ const submeterPessoalEquip = async () => {
                         <View style={styles.resumoModalFooter}>
                             <TouchableOpacity
                                 style={styles.resumoCancelButton}
-                                onPress={() => setModalVisible(false)}
+                                onPress={() => setModalResumoVisible(false)}
                             >
                                 <Text style={styles.resumoCancelButtonText}>Cancelar</Text>
                             </TouchableOpacity>
@@ -4711,7 +4781,7 @@ const submeterPessoalEquip = async () => {
                                     resumoSubmissao.totalExternos === 0
                                 }
                                 onPress={async () => {
-                                    setModalVisible(false);
+                                    setModalResumoVisible(false);
                                     await criarParteDiaria();
                                 }}
                             >
