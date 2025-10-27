@@ -8,9 +8,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
 
+import { styles } from "../Css/GestaoTrabalhadoresExternosStyles";
+
 const API_BASE = 'https://backend.advir.pt/api/trabalhadores-externos';
 const API_PARTE_DIARIA = 'https://backend.advir.pt/api/parte-diaria/cabecalhos';
 const API_OBRAS = 'https://backend.advir.pt/api/obra';
+
+
+
+
+
+const getDiasNoMes = (ano, mes1a12) => new Date(ano, mes1a12, 0).getDate();
+
+const nomeMesPT = (m1a12) =>
+  new Date(2000, m1a12 - 1, 1).toLocaleString('pt-PT', { month: 'long' });
+
 
 const statusBadge = (ativo, anulado) => {
     if (anulado) return { label: 'Anulado', color: '#dc3545', icon: 'close-circle' };
@@ -63,15 +75,93 @@ const normalizeName = (s = '') =>
         .trim()
         .toLowerCase();
 
-const getEspecialidade = (it = {}) =>
-    it.Especialidade ||
-    it.EspecialidadeNome ||
-    it.Funcao ||
-    it.FuncaoNome ||
-    it.SubCategoria ||
-    it.Subcategoria ||
-    (String(it.Categoria || '').toLowerCase() !== 'equipamentos' ? it.Categoria : '') ||
-    '—';
+
+// fora do componente (ou no topo)
+// fora do componente
+const normalizeClasseCode = (v) => {
+  if (v === null || v === undefined) return null;
+  let s = String(v).trim();
+  if (s === '-1') return '-1';           // manter "Indiferenciada"
+  if (/^\d+$/.test(s)) return s.padStart(4, '0'); // "1"->"0001", "202"->"0202"
+  return s;
+};
+
+
+// em carregarClasses()
+// dentro de carregarClasses()
+
+        
+
+const getEspecialidade = (it = {}) => {
+    // Se temos SubEmpID, usar o mapa para obter a descrição
+    if (it.SubEmpID != null) {
+        const subEmpIdStr = String(it.SubEmpID);
+        const descricao = especialidadesList.find(e => String(e.subEmpId) === subEmpIdStr)?.descricao;
+        if (descricao) return descricao;
+    }
+    
+    // Priorizar especialidades reais antes da categoria genérica
+    const esp = it.Especialidade ||
+        it.EspecialidadeNome ||
+        it.Funcao ||
+        it.FuncaoNome ||
+        it.SubCategoria ||
+        it.Subcategoria ||
+        '';
+    
+    // Se não encontrou especialidade específica e categoria não é equipamentos
+    if (!esp && String(it.Categoria || '').toLowerCase() !== 'equipamentos') {
+        const cat = it.Categoria || '';
+        // Não retornar "MaoObra" como especialidade
+        if (cat.toLowerCase() === 'maoobra') {
+            return '—';
+        }
+        return cat;
+    }
+    
+    return esp || '—';
+};
+
+
+// depois
+const getClasse = (it = {}, classes = []) => {
+  if (!classes || !classes.length) return '—';
+
+  const idCand   = it.ClasseId ?? it.ClasseID ?? it.IdClasse ?? null;
+  const codeCand = it.Classe   ?? it.ClasseCodigo ?? it.CodigoClasse ?? null;
+
+  const idStr      = idCand != null ? String(idCand).trim() : null;
+  const codeRawStr = codeCand != null ? String(codeCand).trim() : null;
+  const codeNorm   = normalizeClasseCode(codeRawStr);
+
+  // 1) tentar por ID
+  let c = null;
+  if (idStr) {
+    c = classes.find(x =>
+      String(x.classeId).trim() === idStr ||
+      (!Number.isNaN(Number(x.classeId)) && !Number.isNaN(Number(idStr)) && Number(x.classeId) === Number(idStr))
+    );
+  }
+
+  // 2) tentar por código normalizado ("0001","0202","-1")
+  if (!c && codeNorm) {
+    c = classes.find(x =>
+      x.classeNorm === codeNorm || String(x.classe).trim() === codeRawStr
+    );
+  }
+
+  // 3) último recurso por descrição
+  if (!c && it.ClasseDescricao) {
+    const desc = String(it.ClasseDescricao).trim().toLowerCase();
+    c = classes.find(x => String(x.descricao).trim().toLowerCase() === desc);
+  }
+
+  return c?.descricao || codeNorm || '—';
+};
+
+
+
+
 
 const formatarValor = (n = 0) =>
     Number(n).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -87,6 +177,26 @@ const GestaoTrabalhadoresExternos = () => {
     const [refreshing, setRefreshing] = useState(false);
     const [erro, setErro] = useState('');
     const [registos, setRegistos] = useState([]);
+
+    
+    // === NOVO: navegação de meses ===
+    const hoje = new Date();
+    const [mesSelecionado, setMesSelecionado] = useState(hoje.getMonth() + 1); // 1..12
+    const [anoSelecionado, setAnoSelecionado] = useState(hoje.getFullYear());
+
+      const prevMonth = () => {
+    setMesSelecionado((m) => {
+      if (m === 1) { setAnoSelecionado((a) => a - 1); return 12; }
+      return m - 1;
+    });
+  };
+
+  const nextMonth = () => {
+    setMesSelecionado((m) => {
+      if (m === 12) { setAnoSelecionado((a) => a + 1); return 1; }
+      return m + 1;
+    });
+  };
 
     // Filtros
     const [search, setSearch] = useState('');
@@ -122,6 +232,7 @@ const GestaoTrabalhadoresExternos = () => {
     const [empresaResumoFiltro, setEmpresaResumoFiltro] = useState('');
     const [externoResumoFiltro, setExternoResumoFiltro] = useState('');
     const [especialidadeResumoFiltro, setEspecialidadeResumoFiltro] = useState('');
+    const [classeResumoFiltro, setClasseResumoFiltro] = useState('');
 
     // === GRADE MENSAL EXTERNOS ===
     const [modalGradeVisible, setModalGradeVisible] = useState(false);
@@ -139,7 +250,22 @@ const GestaoTrabalhadoresExternos = () => {
     const [empresaGradeFiltro, setEmpresaGradeFiltro] = useState('');
     const [externoGradeFiltro, setExternoGradeFiltro] = useState('');
     const [especialidadeGradeFiltro, setEspecialidadeGradeFiltro] = useState('');
+    const [classeGradeFiltro, setClasseGradeFiltro] = useState('');
     const [agruparGradePor, setAgruparGradePor] = useState('geral');
+
+    // Helper para requisições com retry
+    const fetchComRetentativas = async (url, options, tentativas = 3, delay = 1000) => {
+        for (let i = 0; i < tentativas; i++) {
+            try {
+                const res = await fetch(url, options);
+                if (!res.ok) throw new Error(`Erro ${res.status}`);
+                return await res.json();
+            } catch (err) {
+                if (i === tentativas - 1) throw err;
+                await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)));
+            }
+        }
+    };
 
     const carregarCombos = useCallback(async () => {
         try {
@@ -478,134 +604,141 @@ const GestaoTrabalhadoresExternos = () => {
         return m;
     }, [registos]);
 
-    const fetchPartesGrade = useCallback(async () => {
-        setGradeLoading(true);
-        const hoje = new Date();
-        const mes = hoje.getMonth() + 1;
-        const ano = hoje.getFullYear();
-        const diasNoMes = new Date(ano, mes, 0).getDate();
+const fetchPartesGrade = useCallback(async () => {
+  setGradeLoading(true);
 
-        try {
-            const painelToken = await AsyncStorage.getItem('painelAdminToken');
-            const res = await fetch('https://backend.advir.pt/api/parte-diaria/cabecalhos', {
-                headers: { Authorization: `Bearer ${painelToken}` }
-            });
+  const mes = mesSelecionado;       // 1..12
+  const ano = anoSelecionado;
+  const diasNoMes = getDiasNoMes(ano, mes);
 
-            if (!res.ok) throw new Error('Erro ao carregar partes diárias');
+  try {
+    const painelToken = await AsyncStorage.getItem('painelAdminToken');
+    const res = await fetch(API_PARTE_DIARIA, {
+      headers: { Authorization: `Bearer ${painelToken}` }
+    });
+    if (!res.ok) throw new Error('Erro ao carregar partes diárias');
 
-            const all = await res.json();
+    const all = await res.json();
 
-            const partesDesteMes = (all || []).filter(cab => {
-                const dataCab = new Date(cab.Data);
-                return dataCab.getMonth() + 1 === mes && dataCab.getFullYear() === ano;
-            });
+    const partesDoMes = (all || []).filter(cab => {
+      const d = new Date(cab.Data);
+      return d.getMonth() + 1 === mes && d.getFullYear() === ano;
+    });
 
-            const externosProcessados = [];
-            const mapGrupoParaHoras = new Map();
-            const mapGrupoParaInfo = new Map();
+    const externosProcessados = [];
+    const mapGrupoParaHoras = new Map();
+    const mapGrupoParaInfo = new Map();
+    const mapGrupoParaValores = new Map();
 
-            partesDesteMes.forEach(cab => {
-                const itensExternos = (cab.ParteDiariaItems || []).filter(it => {
-                    const semColab = it.ColaboradorID === null ||
-                        it.ColaboradorID === undefined ||
-                        String(it.ColaboradorID).trim() === '';
-                    const marca = /\bexterno\b/i.test(String(it.Funcionario || ''));
-                    return semColab || marca;
-                });
+    partesDoMes.forEach(cab => {
+      const itensExternos = (cab.ParteDiariaItems || []).filter(it => {
+        const semColab = it.ColaboradorID == null || String(it.ColaboradorID).trim() === '';
+        const marca = /\bexterno\b/i.test(String(it.Funcionario || ''));
+        return semColab || marca;
+      });
 
-                itensExternos.forEach(item => {
-                    const nome = String(item.Funcionario || 'Externo').replace(/\s*\(Externo\)\s*$/i, '').trim();
-                    const nomeKey = normalizeName(nome);
-                    
-                    // Tentar obter empresa dos registos ou usar do item
-                    const empresaDoRegisto = nomeToInfo[nomeKey]?.empresa;
-                    const empresa = empresaDoRegisto || item.Empresa || '—';
-                    
-                    const especialidade = getEspecialidade(item) || '—';
-                    const obra = obrasMap[String(cab.ObraID)];
-                    const obraLabel = obra ? `${obra.codigo} — ${obra.nome}` : `Obra ${cab.ObraID}`;
-                    
-                    const dataItem = new Date(cab.Data);
-                    const dia = dataItem.getDate();
-                    const minutos = Number(item.NumHoras || 0);
+      itensExternos.forEach(item => {
+        const nome = String(item.Funcionario || 'Externo').replace(/\s*\(Externo\)\s*$/i, '').trim();
+        const nomeKey = normalizeName(nome);
 
-                    // Determinar a chave de agrupamento
-                    let grupoKey = nome;
-                    let grupoLabel = nome;
-                    
-                    switch (agruparGradePor) {
-                        case 'obra':
-                            grupoKey = obraLabel;
-                            grupoLabel = obraLabel;
-                            break;
-                        case 'empresa':
-                            grupoKey = empresa;
-                            grupoLabel = empresa;
-                            break;
-                        case 'externo':
-                            grupoKey = nome;
-                            grupoLabel = nome;
-                            break;
-                        case 'especialidade':
-                            grupoKey = especialidade;
-                            grupoLabel = especialidade;
-                            break;
-                        case 'geral':
-                        default:
-                            grupoKey = nome;
-                            grupoLabel = nome;
-                            break;
-                    }
+        const info = nomeToInfo[nomeKey] || {};
+        const valorHora = info.valorHora || 0;
+        const moeda = info.moeda || 'EUR';
 
-                    // Armazenar informações do grupo (atualizar se já existe para garantir empresa correta)
-                    const infoAtual = mapGrupoParaInfo.get(grupoKey) || {};
-                    mapGrupoParaInfo.set(grupoKey, {
-                        empresa: empresa,
-                        especialidade: especialidade,
-                        nome: grupoLabel,
-                    });
+        const empresa = info.empresa || item.Empresa || '—';
 
-                    if (!mapGrupoParaHoras.has(grupoKey)) {
-                        mapGrupoParaHoras.set(grupoKey, {});
-                    }
-                    const horasDoDia = mapGrupoParaHoras.get(grupoKey);
-                    horasDoDia[dia] = (horasDoDia[dia] || 0) + minutos;
-                });
-            });
-
-            mapGrupoParaHoras.forEach((diasHoras, grupoKey) => {
-                const info = mapGrupoParaInfo.get(grupoKey) || {};
-                externosProcessados.push({ 
-                    nome: info.nome || grupoKey, 
-                    empresa: info.empresa || '—',
-                    especialidade: info.especialidade || '—',
-                    diasHoras 
-                });
-            });
-
-            setGradesMensais({
-                externos: externosProcessados,
-                mesAtual: mes,
-                anoAtual: ano,
-                diasNoMes: diasNoMes,
-            });
-
-        } catch (err) {
-            console.error('Erro ao carregar partes diárias:', err);
-            Alert.alert('Erro', 'Não foi possível carregar as partes diárias dos externos.');
-        } finally {
-            setGradeLoading(false);
+        // Especialidade via SubEmpID → lista carregada
+        let especialidade = '—';
+        if (item.SubEmpID != null) {
+          const esp = especialidadesList.find(e => String(e.subEmpId) === String(item.SubEmpID));
+          especialidade = esp?.descricao || '—';
         }
-    }, [agruparGradePor, obrasMap, nomeToInfo]);
+        if (especialidade === '—') especialidade = getEspecialidade(item) || '—';
 
-    const abrirGradePartes = async () => {
-        setModalGradeVisible(true);
-        await Promise.all([
-            carregarClassesEspecialidades(),
-            fetchObrasResumo(),
-            fetchPartesGrade()
-        ]);
-    };
+        const classe = getClasse(item, classesList);
+
+        const obra = obrasMap[String(cab.ObraID)];
+        const obraLabel = obra ? `${obra.codigo} — ${obra.nome}` : `Obra ${cab.ObraID}`;
+
+        const dataItem = new Date(cab.Data);
+        const dia = dataItem.getDate();
+        const minutos = Number(item.NumHoras || 0);
+        const valorDia = (minutos / 60) * valorHora;
+
+        let grupoKey = nome;
+        let grupoLabel = nome;
+        switch (agruparGradePor) {
+          case 'obra': grupoKey = grupoLabel = obraLabel; break;
+          case 'empresa': grupoKey = grupoLabel = empresa; break;
+          case 'externo': grupoKey = grupoLabel = nome; break;
+          case 'especialidade': grupoKey = grupoLabel = especialidade; break;
+          case 'classe': grupoKey = grupoLabel = classe; break;
+          case 'geral':
+          default: grupoKey = grupoLabel = nome; break;
+        }
+
+        const infoAtual = mapGrupoParaInfo.get(grupoKey) || {};
+        mapGrupoParaInfo.set(grupoKey, {
+          empresa,
+          especialidade,
+          classe,
+          nome: grupoLabel,
+          moeda
+        });
+
+        if (!mapGrupoParaHoras.has(grupoKey)) mapGrupoParaHoras.set(grupoKey, {});
+        mapGrupoParaHoras.get(grupoKey)[dia] = (mapGrupoParaHoras.get(grupoKey)[dia] || 0) + minutos;
+
+        if (!mapGrupoParaValores.has(grupoKey)) mapGrupoParaValores.set(grupoKey, {});
+        mapGrupoParaValores.get(grupoKey)[dia] = (mapGrupoParaValores.get(grupoKey)[dia] || 0) + valorDia;
+      });
+    });
+
+    mapGrupoParaHoras.forEach((diasHoras, grupoKey) => {
+      const info = mapGrupoParaInfo.get(grupoKey) || {};
+      const diasValores = mapGrupoParaValores.get(grupoKey) || {};
+      externosProcessados.push({
+        nome: info.nome || grupoKey,
+        empresa: info.empresa || '—',
+        especialidade: info.especialidade || '—',
+        classe: info.classe || '—',
+        moeda: info.moeda || 'EUR',
+        diasHoras,
+        diasValores
+      });
+    });
+
+    setGradesMensais({
+      externos: externosProcessados,
+      mesAtual: mes,
+      anoAtual: ano,
+      diasNoMes
+    });
+
+  } catch (err) {
+    console.error('Erro ao carregar partes diárias:', err);
+    Alert.alert('Erro', 'Não foi possível carregar as partes diárias dos externos.');
+  } finally {
+    setGradeLoading(false);
+  }
+}, [agruparGradePor, obrasMap, nomeToInfo, especialidadesList, classesList, mesSelecionado, anoSelecionado]);
+
+
+const abrirGradePartes = async () => {
+  setModalGradeVisible(true);
+  await carregarClassesEspecialidades();
+  await fetchObrasResumo();
+  await fetchPartesGrade();
+};
+
+
+useEffect(() => {
+  if (modalGradeVisible) {
+    fetchPartesGrade();
+  }
+}, [mesSelecionado, anoSelecionado, modalGradeVisible, fetchPartesGrade]);
+
+
 
     // Recarregar grade quando agrupamento muda
     useEffect(() => {
@@ -626,6 +759,7 @@ const GestaoTrabalhadoresExternos = () => {
         setEmpresaGradeFiltro('');
         setExternoGradeFiltro('');
         setEspecialidadeGradeFiltro('');
+        setClasseGradeFiltro('');
         setAgruparGradePor('geral');
     };
 
@@ -644,19 +778,36 @@ const GestaoTrabalhadoresExternos = () => {
         const empresas = new Set();
         const externos = new Set();
         const especialidades = new Set();
+        const classes = new Set();
 
         (gradesMensais.externos || []).forEach(ext => {
             if (ext.empresa && ext.empresa !== '—') empresas.add(ext.empresa);
             if (ext.nome) externos.add(ext.nome);
-            if (ext.especialidade && ext.especialidade !== '—') especialidades.add(ext.especialidade);
+            if (ext.especialidade && ext.especialidade !== '—' && ext.especialidade.toLowerCase() !== 'maoobra') {
+                especialidades.add(ext.especialidade);
+            }
+            if (ext.classe && ext.classe !== '—') {
+                classes.add(ext.classe);
+            }
+        });
+
+        // Adicionar especialidades da lista carregada
+        especialidadesList.forEach(esp => {
+            if (esp.descricao) especialidades.add(esp.descricao);
+        });
+
+        // Adicionar classes da lista carregada
+        classesList.forEach(cls => {
+            if (cls.descricao) classes.add(cls.descricao);
         });
 
         return {
             empresas: ['', ...Array.from(empresas).sort()],
             externos: ['', ...Array.from(externos).sort()],
             especialidades: ['', ...Array.from(especialidades).sort()],
+            classes: ['', ...Array.from(classes).sort()],
         };
-    }, [gradesMensais.externos]);
+    }, [gradesMensais.externos, especialidadesList, classesList]);
 
     // Filtrar externos para a grade
     const externosFiltradosGrade = useMemo(() => {
@@ -664,9 +815,10 @@ const GestaoTrabalhadoresExternos = () => {
             const matchEmpresa = !empresaGradeFiltro || externo.empresa === empresaGradeFiltro;
             const matchExterno = !externoGradeFiltro || externo.nome === externoGradeFiltro;
             const matchEspecialidade = !especialidadeGradeFiltro || externo.especialidade === especialidadeGradeFiltro;
-            return matchEmpresa && matchExterno && matchEspecialidade;
+            const matchClasse = !classeGradeFiltro || externo.classe === classeGradeFiltro;
+            return matchEmpresa && matchExterno && matchEspecialidade && matchClasse;
         });
-    }, [gradesMensais.externos, empresaGradeFiltro, externoGradeFiltro, especialidadeGradeFiltro]);
+    }, [gradesMensais.externos, empresaGradeFiltro, externoGradeFiltro, especialidadeGradeFiltro, classeGradeFiltro]);
 
 
     // === RESUMO EXTERNOS: data sources
@@ -726,63 +878,70 @@ const GestaoTrabalhadoresExternos = () => {
         return m;
     }, [registos]);
 
-    // Carregar listas de classes e especialidades
-    const carregarClassesEspecialidades = useCallback(async () => {
+    // Carregar especialidades (apenas com CDU_CCS preenchido)
+    const carregarEspecialidades = useCallback(async () => {
+        const painelToken = await AsyncStorage.getItem('painelAdminToken');
+        const urlempresa = await AsyncStorage.getItem('urlempresa');
         try {
-            const painelToken = await AsyncStorage.getItem('painelAdminToken');
-            const urlempresa = await AsyncStorage.getItem('urlempresa');
-
-            const headers = {
-                Authorization: `Bearer ${painelToken}`,
-                urlempresa,
-                'Content-Type': 'application/json'
-            };
-
-            const [resClasses, resEsp, resEquip] = await Promise.all([
-                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses', { headers }),
-                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades', { headers }),
-                fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos', { headers })
-            ]);
-
-            if (resClasses.ok) {
-                const data = await resClasses.json();
-                const table = data?.DataSet?.Table;
-                const items = Array.isArray(table) ? table.map(item => ({
-                    classeId: item.ClasseId,
-                    descricao: item.Descricao,
-                    classe: item.Classe
-                })) : [];
-                setClassesList(items);
-            }
-
-            if (resEsp.ok) {
-                const data = await resEsp.json();
-                const table = data?.DataSet?.Table;
-                const items = Array.isArray(table) ? table.map(item => ({
-                    codigo: item.SubEmp,
-                    descricao: item.Descricao,
-                    subEmpId: item.SubEmpId
-                })) : [];
-                setEspecialidadesList(prev => [...prev, ...items]);
-            }
-
-            if (resEquip.ok) {
-                const data = await resEquip.json();
-                const raw = data?.DataSet?.Table;
-                const table = Array.isArray(raw) ? raw : raw ? [raw] : [];
-                const items = table
-                    .filter(item => typeof item?.Codigo === 'string' && item.Codigo.trim().toUpperCase().startsWith('L'))
-                    .map(item => ({
-                        codigo: item.Codigo.trim(),
-                        descricao: item.Desig,
-                        subEmpId: item.ComponenteID
-                    }));
-                setEspecialidadesList(prev => [...prev, ...items]);
-            }
+            const data = await fetchComRetentativas(
+                'https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades',
+                {
+                    headers: { Authorization: `Bearer ${painelToken}`, urlempresa },
+                }
+            );
+            const table = data?.DataSet?.Table;
+            const items = Array.isArray(table)
+                ? table
+                    .filter((item) => item.CDU_CCS != null && item.CDU_CCS !== '')
+                    .map((item) => ({
+                        codigo: item.SubEmp,
+                        descricao: item.Descricao,
+                        subEmpId: item.SubEmpId,
+                        cduCcs: item.CDU_CCS,
+                    }))
+                : [];
+            setEspecialidadesList(items);
         } catch (err) {
-            console.error('Erro ao carregar classes/especialidades:', err);
+            console.error('Erro ao obter especialidades:', err);
+            Alert.alert('Erro', 'Não foi possível carregar as especialidades');
         }
     }, []);
+
+    // Carregar classes
+    const carregarClasses = useCallback(async () => {
+        const painelToken = await AsyncStorage.getItem('painelAdminToken');
+        const urlempresa = await AsyncStorage.getItem('urlempresa');
+        try {
+            const data = await fetchComRetentativas(
+                'https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses',
+                {
+                    headers: { Authorization: `Bearer ${painelToken}`, urlempresa },
+                }
+            );
+            const table = data?.DataSet?.Table;
+            const items = Array.isArray(table)
+  ? table.map(item => ({
+      classeId: String(item.ClasseId),   // "1", "2", "-1", ...
+      classe: String(item.Classe).trim(),// "-1", "0001", "0002", ...
+      descricao: item.Descricao,
+      cduCcs: item.CDU_CCS || item.Classe,
+    }))
+  : [];
+setClassesList(items);
+
+        } catch (err) {
+            console.error('Erro ao obter classes:', err);
+            Alert.alert('Erro', 'Não foi possível carregar as classes');
+        }
+    }, []);
+
+    // Função combinada para carregar classes e especialidades
+    const carregarClassesEspecialidades = useCallback(async () => {
+        await Promise.all([
+            carregarEspecialidades(),
+            carregarClasses()
+        ]);
+    }, [carregarEspecialidades, carregarClasses]);
 
     // Helpers resumo
     const getPeriodParts = (iso) => {
@@ -798,6 +957,7 @@ const GestaoTrabalhadoresExternos = () => {
         const empresas = new Set(['']);
         const externos = new Set(['']);
         const especialidades = new Set(['']);
+        const classes = new Set(['']);
 
         (resumoDocs || []).forEach(cab => {
             (cab.ParteDiariaItems || []).forEach(it => {
@@ -808,26 +968,70 @@ const GestaoTrabalhadoresExternos = () => {
                 const emp = nomeToInfo[key]?.empresa || '—';
                 if (emp) empresas.add(emp);
                 if (it.Funcionario) externos.add(it.Funcionario);
-                const esp = getEspecialidade(it);
-                if (esp) especialidades.add(esp);
+                
+                // Obter especialidade usando SubEmpID
+                let esp = '—';
+                if (it.SubEmpID != null) {
+                    const espObj = especialidadesList.find(e => String(e.subEmpId) === String(it.SubEmpID));
+                    esp = espObj?.descricao || '—';
+                }
+                if (esp === '—') {
+                    esp = getEspecialidade(it);
+                }
+                
+                if (esp && esp !== '—' && esp.toLowerCase() !== 'maoobra') {
+                    especialidades.add(esp);
+                }
+
+                // Obter classe
+                const classe = getClasse(it, classesList);
+
+                if (classe && classe !== '—') {
+                    classes.add(classe);
+                }
             });
         });
 
+        // Adicionar especialidades da lista carregada
+        especialidadesList.forEach(esp => {
+            if (esp.descricao) especialidades.add(esp.descricao);
+        });
+
+        // Adicionar classes da lista carregada
+        classesList.forEach(cls => {
+            if (cls.descricao) classes.add(cls.descricao);
+        });
+
         return {
-            empresas: Array.from(empresas),
-            externos: Array.from(externos),
-            especialidades: Array.from(especialidades),
+            empresas: Array.from(empresas).sort(),
+            externos: Array.from(externos).sort(),
+            especialidades: Array.from(especialidades).sort(),
+            classes: Array.from(classes).sort(),
         };
-    }, [resumoDocs, nomeToInfo]);
+    }, [resumoDocs, nomeToInfo, especialidadesList, classesList]);
 
     const passaFiltrosResumo = (it) => {
         const nome = it.Funcionario || '';
-        const esp = getEspecialidade(it);
         const emp = nomeToInfo[normalizeName(nome)]?.empresa || '—';
+        
+        // Obter especialidade corretamente usando SubEmpID
+        let esp = '—';
+        if (it.SubEmpID != null) {
+            const espObj = especialidadesList.find(e => String(e.subEmpId) === String(it.SubEmpID));
+            esp = espObj?.descricao || '—';
+        }
+        if (esp === '—') {
+            esp = getEspecialidade(it);
+        }
+
+        // Obter classe
+        const classe = getClasse(it, classesList);
+
 
         if (empresaResumoFiltro && emp !== empresaResumoFiltro) return false;
         if (externoResumoFiltro && nome !== externoResumoFiltro) return false;
         if (especialidadeResumoFiltro && esp !== especialidadeResumoFiltro) return false;
+        if (classeResumoFiltro && classe !== classeResumoFiltro) return false;
 
         return true;
     };
@@ -872,7 +1076,20 @@ const GestaoTrabalhadoresExternos = () => {
                 const nome = it.Funcionario || 'Externo';
                 const nomeKey = normalizeName(nome);
                 const emp = nomeToEmpresa[nomeKey] || nomeToInfo[nomeKey]?.empresa || '—';
-                const esp = getEspecialidade(it);
+                
+                // Obter especialidade usando SubEmpID
+                let esp = '—';
+                if (it.SubEmpID != null) {
+                    const espObj = especialidadesList.find(e => String(e.subEmpId) === String(it.SubEmpID));
+                    esp = espObj?.descricao || '—';
+                }
+                if (esp === '—') {
+                    esp = getEspecialidade(it);
+                }
+
+                // Obter classe
+                const classe = getClasse(it, classesList);
+
 
                 let gLabel = 'Total';
                 switch (agruparPor) {
@@ -884,6 +1101,7 @@ const GestaoTrabalhadoresExternos = () => {
                     case 'empresa': gLabel = emp; break;
                     case 'externo': gLabel = nome; break;
                     case 'especialidade': gLabel = esp; break;
+                    case 'classe': gLabel = classe; break;
                     case 'empresa_externo': gLabel = `${emp} — ${nome}`; break;
                     case 'especialidade_externo': gLabel = `${esp} — ${nome}`; break;
                     case 'especialidade_empresa': gLabel = `${esp} — ${emp}`; break;
@@ -921,7 +1139,8 @@ const GestaoTrabalhadoresExternos = () => {
             .sort((a, b) => b.sort - a.sort);
 
         return arr;
-    }, [resumoDocs, granularidade, agruparPor, obrasMap, nomeToEmpresa, nomeToInfo, dataInicio, dataFim, empresaResumoFiltro, externoResumoFiltro, especialidadeResumoFiltro]);
+    }, [resumoDocs, granularidade, agruparPor, obrasMap, nomeToEmpresa, nomeToInfo, dataInicio, dataFim, empresaResumoFiltro, externoResumoFiltro, especialidadeResumoFiltro,classeResumoFiltro,            // <-- ADICIONAR
+  classesList , especialidadesList]);
 
     // Render cards
     const renderItem = ({ item }) => {
@@ -1601,6 +1820,7 @@ const GestaoTrabalhadoresExternos = () => {
                                             { k: 'empresa', label: 'Por Empresa', icon: 'storefront-outline' },
                                             { k: 'externo', label: 'Por Colaborador', icon: 'person-outline' },
                                             { k: 'especialidade', label: 'Por Especialidade', icon: 'construct-outline' },
+                                            { k: 'classe', label: 'Por Classe', icon: 'library-outline' },
                                         ].map(op => (
                                             <TouchableOpacity
                                                 key={op.k}
@@ -1705,6 +1925,22 @@ const GestaoTrabalhadoresExternos = () => {
                                                 </Picker>
                                             </View>
                                         </View>
+
+                                        <View style={styles.filterDropdown}>
+                                            <Text style={styles.filterLabel}>Classe</Text>
+                                            <View style={styles.modernPicker}>
+                                                <Picker
+                                                    selectedValue={classeResumoFiltro}
+                                                    onValueChange={setClasseResumoFiltro}
+                                                    style={styles.pickerStyle}
+                                                >
+                                                    <Picker.Item label="Todas" value="" />
+                                                    {resumoOptions.classes.slice(1).map((c, idx) => (
+                                                        <Picker.Item key={`cls-res-${idx}`} label={c} value={c} />
+                                                    ))}
+                                                </Picker>
+                                            </View>
+                                        </View>
                                     </View>
                                 </View>
                             </View>
@@ -1792,6 +2028,7 @@ const GestaoTrabalhadoresExternos = () => {
                     </SafeAreaView>
                 </Modal>
 
+
                 {/* Modal Grade Partes Diárias (Mensal) */}
                 <Modal visible={modalGradeVisible} animationType="slide" onRequestClose={fecharGradePartes}>
                     <SafeAreaView style={styles.modalContainer}>
@@ -1808,216 +2045,274 @@ const GestaoTrabalhadoresExternos = () => {
                                 </TouchableOpacity>
                             </View>
                         </LinearGradient>
+                        
+{/* ↓↓↓ COLA A PARTIR DAQUI ↓↓↓ */}
+<ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+  <View style={{ padding: 20 }}>
 
-                        {gradeLoading ? (
-                            <View style={styles.centerContainer}>
-                                <LinearGradient colors={['#17a2b8', '#138496']} style={styles.loadingCard}>
-                                    <ActivityIndicator size="large" color="#fff" />
-                                    <Text style={styles.loadingText}>A carregar partes diárias...</Text>
-                                </LinearGradient>
-                            </View>
-                        ) : gradesMensais.externos.length === 0 ? (
-                            <View style={styles.emptyStateContainer}>
-                                <View style={styles.emptyStateCard}>
-                                    <LinearGradient
-                                        colors={['rgba(23, 162, 184, 0.1)', 'rgba(19, 132, 150, 0.05)']}
-                                        style={styles.emptyStateIcon}
-                                    >
-                                        <Ionicons name="grid-outline" size={80} color="#17a2b8" />
-                                    </LinearGradient>
-                                    <Text style={styles.emptyStateTitle}>Sem partes diárias de externos</Text>
-                                    <Text style={styles.emptyStateText}>
-                                        Ainda não existem partes diárias registadas para trabalhadores externos no mês atual.
-                                    </Text>
-                                </View>
-                            </View>
-                        ) : (
-                            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-                                <View style={{ padding: 20 }}>
-                                    {/* Cabeçalho da Grade Mensal */}
-                                    <View style={styles.gradeMensalHeader}>
-                                        <Text style={styles.gradeMensalTitulo}>
-                                            Grade Mensal - {gradesMensais.mesAtual}/{gradesMensais.anoAtual}
-                                        </Text>
-                                        <Text style={styles.gradeMensalSubtitulo}>
-                                            {externosFiltradosGrade.length} de {gradesMensais.externos.length} externo{gradesMensais.externos.length !== 1 ? 's' : ''}
-                                        </Text>
-                                    </View>
+    {/* Cabeçalho SEMPRE visível */}
+    <View style={styles.gradeMensalHeader}>
+      <View style={styles.gradeMensalNav}>
+        <TouchableOpacity
+          onPress={prevMonth}
+          disabled={gradeLoading}
+          style={[styles.navBtn, gradeLoading && { opacity: 0.6 }]}
+        >
+          <Ionicons name="chevron-back" size={20} color="#0B5ED7" />
+        </TouchableOpacity>
 
-                                    {/* Agrupamento da Grade */}
-                                    <View style={styles.controlSection}>
-                                        <Text style={styles.controlSectionTitle}>Agrupamento de Dados</Text>
-                                        <View style={styles.chipContainer}>
-                                            {[
-                                                { k: 'geral', label: 'Geral', icon: 'grid-outline' },
-                                                { k: 'obra', label: 'Por Obra', icon: 'business-outline' },
-                                                { k: 'empresa', label: 'Por Empresa', icon: 'storefront-outline' },
-                                                { k: 'externo', label: 'Por Colaborador', icon: 'person-outline' },
-                                                { k: 'especialidade', label: 'Por Especialidade', icon: 'construct-outline' },
-                                            ].map(op => (
-                                                <TouchableOpacity
-                                                    key={op.k}
-                                                    onPress={() => setAgruparGradePor(op.k)}
-                                                    style={[styles.chip, agruparGradePor === op.k && styles.chipActive]}
-                                                >
-                                                    <Ionicons name={op.icon} size={14} color={agruparGradePor === op.k ? '#fff' : '#666'} />
-                                                    <Text style={agruparGradePor === op.k ? styles.chipTextActive : styles.chipText}>
-                                                        {op.label}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            ))}
-                                        </View>
-                                    </View>
+        <Text style={styles.gradeMensalTitulo}>
+          {nomeMesPT(gradesMensais.mesAtual).charAt(0).toUpperCase() +
+            nomeMesPT(gradesMensais.mesAtual).slice(1)}{" "}
+          {gradesMensais.anoAtual}
+        </Text>
 
-                                    {/* Filtros da Grade */}
-                                    <View style={styles.controlSection}>
-                                        <Text style={styles.controlSectionTitle}>Filtros de Pesquisa</Text>
-                                        <View style={styles.advancedFilters}>
-                                            <View style={styles.filterDropdown}>
-                                                <Text style={styles.filterLabel}>Empresa</Text>
-                                                <View style={styles.modernPicker}>
-                                                    <Picker
-                                                        selectedValue={empresaGradeFiltro}
-                                                        onValueChange={setEmpresaGradeFiltro}
-                                                        style={styles.pickerStyle}
-                                                    >
-                                                        <Picker.Item label="🏢 Todas as empresas" value="" />
-                                                        {gradeOptions.empresas.filter(e => e !== '').map((e, idx) => (
-                                                            <Picker.Item key={`emp-grade-${idx}`} label={`🏢 ${e}`} value={e} />
-                                                        ))}
-                                                    </Picker>
-                                                </View>
-                                            </View>
+        <TouchableOpacity
+          onPress={nextMonth}
+          disabled={gradeLoading}
+          style={[styles.navBtn, gradeLoading && { opacity: 0.6 }]}
+        >
+          <Ionicons name="chevron-forward" size={20} color="#0B5ED7" />
+        </TouchableOpacity>
+      </View>
 
-                                            <View style={styles.filterDropdown}>
-                                                <Text style={styles.filterLabel}>Colaborador</Text>
-                                                <View style={styles.modernPicker}>
-                                                    <Picker
-                                                        selectedValue={externoGradeFiltro}
-                                                        onValueChange={setExternoGradeFiltro}
-                                                        style={styles.pickerStyle}
-                                                    >
-                                                        <Picker.Item label="👤 Todos os colaboradores" value="" />
-                                                        {gradeOptions.externos.filter(e => e !== '').map((e, idx) => (
-                                                            <Picker.Item key={`ext-grade-${idx}`} label={`👤 ${e}`} value={e} />
-                                                        ))}
-                                                    </Picker>
-                                                </View>
-                                            </View>
+      <Text style={styles.gradeMensalSubtitulo}>
+        {externosFiltradosGrade.length} de {gradesMensais.externos.length} externo
+        {gradesMensais.externos.length !== 1 ? "s" : ""}
+      </Text>
+    </View>
 
-                                            <View style={styles.filterDropdown}>
-                                                <Text style={styles.filterLabel}>Especialidade</Text>
-                                                <View style={styles.modernPicker}>
-                                                    <Picker
-                                                        selectedValue={especialidadeGradeFiltro}
-                                                        onValueChange={setEspecialidadeGradeFiltro}
-                                                        style={styles.pickerStyle}
-                                                    >
-                                                        <Picker.Item label="⚒️ Todas as especialidades" value="" />
-                                                        {gradeOptions.especialidades.filter(e => e !== '').map((e, idx) => (
-                                                            <Picker.Item key={`esp-grade-${idx}`} label={`⚒️ ${e}`} value={e} />
-                                                        ))}
-                                                    </Picker>
-                                                </View>
-                                            </View>
-                                        </View>
-                                    </View>
+    {/* Agrupamento da Grade */}
+    <View style={styles.controlSection}>
+      <Text style={styles.controlSectionTitle}>Agrupamento de Dados</Text>
+      <View style={styles.chipContainer}>
+        {[
+          { k: "geral", label: "Geral", icon: "grid-outline" },
+          { k: "obra", label: "Por Obra", icon: "business-outline" },
+          { k: "empresa", label: "Por Empresa", icon: "storefront-outline" },
+          { k: "externo", label: "Por Colaborador", icon: "person-outline" },
+          { k: "especialidade", label: "Por Especialidade", icon: "construct-outline" },
+          { k: "classe", label: "Por Classe", icon: "library-outline" },
+        ].map((op) => (
+          <TouchableOpacity
+            key={op.k}
+            onPress={() => setAgruparGradePor(op.k)}
+            style={[styles.chip, agruparGradePor === op.k && styles.chipActive]}
+          >
+            <Ionicons name={op.icon} size={14} color={agruparGradePor === op.k ? "#fff" : "#666"} />
+            <Text style={agruparGradePor === op.k ? styles.chipTextActive : styles.chipText}>
+              {op.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
 
-                                    {externosFiltradosGrade.length === 0 ? (
-                                        <View style={styles.emptyStateContainer}>
-                                            <View style={styles.emptyStateCard}>
-                                                <LinearGradient
-                                                    colors={['rgba(23, 162, 184, 0.1)', 'rgba(19, 132, 150, 0.05)']}
-                                                    style={styles.emptyStateIcon}
-                                                >
-                                                    <Ionicons name="filter-outline" size={80} color="#17a2b8" />
-                                                </LinearGradient>
-                                                <Text style={styles.emptyStateTitle}>Nenhum externo encontrado</Text>
-                                                <Text style={styles.emptyStateText}>
-                                                    Ajuste os filtros para visualizar os dados.
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    ) : (
-                                        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
-                                            <View>
-                                                {/* Cabeçalho dos dias */}
-                                                <View style={styles.gradeMensalTableHeader}>
-                                                    <View style={[styles.gradeMensalHeaderCell, styles.gradeMensalNomeCell]}>
-                                                        <Text style={styles.gradeMensalHeaderText}>Nome</Text>
-                                                    </View>
-                                                    {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map(dia => {
-                                                        const data = new Date(gradesMensais.anoAtual, gradesMensais.mesAtual - 1, dia);
-                                                        const isFds = data.getDay() === 0 || data.getDay() === 6;
-                                                        return (
-                                                            <View
-                                                                key={dia}
-                                                                style={[
-                                                                    styles.gradeMensalHeaderCell,
-                                                                    styles.gradeMensalDiaCell,
-                                                                    isFds && styles.gradeMensalFimDeSemana
-                                                                ]}
-                                                            >
-                                                                <Text style={[styles.gradeMensalHeaderText, isFds && { color: '#dc3545' }]}>
-                                                                    {dia}
-                                                                </Text>
-                                                            </View>
-                                                        );
-                                                    })}
-                                                </View>
+    {/* Filtros da Grade */}
+    <View style={styles.controlSection}>
+      <Text style={styles.controlSectionTitle}>Filtros de Pesquisa</Text>
+      <View style={styles.advancedFilters}>
+        <View style={styles.filterDropdown}>
+          <Text style={styles.filterLabel}>Empresa</Text>
+          <View style={styles.modernPicker}>
+            <Picker selectedValue={empresaGradeFiltro} onValueChange={setEmpresaGradeFiltro} style={styles.pickerStyle}>
+              <Picker.Item label="🏢 Todas as empresas" value="" />
+              {gradeOptions.empresas.filter((e) => e !== "").map((e, idx) => (
+                <Picker.Item key={`emp-grade-${idx}`} label={`🏢 ${e}`} value={e} />
+              ))}
+            </Picker>
+          </View>
+        </View>
 
-                                                {/* Linhas dos externos */}
-                                                {externosFiltradosGrade.map((externo, idx) => (
-                                                    <View
-                                                        key={externo.nome}
-                                                        style={[
-                                                            styles.gradeMensalRow,
-                                                            idx % 2 === 0 && styles.gradeMensalRowPar
-                                                        ]}
-                                                    >
-                                                        <View style={[styles.gradeMensalCell, styles.gradeMensalNomeCell]}>
-                                                            <Text style={styles.gradeMensalNomeText} numberOfLines={1}>
-                                                                {externo.nome}
-                                                            </Text>
-                                                        </View>
-                                                        {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map(dia => {
-                                                            const minutos = externo.diasHoras[dia] || 0;
-                                                            const data = new Date(gradesMensais.anoAtual, gradesMensais.mesAtual - 1, dia);
-                                                            const isFds = data.getDay() === 0 || data.getDay() === 6;
-                                                            const temHoras = minutos > 0;
+        <View style={styles.filterDropdown}>
+          <Text style={styles.filterLabel}>Colaborador</Text>
+          <View style={styles.modernPicker}>
+            <Picker selectedValue={externoGradeFiltro} onValueChange={setExternoGradeFiltro} style={styles.pickerStyle}>
+              <Picker.Item label="👤 Todos os colaboradores" value="" />
+              {gradeOptions.externos.filter((e) => e !== "").map((e, idx) => (
+                <Picker.Item key={`ext-grade-${idx}`} label={`👤 ${e}`} value={e} />
+              ))}
+            </Picker>
+          </View>
+        </View>
 
-                                                            return (
-                                                                <View
-                                                                    key={dia}
-                                                                    style={[
-                                                                        styles.gradeMensalCell,
-                                                                        styles.gradeMensalDiaCell,
-                                                                        isFds && styles.gradeMensalFimDeSemana,
-                                                                        temHoras && styles.gradeMensalCellComHoras
-                                                                    ]}
-                                                                >
-                                                                    <Text style={[
-                                                                        styles.gradeMensalCellText,
-                                                                        temHoras && styles.gradeMensalCellTextComHoras
-                                                                    ]}>
-                                                                        {minutos > 0
-                                                                            ? minutos >= 60
-                                                                                ? `${Math.floor(minutos / 60)}h${minutos % 60 > 0 ? `${minutos % 60}` : ''}`
-                                                                                : `${minutos}m`
-                                                                            : '—'
-                                                                        }
-                                                                    </Text>
-                                                                </View>
-                                                            );
-                                                        })}
-                                                    </View>
-                                                ))}
-                                            </View>
-                                        </ScrollView>
-                                    )}
-                                </View>
-                            </ScrollView>
-                        )}
+        <View style={styles.filterDropdown}>
+          <Text style={styles.filterLabel}>Especialidade</Text>
+          <View style={styles.modernPicker}>
+            <Picker
+              selectedValue={especialidadeGradeFiltro}
+              onValueChange={setEspecialidadeGradeFiltro}
+              style={styles.pickerStyle}
+            >
+              <Picker.Item label="⚒️ Todas as especialidades" value="" />
+              {gradeOptions.especialidades.filter((e) => e !== "").map((e, idx) => (
+                <Picker.Item key={`esp-grade-${idx}`} label={`⚒️ ${e}`} value={e} />
+              ))}
+            </Picker>
+          </View>
+        </View>
+
+        <View style={styles.filterDropdown}>
+          <Text style={styles.filterLabel}>Classe</Text>
+          <View style={styles.modernPicker}>
+            <Picker selectedValue={classeGradeFiltro} onValueChange={setClasseGradeFiltro} style={styles.pickerStyle}>
+              <Picker.Item label="📚 Todas as classes" value="" />
+              {gradeOptions.classes.filter((c) => c !== "").map((c, idx) => (
+                <Picker.Item key={`cls-grade-${idx}`} label={`📚 ${c}`} value={c} />
+              ))}
+            </Picker>
+          </View>
+        </View>
+      </View>
+    </View>
+
+    {/* Loader */}
+    {gradeLoading && (
+      <View style={styles.centerContainer}>
+        <LinearGradient colors={["#17a2b8", "#138496"]} style={styles.loadingCard}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.loadingText}>A carregar partes diárias...</Text>
+        </LinearGradient>
+      </View>
+    )}
+
+    {/* Sem dados */}
+    {!gradeLoading && externosFiltradosGrade.length === 0 && (
+      <View style={styles.emptyStateContainer}>
+        <View style={styles.emptyStateCard}>
+          <LinearGradient
+            colors={["rgba(23, 162, 184, 0.1)", "rgba(19, 132, 150, 0.05)"]}
+            style={styles.emptyStateIcon}
+          >
+            <Ionicons name="grid-outline" size={80} color="#17a2b8" />
+          </LinearGradient>
+          <Text style={styles.emptyStateTitle}>Sem partes diárias de externos</Text>
+          <Text style={styles.emptyStateText}>
+            Não há registos para este mês. Usa as setas acima para navegar entre meses.
+          </Text>
+        </View>
+      </View>
+    )}
+
+    {/* Tabela */}
+    {!gradeLoading && externosFiltradosGrade.length > 0 && (
+      <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+        <View>
+          {/* Cabeçalho dos dias */}
+          <View style={styles.gradeMensalTableHeader}>
+            <View style={[styles.gradeMensalHeaderCell, styles.gradeMensalNomeCell]}>
+              <Text style={styles.gradeMensalHeaderText}>Nome</Text>
+            </View>
+            {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map((dia) => {
+              const data = new Date(gradesMensais.anoAtual, gradesMensais.mesAtual - 1, dia);
+              const isFds = data.getDay() === 0 || data.getDay() === 6;
+              return (
+                <View
+                  key={dia}
+                  style={[
+                    styles.gradeMensalHeaderCell,
+                    styles.gradeMensalDiaCell,
+                    isFds && styles.gradeMensalFimDeSemana,
+                  ]}
+                >
+                  <Text style={[styles.gradeMensalHeaderText, isFds && { color: "#dc3545" }]}>{dia}</Text>
+                </View>
+              );
+            })}
+            <View style={[styles.gradeMensalHeaderCell, styles.gradeMensalTotalCell]}>
+              <Text style={styles.gradeMensalHeaderText}>Total</Text>
+            </View>
+          </View>
+
+          {/* Linhas */}
+          {externosFiltradosGrade.map((externo, idx) => {
+            const totalMinutosLinha = Object.values(externo.diasHoras).reduce((s, m) => s + m, 0);
+            const totalEmEuros = Object.values(externo.diasValores || {}).reduce((s, v) => s + v, 0);
+            const moeda = externo.moeda || "EUR";
+
+            return (
+              <View
+                key={externo.nome}
+                style={[styles.gradeMensalRow, idx % 2 === 0 && styles.gradeMensalRowPar]}
+              >
+                <View style={[styles.gradeMensalCell, styles.gradeMensalNomeCell]}>
+                  <Text style={styles.gradeMensalNomeText} numberOfLines={1}>
+                    {externo.nome}
+                  </Text>
+                </View>
+
+                {Array.from({ length: gradesMensais.diasNoMes }, (_, i) => i + 1).map((dia) => {
+                  const minutos = externo.diasHoras[dia] || 0;
+                  const valorDia = (externo.diasValores || {})[dia] || 0;
+                  const data = new Date(gradesMensais.anoAtual, gradesMensais.mesAtual - 1, dia);
+                  const isFds = data.getDay() === 0 || data.getDay() === 6;
+                  const temHoras = minutos > 0;
+
+                  return (
+                    <View
+                      key={dia}
+                      style={[
+                        styles.gradeMensalCell,
+                        styles.gradeMensalDiaCell,
+                        isFds && styles.gradeMensalFimDeSemana,
+                        temHoras && styles.gradeMensalCellComHoras,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.gradeMensalCellText,
+                          temHoras && styles.gradeMensalCellTextComHoras,
+                        ]}
+                      >
+                        {minutos > 0
+                          ? minutos >= 60
+                            ? `${Math.floor(minutos / 60)}h${
+                                minutos % 60 > 0 ? `${minutos % 60}` : ""
+                              }`
+                            : `${minutos}m`
+                          : "—"}
+                      </Text>
+                      {minutos > 0 && valorDia > 0 && (
+                        <Text style={styles.gradeMensalCellValueText}>
+                          {formatarValor(valorDia)} {moeda}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })}
+
+                <View
+                  style={[
+                    styles.gradeMensalCell,
+                    styles.gradeMensalTotalCell,
+                    styles.gradeMensalCellTotal,
+                  ]}
+                >
+                  <Text style={styles.gradeMensalTotalText}>
+                    {totalMinutosLinha > 0
+                      ? totalMinutosLinha >= 60
+                        ? `${Math.floor(totalMinutosLinha / 60)}h${
+                            totalMinutosLinha % 60 > 0 ? ` ${totalMinutosLinha % 60}m` : ""
+                          }`
+                        : `${totalMinutosLinha}m`
+                      : "0h"}
+                  </Text>
+                  {totalMinutosLinha > 0 && totalEmEuros > 0 && (
+                    <Text style={styles.gradeMensalTotalValueText}>
+                      {formatarValor(totalEmEuros)} {moeda}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+    )}
+  </View>
+</ScrollView>
+
+                        
                     </SafeAreaView>
                 </Modal>
 
@@ -2069,1171 +2364,6 @@ const GestaoTrabalhadoresExternos = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    // Containers Principais
-    mainContainer: { flex: 1 },
-    container: { flex: 1 },
-    centerContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20
-    },
 
-    // Header Melhorado
-    header: {
-        paddingTop: 20,
-        paddingHorizontal: 20,
-        paddingBottom: 10,
-    },
-    headerContent: {
-        borderRadius: 20,
-        padding: 20,
-    },
-    headerTop: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    headerIcon: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 15,
-    },
-    headerTextContainer: {
-        flex: 1,
-    },
-    headerTitle: {
-        fontSize: 26,
-        fontWeight: '800',
-        color: '#fff',
-        marginBottom: 5
-    },
-    headerSubtitle: {
-        fontSize: 16,
-        color: 'rgba(255,255,255,0.8)',
-        fontWeight: '500'
-    },
-
-    // Filtros Melhorados
-    filtersContainer: {
-        paddingHorizontal: 20,
-        marginBottom: 10,
-    },
-    filtersCard: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 20,
-        elevation: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-    },
-
-    // Pesquisa
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f8f9fa',
-        borderRadius: 15,
-        paddingHorizontal: 15,
-        marginBottom: 20,
-        borderWidth: 2,
-        borderColor: '#e9ecef',
-    },
-    searchIcon: {
-        marginRight: 10,
-    },
-    searchInput: {
-        flex: 1,
-        paddingVertical: 15,
-        fontSize: 16,
-        color: '#333',
-    },
-    searchBtn: {
-        padding: 5,
-    },
-
-    // Dropdowns
-    dropdownsContainer: {
-        flexDirection: 'row',
-        gap: 15,
-        marginBottom: 20,
-    },
-    dropdownWrapper: {
-        flex: 1,
-    },
-    dropdownLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 8,
-    },
-    modernPicker: {
-        backgroundColor: '#f8f9fa',
-        borderRadius: 12,
-        borderWidth: 2,
-        borderColor: '#e9ecef',
-        overflow: 'hidden',
-    },
-    pickerStyle: {
-        color: '#333',
-    },
-
-    // Status Chips
-    statusContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-        marginBottom: 20,
-    },
-    statusChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#f8f9fa',
-        borderWidth: 2,
-        borderColor: '#e9ecef',
-        gap: 6,
-    },
-    statusChipActive: {
-        backgroundColor: '#1792FE',
-        borderColor: '#1792FE',
-    },
-    statusChipText: {
-        color: '#666',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    statusChipTextActive: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 14,
-    },
-
-    // Action Buttons
-    actionButtonsContainer: {
-        flexDirection: 'row',
-        gap: 10,
-        flexWrap: 'wrap',
-    },
-    modernButton: {
-        flex: 1,
-        minWidth: 120,
-        borderRadius: 15,
-        overflow: 'hidden',
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    modernButtonGradient: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 15,
-        gap: 8,
-    },
-    modernButtonText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 14,
-    },
-
-    // Lista
-    listContainer: {
-        padding: 20,
-        paddingTop: 10,
-    },
-
-    // Cards Melhorados
-    card: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        marginBottom: 20,
-        elevation: 6,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        overflow: 'hidden',
-    },
-    cardContent: {
-        padding: 20,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 15,
-    },
-    titleContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    iconBadge: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(23, 146, 254, 0.1)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    cardTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#333',
-        flex: 1,
-    },
-    statusBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 15,
-        gap: 4,
-    },
-    statusIcon: {
-    },
-    statusText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '700',
-    },
-
-    // Card Body
-    cardBody: {
-        gap: 12,
-        marginBottom: 15,
-    },
-    infoRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    infoIcon: {
-        width: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 10,
-    },
-    infoLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#666',
-        width: 80,
-    },
-    infoValue: {
-        fontSize: 14,
-        color: '#333',
-        flex: 1,
-        fontWeight: '500',
-    },
-    valueText: {
-        color: '#28a745',
-        fontWeight: '700',
-    },
-
-    // Actions Row
-    actionsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-    },
-    actionBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 10,
-        backgroundColor: '#f8f9fa',
-        gap: 6,
-        flex: 1,
-        minWidth: 80,
-        justifyContent: 'center',
-    },
-    actionBtnText: {
-        fontWeight: '600',
-        fontSize: 13,
-    },
-
-    // Loading States
-    loadingCard: {
-        padding: 30,
-        borderRadius: 20,
-        alignItems: 'center',
-        gap: 15,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-    },
-    loadingText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-
-    // Error States
-    errorCard: {
-        backgroundColor: '#fff',
-        padding: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-    },
-    errorTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#dc3545',
-        marginTop: 15,
-        marginBottom: 10,
-    },
-    errorText: {
-        fontSize: 16,
-        color: '#666',
-        textAlign: 'center',
-        lineHeight: 22,
-        marginBottom: 20,
-    },
-    retryButton: {
-        borderRadius: 15,
-        overflow: 'hidden',
-        elevation: 3,
-    },
-    buttonGradient: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        gap: 8,
-    },
-    buttonText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 16,
-    },
-
-    // Empty States
-    emptyStateContainer: {
-        paddingVertical: 60,
-        alignItems: 'center',
-    },
-    emptyStateCard: {
-        backgroundColor: '#fff',
-        padding: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-    },
-    emptyStateIcon: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    emptyStateTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#333',
-        marginBottom: 10,
-        textAlign: 'center',
-    },
-    emptyStateText: {
-        fontSize: 16,
-        color: '#666',
-        textAlign: 'center',
-        lineHeight: 22,
-        marginBottom: 25,
-    },
-    emptyStateButton: {
-        borderRadius: 15,
-        overflow: 'hidden',
-        elevation: 3,
-    },
-    emptyStateButtonGradient: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        gap: 8,
-    },
-    emptyStateButtonText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 16,
-    },
-
-    // Modal Styles
-    modalContainer: {
-        flex: 1,
-        backgroundColor: '#f8f9fa',
-    },
-    modalHeader: {
-        paddingTop: 10,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-    },
-    modalHeaderContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    modalTitleContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    modalIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#fff',
-        flex: 1,
-    },
-    modalCloseBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    // Form Styles
-    formContainer: {
-        padding: 20,
-    },
-    formSection: {
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        padding: 20,
-        marginBottom: 20,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#333',
-        marginBottom: 15,
-        paddingBottom: 10,
-        borderBottomWidth: 2,
-        borderBottomColor: '#f1f3f4',
-    },
-    inputGroup: {
-        marginBottom: 15,
-    },
-    inputLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 8,
-    },
-    inputContainer: {
-        position: 'relative',
-    },
-    modernInput: {
-        backgroundColor: '#f8f9fa',
-        borderWidth: 2,
-        borderColor: '#e9ecef',
-        borderRadius: 12,
-        paddingHorizontal: 15,
-        paddingVertical: 15,
-        fontSize: 16,
-        color: '#333',
-    },
-    textArea: {
-        height: 100,
-        textAlignVertical: 'top',
-    },
-    rowContainer: {
-        flexDirection: 'row',
-    },
-
-    // Switch Styles
-    switchContainer: {
-        gap: 15,
-    },
-    switchItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 12,
-    },
-    switchLabelContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    switchLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
-    },
-
-    // Save Button
-    saveButtonContainer: {
-        marginTop: 10,
-        marginBottom: 20,
-    },
-    saveButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 15,
-        borderRadius: 15,
-        gap: 10,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    saveButtonText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 16,
-    },
-
-    // Details Modal
-    detailsContainer: {
-        padding: 20,
-    },
-    detailCard: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 25,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        marginBottom: 20,
-    },
-    detailHeader: {
-        alignItems: 'center',
-        marginBottom: 25,
-    },
-    detailIconBadge: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: 'rgba(23, 146, 254, 0.1)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 15,
-    },
-    detailMainTitle: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#333',
-        textAlign: 'center',
-        marginBottom: 10,
-    },
-    detailsGrid: {
-        gap: 20,
-    },
-    detailItem: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        padding: 15,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 12,
-        borderLeftWidth: 4,
-        borderLeftColor: '#1792FE',
-    },
-    fullWidth: {
-        marginTop: 10,
-    },
-    detailItemIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#fff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 15,
-    },
-    detailItemContent: {
-        flex: 1,
-    },
-    detailItemLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#666',
-        marginBottom: 5,
-    },
-    detailItemValue: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#333',
-        lineHeight: 22,
-    },
-    priceText: {
-        color: '#28a745',
-        fontWeight: '700',
-    },
-    detailActions: {
-        gap: 10,
-    },
-    detailActionBtn: {
-        borderRadius: 15,
-        overflow: 'hidden',
-        elevation: 3,
-    },
-    detailActionBtnGradient: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 15,
-        gap: 10,
-    },
-    detailActionBtnText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 16,
-    },
-
-    // Resumo/Analytics Modal
-    resumoControls: {
-        padding: 20,
-        backgroundColor: '#f8f9fa',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e9ecef',
-    },
-    controlSection: {
-        marginBottom: 20,
-    },
-    controlSectionTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#333',
-        marginBottom: 12,
-    },
-    segmentControl: {
-        flexDirection: 'row',
-        backgroundColor: '#e9ecef',
-        borderRadius: 12,
-        padding: 4,
-        gap: 4,
-    },
-    segmentBtn: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 10,
-        borderRadius: 8,
-        gap: 6,
-    },
-    segmentBtnActive: {
-        backgroundColor: '#1792FE',
-    },
-    segmentText: {
-        color: '#666',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    segmentTextActive: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 14,
-    },
-    chipContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    chip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        backgroundColor: '#e9ecef',
-        borderRadius: 20,
-        gap: 6,
-    },
-    chipActive: {
-        backgroundColor: '#1792FE',
-    },
-    chipText: {
-        color: '#666',
-        fontWeight: '600',
-        fontSize: 13,
-    },
-    chipTextActive: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 13,
-    },
-    switchSection: {
-        marginBottom: 20,
-    },
-    switchOptionContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        padding: 15,
-        borderRadius: 12,
-        gap: 12,
-    },
-    switchOptionLabel: {
-        flex: 1,
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
-    },
-    dateRangeContainer: {
-        flexDirection: 'row',
-        gap: 15,
-    },
-    dateInput: {
-        flex: 1,
-    },
-    dateInputLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 8,
-    },
-    advancedFilters: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 15,
-    },
-    filterDropdown: {
-        flex: 1,
-        minWidth: 150,
-    },
-    filterLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 8,
-    },
-
-    // Analytics Content
-    resumoContent: {
-        padding: 20,
-    },
-    analyticsCard: {
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        padding: 20,
-        marginBottom: 15,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    analyticsCardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 15,
-        paddingBottom: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f3f4',
-    },
-    analyticsIconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(253, 126, 20, 0.1)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    analyticsCardTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#333',
-        flex: 1,
-    },
-    analyticsCardBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#17a2b8',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 15,
-        gap: 4,
-    },
-    analyticsCardBadgeText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 12,
-    },
-    analyticsCardContent: {
-        gap: 12,
-    },
-    analyticsItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 12,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 10,
-    },
-    analyticsItemIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#fff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    analyticsItemContent: {
-        flex: 1,
-    },
-    analyticsItemLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 4,
-    },
-    analyticsItemValues: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-    analyticsValueItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    analyticsValueText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#666',
-    },
-    moneyText: {
-        color: '#28a745',
-        fontWeight: '700',
-    },
-
-    // Confirmation Modal Styles
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    confirmationModal: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 0,
-        width: '100%',
-        maxWidth: 400,
-        elevation: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 15,
-    },
-    confirmationHeader: {
-        alignItems: 'center',
-        paddingTop: 30,
-        paddingHorizontal: 25,
-        paddingBottom: 20,
-    },
-    confirmationIconContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: 'rgba(255, 107, 107, 0.1)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 15,
-    },
-    confirmationTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#333',
-        textAlign: 'center',
-    },
-    confirmationContent: {
-        paddingHorizontal: 25,
-        paddingBottom: 25,
-    },
-    confirmationMessage: {
-        fontSize: 16,
-        color: '#666',
-        textAlign: 'center',
-        lineHeight: 24,
-    },
-    confirmationActions: {
-        flexDirection: 'row',
-        borderTopWidth: 1,
-        borderTopColor: '#f1f3f4',
-    },
-    confirmationCancelBtn: {
-        flex: 1,
-        paddingVertical: 18,
-        alignItems: 'center',
-        borderRightWidth: 1,
-        borderRightColor: '#f1f3f4',
-    },
-    confirmationCancelText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#666',
-    },
-    confirmationConfirmBtn: {
-        flex: 1,
-        overflow: 'hidden',
-    },
-    confirmationConfirmBtnGradient: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 18,
-        gap: 8,
-    },
-    confirmationConfirmText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#fff',
-    },
-
-    // Grade Partes Diárias Styles
-    gradeCard: {
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        marginBottom: 20,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        overflow: 'hidden',
-    },
-    gradeCardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 15,
-        backgroundColor: '#f8f9fa',
-        borderBottomWidth: 2,
-        borderBottomColor: '#e9ecef',
-    },
-    gradeHeaderIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(23, 162, 184, 0.1)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    gradeCardTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#333',
-        marginBottom: 4,
-    },
-    gradeCardSubtitle: {
-        fontSize: 14,
-        color: '#666',
-    },
-    gradeCardBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#17a2b8',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 15,
-        gap: 4,
-    },
-    gradeCardBadgeText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '700',
-    },
-    gradeTableContainer: {
-        padding: 15,
-    },
-    gradeTableHeader: {
-        flexDirection: 'row',
-        paddingVertical: 10,
-        paddingHorizontal: 8,
-        backgroundColor: '#e9ecef',
-        borderRadius: 8,
-        marginBottom: 8,
-    },
-    gradeTableHeaderCell: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#495057',
-        paddingHorizontal: 4,
-    },
-    gradeTableRow: {
-        flexDirection: 'row',
-        paddingVertical: 12,
-        paddingHorizontal: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f3f4',
-        alignItems: 'center',
-    },
-    gradeTableCell: {
-        fontSize: 14,
-        color: '#333',
-        paddingHorizontal: 4,
-    },
-    categoriaBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 10,
-        alignSelf: 'flex-start',
-    },
-    categoriaBadgeMaoObra: {
-        backgroundColor: '#28a745',
-    },
-    categoriaBadgeEquipamento: {
-        backgroundColor: '#fd7e14',
-    },
-    categoriaBadgeText: {
-        color: '#fff',
-        fontSize: 11,
-        fontWeight: '700',
-    },
-    gradeNotasContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingTop: 12,
-        borderTopWidth: 1,
-        borderTopColor: '#e2e8f0'
-    },
-    gradeNotasText: {
-        flex: 1,
-        fontSize: 13,
-        color: '#4a5568',
-        fontStyle: 'italic'
-    },
-
-    // Grade Mensal Styles
-    gradeMensalHeader: {
-        marginBottom: 20,
-        padding: 15,
-        backgroundColor: '#f7fafc',
-        borderRadius: 12,
-        borderLeftWidth: 4,
-        borderLeftColor: '#17a2b8'
-    },
-    gradeMensalTitulo: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#2d3748',
-        marginBottom: 5
-    },
-    gradeMensalSubtitulo: {
-        fontSize: 14,
-        color: '#718096'
-    },
-    gradeMensalTableHeader: {
-        flexDirection: 'row',
-        backgroundColor: '#17a2b8',
-        borderTopLeftRadius: 8,
-        borderTopRightRadius: 8
-    },
-    gradeMensalHeaderCell: {
-        padding: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRightWidth: 1,
-        borderRightColor: 'rgba(255, 255, 255, 0.2)'
-    },
-    gradeMensalHeaderText: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: '#fff',
-        textAlign: 'center'
-    },
-    gradeMensalNomeCell: {
-        width: 180,
-        minWidth: 180,
-        maxWidth: 180,
-        paddingHorizontal: 12,
-        justifyContent: 'center',
-        alignItems: 'flex-start'
-    },
-    gradeMensalDiaCell: {
-        width: 50,
-        minWidth: 50,
-        maxWidth: 50
-    },
-    gradeMensalRow: {
-        flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e2e8f0'
-    },
-    gradeMensalRowPar: {
-        backgroundColor: '#f7fafc'
-    },
-    gradeMensalCell: {
-        padding: 10,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRightWidth: 1,
-        borderRightColor: '#e2e8f0'
-    },
-    gradeMensalNomeText: {
-        fontSize: 13,
-        color: '#2d3748',
-        fontWeight: '500'
-    },
-    gradeMensalCellText: {
-        fontSize: 11,
-        color: '#a0aec0',
-        textAlign: 'center'
-    },
-    gradeMensalCellComHoras: {
-        backgroundColor: '#e6fffa'
-    },
-    gradeMensalCellTextComHoras: {
-        color: '#17a2b8',
-        fontWeight: 'bold'
-    },
-    gradeMensalFimDeSemana: {
-        backgroundColor: '#fff5f5'
-    },
-});
 
 export default GestaoTrabalhadoresExternos;
