@@ -77,6 +77,10 @@ const PartesDiarias = ({ navigation }) => {
         new Set(),
     );
 
+    // Especialidade e classe por defeito para diretores
+    const ESPECIALIDADE_DEFEITO = "Edificações de Estaleiro";
+    const CLASSE_DEFEITO = "Estaleiro";
+
 
     // === PESSOAL/EQUIPAMENTOS ===
 const [modalPessoalEquipVisible, setModalPessoalEquipVisible] = useState(false);
@@ -193,7 +197,7 @@ const adicionarLinhaPessoalEquip = () => {
   // ✅ ATUALIZAR A GRADE PRINCIPAL
   setDadosProcessados(prev => {
     const itemKey = `${colaboradorId}-${obraId}`;
-    const itemExistente = prev.find(it => 
+    const itemExistente = prev.find(it =>
       it.userId === Number(colaboradorId) && it.obraId === Number(obraId)
     );
 
@@ -203,7 +207,7 @@ const adicionarLinhaPessoalEquip = () => {
         if (it.userId === Number(colaboradorId) && it.obraId === Number(obraId)) {
           const horasAtuais = it.horasPorDia[dia] || 0;
           const novasEspecialidades = [...(it.especialidades || [])];
-          
+
           novasEspecialidades.push({
             dia: Number(dia),
             especialidade: especialidadeCodigo,
@@ -310,7 +314,7 @@ const submeterPessoalEquip = async () => {
     }
 
     let totalSubmetidos = 0;
-    
+
     for (const [, grp] of grupos.entries()) {
       // 1) Cabeçalho com ColaboradorID (interno)
       const cabecalho = {
@@ -386,9 +390,9 @@ const submeterPessoalEquip = async () => {
       classeId: null,
       observacoes: "",
     });
-    
+
     Alert.alert("Sucesso", `${totalSubmetidos} registo${totalSubmetidos !== 1 ? 's' : ''} de Pessoal/Equipamentos submetido${totalSubmetidos !== 1 ? 's' : ''} com sucesso.`);
-    
+
     await carregarItensSubmetidos();
     await carregarDados();
   } catch (e) {
@@ -811,7 +815,7 @@ const submeterPessoalEquip = async () => {
                                 Authorization: `Bearer ${painelToken}`,
                                 "Content-Type": "application/json",
                             },
-                            body: JSON.stringify(item),
+                            body: JSON.JSON.stringify(item),
                         },
                     );
 
@@ -1572,7 +1576,9 @@ const submeterPessoalEquip = async () => {
     const carregarDadosReais = async () => {
         const token = await AsyncStorage.getItem("loginToken");
         const tipoUser = await AsyncStorage.getItem("tipoUser");
-        
+        const userId = await AsyncStorage.getItem("userId");
+        const userName = await AsyncStorage.getItem("userNome");
+
         if (!token) {
             Alert.alert("Erro", "Token de autenticação não encontrado");
             return;
@@ -1584,7 +1590,7 @@ const submeterPessoalEquip = async () => {
             // 1. Buscar equipas (todas para admin, minhas para outros)
             console.log("Carregando equipas...");
             let equipasData;
-            
+
             if (tipoUser === "Administrador") {
                 // Administradores veem todos os colaboradores
                 const empresaId = await AsyncStorage.getItem("empresa_id");
@@ -1600,7 +1606,7 @@ const submeterPessoalEquip = async () => {
                 }
 
                 const users = await usersResponse.json();
-                
+
                 // Criar uma "equipa" virtual com todos os utilizadores
                 equipasData = [{
                     id: 0,
@@ -1628,7 +1634,7 @@ const submeterPessoalEquip = async () => {
 
                 equipasData = await equipasResponse.json();
             }
-            
+
             setLoadingProgress(10);
 
             // Transformar dados para o formato esperado
@@ -1650,10 +1656,24 @@ const submeterPessoalEquip = async () => {
                 membros: equipa.membros || [],
             }));
 
+            // Adicionar o próprio utilizador (diretor) à primeira equipa se não existir
+            if (userId && userName) {
+                const primeiraEquipa = equipasFormatadas[0];
+                if (primeiraEquipa) {
+                    const jaExiste = primeiraEquipa.membros.some(m => String(m.id) === String(userId));
+                    if (!jaExiste) {
+                        primeiraEquipa.membros.push({
+                            id: parseInt(userId),
+                            nome: userName
+                        });
+                    }
+                }
+            }
+
             setEquipas(equipasFormatadas);
             setLoadingProgress(20);
 
-            // 2. Coletar todos os IDs dos membros
+            // 2. Coletar todos os IDs dos membros (incluindo o próprio diretor)
             const membrosIds = [];
             equipasFormatadas.forEach((equipa) => {
                 if (equipa.membros) {
@@ -1664,6 +1684,11 @@ const submeterPessoalEquip = async () => {
                     });
                 }
             });
+
+            // Garantir que o próprio utilizador está na lista
+            if (userId && !membrosIds.includes(parseInt(userId))) {
+                membrosIds.push(parseInt(userId));
+            }
             // Dentro de carregarDadosReais, logo depois de montar equipasFormatadas e membrosIds:
             const uniqueUserIds = [...new Set(membrosIds)];
             const novoCodMap = {};
@@ -2082,12 +2107,49 @@ const submeterPessoalEquip = async () => {
     );
 
     const abrirEdicao = useCallback(
-        (trabalhador, dia) => {
+        async (trabalhador, dia) => {
             setSelectedTrabalhador(trabalhador);
             setSelectedDia(dia);
 
             const especialidadesDia =
                 trabalhador.especialidades?.filter((esp) => esp.dia === dia) || [];
+            
+            // Verificar se o utilizador atual é diretor
+            const userId = await AsyncStorage.getItem("userId");
+            const isProprioUtilizador = String(trabalhador.userId) === String(userId);
+            
+            // Encontrar a especialidade e classe por defeito
+            let especialidadeDefeito = trabalhador.especialidade || "";
+            let classeIdDefeito = trabalhador.classeId || null;
+            let subEmpIdDefeito = trabalhador.subEmpId || null;
+
+            if (isProprioUtilizador && especialidadesDia.length === 0) {
+                // Procurar a especialidade "Edificações de Estaleiro"
+                const espDefeito = especialidadesList.find(
+                    (e) => e.descricao && e.descricao.toLowerCase().includes("edificaç") && 
+                           e.descricao.toLowerCase().includes("estaleiro")
+                );
+                if (espDefeito) {
+                    especialidadeDefeito = espDefeito.codigo;
+                    subEmpIdDefeito = espDefeito.subEmpId;
+                }
+
+                // Procurar a classe "Estaleiro" - verificar tanto em descricao como em classe
+                const classeDefeito = classesList.find(
+                    (c) => (c.descricao && c.descricao.toLowerCase().includes("estaleiro")) ||
+                           (c.classe && c.classe.toLowerCase().includes("estaleiro"))
+                );
+                if (classeDefeito) {
+                    classeIdDefeito = classeDefeito.classeId;
+                }
+            }
+
+            // Calcular horas totais para o dia (incluindo registos de ponto originais)
+            const horasTotaisDia = Math.max(
+                trabalhador.horasOriginais?.[dia] || 0,
+                trabalhador.horasPorDia?.[dia] || 0
+            ) / 60;
+
             setEditData({
                 especialidadesDia:
                     especialidadesDia.length > 0
@@ -2095,22 +2157,21 @@ const submeterPessoalEquip = async () => {
                         : [
                             {
                                 dia,
-                                // PASSAR sempre pelo parâmetro `trabalhador`, não pelo estado
                                 categoria: trabalhador.categoria || "MaoObra",
-                                especialidade: trabalhador.especialidade || "",
-                                horas: (trabalhador.horasPorDia[dia] || 0) / 60,
-                                subEmpId: trabalhador.subEmpId || null,
+                                especialidade: especialidadeDefeito,
+                                horas: horasTotaisDia, // usar horas dos registos de ponto
+                                subEmpId: subEmpIdDefeito,
                                 obraId: trabalhador.obraId,
-                                classeId: trabalhador.classeId || null, // Load existing classeId
-                                notaDia: trabalhador?.notasPorDia?.[dia] ?? "", // <- carrega nota já existente
-                                observacoes: trabalhador.observacoes || "", // Load existing observacoes
+                                classeId: classeIdDefeito, // já vem com o valor correto do código acima
+                                notaDia: trabalhador?.notasPorDia?.[dia] ?? "",
+                                observacoes: trabalhador.observacoes || "",
                             },
                         ],
-                notaDia: trabalhador?.notasPorDia?.[dia] ?? "", // carrega a nota do dia
+                notaDia: trabalhador?.notasPorDia?.[dia] ?? "",
             });
             setEditModalVisible(true);
         },
-        [selectedDia],
+        [selectedDia, especialidadesList, classesList],
     );
 
     const adicionarEspecialidade = useCallback(() => {
@@ -3415,7 +3476,7 @@ const submeterPessoalEquip = async () => {
                                 ))}
 
                                 {/* Botão de submeter */}
-                                
+
                             </View>
                         )}
                     </ScrollView>
@@ -5235,6 +5296,163 @@ const submeterPessoalEquip = async () => {
         </Modal>
     );
 
+    const renderPropriaParteModal = () => (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible} // Assuming this state controls visibility
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.propriaParteModalContainer}>
+          <View style={styles.propriaParteModalContent}>
+            <LinearGradient colors={["#1792FE", "#0B5ED7"]} style={styles.propriaParteModalHeader}>
+              <View style={styles.propriaParteModalHeaderContent}>
+                <View style={styles.propriaParteModalTitleContainer}>
+                  <FontAwesome name="user-circle" size={24} color="#fff" />
+                  <Text style={styles.propriaParteModalTitle}>Minha Parte Diária</Text>
+                </View>
+                <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.propriaParteCloseButton}>
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.propriaParteModalSubtitle}>Registe a sua parte diária</Text>
+            </LinearGradient>
+
+            <ScrollView style={styles.propriaParteModalBody} contentContainerStyle={{ paddingBottom: 20 }}>
+              {/* Conteúdo do formulário para a parte diária do diretor */}
+              <View style={styles.propriaParteFormCard}>
+                <Text style={styles.propriaParteFormTitle}>
+                  <Ionicons name="document-text" size={16} color="#1792FE" /> Novo Registo
+                </Text>
+
+                {/* Obra e Classe - Campos fixos para o diretor */}
+                <View style={styles.propriaParteInputGroup}>
+                  <Text style={styles.propriaParteInputLabel}><Ionicons name="business" size={14} color="#666" /> Obra </Text>
+                  <View style={styles.propriaPartePickerWrapper}>
+                    <Picker
+                      selectedValue={editData.obraId} // Use a state variable for this
+                      onValueChange={(v) => setEditData(p => ({...p, obraId: v}))}
+                      style={styles.propriaPartePicker}
+                    >
+                      <Picker.Item label="— Selecionar Obra —" value="" />
+                      {obrasParaPickers.map(o => <Picker.Item key={o.id} label={o.nome} value={o.id} />)}
+                    </Picker>
+                  </View>
+                </View>
+
+                <View style={styles.propriaParteInputGroup}>
+                  <Text style={styles.propriaParteInputLabel}><Ionicons name="library" size={14} color="#666" /> Classe </Text>
+                  <View style={styles.propriaPartePickerWrapper}>
+                    <Picker
+                      selectedValue={editData.classeId} // Use a state variable for this
+                      onValueChange={(v) => setEditData(p => ({...p, classeId: v}))}
+                      style={styles.propriaPartePicker}
+                    >
+                      <Picker.Item label="— Selecionar Classe —" value={null} />
+                      {classesList.map(cl => (
+                        <Picker.Item key={cl.classeId} label={`${cl.classe} - ${cl.descricao}`} value={cl.classeId} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* Especialidade por defeito - Edificação de estaleiro */}
+                <View style={styles.propriaParteInputGroup}>
+                    <Text style={styles.propriaParteInputLabel}><Ionicons name="hammer" size={14} color="#666" /> Especialidade </Text>
+                    <View style={styles.propriaPartePickerWrapper}>
+                        <Picker
+                            selectedValue={editData.especialidadeCodigo || "ESTALEIRO"} // Default value
+                            onValueChange={(v) => {
+                                setEditData(p => ({...p, especialidadeCodigo: v}));
+                                // Automatically set subEmpId if applicable
+                                const sel = especialidadesList.find(e => e.codigo === v);
+                                setEditData(p => ({...p, subEmpId: sel?.subEmpId ?? null}));
+                            }}
+                            style={styles.propriaPartePicker}
+                        >
+                            <Picker.Item label="Edificação de estaleiro" value="ESTALEIRO" />
+                            {/* Add other specialities if needed, but default to this one */}
+                        </Picker>
+                    </View>
+                </View>
+
+
+                {/* Dias e Horas */}
+                <View style={styles.propriaParteFormGrid}>
+                  <View style={styles.propriaParteInputGroup}>
+                    <Text style={styles.propriaParteInputLabel}><Ionicons name="calendar" size={14} color="#666" /> Dia </Text>
+                    <View style={styles.propriaPartePickerWrapper}>
+                      <Picker
+                        selectedValue={editData.dia} // Use a state variable for this
+                        onValueChange={(v) => setEditData(p => ({...p, dia: v}))}
+                        style={styles.propriaPartePicker}
+                      >
+                        <Picker.Item label="— Selecionar Dia —" value="" />
+                        {diasDoMes.map(d => <Picker.Item key={d} label={`Dia ${d}`} value={d} />)}
+                      </Picker>
+                    </View>
+                  </View>
+
+                  <View style={styles.propriaParteInputGroup}>
+                    <Text style={styles.propriaParteInputLabel}><Ionicons name="time" size={14} color="#666" /> Horas </Text>
+                    <TextInput
+                      style={styles.propriaParteTextInput}
+                      value={editData.horas} // Use a state variable for this
+                      onChangeText={(v) => setEditData(p => ({...p, horas: v}))}
+                      placeholder="Ex: 8:00 ou 8.5"
+                      keyboardType="default"
+                    />
+                  </View>
+                </View>
+
+                {/* Observações */}
+                <View style={styles.propriaParteInputGroup}>
+                  <Text style={styles.propriaParteInputLabel}><Ionicons name="chatbubble-ellipses" size={14} color="#666" /> Observações</Text>
+                  <TextInput
+                    style={styles.propriaParteTextInput}
+                    value={editData.observacoes} // Use a state variable for this
+                    onChangeText={(v) => setEditData(p => ({...p, observacoes: v}))}
+                    placeholder="Notas adicionais"
+                    multiline
+                    numberOfLines={2}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                {/* Botão de adicionar */}
+                <TouchableOpacity onPress={() => { /* handle add action */ }} style={styles.propriaParteAddButton}>
+                  <LinearGradient colors={["#1792FE", "#1792FE"]} style={styles.propriaParteAddButtonGradient}>
+                    <Ionicons name="add-circle" size={18} color="#fff" />
+                    <Text style={styles.propriaParteAddButtonText}>Adicionar à Lista</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+
+              {/* Lista de itens adicionados */}
+              <View style={styles.propriaParteListCard}>
+                <Text style={styles.propriaParteListTitle}><Ionicons name="list" size={16} color="#1792FE" /> Itens para Submeter (0)</Text>
+                {/* Render list items here */}
+              </View>
+            </ScrollView>
+
+            {/* Footer com botões */}
+            <View style={styles.propriaParteModalFooter}>
+              <TouchableOpacity style={styles.propriaParteCancelButton} onPress={() => setModalVisible(false)}>
+                <Text style={styles.propriaParteCancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.propriaParteConfirmButton} onPress={() => { /* handle confirm action */ }}>
+                <LinearGradient colors={["#1792FE", "#0B5ED7"]} style={styles.propriaParteConfirmButtonGradient}>
+                  <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                  <Text style={styles.propriaParteConfirmButtonText}>Confirmar Submissão</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -5273,7 +5491,7 @@ const submeterPessoalEquip = async () => {
                         {renderEditModal()}
                         {renderExternosModal()}
                         {renderPessoalEquipModal()}
-
+                        {renderPropriaParteModal()}
                     </View>
                 </ScrollView>
             </SafeAreaView>
