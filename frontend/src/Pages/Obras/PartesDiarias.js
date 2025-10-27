@@ -130,20 +130,50 @@ const abrirModalPessoalEquip = () => {
   setModalPessoalEquipVisible(true);
 };
 
+const [camposInvalidosPessoal, setCamposInvalidosPessoal] = useState(new Set());
+
 const adicionarLinhaPessoalEquip = () => {
   const {
     obraId, dia, colaboradorId, horas, categoria,
     especialidadeCodigo, subEmpId, classeId, observacoes
   } = linhaPessoalEquipAtual;
 
-  if (!obraId || !dia || !colaboradorId || !horas) {
-    Alert.alert("Validação", "Seleciona Obra, Dia, Colaborador e Horas.");
+  // Reset campos inválidos
+  const invalidos = new Set();
+
+  // Validação detalhada campo por campo
+  const obraIdNum = Number(obraId);
+  if (!obraId || obraId === "" || isNaN(obraIdNum)) {
+    invalidos.add('obraId');
+  }
+  if (!dia || dia === "") {
+    invalidos.add('dia');
+  }
+  if (!colaboradorId || colaboradorId === "") {
+    invalidos.add('colaboradorId');
+  }
+  if (!horas || horas === "") {
+    invalidos.add('horas');
+  }
+  if (!especialidadeCodigo || especialidadeCodigo === "") {
+    invalidos.add('especialidadeCodigo');
+  }
+  if (!subEmpId) {
+    invalidos.add('especialidadeCodigo');
+  }
+  if (categoria === "MaoObra" && (!classeId || classeId === null)) {
+    invalidos.add('classeId');
+  }
+
+  // Se há campos inválidos, mostra erro e retorna
+  if (invalidos.size > 0) {
+    setCamposInvalidosPessoal(invalidos);
+    Alert.alert("Campos Obrigatórios", "Por favor, preencha todos os campos marcados a vermelho.");
     return;
   }
-  if (!especialidadeCodigo || (categoria === "MaoObra" && !classeId)) {
-    Alert.alert("Validação", "Seleciona a especialidade/equipamento e a classe.");
-    return;
-  }
+
+  // Limpa marcações de erro
+  setCamposInvalidosPessoal(new Set());
 
   const col = colaboradoresDisponiveis.find(c => String(c.id) === String(colaboradorId));
   if (!col || !col.codFuncionario) {
@@ -624,6 +654,8 @@ const submeterPessoalEquip = async () => {
         setModalExternosVisible(true);
     };
 
+    const [camposInvalidos, setCamposInvalidos] = useState(new Set());
+
     const adicionarLinhaExterno = () => {
         const {
             obraId,
@@ -637,18 +669,42 @@ const submeterPessoalEquip = async () => {
             observacoes,
         } = linhaAtual;
 
-        if (!obraId || !dia || !trabalhadorId || !horas) {
-            Alert.alert("Validação", "Seleciona Obra, Dia, Externo e Horas.");
+        // Reset campos inválidos
+        const invalidos = new Set();
+
+        // Validação detalhada campo por campo
+        const obraIdNum = Number(obraId);
+        if (!obraId || obraId === "" || isNaN(obraIdNum)) {
+            invalidos.add('obraId');
+        }
+        if (!dia || dia === "") {
+            invalidos.add('dia');
+        }
+        if (!trabalhadorId || trabalhadorId === "") {
+            invalidos.add('trabalhadorId');
+        }
+        if (!horas || horas === "") {
+            invalidos.add('horas');
+        }
+        if (!especialidadeCodigo || especialidadeCodigo === "") {
+            invalidos.add('especialidadeCodigo');
+        }
+        if (!subEmpId) {
+            invalidos.add('especialidadeCodigo');
+        }
+        if (categoria === "MaoObra" && (!classeId || classeId === null)) {
+            invalidos.add('classeId');
+        }
+
+        // Se há campos inválidos, mostra erro e retorna
+        if (invalidos.size > 0) {
+            setCamposInvalidos(invalidos);
+            Alert.alert("Campos Obrigatórios", "Por favor, preencha todos os campos marcados a vermelho.");
             return;
         }
-        if (!especialidadeCodigo || !subEmpId) {
-            Alert.alert("Validação", "Seleciona a especialidade/equipamento.");
-            return;
-        }
-        if (!classeId) {
-            Alert.alert("Validação", "Seleciona a Classe.");
-            return;
-        }
+
+        // Limpa marcações de erro
+        setCamposInvalidos(new Set());
 
         const trab = externosLista.find(
             (e) => String(e.id) === String(trabalhadorId),
@@ -3072,17 +3128,25 @@ const submeterPessoalEquip = async () => {
                                     <Text style={styles.externosInputLabel}>
                                         <Ionicons name="business" size={14} color="#666" /> Obra *
                                     </Text>
-                                    <View style={styles.externosPickerWrapper}>
+                                    <View style={[
+                                        styles.externosPickerWrapper,
+                                        camposInvalidos.has('obraId') && { borderColor: '#dc3545', borderWidth: 2 }
+                                    ]}>
                                         <Picker
-                                            selectedValue={linhaAtual.obraId}
-                                            onValueChange={(v) =>
-                                                setLinhaAtual((p) => ({ ...p, obraId: v }))
-                                            }
+                                            selectedValue={String(linhaAtual.obraId || "")}
+                                            onValueChange={(v) => {
+                                                setLinhaAtual((p) => ({ ...p, obraId: v === "" ? "" : Number(v) }));
+                                                setCamposInvalidos(prev => {
+                                                    const novo = new Set(prev);
+                                                    novo.delete('obraId');
+                                                    return novo;
+                                                });
+                                            }}
                                             style={styles.externosPicker}
                                         >
                                             <Picker.Item label="— Selecionar obra —" value="" />
                                             {obrasParaPickers.map((o) => (
-                                                <Picker.Item key={o.id} label={o.nome} value={o.id} />
+                                                <Picker.Item key={o.id} label={o.nome} value={String(o.id)} />
                                             ))}
                                         </Picker>
                                     </View>
@@ -3093,12 +3157,20 @@ const submeterPessoalEquip = async () => {
                                     <Text style={styles.externosInputLabel}>
                                         <Ionicons name="calendar" size={14} color="#666" /> Dia *
                                     </Text>
-                                    <View style={styles.externosPickerWrapper}>
+                                    <View style={[
+                                        styles.externosPickerWrapper,
+                                        camposInvalidos.has('dia') && { borderColor: '#dc3545', borderWidth: 2 }
+                                    ]}>
                                         <Picker
-                                            selectedValue={linhaAtual.dia}
-                                            onValueChange={(v) =>
-                                                setLinhaAtual((p) => ({ ...p, dia: v }))
-                                            }
+                                            selectedValue={String(linhaAtual.dia || "")}
+                                            onValueChange={(v) => {
+                                                setLinhaAtual((p) => ({ ...p, dia: v === "" ? "" : Number(v) }));
+                                                setCamposInvalidos(prev => {
+                                                    const novo = new Set(prev);
+                                                    novo.delete('dia');
+                                                    return novo;
+                                                });
+                                            }}
                                             style={styles.externosPicker}
                                         >
                                             <Picker.Item label="— Selecionar dia —" value="" />
@@ -3115,7 +3187,7 @@ const submeterPessoalEquip = async () => {
                                                     <Picker.Item 
                                                         key={d} 
                                                         label={jaRegistado ? `Dia ${d} ✓ (já registado)` : `Dia ${d}`} 
-                                                        value={d}
+                                                        value={String(d)}
                                                         color={jaRegistado ? "#28a745" : "#000"}
                                                     />
                                                 );
@@ -3158,16 +3230,24 @@ const submeterPessoalEquip = async () => {
                                 <Text style={styles.externosInputLabel}>
                                     <Ionicons name="person" size={14} color="#666" /> Trabalhador Externo *
                                 </Text>
-                                <View style={styles.externosPickerWrapper}>
+                                <View style={[
+                                    styles.externosPickerWrapper,
+                                    camposInvalidos.has('trabalhadorId') && { borderColor: '#dc3545', borderWidth: 2 }
+                                ]}>
                                     <Picker
-                                        selectedValue={linhaAtual.trabalhadorId}
-                                        onValueChange={(v) =>
-                                            setLinhaAtual((p) => ({ ...p, trabalhadorId: v }))
-                                        }
+                                        selectedValue={String(linhaAtual.trabalhadorId || "")}
+                                        onValueChange={(v) => {
+                                            setLinhaAtual((p) => ({ ...p, trabalhadorId: v === "" ? "" : Number(v) }));
+                                            setCamposInvalidos(prev => {
+                                                const novo = new Set(prev);
+                                                novo.delete('trabalhadorId');
+                                                return novo;
+                                            });
+                                        }}
                                         style={styles.externosPicker}
                                     >
                                         <Picker.Item label="— Selecionar trabalhador —" value="" />
-                                        {externosLista.map((ext) => {
+                                        {externosFiltrados.map((ext) => {
                                             // Obtém os dias já registados para este trabalhador e obra selecionada
                                             const diasRegistados = linhasExternos
                                                 .filter(l => String(l.trabalhadorId) === String(ext.id) && 
@@ -3184,7 +3264,7 @@ const submeterPessoalEquip = async () => {
                                                 <Picker.Item
                                                     key={ext.id}
                                                     label={`${ext.funcionario} - ${ext.empresa}${labelExtra}`}
-                                                    value={ext.id}
+                                                    value={String(ext.id)}
                                                 />
                                             );
                                         })}
@@ -3299,7 +3379,10 @@ const submeterPessoalEquip = async () => {
                                         : "Especialidade"}{" "}
                                     *
                                 </Text>
-                                <View style={styles.externosPickerWrapper}>
+                                <View style={[
+                                    styles.externosPickerWrapper,
+                                    camposInvalidos.has('especialidadeCodigo') && { borderColor: '#dc3545', borderWidth: 2 }
+                                ]}>
                                     <Picker
                                         selectedValue={linhaAtual.especialidadeCodigo}
                                         onValueChange={(cod) => {
@@ -3319,8 +3402,14 @@ const submeterPessoalEquip = async () => {
                                                 ...p,
                                                 especialidadeCodigo: cod,
                                                 subEmpId: sel?.subEmpId ?? null,
-                                                classeId: primeiraClasse, // Set the first compatible class
+                                                classeId: primeiraClasse,
                                             }));
+                                            
+                                            setCamposInvalidos(prev => {
+                                                const novo = new Set(prev);
+                                                novo.delete('especialidadeCodigo');
+                                                return novo;
+                                            });
                                         }}
                                         style={styles.externosPicker}
                                     >
@@ -3347,12 +3436,20 @@ const submeterPessoalEquip = async () => {
                                 <Text style={styles.externosInputLabel}>
                                     <Ionicons name="library" size={14} color="#666" /> Classe *
                                 </Text>
-                                <View style={styles.externosPickerWrapper}>
+                                <View style={[
+                                    styles.externosPickerWrapper,
+                                    camposInvalidos.has('classeId') && { borderColor: '#dc3545', borderWidth: 2 }
+                                ]}>
                                     <Picker
                                         selectedValue={linhaAtual.classeId}
-                                        onValueChange={(v) =>
-                                            setLinhaAtual((p) => ({ ...p, classeId: v }))
-                                        }
+                                        onValueChange={(v) => {
+                                            setLinhaAtual((p) => ({ ...p, classeId: v }));
+                                            setCamposInvalidos(prev => {
+                                                const novo = new Set(prev);
+                                                novo.delete('classeId');
+                                                return novo;
+                                            });
+                                        }}
                                         style={styles.externosPicker}
                                     >
                                         <Picker.Item label="— Selecionar classe —" value={null} />
@@ -3374,9 +3471,17 @@ const submeterPessoalEquip = async () => {
                                         <Ionicons name="time" size={14} color="#666" /> Horas *
                                     </Text>
                                     <TextInput
-                                        style={styles.externosTextInput}
+                                        style={[
+                                            styles.externosTextInput,
+                                            camposInvalidos.has('horas') && { borderColor: '#dc3545', borderWidth: 2 }
+                                        ]}
                                         value={linhaAtual.horas}
                                         onChangeText={(v) => {
+                                            setCamposInvalidos(prev => {
+                                                const novo = new Set(prev);
+                                                novo.delete('horas');
+                                                return novo;
+                                            });
                                             const { trabalhadorId, dia, obraId } = linhaAtual;
                                             if (!trabalhadorId || !dia || !obraId) {
                                                 Alert.alert(
@@ -3601,10 +3706,20 @@ const submeterPessoalEquip = async () => {
             <View style={styles.externosFormGrid}>
               <View style={styles.externosInputGroup}>
                 <Text style={styles.externosInputLabel}><Ionicons name="business" size={14} color="#666" /> Obra *</Text>
-                <View style={styles.externosPickerWrapper}>
+                <View style={[
+                  styles.externosPickerWrapper,
+                  camposInvalidosPessoal.has('obraId') && { borderColor: '#dc3545', borderWidth: 2 }
+                ]}>
                   <Picker
                     selectedValue={linhaPessoalEquipAtual.obraId}
-                    onValueChange={(v) => setLinhaPessoalEquipAtual(p => ({...p, obraId: v}))}
+                    onValueChange={(v) => {
+                      setLinhaPessoalEquipAtual(p => ({...p, obraId: v}));
+                      setCamposInvalidosPessoal(prev => {
+                        const novo = new Set(prev);
+                        novo.delete('obraId');
+                        return novo;
+                      });
+                    }}
                     style={styles.externosPicker}
                   >
                     <Picker.Item label="— Selecionar obra —" value="" />
@@ -3617,10 +3732,20 @@ const submeterPessoalEquip = async () => {
 
               <View style={styles.externosInputGroup}>
                 <Text style={styles.externosInputLabel}><Ionicons name="calendar" size={14} color="#666" /> Dia *</Text>
-                <View style={styles.externosPickerWrapper}>
+                <View style={[
+                  styles.externosPickerWrapper,
+                  camposInvalidosPessoal.has('dia') && { borderColor: '#dc3545', borderWidth: 2 }
+                ]}>
                   <Picker
                     selectedValue={linhaPessoalEquipAtual.dia}
-                    onValueChange={(v) => setLinhaPessoalEquipAtual(p => ({...p, dia: v}))}
+                    onValueChange={(v) => {
+                      setLinhaPessoalEquipAtual(p => ({...p, dia: v}));
+                      setCamposInvalidosPessoal(prev => {
+                        const novo = new Set(prev);
+                        novo.delete('dia');
+                        return novo;
+                      });
+                    }}
                     style={styles.externosPicker}
                   >
                     <Picker.Item label="— Selecionar dia —" value="" />
@@ -3633,10 +3758,20 @@ const submeterPessoalEquip = async () => {
             {/* Colaborador interno */}
             <View style={styles.externosInputGroup}>
               <Text style={styles.externosInputLabel}><Ionicons name="person" size={14} color="#666" /> Colaborador *</Text>
-              <View style={styles.externosPickerWrapper}>
+              <View style={[
+                styles.externosPickerWrapper,
+                camposInvalidosPessoal.has('colaboradorId') && { borderColor: '#dc3545', borderWidth: 2 }
+              ]}>
                 <Picker
                   selectedValue={linhaPessoalEquipAtual.colaboradorId}
-                  onValueChange={(v) => setLinhaPessoalEquipAtual(p => ({...p, colaboradorId: v}))}
+                  onValueChange={(v) => {
+                    setLinhaPessoalEquipAtual(p => ({...p, colaboradorId: v}));
+                    setCamposInvalidosPessoal(prev => {
+                      const novo = new Set(prev);
+                      novo.delete('colaboradorId');
+                      return novo;
+                    });
+                  }}
                   style={styles.externosPicker}
                 >
                   <Picker.Item label="— Selecionar colaborador —" value="" />
@@ -3698,7 +3833,10 @@ const submeterPessoalEquip = async () => {
                 <Ionicons name={linhaPessoalEquipAtual.categoria === "Equipamentos" ? "construct" : "hammer"} size={14} color="#666" />{" "}
                 {linhaPessoalEquipAtual.categoria === "Equipamentos" ? "Equipamento" : "Especialidade"} *
               </Text>
-              <View style={styles.externosPickerWrapper}>
+              <View style={[
+                styles.externosPickerWrapper,
+                camposInvalidosPessoal.has('especialidadeCodigo') && { borderColor: '#dc3545', borderWidth: 2 }
+              ]}>
                 <Picker
                   selectedValue={linhaPessoalEquipAtual.especialidadeCodigo}
                   onValueChange={(cod) => {
@@ -3715,6 +3853,12 @@ const submeterPessoalEquip = async () => {
                       subEmpId: sel?.subEmpId ?? null,
                       classeId: primeiraClasse,
                     }));
+                    
+                    setCamposInvalidosPessoal(prev => {
+                      const novo = new Set(prev);
+                      novo.delete('especialidadeCodigo');
+                      return novo;
+                    });
                   }}
                   style={styles.externosPicker}
                 >
@@ -3728,10 +3872,20 @@ const submeterPessoalEquip = async () => {
             {/* Classe */}
             <View style={styles.externosInputGroup}>
               <Text style={styles.externosInputLabel}><Ionicons name="library" size={14} color="#666" /> Classe *</Text>
-              <View style={styles.externosPickerWrapper}>
+              <View style={[
+                styles.externosPickerWrapper,
+                camposInvalidosPessoal.has('classeId') && { borderColor: '#dc3545', borderWidth: 2 }
+              ]}>
                 <Picker
                   selectedValue={linhaPessoalEquipAtual.classeId}
-                  onValueChange={(v) => setLinhaPessoalEquipAtual(p => ({...p, classeId: v}))}
+                  onValueChange={(v) => {
+                    setLinhaPessoalEquipAtual(p => ({...p, classeId: v}));
+                    setCamposInvalidosPessoal(prev => {
+                      const novo = new Set(prev);
+                      novo.delete('classeId');
+                      return novo;
+                    });
+                  }}
                   style={styles.externosPicker}
                   enabled={linhaPessoalEquipAtual.categoria !== "Equipamentos"}
                 >
@@ -3747,9 +3901,18 @@ const submeterPessoalEquip = async () => {
               <View style={[styles.externosInputGroup, { flex: 2 }]}>
                 <Text style={styles.externosInputLabel}><Ionicons name="time" size={14} color="#666" /> Horas *</Text>
                 <TextInput
-                  style={styles.externosTextInput}
+                  style={[
+                    styles.externosTextInput,
+                    camposInvalidosPessoal.has('horas') && { borderColor: '#dc3545', borderWidth: 2 }
+                  ]}
                   value={linhaPessoalEquipAtual.horas}
                   onChangeText={(v) => {
+                    setCamposInvalidosPessoal(prev => {
+                      const novo = new Set(prev);
+                      novo.delete('horas');
+                      return novo;
+                    });
+                    
                     const { colaboradorId, dia, obraId } = linhaPessoalEquipAtual;
                     if (!colaboradorId || !dia || !obraId) {
                       Alert.alert("Validação", "Preencha primeiro Obra, Dia e Colaborador.");
