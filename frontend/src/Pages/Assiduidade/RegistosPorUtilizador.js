@@ -133,7 +133,6 @@ const RegistosPorUtilizador = () => {
                     const [hh, mm] = horas[i].split(':').map(Number);
                     const timestamp = makeUTCISO(parseInt(anoSelecionado, 10), parseInt(mesSelecionado, 10), parseInt(diaNumber, 10), hh, mm);
 
-
                     const res = await fetch(
                         `https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro`,
                         {
@@ -155,7 +154,7 @@ const RegistosPorUtilizador = () => {
             }
             alert(`Registados e confirmados em bloco ${selectedCells.length} pontos!`);
             setBulkDialogOpen(false);
-            setSelectedCells([]);        // <-- aqui
+            setSelectedCells([]);
             carregarDadosGrade();
         } catch (err) {
             alert(err.message);
@@ -1816,8 +1815,6 @@ const RegistosPorUtilizador = () => {
         const token = localStorage.getItem('loginToken');
         const painelToken = localStorage.getItem('painelAdminToken');
         const urlempresa = localStorage.getItem('urlempresa');
-        const userNome = localStorage.getItem('userNome');
-        const empresaId = localStorage.getItem('empresa_id');
         
         // Obter o codFuncionario através do endpoint
         const funcionarioId = await obterCodFuncionario(userToRegistar);
@@ -1901,13 +1898,13 @@ const RegistosPorUtilizador = () => {
             let erros = 0;
 
             // Processar cada data
-            for (const dataFormatada of datasParaProcessar) {
+            for (const dataAtualFormatada of datasParaProcessar) {
                 try {
                     // 1. Integrar diretamente no ERP (sem pedido intermédio)
                     if (painelToken && urlempresa) {
                         const dadosERP = {
                             Funcionario: funcionarioId,
-                            Data: new Date(dataFormatada).toISOString(),
+                            Data: new Date(dataAtualFormatada).toISOString(),
                             Falta: tipoFaltaSelecionado,
                             Horas: isHoras ? 1 : 0,
                             Tempo: tempoNumerico,
@@ -1941,6 +1938,13 @@ const RegistosPorUtilizador = () => {
                             SubAlimProporcional: 0
                         };
 
+                        console.log('📤 Enviando falta para ERP:', dadosERP);
+                        console.log('🔑 Headers:', { 
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${painelToken.substring(0, 20)}...`,
+                            urlempresa 
+                        });
+
                         const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
                             method: 'POST',
                             headers: {
@@ -1951,11 +1955,14 @@ const RegistosPorUtilizador = () => {
                             body: JSON.stringify(dadosERP)
                         });
 
+                        console.log('📥 Resposta HTTP:', resERP.status, resERP.statusText);
+
                         if (resERP.ok) {
                             faltasRegistadas++;
+                            console.log(`✅ Falta registada para ${dataAtualFormatada}`);
                             
                             // Verificar se é fim de semana
-                            const dataObj = new Date(dataFormatada);
+                            const dataObj = new Date(dataAtualFormatada);
                             const diaSemana = dataObj.getDay();
                             const isFimDeSemana = diaSemana === 0 || diaSemana === 6;
 
@@ -1963,7 +1970,7 @@ const RegistosPorUtilizador = () => {
                             if (descontaAlimentacao && !isFimDeSemana) {
                                 const dadosF40 = {
                                     Funcionario: funcionarioId,
-                                    Data: new Date(dataFormatada).toISOString(),
+                                    Data: new Date(dataAtualFormatada).toISOString(),
                                     Falta: 'F40',
                                     Horas: 0,
                                     Tempo: 1,
@@ -2009,9 +2016,20 @@ const RegistosPorUtilizador = () => {
 
                                 if (resF40.ok) {
                                     faltasF40Registadas++;
+                                    console.log(`✅ Falta F40 criada para ${dataAtualFormatada}`);
+                                } else {
+                                    const errorF40 = await resF40.text();
+                                    console.error(`❌ Erro ao criar F40 para ${dataAtualFormatada}:`, errorF40);
                                 }
                             }
                         } else {
+                            const errorText = await resERP.text();
+                            console.error(`❌ Erro ao inserir falta para ${dataAtualFormatada}:`, {
+                                status: resERP.status,
+                                statusText: resERP.statusText,
+                                error: errorText,
+                                dadosEnviados: dadosERP
+                            });
                             erros++;
                         }
 
@@ -2023,7 +2041,7 @@ const RegistosPorUtilizador = () => {
                         throw new Error('Tokens do Primavera não encontrados. Configure o acesso ao ERP.');
                     }
                 } catch (dataErr) {
-                    console.error(`Erro ao processar data ${dataFormatada}:`, dataErr);
+                    console.error(`Erro ao processar data ${dataAtualFormatada}:`, dataErr);
                     erros++;
                 }
             }
@@ -2045,55 +2063,12 @@ const RegistosPorUtilizador = () => {
             setDialogOpen(false);
             setTipoFaltaSelecionado('');
             setDuracaoFalta('');
+            setFaltaIntervalo(false);
+            setDataFimFalta('');
 
-            // Atualização optimista da UI
+            // Recarregar dados da grade
             if (viewMode === 'grade') {
-                // Atualizar imediatamente a célula da grade
-                setDadosGrade(prevDados => {
-                    return prevDados.map(item => {
-                        if (item.utilizador.id === userToRegistar) {
-                            const estatisticasAtualizadas = { ...item.estatisticasDias };
-                            if (!estatisticasAtualizadas[diaToRegistar]) {
-                                estatisticasAtualizadas[diaToRegistar] = {
-                                    totalRegistos: 0,
-                                    entradas: 0,
-                                    saidas: 0,
-                                    confirmados: 0,
-                                    naoConfirmados: 0,
-                                    horasEstimadas: '0.0',
-                                    primeiroRegisto: null,
-                                    ultimoRegisto: null,
-                                    obras: [],
-                                    faltas: []
-                                };
-                            }
-
-                            // Adicionar a falta às estatísticas do dia
-                            const novaFalta = {
-                                Falta: tipoFaltaSelecionado,
-                                Data: dataFormatada,
-                                Tempo: tempoNumerico,
-                                Horas: isHoras
-                            };
-                            estatisticasAtualizadas[diaToRegistar].faltas = [
-                                ...(estatisticasAtualizadas[diaToRegistar].faltas || []),
-                                novaFalta
-                            ];
-
-                            return {
-                                ...item,
-                                estatisticasDias: estatisticasAtualizadas,
-                                totalFaltas: (item.totalFaltas || 0) + 1
-                            };
-                        }
-                        return item;
-                    });
-                });
-
-                // Recarregar dados completos em background
-                setTimeout(() => {
-                    carregarDadosGrade();
-                }, 500);
+                carregarDadosGrade();
             }
 
         } catch (err) {
