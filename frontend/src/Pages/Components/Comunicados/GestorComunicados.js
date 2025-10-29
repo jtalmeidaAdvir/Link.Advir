@@ -10,6 +10,7 @@ const GestorComunicados = () => {
     const [estatisticas, setEstatisticas] = useState(null);
     const [mostrarFormulario, setMostrarFormulario] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [searchUser, setSearchUser] = useState("");
 
     const [novoComunicado, setNovoComunicado] = useState({
         titulo: "",
@@ -263,38 +264,35 @@ const GestorComunicados = () => {
                                 <label style={styles.label}>
                                     Selecionar Colaboradores ({novoComunicado.destinatarios_ids.length} selecionados)
                                 </label>
+                                <input
+                                    type="text"
+                                    style={styles.searchInput}
+                                    placeholder="🔍 Pesquisar por nome..."
+                                    value={searchUser}
+                                    onChange={(e) => setSearchUser(e.target.value)}
+                                />
                                 <div style={styles.checkboxContainer}>
-                                    {usuarios.map((user) => (
-                                        <label key={user.id} style={styles.checkboxLabel}>
-                                            <input
-                                                type="checkbox"
-                                                style={styles.checkbox}
-                                                checked={novoComunicado.destinatarios_ids.includes(user.id)}
-                                                onChange={() => handleDestinatariosChange(user.id)}
-                                            />
-                                            <span style={styles.checkboxText}>
-                                                {user.nome || user.username}
-                                            </span>
-                                        </label>
-                                    ))}
+                                    {usuarios
+                                        .filter((user) => {
+                                            const nome = user.nome || user.username || '';
+                                            return nome.toLowerCase().includes(searchUser.toLowerCase());
+                                        })
+                                        .map((user) => (
+                                            <label key={user.id} style={styles.checkboxLabel}>
+                                                <input
+                                                    type="checkbox"
+                                                    style={styles.checkbox}
+                                                    checked={novoComunicado.destinatarios_ids.includes(user.id)}
+                                                    onChange={() => handleDestinatariosChange(user.id)}
+                                                />
+                                                <span style={styles.checkboxText}>
+                                                    {user.nome || user.username}
+                                                </span>
+                                            </label>
+                                        ))}
                                 </div>
                             </div>
                         )}
-
-                        <div style={styles.formGroup}>
-                            <label style={styles.label}>Data de Expiração (opcional)</label>
-                            <input
-                                type="datetime-local"
-                                style={styles.input}
-                                value={novoComunicado.data_expiracao}
-                                onChange={(e) =>
-                                    setNovoComunicado({
-                                        ...novoComunicado,
-                                        data_expiracao: e.target.value,
-                                    })
-                                }
-                            />
-                        </div>
 
                         <button
                             style={{
@@ -605,6 +603,18 @@ const styles = {
         color: '#1E293B',
         backgroundColor: 'white',
         cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        outline: 'none',
+        boxSizing: 'border-box'
+    },
+    searchInput: {
+        width: '100%',
+        padding: '12px 16px',
+        border: '2px solid #E2E8F0',
+        borderRadius: '10px',
+        fontSize: '15px',
+        color: '#1E293B',
+        marginBottom: '12px',
         transition: 'all 0.2s ease',
         outline: 'none',
         boxSizing: 'border-box'
