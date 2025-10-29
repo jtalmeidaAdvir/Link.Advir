@@ -42,7 +42,30 @@ const criarComunicado = async (req, res) => {
         let destinatarios = [];
 
         if (destinatarios_tipo === "todos") {
+            // Buscar a empresa do remetente
+            const UserEmpresa = require("../models/user_empresa");
+            const userEmpresa = await UserEmpresa.findOne({
+                where: { user_id: remetente_id },
+                attributes: ["empresa_id"],
+            });
+
+            if (!userEmpresa) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Empresa do remetente não encontrada.",
+                });
+            }
+
+            // Buscar todos os usuários da mesma empresa
+            const usersEmpresas = await UserEmpresa.findAll({
+                where: { empresa_id: userEmpresa.empresa_id },
+                attributes: ["user_id"],
+            });
+
+            const userIds = usersEmpresas.map((ue) => ue.user_id);
+
             const users = await User.findAll({
+                where: { id: userIds },
                 attributes: ["id", "nome"],
             });
 
