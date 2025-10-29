@@ -7,7 +7,7 @@ import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icon
 import { Picker } from '@react-native-picker/picker';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
-import { secureStorage } from '../../../utils/secureStorage';
+import { secureStorage } from '../../utils/secureStorage';
 const UsersEmpresa = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [users, setUsers] = useState([]);

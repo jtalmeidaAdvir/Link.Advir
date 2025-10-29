@@ -7,7 +7,7 @@ import {
     FaFileAlt,
 } from "react-icons/fa";
 import { FaComputer } from "react-icons/fa6";
-import { secureStorage } from '../../../utils/secureStorage';
+import { secureStorage } from '../../utils/secureStorage';
 const PainelAdmin = () => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");

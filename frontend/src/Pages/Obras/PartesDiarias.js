@@ -18,7 +18,6 @@ import {
     SafeAreaView,
     FlatList,
 } from "react-native";
-import securestorage from "@react-native-async-storage/async-storage";
 import {
     FontAwesome,
     MaterialCommunityIcons,
@@ -27,6 +26,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Picker } from "@react-native-picker/picker";
 import { styles } from "./Css/PartesDiariasStyles";
+import {secureStorage} from '../../utils/secureStorage';
 
 const { width } = Dimensions.get("window");
 
@@ -329,8 +329,8 @@ const submeterPessoalEquip = async () => {
   }
 
   try {
-    const painelToken = await securestorage.getItem("painelAdminToken");
-    const userLogado  = (await securestorage.getItem("userNome")) || "";
+    const painelToken = await secureStorage.getItem("painelAdminToken");
+    const userLogado  = (await secureStorage.getItem("userNome")) || "";
 
     // Agrupar por (obraId, diaISO, colaboradorId) → 1 cabeçalho por colaborador/dia/obra
     const grupos = new Map();
@@ -524,8 +524,8 @@ const submeterPessoalEquip = async () => {
 
     const carregarObrasTodas = useCallback(async () => {
         try {
-            const token = await securestorage.getItem("loginToken");
-            const empresaId = await securestorage.getItem("empresa_id");
+            const token = await secureStorage.getItem("loginToken");
+            const empresaId = await secureStorage.getItem("empresa_id");
 
             const headers = {
                 Authorization: `Bearer ${token}`,
@@ -611,8 +611,8 @@ const submeterPessoalEquip = async () => {
     // Busca os trabalhadores externos ativos
     const carregarExternos = useCallback(async () => {
         try {
-            const token = await securestorage.getItem("loginToken");
-            const empresaId = await securestorage.getItem("empresa_id");
+            const token = await secureStorage.getItem("loginToken");
+            const empresaId = await secureStorage.getItem("empresa_id");
 
             const headers = {
                 Authorization: `Bearer ${token}`,
@@ -808,9 +808,9 @@ const submeterPessoalEquip = async () => {
         }
 
         try {
-            const painelToken = await securestorage.getItem("painelAdminToken");
-            const loginToken = await securestorage.getItem("loginToken");
-            const userLogado = (await securestorage.getItem("userNome")) || "";
+            const painelToken = await secureStorage.getItem("painelAdminToken");
+            const loginToken = await secureStorage.getItem("loginToken");
+            const userLogado = (await secureStorage.getItem("userNome")) || "";
 
             // Agrupa por (obraId, dia)
             const grupos = new Map();
@@ -957,7 +957,7 @@ const submeterPessoalEquip = async () => {
     };
 
     const carregarItensSubmetidos = async () => {
-        const painelToken = await securestorage.getItem("painelAdminToken");
+        const painelToken = await secureStorage.getItem("painelAdminToken");
 
         try {
             const res = await fetch(
@@ -991,8 +991,8 @@ const submeterPessoalEquip = async () => {
     };
 
     const carregarEspecialidades = useCallback(async () => {
-        const painelToken = await securestorage.getItem("painelAdminToken");
-        const urlempresa = await securestorage.getItem("urlempresa");
+        const painelToken = await secureStorage.getItem("painelAdminToken");
+        const urlempresa = await secureStorage.getItem("urlempresa");
         try {
             const data = await fetchComRetentativas(
                 "https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades",
@@ -1019,8 +1019,8 @@ const submeterPessoalEquip = async () => {
     }, []);
 
     const carregarEquipamentos = useCallback(async () => {
-        const painelToken = await securestorage.getItem("painelAdminToken");
-        const urlempresa = await securestorage.getItem("urlempresa");
+        const painelToken = await secureStorage.getItem("painelAdminToken");
+        const urlempresa = await secureStorage.getItem("urlempresa");
         try {
             const data = await fetchComRetentativas(
                 "https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos",
@@ -1054,8 +1054,8 @@ const submeterPessoalEquip = async () => {
 
 
     const carregarClasses = useCallback(async () => {
-        const painelToken = await securestorage.getItem("painelAdminToken");
-        const urlempresa = await securestorage.getItem("urlempresa");
+        const painelToken = await secureStorage.getItem("painelAdminToken");
+        const urlempresa = await secureStorage.getItem("urlempresa");
         try {
             const data = await fetchComRetentativas(
                 "https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses",
@@ -1269,8 +1269,8 @@ const submeterPessoalEquip = async () => {
         if (!editData?.categoria) return;
 
         const carregarCategoriaDinamicamente = async () => {
-            const painelToken = await securestorage.getItem("painelAdminToken");
-            const urlempresa = await securestorage.getItem("urlempresa");
+            const painelToken = await secureStorage.getItem("painelAdminToken");
+            const urlempresa = await secureStorage.getItem("urlempresa");
 
             try {
                 const endpoint =
@@ -1483,7 +1483,7 @@ const submeterPessoalEquip = async () => {
         codFuncionario,
         linhas,
     ) => {
-        const painelToken = await securestorage.getItem("painelAdminToken");
+        const painelToken = await secureStorage.getItem("painelAdminToken");
 
         let numeroSequencial = 1; // contador para numeração correta
 
@@ -1647,10 +1647,10 @@ const submeterPessoalEquip = async () => {
     };
 
     const carregarDadosReais = async () => {
-        const token = await securestorage.getItem("loginToken");
-        const tipoUser = await securestorage.getItem("tipoUser");
-        const userId = await securestorage.getItem("userId");
-        const userName = await securestorage.getItem("userNome");
+        const token = await secureStorage.getItem("loginToken");
+        const tipoUser = await secureStorage.getItem("tipoUser");
+        const userId = await secureStorage.getItem("userId");
+        const userName = await secureStorage.getItem("userNome");
 
         if (!token) {
             Alert.alert("Erro", "Token de autenticação não encontrado");
@@ -1666,7 +1666,7 @@ const submeterPessoalEquip = async () => {
 
             if (tipoUser === "Administrador") {
                 // Administradores veem todos os utilizadores
-                const empresaId = await securestorage.getItem("empresa_id");
+                const empresaId = await secureStorage.getItem("empresa_id");
                 const usersResponse = await fetch(
                     `https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaId}`,
                     {
@@ -2188,7 +2188,7 @@ const submeterPessoalEquip = async () => {
                 trabalhador.especialidades?.filter((esp) => esp.dia === dia) || [];
 
             // Verificar se o utilizador atual é diretor
-            const userId = await securestorage.getItem("userId");
+            const userId = await secureStorage.getItem("userId");
             const isProprioUtilizador = String(trabalhador.userId) === String(userId);
 
             // Encontrar a especialidade e classe por defeito
@@ -2487,7 +2487,7 @@ const submeterPessoalEquip = async () => {
     }, [selectedTrabalhador, selectedDia, editData, obras, diasDoMes, codMap]);
 
     const obterCodFuncionario = async (userId) => {
-        const painelToken = await securestorage.getItem("painelAdminToken");
+        const painelToken = await secureStorage.getItem("painelAdminToken");
 
         const resposta = await fetch(
             `https://backend.advir.pt/api/users/getCodFuncionario/${userId}`,
@@ -2654,8 +2654,8 @@ const submeterPessoalEquip = async () => {
     };
 
     const criarParteDiaria = async () => {
-        const painelToken = await securestorage.getItem("painelAdminToken");
-        const userLogado = (await securestorage.getItem("userNome")) || "";
+        const painelToken = await secureStorage.getItem("painelAdminToken");
+        const userLogado = (await secureStorage.getItem("userNome")) || "";
 
         if (!dadosProcessados || dadosProcessados.length === 0) {
             Alert.alert("Erro", "Não existem dados para submeter.");
@@ -2814,8 +2814,8 @@ const submeterPessoalEquip = async () => {
         if (linhasExternos.length === 0) return false;
 
         try {
-            const painelToken = await securestorage.getItem("painelAdminToken");
-            const userLogado = (await securestorage.getItem("userNome")) || "";
+            const painelToken = await secureStorage.getItem("painelAdminToken");
+            const userLogado = (await secureStorage.getItem("userNome")) || "";
 
             // Agrupar por (obraId, dia)
             const grupos = new Map();

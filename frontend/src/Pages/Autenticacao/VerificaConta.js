@@ -3,7 +3,7 @@ import { useNavigation } from '@react-navigation/native'; // Importa o hook para
 import { Modal, View, Text, Button, StyleSheet } from 'react-native'; // Importar os componentes necessários
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
-import { secureStorage } from '../../../utils/secureStorage';
+import { secureStorage } from '../../utils/secureStorage';
 const VerificaConta = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');

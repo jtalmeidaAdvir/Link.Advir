@@ -12,7 +12,6 @@ import {
     Dimensions,
     Modal
 } from 'react-native';
-import securestorage from '@react-native-async-storage/async-storage';
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
@@ -86,9 +85,9 @@ const CriarEquipa = () => {
 
     const fetchEquipasCriadas = async () => {
         try {
-            const token = await securestorage.getItem('loginToken');
-            const userId = await securestorage.getItem('userId');
-            const tipoUser = await securestorage.getItem('tipoUser'); // assume userType guardado
+            const token = await secureStorage.getItem('loginToken');
+            const userId = await secureStorage.getItem('userId');
+            const tipoUser = await secureStorage.getItem('tipoUser'); // assume userType guardado
 
             const res = await fetch('https://backend.advir.pt/api/equipa-obra/listar-todas', {
                 headers: { Authorization: `Bearer ${token}` },
@@ -186,7 +185,7 @@ const CriarEquipa = () => {
 
         try {
             setLoading(true);
-            const token = await securestorage.getItem('loginToken');
+            const token = await secureStorage.getItem('loginToken');
             const res = await fetch('https://backend.advir.pt/api/equipa-obra', {
                 method: 'POST',
                 headers: {
@@ -220,7 +219,7 @@ const CriarEquipa = () => {
         if (!equipaParaRemover) return;
 
         try {
-            const token = await securestorage.getItem('loginToken');
+            const token = await secureStorage.getItem('loginToken');
             const res = await fetch('https://backend.advir.pt/api/equipa-obra/remover-equipa', {
                 method: 'POST',
                 headers: {
@@ -263,7 +262,7 @@ const CriarEquipa = () => {
         }
 
         try {
-            const token = await securestorage.getItem('loginToken');
+            const token = await secureStorage.getItem('loginToken');
             const res = await fetch(`https://backend.advir.pt/api/equipa-obra/editar-equipa/${equipaSelecionadaEditar.nome}`, {
                 method: 'PUT',
                 headers: {

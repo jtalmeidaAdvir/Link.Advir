@@ -9,10 +9,10 @@ import {
     TouchableOpacity,
     Alert
 } from 'react-native';
-import securestorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
+import { secureStorage } from '../../utils/secureStorage';
 
 const PredicaoObraIA = ({ navigation }) => {
     const [loading, setLoading] = useState(false);
@@ -32,7 +32,7 @@ const PredicaoObraIA = ({ navigation }) => {
 
     const carregarObras = async () => {
         try {
-            const token = await securestorage.getItem('loginToken');
+            const token = await secureStorage.getItem('loginToken');
             const res = await fetch('https://backend.advir.pt/api/obra', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -54,7 +54,7 @@ const PredicaoObraIA = ({ navigation }) => {
 
         setLoading(true);
         try {
-            const token = await securestorage.getItem('loginToken');
+            const token = await secureStorage.getItem('loginToken');
             const url = `https://backend.advir.pt/api/predicao-obra/${obraSelecionada}?diasPrevistos=${diasPrevistos}`;
             
             console.log('Buscando predição para obra:', obraSelecionada);

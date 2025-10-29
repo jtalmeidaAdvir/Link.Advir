@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, Button, StyleSheet } from 'react-native';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
-import { secureStorage } from '../../../utils/secureStorage';
+import { secureStorage } from '../../utils/secureStorage';
 const RegistoUser = () => {
     const [username, setUsername] = useState('');
     const [nome, setNome] = useState('');

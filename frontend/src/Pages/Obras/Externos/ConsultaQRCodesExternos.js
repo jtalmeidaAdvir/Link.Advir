@@ -14,10 +14,10 @@ import {
     RefreshControl,
     Alert
 } from 'react-native';
-import securestorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
+import { secureStorage } from '../../../utils/secureStorage';
 
 const API_BASE = 'https://backend.advir.pt/api/externos-jpa';
 const EMAIL_API = 'https://webapiprimavera.advir.pt/send-email-externos';
@@ -48,8 +48,8 @@ const ConsultaQRCodesExternos = () => {
         setLoading(true);
         setErro('');
         try {
-            const loginToken = await securestorage.getItem('loginToken');
-            const empresaId = await securestorage.getItem('empresa_id');
+            const loginToken = await secureStorage.getItem('loginToken');
+            const empresaId = await secureStorage.getItem('empresa_id');
 
             const headers = {
                 Authorization: `Bearer ${loginToken}`,

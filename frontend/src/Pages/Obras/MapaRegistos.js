@@ -12,7 +12,6 @@ import {
   Platform,
   Linking,
 } from "react-native";
-import securestorage from "@react-native-async-storage/async-storage";
 import {
   FontAwesome,
   MaterialCommunityIcons,
@@ -96,7 +95,7 @@ const MapaRegistos = ({ navigation }) => {
     try {
       const token = secureStorage.getItem("loginToken");
       const userId = secureStorage.getItem("userId");
-      const empresaId = await securestorage.getItem("empresa_id");
+      const empresaId = await secureStorage.getItem("empresa_id");
 
       if (userId && token) {
         let url = `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`;
@@ -242,7 +241,7 @@ const MapaRegistos = ({ navigation }) => {
       setError("");
 
       const token = secureStorage.getItem("loginToken");
-      const empresaId = await securestorage.getItem("empresa_id");
+      const empresaId = await secureStorage.getItem("empresa_id");
 
       if (!token) {
         setError("Token de autenticação não encontrado");

@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Servicos\\PedidosAssistencia.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Servicos\\PedidosAssistencia.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\hooks\\useFaltasPendentes.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Assiduidade\\hooks\\useFaltasPendentes.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
@@ -17,10 +21,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\components\\NotificacaoCombinada.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Assiduidade\\components\\NotificacaoCombinada.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Servicos\\PedidosAssistencia.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:frontend\\src\\Pages\\Servicos\\PedidosAssistencia.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Obras\\PartesDiarias.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
@@ -146,7 +146,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 1,
+          "SelectedChildIndex": 5,
           "Children": [
             {
               "$type": "Bookmark",
@@ -154,20 +154,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "useFaltasPendentes.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\hooks\\useFaltasPendentes.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\hooks\\useFaltasPendentes.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\hooks\\useFaltasPendentes.js",
               "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\hooks\\useFaltasPendentes.js",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAA6AAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAmAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-10-29T10:17:54.916Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "NotificacaoRegistosPendentes.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\components\\NotificacaoRegistosPendentes.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\components\\NotificacaoRegistosPendentes.js",
@@ -180,7 +180,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "NotificacaoFaltasPendentes.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\components\\NotificacaoFaltasPendentes.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\components\\NotificacaoFaltasPendentes.js",
@@ -193,7 +193,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "NotificacaoCombinada.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\components\\NotificacaoCombinada.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\components\\NotificacaoCombinada.js",
@@ -206,13 +206,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 0,
               "Title": "PedidosAssistencia.js",
               "DocumentMoniker": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Servicos\\PedidosAssistencia.js",
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Servicos\\PedidosAssistencia.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Servicos\\PedidosAssistencia.js",
               "RelativeToolTip": "frontend\\src\\Pages\\Servicos\\PedidosAssistencia.js",
-              "ViewState": "AgIAAGAAAAAAAAAAAIAwwMUAAAArAAAAAAAAAA==",
+              "ViewState": "AgIAAO0DAAAAAAAAAIAwwP4DAAAyAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-10-29T10:16:44.581Z",
               "EditorCaption": ""
@@ -240,7 +240,8 @@
               "RelativeToolTip": "backend\\controllers\\verificacaoAutomaticaPontosController.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAlAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-16T17:03:54.622Z"
+              "WhenOpened": "2025-09-16T17:03:54.622Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -250,9 +251,10 @@
               "RelativeDocumentMoniker": "backend\\routes\\verificacaoAutomaticaPontosRoutes.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\backend\\routes\\verificacaoAutomaticaPontosRoutes.js",
               "RelativeToolTip": "backend\\routes\\verificacaoAutomaticaPontosRoutes.js",
-              "ViewState": "AgIAAAMAAAAAAAAAAAAAAAsAAAA8AAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAIBJwAsAAAA8AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-16T17:03:31.396Z"
+              "WhenOpened": "2025-09-16T17:03:31.396Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -262,9 +264,10 @@
               "RelativeDocumentMoniker": "whatsapp-backend\\routes\\configuracaoAutomaticaRoutes.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\whatsapp-backend\\routes\\configuracaoAutomaticaRoutes.js",
               "RelativeToolTip": "whatsapp-backend\\routes\\configuracaoAutomaticaRoutes.js",
-              "ViewState": "AgIAAGIBAAAAAAAAAAAAAHQBAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAF8BAAAAAAAAAIBJwHQBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-16T13:06:55.962Z"
+              "WhenOpened": "2025-09-16T13:06:55.962Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -339,7 +342,7 @@
               "RelativeDocumentMoniker": "frontend\\App.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\App.js",
               "RelativeToolTip": "frontend\\App.js",
-              "ViewState": "AgIAAHsBAAAAAAAAAAAqwIkBAAAmAAAAAAAAAA==",
+              "ViewState": "AgIAAHsBAAAAAAAAAAAqwIkBAAAaAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-15T09:26:02.778Z",
               "EditorCaption": ""
@@ -352,7 +355,7 @@
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Servicos\\RegistoIntervencao.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Servicos\\RegistoIntervencao.js",
               "RelativeToolTip": "frontend\\src\\Pages\\Servicos\\RegistoIntervencao.js",
-              "ViewState": "AgIAAJkCAAAAAAAAAAAUwKMCAAA9AAAAAAAAAA==",
+              "ViewState": "AgIAAJkCAAAAAAAAAAAUwKMCAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-12T11:58:18.09Z",
               "EditorCaption": ""
@@ -380,7 +383,8 @@
               "RelativeToolTip": "webPrimaveraApi\\routes\\Servicos\\routePedidos_STP.js",
               "ViewState": "AgIAAKwDAAAAAAAAAAAhwNwDAAAmAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-12T11:59:01.573Z"
+              "WhenOpened": "2025-09-12T11:59:01.573Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -392,7 +396,8 @@
               "RelativeToolTip": "webPrimaveraApi\\routes\\Servicos\\listarPedidos.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-12T16:19:55.812Z"
+              "WhenOpened": "2025-09-12T16:19:55.812Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -404,7 +409,8 @@
               "RelativeToolTip": "webPrimaveraApi\\servives\\emailServicos.js",
               "ViewState": "AgIAAGYAAAAAAAAAAAAcwH4AAAAbAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-12T11:59:36.105Z"
+              "WhenOpened": "2025-09-12T11:59:36.105Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -416,7 +422,8 @@
               "RelativeToolTip": "backend\\controllers\\trabalhadorExternoController.js",
               "ViewState": "AgIAALIBAAAAAAAAAAAswMEBAAACAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T16:50:51.072Z"
+              "WhenOpened": "2025-09-09T16:50:51.072Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -426,7 +433,7 @@
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Obras\\Externos\\GestaoTrabalhadoresExternos.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Obras\\Externos\\GestaoTrabalhadoresExternos.js",
               "RelativeToolTip": "frontend\\src\\Pages\\Obras\\Externos\\GestaoTrabalhadoresExternos.js",
-              "ViewState": "AgIAANUJAAAAAAAAAAAswOQJAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAADsJAAAAAAAAAEBVwEAJAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-09T16:49:27.431Z",
               "EditorCaption": ""
@@ -454,7 +461,8 @@
               "RelativeToolTip": "webPrimaveraApi\\routes\\Faltas\\routesFaltas.js",
               "ViewState": "AgIAALUAAAAAAAAAAAAEwMEAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T09:03:23.752Z"
+              "WhenOpened": "2025-09-09T09:03:23.752Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -466,7 +474,8 @@
               "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\EditarModal.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T14:51:08.949Z"
+              "WhenOpened": "2025-09-09T14:51:08.949Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -491,7 +500,8 @@
               "RelativeToolTip": "backend\\routes\\registoPontoRoutes.js",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T14:37:31.473Z"
+              "WhenOpened": "2025-09-09T14:37:31.473Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -503,7 +513,8 @@
               "RelativeToolTip": "backend\\controllers\\registoPontoController.js",
               "ViewState": "AgIAAG8BAAAAAAAAAAAkwIwBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T14:37:02.759Z"
+              "WhenOpened": "2025-09-09T14:37:02.759Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -526,7 +537,7 @@
               "RelativeDocumentMoniker": "frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
               "ToolTip": "C:\\Users\\jtalm\\Desktop\\NEWLINKTOPUSH\\Link.Advir\\frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
               "RelativeToolTip": "frontend\\src\\Pages\\Assiduidade\\RegistosPorUtilizador.js",
-              "ViewState": "AgIAAAARAAAAAAAAAAAswA8RAAAlAAAAAAAAAA==",
+              "ViewState": "AgIAAAARAAAAAAAAAAAswA8RAAATAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
               "WhenOpened": "2025-09-09T14:51:38.127Z",
               "EditorCaption": ""
@@ -541,7 +552,8 @@
               "RelativeToolTip": "backend\\models\\parteDiariaItem.js",
               "ViewState": "AgIAABkAAAAAAAAAAAAYwCwAAAAhAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T13:49:49.766Z"
+              "WhenOpened": "2025-09-09T13:49:49.766Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -553,7 +565,8 @@
               "RelativeToolTip": "backend\\controllers\\parteItemController.js",
               "ViewState": "AgIAAEMAAAAAAAAAAAAUwFYAAAACAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2025-09-09T10:04:09.27Z"
+              "WhenOpened": "2025-09-09T10:04:09.27Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",

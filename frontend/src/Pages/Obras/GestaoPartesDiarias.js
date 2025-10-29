@@ -15,7 +15,6 @@ import {
     TextInput,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
-import securestorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { styles } from "./Css/GestaoPartesDiariasStyles";
@@ -256,8 +255,8 @@ const GestaoPartesDiarias = () => {
 
     const fetchEspecialidades = async () => {
         try {
-            const token = await securestorage.getItem("painelAdminToken");
-            const urlempresa = await securestorage.getItem("urlempresa");
+            const token = await secureStorage.getItem("painelAdminToken");
+            const urlempresa = await secureStorage.getItem("urlempresa");
             
             const res = await fetch(
                 "https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades",
@@ -294,8 +293,8 @@ const GestaoPartesDiarias = () => {
 
     const fetchEquipamentos = async () => {
         try {
-            const token = await securestorage.getItem("painelAdminToken");
-            const urlempresa = await securestorage.getItem("urlempresa");
+            const token = await secureStorage.getItem("painelAdminToken");
+            const urlempresa = await secureStorage.getItem("urlempresa");
 
             const res = await fetch(
                 "https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos",
@@ -341,8 +340,8 @@ const GestaoPartesDiarias = () => {
     };
 
     const carregarClasses = useCallback(async () => {
-        const painelToken = await securestorage.getItem("painelAdminToken");
-        const urlempresa = await securestorage.getItem("urlempresa");
+        const painelToken = await secureStorage.getItem("painelAdminToken");
+        const urlempresa = await secureStorage.getItem("urlempresa");
         try {
             const data = await fetchComRetentativas(
                 "https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses",
@@ -426,8 +425,8 @@ const GestaoPartesDiarias = () => {
     // === CLASSES ===
     const fetchClasses = async () => {
         try {
-            const token = await securestorage.getItem("painelAdminToken");
-            const urlempresa = await securestorage.getItem("urlempresa");
+            const token = await secureStorage.getItem("painelAdminToken");
+            const urlempresa = await secureStorage.getItem("urlempresa");
 
             const res = await fetch(
                 "https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses",
@@ -596,7 +595,7 @@ const GestaoPartesDiarias = () => {
                 return;
             }
 
-            const loginToken = await securestorage.getItem("loginToken");
+            const loginToken = await secureStorage.getItem("loginToken");
             if (!loginToken) {
                 Alert.alert("Sessão", "Sem sessão válida. Entre novamente.");
                 return;
@@ -828,8 +827,8 @@ const GestaoPartesDiarias = () => {
 
             try {
                 const painelToken =
-                    await securestorage.getItem("painelAdminToken");
-                const urlempresa = await securestorage.getItem("urlempresa");
+                    await secureStorage.getItem("painelAdminToken");
+                const urlempresa = await secureStorage.getItem("urlempresa");
                 const res = await fetch(
                     `https://webapiprimavera.advir.pt/routesFaltas/GetNomeFuncionario/${codFuncionario}`,
                     {
@@ -880,8 +879,8 @@ const GestaoPartesDiarias = () => {
 
             try {
                 const painelToken =
-                    await securestorage.getItem("painelAdminToken");
-                const urlempresa = await securestorage.getItem("urlempresa");
+                    await secureStorage.getItem("painelAdminToken");
+                const urlempresa = await secureStorage.getItem("urlempresa");
 
                 const res = await fetch(
                     `https://webapiprimavera.advir.pt/routesFaltas/GetColaboradorId/${codFuncionario}`,
@@ -931,7 +930,7 @@ const GestaoPartesDiarias = () => {
 
     const obterCodObra = useCallback(async (obraID) => {
         try {
-            const token = await securestorage.getItem("loginToken");
+            const token = await secureStorage.getItem("loginToken");
 
             const response = await fetch(
                 `https://backend.advir.pt/api/obra/getcodigo/${obraID}`,
@@ -959,8 +958,8 @@ const GestaoPartesDiarias = () => {
 
     const obterIDObra = useCallback(async (codigoObra) => {
         try {
-            const token = await securestorage.getItem("painelAdminToken");
-            const urlempresa = await securestorage.getItem("urlempresa");
+            const token = await secureStorage.getItem("painelAdminToken");
+            const urlempresa = await secureStorage.getItem("urlempresa");
 
             const response = await fetch(
                 `https://webapiprimavera.advir.pt/routesFaltas/GetObraId/${codigoObra}`,
@@ -995,8 +994,8 @@ const GestaoPartesDiarias = () => {
 
     const fetchResponsavelObra = async (codigoObra) => {
         try {
-            const token = await securestorage.getItem("painelAdminToken");
-            const urlempresa = await securestorage.getItem("urlempresa");
+            const token = await secureStorage.getItem("painelAdminToken");
+            const urlempresa = await secureStorage.getItem("urlempresa");
 
             if (!token || !urlempresa) {
                 return null;
@@ -1043,8 +1042,8 @@ const GestaoPartesDiarias = () => {
 
     const fetchObras = async () => {
         try {
-            const logintoken = await securestorage.getItem("loginToken");
-            const tipoUser = await securestorage.getItem("tipoUser");
+            const logintoken = await secureStorage.getItem("loginToken");
+            const tipoUser = await secureStorage.getItem("tipoUser");
             
             const res = await fetch("https://backend.advir.pt/api/obra", {
                 headers: {
@@ -1070,7 +1069,7 @@ const GestaoPartesDiarias = () => {
             }
 
             // Obter o responsável atual do secureStorage (para não-administradores)
-            const codRecursosHumanos = await securestorage.getItem("codRecursosHumanos");
+            const codRecursosHumanos = await secureStorage.getItem("codRecursosHumanos");
             const obrasDoResponsavel = new Set();
 
             // Verificar responsáveis em paralelo (máximo 10 simultâneos)
@@ -1106,7 +1105,7 @@ const GestaoPartesDiarias = () => {
 
     const fetchCabecalhos = async () => {
         try {
-            const token = await securestorage.getItem("painelAdminToken");
+            const token = await secureStorage.getItem("painelAdminToken");
             if (!token) throw new Error("Token de autenticação não encontrado.");
             
             const res = await fetch(
@@ -1156,9 +1155,9 @@ const GestaoPartesDiarias = () => {
         setIntegrandoIds((prev) => new Set(prev).add(cab.DocumentoID));
 
         try {
-            const token = await securestorage.getItem("painelAdminToken");
-            const urlempresa = await securestorage.getItem("urlempresa");
-            const loginToken = await securestorage.getItem("loginToken");
+            const token = await secureStorage.getItem("painelAdminToken");
+            const urlempresa = await secureStorage.getItem("urlempresa");
+            const loginToken = await secureStorage.getItem("loginToken");
             if (!token || !urlempresa) {
                 Alert.alert("Erro", "Token ou empresa em falta.");
                 return;
@@ -1175,7 +1174,7 @@ const GestaoPartesDiarias = () => {
             const idObra = await obterIDObra(codigoObra);
 
             // Colaborador no cabeçalho (se existir em storage)
-            const codFuncLocal = await securestorage.getItem("codFuncionario");
+            const codFuncLocal = await secureStorage.getItem("codFuncionario");
             const colaboradorIdCab = codFuncLocal
                 ? await obterColaboradorID(codFuncLocal)
                 : null;
@@ -1308,7 +1307,7 @@ const GestaoPartesDiarias = () => {
                 );
                 return;
             }
-            const loginToken = await securestorage.getItem("loginToken");
+            const loginToken = await secureStorage.getItem("loginToken");
             const marcarRes = await fetch(
                 `https://backend.advir.pt/api/parte-diaria/cabecalhos/${cab.DocumentoID}/integrar`,
                 {
@@ -1361,7 +1360,7 @@ const GestaoPartesDiarias = () => {
             );
             if (!ok) return;
 
-            const loginToken = await securestorage.getItem("loginToken");
+            const loginToken = await secureStorage.getItem("loginToken");
             if (!loginToken) throw new Error("Sem sessão válida.");
 
             const url = `https://backend.advir.pt/api/parte-diaria/cabecalhos/${encodeURIComponent(String(cab.DocumentoID))}`;
@@ -1426,7 +1425,7 @@ const GestaoPartesDiarias = () => {
                     if (onlyExternos) {
                         // Aceitar apenas externos
                         const loginToken =
-                            await securestorage.getItem("loginToken");
+                            await secureStorage.getItem("loginToken");
                         const marcarRes = await fetch(
                             `https://backend.advir.pt/api/parte-diaria/cabecalhos/${cab.DocumentoID}/integrar`,
                             {
@@ -1452,18 +1451,18 @@ const GestaoPartesDiarias = () => {
                         );
 
                         const token =
-                            await securestorage.getItem("painelAdminToken");
+                            await secureStorage.getItem("painelAdminToken");
                         const urlempresa =
-                            await securestorage.getItem("urlempresa");
+                            await secureStorage.getItem("urlempresa");
                         const loginToken =
-                            await securestorage.getItem("loginToken");
+                            await secureStorage.getItem("loginToken");
 
                         const dadosObra = await obterCodObra(cab.ObraID);
                         const codigoObra = dadosObra?.codigo;
                         const idObra = await obterIDObra(codigoObra);
 
                         const codFuncLocal =
-                            await securestorage.getItem("codFuncionario");
+                            await secureStorage.getItem("codFuncionario");
                         const colaboradorIdCab = codFuncLocal
                             ? await obterColaboradorID(codFuncLocal)
                             : null;
@@ -1619,7 +1618,7 @@ const GestaoPartesDiarias = () => {
             );
             if (!ok) return;
 
-            const loginToken = await securestorage.getItem("loginToken");
+            const loginToken = await secureStorage.getItem("loginToken");
             if (!loginToken) throw new Error("Sem sessão válida.");
 
             let sucessos = 0;

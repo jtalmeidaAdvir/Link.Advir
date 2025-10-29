@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Picker } from "@react-native-picker/picker";
-import { secureStorage } from '../../../utils/secureStorage';
+import { secureStorage } from '../../utils/secureStorage';
 
 const UserModulesManagement = ({ route }) => {
     const { userId } = route.params;

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { secureStorage } from '../../../utils/secureStorage';
+import { secureStorage } from '../../utils/secureStorage';
 const GestaoPOS = () => {
     const [posList, setPosList] = useState([]);
     const [obras, setObras] = useState([]);

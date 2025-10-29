@@ -15,8 +15,7 @@ import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icon
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { secureStorage } from '../../utils/secureStorage';
-// Exemplo de secureStorage no web; no React Native puro usarias o securestorage
-// import securestorage from '@react-native-async-storage/async-storage';
+// Exemplo de secureStorage no web; no React Native puro usarias o secureStorage
 
 const LeitorQRCode = () => {
   const [animatedValue] = useState(new Animated.Value(0));
@@ -124,7 +123,7 @@ const carregarEquipas = async () => {
     const carregarHoraEntrada = async () => {
       let horaEntradaSalva = secureStorage.getItem('horaEntrada');
       // Em React Native puro, seria algo como:
-      // let horaEntradaSalva = await securestorage.getItem('horaEntrada');
+      // let horaEntradaSalva = await secureStorage.getItem('horaEntrada');
 
       if (!horaEntradaSalva) {
         console.log("LocalStorage vazio. A tentar buscar do backend...");
@@ -236,7 +235,7 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
     const carregarEstadoInicial = async () => {
       const estadoLocal = JSON.parse(secureStorage.getItem('intervaloAberto'));
       // Em React Native puro:
-      // const estadoLocal = JSON.parse(await securestorage.getItem('intervaloAberto'));
+      // const estadoLocal = JSON.parse(await secureStorage.getItem('intervaloAberto'));
 
       if (estadoLocal && estadoLocal.intervaloAberto) {
         setHoraInicioIntervalo(new Date(estadoLocal.horaInicioIntervalo));
@@ -463,7 +462,7 @@ const registarPonto = async () => {
         horaInicioIntervalo: agora,
         intervaloAberto: true,
       }));
-      // Em React Native: await securestorage.setItem('intervaloAberto', ...)
+      // Em React Native: await secureStorage.setItem('intervaloAberto', ...)
 
       const response = await fetch('https://backend.advir.pt/api/intervalo/iniciarIntervalo', {
         method: 'POST',
@@ -506,7 +505,7 @@ const registarPonto = async () => {
         setIntervaloAberto(false);
         setHoraInicioIntervalo(null);
         secureStorage.removeItem('intervaloAberto');
-        // Em React Native: await securestorage.removeItem('intervaloAberto');
+        // Em React Native: await secureStorage.removeItem('intervaloAberto');
 
         // Retomar temporizador de trabalho
         setTemporizadorAtivo(true);

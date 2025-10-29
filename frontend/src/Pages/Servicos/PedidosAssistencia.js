@@ -32,7 +32,6 @@ import {
     faUser,
     faFileText,
 } from "@fortawesome/free-solid-svg-icons";
-import securestorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import i18n from "../i18n";
 import { useTranslation } from "react-i18next";
@@ -1022,7 +1021,7 @@ const PedidosAssistencia = ({ navigation }) => {
                             style={[styles.actionButton, styles.primaryActionButton]}
                             onPress={async () => {
                                 try {
-                                    await securestorage.setItem(
+                                    await secureStorage.setItem(
                                         "intervencaoId",
                                         item[0].ID.toString(),
                                     );

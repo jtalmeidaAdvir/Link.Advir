@@ -11,7 +11,6 @@ import {
     ScrollView,
     Dimensions,
 } from "react-native";
-import securestorage from "@react-native-async-storage/async-storage";
 import {
     FontAwesome,
     Ionicons,
@@ -86,8 +85,8 @@ const Escritorio = ({ navigation }) => {
             setLoadingProgress(10);
             setLoadingMessage("Verificando autenticação...");
 
-            const token = await securestorage.getItem("painelAdminToken");
-            const urlempresa = await securestorage.getItem("urlempresa");
+            const token = await secureStorage.getItem("painelAdminToken");
+            const urlempresa = await secureStorage.getItem("urlempresa");
 
             if (!token || !urlempresa) {
                 setErrorMessage("Token ou URL da empresa não encontrados.");
@@ -147,7 +146,7 @@ const Escritorio = ({ navigation }) => {
     const importarObra = async (obra) => {
         try {
             const token = secureStorage.getItem("loginToken");
-            const empresaId = await securestorage.getItem("empresa_id");
+            const empresaId = await secureStorage.getItem("empresa_id");
 
             const response = await fetch("https://backend.advir.pt/api/obra", {
                 method: "POST",
