@@ -105,6 +105,9 @@ import PrivacySettings from "./src/Pages/GDPR/PrivacySettings";
 import ComunicadosUser from "./src/Pages/Components/Comunicados/ComunicadosUsuario";
 import GestorComunicados from "./src/Pages/Components/Comunicados/GestorComunicados";
 
+// Hook para comunicados não lidos
+import { useComunicadosNaoLidos } from "./src/hooks/useComunicadosNaoLidos";
+
 
 
 const Drawer = createDrawerNavigator();
@@ -152,6 +155,7 @@ const CustomDrawerContent = ({
         Administrador: false,
     });
     const { t } = useTranslation();
+    const comunicadosNaoLidos = useComunicadosNaoLidos();
 
     const handleModulePress = (moduleName) => {
         setExpandedModules((prev) => ({
@@ -854,6 +858,13 @@ const CustomDrawerContent = ({
                                             >
                                                 {getModuleDisplayName(module)}
                                             </Text>
+                                            {module.nome === "Comunicados" && comunicadosNaoLidos > 0 && (
+                                                <View style={drawerStyles.notificationBadge}>
+                                                    <Text style={drawerStyles.notificationBadgeText}>
+                                                        {comunicadosNaoLidos}
+                                                    </Text>
+                                                </View>
+                                            )}
                                         </View>
                                         <FontAwesome
                                             name={
@@ -1031,6 +1042,8 @@ const CustomDrawerContent = ({
                                                             Aprovacoes:
                                                                 "Aprovações",
                                                                  Complota: "Pontos",
+                                                                   ComunicadosUser: "Os meus comunicados",     // <-- novo rótulo
+  GestorComunicados: "Gestor de comunicados", // <-- novo rótulo
                                                         }[submodulo.nome] ||
                                                         submodulo.nome;
 
@@ -2597,6 +2610,21 @@ const drawerStyles = StyleSheet.create({
         fontWeight: "600",
         color: "#64748B",
         marginLeft: 35,
+    },
+    notificationBadge: {
+        backgroundColor: "#dc3545",
+        borderRadius: 10,
+        minWidth: 20,
+        height: 20,
+        justifyContent: "center",
+        alignItems: "center",
+        marginLeft: 8,
+        paddingHorizontal: 6,
+    },
+    notificationBadgeText: {
+        color: "#FFFFFF",
+        fontSize: 11,
+        fontWeight: "bold",
     },
     submoduleContainer: {
         backgroundColor: "#FFFFFF",

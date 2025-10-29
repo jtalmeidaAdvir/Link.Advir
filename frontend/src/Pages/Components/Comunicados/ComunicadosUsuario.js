@@ -272,6 +272,8 @@ const getPrioridadeBadge = (prioridade) => {
 const styles = {
     pageWrapper: {
         minHeight: '100vh',
+        maxHeight: '100vh',
+        overflow: 'auto',
         backgroundColor: '#F5F7FA',
         paddingTop: '20px',
         paddingBottom: '40px'
