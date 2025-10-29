@@ -25,6 +25,10 @@ const Visitante = require('./models/visitante');
 const RegistoPontoVisitante = require('./models/registoPontoVisitante');
 const Configuracao = require('./models/configuracao');
 
+// Importar novos modelos para o sistema de comunicados
+const Comunicado = require('./models/comunicado');
+const ComunicadoLeitura = require('./models/comunicadoLeitura');
+
 // Nota: Contact e Schedule são tabelas independentes para o WhatsApp Web
 // sem relações diretas com outras tabelas
 
@@ -106,6 +110,10 @@ POS.belongsTo(Empresa, { foreignKey: 'empresa_id', as: 'Empresa' });
 Obra.hasMany(POS, { foreignKey: 'obra_predefinida_id' });
 Empresa.hasMany(POS, { foreignKey: 'empresa_id' });
 
+// Associações de Comunicados
+Comunicado.hasMany(ComunicadoLeitura, { foreignKey: 'comunicado_id' });
+ComunicadoLeitura.belongsTo(Comunicado, { foreignKey: 'comunicado_id' });
+
 // Exportar os modelos para que as associações sejam aplicadas
 module.exports = {
     User,
@@ -133,5 +141,7 @@ module.exports = {
     POS,
     Visitante,
     RegistoPontoVisitante,
-    Configuracao
+    Configuracao,
+    Comunicado,
+    ComunicadoLeitura,
 };

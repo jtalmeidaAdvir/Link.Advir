@@ -108,8 +108,16 @@ export const styles = {
         borderColor: '#ddd',
         borderRadius: 12,
         backgroundColor: '#f8f9fa',
-        maxHeight: 200,
+        maxHeight: 250,
         marginBottom: 10,
+    },
+    searchInput: {
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
+        padding: 12,
+        fontSize: 14,
+        backgroundColor: '#fff',
+        color: '#333',
     },
     membersScrollView: {
         maxHeight: 180,
@@ -381,13 +389,16 @@ export const styles = {
         backgroundColor: '#f8f9fa',
         marginBottom: 10,
     },
-    modalMembersContainer: {
+    modalMembersWrapper: {
         borderWidth: 1,
         borderColor: '#ddd',
         borderRadius: 12,
         backgroundColor: '#f8f9fa',
-        maxHeight: 200,
+        maxHeight: 250,
         marginTop: 10,
+    },
+    modalMembersContainer: {
+        maxHeight: 180,
     },
     modalMemberItem: {
         paddingHorizontal: 15,

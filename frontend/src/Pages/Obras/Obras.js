@@ -17,8 +17,8 @@ import {
 } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "react-native";
-import { styles } from './Css/ObrasStyles';
-import { secureStorage } from '../../utils/secureStorage';
+import { styles } from "./Css/ObrasStyles";
+import { secureStorage } from "../../utils/secureStorage";
 const { width, height } = Dimensions.get("window");
 
 const ListarObras = ({ navigation }) => {
@@ -233,30 +233,43 @@ const ListarObras = ({ navigation }) => {
                         urlempresa: urlempresa,
                         "Content-Type": "application/json",
                     },
-                }
+                },
             );
 
             if (response.ok) {
                 const data = await response.json();
-                if (data && data.DataSet && data.DataSet.Table && data.DataSet.Table.length > 0) {
-                    return data.DataSet.Table[0].CDU_AcessoUtilizador1 || data.DataSet.Table[0].Nome || data.DataSet.Table[0].name || "N/A";
+                if (
+                    data &&
+                    data.DataSet &&
+                    data.DataSet.Table &&
+                    data.DataSet.Table.length > 0
+                ) {
+                    return (
+                        data.DataSet.Table[0].CDU_AcessoUtilizador1 ||
+                        data.DataSet.Table[0].Nome ||
+                        data.DataSet.Table[0].name ||
+                        "N/A"
+                    );
                 }
             }
         } catch (error) {
-            console.error(`Erro ao buscar responsável da obra ${codigoObra}:`, error);
+            console.error(
+                `Erro ao buscar responsável da obra ${codigoObra}:`,
+                error,
+            );
         }
         return null;
     };
 
     const fetchAllResponsaveis = async (obras) => {
         const responsaveisTemp = {};
-        
+
         // Only fetch responsaveis for imported obras to optimize performance
         for (const obra of obras) {
             const obraImportada = obrasImportadas.find(
-                (importada) => importada.codigo === obra.Codigo
+                (importada) => importada.codigo === obra.Codigo,
             );
-            
+
             if (obraImportada) {
                 const responsavel = await fetchResponsavelObra(obra.Codigo);
                 if (responsavel) {
@@ -264,7 +277,7 @@ const ListarObras = ({ navigation }) => {
                 }
             }
         }
-        
+
         setResponsaveis(responsaveisTemp);
     };
 
@@ -366,7 +379,10 @@ const ListarObras = ({ navigation }) => {
                         activeOpacity={0.8}
                     >
                         <LinearGradient
-                            colors={["rgba(255,255,255,0.2)", "rgba(255,255,255,0.3)"]}
+                            colors={[
+                                "rgba(255,255,255,0.2)",
+                                "rgba(255,255,255,0.3)",
+                            ]}
                             style={styles.headerMapaButtonGradient}
                         >
                             <FontAwesome
@@ -451,9 +467,9 @@ const ListarObras = ({ navigation }) => {
                                 filterType === "all"
                                     ? ["#1792FE", "#0B5ED7"]
                                     : [
-                                        "rgba(255,255,255,0.8)",
-                                        "rgba(255,255,255,0.6)",
-                                    ]
+                                          "rgba(255,255,255,0.8)",
+                                          "rgba(255,255,255,0.6)",
+                                      ]
                             }
                             style={styles.filterButtonGradient}
                         >
@@ -468,7 +484,7 @@ const ListarObras = ({ navigation }) => {
                                 style={[
                                     styles.filterButtonText,
                                     filterType === "all" &&
-                                    styles.filterButtonTextActive,
+                                        styles.filterButtonTextActive,
                                 ]}
                             >
                                 Todas ({stats.total})
@@ -480,7 +496,7 @@ const ListarObras = ({ navigation }) => {
                         style={[
                             styles.filterButton,
                             filterType === "with_qr" &&
-                            styles.filterButtonActive,
+                                styles.filterButtonActive,
                         ]}
                         onPress={() => handleFilterChange("with_qr")}
                         activeOpacity={0.7}
@@ -490,9 +506,9 @@ const ListarObras = ({ navigation }) => {
                                 filterType === "with_qr"
                                     ? ["#28a745", "#20c997"]
                                     : [
-                                        "rgba(255,255,255,0.8)",
-                                        "rgba(255,255,255,0.6)",
-                                    ]
+                                          "rgba(255,255,255,0.8)",
+                                          "rgba(255,255,255,0.6)",
+                                      ]
                             }
                             style={styles.filterButtonGradient}
                         >
@@ -509,7 +525,7 @@ const ListarObras = ({ navigation }) => {
                                 style={[
                                     styles.filterButtonText,
                                     filterType === "with_qr" &&
-                                    styles.filterButtonTextActive,
+                                        styles.filterButtonTextActive,
                                 ]}
                             >
                                 Com QR ({stats.withQR})
@@ -521,7 +537,7 @@ const ListarObras = ({ navigation }) => {
                         style={[
                             styles.filterButton,
                             filterType === "without_qr" &&
-                            styles.filterButtonActive,
+                                styles.filterButtonActive,
                         ]}
                         onPress={() => handleFilterChange("without_qr")}
                         activeOpacity={0.7}
@@ -531,9 +547,9 @@ const ListarObras = ({ navigation }) => {
                                 filterType === "without_qr"
                                     ? ["#ffc107", "#ff9800"]
                                     : [
-                                        "rgba(255,255,255,0.8)",
-                                        "rgba(255,255,255,0.6)",
-                                    ]
+                                          "rgba(255,255,255,0.8)",
+                                          "rgba(255,255,255,0.6)",
+                                      ]
                             }
                             style={styles.filterButtonGradient}
                         >
@@ -550,7 +566,7 @@ const ListarObras = ({ navigation }) => {
                                 style={[
                                     styles.filterButtonText,
                                     filterType === "without_qr" &&
-                                    styles.filterButtonTextActive,
+                                        styles.filterButtonTextActive,
                                 ]}
                             >
                                 Sem QR ({stats.withoutQR})
@@ -662,7 +678,9 @@ const ListarObras = ({ navigation }) => {
                                         size={18}
                                         color="#1792FE"
                                     />
-                                    <Text style={styles.detailLabel}>Responsável:</Text>
+                                    <Text style={styles.detailLabel}>
+                                        Responsável:
+                                    </Text>
                                     <Text style={styles.detailValue}>
                                         {responsaveis[item.Codigo]}
                                     </Text>
@@ -815,8 +833,6 @@ const ListarObras = ({ navigation }) => {
                                             </Text>
                                         </LinearGradient>
                                     </TouchableOpacity>
-
-
                                 </View>
                             ) : (
                                 <TouchableOpacity
@@ -911,25 +927,31 @@ const ListarObras = ({ navigation }) => {
             colors={["#e3f2fd", "#bbdefb", "#90caf9"]}
             style={styles.container}
         >
-            {renderHeader()}
+            <ScrollView 
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
+            >
+                {renderHeader()}
 
-            {!loading && !errorMessage && renderSearchBar()}
-            {!loading && !errorMessage && renderFilters()}
+                {!loading && !errorMessage && renderSearchBar()}
+                {!loading && !errorMessage && renderFilters()}
 
-            {loading ? (
-                renderLoadingState()
-            ) : errorMessage ? (
-                renderErrorState()
-            ) : (
-                <FlatList
-                    data={filteredObras}
-                    renderItem={renderObra}
-                    keyExtractor={(item) => item.ID.toString()}
-                    contentContainerStyle={styles.listContainer}
-                    showsVerticalScrollIndicator={false}
-                    ListEmptyComponent={renderEmptyState}
-                />
-            )}
+                {loading ? (
+                    renderLoadingState()
+                ) : errorMessage ? (
+                    renderErrorState()
+                ) : (
+                    <FlatList
+                        data={filteredObras}
+                        renderItem={renderObra}
+                        keyExtractor={(item) => item.ID.toString()}
+                        contentContainerStyle={styles.listContainer}
+                        showsVerticalScrollIndicator={false}
+                        ListEmptyComponent={renderEmptyState}
+                        scrollEnabled={false}
+                    />
+                )}
+            </ScrollView>
         </LinearGradient>
     );
 };

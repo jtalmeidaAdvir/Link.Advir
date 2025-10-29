@@ -3146,7 +3146,7 @@ const submeterPessoalEquip = async () => {
                                         >
                                             <Picker.Item label="— Selecionar obra —" value="" />
                                             {obrasParaPickers.map((o) => (
-                                                <Picker.Item key={o.id} label={o.nome} value={String(o.id)} />
+                                                <Picker.Item key={o.id} label={`${o.codigo ? `${o.codigo} — ` : ""}${o.nome}`} value={String(o.id)} />
                                             ))}
                                         </Picker>
                                     </View>
@@ -3724,7 +3724,8 @@ const submeterPessoalEquip = async () => {
                   >
                     <Picker.Item label="— Selecionar obra —" value="" />
                     {obrasParaPickers.map(o => (
-                      <Picker.Item key={o.id} label={o.nome} value={o.id} />
+                        
+                      <Picker.Item key={o.id} label={`${o.codigo ? `${o.codigo} — ` : ""}${o.nome}`} value={o.id} />
                     ))}
                   </Picker>
                 </View>
@@ -5189,13 +5190,19 @@ const submeterPessoalEquip = async () => {
                                                     }
                                                     style={styles.editPicker}
                                                 >
-                                                    {obrasParaPickers.map((o) => (
-                                                        <Picker.Item
+                                                    {obrasParaPickers.map((o) => {
+                                                        const codigo = o.codigo ?? o.cod ?? o.codigoObra; // usa o que existir
+                                                        const label = codigo ? `${String(codigo)} — ${o.nome}` : o.nome;
+
+                                                        return (
+                                                            <Picker.Item
                                                             key={o.id}
-                                                            label={o.nome}
+                                                            label={label}
                                                             value={o.id}
-                                                        />
-                                                    ))}
+                                                            />
+                                                        );
+                                                        })}
+
                                                 </Picker>
                                             </View>
                                         </View>
@@ -5568,7 +5575,7 @@ const submeterPessoalEquip = async () => {
                       style={styles.propriaPartePicker}
                     >
                       <Picker.Item label="— Selecionar Obra —" value="" />
-                      {obrasParaPickers.map(o => <Picker.Item key={o.id} label={o.nome} value={o.id} />)}
+                      {obrasParaPickers.map(o => <Picker.Item key={o.id} label={`${o.codigo ? `${o.codigo} — ` : ""}${o.nome}`} value={o.id} />)}
                     </Picker>
                   </View>
                 </View>
