@@ -3,6 +3,7 @@ import logo from "../../images/jpa-construtora.png";
 import PMEPreto from "../../images/PMEPRETO.png";
 import QualidadePreto from "../../images/QUALIDADEPRETO.png";
 import Logo50 from "../../images/Logo50.jpg";
+import { secureStorage } from '../utils/secureStorage';
 export const getTemplate1 = ({
     formData,
     assuntoDoc,
@@ -20,10 +21,10 @@ export const getTemplate1 = ({
     QualidadePreto,
 }) => {
     const usernome =
-        formData.nome || localStorage.getItem("userNome") || "Email não disponível";
+        formData.nome || secureStorage.getItem("userNome") || "Email não disponível";
     const useremail =
         formData.email ||
-        localStorage.getItem("userEmail") ||
+        secureStorage.getItem("userEmail") ||
         "Email não disponível";
     return `
   <!DOCTYPE html>
@@ -216,10 +217,10 @@ export const getTemplate2 = ({
     Logo50,
 }) => {
     const usernome =
-        formData.nome || localStorage.getItem("userNome") || "Email não disponível";
+        formData.nome || secureStorage.getItem("userNome") || "Email não disponível";
     const useremail =
         formData.email ||
-        localStorage.getItem("userEmail") ||
+        secureStorage.getItem("userEmail") ||
         "Email não disponível";
     return `
   <!DOCTYPE html>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-
+import { secureStorage } from '../../../utils/secureStorage';
 const RelatoriosTab = ({ styles, API_BASE_URL }) => {
     const [relatorios, setRelatorios] = useState([]);
     const [obras, setObras] = useState([]);
@@ -37,7 +37,7 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
 
     const carregarEmpresas = async () => {
         try {
-            const token = localStorage.getItem("loginToken");
+            const token = secureStorage.getItem("loginToken");
 
             const response = await fetch("https://backend.advir.pt/api/empresas/listar", {
                 headers: {
@@ -64,7 +64,7 @@ const RelatoriosTab = ({ styles, API_BASE_URL }) => {
         }
 
         try {
-            const token = localStorage.getItem("loginToken");
+            const token = secureStorage.getItem("loginToken");
 
             const response = await fetch("https://backend.advir.pt/api/obra", {
                 headers: {

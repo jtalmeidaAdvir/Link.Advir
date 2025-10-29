@@ -1,4 +1,5 @@
 
+import { secureStorage } from '../../../utils/secureStorage';
 //handlers/handleEntrarEmpresa.js
 export const handleEntrarEmpresa = async ({
   empresa,
@@ -17,7 +18,7 @@ export const handleEntrarEmpresa = async ({
   if (typeof setLoadingButton === 'function') setLoadingButton(true);
 
   try {
-    const loginToken = localStorage.getItem("loginToken");
+    const loginToken = secureStorage.getItem("loginToken");
 
     const credenciaisResponse = await fetch(
       `https://backend.advir.pt/api/empresas/nome/${encodeURIComponent(empresaStr)}`,
@@ -32,7 +33,7 @@ export const handleEntrarEmpresa = async ({
 
     const credenciais = await credenciaisResponse.json();
 
-    localStorage.setItem("urlempresa", credenciais.urlempresa);
+    secureStorage.setItem("urlempresa", credenciais.urlempresa);
 
     const response = await fetch(
       "https://webapiprimavera.advir.pt/connect-database/token",
@@ -57,9 +58,9 @@ export const handleEntrarEmpresa = async ({
     if (!response.ok) throw new Error("Erro ao obter token da empresa");
     const data = await response.json();
 
-    localStorage.setItem("painelAdminToken", data.token);
-    localStorage.setItem("empresaSelecionada", empresaStr);
-    localStorage.setItem("empresa_id", credenciais.id); // 👈 esta faltava aqui
+    secureStorage.setItem("painelAdminToken", data.token);
+    secureStorage.setItem("empresaSelecionada", empresaStr);
+    secureStorage.setItem("empresa_id", credenciais.id); // 👈 esta faltava aqui
 
     setEmpresa(empresaStr);
     navigation.navigate("Home");

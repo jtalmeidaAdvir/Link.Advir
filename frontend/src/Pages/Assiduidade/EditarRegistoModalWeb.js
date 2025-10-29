@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-
+import { secureStorage } from '../../utils/secureStorage';
 const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
     const [registosEditaveis, setRegistosEditaveis] = useState([]);
     const [registosOriginais, setRegistosOriginais] = useState([]);
@@ -10,8 +10,8 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
 
         // Carregar obras disponíveis
         const carregarObras = async () => {
-            const token = localStorage.getItem('loginToken');
-            const empresaId = localStorage.getItem('empresa_id');
+            const token = secureStorage.getItem('loginToken');
+            const empresaId = secureStorage.getItem('empresa_id');
 
             if (!empresaId) {
                 console.error('ID da empresa não encontrado');
@@ -171,7 +171,7 @@ const EditarRegistoModalWeb = ({ registo, visible, onClose, onSave }) => {
         }
 
         try {
-            const token = localStorage.getItem("loginToken");
+            const token = secureStorage.getItem("loginToken");
 
             // Preparar dados para salvar
             const dadosParaSalvar = {

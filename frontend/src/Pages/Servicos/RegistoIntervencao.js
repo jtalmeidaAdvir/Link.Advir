@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Modal from "./Modal";
 import i18n from "../i18n";
 import { useTranslation } from "react-i18next";
-
+import { secureStorage } from '../../utils/secureStorage';
 const RegistoIntervencao = (props) => {
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const { t } = useTranslation();
@@ -50,9 +50,9 @@ const RegistoIntervencao = (props) => {
     const [editingIndex, setEditingIndex] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState("");
-    const token = localStorage.getItem("painelAdminToken");
-    const empresaSelecionada = localStorage.getItem("empresaSelecionada");
-    const urlempresa = localStorage.getItem("urlempresa");
+    const token = secureStorage.getItem("painelAdminToken");
+    const empresaSelecionada = secureStorage.getItem("empresaSelecionada");
+    const urlempresa = secureStorage.getItem("urlempresa");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("detalhes");
 
@@ -465,7 +465,7 @@ const fetchEmailTecnico = async (tecnicoId) => {
 
         // If the type changed to PRE, fetch the predefined travel time
         if (name === "tipo" && value === "PRE") {
-            const processoID = localStorage.getItem("intervencaoId");
+            const processoID = secureStorage.getItem("intervencaoId");
             if (processoID) {
                 await fetchTempoDeslocacao(processoID);
             }
@@ -474,7 +474,7 @@ const fetchEmailTecnico = async (tecnicoId) => {
         // If the technician changed, fetch emails and populate CC field
         if (name === "tecnico" && value) {
             try {
-                const processoID = localStorage.getItem("intervencaoId");
+                const processoID = secureStorage.getItem("intervencaoId");
                 
                 // Buscar email do técnico
                 const emailTecnico = await fetchEmailTecnico(value);
@@ -552,7 +552,7 @@ const fetchEmailTecnico = async (tecnicoId) => {
     const handleConfirmSave = async () => {
         try {
             setIsLoading(true);
-            const id = localStorage.getItem("intervencaoId");
+            const id = secureStorage.getItem("intervencaoId");
             const processoID = id.toString();
             const apiBaseUrl =
                 "https://webapiprimavera.advir.pt/routePedidos_STP";

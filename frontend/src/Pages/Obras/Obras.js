@@ -10,7 +10,7 @@ import {
     ScrollView,
     Dimensions,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import securestorage from "@react-native-async-storage/async-storage";
 import {
     FontAwesome,
     Ionicons,
@@ -19,7 +19,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "react-native";
 import { styles } from './Css/ObrasStyles';
-
+import { secureStorage } from '../../utils/secureStorage';
 const { width, height } = Dimensions.get("window");
 
 const ListarObras = ({ navigation }) => {
@@ -84,8 +84,8 @@ const ListarObras = ({ navigation }) => {
             setLoadingProgress(10);
             setLoadingMessage("Verificando autenticação...");
 
-            const token = await AsyncStorage.getItem("painelAdminToken");
-            const urlempresa = await AsyncStorage.getItem("urlempresa");
+            const token = await securestorage.getItem("painelAdminToken");
+            const urlempresa = await securestorage.getItem("urlempresa");
 
             if (!token || !urlempresa) {
                 setErrorMessage("Token ou URL da empresa não encontrados.");
@@ -147,8 +147,8 @@ const ListarObras = ({ navigation }) => {
 
     const importarObra = async (obra) => {
         try {
-            const token = localStorage.getItem("loginToken");
-            const empresaId = await AsyncStorage.getItem("empresa_id");
+            const token = secureStorage.getItem("loginToken");
+            const empresaId = await securestorage.getItem("empresa_id");
 
             const response = await fetch("https://backend.advir.pt/api/obra", {
                 method: "POST",
@@ -184,7 +184,7 @@ const ListarObras = ({ navigation }) => {
             setLoadingProgress(80);
             setLoadingMessage("Sincronizando dados locais...");
 
-            const token = localStorage.getItem("loginToken");
+            const token = secureStorage.getItem("loginToken");
 
             if (!token) {
                 console.warn("Token local não encontrado");
@@ -215,8 +215,8 @@ const ListarObras = ({ navigation }) => {
 
     const fetchResponsavelObra = async (codigoObra) => {
         try {
-            const token = await AsyncStorage.getItem("painelAdminToken");
-            const urlempresa = await AsyncStorage.getItem("urlempresa");
+            const token = await securestorage.getItem("painelAdminToken");
+            const urlempresa = await securestorage.getItem("urlempresa");
 
             if (!token || !urlempresa) {
                 return null;

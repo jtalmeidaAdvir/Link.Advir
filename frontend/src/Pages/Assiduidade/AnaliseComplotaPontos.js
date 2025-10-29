@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { secureStorage } from '../../utils/secureStorage';
 import {
     View,
     Text,
@@ -62,7 +63,7 @@ const AnaliseComplotaPontos = () => {
         mes,
         utilizadores,
     ) => {
-        const token = localStorage.getItem("loginToken");
+        const token = secureStorage.getItem("loginToken");
 
         const dataInicio = new Date(ano, mes - 1, 1);
         const dataFim = new Date(ano, mes, 0);
@@ -172,8 +173,8 @@ const AnaliseComplotaPontos = () => {
     const carregarDadosIniciais = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem("loginToken");
-            const empresaId = localStorage.getItem("empresa_id");
+            const token = secureStorage.getItem("loginToken");
+            const empresaId = secureStorage.getItem("empresa_id");
 
             // Carregar obras
             const resObras = await fetch(
@@ -228,9 +229,9 @@ const AnaliseComplotaPontos = () => {
 
     const carregarFaltas = async () => {
         try {
-            const painelAdminToken = localStorage.getItem("painelAdminToken");
-            const urlempresa = localStorage.getItem("urlempresa");
-            const loginToken = localStorage.getItem("loginToken");
+            const painelAdminToken = secureStorage.getItem("painelAdminToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
+            const loginToken = secureStorage.getItem("loginToken");
 
             console.log("🔍 [FALTAS] Iniciando carregamento de faltas...");
             console.log(
@@ -520,7 +521,7 @@ const AnaliseComplotaPontos = () => {
             console.log(
                 "🔍 [GRADE] Etapa 2: Obtendo registos reais detalhados...",
             );
-            const token = localStorage.getItem("loginToken");
+            const token = secureStorage.getItem("loginToken");
             const registosReaisDetalhados = {};
 
             // Para cada utilizador, buscar os registos reais do mês

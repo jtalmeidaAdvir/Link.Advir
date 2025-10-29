@@ -14,7 +14,7 @@ import { fetchWithRetry } from './Utils/fetchUtils';
 import { filterProcessosByTecnico, countProcessosByTecnico } from './Utils/filters';
 import { fetchProcessosByTecnico } from './Utils/fetchProcessos';
 
-
+import { secureStorage } from '../../utils/secureStorage';
 
 const PandIByTecnico = () => {
     const [tecnicoID, setTecnicoID] = useState("");
@@ -49,8 +49,8 @@ const PandIByTecnico = () => {
 
 
     useEffect(() => {
-        const storedIsAdmin = localStorage.getItem("isAdmin") === "true";
-        const storedTecnicoID = localStorage.getItem("id_tecnico") || "";
+        const storedIsAdmin = secureStorage.getItem("isAdmin") === "true";
+        const storedTecnicoID = secureStorage.getItem("id_tecnico") || "";
     
         setIsAdmin(storedIsAdmin);
         setUserTecnicoID(storedTecnicoID);

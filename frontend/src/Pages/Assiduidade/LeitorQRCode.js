@@ -14,10 +14,9 @@ import QRCode from 'react-native-qrcode-svg';
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-
-
-// Exemplo de localStorage no web; no React Native puro usarias o AsyncStorage
-// import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureStorage } from '../../utils/secureStorage';
+// Exemplo de secureStorage no web; no React Native puro usarias o securestorage
+// import securestorage from '@react-native-async-storage/async-storage';
 
 const LeitorQRCode = () => {
   const [animatedValue] = useState(new Animated.Value(0));
@@ -62,11 +61,11 @@ const [mostrarQRCode, setMostrarQRCode] = useState(false);
   const navigation = useNavigation();
 
 useEffect(() => {
-  const empresa = localStorage.getItem('empresaSelecionada');
+  const empresa = secureStorage.getItem('empresaSelecionada');
   if (empresa) {
     setEmpresaSelecionada(empresa);
   } else {
-    console.warn("⚠️ Empresa não definida no localStorage!");
+    console.warn("⚠️ Empresa não definida no secureStorage!");
   }
 }, []);
 
@@ -74,7 +73,7 @@ useEffect(() => {
 
 
 const carregarEquipas = async () => {
-  const token = localStorage.getItem('loginToken');
+  const token = secureStorage.getItem('loginToken');
 
   try {
     const res = await fetch('https://backend.advir.pt/api/equipa-obra/minhas-agrupadas', {
@@ -118,19 +117,19 @@ const carregarEquipas = async () => {
   }, []);
 
   // ----------------------------------------------------------------
-  // Efeito para carregar a hora de entrada do localStorage ou do backend
+  // Efeito para carregar a hora de entrada do secureStorage ou do backend
   // (conforme no PontoBotao)
   // ----------------------------------------------------------------
   useEffect(() => {
     const carregarHoraEntrada = async () => {
-      let horaEntradaSalva = localStorage.getItem('horaEntrada');
+      let horaEntradaSalva = secureStorage.getItem('horaEntrada');
       // Em React Native puro, seria algo como:
-      // let horaEntradaSalva = await AsyncStorage.getItem('horaEntrada');
+      // let horaEntradaSalva = await securestorage.getItem('horaEntrada');
 
       if (!horaEntradaSalva) {
         console.log("LocalStorage vazio. A tentar buscar do backend...");
-        const token = localStorage.getItem('loginToken');
-        const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+        const token = secureStorage.getItem('loginToken');
+        const empresaSelecionada = secureStorage.getItem("empresaSelecionada");
 
         try {
 const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
@@ -148,8 +147,8 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
 
             if (registoHoje && registoHoje.horaEntrada) {
               horaEntradaSalva = registoHoje.horaEntrada;
-              localStorage.setItem('horaEntrada', horaEntradaSalva);
-              console.log("Hora de entrada recuperada do backend e salva no localStorage:", horaEntradaSalva);
+              secureStorage.setItem('horaEntrada', horaEntradaSalva);
+              console.log("Hora de entrada recuperada do backend e salva no secureStorage:", horaEntradaSalva);
             }
           }
         } catch (error) {
@@ -235,9 +234,9 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
   // ----------------------------------------------------------------
   useEffect(() => {
     const carregarEstadoInicial = async () => {
-      const estadoLocal = JSON.parse(localStorage.getItem('intervaloAberto'));
+      const estadoLocal = JSON.parse(secureStorage.getItem('intervaloAberto'));
       // Em React Native puro:
-      // const estadoLocal = JSON.parse(await AsyncStorage.getItem('intervaloAberto'));
+      // const estadoLocal = JSON.parse(await securestorage.getItem('intervaloAberto'));
 
       if (estadoLocal && estadoLocal.intervaloAberto) {
         setHoraInicioIntervalo(new Date(estadoLocal.horaInicioIntervalo));
@@ -245,7 +244,7 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
         setTemporizadorAtivo(false);
       } else {
         try {
-          const token = localStorage.getItem('loginToken');
+          const token = secureStorage.getItem('loginToken');
           const response = await fetch('https://backend.advir.pt/api/registoPonto/estado-ponto', {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -260,7 +259,7 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
               setIntervaloAberto(true);
               setTemporizadorAtivo(false);
 
-              localStorage.setItem('intervaloAberto', JSON.stringify({
+              secureStorage.setItem('intervaloAberto', JSON.stringify({
                 horaInicioIntervalo: data.horaInicioIntervalo,
                 intervaloAberto: true,
               }));
@@ -303,7 +302,7 @@ const pulseAnimation = animatedValue.interpolate({
 }
 
     try {
-      const token = localStorage.getItem('loginToken');
+      const token = secureStorage.getItem('loginToken');
 const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -315,7 +314,7 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
         const data = await response.json();
 
         // Filtrar apenas o dia de hoje
-        const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+        const empresaSelecionada = secureStorage.getItem("empresaSelecionada");
 
        const hoje = new Date().toISOString().split('T')[0];
 const registoHoje = data.find(
@@ -400,7 +399,7 @@ const registoHoje = data.find(
   // mas aqui será chamado quando se lê o QR code correcto
   // ----------------------------------------------------------------
 const registarPonto = async () => {
-  const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+  const empresaSelecionada = secureStorage.getItem("empresaSelecionada");
 
   if (!empresaSelecionada) {
     console.error("❌ Empresa não definida.");
@@ -413,9 +412,9 @@ const registarPonto = async () => {
     const enderecoObtido = await getEnderecoPorCoordenadas(localizacao.latitude, localizacao.longitude);
 
     const horaAtual = new Date().toISOString();
-    localStorage.setItem('horaEntrada', horaAtual);
+    secureStorage.setItem('horaEntrada', horaAtual);
 
-    const token = localStorage.getItem("loginToken");
+    const token = secureStorage.getItem("loginToken");
 
     console.log("→ Empresa usada no registo:", empresaSelecionada);
 
@@ -455,16 +454,16 @@ const registarPonto = async () => {
   // ----------------------------------------------------------------
   const iniciarIntervalo = async () => {
     try {
-      const token = localStorage.getItem('loginToken');
+      const token = secureStorage.getItem('loginToken');
       const agora = new Date().toISOString();
       setHoraInicioIntervalo(agora);
       setIntervaloAberto(true);
 
-      localStorage.setItem('intervaloAberto', JSON.stringify({
+      secureStorage.setItem('intervaloAberto', JSON.stringify({
         horaInicioIntervalo: agora,
         intervaloAberto: true,
       }));
-      // Em React Native: await AsyncStorage.setItem('intervaloAberto', ...)
+      // Em React Native: await securestorage.setItem('intervaloAberto', ...)
 
       const response = await fetch('https://backend.advir.pt/api/intervalo/iniciarIntervalo', {
         method: 'POST',
@@ -493,7 +492,7 @@ const registarPonto = async () => {
 
   const finalizarIntervalo = async () => {
     try {
-      const token = localStorage.getItem('loginToken');
+      const token = secureStorage.getItem('loginToken');
       const response = await fetch('https://backend.advir.pt/api/intervalo/finalizarIntervalo', {
         method: 'POST',
         headers: {
@@ -506,8 +505,8 @@ const registarPonto = async () => {
         alert("Intervalo finalizado com sucesso.");
         setIntervaloAberto(false);
         setHoraInicioIntervalo(null);
-        localStorage.removeItem('intervaloAberto');
-        // Em React Native: await AsyncStorage.removeItem('intervaloAberto');
+        secureStorage.removeItem('intervaloAberto');
+        // Em React Native: await securestorage.removeItem('intervaloAberto');
 
         // Retomar temporizador de trabalho
         setTemporizadorAtivo(true);

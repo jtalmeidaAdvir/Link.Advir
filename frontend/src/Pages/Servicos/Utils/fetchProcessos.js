@@ -1,10 +1,10 @@
 // src/Utils/fetchProcessos.js
 import { fetchWithRetry } from "./fetchUtils";
 import { getWeeksInMonth } from "./dateUtils";
-
+import { secureStorage } from '../../../utils/secureStorage';
 export const fetchProcessosByTecnico = async (tecnicoID, ano, mes, semana, setSemanaAtual, setLoading) => {
-  const token = localStorage.getItem("painelAdminToken");
-  const urlempresa = localStorage.getItem("urlempresa");
+  const token = secureStorage.getItem("painelAdminToken");
+  const urlempresa = secureStorage.getItem("urlempresa");
 
   if (!token || !urlempresa) {
     throw new Error("Token ou URL da empresa não encontrados.");

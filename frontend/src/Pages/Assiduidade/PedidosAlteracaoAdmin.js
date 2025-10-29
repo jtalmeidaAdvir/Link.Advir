@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import BASE_URL from '../../../config';
-
+import { secureStorage } from '../../utils/secureStorage';
 const PedidosAlteracaoAdmin = () => {
     const [pedidos, setPedidos] = useState([]);
     const [pedidosFiltrados, setPedidosFiltrados] = useState([]);
@@ -64,7 +64,7 @@ const PedidosAlteracaoAdmin = () => {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`,
                 },
             });
 
@@ -90,7 +90,7 @@ const PedidosAlteracaoAdmin = () => {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`,
                 },
             });
 
@@ -112,7 +112,7 @@ const PedidosAlteracaoAdmin = () => {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`,
                 },
             });
 

@@ -1,5 +1,5 @@
 import { fetchWithAuth } from "./authUtils";
-
+import { secureStorage } from '../../../utils/secureStorage';
 // Verificar se o navegador suporta WebAuthn
 export const isBiometricSupported = () => {
     return (
@@ -32,7 +32,7 @@ export const registerBiometric = async (userId, userEmail) => {
 
     try {
         // Obter token de autorização
-        const token = localStorage.getItem("loginToken");
+        const token = secureStorage.getItem("loginToken");
         if (!token) {
             throw new Error("Token não fornecido.");
         }

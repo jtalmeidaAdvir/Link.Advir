@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import { secureStorage } from '../../../utils/secureStorage';
 
 export const useFaltasPendentes = (tipoUser) => {
   const [faltasPendentes, setFaltasPendentes] = useState(0);
@@ -16,8 +17,8 @@ export const useFaltasPendentes = (tipoUser) => {
       }
 
       try {
-        const token = localStorage.getItem('loginToken');
-        const urlempresa = localStorage.getItem('empresa_id');
+        const token = secureStorage.getItem('loginToken');
+        const urlempresa = secureStorage.getItem('empresa_id');
         
         if (!urlempresa) {
           setFaltasPendentes(0);

@@ -1,5 +1,5 @@
 // src/utils/authUtils.js
- 
+ import { secureStorage } from '../../../utils/secureStorage';
 // Função para fazer logout imediato sem alerta
 
 const handleTokenExpired = (message = 'A sua sessão expirou. Será redirecionado para a página de login.', tokenType = 'loginToken') => {
@@ -8,7 +8,7 @@ const handleTokenExpired = (message = 'A sua sessão expirou. Será redirecionad
  
     // Fazer logout completo para qualquer tipo de token expirado
 
-    localStorage.clear();
+    secureStorage.clear();
  
     // Redirecionar para login em vez da home
 
@@ -44,7 +44,7 @@ const isWebApiTokenExpired = (data) => {
  
 export const fetchWithAuth = async (url, options = {}) => {
 
-    const token = localStorage.getItem('loginToken');
+    const token = secureStorage.getItem('loginToken');
 
     const headers = {
 
@@ -218,7 +218,7 @@ const checkTokenOnServer = async () => {
 
     try {
 
-        const token = localStorage.getItem('loginToken');
+        const token = secureStorage.getItem('loginToken');
 
         if (!token) {
 
@@ -298,7 +298,7 @@ const checkPainelAdminToken = async () => {
 
     try {
 
-        const painelAdminToken = localStorage.getItem('painelAdminToken');
+        const painelAdminToken = secureStorage.getItem('painelAdminToken');
 
         if (!painelAdminToken) {
 
@@ -326,7 +326,7 @@ const checkPainelAdminToken = async () => {
 
         // Fazer uma chamada à Web API para validar o token
 
-        const urlempresa = localStorage.getItem('urlempresa');
+        const urlempresa = secureStorage.getItem('urlempresa');
 
         if (!urlempresa) {
 

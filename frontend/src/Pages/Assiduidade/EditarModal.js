@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import securestorage from '@react-native-async-storage/async-storage';
 
 const EditarModal = ({ registo, visible, onClose, onSave }) => {
   const [horaEntrada, setHoraEntrada] = useState('');
@@ -49,7 +49,7 @@ const toFullDateTime = (timeStr) => {
     }
 
     try {
-      const token = await AsyncStorage.getItem('loginToken');
+      const token = await securestorage.getItem('loginToken');
 
       const body = {
         user_id: registo.user_id,

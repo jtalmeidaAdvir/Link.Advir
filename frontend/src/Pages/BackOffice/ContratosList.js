@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { styles } from './Css/ContratosListStyles';
 import { View, Text, TouchableOpacity, ScrollView, Modal, TextInput, Alert } from 'react-native';
-
+import { secureStorage } from '../../utils/secureStorage';
 const ContratosList = () => {
   const [clienteId, setClienteId] = useState('');
   const [contratos, setContratos] = useState([]);
@@ -32,8 +32,8 @@ const ContratosList = () => {
     setCarregandoClientes(true);
     try {
       const [token, urlempresa] = await Promise.all([
-        localStorage.getItem('painelAdminToken'),
-        localStorage.getItem('urlempresa'),
+        secureStorage.getItem('painelAdminToken'),
+        secureStorage.getItem('urlempresa'),
       ]);
       if (!token || !urlempresa) {
         throw new Error('Token/empresa em falta no storage.');
@@ -84,8 +84,8 @@ const ContratosList = () => {
     setLoading(true);
 
     try {
-      const token = await localStorage.getItem('painelAdminToken');
-      const urlempresa = await localStorage.getItem('urlempresa');
+      const token = await secureStorage.getItem('painelAdminToken');
+      const urlempresa = await secureStorage.getItem('urlempresa');
 
       if (!token || !urlempresa) {
         throw new Error('Credenciais em falta.');

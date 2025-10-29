@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, Button, StyleSheet } from 'react-native';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
+import { secureStorage } from '../../../utils/secureStorage';
 const RegistoUser = () => {
     const [username, setUsername] = useState('');
     const [nome, setNome] = useState('');
@@ -23,7 +24,7 @@ const RegistoUser = () => {
                 const response = await fetch('https://backend.advir.pt/api/users/empresas', {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+                        'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`,
                         'Content-Type': 'application/json',
                     },
                 });
@@ -48,7 +49,7 @@ const RegistoUser = () => {
         try {
             const response = await fetch(`https://backend.advir.pt/api/empresas/${empresaId}`, { //https://backend.advir.pt/api/empresas/${empresaId}
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`,
                     'Content-Type': 'application/json',
                 },
             });
@@ -95,7 +96,7 @@ const RegistoUser = () => {
             const response = await fetch('https://backend.advir.pt/api/users', { //https://backend.advir.pt/api/users
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(newUser),

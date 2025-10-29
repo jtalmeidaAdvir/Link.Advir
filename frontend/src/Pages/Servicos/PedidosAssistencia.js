@@ -32,12 +32,12 @@ import {
     faUser,
     faFileText,
 } from "@fortawesome/free-solid-svg-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import securestorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import i18n from "../i18n";
 import { useTranslation } from "react-i18next";
 import HeaderWithNotifications from "../Components/HeaderWithNotifications";
-
+import { secureStorage } from '../../utils/secureStorage';
 const { width } = Dimensions.get("window");
 
 // >>>>>> ALTERA AQUI PARA PRODUÇÃO SE PRECISARES
@@ -195,8 +195,8 @@ const PedidosAssistencia = ({ navigation }) => {
     useFocusEffect(
         React.useCallback(() => {
             const fetchPedidos = async () => {
-                const token = localStorage.getItem("painelAdminToken");
-                const urlempresa = localStorage.getItem("urlempresa");
+                const token = secureStorage.getItem("painelAdminToken");
+                const urlempresa = secureStorage.getItem("urlempresa");
 
                 try {
                     const response = await fetch(
@@ -261,8 +261,8 @@ const PedidosAssistencia = ({ navigation }) => {
     // Delete pedido
     const deletePedido = async (id) => {
         try {
-            const token = localStorage.getItem("painelAdminToken");
-            const urlempresa = localStorage.getItem("urlempresa");
+            const token = secureStorage.getItem("painelAdminToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
 
             if (!token || !urlempresa) {
                 throw new Error("Token ou URL da empresa não encontrados.");
@@ -299,8 +299,8 @@ const PedidosAssistencia = ({ navigation }) => {
     // Fecha pedido
     const FechaPedido = async (id) => {
         try {
-            const token = localStorage.getItem("painelAdminToken");
-            const urlempresa = localStorage.getItem("urlempresa");
+            const token = secureStorage.getItem("painelAdminToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
 
             if (!token || !urlempresa) {
                 throw new Error("Token ou URL da empresa não encontrados.");
@@ -1022,7 +1022,7 @@ const PedidosAssistencia = ({ navigation }) => {
                             style={[styles.actionButton, styles.primaryActionButton]}
                             onPress={async () => {
                                 try {
-                                    await AsyncStorage.setItem(
+                                    await securestorage.setItem(
                                         "intervencaoId",
                                         item[0].ID.toString(),
                                     );

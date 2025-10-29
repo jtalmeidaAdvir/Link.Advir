@@ -848,12 +848,12 @@ axios.interceptors.response.use(
   async (error) => {
     if (error.response?.status === 401) {
       // Token expirado, tentar refresh
-      const refreshToken = localStorage.getItem('refreshToken');
+      const refreshToken = secureStorage.getItem('refreshToken');
       if (refreshToken) {
         try {
           const response = await axios.post('/api/auth/refresh', { refreshToken });
           const { accessToken } = response.data;
-          localStorage.setItem('authToken', accessToken);
+          secureStorage.setItem('authToken', accessToken);
           // Repetir request original
           return axios(error.config);
         } catch (refreshError) {

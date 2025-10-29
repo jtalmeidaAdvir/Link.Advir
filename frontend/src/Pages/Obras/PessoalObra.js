@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { styles } from './Css/PessoalObraStyles';
-
+import { secureStorage } from '../../utils/secureStorage';
 const PessoalObra = ({ route }) => {
     const { obraId, nomeObra } = route.params;
     const [registos, setRegistos] = useState([]);
@@ -29,8 +29,8 @@ const PessoalObra = ({ route }) => {
             setErrorMessage('');
 
             try {
-                const token = localStorage.getItem('loginToken');
-                const empresaId = localStorage.getItem('empresa_id');
+                const token = secureStorage.getItem('loginToken');
+                const empresaId = secureStorage.getItem('empresa_id');
 
                 if (!token) {
                     throw new Error('Token de autenticação não encontrado');

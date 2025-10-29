@@ -11,7 +11,7 @@ import SimplePieChart from './Components/DashboardAnalytics/SimplePieChart';
 import SimpleBarChart from './Components/DashboardAnalytics/SimpleBarChart';
 import PedidoEmAndamentoCard from './Components/DashboardAnalytics/PedidoEmAndamentoCard';
 
-
+import { secureStorage } from '../../utils/secureStorage';
 
 
 
@@ -39,8 +39,8 @@ const DashboardAnalytics = ({ navigation }) => {
     const fetchAnalyticsData = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem("painelAdminToken");
-            const urlempresa = localStorage.getItem("urlempresa");
+            const token = secureStorage.getItem("painelAdminToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
 
             if (!token) {
                 Alert.alert("Erro", "Token não encontrado. Faça login novamente.");

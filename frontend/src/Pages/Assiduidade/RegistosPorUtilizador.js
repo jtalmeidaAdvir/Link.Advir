@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import EditarRegistoModal from './EditarRegistoModalWeb';
-
+import { secureStorage } from '../../utils/secureStorage';
 const RegistosPorUtilizador = () => {
     const [utilizadores, setUtilizadores] = useState([]);
     const [obras, setObras] = useState([]);
@@ -28,7 +28,7 @@ const RegistosPorUtilizador = () => {
     const [diasDoMes, setDiasDoMes] = useState([]);
     const [tiposFaltas, setTiposFaltas] = useState({});
 
-    const token = localStorage.getItem('loginToken');
+    const token = secureStorage.getItem('loginToken');
 
     // State for loading status in grid view
     const [carregando, setCarregando] = useState(false);
@@ -188,9 +188,9 @@ const RegistosPorUtilizador = () => {
                 console.log('🔄 Iniciando carregamento de dados essenciais...');
 
                 // Validar tokens antes de começar
-                const painelAdminToken = localStorage.getItem('painelAdminToken');
-                const urlempresa = localStorage.getItem('urlempresa');
-                const loginToken = localStorage.getItem('loginToken');
+                const painelAdminToken = secureStorage.getItem('painelAdminToken');
+                const urlempresa = secureStorage.getItem('urlempresa');
+                const loginToken = secureStorage.getItem('loginToken');
 
                 if (!painelAdminToken || !urlempresa) {
                     throw new Error('⚠️ Tokens do Primavera não encontrados. Por favor, configure o acesso ao ERP.');
@@ -229,8 +229,8 @@ const RegistosPorUtilizador = () => {
     }, []);
 
     const carregarTiposFaltas = async () => {
-        const painelAdminToken = localStorage.getItem('painelAdminToken');
-        const urlempresa = localStorage.getItem('urlempresa');
+        const painelAdminToken = secureStorage.getItem('painelAdminToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
 
         if (!painelAdminToken || !urlempresa) {
             throw new Error('Tokens do Primavera não configurados');
@@ -290,7 +290,7 @@ const RegistosPorUtilizador = () => {
     }, [utilizadorSelecionado, mesSelecionado, anoSelecionado]);
 
     const carregarUtilizadores = async () => {
-        const empresaId = localStorage.getItem('empresa_id');
+        const empresaId = secureStorage.getItem('empresa_id');
 
         if (!empresaId) {
             throw new Error('ID da empresa não encontrado');
@@ -348,7 +348,7 @@ const RegistosPorUtilizador = () => {
     };
 
     const carregarObras = async () => {
-        const empresaId = localStorage.getItem('empresa_id');
+        const empresaId = secureStorage.getItem('empresa_id');
 
         if (!empresaId) {
             throw new Error('ID da empresa não encontrado');
@@ -408,8 +408,8 @@ const RegistosPorUtilizador = () => {
             console.log('🔍 [GRADE] Etapa 1: Validando tipos de faltas...');
             setLoadingMessage('Validando tipos de faltas...');
 
-            const painelAdminToken = localStorage.getItem('painelAdminToken');
-            const urlempresa = localStorage.getItem('urlempresa');
+            const painelAdminToken = secureStorage.getItem('painelAdminToken');
+            const urlempresa = secureStorage.getItem('urlempresa');
 
             if (!painelAdminToken || !urlempresa) {
                 console.error('❌ [GRADE] Erro: Tokens do Primavera não encontrados');
@@ -494,9 +494,9 @@ const RegistosPorUtilizador = () => {
                         ]);
 
                         // Carregar faltas do utilizador (em paralelo) com validação
-                        const painelAdminToken = localStorage.getItem('painelAdminToken');
-                        const urlempresa = localStorage.getItem('urlempresa');
-                        const loginToken = localStorage.getItem('loginToken');
+                        const painelAdminToken = secureStorage.getItem('painelAdminToken');
+                        const urlempresa = secureStorage.getItem('urlempresa');
+                        const loginToken = secureStorage.getItem('loginToken');
 
                         let faltasUtilizador = [];
                         if (painelAdminToken && urlempresa && loginToken) {
@@ -1214,8 +1214,8 @@ const RegistosPorUtilizador = () => {
         setLoadingRemoverFalta(true);
 
         try {
-            const painelToken = localStorage.getItem('painelAdminToken');
-            const urlempresa = localStorage.getItem('urlempresa');
+            const painelToken = secureStorage.getItem('painelAdminToken');
+            const urlempresa = secureStorage.getItem('urlempresa');
 
             if (!painelToken || !urlempresa) {
                 throw new Error('Tokens do Primavera não encontrados');
@@ -1812,9 +1812,9 @@ const RegistosPorUtilizador = () => {
             return alert('Por favor, selecione a data de fim do intervalo.');
         }
 
-        const token = localStorage.getItem('loginToken');
-        const painelToken = localStorage.getItem('painelAdminToken');
-        const urlempresa = localStorage.getItem('urlempresa');
+        const token = secureStorage.getItem('loginToken');
+        const painelToken = secureStorage.getItem('painelAdminToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
         
         // Obter o codFuncionario através do endpoint
         const funcionarioId = await obterCodFuncionario(userToRegistar);
@@ -2088,9 +2088,9 @@ const RegistosPorUtilizador = () => {
             return alert('Por favor, selecione o tipo de falta e a duração.');
         }
 
-        const painelToken = localStorage.getItem('painelAdminToken');
-        const urlempresa = localStorage.getItem('urlempresa');
-        const empresaId = localStorage.getItem('empresa_id');
+        const painelToken = secureStorage.getItem('painelAdminToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
+        const empresaId = secureStorage.getItem('empresa_id');
 
         if (!painelToken || !urlempresa) {
             return alert('Tokens do Primavera não encontrados. Configure o acesso ao ERP.');

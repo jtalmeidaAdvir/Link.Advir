@@ -4,7 +4,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaUser, FaLock, FaSignInAlt } from 'react-icons/fa';
 import logo from '../../../../assets/img_logo.png';
 import backgroundImage from '../../../../images/ImagemFundo.png';
-
+import { secureStorage } from '../../../utils/secureStorage';
 const LoginPOS = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -31,24 +31,24 @@ const LoginPOS = () => {
             const result = await response.json();
 
             if (response.ok && result.success) {
-                // Guardar dados do POS no localStorage
-                localStorage.setItem('loginToken', result.token);
-                localStorage.setItem('isPOS', 'true');
-                localStorage.setItem('posId', result.posId);
-                localStorage.setItem('posNome', result.posNome);
-                localStorage.setItem('posCodigo', result.posCodigo);
-                localStorage.setItem('email', result.email);
-                localStorage.setItem('empresa_id', result.empresa_id);
-                localStorage.setItem('empresa_areacliente', result.empresa_areacliente);
-                localStorage.setItem('obra_predefinida_id', result.obra_predefinida_id || '');
-                localStorage.setItem('obra_predefinida_nome', result.obra_predefinida_nome || '');
+                // Guardar dados do POS no secureStorage
+                secureStorage.setItem('loginToken', result.token);
+                secureStorage.setItem('isPOS', 'true');
+                secureStorage.setItem('posId', result.posId);
+                secureStorage.setItem('posNome', result.posNome);
+                secureStorage.setItem('posCodigo', result.posCodigo);
+                secureStorage.setItem('email', result.email);
+                secureStorage.setItem('empresa_id', result.empresa_id);
+                secureStorage.setItem('empresa_areacliente', result.empresa_areacliente);
+                secureStorage.setItem('obra_predefinida_id', result.obra_predefinida_id || '');
+                secureStorage.setItem('obra_predefinida_nome', result.obra_predefinida_nome || '');
                 
                 // Debug: verificar se os dados foram guardados
                 console.log('Dados POS guardados:', {
-                    loginToken: localStorage.getItem('loginToken'),
-                    isPOS: localStorage.getItem('isPOS'),
-                    empresa_id: localStorage.getItem('empresa_id'),
-                    empresa_areacliente: localStorage.getItem('empresa_areacliente')
+                    loginToken: secureStorage.getItem('loginToken'),
+                    isPOS: secureStorage.getItem('isPOS'),
+                    empresa_id: secureStorage.getItem('empresa_id'),
+                    empresa_areacliente: secureStorage.getItem('empresa_areacliente')
                 });
 
                 // Redirecionar para a página de registo facial

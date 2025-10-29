@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaCalendarAlt, FaFileAlt, FaCheckCircle, FaTimesCircle, FaClock, FaSync, FaPaperclip, FaTrash, FaDownload } from 'react-icons/fa';
 import { motion } from 'framer-motion';
+import { secureStorage } from '../../utils/secureStorage';
 
 const Ausencias = () => {
     const [ausencias, setAusencias] = useState([]);
@@ -13,9 +14,9 @@ const Ausencias = () => {
     const [mostrarModalAnexo, setMostrarModalAnexo] = useState(false);
     const [faltaSelecionada, setFaltaSelecionada] = useState(null);
 
-    const token = localStorage.getItem('loginToken');
-    const empresaId = localStorage.getItem('empresa_id');
-    const codFuncionario = localStorage.getItem('codFuncionario');
+    const token = secureStorage.getItem('loginToken');
+    const empresaId = secureStorage.getItem('empresa_id');
+    const codFuncionario = secureStorage.getItem('codFuncionario');
 
     useEffect(() => {
         carregarAusencias();

@@ -5,7 +5,7 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Feather as Icon } from '@expo/vector-icons';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-
+import { secureStorage } from '../../utils/secureStorage';
 // Componente ConfirmModal melhorado
 const ConfirmModal = ({ visible, onCancel, onConfirm, codigo }) => (
     <Modal visible={visible} transparent={true} animationType="fade">
@@ -89,8 +89,8 @@ const OficiosList = () => {
         setOficios([]);
         setError(null);
 
-        const token = localStorage.getItem('painelAdminToken');
-        const urlempresa = localStorage.getItem('urlempresa');
+        const token = secureStorage.getItem('painelAdminToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
 
         if (!urlempresa) {
             setError('URL da empresa não encontrada.');
@@ -404,8 +404,8 @@ const OficiosList = () => {
                 codigo={selectedOficio}
                 onCancel={() => setModalVisible(false)}
                 onConfirm={async () => {
-                    const token = localStorage.getItem('painelAdminToken');
-                    const urlempresa = localStorage.getItem('urlempresa');
+                    const token = secureStorage.getItem('painelAdminToken');
+                    const urlempresa = secureStorage.getItem('urlempresa');
 
                     if (!urlempresa) {
                         alert('URL da empresa não encontrada.');

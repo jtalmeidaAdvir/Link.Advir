@@ -1,9 +1,9 @@
 // utils/autoCompanySelection.js
-
+import { secureStorage } from '../../../utils/secureStorage';
 export const handleAutoCompanySelection = async (navigation) => {
     try {
-        const loginToken = localStorage.getItem("loginToken");
-        const empresaPredefinida = localStorage.getItem("empresaPredefinida");
+        const loginToken = secureStorage.getItem("loginToken");
+        const empresaPredefinida = secureStorage.getItem("empresaPredefinida");
 
         if (!loginToken) {
             console.log('Token de login não encontrado');
@@ -66,7 +66,7 @@ export const handleAutoCompanySelection = async (navigation) => {
                 await refreshTokensOnAppFocus();
 
                 // Tentar novamente com token renovado
-                const newToken = localStorage.getItem('loginToken');
+                const newToken = secureStorage.getItem('loginToken');
                 if (!newToken) {
                     console.log('Não foi possível renovar o token');
                     return false;
@@ -136,7 +136,7 @@ export const handleAutoCompanySelection = async (navigation) => {
         }
 
         // Se há múltiplas empresas, verificar se existe uma última empresa selecionada
-        const ultimaEmpresaSelecionada = localStorage.getItem("empresaSelecionada");
+        const ultimaEmpresaSelecionada = secureStorage.getItem("empresaSelecionada");
         if (ultimaEmpresaSelecionada) {
             const empresaEncontrada = empresas.find(emp => emp.empresa === ultimaEmpresaSelecionada);
 

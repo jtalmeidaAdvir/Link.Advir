@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import ConnectionTab from "./components/ConnectionTab";
 import ContactsTab from "./components/ContactsTab";
 import ScheduleTab from "./components/ScheduleTab";
-
+import { secureStorage } from '../../utils/secureStorage';
 import ConfiguracaoAutomaticaTab from "./components/ConfiguracaoAutomaticaTab";
 import RelatoriosTab from "./components/RelatoriosTab";
 import useWhatsAppData from "./hooks/useWhatsAppData";
@@ -886,7 +886,7 @@ const WhatsAppWebConfig = () => {
         const novosContactos = [...externosContactos, novoContacto];
         setExternosContactos(novosContactos);
 
-        localStorage.setItem(
+        secureStorage.setItem(
             "externosContactos",
             JSON.stringify(novosContactos),
         );
@@ -909,7 +909,7 @@ const WhatsAppWebConfig = () => {
                 (ec) => ec.id !== id,
             );
             setExternosContactos(novosContactos);
-            localStorage.setItem(
+            secureStorage.setItem(
                 "externosContactos",
                 JSON.stringify(novosContactos),
             );

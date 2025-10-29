@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaCalendarCheck, FaClock, FaPlus, FaExclamationTriangle, FaCheckCircle } from 'react-icons/fa';
-
+import { secureStorage } from '../../utils/secureStorage';
 const CalendarioHorasTrabalho = () => {
     // NOVO: feriados (array de 'YYYY-MM-DD')
     const [feriados, setFeriados] = useState([]);
@@ -128,12 +128,12 @@ const CalendarioHorasTrabalho = () => {
     };
 
     const carregarFaltasPendentes = async () => {
-        const token = localStorage.getItem('loginToken');
+        const token = secureStorage.getItem('loginToken');
         try {
             const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    urlempresa: localStorage.getItem('empresa_id'),
+                    urlempresa: secureStorage.getItem('empresa_id'),
                     'Content-Type': 'application/json'
                 }
             });
@@ -235,8 +235,8 @@ const CalendarioHorasTrabalho = () => {
 
     // NOVO: carregar feriados da WebAPI
     const carregarFeriados = async (tentativa = 1, maxTentativas = 3) => {
-        const painelAdminToken = localStorage.getItem('painelAdminToken');
-        const urlempresa = localStorage.getItem('urlempresa');
+        const painelAdminToken = secureStorage.getItem('painelAdminToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
         const ano = mesAtual.getFullYear();
 
         if (!painelAdminToken || !urlempresa) {
@@ -312,14 +312,14 @@ const CalendarioHorasTrabalho = () => {
 
 
     const carregarDiasPendentes = async () => {
-        const token = localStorage.getItem('loginToken');
-        const funcionarioId = localStorage.getItem('codFuncionario');
+        const token = secureStorage.getItem('loginToken');
+        const funcionarioId = secureStorage.getItem('codFuncionario');
 
         try {
             const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    urlempresa: localStorage.getItem('empresa_id'),
+                    urlempresa: secureStorage.getItem('empresa_id'),
                     'Content-Type': 'application/json'
                 }
             });
@@ -379,7 +379,7 @@ const CalendarioHorasTrabalho = () => {
             return;
         }
 
-        const token = localStorage.getItem('loginToken');
+        const token = secureStorage.getItem('loginToken');
         const formData = new FormData();
         formData.append('arquivo', file); // ✅ nome certo
 
@@ -420,9 +420,9 @@ const CalendarioHorasTrabalho = () => {
     const submeterFalta = async (e) => {
         e.preventDefault();
 
-        const token = localStorage.getItem('loginToken');
-        const funcionarioId = localStorage.getItem('codFuncionario');
-        const empresaId = localStorage.getItem('empresa_id');
+        const token = secureStorage.getItem('loginToken');
+        const funcionarioId = secureStorage.getItem('codFuncionario');
+        const empresaId = secureStorage.getItem('empresa_id');
         const dataFalta = diaSelecionado;
 
         const dadosPrincipal = {
@@ -452,7 +452,7 @@ const CalendarioHorasTrabalho = () => {
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
-                    urlempresa: localStorage.getItem('empresa_id')
+                    urlempresa: secureStorage.getItem('empresa_id')
                 },
                 body: JSON.stringify(dadosPrincipal)
             });
@@ -468,7 +468,7 @@ const CalendarioHorasTrabalho = () => {
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Authorization': `Bearer ${token}`,
-                                'urlempresa': localStorage.getItem('empresa_id')
+                                'urlempresa': secureStorage.getItem('empresa_id')
                             },
                             body: JSON.stringify({
                                 pedido_falta_id: pedidoCriado.id.toString(),
@@ -503,7 +503,7 @@ const CalendarioHorasTrabalho = () => {
                         headers: {
                             'Content-Type': 'application/json',
                             Authorization: `Bearer ${token}`,
-                            urlempresa: localStorage.getItem('empresa_id')
+                            urlempresa: secureStorage.getItem('empresa_id')
                         },
                         body: JSON.stringify(dadosF40)
                     });
@@ -593,9 +593,9 @@ const CalendarioHorasTrabalho = () => {
     };
 
     const carregarFaltasFuncionario = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const funcionarioId = localStorage.getItem('codFuncionario');
-        const urlempresa = localStorage.getItem('urlempresa');
+        const token = secureStorage.getItem("painelAdminToken");
+        const funcionarioId = secureStorage.getItem('codFuncionario');
+        const urlempresa = secureStorage.getItem('urlempresa');
 
         try {
             const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${funcionarioId}`, {
@@ -635,8 +635,8 @@ const CalendarioHorasTrabalho = () => {
     };
 
     const carregarTiposFalta = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
 
         try {
             const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoFaltas`, {
@@ -666,9 +666,9 @@ const CalendarioHorasTrabalho = () => {
     };
 
     const carregarHorarioFuncionario = async () => {
-        const token = localStorage.getItem("painelAdminToken");
+        const token = secureStorage.getItem("painelAdminToken");
         const funcionarioId = "codFuncionario";
-        const urlempresa = localStorage.getItem("urlempresa");
+        const urlempresa = secureStorage.getItem("urlempresa");
 
         try {
             const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetHorarioFuncionario/${funcionarioId}`, {
@@ -693,8 +693,8 @@ const CalendarioHorasTrabalho = () => {
     };
 
     const carregarHorariosTrabalho = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
 
         try {
             const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetHorariosTrabalho`, {
@@ -719,9 +719,9 @@ const CalendarioHorasTrabalho = () => {
     };
 
     const carregarTotalizadorFerias = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
-        const funcionarioId = localStorage.getItem("codFuncionario");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
+        const funcionarioId = secureStorage.getItem("codFuncionario");
 
         try {
             const res = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/GetTotalizadorFeriasFuncionario/${funcionarioId}`, {
@@ -746,9 +746,9 @@ const CalendarioHorasTrabalho = () => {
     const submeterFerias = async (e) => {
         e.preventDefault();
 
-        const token = localStorage.getItem("loginToken");
-        const funcionarioId = localStorage.getItem("codFuncionario");
-        const empresaId = localStorage.getItem('empresa_id');
+        const token = secureStorage.getItem("loginToken");
+        const funcionarioId = secureStorage.getItem("codFuncionario");
+        const empresaId = secureStorage.getItem('empresa_id');
 
         const { dataInicio, dataFim, Horas, Tempo, Observacoes } = novaFaltaFerias;
 
@@ -791,7 +791,7 @@ const CalendarioHorasTrabalho = () => {
                     headers: {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`,
-                        urlempresa: localStorage.getItem('empresa_id')
+                        urlempresa: secureStorage.getItem('empresa_id')
                     }
                 });
 
@@ -807,7 +807,7 @@ const CalendarioHorasTrabalho = () => {
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
-                    urlempresa: localStorage.getItem('empresa_id')
+                    urlempresa: secureStorage.getItem('empresa_id')
                 },
                 body: JSON.stringify(dados)
             });
@@ -847,9 +847,9 @@ const CalendarioHorasTrabalho = () => {
     };
 
     const solicitarCancelamentoFalta = async (faltaObj) => {
-        const token = localStorage.getItem('loginToken');
-        const funcionario = localStorage.getItem('codFuncionario');
-        const empresaId = localStorage.getItem('empresa_id');
+        const token = secureStorage.getItem('loginToken');
+        const funcionario = secureStorage.getItem('codFuncionario');
+        const empresaId = secureStorage.getItem('empresa_id');
 
         const dataISO = toLocalISODate(faltaObj.Data);
         const codigoFalta = faltaObj.Falta;
@@ -865,7 +865,7 @@ const CalendarioHorasTrabalho = () => {
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
-                    urlempresa: localStorage.getItem('empresa_id')
+                    urlempresa: secureStorage.getItem('empresa_id')
                 },
                 body: JSON.stringify({
                     tipoPedido: 'FALTA',
@@ -951,7 +951,7 @@ const CalendarioHorasTrabalho = () => {
         const confirmar = window.confirm(mensagemConfirmacao);
         if (!confirmar) return;
 
-        const token = localStorage.getItem('loginToken');
+        const token = secureStorage.getItem('loginToken');
 
         try {
             const res = await fetch(`https://backend.advir.pt/api/faltas-ferias/aprovacao/${pedido.id}`, {
@@ -959,7 +959,7 @@ const CalendarioHorasTrabalho = () => {
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
-                    urlempresa: localStorage.getItem('empresa_id')
+                    urlempresa: secureStorage.getItem('empresa_id')
                 }
             });
 
@@ -1013,7 +1013,7 @@ const CalendarioHorasTrabalho = () => {
 
         if (!confirmar) return;
 
-        const token = localStorage.getItem('loginToken');
+        const token = secureStorage.getItem('loginToken');
 
         try {
             const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/cancelar/${registoId}`, {
@@ -1021,7 +1021,7 @@ const CalendarioHorasTrabalho = () => {
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
-                    urlempresa: localStorage.getItem('empresa_id')
+                    urlempresa: secureStorage.getItem('empresa_id')
                 }
             });
 
@@ -1082,10 +1082,10 @@ const CalendarioHorasTrabalho = () => {
     };
 
     const carregarTudoEmParalelo = async (diaISO) => {
-        const loginToken = localStorage.getItem('loginToken');
-        const painelAdminToken = localStorage.getItem('painelAdminToken');
-        const urlempresa = localStorage.getItem('urlempresa');
-        const funcionarioId = localStorage.getItem('codFuncionario');
+        const loginToken = secureStorage.getItem('loginToken');
+        const painelAdminToken = secureStorage.getItem('painelAdminToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
+        const funcionarioId = secureStorage.getItem('codFuncionario');
 
         const ano = mesAtual.getFullYear();
         const mes = String(mesAtual.getMonth() + 1).padStart(2, '0');
@@ -1094,7 +1094,7 @@ const CalendarioHorasTrabalho = () => {
             safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/registo-ponto-obra/resumo-mensal?ano=${ano}&mes=${mes}`, {
                 headers: { Authorization: `Bearer ${loginToken}` },
             })),
-            safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/obra/por-empresa?empresa_id=${localStorage.getItem('empresa_id')}`, {
+            safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/obra/por-empresa?empresa_id=${secureStorage.getItem('empresa_id')}`, {
                 headers: { Authorization: `Bearer ${loginToken}` },
             })),
             safeJson(fetchJSONWithRetry(`https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${funcionarioId}`, {
@@ -1117,7 +1117,7 @@ const CalendarioHorasTrabalho = () => {
                 headers: { Authorization: `Bearer ${painelAdminToken}`, urlempresa, 'Content-Type': 'application/json' },
             })),
             safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/faltas-ferias/aprovacao/pendentes`, {
-                headers: { Authorization: `Bearer ${loginToken}`, urlempresa: localStorage.getItem('empresa_id'), 'Content-Type': 'application/json' },
+                headers: { Authorization: `Bearer ${loginToken}`, urlempresa: secureStorage.getItem('empresa_id'), 'Content-Type': 'application/json' },
             })),
             safeJson(fetchJSONWithRetry(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${diaISO}`, {
                 headers: { Authorization: `Bearer ${loginToken}` },
@@ -1265,9 +1265,9 @@ const CalendarioHorasTrabalho = () => {
     };
 
     const solicitarCancelamentoFeria = async (dataFeria) => {
-        const token = localStorage.getItem('loginToken');
-        const funcionario = localStorage.getItem('codFuncionario');
-        const empresaId = localStorage.getItem('empresa_id');
+        const token = secureStorage.getItem('loginToken');
+        const funcionario = secureStorage.getItem('codFuncionario');
+        const empresaId = secureStorage.getItem('empresa_id');
 
         const dataISO = toLocalISODate(dataFeria);
         const dataCompleta = new Date(dataISO + 'T00:00:00.000Z').toISOString();
@@ -1280,7 +1280,7 @@ const CalendarioHorasTrabalho = () => {
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
-                    urlempresa: localStorage.getItem('empresa_id')
+                    urlempresa: secureStorage.getItem('empresa_id')
                 },
                 body: JSON.stringify({
                     tipoPedido: 'FERIAS',
@@ -1377,7 +1377,7 @@ const CalendarioHorasTrabalho = () => {
     };
 
     const carregarResumo = async () => {
-        const token = localStorage.getItem('loginToken');
+        const token = secureStorage.getItem('loginToken');
         const ano = mesAtual.getFullYear();
         const mes = String(mesAtual.getMonth() + 1).padStart(2, '0');
 
@@ -1444,8 +1444,8 @@ const CalendarioHorasTrabalho = () => {
     };
 
     const carregarObras = async () => {
-        const token = localStorage.getItem('loginToken');
-        const empresaId = localStorage.getItem('empresa_id');
+        const token = secureStorage.getItem('loginToken');
+        const empresaId = secureStorage.getItem('empresa_id');
 
         if (!empresaId) {
             console.error('ID da empresa não encontrado');
@@ -1475,7 +1475,7 @@ const CalendarioHorasTrabalho = () => {
         });
         setFaltasDoDia(faltasNoDia);
 
-        const funcionarioId = localStorage.getItem('codFuncionario');
+        const funcionarioId = secureStorage.getItem('codFuncionario');
 
         const pedidosPendentesDoDia = faltasPendentes.filter(p => {
             const dataSelecionada = new Date(data);
@@ -1507,7 +1507,7 @@ const CalendarioHorasTrabalho = () => {
         setPedidosPendentesDoDia(pedidosPendentesDoDia);
         //console.log('Pedidos pendentes do dia:', pedidosPendentesDoDia);
 
-        const token = localStorage.getItem('loginToken');
+        const token = secureStorage.getItem('loginToken');
         try {
             setLoading(true);
             const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${data}`, {
@@ -1573,7 +1573,7 @@ const CalendarioHorasTrabalho = () => {
         const [ano, mes, dia] = diaSelecionado.split('-');
         const [hora, minuto] = novaEntrada.hora.split(':');
         const dataLocal = new Date(ano, mes - 1, dia, hora, minuto);
-        const token = localStorage.getItem('loginToken');
+        const token = secureStorage.getItem('loginToken');
         try {
             setLoading(true);
             const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido`, {
@@ -1641,7 +1641,7 @@ const CalendarioHorasTrabalho = () => {
         const [hora, minuto] = novaHoraEdicao.split(':');
         const novaData = new Date(ano, mes - 1, dia, hora, minuto);
 
-        const token = localStorage.getItem('loginToken');
+        const token = secureStorage.getItem('loginToken');
 
         try {
             const resDel = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/cancelar/${registoEmEdicao.id}`, {

@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { FaClock, FaCheckCircle, FaTimesCircle, FaSync, FaUser, FaBuilding, FaCalendarAlt, FaExclamationTriangle, FaFilter } from 'react-icons/fa';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { useNavigation } from '@react-navigation/native';
+import { secureStorage } from '../../utils/secureStorage';
 
 
 const AprovacaoPontoPendentes = () => {
@@ -12,12 +13,12 @@ const AprovacaoPontoPendentes = () => {
   const [processando, setProcessando] = useState({});
   const [colaboradorFiltro, setColaboradorFiltro] = useState('');
 const [minhasEquipas, setMinhasEquipas] = useState([]);
-  const token = localStorage.getItem('loginToken');
-  const urlempresa = localStorage.getItem('urlempresa');
+  const token = secureStorage.getItem('loginToken');
+  const urlempresa = secureStorage.getItem('urlempresa');
 
 const navigation = useNavigation();
 
-const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se aplicável
+const tipoUser = secureStorage.getItem('tipoUser'); // ou usa context/state se aplicável
 
   /** 1) Carrega as equipas que eu lidero, com os membros */
  const carregarEquipas = async () => {
@@ -50,7 +51,7 @@ const tipoUser = localStorage.getItem('tipoUser'); // ou usa context/state se ap
   const carregarRegistos = async () => {
     setLoading(true);
     try {
-      const empresaId = localStorage.getItem('empresa_id');
+      const empresaId = secureStorage.getItem('empresa_id');
       const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/pendentes?empresa_id=${empresaId}`, {
         headers: {
           'Content-Type': 'application/json',

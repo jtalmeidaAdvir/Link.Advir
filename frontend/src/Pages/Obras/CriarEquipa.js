@@ -12,11 +12,12 @@ import {
     Dimensions,
     Modal
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import securestorage from '@react-native-async-storage/async-storage';
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
 import { styles } from './Css/CriarEquipaStyles';
+import { secureStorage } from '../../utils/secureStorage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -85,9 +86,9 @@ const CriarEquipa = () => {
 
     const fetchEquipasCriadas = async () => {
         try {
-            const token = await AsyncStorage.getItem('loginToken');
-            const userId = await AsyncStorage.getItem('userId');
-            const tipoUser = await AsyncStorage.getItem('tipoUser'); // assume userType guardado
+            const token = await securestorage.getItem('loginToken');
+            const userId = await securestorage.getItem('userId');
+            const tipoUser = await securestorage.getItem('tipoUser'); // assume userType guardado
 
             const res = await fetch('https://backend.advir.pt/api/equipa-obra/listar-todas', {
                 headers: { Authorization: `Bearer ${token}` },
@@ -111,8 +112,8 @@ const CriarEquipa = () => {
 
 
     const obterIdDaEmpresa = async () => {
-        const empresaNome = localStorage.getItem("empresaSelecionada");
-        const loginToken = localStorage.getItem("loginToken");
+        const empresaNome = secureStorage.getItem("empresaSelecionada");
+        const loginToken = secureStorage.getItem("loginToken");
 
         try {
             const response = await fetch(`https://backend.advir.pt/api/empresas/nome/${empresaNome}`, {
@@ -135,7 +136,7 @@ const CriarEquipa = () => {
 
     const fetchUtilizadores = async () => {
         try {
-            const loginToken = localStorage.getItem("loginToken");
+            const loginToken = secureStorage.getItem("loginToken");
             const empresaId = await obterIdDaEmpresa();
 
             if (!empresaId) {
@@ -185,7 +186,7 @@ const CriarEquipa = () => {
 
         try {
             setLoading(true);
-            const token = await AsyncStorage.getItem('loginToken');
+            const token = await securestorage.getItem('loginToken');
             const res = await fetch('https://backend.advir.pt/api/equipa-obra', {
                 method: 'POST',
                 headers: {
@@ -219,7 +220,7 @@ const CriarEquipa = () => {
         if (!equipaParaRemover) return;
 
         try {
-            const token = await AsyncStorage.getItem('loginToken');
+            const token = await securestorage.getItem('loginToken');
             const res = await fetch('https://backend.advir.pt/api/equipa-obra/remover-equipa', {
                 method: 'POST',
                 headers: {
@@ -262,7 +263,7 @@ const CriarEquipa = () => {
         }
 
         try {
-            const token = await AsyncStorage.getItem('loginToken');
+            const token = await securestorage.getItem('loginToken');
             const res = await fetch(`https://backend.advir.pt/api/equipa-obra/editar-equipa/${equipaSelecionadaEditar.nome}`, {
                 method: 'PUT',
                 headers: {

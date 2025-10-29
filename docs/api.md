@@ -675,7 +675,7 @@ A API está configurada para aceitar requests de:
 ```javascript
 // Configuração do cliente
 const API_BASE = 'http://0.0.0.0:3000/api';
-const token = localStorage.getItem('authToken');
+const token = secureStorage.getItem('authToken');
 
 // Headers padrão
 const headers = {

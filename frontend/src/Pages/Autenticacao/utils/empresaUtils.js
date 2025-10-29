@@ -1,5 +1,6 @@
+import { secureStorage } from '../../../utils/secureStorage';
 export const entrarEmpresaPredefinida = async (empresa, navigation) => {
-  const loginToken = localStorage.getItem("loginToken");
+  const loginToken = secureStorage.getItem("loginToken");
   try {
     const credenciaisResponse = await fetch(
       `https://backend.advir.pt/api/empresas/nome/${encodeURIComponent(empresa)}`,
@@ -9,10 +10,10 @@ export const entrarEmpresaPredefinida = async (empresa, navigation) => {
     if (!credenciaisResponse.ok) throw new Error();
 
     const credenciais = await credenciaisResponse.json();
-    localStorage.setItem("urlempresa", credenciais.urlempresa);
+    secureStorage.setItem("urlempresa", credenciais.urlempresa);
 
     console.log("Credenciais recebidas:", credenciais); // 👈
-    localStorage.setItem("empresaId", String(credenciais.id));
+    secureStorage.setItem("empresaId", String(credenciais.id));
 
 
     const response = await fetch("https://webapiprimavera.advir.pt/connect-database/token", {
@@ -34,8 +35,8 @@ export const entrarEmpresaPredefinida = async (empresa, navigation) => {
 
     if (response.ok) {
       const data = await response.json();
-      localStorage.setItem("painelAdminToken", data.token);
-      localStorage.setItem("empresaSelecionada", empresa);
+      secureStorage.setItem("painelAdminToken", data.token);
+      secureStorage.setItem("empresaSelecionada", empresa);
       navigation.navigate("Home");
     } else {
       navigation.navigate("SelecaoEmpresa");

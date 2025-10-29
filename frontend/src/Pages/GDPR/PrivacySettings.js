@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Switch, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-
+import { secureStorage } from '../../utils/secureStorage';
 const PrivacySettings = () => {
     const [consents, setConsents] = useState({
         biometric_facial: false,
@@ -21,7 +21,7 @@ const PrivacySettings = () => {
 
     const fetchConsents = async () => {
         try {
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
             const response = await fetch('https://backend.advir.pt/api/gdpr/consents', {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -52,7 +52,7 @@ const PrivacySettings = () => {
 
         setLoading(true);
         try {
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
             const newValue = !consents[consentType];
 
             const response = await fetch('https://backend.advir.pt/api/gdpr/consent', {
@@ -82,7 +82,7 @@ const PrivacySettings = () => {
     };
 
     const ensureEssentialConsent = async () => {
-  const token = localStorage.getItem('loginToken');
+  const token = secureStorage.getItem('loginToken');
   // 1) Lê os consentimentos atuais
   const res = await fetch('https://backend.advir.pt/api/gdpr/consents', {
     headers: { 'Authorization': `Bearer ${token}` }
@@ -118,7 +118,7 @@ const PrivacySettings = () => {
 
 const exportData = async () => {
   try {
-    const token = localStorage.getItem('loginToken');
+    const token = secureStorage.getItem('loginToken');
 
     // (apenas se o backend exige) garante consentimento essencial
     await ensureEssentialConsent();

@@ -2,7 +2,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { styles } from "../styles/SelecaoEmpresaStyles";
-
+import { secureStorage } from '../../../utils/secureStorage';
 const EmpresaButtons = ({
   empresas,
   empresaSelecionada,
@@ -34,7 +34,7 @@ const EmpresaButtons = ({
           ]}
           onPress={() => {
             setEmpresaSelecionada(empresa.empresa);
-            const empresaPredefinidaStorage = localStorage.getItem("empresaPredefinida");
+            const empresaPredefinidaStorage = secureStorage.getItem("empresaPredefinida");
             setEmpresaPredefinida(empresaPredefinidaStorage === empresa.empresa);
           }}
         >

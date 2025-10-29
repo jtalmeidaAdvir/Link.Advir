@@ -20,7 +20,7 @@ import { useAppStateRefresh } from "../Autenticacao/utils/useAppStateRefresh";
 import { useEnsureValidTokens } from "../../utils/useEnsureValidTokens";
 import backgroundImage from "../../../images/ImagemFundo.png";
 import { useNavigation } from "@react-navigation/native";
-
+import { secureStorage } from '../../utils/secureStorage';
 const fetchWithTimeout = (url, opts = {}, ms = 8000) => {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
@@ -97,11 +97,11 @@ const RegistoPontoFacial = (props) => {
   const [externoNome, setExternoNome] = useState("");
 
   // Verificar se é empresa JPA (ID = 5)
-  const empresaId = localStorage.getItem("empresa_id") || "";
+  const empresaId = secureStorage.getItem("empresa_id") || "";
   const isEmpresaJPA = empresaId === "5";
   
   // Verificar se é administrador
-  const tipoUser = localStorage.getItem("tipoUser") || "";
+  const tipoUser = secureStorage.getItem("tipoUser") || "";
   const isAdmin = tipoUser === "Administrador";
 
   // Bloqueios / locks
@@ -128,9 +128,9 @@ const RegistoPontoFacial = (props) => {
 
   // Debug + validação POS
   useEffect(() => {
-    const isPOS = localStorage.getItem("isPOS") === "true";
-    const token = localStorage.getItem("loginToken");
-    const empresaId = localStorage.getItem("empresa_id");
+    const isPOS = secureStorage.getItem("isPOS") === "true";
+    const token = secureStorage.getItem("loginToken");
+    const empresaId = secureStorage.getItem("empresa_id");
 
     if (!isPOS || !token || !empresaId) {
       console.error("Dados essenciais em falta. Redirecionando para login...");
@@ -170,8 +170,8 @@ const RegistoPontoFacial = (props) => {
     (async () => {
       try {
         setIsObrasLoading(true);
-        const token = localStorage.getItem("loginToken");
-        const empresaId = localStorage.getItem("empresa_id");
+        const token = secureStorage.getItem("loginToken");
+        const empresaId = secureStorage.getItem("empresa_id");
         const res = await fetchWithTimeout(
           "https://backend.advir.pt/api/obra",
           {
@@ -223,8 +223,8 @@ const RegistoPontoFacial = (props) => {
   const carregarResumoObra = async (obraId, mountedCheck = true) => {
     try {
       setIsResumoLoading(true);
-      const token = localStorage.getItem("loginToken");
-      const empresaId = localStorage.getItem("empresa_id");
+      const token = secureStorage.getItem("loginToken");
+      const empresaId = secureStorage.getItem("empresa_id");
 
       // Buscar resumo de trabalhadores, visitantes e externos em paralelo
       const [resTrabalhadores, resVisitantes, resExternos] = await Promise.all([
@@ -346,8 +346,8 @@ const RegistoPontoFacial = (props) => {
       setIsRegistering(true);
       setStatusMessage(`A registar ${tipo}...`);
 
-      const token = localStorage.getItem("loginToken");
-      const empresaNome = localStorage.getItem("empresa_areacliente");
+      const token = secureStorage.getItem("loginToken");
+      const empresaNome = secureStorage.getItem("empresa_areacliente");
       const idemKey = `${userId}-${obraId}-${tipo}-${Date.now()}`;
 
       const res = await fetchWithTimeout(
@@ -489,7 +489,7 @@ const RegistoPontoFacial = (props) => {
       setIsAuthLoading(false);
 
       // 2) Localização - Verificar se é POS CASAPEDOME para pular obtenção de localização
-      const posNome = localStorage.getItem('posNome');
+      const posNome = secureStorage.getItem('posNome');
       let loc = null;
       
       if (posNome === 'CASAPEDOME') {
@@ -513,7 +513,7 @@ const RegistoPontoFacial = (props) => {
       setIsPostLoading(true);
 
       // 3) TENTAR endpoint /auto (decisão no backend)
-      const token = localStorage.getItem("loginToken");
+      const token = secureStorage.getItem("loginToken");
       const idemKey = `${userId}-${obraId}-${Date.now()}`;
 
       let resAuto = await fetchWithTimeout(
@@ -640,7 +640,7 @@ const RegistoPontoFacial = (props) => {
       return;
     }
     // Pré-aquecer localização apenas se não for CASAPEDOME
-    const posNome = localStorage.getItem('posNome');
+    const posNome = secureStorage.getItem('posNome');
     if (posNome !== 'CASAPEDOME') {
       locationPromiseRef.current = getCurrentLocation();
     }
@@ -694,7 +694,7 @@ const RegistoPontoFacial = (props) => {
     setShowDefinicoesModal(true);
     // Carregar email atual
     try {
-      const token = localStorage.getItem("loginToken");
+      const token = secureStorage.getItem("loginToken");
       const res = await fetch("https://backend.advir.pt/api/configuracoes/email_visitantes", {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -715,7 +715,7 @@ const RegistoPontoFacial = (props) => {
 
     try {
       setIsSavingConfig(true);
-      const token = localStorage.getItem("loginToken");
+      const token = secureStorage.getItem("loginToken");
       const res = await fetch("https://backend.advir.pt/api/configuracoes/email_visitantes", {
         method: 'PUT',
         headers: {
@@ -740,7 +740,7 @@ const RegistoPontoFacial = (props) => {
   };
 
   const handleLogoutPOS = () => {
-    localStorage.clear();
+    secureStorage.clear();
     if (navigation) {
       navigation.navigate("LoginPOS");
     } else {
@@ -789,8 +789,8 @@ const RegistoPontoFacial = (props) => {
       setQrScannerActive(false);
       setStatusMessage("A processar QR code...");
 
-      const token = localStorage.getItem("loginToken");
-      const empresaId = localStorage.getItem("empresa_id");
+      const token = secureStorage.getItem("loginToken");
+      const empresaId = secureStorage.getItem("empresa_id");
 
       // Buscar dados do externo na tabela ExternosJPA
       const resExterno = await fetch(
@@ -808,7 +808,7 @@ const RegistoPontoFacial = (props) => {
       setExternoNome(externo.nome);
 
       // Obter localização apenas se não for CASAPEDOME
-      const posNome = localStorage.getItem('posNome');
+      const posNome = secureStorage.getItem('posNome');
       let loc = { coords: { latitude: null, longitude: null } };
       
       if (posNome !== 'CASAPEDOME') {
@@ -867,8 +867,8 @@ const RegistoPontoFacial = (props) => {
     }
 
     try {
-      const token = localStorage.getItem("loginToken");
-      const empresaId = localStorage.getItem("empresa_id");
+      const token = secureStorage.getItem("loginToken");
+      const empresaId = secureStorage.getItem("empresa_id");
 
       const res = await fetch(
         `https://backend.advir.pt/api/visitantes/buscar/${numeroContribuinte}?empresa_id=${empresaId}`,
@@ -903,8 +903,8 @@ const RegistoPontoFacial = (props) => {
     }
 
     try {
-      const token = localStorage.getItem("loginToken");
-      const empresaId = localStorage.getItem("empresa_id");
+      const token = secureStorage.getItem("loginToken");
+      const empresaId = secureStorage.getItem("empresa_id");
 
       const res = await fetch("https://backend.advir.pt/api/visitantes/criar", {
         method: "POST",
@@ -937,9 +937,9 @@ const RegistoPontoFacial = (props) => {
 
   const registarPontoVisitante = async (visitanteId) => {
     try {
-      const token = localStorage.getItem("loginToken");
-      const empresaId = localStorage.getItem("empresa_id");
-      const posNome = localStorage.getItem('posNome');
+      const token = secureStorage.getItem("loginToken");
+      const empresaId = secureStorage.getItem("empresa_id");
+      const posNome = secureStorage.getItem('posNome');
 
       let loc = { coords: { latitude: null, longitude: null } };
       
@@ -990,7 +990,7 @@ const RegistoPontoFacial = (props) => {
     }
   };
 
-  const isPOS = localStorage.getItem("isPOS") === "true";
+  const isPOS = secureStorage.getItem("isPOS") === "true";
 
   return (
     <div

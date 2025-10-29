@@ -1,6 +1,6 @@
 // handlers/useHandleEntrar.js
 import { handleEntrarEmpresa } from "./handleEntrarEmpresa";
-
+import { secureStorage } from '../../../utils/secureStorage';
 export const useHandleEntrar = ({
     setEmpresa,
     empresaPredefinida,
@@ -31,12 +31,12 @@ export const useHandleEntrar = ({
             }
 
             // Verificar se tem tipoUser e submódulo Ponto para redirecionar para RegistoPontoObra
-            const tipoUser = localStorage.getItem("tipoUser");
+            const tipoUser = secureStorage.getItem("tipoUser");
 
             // Fazer uma nova chamada à API para obter os módulos e submódulos atualizados
-            const userId = localStorage.getItem("userId");
-            const empresaId = localStorage.getItem("empresa_id");
-            const loginToken = localStorage.getItem("loginToken");
+            const userId = secureStorage.getItem("userId");
+            const empresaId = secureStorage.getItem("empresa_id");
+            const loginToken = secureStorage.getItem("loginToken");
 
             let hasPointSubmodule = false;
 

@@ -17,7 +17,7 @@ import Select from 'react-select';
 import { useAppStateRefresh } from '../Autenticacao/utils/useAppStateRefresh';
 import { useEnsureValidTokens } from '../../utils/useEnsureValidTokens';
 import backgroundImage from '../../../images/ImagemFundo.png';
-
+import { secureStorage } from '../../utils/secureStorage';
 
 const RegistoPontoObra = (props) => {
     const scannerRef = useRef(null);
@@ -33,7 +33,7 @@ const RegistoPontoObra = (props) => {
         label: obra.nome
     }));
 
-    const tipoUser = localStorage.getItem('tipoUser') || localStorage.getItem('tipo') || localStorage.getItem('userType');
+    const tipoUser = secureStorage.getItem('tipoUser') || secureStorage.getItem('tipo') || secureStorage.getItem('userType');
     const tipoUserNormalizado = (tipoUser || '').trim();
 
     // Normalizar para capitalização consistente
@@ -147,7 +147,7 @@ const startScannerWith = async (cameraId) => {
     //
     useEffect(() => {
         const fetchEquipas = async () => {
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
             const res = await fetch('https://backend.advir.pt/api/equipa-obra/minhas-agrupadas', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -166,13 +166,13 @@ const startScannerWith = async (cameraId) => {
         const fetchObras = async () => {
             try {
                 setLoading(true);
-                const token = localStorage.getItem('loginToken');
+                const token = secureStorage.getItem('loginToken');
                 const res = await fetch('https://backend.advir.pt/api/obra', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    const empresaId = localStorage.getItem('empresa_id');
+                    const empresaId = secureStorage.getItem('empresa_id');
                     const obrasDaEmpresa = data.filter(o => o.empresa_id == empresaId);
                     setObras(obrasDaEmpresa);
 
@@ -197,7 +197,7 @@ const startScannerWith = async (cameraId) => {
         const carregarRegistosHoje = async () => {
             try {
                 setLoading(true);
-                const token = localStorage.getItem('loginToken');
+                const token = secureStorage.getItem('loginToken');
                 const hoje = new Date().toISOString().split('T')[0];
 
                 const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}`, {
@@ -237,7 +237,7 @@ const startScannerWith = async (cameraId) => {
 
     useEffect(() => {
         const fetchRegistosEquipa = async () => {
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
             const todosMembros = minhasEquipas.flatMap(eq => eq.membros.map(m => m.id));
             if (!todosMembros.length) return;
 
@@ -281,7 +281,7 @@ const startScannerWith = async (cameraId) => {
         try {
             setLoading(true);
             const loc = await getCurrentLocation();
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
 
             const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra', {
                 method: 'POST',
@@ -453,7 +453,7 @@ const startScannerWith = async (cameraId) => {
     const handleRegistoEquipa = async (tipo) => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
             const loc = await getCurrentLocation();
 
             const res = await fetch('https://backend.advir.pt/api/registo-ponto-obra/registar-ponto-equipa', {

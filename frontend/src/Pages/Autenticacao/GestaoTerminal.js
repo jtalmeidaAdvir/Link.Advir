@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-
+import { secureStorage } from '../../../utils/secureStorage';
 const GestaoPOS = () => {
     const [posList, setPosList] = useState([]);
     const [obras, setObras] = useState([]);
@@ -25,14 +25,14 @@ const GestaoPOS = () => {
     const fetchPOS = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
             const response = await fetch('https://backend.advir.pt/api/pos', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
             if (response.ok) {
                 const data = await response.json();
-                 const empresaId = localStorage.getItem('empresa_id');
+                 const empresaId = secureStorage.getItem('empresa_id');
                 const posDaEmpresa = data.filter(pos => pos.empresa_id == empresaId);
                 setPosList(posDaEmpresa);
             }
@@ -46,14 +46,14 @@ const GestaoPOS = () => {
 
     const fetchObras = async () => {
         try {
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
             const response = await fetch('https://backend.advir.pt/api/obra', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
             if (response.ok) {
                 const data = await response.json();
-                const empresaId = localStorage.getItem('empresa_id');
+                const empresaId = secureStorage.getItem('empresa_id');
                 const obrasDaEmpresa = data.filter(o => o.empresa_id == empresaId);
                 setObras(obrasDaEmpresa);
             }
@@ -67,8 +67,8 @@ const GestaoPOS = () => {
         setLoading(true);
 
         try {
-            const token = localStorage.getItem('loginToken');
-            const empresaId = localStorage.getItem('empresa_id');
+            const token = secureStorage.getItem('loginToken');
+            const empresaId = secureStorage.getItem('empresa_id');
             
             const url = editingPOS 
                 ? `https://backend.advir.pt/api/pos/${editingPOS.id}`
@@ -128,7 +128,7 @@ const GestaoPOS = () => {
         if (!window.confirm('Tem certeza que deseja eliminar este POS?')) return;
 
         try {
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
             const response = await fetch(`https://backend.advir.pt/api/pos/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }

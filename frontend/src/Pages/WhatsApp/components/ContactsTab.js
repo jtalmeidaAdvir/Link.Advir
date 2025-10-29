@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-
+import { secureStorage } from '../../../utils/secureStorage';
 // Assuming API_BASE_URL is defined elsewhere, e.g., in a config file
 const API_BASE_URL = "https://backend.advir.pt/whatsapi/api/whatsapp";
-const empresaId = localStorage.getItem("empresa_id");
+const empresaId = secureStorage.getItem("empresa_id");
 const ContactsTab = ({
     newContactList,
     setNewContactList,
@@ -51,7 +51,7 @@ const ContactsTab = ({
 
     const loadUsers = async () => {
         try {
-            const token = localStorage.getItem("loginToken");
+            const token = secureStorage.getItem("loginToken");
             const response = await fetch(
                 `https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${empresaId}`,
                 {
@@ -80,7 +80,7 @@ const ContactsTab = ({
 
     const loadObras = async () => {
         try {
-            const token = localStorage.getItem("loginToken");
+            const token = secureStorage.getItem("loginToken");
             const response = await fetch(
                 `https://backend.advir.pt/api/obra/por-empresa?empresa_id=${empresaId}`,
                 {
@@ -106,8 +106,8 @@ const ContactsTab = ({
 
     const loadTecnicos = async () => {
         try {
-            const token = localStorage.getItem("painelAdminToken") || localStorage.getItem("loginToken");
-            const urlempresa = localStorage.getItem("urlempresa");
+            const token = secureStorage.getItem("painelAdminToken") || secureStorage.getItem("loginToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
 
             if (!token || !urlempresa) {
                 console.error("Token ou URL da empresa não encontrados para técnicos");
@@ -158,8 +158,8 @@ const ContactsTab = ({
 
     const loadClientes = async () => {
         try {
-            const token = localStorage.getItem("painelAdminToken") || localStorage.getItem("loginToken");
-            const urlempresa = localStorage.getItem("urlempresa");
+            const token = secureStorage.getItem("painelAdminToken") || secureStorage.getItem("loginToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
 
             if (!token || !urlempresa) {
                 console.error("Token ou URL da empresa não encontrados para clientes");
@@ -253,7 +253,7 @@ const ContactsTab = ({
     // Function to save edited contacts
    const saveEditedContacts = async (contactListData) => {
   try {
-    const token = localStorage.getItem("loginToken");
+    const token = secureStorage.getItem("loginToken");
 
     const individualContacts = contactListData.contacts.map(c => ({
       phone: c.phone || c,
@@ -301,7 +301,7 @@ const ContactsTab = ({
 };
 
 const updateContactList = async (contactListData) => {
-  const token = localStorage.getItem("loginToken");
+  const token = secureStorage.getItem("loginToken");
 
   const individualContacts = contactListData.contacts.map(c => ({
     phone: c.phone || c,

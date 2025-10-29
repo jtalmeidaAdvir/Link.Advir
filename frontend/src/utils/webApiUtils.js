@@ -1,12 +1,12 @@
-
-// Função para mostrar alerta e fazer logout
-const handleTokenExpired = (message = 'A sua sessão expirou. Será redirecionado para a página de login.') => {
+import { secureStorage } from '../utils/secureStorage';
+// Funï¿½ï¿½o para mostrar alerta e fazer logout
+const handleTokenExpired = (message = 'A sua sessï¿½o expirou. Serï¿½ redirecionado para a pï¿½gina de login.') => {
     alert(message);
-    localStorage.clear();
+    secureStorage.clear();
     window.location.href = '/';
 };
 
-// Função para verificar se é erro de token expirado da WebApi
+// Funï¿½ï¿½o para verificar se ï¿½ erro de token expirado da WebApi
 export const isWebApiTokenExpired = (data) => {
     return data && (
         data.message === 'Token expirado' ||
@@ -23,13 +23,13 @@ export const isWebApiTokenExpired = (data) => {
     );
 };
 
-// Função para processar respostas da WebApi e verificar tokens expirados
+// Funï¿½ï¿½o para processar respostas da WebApi e verificar tokens expirados
 export const processWebApiResponse = async (response) => {
     try {
         const data = await response.json();
 
         if (isWebApiTokenExpired(data)) {
-            handleTokenExpired('O token da WebApi expirou. Será deslogado e terá que fazer login novamente.');
+            handleTokenExpired('O token da WebApi expirou. Serï¿½ deslogado e terï¿½ que fazer login novamente.');
             throw new Error('Token expirado');
         }
 
@@ -39,9 +39,9 @@ export const processWebApiResponse = async (response) => {
             throw error;
         }
 
-        // Se não conseguir parsear como JSON, verificar se é erro 401
+        // Se nï¿½o conseguir parsear como JSON, verificar se ï¿½ erro 401
         if (response.status === 401) {
-            handleTokenExpired('O token da WebApi expirou. Será deslogado e terá que fazer login novamente.');
+            handleTokenExpired('O token da WebApi expirou. Serï¿½ deslogado e terï¿½ que fazer login novamente.');
             throw new Error('Token expirado');
         }
 
@@ -49,14 +49,14 @@ export const processWebApiResponse = async (response) => {
     }
 };
 
-// Wrapper para fetch com verificação de token da WebApi
+// Wrapper para fetch com verificaï¿½ï¿½o de token da WebApi
 export const fetchWebApi = async (url, options = {}) => {
     try {
         const response = await fetch(url, options);
 
-        // Se a resposta não for ok, processar mesmo assim para verificar token
+        // Se a resposta nï¿½o for ok, processar mesmo assim para verificar token
         if (!response.ok && response.status === 401) {
-            handleTokenExpired('O token da WebApi expirou. Será deslogado e terá que fazer login novamente.');
+            handleTokenExpired('O token da WebApi expirou. Serï¿½ deslogado e terï¿½ que fazer login novamente.');
             throw new Error('Token expirado');
         }
 

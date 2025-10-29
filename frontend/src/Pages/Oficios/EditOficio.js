@@ -19,6 +19,7 @@ import QualidadePreto from "../../../images/QUALIDADEPRETO.png";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 import Logo50 from "../../../images/Logo50.jpg";
+import { secureStorage } from '../../utils/secureStorage';
 
 const EditOficio = (props) => {
     // Obter dados do ofício para edição
@@ -293,8 +294,8 @@ const EditOficio = (props) => {
     // ======================================
     useEffect(() => {
         const fetchObras = async () => {
-            const token = localStorage.getItem("painelAdminToken");
-            const urlempresa = localStorage.getItem("urlempresa");
+            const token = secureStorage.getItem("painelAdminToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
             if (!urlempresa) return;
 
             try {
@@ -324,8 +325,8 @@ const EditOficio = (props) => {
             }
         };
         const fetchEntidades = async () => {
-            const token = localStorage.getItem("painelAdminToken");
-            const urlempresa = localStorage.getItem("urlempresa");
+            const token = secureStorage.getItem("painelAdminToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
             if (!urlempresa) return;
 
             try {
@@ -376,8 +377,8 @@ const EditOficio = (props) => {
     };
 
     const fetchEntidades = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
         if (!urlempresa) return;
 
         try {
@@ -807,8 +808,8 @@ const EditOficio = (props) => {
 
             let formattedEmailTexto = emailTexto.replace(/\n/g, "<br />");
 
-            // Obter o email de resposta do localStorage
-            const useremail = localStorage.getItem("userEmail");
+            // Obter o email de resposta do secureStorage
+            const useremail = secureStorage.getItem("userEmail");
 
             // Adicionar mensagem informativa sobre respostas
             formattedEmailTexto += `<br /><br /><div style='color: #777; font-size: 12px; border-top: 1px solid #eee; padding-top: 10px;'><p>Este email é enviado automaticamente de oficio@jpaconstrutora.com. Para responder, por favor envie email para ${useremail}.</p></div>`;
@@ -907,10 +908,10 @@ const EditOficio = (props) => {
 
     const handleSave = async (estado) => {
         console.log("teste" + estado);
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
-        const usernome = localStorage.getItem("userNome");
-        const useremail = localStorage.getItem("userEmail");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
+        const usernome = secureStorage.getItem("userNome");
+        const useremail = secureStorage.getItem("userEmail");
 
         var nomeDonoObra = "";
         var moradaDonoObra = "";
@@ -1018,8 +1019,8 @@ const EditOficio = (props) => {
         const selectedObra = obra;
         const entidadeid = selectedObra.EntidadeIDA;
 
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
 
         if (!urlempresa || !entidadeid) return;
 
@@ -1062,9 +1063,9 @@ const EditOficio = (props) => {
 
     const fetchEmailObra = async () => {
         try {
-            const token = localStorage.getItem("painelAdminToken");
-            const urlempresa = localStorage.getItem("urlempresa");
-            const emailuser = localStorage.getItem("userEmail");
+            const token = secureStorage.getItem("painelAdminToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
+            const emailuser = secureStorage.getItem("userEmail");
 
             const response = await fetch(
                 `https://webapiprimavera.advir.pt/oficio/GetEmail/${donoObra.ID}`,
@@ -1138,11 +1139,11 @@ const EditOficio = (props) => {
     const getTemplate1 = () => {
         const usernome =
             formData.remetente ||
-            localStorage.getItem("userNome") ||
+            secureStorage.getItem("userNome") ||
             "Email não disponível";
         const useremail =
             formData.email ||
-            localStorage.getItem("userEmail") ||
+            secureStorage.getItem("userEmail") ||
             "Email não disponível";
         console.log(selectedObra);
         setPageCount2(0);
@@ -1507,11 +1508,11 @@ const EditOficio = (props) => {
     const getTemplate2 = () => {
         const usernome =
             formData.remetente ||
-            localStorage.getItem("userNome") ||
+            secureStorage.getItem("userNome") ||
             "Email não disponível";
         const useremail =
             formData.email ||
-            localStorage.getItem("userEmail") ||
+            secureStorage.getItem("userEmail") ||
             "Email não disponível";
         setPageCount2(0);
         return `
@@ -1965,8 +1966,8 @@ const EditOficio = (props) => {
     // 19) Update
     // ======================================
     const handleSaveOrUpdate = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
 
         // Get the current values from the contentEditable spans
         const remetenteSpan = document.querySelector(
@@ -1978,10 +1979,10 @@ const EditOficio = (props) => {
 
         const usernome = remetenteSpan
             ? remetenteSpan.textContent.trim()
-            : localStorage.getItem("userNome");
+            : secureStorage.getItem("userNome");
         const useremail = emailSpan
             ? emailSpan.textContent.trim()
-            : localStorage.getItem("userEmail");
+            : secureStorage.getItem("userEmail");
         const templateestado = currentTemplate === 1 ? "1" : "2";
 
         var nomeDonoObra = "";

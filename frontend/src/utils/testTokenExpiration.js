@@ -1,4 +1,4 @@
-﻿
+﻿import { secureStorage } from '../utils/secureStorage';
 // Função para testar se a verificação de token expirado está a funcionar
 export const testTokenExpiration = () => {
     console.log('Testando verificação de token expirado...');
@@ -35,15 +35,15 @@ export const testServer500Error = () => {
     });
 };
 
-// Função para forçar um token expirado no localStorage e testar uma chamada real
+// Função para forçar um token expirado no secureStorage e testar uma chamada real
 export const forceTokenExpiryTest = () => {
     console.log('Forçando expiração de token para teste...');
 
     // Guardar token atual
-    const originalToken = localStorage.getItem('painelAdminToken');
+    const originalToken = secureStorage.getItem('painelAdminToken');
 
     // Definir um token obviamente inválido
-    localStorage.setItem('painelAdminToken', 'token_expirado_teste');
+    secureStorage.setItem('painelAdminToken', 'token_expirado_teste');
 
     console.log('Token foi alterado para "token_expirado_teste"');
     console.log('Agora tente fazer uma operação que use a WebApi...');
@@ -52,10 +52,10 @@ export const forceTokenExpiryTest = () => {
     // Disponibilizar função para restaurar
     window.restoreOriginalToken = () => {
         if (originalToken) {
-            localStorage.setItem('painelAdminToken', originalToken);
+            secureStorage.setItem('painelAdminToken', originalToken);
             console.log('Token original restaurado');
         } else {
-            localStorage.removeItem('painelAdminToken');
+            secureStorage.removeItem('painelAdminToken');
             console.log('Token removido (não havia token original)');
         }
     };

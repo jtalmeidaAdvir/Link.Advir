@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import RecuperarPasswordLink from "./RecuperarPasswordLink";
-
+import { secureStorage } from '../../../utils/secureStorage';
 import InvisibleFacialScanner from "./InvisibleFacialScanner";
 import { hasBiometricRegistered, authenticateWithBiometric } from "../utils/biometricAuth";
 import { inputStyle, buttonStyle, errorStyle } from "../styles/LoginFormStyles";
@@ -35,7 +35,7 @@ useEffect(() => {
 
 // 2) (Opcional) Pré-preencher email com o último usado — ajuda se quiseres manter a verificação de biometria
 useEffect(() => {
-  const cached = localStorage.getItem('userEmail') || localStorage.getItem('email');
+  const cached = secureStorage.getItem('userEmail') || secureStorage.getItem('email');
   if (cached) setEmail(cached);
 }, [setEmail]);
 
@@ -141,17 +141,17 @@ useEffect(() => {
             const result = await response.json();
 
             if (response.ok && result.success) {
-                // Guardar dados no localStorage
-                localStorage.setItem('loginToken', result.token);
-                localStorage.setItem('isPOS', 'true');
-                localStorage.setItem('posId', result.posId);
-                localStorage.setItem('posNome', result.posNome);
-                localStorage.setItem('posCodigo', result.posCodigo);
-                localStorage.setItem('email', result.email);
-                localStorage.setItem('empresa_id', result.empresa_id);
-                localStorage.setItem('empresa_areacliente', result.empresa_areacliente);
-                localStorage.setItem('obra_predefinida_id', result.obra_predefinida_id);
-                localStorage.setItem('obra_predefinida_nome', result.obra_predefinida_nome);
+                // Guardar dados no secureStorage
+                secureStorage.setItem('loginToken', result.token);
+                secureStorage.setItem('isPOS', 'true');
+                secureStorage.setItem('posId', result.posId);
+                secureStorage.setItem('posNome', result.posNome);
+                secureStorage.setItem('posCodigo', result.posCodigo);
+                secureStorage.setItem('email', result.email);
+                secureStorage.setItem('empresa_id', result.empresa_id);
+                secureStorage.setItem('empresa_areacliente', result.empresa_areacliente);
+                secureStorage.setItem('obra_predefinida_id', result.obra_predefinida_id);
+                secureStorage.setItem('obra_predefinida_nome', result.obra_predefinida_nome);
 
                 // Atualizar estados
                 if (setEmail && typeof setEmail === 'function') {
@@ -215,20 +215,20 @@ useEffect(() => {
             const result = await response.json();
 
             if (response.ok && result.success) {
-                // Guardar dados no localStorage como no login normal
-                localStorage.setItem('loginToken', result.token);
-                localStorage.setItem('isAdmin', result.isAdmin ? 'true' : 'false');
-                localStorage.setItem('superAdmin', result.superAdmin ? 'true' : 'false');
-                localStorage.setItem('username', result.username);
-                localStorage.setItem('email', result.userEmail);
-                localStorage.setItem('userId', result.userId);
-                localStorage.setItem('userNome', result.userNome);
-                localStorage.setItem('userEmail', result.userEmail);
-                localStorage.setItem('empresa_areacliente', result.empresa_areacliente || '');
-                localStorage.setItem('id_tecnico', result.id_tecnico || '');
-                localStorage.setItem('tipoUser', result.tipoUser || '');
-                localStorage.setItem('codFuncionario', result.codFuncionario || '');
-                localStorage.setItem('codRecursosHumanos', result.codRecursosHumanos || '');
+                // Guardar dados no secureStorage como no login normal
+                secureStorage.setItem('loginToken', result.token);
+                secureStorage.setItem('isAdmin', result.isAdmin ? 'true' : 'false');
+                secureStorage.setItem('superAdmin', result.superAdmin ? 'true' : 'false');
+                secureStorage.setItem('username', result.username);
+                secureStorage.setItem('email', result.userEmail);
+                secureStorage.setItem('userId', result.userId);
+                secureStorage.setItem('userNome', result.userNome);
+                secureStorage.setItem('userEmail', result.userEmail);
+                secureStorage.setItem('empresa_areacliente', result.empresa_areacliente || '');
+                secureStorage.setItem('id_tecnico', result.id_tecnico || '');
+                secureStorage.setItem('tipoUser', result.tipoUser || '');
+                secureStorage.setItem('codFuncionario', result.codFuncionario || '');
+                secureStorage.setItem('codRecursosHumanos', result.codRecursosHumanos || '');
 
                 // Atualizar estados como no login normal
                 if (setUsername && typeof setUsername === 'function') {
@@ -252,7 +252,7 @@ useEffect(() => {
 
                 setTimeout(async () => {
                     try {
-                        const token = localStorage.getItem('loginToken');
+                        const token = secureStorage.getItem('loginToken');
                         console.log('🔍 Token após login facial invisível:', token ? 'encontrado' : 'não encontrado');
 
                         if (!token) {

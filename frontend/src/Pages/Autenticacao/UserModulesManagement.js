@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Picker } from "@react-native-picker/picker";
+import { secureStorage } from '../../../utils/secureStorage';
 
 const UserModulesManagement = ({ route }) => {
     const { userId } = route.params;
@@ -59,7 +60,7 @@ const UserModulesManagement = ({ route }) => {
             //console.log("📋 Iniciando fetchEmpresaModulos para userId:", userId);
             setLoading(true);
 
-            const empresaId = localStorage.getItem("empresa_id");
+            const empresaId = secureStorage.getItem("empresa_id");
             if (!empresaId) {
                 throw new Error("Empresa não selecionada");
             }
@@ -102,7 +103,7 @@ const UserModulesManagement = ({ route }) => {
 
     const fetchUserModulos = async (userId) => {
         try {
-            const empresaId = localStorage.getItem("empresa_id");
+            const empresaId = secureStorage.getItem("empresa_id");
             if (!empresaId) {
                 throw new Error("Empresa não selecionada");
             }
@@ -111,7 +112,7 @@ const UserModulesManagement = ({ route }) => {
 
             const response = await fetch(url, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem("loginToken")}`,
+                    Authorization: `Bearer ${secureStorage.getItem("loginToken")}`,
                 },
             });
 
@@ -181,7 +182,7 @@ const UserModulesManagement = ({ route }) => {
             setSuccessMessage("");
             setErrorMessage("");
 
-            const empresaId = localStorage.getItem("empresa_id");
+            const empresaId = secureStorage.getItem("empresa_id");
 
             //console.log("🔄 Toggle módulo:", { userId, moduloId, empresaId, isChecked });
 
@@ -189,7 +190,7 @@ const UserModulesManagement = ({ route }) => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${localStorage.getItem("loginToken")}`,
+                    Authorization: `Bearer ${secureStorage.getItem("loginToken")}`,
                 },
                 body: JSON.stringify({
                     userid: userId,
@@ -235,7 +236,7 @@ const UserModulesManagement = ({ route }) => {
             setSuccessMessage("");
             setErrorMessage("");
 
-            const empresaId = localStorage.getItem("empresa_id");
+            const empresaId = secureStorage.getItem("empresa_id");
 
             //console.log("🔄 Toggle submódulo:", { userId, submoduloId, empresaId, isCurrentlyChecked });
 
@@ -243,7 +244,7 @@ const UserModulesManagement = ({ route }) => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${localStorage.getItem("loginToken")}`,
+                    Authorization: `Bearer ${secureStorage.getItem("loginToken")}`,
                 },
                 body: JSON.stringify({
                     userid: userId,
@@ -282,7 +283,7 @@ const UserModulesManagement = ({ route }) => {
                 `https://backend.advir.pt/api/users/${userId}`,
                 {
                     headers: {
-                        Authorization: `Bearer ${localStorage.getItem("loginToken")}`,
+                        Authorization: `Bearer ${secureStorage.getItem("loginToken")}`,
                     },
                 },
             );
@@ -329,7 +330,7 @@ const UserModulesManagement = ({ route }) => {
                     method: "PUT",
                     headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${localStorage.getItem("loginToken")}`,
+                        Authorization: `Bearer ${secureStorage.getItem("loginToken")}`,
                     },
                     body: JSON.stringify(userData),
                 },

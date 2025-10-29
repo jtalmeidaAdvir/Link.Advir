@@ -17,7 +17,7 @@ import {
     Pressable,
 } from "react-native";
 import { List } from "react-native-paper";
-
+import { secureStorage } from "./src/utils/secureStorage";
 import { FontAwesome } from "@expo/vector-icons";
 
 import backgroundPattern from "./assets/pattern.png"; // Caminho para a imagem do padrão
@@ -156,7 +156,7 @@ const CustomDrawerContent = ({
     };
 
     const handleLogout = () => {
-        localStorage.clear();
+        secureStorage.clear();
         props.navigation.navigate("Login");
         setTimeout(() => {
             window.location.reload();
@@ -416,12 +416,12 @@ const CustomDrawerContent = ({
     console.log(
         `👤 Estado atual - tipoUser: "${tipoUser}", isLoggedIn: ${isLoggedIn}`,
     );
-    console.log(`🔧 Valores do localStorage:`, {
-        tipoUser: localStorage.getItem("tipoUser"),
-        userTipo: localStorage.getItem("userTipo"),
-        tipo_user: localStorage.getItem("tipo_user"),
-        isAdmin: localStorage.getItem("isAdmin"),
-        superAdmin: localStorage.getItem("superAdmin"),
+    console.log(`🔧 Valores do secureStorage:`, {
+        tipoUser: secureStorage.getItem("tipoUser"),
+        userTipo: secureStorage.getItem("userTipo"),
+        tipo_user: secureStorage.getItem("tipo_user"),
+        isAdmin: secureStorage.getItem("isAdmin"),
+        superAdmin: secureStorage.getItem("superAdmin"),
     });*/
 
     const availableModules = modules.filter((module) => {
@@ -440,7 +440,7 @@ const CustomDrawerContent = ({
                 isDiretor: tipoUser === "Diretor",
                 isAdministrador: tipoUser === "Administrador",
                 submodulos: module.submodulos,
-                localStorageTipoUser: localStorage.getItem("tipoUser"),
+                secureStorageTipoUser: secureStorage.getItem("tipoUser"),
             });
         }*/
 
@@ -483,8 +483,8 @@ const CustomDrawerContent = ({
             module.submodulos.some((sub) => sub.nome === "GestaoPOS"),
     );
 
-    const userNome = localStorage.getItem("userNome") || "";
-    const empresa = localStorage.getItem("empresaSelecionada") || "";
+    const userNome = secureStorage.getItem("userNome") || "";
+    const empresa = secureStorage.getItem("empresaSelecionada") || "";
 
     return (
         <View style={drawerStyles.container}>
@@ -1281,7 +1281,7 @@ const CustomDrawerContent = ({
                 {/* Área de Perfil e Logout */}
                 <View style={drawerStyles.bottomSection}>
                     <View style={drawerStyles.sectionDivider} />
-                    {localStorage.getItem("loginToken") && (
+                    {secureStorage.getItem("loginToken") && (
                         <DrawerItem
                             label="Meu Perfil"
                             onPress={() => props.navigation.navigate("Perfil")}
@@ -1299,7 +1299,7 @@ const CustomDrawerContent = ({
                             inactiveTintColor="#1792FE"
                         />
                     )}
-                    {localStorage.getItem("loginToken") && (
+                    {secureStorage.getItem("loginToken") && (
                         <DrawerItem
                             label="Sair"
                             icon={() => (
@@ -1401,22 +1401,22 @@ const AppNavigator = () => {
     // Dentro de AppNavigator:
     const fetchUserData = async () => {
         setLoading(true);
-        const token = localStorage.getItem("loginToken");
-        const empresaLs = localStorage.getItem("empresaSelecionada");
-        let tipoUserLs = localStorage.getItem("tipoUser");
+        const token = secureStorage.getItem("loginToken");
+        const empresaLs = secureStorage.getItem("empresaSelecionada");
+        let tipoUserLs = secureStorage.getItem("tipoUser");
 
         // Verificar se tipoUser é um token JWT e tentar corrigir
         if (tipoUserLs && tipoUserLs.includes(".")) {
 
             tipoUserLs =
-                localStorage.getItem("userTipo") ||
-                localStorage.getItem("tipo_user") ||
+                secureStorage.getItem("userTipo") ||
+                secureStorage.getItem("tipo_user") ||
                 "";
 
             // Se ainda não encontramos, definir como vazio para forçar nova seleção
             if (!tipoUserLs || tipoUserLs.includes(".")) {
 
-                localStorage.removeItem("tipoUser");
+                secureStorage.removeItem("tipoUser");
                 tipoUserLs = "";
             }
         }
@@ -1425,9 +1425,9 @@ const AppNavigator = () => {
 
         // Verificar se o token existe e é válido
         if (token && isTokenValid(token)) {
-            // helper para flags no localStorage: "true" | "1" | "True"
+            // helper para flags no secureStorage: "true" | "1" | "True"
             const getFlag = (key) => {
-                const v = localStorage.getItem(key);
+                const v = secureStorage.getItem(key);
                 return v === "true" || v === "1" || v === "True";
             };
 
@@ -1441,14 +1441,14 @@ const AppNavigator = () => {
             const posStatus =
                 getFlag("isPOS") || getFlag("isPos") || getFlag("pos");
 
-            const userUsername = localStorage.getItem("username");
+            const userUsername = secureStorage.getItem("username");
             const userModules = JSON.parse(
-                localStorage.getItem("userModules") || "[]",
+                secureStorage.getItem("userModules") || "[]",
             );
-            const userNomeFromStorage = localStorage.getItem("userNome");
+            const userNomeFromStorage = secureStorage.getItem("userNome");
             const empresaFromStorage =
-                localStorage.getItem("empresaSelecionada") ||
-                localStorage.getItem("empresa_areacliente");
+                secureStorage.getItem("empresaSelecionada") ||
+                secureStorage.getItem("empresa_areacliente");
 
             setIsLoggedIn(!!token);
             setIsAdmin(adminStatus);
@@ -1484,8 +1484,8 @@ const AppNavigator = () => {
                 setInitialRoute("SelecaoEmpresa");
             }
         } else {
-            // Token inválido ou inexistente - limpar localStorage e ir para login
-            localStorage.clear();
+            // Token inválido ou inexistente - limpar secureStorage e ir para login
+            secureStorage.clear();
             setIsLoggedIn(false);
             setInitialRoute("Login");
         }
@@ -1494,9 +1494,9 @@ const AppNavigator = () => {
     };
 
     const fetchUserModules = async () => {
-        const token = localStorage.getItem("loginToken");
-        const userId = localStorage.getItem("userId");
-        const empresaId = localStorage.getItem("empresa_id");
+        const token = secureStorage.getItem("loginToken");
+        const userId = secureStorage.getItem("userId");
+        const empresaId = secureStorage.getItem("empresa_id");
 
 
 
@@ -1543,9 +1543,9 @@ const AppNavigator = () => {
     // Função para verificar se o utilizador tem o submódulo "Ponto"
     const checkUserHasPointSubmodule = async () => {
         try {
-            const token = localStorage.getItem("loginToken");
-            const userId = localStorage.getItem("userId");
-            const empresaId = localStorage.getItem("empresa_id");
+            const token = secureStorage.getItem("loginToken");
+            const userId = secureStorage.getItem("userId");
+            const empresaId = secureStorage.getItem("empresa_id");
 
             if (!userId || !token || !empresaId) {
                 return false;
@@ -1605,7 +1605,7 @@ const AppNavigator = () => {
     };
 
     const handleLogout = () => {
-        localStorage.clear();
+        secureStorage.clear();
         setIsLoggedIn(false);
         setProfileMenuVisible(false);
         setInitialRoute("Login");

@@ -14,7 +14,7 @@ import {
     RefreshControl,
     Alert
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import securestorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
@@ -48,8 +48,8 @@ const ConsultaQRCodesExternos = () => {
         setLoading(true);
         setErro('');
         try {
-            const loginToken = await AsyncStorage.getItem('loginToken');
-            const empresaId = await AsyncStorage.getItem('empresa_id');
+            const loginToken = await securestorage.getItem('loginToken');
+            const empresaId = await securestorage.getItem('empresa_id');
 
             const headers = {
                 Authorization: `Bearer ${loginToken}`,

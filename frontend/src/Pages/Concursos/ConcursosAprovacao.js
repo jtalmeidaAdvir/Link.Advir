@@ -2,7 +2,7 @@
 import styles from "./Styles/ConcursosAprovacaoStyles";
 import ConcursoCard from "./Componentes/ConcursosAprovacao/ConcursoCard";
 import ModalDetalhesConcurso from "./Componentes/ConcursosAprovacao/ModalDetalhesConcurso";
-
+import { secureStorage } from '../../utils/secureStorage';
 const ConcursosAprovacao = () => {
     const [concursos, setConcursos] = useState([]);
     const [concursosFiltrados, setConcursosFiltrados] = useState([]);
@@ -30,8 +30,8 @@ const ConcursosAprovacao = () => {
         }
         setError(null);
 
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
 
         try {
             const response = await fetch(
@@ -150,12 +150,12 @@ const ConcursosAprovacao = () => {
 
     const executeApprove = async (concurso) => {
         setIsApproving(true);
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
 
         const payload = {
             Id: concurso.codigo,
-            Responsavel: localStorage.getItem("username") || "Admin",
+            Responsavel: secureStorage.getItem("username") || "Admin",
             Titulo: concurso.titulo,
         };
 
@@ -198,12 +198,12 @@ const ConcursosAprovacao = () => {
 
     const executeReject = async (concurso) => {
         setIsRejecting(true);
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
 
         const payload = {
             Id: concurso.codigo,
-            Responsavel: localStorage.getItem("username") || "Admin",
+            Responsavel: secureStorage.getItem("username") || "Admin",
         };
 
         try {

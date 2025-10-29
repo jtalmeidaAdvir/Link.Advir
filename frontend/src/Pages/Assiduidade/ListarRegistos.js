@@ -5,7 +5,7 @@ import { FontAwesome, MaterialCommunityIcons, Ionicons } from '@expo/vector-icon
 import { LinearGradient } from 'expo-linear-gradient';
 import EditarModal from './EditarModal';
 import ModalPedidosAlteracao from './ModalPedidosAlteracao';
-
+import { secureStorage } from '../../utils/secureStorage';
 
 const RegistoItem = ({ item, onEdit }) => {
     const [endereco, setEndereco] = useState("Carregando...");
@@ -225,11 +225,11 @@ const ListarRegistos = () => {
     const fetchHistoricoPontos = async () => {
         setLoading(true);
         try {
-            const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+            const empresaSelecionada = secureStorage.getItem("empresaSelecionada");
             const response = await fetch(`https://backend.advir.pt/api/registoPonto/listar?mes=${mesSelecionado}&ano=${anoSelecionado}&empresa=${empresaSelecionada}`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`,
                     'Content-Type': 'application/json',
                 },
             });

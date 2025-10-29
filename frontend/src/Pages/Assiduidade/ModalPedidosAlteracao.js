@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
+import { secureStorage } from '../../utils/secureStorage';
 const ModalPedidosAlteracao = ({ visible, onClose }) => {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,7 +13,7 @@ const ModalPedidosAlteracao = ({ visible, onClose }) => {
       
       setLoading(true);
       try {
-        const userId = localStorage.getItem("userId");
+        const userId = secureStorage.getItem("userId");
         const response = await fetch(`https://backend.advir.pt/api/pedidoAlteracao/pedidos-alteracao/${userId}`);
         const data = await response.json();
         setPedidos(data);

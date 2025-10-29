@@ -5,7 +5,7 @@ import {
     authenticateWithBiometric,
     hasBiometricRegistered,
 } from "../utils/biometricAuth";
-
+import { secureStorage } from '../../../utils/secureStorage';
 // Adicionar estilos CSS para animação do spinner
 const spinnerStyle = `
 @keyframes spin {
@@ -65,24 +65,24 @@ const BiometricLoginButton = ({ email, onSuccess, t, style = {} }) => {
             const result = await authenticateWithBiometric(email);
 
             // Guardar dados de autenticação
-            localStorage.setItem("loginToken", result.token);
-            localStorage.setItem("userId", result.userId.toString());
-            localStorage.setItem("userNome", result.userNome);
-            localStorage.setItem("userEmail", result.userEmail);
-            localStorage.setItem("isAdmin", result.isAdmin.toString());
-            localStorage.setItem("superAdmin", result.superAdmin.toString());
-            localStorage.setItem(
+            secureStorage.setItem("loginToken", result.token);
+            secureStorage.setItem("userId", result.userId.toString());
+            secureStorage.setItem("userNome", result.userNome);
+            secureStorage.setItem("userEmail", result.userEmail);
+            secureStorage.setItem("isAdmin", result.isAdmin.toString());
+            secureStorage.setItem("superAdmin", result.superAdmin.toString());
+            secureStorage.setItem(
                 "empresa_areacliente",
                 result.empresa_areacliente,
             );
-            localStorage.setItem(
+            secureStorage.setItem(
                 "empresaPredefinida",
                 result.empresaPredefinida || "",
             );
-            localStorage.setItem("tipoUser", result.tipoUser || "");
+            secureStorage.setItem("tipoUser", result.tipoUser || "");
 
             if (result.id_tecnico) {
-                localStorage.setItem(
+                secureStorage.setItem(
                     "id_tecnico",
                     result.id_tecnico.toString(),
                 );

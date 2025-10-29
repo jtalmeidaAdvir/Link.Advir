@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { secureStorage } from '../../utils/secureStorage';
 import {
     FaCheckCircle,
     FaTimesCircle,
@@ -19,15 +20,15 @@ const AprovacaoFaltaFerias = () => {
     const [loading, setLoading] = useState(true);
     const [estadoFiltro, setEstadoFiltro] = useState("pendentes");
 
-    const token = localStorage.getItem("loginToken");
-    const painelToken = localStorage.getItem("painelAdminToken");
-    const urlempresa = localStorage.getItem("urlempresa");
-    const userNome = localStorage.getItem("userNome");
-    const empresaId = localStorage.getItem("empresa_id");
+    const token = secureStorage.getItem("loginToken");
+    const painelToken = secureStorage.getItem("painelAdminToken");
+    const urlempresa = secureStorage.getItem("urlempresa");
+    const userNome = secureStorage.getItem("userNome");
+    const empresaId = secureStorage.getItem("empresa_id");
 
     const [todosPedidos, setTodosPedidos] = useState([]);
     const [colaboradorFiltro, setColaboradorFiltro] = useState("");
-    const tipoUser = localStorage.getItem("tipoUser");
+    const tipoUser = secureStorage.getItem("tipoUser");
     const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
     const [colaboradoresEquipa, setColaboradoresEquipa] = useState([]);
@@ -663,14 +664,14 @@ const AprovacaoFaltaFerias = () => {
                 tipoPedido: "FALTA",
                 operacao: "CRIAR",
                 funcionario: codFuncionario,
-                empresaId: localStorage.getItem("empresa_id"),
+                empresaId: secureStorage.getItem("empresa_id"),
                 dataPedido: dataPedidoISO,
                 falta: novaFaltaEquipa.Falta,
                 horas: novaFaltaEquipa.Horas ? 1 : 0,
                 tempo: novaFaltaEquipa.Tempo,
                 justificacao: novaFaltaEquipa.Observacoes,
                 observacoes: "",
-                usuarioCriador: localStorage.getItem("codFuncionario"),
+                usuarioCriador: secureStorage.getItem("codFuncionario"),
                 origem: "ENCARREGADO",
                 descontaAlimentacao: novaFaltaEquipa.DescontaAlimentacao ? 1 : 0,
                 descontaSubsidioTurno: novaFaltaEquipa.DescontaSubsidioTurno ? 1 : 0,
@@ -1064,7 +1065,7 @@ const AprovacaoFaltaFerias = () => {
     }, [estadoFiltro, todosPedidos]);
 
     const confirmarPedido = async (pedido) => {
-        const tipoUser = localStorage.getItem("tipoUser");
+        const tipoUser = secureStorage.getItem("tipoUser");
 
         if (!confirm("Tem certeza que deseja aprovar este pedido?")) {
             return;

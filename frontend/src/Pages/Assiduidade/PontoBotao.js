@@ -4,7 +4,7 @@ import { View, Linking, Text, TouchableOpacity, StyleSheet, ScrollView, Animated
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-
+import { secureStorage } from '../../utils/secureStorage';
 const PontoBotao = () => {
     const [registosDiarios, setRegistosDiarios] = useState([]);
     const [filteredRegistos, setFilteredRegistos] = useState([]);
@@ -59,14 +59,14 @@ const PontoBotao = () => {
     // Atualiza o relógio a cada segundo
     useEffect(() => {
         const carregarHoraEntrada = async () => {
-            let horaEntradaSalva = localStorage.getItem('horaEntrada');
+            let horaEntradaSalva = secureStorage.getItem('horaEntrada');
     
             if (!horaEntradaSalva) {
                 console.log("LocalStorage está vazio. A tentar buscar do backend...");
-                const token = localStorage.getItem('loginToken');
+                const token = secureStorage.getItem('loginToken');
     
                 try {
-                    const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+                    const empresaSelecionada = secureStorage.getItem("empresaSelecionada");
 const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
 
                         headers: {
@@ -81,8 +81,8 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
     
                         if (registoHoje && registoHoje.horaEntrada) {
                             horaEntradaSalva = registoHoje.horaEntrada;
-                            localStorage.setItem('horaEntrada', horaEntradaSalva);
-                            console.log("Hora de entrada recuperada do backend e salva no localStorage:", horaEntradaSalva);
+                            secureStorage.setItem('horaEntrada', horaEntradaSalva);
+                            console.log("Hora de entrada recuperada do backend e salva no secureStorage:", horaEntradaSalva);
                         }
                     }
                 } catch (error) {
@@ -169,8 +169,8 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
     
     const fetchRegistosDiarios = async () => {
         try {
-            const token = localStorage.getItem('loginToken');
-            const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+            const token = secureStorage.getItem('loginToken');
+            const empresaSelecionada = secureStorage.getItem("empresaSelecionada");
 const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
 
                 headers: {
@@ -261,7 +261,7 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
 
     useEffect(() => {
         const carregarEstadoInicial = async () => {
-            const estadoLocal = JSON.parse(localStorage.getItem('intervaloAberto'));
+            const estadoLocal = JSON.parse(secureStorage.getItem('intervaloAberto'));
 
             if (estadoLocal && estadoLocal.intervaloAberto) {
                 setHoraInicioIntervalo(new Date(estadoLocal.horaInicioIntervalo));
@@ -269,7 +269,7 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
                 setTemporizadorAtivo(false);
             } else {
                 try {
-                    const token = localStorage.getItem('loginToken');
+                    const token = secureStorage.getItem('loginToken');
                     const response = await fetch('https://backend.advir.pt/api/registoPonto/estado-ponto', {
                         headers: {
                             'Authorization': `Bearer ${token}`,
@@ -284,7 +284,7 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
                             setIntervaloAberto(true);
                             setTemporizadorAtivo(false);
 
-                            localStorage.setItem('intervaloAberto', JSON.stringify({
+                            secureStorage.setItem('intervaloAberto', JSON.stringify({
                                 horaInicioIntervalo: data.horaInicioIntervalo,
                                 intervaloAberto: true,
                             }));
@@ -302,8 +302,8 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
     }, []);
 
     const obterCoordenadasDoBackend = async () => {
-        const token = localStorage.getItem('loginToken');
-        const empresaSelecionada = localStorage.getItem("empresaSelecionada");
+        const token = secureStorage.getItem('loginToken');
+        const empresaSelecionada = secureStorage.getItem("empresaSelecionada");
 const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?empresa=${empresaSelecionada}`, {
 
             headers: {
@@ -337,14 +337,14 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
             console.log("Endereço obtido:", endereco);
 
             const horaAtual = new Date().toISOString();
-            localStorage.setItem('horaEntrada', horaAtual);
+            secureStorage.setItem('horaEntrada', horaAtual);
             setInicioTemporizador(new Date(horaAtual));
             setTemporizadorAtivo(true);
 
             const response = await fetch('https://backend.advir.pt/api/registoPonto/registar-ponto', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`,
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
@@ -354,7 +354,7 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
                     endereco,
                     totalHorasTrabalhadas: "8.00",
                     totalTempoIntervalo: "1.00",
-                    empresa: localStorage.getItem('empresaSelecionada')
+                    empresa: secureStorage.getItem('empresaSelecionada')
                 }),
 
             });
@@ -375,12 +375,12 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
 
     const iniciarIntervalo = async () => {
         try {
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
             const agora = new Date().toISOString();
             setHoraInicioIntervalo(agora);
             setIntervaloAberto(true);
 
-            localStorage.setItem('intervaloAberto', JSON.stringify({
+            secureStorage.setItem('intervaloAberto', JSON.stringify({
                 horaInicioIntervalo: agora,
                 intervaloAberto: true,
             }));
@@ -411,7 +411,7 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
 
     const finalizarIntervalo = async () => {
         try {
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
             const response = await fetch('https://backend.advir.pt/api/intervalo/finalizarIntervalo', {
                 method: 'POST',
                 headers: {
@@ -425,7 +425,7 @@ const response = await fetch(`https://backend.advir.pt/api/registoPonto/diario?e
                 setTemporizadorAtivo(true);
                 setIntervaloAberto(false);
                 setHoraInicioIntervalo(null);
-                localStorage.removeItem('intervaloAberto');
+                secureStorage.removeItem('intervaloAberto');
                 await fetchRegistosDiarios();
             } else {
                 const errorData = await response.json();

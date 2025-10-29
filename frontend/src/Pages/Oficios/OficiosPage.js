@@ -5,7 +5,7 @@ import html2canvas from "html2canvas";
 import { FaSave, FaEnvelope, FaFilePdf, FaPaperclip } from "react-icons/fa";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
-
+import { secureStorage } from '../../utils/secureStorage';
 // Importação de imagens
 import logo from "../../../images/jpa-construtora.png";
 import PMEPreto from "../../../images/PMEPRETO.png";
@@ -134,8 +134,8 @@ const OficiosPage = (props) => {
     // Carregar obras e entidades
     useEffect(() => {
         const fetchObras = async () => {
-            const token = localStorage.getItem("painelAdminToken");
-            const urlempresa = localStorage.getItem("urlempresa");
+            const token = secureStorage.getItem("painelAdminToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
             if (!urlempresa) return;
             try {
                 const response = await fetch(
@@ -161,8 +161,8 @@ const OficiosPage = (props) => {
             }
         };
         const fetchEntidades = async () => {
-            const token = localStorage.getItem("painelAdminToken");
-            const urlempresa = localStorage.getItem("urlempresa");
+            const token = secureStorage.getItem("painelAdminToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
             if (!urlempresa) return;
             try {
                 const response = await fetch(
@@ -205,8 +205,8 @@ const OficiosPage = (props) => {
     };
 
     const fetchEntidades = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
         if (!urlempresa) return;
         try {
             const response = await fetch(
@@ -499,7 +499,7 @@ const OficiosPage = (props) => {
                 content: pdf1Base64,
             });
             let formattedEmailTexto = emailTexto.replace(/\n/g, "<br />");
-            const useremail = localStorage.getItem("userEmail");
+            const useremail = secureStorage.getItem("userEmail");
             formattedEmailTexto += `<br /><br /><div style='color: #777; font-size: 12px; border-top: 1px solid #eee; padding-top: 10px;'><p>Este email é enviado automaticamente de oficio@jpaconstrutora.com. Para responder, por favor envie email para ${useremail}.</p></div>`;
             const includeSignature = document.getElementById("includeSignature").checked;
             if (includeSignature) {
@@ -566,10 +566,10 @@ const OficiosPage = (props) => {
 
     const handleSave = async (estado) => {
         console.log("teste" + estado);
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
-        const usernome = formData.remetente || localStorage.getItem("userNome");
-        const useremail = formData.email || localStorage.getItem("userEmail");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
+        const usernome = formData.remetente || secureStorage.getItem("userNome");
+        const useremail = formData.email || secureStorage.getItem("userEmail");
         let nomeDonoObra = "";
         let moradaDonoObra = "";
         let localidadeDonoObra = "";
@@ -641,8 +641,8 @@ const OficiosPage = (props) => {
     const handleObraChange = (obra) => {
         const selectedObra = obra;
         const entidadeid = selectedObra.EntidadeIDA;
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
         if (!urlempresa || !entidadeid) return;
         const fetchDonoObra = async () => {
             try {
@@ -675,9 +675,9 @@ const OficiosPage = (props) => {
 
     const fetchEmailObra = async () => {
         try {
-            const token = localStorage.getItem("painelAdminToken");
-            const urlempresa = localStorage.getItem("urlempresa");
-            const emailuser = localStorage.getItem("userEmail");
+            const token = secureStorage.getItem("painelAdminToken");
+            const urlempresa = secureStorage.getItem("urlempresa");
+            const emailuser = secureStorage.getItem("userEmail");
             const response = await fetch(`https://webapiprimavera.advir.pt/oficio/GetEmail/${donoObra.ID}`, {
                 method: "GET",
                 headers: {
@@ -708,9 +708,9 @@ const OficiosPage = (props) => {
     }, [donoObra]);
 
     const generateCodigo = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
-        const userNome = localStorage.getItem("userNome");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
+        const userNome = secureStorage.getItem("userNome");
         try {
             const response = await fetch("https://webapiprimavera.advir.pt/oficio/GetId", {
                 method: "GET",
@@ -944,10 +944,10 @@ const OficiosPage = (props) => {
     // 6) Salvar/Atualizar ofício
     // ==============================
     const handleSaveOrUpdate = async () => {
-        const token = localStorage.getItem("painelAdminToken");
-        const urlempresa = localStorage.getItem("urlempresa");
-        const usernome = localStorage.getItem("userNome");
-        const useremail = localStorage.getItem("userEmail");
+        const token = secureStorage.getItem("painelAdminToken");
+        const urlempresa = secureStorage.getItem("urlempresa");
+        const usernome = secureStorage.getItem("userNome");
+        const useremail = secureStorage.getItem("userEmail");
         const templateestado = currentTemplate === 1 ? "1" : "2";
         let nomeDonoObra = "";
         let moradaDonoObra = "";

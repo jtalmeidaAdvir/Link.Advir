@@ -7,12 +7,12 @@ import { motion } from 'framer-motion';
 import i18n from './Pages/i18n'; // Import do i18n
 // Import for Privacy Settings
 import PrivacySettings from './Pages/GDPR/PrivacySettings';
-
-// Função para simular AsyncStorage no browser
-const AsyncStorage = {
-    getItem: (key) => Promise.resolve(localStorage.getItem(key)),
-    setItem: (key, value) => Promise.resolve(localStorage.setItem(key, value)),
-    removeItem: (key) => Promise.resolve(localStorage.removeItem(key))
+import { secureStorage } from './utils/secureStorage';
+// Função para simular securestorage no browser
+const securestorage = {
+    getItem: (key) => Promise.resolve(secureStorage.getItem(key)),
+    setItem: (key, value) => Promise.resolve(secureStorage.setItem(key, value)),
+    removeItem: (key) => Promise.resolve(secureStorage.removeItem(key))
 };
 import backgroundImage from '../images/ImagemFundo.png';
 
@@ -155,9 +155,9 @@ const mapearPrioridade = (prioridadeId) => {
   };
 
   try {
-    const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
-    const urlempresa = await AsyncStorage.getItem('urlempresaAdvir');
-    const clienteID = await AsyncStorage.getItem('empresa_areacliente');
+    const token = await securestorage.getItem('painelAdminTokenAdvir');
+    const urlempresa = await securestorage.getItem('urlempresaAdvir');
+    const clienteID = await securestorage.getItem('empresa_areacliente');
 
     if (!token || !urlempresa || !clienteID) {
       throw new Error(t('Erro: Token ou informações da empresa estão ausentes.'));
@@ -435,7 +435,7 @@ const mapearPrioridade = (prioridadeId) => {
     const fetchNoticias = async () => {
         setNoticiasLoading(true);
         try {
-            const token = localStorage.getItem('loginToken');
+            const token = secureStorage.getItem('loginToken');
 
             if (!token) {
                 throw new Error('Token não encontrado');
@@ -465,9 +465,9 @@ const mapearPrioridade = (prioridadeId) => {
             setPedidosLoading(true);
             setLoading(true);
             try {
-                const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
-                const urlempresa = await AsyncStorage.getItem('urlempresaAdvir');
-                const id = await AsyncStorage.getItem('empresa_areacliente');
+                const token = await securestorage.getItem('painelAdminTokenAdvir');
+                const urlempresa = await securestorage.getItem('urlempresaAdvir');
+                const id = await securestorage.getItem('empresa_areacliente');
 
                 if (!id || !token || !urlempresa) {
                     throw new Error(t('error') + 'Token or URL missing.');
@@ -500,7 +500,7 @@ const mapearPrioridade = (prioridadeId) => {
     useEffect(() => {
         const entrarNaEmpresaAdvir = async () => {
             try {
-                const loginToken = localStorage.getItem('loginToken');
+                const loginToken = secureStorage.getItem('loginToken');
                 if (!loginToken) {
                     throw new Error('Token de login não encontrado.');
                 }
@@ -522,8 +522,8 @@ const mapearPrioridade = (prioridadeId) => {
 
                 const credenciais = await credenciaisResponse.json();
 
-                // Guardar a `urlempresa` no localStorage
-                localStorage.setItem('urlempresaAdvir', credenciais.urlempresa);
+                // Guardar a `urlempresa` no secureStorage
+                secureStorage.setItem('urlempresaAdvir', credenciais.urlempresa);
 
                 // Obter o token para a empresa Advir
                 const tokenResponse = await fetch(
@@ -551,7 +551,7 @@ const mapearPrioridade = (prioridadeId) => {
                 }
 
                 const tokenData = await tokenResponse.json();
-                localStorage.setItem('painelAdminTokenAdvir', tokenData.token);
+                secureStorage.setItem('painelAdminTokenAdvir', tokenData.token);
                 console.log('Login automático na empresa Advir concluído.');
             } catch (error) {
                 console.error('Erro ao entrar automaticamente na empresa Advir:', error.message);
@@ -579,9 +579,9 @@ const mapearPrioridade = (prioridadeId) => {
     // Função para buscar dados gerais (contactos e prioridades)
     const fetchFormData = async () => {
         try {
-            const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
-            const urlempresa = await AsyncStorage.getItem('urlempresaAdvir');
-            const clienteID = await AsyncStorage.getItem('empresa_areacliente');
+            const token = await securestorage.getItem('painelAdminTokenAdvir');
+            const urlempresa = await securestorage.getItem('urlempresaAdvir');
+            const clienteID = await securestorage.getItem('empresa_areacliente');
 
             if (!clienteID || !token || !urlempresa) {
                 console.error('Token, URL ou ID de cliente estão ausentes.');
@@ -628,9 +628,9 @@ const mapearPrioridade = (prioridadeId) => {
             setLoading(true);
 
             try {
-                const token = await AsyncStorage.getItem('painelAdminTokenAdvir');
-                const urlempresa = await AsyncStorage.getItem('urlempresaAdvir');
-                const clienteID = await AsyncStorage.getItem('empresa_areacliente');
+                const token = await securestorage.getItem('painelAdminTokenAdvir');
+                const urlempresa = await securestorage.getItem('urlempresaAdvir');
+                const clienteID = await securestorage.getItem('empresa_areacliente');
 
                 console.log('Dados obtidos do storage:', { 
                     token: token ? 'Presente' : 'Ausente', 

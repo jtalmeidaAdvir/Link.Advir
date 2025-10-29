@@ -28,7 +28,7 @@ import {
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import i18n from "../i18n";
 import { useTranslation } from "react-i18next";
-
+import { secureStorage } from '../../utils/secureStorage';
 const Intervencoes = (props) => {
     const navigation = useNavigation();
     const [searchTerm, setSearchTerm] = useState("");
@@ -43,9 +43,9 @@ const Intervencoes = (props) => {
     useFocusEffect(
         React.useCallback(() => {
             const fetchIntervencoes = async () => {
-                const token = localStorage.getItem("painelAdminToken");
-                const id = localStorage.getItem("intervencaoId");
-                const urlempresa = localStorage.getItem("urlempresa");
+                const token = secureStorage.getItem("painelAdminToken");
+                const id = secureStorage.getItem("intervencaoId");
+                const urlempresa = secureStorage.getItem("urlempresa");
 
                 if (id && token) {
                     try {
@@ -113,8 +113,8 @@ const Intervencoes = (props) => {
     const confirmDelete = async () => {
         if (selectedIntervencao) {
             try {
-                const token = localStorage.getItem("painelAdminToken");
-                const urlempresa = localStorage.getItem("urlempresa");
+                const token = secureStorage.getItem("painelAdminToken");
+                const urlempresa = secureStorage.getItem("urlempresa");
 
                 if (!token) throw new Error("Token não encontrado.");
 

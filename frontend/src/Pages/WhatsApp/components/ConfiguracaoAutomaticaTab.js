@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-
+import { secureStorage } from '../../../utils/secureStorage';
 const ConfiguracaoAutomaticaTab = ({
     styles,
 }) => {
@@ -78,7 +78,7 @@ const ConfiguracaoAutomaticaTab = ({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`
                 }
             });
 
@@ -113,7 +113,7 @@ const ConfiguracaoAutomaticaTab = ({
     // Carregar empresas disponíveis
     const loadEmpresas = async () => {
         try {
-            const loginToken = localStorage.getItem('loginToken');
+            const loginToken = secureStorage.getItem('loginToken');
             if (!loginToken) return;
 
             const response = await fetch('https://backend.advir.pt/api/empresas/listar', {
@@ -213,7 +213,7 @@ const ConfiguracaoAutomaticaTab = ({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`
                 }
             });
 

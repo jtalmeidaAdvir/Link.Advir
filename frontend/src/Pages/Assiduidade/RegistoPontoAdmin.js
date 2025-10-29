@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-
+import { secureStorage } from '../../utils/secureStorage';
 const RegistoPontoAdmin = () => {
     const [users, setUsers] = useState([]);
     const [usuarioSelecionado, setUsuarioSelecionado] = useState("");
@@ -40,12 +40,12 @@ const RegistoPontoAdmin = () => {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const idDaEmpresa = localStorage.getItem('empresa_id');
+            const idDaEmpresa = secureStorage.getItem('empresa_id');
 const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${idDaEmpresa}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`
                 }
             });
 
@@ -78,7 +78,7 @@ const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?
         try {
             const response = await fetch(`https://backend.advir.pt/api/registoPonto/listaradmin?usuario=${userId}&mes=${mesSelecionado}&ano=${anoSelecionado}`, {
                 method: 'GET',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('loginToken')}` },
+                headers: { 'Authorization': `Bearer ${secureStorage.getItem('loginToken')}` },
             });
 
             if (response.ok) {
@@ -246,7 +246,7 @@ const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?
                 // Faz o fetch dos registos para cada utilizador
                 const response = await fetch(`https://backend.advir.pt/api/registoPonto/listaradmin?usuario=${usuario.id}&mes=${mesSelecionado}&ano=${anoSelecionado}`, {
                     method: 'GET',
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('loginToken')}` },
+                    headers: { 'Authorization': `Bearer ${secureStorage.getItem('loginToken')}` },
                 });
     
                 if (response.ok) {
@@ -423,7 +423,7 @@ const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?
             try {
                 const response = await fetch(`https://backend.advir.pt/api/registoPonto/listaradmin?usuario=${usuario.id}&mes=${mesSelecionado}&ano=${anoSelecionado}`, {
                     method: 'GET',
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('loginToken')}` },
+                    headers: { 'Authorization': `Bearer ${secureStorage.getItem('loginToken')}` },
                 });
                 
                 if (response.ok) {

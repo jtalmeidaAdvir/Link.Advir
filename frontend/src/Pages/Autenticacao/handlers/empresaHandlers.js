@@ -1,13 +1,13 @@
 // handlers/empresaHandlers.js
 import { handleEntrarEmpresa } from './handleEntrarEmpresa';
-
+import { secureStorage } from '../../../utils/secureStorage';
 // Função para lidar com predefinição de empresa
 export const handlePredefinirEmpresa = ({ checked, empresaSelecionada, setEmpresaPredefinida }) => {
     if (checked && empresaSelecionada) {
-        localStorage.setItem('empresaPredefinida', JSON.stringify(empresaSelecionada));
+        secureStorage.setItem('empresaPredefinida', JSON.stringify(empresaSelecionada));
         setEmpresaPredefinida(true);
     } else {
-        localStorage.removeItem('empresaPredefinida');
+        secureStorage.removeItem('empresaPredefinida');
         setEmpresaPredefinida(false);
     }
 };
@@ -28,7 +28,7 @@ export const fetchEmpresas = async ({
     onAutoLogin,
 }) => {
     try {
-        const loginToken = localStorage.getItem("loginToken");
+        const loginToken = secureStorage.getItem("loginToken");
 
         const response = await fetch("https://backend.advir.pt/api/users/empresas", {
             method: "GET",

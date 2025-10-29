@@ -7,7 +7,7 @@ import {
     FaFileAlt,
 } from "react-icons/fa";
 import { FaComputer } from "react-icons/fa6";
-
+import { secureStorage } from '../../../utils/secureStorage';
 const PainelAdmin = () => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -60,14 +60,14 @@ const PainelAdmin = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        const loginToken = localStorage.getItem("loginToken");
+        const loginToken = secureStorage.getItem("loginToken");
         if (!loginToken) {
             setErrorMessage("Utilizador não autenticado.");
             return;
         }
 
-        // Guardar o urlempresa no localStorage antes de iniciar a criação da empresa
-        localStorage.setItem("urlempresa", urlempresa);
+        // Guardar o urlempresa no secureStorage antes de iniciar a criação da empresa
+        secureStorage.setItem("urlempresa", urlempresa);
 
         setLoading(true);
 
@@ -95,7 +95,7 @@ const PainelAdmin = () => {
                 const data = await response.json();
                 console.log("Token de base de dados recebido:", data.token);
 
-                localStorage.setItem("painelAdminToken", data.token);
+                secureStorage.setItem("painelAdminToken", data.token);
                 setToken(data.token);
 
                 await criarEmpresa(loginToken);

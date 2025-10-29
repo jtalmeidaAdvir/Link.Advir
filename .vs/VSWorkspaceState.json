@@ -5,7 +5,10 @@
     "\\frontend\\src",
     "\\frontend\\src\\Pages",
     "\\frontend\\src\\Pages\\Assiduidade",
-    "\\frontend\\src\\Pages\\Obras"
+    "\\frontend\\src\\Pages\\Assiduidade\\components",
+    "\\frontend\\src\\Pages\\Assiduidade\\hooks",
+    "\\frontend\\src\\Pages\\Obras",
+    "\\frontend\\src\\Pages\\Servicos"
   ],
   "PreviewInSolutionExplorer": false
 }

@@ -1,14 +1,14 @@
-
+import { secureStorage } from '../utils/secureStorage';
 import axios from 'axios';
 
-// Função para mostrar alerta e fazer logout
-const handleTokenExpired = (message = 'A sua sessão expirou. Será redirecionado para a página de login.') => {
+// Funï¿½ï¿½o para mostrar alerta e fazer logout
+const handleTokenExpired = (message = 'A sua sessï¿½o expirou. Serï¿½ redirecionado para a pï¿½gina de login.') => {
     alert(message);
-    localStorage.clear();
+    secureStorage.clear();
     window.location.href = '/';
 };
 
-// Função para verificar se é erro de token expirado da WebApi
+// Funï¿½ï¿½o para verificar se ï¿½ erro de token expirado da WebApi
 const isWebApiTokenExpired = (data) => {
     return data && (
         data.message === 'Token expirado' ||
@@ -19,10 +19,10 @@ const isWebApiTokenExpired = (data) => {
     );
 };
 
-// Interceptor de requisição para adicionar token automaticamente
+// Interceptor de requisiï¿½ï¿½o para adicionar token automaticamente
 axios.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('loginToken');
+        const token = secureStorage.getItem('loginToken');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -36,23 +36,23 @@ axios.interceptors.request.use(
 // Interceptor de resposta para lidar com tokens expirados
 axios.interceptors.response.use(
     (response) => {
-        // Verificar se a resposta contém dados sobre token expirado
+        // Verificar se a resposta contï¿½m dados sobre token expirado
         if (response.data && isWebApiTokenExpired(response.data)) {
-            handleTokenExpired('O token da WebApi expirou. Será deslogado e terá que fazer login novamente.');
+            handleTokenExpired('O token da WebApi expirou. Serï¿½ deslogado e terï¿½ que fazer login novamente.');
             return Promise.reject(new Error('Token expirado'));
         }
         return response;
     },
     (error) => {
-        // Verificar se é erro 401
+        // Verificar se ï¿½ erro 401
         if (error.response && error.response.status === 401) {
             handleTokenExpired();
             return Promise.reject(error);
         }
 
-        // Verificar se o erro contém informação sobre token expirado
+        // Verificar se o erro contï¿½m informaï¿½ï¿½o sobre token expirado
         if (error.response && error.response.data && isWebApiTokenExpired(error.response.data)) {
-            handleTokenExpired('O token da WebApi expirou. Será deslogado e terá que fazer login novamente.');
+            handleTokenExpired('O token da WebApi expirou. Serï¿½ deslogado e terï¿½ que fazer login novamente.');
             return Promise.reject(error);
         }
 

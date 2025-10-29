@@ -13,7 +13,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { isCameraAvailable } from "./Autenticacao/utils/facialBiometricAuth";
 import FacialScannerModal from "./Autenticacao/components/FacialScannerModal";
-
+import { secureStorage } from '../utils/secureStorage';
 const Perfil = ({ user }) => {
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -33,8 +33,8 @@ const Perfil = ({ user }) => {
     const { t } = useTranslation();
 
     useEffect(() => {
-        const userNomeFromStorage = localStorage.getItem("userNome");
-        const userEmailFromStorage = localStorage.getItem("userEmail");
+        const userNomeFromStorage = secureStorage.getItem("userNome");
+        const userEmailFromStorage = secureStorage.getItem("userEmail");
         setUserNome(userNomeFromStorage);
         setUserEmail(userEmailFromStorage);
         loadProfileImage();
@@ -62,7 +62,7 @@ const Perfil = ({ user }) => {
 
     const checkFacialBiometricStatus = async () => {
         try {
-            const userEmail = localStorage.getItem("userEmail");
+            const userEmail = secureStorage.getItem("userEmail");
             const response = await fetch(`https://backend.advir.pt/api/auth/biometric/check`, {
                 method: "POST",
                 headers: {
@@ -85,8 +85,8 @@ const Perfil = ({ user }) => {
     const registerFacialBiometric = async () => {
         setIsLoading(true);
         try {
-            const userId = parseInt(localStorage.getItem("userId"));
-            const userEmail = localStorage.getItem("userEmail");
+            const userId = parseInt(secureStorage.getItem("userId"));
+            const userEmail = secureStorage.getItem("userEmail");
 
             if (!userEmail) throw new Error("Email do utilizador não encontrado");
 
@@ -113,9 +113,9 @@ const Perfil = ({ user }) => {
 
         setIsLoading(true);
         try {
-            const userId = parseInt(localStorage.getItem("userId"));
-            const userEmail = localStorage.getItem("userEmail");
-            const token = localStorage.getItem("loginToken");
+            const userId = parseInt(secureStorage.getItem("userId"));
+            const userEmail = secureStorage.getItem("userEmail");
+            const token = secureStorage.getItem("loginToken");
 
             // Primeiro obter challenge
             const challengeResponse = await fetch(
@@ -172,7 +172,7 @@ const Perfil = ({ user }) => {
     const unregisterFacialBiometric = async () => {
         setIsLoading(true);
         try {
-            const userEmail = localStorage.getItem("userEmail");
+            const userEmail = secureStorage.getItem("userEmail");
 
             const response = await fetch(`https://backend.advir.pt/api/auth/biometric/remove`, {
                 method: "DELETE",
@@ -219,7 +219,7 @@ const Perfil = ({ user }) => {
 
         const checkBiometricStatus = async (userId) => {
             try {
-                const userEmail = localStorage.getItem("userEmail");
+                const userEmail = secureStorage.getItem("userEmail");
                 const response = await fetch(
                     `https://backend.advir.pt/api/auth/biometric/check`,
                     {
@@ -245,8 +245,8 @@ const Perfil = ({ user }) => {
         const registerBiometric = async () => {
             setIsLoading(true);
             try {
-                const userId = parseInt(localStorage.getItem("userId"));
-                const userEmail = localStorage.getItem("userEmail");
+                const userId = parseInt(secureStorage.getItem("userId"));
+                const userEmail = secureStorage.getItem("userEmail");
 
                 // Importar função do módulo de biometria
                 const { registerBiometric: registerBio } = await import(
@@ -272,7 +272,7 @@ const Perfil = ({ user }) => {
         const unregisterBiometric = async () => {
             setIsLoading(true);
             try {
-                const userEmail = localStorage.getItem("userEmail");
+                const userEmail = secureStorage.getItem("userEmail");
                 if (!userEmail) {
                     throw new Error("Email do utilizador não encontrado");
                 }
@@ -333,7 +333,7 @@ const alterarPassword = async () => {
   setIsLoading(true);
 
   try {
-    const token = localStorage.getItem("loginToken");
+    const token = secureStorage.getItem("loginToken");
     if (!token) {
       showMessage("Sessão expirada. Por favor, inicia sessão novamente.", true);
       // opcional: redirecionar para login
@@ -399,7 +399,7 @@ const alterarPassword = async () => {
 
 
     const loadProfileImage = () => {
-        const savedImage = localStorage.getItem("profileImage");
+        const savedImage = secureStorage.getItem("profileImage");
         if (savedImage) {
             setProfileImage(savedImage);
         }
@@ -412,7 +412,7 @@ const alterarPassword = async () => {
             reader.onload = (e) => {
                 const imageData = e.target.result;
                 setProfileImage(imageData);
-                localStorage.setItem("profileImage", imageData);
+                secureStorage.setItem("profileImage", imageData);
                 showMessage("Imagem de perfil atualizada com sucesso!");
             };
             reader.readAsDataURL(file);
@@ -457,7 +457,7 @@ const alterarPassword = async () => {
                         <Text style={styles.userEmail}>{userEmail}</Text>
                         <Text style={styles.userCompany}>
                             {user?.company ||
-                                localStorage.getItem("empresaSelecionada")}
+                                secureStorage.getItem("empresaSelecionada")}
                         </Text>
                     </View>
                 </View>
@@ -560,8 +560,8 @@ const alterarPassword = async () => {
             </Modal>
 
             <BiometricSetup
-                userId={localStorage.getItem("userId")}
-                userEmail={localStorage.getItem("userEmail")}
+                userId={secureStorage.getItem("userId")}
+                userEmail={secureStorage.getItem("userEmail")}
                 t={t}
                 onRegistered={() => {
                     // Opcional: atualizar estado ou mostrar mensagem

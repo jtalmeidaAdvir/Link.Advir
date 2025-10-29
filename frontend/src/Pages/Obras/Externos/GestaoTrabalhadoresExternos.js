@@ -3,7 +3,7 @@ import {
     View, Text, StyleSheet, ActivityIndicator, FlatList, TouchableOpacity,
     Modal, ScrollView, SafeAreaView, RefreshControl, Alert, TextInput, Switch
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import securestorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
@@ -269,8 +269,8 @@ const GestaoTrabalhadoresExternos = () => {
 
     const carregarCombos = useCallback(async () => {
         try {
-            const loginToken = await AsyncStorage.getItem('loginToken');
-            const empresaId = await AsyncStorage.getItem('empresa_id');
+            const loginToken = await securestorage.getItem('loginToken');
+            const empresaId = await securestorage.getItem('empresa_id');
 
             const headers = {
                 Authorization: `Bearer ${loginToken}`,
@@ -306,8 +306,8 @@ const GestaoTrabalhadoresExternos = () => {
         setLoading(true);
         setErro('');
         try {
-            const loginToken = await AsyncStorage.getItem('loginToken');
-            const empresaId = await AsyncStorage.getItem('empresa_id');
+            const loginToken = await securestorage.getItem('loginToken');
+            const empresaId = await securestorage.getItem('empresa_id');
 
             const headers = {
                 Authorization: `Bearer ${loginToken}`,
@@ -376,14 +376,14 @@ const GestaoTrabalhadoresExternos = () => {
 
         try {
             setAGuardar(true);
-            const loginToken = await AsyncStorage.getItem('loginToken');
+            const loginToken = await securestorage.getItem('loginToken');
             const headers = {
                 Authorization: `Bearer ${loginToken}`,
                 'Content-Type': 'application/json'
             };
 
-            // Obter empresa_id do localStorage
-            const empresaId = await AsyncStorage.getItem('empresa_id');
+            // Obter empresa_id do secureStorage
+            const empresaId = await securestorage.getItem('empresa_id');
 
             const payload = {
                 empresa_id: empresaId ? Number(empresaId) : null,
@@ -458,8 +458,8 @@ const GestaoTrabalhadoresExternos = () => {
     };
 
     const callPost = async (urlSuffix) => {
-        const loginToken = await AsyncStorage.getItem('loginToken');
-        const empresaId = await AsyncStorage.getItem('empresa_id');
+        const loginToken = await securestorage.getItem('loginToken');
+        const empresaId = await securestorage.getItem('empresa_id');
 
         const headers = {
             Authorization: `Bearer ${loginToken}`,
@@ -479,8 +479,8 @@ const GestaoTrabalhadoresExternos = () => {
         'Tem a certeza que pretende eliminar este registo permanentemente? Esta ação não pode ser desfeita.',
         async () => {
             try {
-                const loginToken = await AsyncStorage.getItem('loginToken');
-                const empresaId = await AsyncStorage.getItem('empresa_id');
+                const loginToken = await securestorage.getItem('loginToken');
+                const empresaId = await securestorage.getItem('empresa_id');
 
                 const headers = {
                     Authorization: `Bearer ${loginToken}`,
@@ -612,7 +612,7 @@ const fetchPartesGrade = useCallback(async () => {
   const diasNoMes = getDiasNoMes(ano, mes);
 
   try {
-    const painelToken = await AsyncStorage.getItem('painelAdminToken');
+    const painelToken = await securestorage.getItem('painelAdminToken');
     const res = await fetch(API_PARTE_DIARIA, {
       headers: { Authorization: `Bearer ${painelToken}` }
     });
@@ -824,8 +824,8 @@ useEffect(() => {
     // === RESUMO EXTERNOS: data sources
     const fetchObrasResumo = useCallback(async () => {
         try {
-            const loginToken = await AsyncStorage.getItem('loginToken');
-            const empresaId = await AsyncStorage.getItem('empresa_id');
+            const loginToken = await securestorage.getItem('loginToken');
+            const empresaId = await securestorage.getItem('empresa_id');
 
             const headers = {
                 Authorization: `Bearer ${loginToken}`,
@@ -847,7 +847,7 @@ useEffect(() => {
     const fetchResumoExternos = useCallback(async () => {
         setResumoLoading(true);
         try {
-            const painelToken = await AsyncStorage.getItem('painelAdminToken');
+            const painelToken = await securestorage.getItem('painelAdminToken');
             const res = await fetch(API_PARTE_DIARIA, { headers: { Authorization: `Bearer ${painelToken}` } });
             const all = await res.json();
             const aprovados = (all || [])
@@ -880,8 +880,8 @@ useEffect(() => {
 
     // Carregar especialidades (apenas com CDU_CCS preenchido)
     const carregarEspecialidades = useCallback(async () => {
-        const painelToken = await AsyncStorage.getItem('painelAdminToken');
-        const urlempresa = await AsyncStorage.getItem('urlempresa');
+        const painelToken = await securestorage.getItem('painelAdminToken');
+        const urlempresa = await securestorage.getItem('urlempresa');
         try {
             const data = await fetchComRetentativas(
                 'https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades',
@@ -909,8 +909,8 @@ useEffect(() => {
 
     // Carregar classes
     const carregarClasses = useCallback(async () => {
-        const painelToken = await AsyncStorage.getItem('painelAdminToken');
-        const urlempresa = await AsyncStorage.getItem('urlempresa');
+        const painelToken = await securestorage.getItem('painelAdminToken');
+        const urlempresa = await securestorage.getItem('urlempresa');
         try {
             const data = await fetchComRetentativas(
                 'https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses',

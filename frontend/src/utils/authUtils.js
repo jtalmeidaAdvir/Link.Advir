@@ -1,11 +1,11 @@
 // src/utils/authUtils.js
-
+import { secureStorage } from '../utils/secureStorage';
 // Função para fazer logout imediato sem alerta
 const handleTokenExpired = (message = 'A sua sessão expirou. Será redirecionado para a página de login.', tokenType = 'loginToken') => {
     console.log('Token expirado:', message, 'Tipo:', tokenType);
 
     // Fazer logout completo para qualquer tipo de token expirado
-    localStorage.clear();
+    secureStorage.clear();
 
     // Redirecionar para login em vez da home
     window.location.href = '/login';
@@ -29,7 +29,7 @@ const isWebApiTokenExpired = (data) => {
 };
 
 export const fetchWithAuth = async (url, options = {}) => {
-    const token = localStorage.getItem('loginToken');
+    const token = secureStorage.getItem('loginToken');
     const headers = {
         ...options.headers,
         Authorization: `Bearer ${token}`,
@@ -167,7 +167,7 @@ const isTokenExpired = (token) => {
 // Função para verificar token no servidor
 const checkTokenOnServer = async () => {
     try {
-        const token = localStorage.getItem('loginToken');
+        const token = secureStorage.getItem('loginToken');
         if (!token) {
             console.log('Nenhum token encontrado - fazendo logout');
             handleTokenExpired();
@@ -220,9 +220,9 @@ const checkTokenOnServer = async () => {
 // Função para renovar automaticamente o painelAdminToken
 const refreshPainelAdminToken = async () => {
     try {
-        const loginToken = localStorage.getItem('loginToken');
-        const empresaSelecionada = localStorage.getItem('empresaSelecionada');
-        const urlempresa = localStorage.getItem('urlempresa');
+        const loginToken = secureStorage.getItem('loginToken');
+        const empresaSelecionada = secureStorage.getItem('empresaSelecionada');
+        const urlempresa = secureStorage.getItem('urlempresa');
 
         if (!loginToken || !empresaSelecionada || !urlempresa) {
             console.log('Informações necessárias para renovar token não encontradas');
@@ -265,7 +265,7 @@ const refreshPainelAdminToken = async () => {
 
         if (response.ok) {
             const data = await response.json();
-            localStorage.setItem("painelAdminToken", data.token);
+            secureStorage.setItem("painelAdminToken", data.token);
             console.log('painelAdminToken renovado automaticamente');
             return true;
         } else {
@@ -282,7 +282,7 @@ const refreshPainelAdminToken = async () => {
 // Função para verificar painelAdminToken
 const checkPainelAdminToken = async () => {
     try {
-        const painelAdminToken = localStorage.getItem('painelAdminToken');
+        const painelAdminToken = secureStorage.getItem('painelAdminToken');
         if (!painelAdminToken) {
             console.log('Nenhum painelAdminToken encontrado, tentando renovar automaticamente...');
 
@@ -298,7 +298,7 @@ const checkPainelAdminToken = async () => {
         }
 
         // Fazer uma chamada à Web API para validar o token
-        const urlempresa = localStorage.getItem('urlempresa');
+        const urlempresa = secureStorage.getItem('urlempresa');
         if (!urlempresa) {
             console.log('URL da empresa não encontrada');
             return true; // Se não há URL da empresa, não verificar
@@ -385,8 +385,8 @@ export const stopTokenValidation = () => {
 // Função para renovar o loginToken automaticamente
 const refreshLoginToken = async () => {
     try {
-        const currentToken = localStorage.getItem('loginToken');
-        const email = localStorage.getItem('email');
+        const currentToken = secureStorage.getItem('loginToken');
+        const email = secureStorage.getItem('email');
 
         if (!currentToken || !email) {
             console.log('Informações de login não encontradas para renovar token');
@@ -412,7 +412,7 @@ const refreshLoginToken = async () => {
 
         if (response.ok) {
             const data = await response.json();
-            localStorage.setItem('loginToken', data.token);
+            secureStorage.setItem('loginToken', data.token);
        //     console.log('Token de login renovado automaticamente');
             return true;
         } else {
@@ -429,9 +429,9 @@ const refreshLoginToken = async () => {
 // Função principal para renovar todos os tokens quando o app ganha foco
 export const refreshTokensOnAppFocus = async () => {
     try {
-        const loginToken = localStorage.getItem('loginToken');
-        const painelAdminToken = localStorage.getItem('painelAdminToken');
-        const empresaSelecionada = localStorage.getItem('empresaSelecionada');
+        const loginToken = secureStorage.getItem('loginToken');
+        const painelAdminToken = secureStorage.getItem('painelAdminToken');
+        const empresaSelecionada = secureStorage.getItem('empresaSelecionada');
 
         //console.log('Verificando estado dos tokens...');
 
@@ -454,7 +454,7 @@ export const refreshTokensOnAppFocus = async () => {
            // console.log('Verificando painelAdminToken...');
 
             // Verificar se o painelAdminToken precisa ser renovado
-            const urlempresa = localStorage.getItem('urlempresa');
+            const urlempresa = secureStorage.getItem('urlempresa');
             if (urlempresa) {
                 try {
                     const testResponse = await fetch('https://webapiprimavera.advir.pt/listarPedidos/listarPedidos', {

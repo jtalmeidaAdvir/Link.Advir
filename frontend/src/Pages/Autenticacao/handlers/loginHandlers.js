@@ -1,5 +1,5 @@
 import { checkTokenExpired } from '../../../utils/authUtils';
-
+import { secureStorage } from '../../../utils/secureStorage';
 export const handleLogin = async ({
     email,
     password,
@@ -48,17 +48,17 @@ export const handleLogin = async ({
                 console.log('✅ Login POS bem-sucedido:', data);
                 
                 // Guardar dados do POS conforme estrutura do backend
-                localStorage.setItem('posToken', data.token);
-                localStorage.setItem('posId', data.posId);
-                localStorage.setItem('posNome', data.posNome);
-                localStorage.setItem('posCodigo', data.posCodigo);
-                localStorage.setItem('posEmail', data.email);
-                localStorage.setItem('posObraId', data.obra_predefinida_id);
-                localStorage.setItem('posObraNome', data.obra_predefinida_nome || 'N/A');
-                localStorage.setItem('isPOS', 'true');
-                localStorage.setItem('empresa_areacliente', data.empresa_areacliente);
+                secureStorage.setItem('posToken', data.token);
+                secureStorage.setItem('posId', data.posId);
+                secureStorage.setItem('posNome', data.posNome);
+                secureStorage.setItem('posCodigo', data.posCodigo);
+                secureStorage.setItem('posEmail', data.email);
+                secureStorage.setItem('posObraId', data.obra_predefinida_id);
+                secureStorage.setItem('posObraNome', data.obra_predefinida_nome || 'N/A');
+                secureStorage.setItem('isPOS', 'true');
+                secureStorage.setItem('empresa_areacliente', data.empresa_areacliente);
                 
-                console.log('💾 Dados POS guardados no localStorage');
+                console.log('💾 Dados POS guardados no secureStorage');
 
                 // Redirecionar para registo de ponto facial
                 window.location.href = '/registo-ponto-facial';
@@ -66,19 +66,19 @@ export const handleLogin = async ({
             }
 
             // Login de utilizador normal
-            localStorage.setItem('loginToken', data.token);
-            localStorage.setItem('isAdmin', data.isAdmin ? 'true' : 'false');
-            localStorage.setItem('superAdmin', data.superAdmin ? 'true' : 'false');
-            localStorage.setItem('username', data.username);
-            localStorage.setItem('email', data.userEmail);
-            localStorage.setItem('userId', data.userId);
-            localStorage.setItem('userNome', data.userNome);
-            localStorage.setItem('userEmail', data.userEmail);
-            localStorage.setItem('empresa_areacliente', data.empresa_areacliente);
-            localStorage.setItem('id_tecnico', data.id_tecnico);
-            localStorage.setItem('tipoUser', data.tipoUser || '');
-            localStorage.setItem('codFuncionario', data.codFuncionario || '');
-            localStorage.setItem('codRecursosHumanos', data.codRecursosHumanos || '');
+            secureStorage.setItem('loginToken', data.token);
+            secureStorage.setItem('isAdmin', data.isAdmin ? 'true' : 'false');
+            secureStorage.setItem('superAdmin', data.superAdmin ? 'true' : 'false');
+            secureStorage.setItem('username', data.username);
+            secureStorage.setItem('email', data.userEmail);
+            secureStorage.setItem('userId', data.userId);
+            secureStorage.setItem('userNome', data.userNome);
+            secureStorage.setItem('userEmail', data.userEmail);
+            secureStorage.setItem('empresa_areacliente', data.empresa_areacliente);
+            secureStorage.setItem('id_tecnico', data.id_tecnico);
+            secureStorage.setItem('tipoUser', data.tipoUser || '');
+            secureStorage.setItem('codFuncionario', data.codFuncionario || '');
+            secureStorage.setItem('codRecursosHumanos', data.codRecursosHumanos || '');
 
             setUsername(data.username);
             setEmail(email);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-
+import { secureStorage } from '../../../utils/secureStorage';
 const useWhatsAppData = (API_BASE_URL, activeTab) => {
     const [status, setStatus] = useState({
         status: "disconnected",
@@ -108,8 +108,8 @@ const useWhatsAppData = (API_BASE_URL, activeTab) => {
 
     const loadExternosDisponiveis = async () => {
         try {
-            const token = localStorage.getItem("loginToken");
-            const empresaId = localStorage.getItem("empresa_id");
+            const token = secureStorage.getItem("loginToken");
+            const empresaId = secureStorage.getItem("empresa_id");
 
             if (!token || !empresaId) {
                 console.warn("Token ou empresa_id não encontrados");
@@ -143,8 +143,8 @@ const useWhatsAppData = (API_BASE_URL, activeTab) => {
 
     const loadObrasDisponiveis = async () => {
         try {
-            const token = localStorage.getItem("loginToken");
-            const empresaId = localStorage.getItem("empresa_id");
+            const token = secureStorage.getItem("loginToken");
+            const empresaId = secureStorage.getItem("empresa_id");
 
             if (!token || !empresaId) {
                 console.warn("Token ou empresa_id não encontrados");
@@ -177,7 +177,7 @@ const useWhatsAppData = (API_BASE_URL, activeTab) => {
 
     const loadExternosContactos = async () => {
         try {
-            const saved = localStorage.getItem("externosContactos");
+            const saved = secureStorage.getItem("externosContactos");
             if (saved) {
                 setExternosContactos(JSON.parse(saved));
             }
@@ -207,8 +207,8 @@ const useWhatsAppData = (API_BASE_URL, activeTab) => {
 
     const fetchExternos = useCallback(async () => {
         try {
-            const token = localStorage.getItem("loginToken");
-            const empresaId = localStorage.getItem("empresa_id");
+            const token = secureStorage.getItem("loginToken");
+            const empresaId = secureStorage.getItem("empresa_id");
 
             if (!token || !empresaId) return;
 

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-
+import { secureStorage } from '../../../utils/secureStorage';
 export const useRegistosPendentes = (tipoUser) => {
   const [registosPendentes, setRegistosPendentes] = useState(0);
 
@@ -16,11 +16,11 @@ export const useRegistosPendentes = (tipoUser) => {
 
     const fetchRegistosPendentes = async () => {
       try {
-        const token = localStorage.getItem('loginToken');
-        const urlempresa = localStorage.getItem('urlempresa');
+        const token = secureStorage.getItem('loginToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
 
         // Buscar registos pendentes com filtro de empresa
-        const empresaId = localStorage.getItem('empresa_id');
+        const empresaId = secureStorage.getItem('empresa_id');
         const res = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/pendentes?empresa_id=${empresaId}`, {
           headers: {
             'Content-Type': 'application/json',

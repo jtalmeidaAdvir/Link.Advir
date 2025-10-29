@@ -7,7 +7,7 @@ import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icon
 import { Picker } from '@react-native-picker/picker';
 import i18n from '../i18n';
 import { useTranslation } from 'react-i18next';
-
+import { secureStorage } from '../../../utils/secureStorage';
 const UsersEmpresa = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [users, setUsers] = useState([]);
@@ -45,7 +45,7 @@ const UsersEmpresa = () => {
             const response = await fetch(`https://backend.advir.pt/api/users/${userId}/profileImage`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`
                 }
             });
             if (response.ok) {
@@ -64,12 +64,12 @@ const UsersEmpresa = () => {
         setLoading(true);
         try {
             
-            const idDaEmpresa = localStorage.getItem('empresa_id');
+            const idDaEmpresa = secureStorage.getItem('empresa_id');
 const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?empresaId=${idDaEmpresa}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`
                 }
             });
 
@@ -111,7 +111,7 @@ const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?
             const response = await fetch('https://backend.advir.pt/api/users/empresas', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`
                 }
             });
 
@@ -144,7 +144,7 @@ const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`
                 },
                 body: JSON.stringify({
                     userId,
@@ -187,7 +187,7 @@ const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`
                 },
                 body: JSON.stringify({
                     userId,
@@ -228,7 +228,7 @@ const response = await fetch(`https://backend.advir.pt/api/users/usersByEmpresa?
             const response = await fetch(`https://backend.advir.pt/api/users/${userId}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('loginToken')}`
+                    'Authorization': `Bearer ${secureStorage.getItem('loginToken')}`
                 }
             });
 

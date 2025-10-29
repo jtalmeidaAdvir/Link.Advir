@@ -12,7 +12,7 @@ import {
   Platform,
   Linking,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import securestorage from "@react-native-async-storage/async-storage";
 import {
   FontAwesome,
   MaterialCommunityIcons,
@@ -21,7 +21,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useEnsureValidTokens } from "../../utils/useEnsureValidTokens";
 import { styles } from './Css/MapaRegistosStyles';
-
+import { secureStorage } from '../../utils/secureStorage';
 const { width, height } = Dimensions.get("window");
 
 const MapaRegistos = ({ navigation }) => {
@@ -94,9 +94,9 @@ const MapaRegistos = ({ navigation }) => {
   // Função para carregar os módulos do utilizador
   const carregarModulosUtilizador = async () => {
     try {
-      const token = localStorage.getItem("loginToken");
-      const userId = localStorage.getItem("userId");
-      const empresaId = await AsyncStorage.getItem("empresa_id");
+      const token = secureStorage.getItem("loginToken");
+      const userId = secureStorage.getItem("userId");
+      const empresaId = await securestorage.getItem("empresa_id");
 
       if (userId && token) {
         let url = `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`;
@@ -241,8 +241,8 @@ const MapaRegistos = ({ navigation }) => {
       setLoading(true);
       setError("");
 
-      const token = localStorage.getItem("loginToken");
-      const empresaId = await AsyncStorage.getItem("empresa_id");
+      const token = secureStorage.getItem("loginToken");
+      const empresaId = await securestorage.getItem("empresa_id");
 
       if (!token) {
         setError("Token de autenticação não encontrado");

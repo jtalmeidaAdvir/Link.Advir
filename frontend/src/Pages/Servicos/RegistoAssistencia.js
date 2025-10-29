@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import i18n from "../i18n";
 import { useTranslation } from "react-i18next";
-
+import { secureStorage } from '../../utils/secureStorage';
 
 // ——— estado para anexos temporários ———
 
@@ -20,8 +20,8 @@ const RegistoAssistencia = (props) => {
     const [anexosTemp, setAnexosTemp] = useState([]);
     const [uploadingTemp, setUploadingTemp] = useState(false);
     const [selectedObjeto, setSelectedObjeto] = useState(null);
-    const token = localStorage.getItem("painelAdminToken");
-    const urlempresa = localStorage.getItem("urlempresa");
+    const token = secureStorage.getItem("painelAdminToken");
+    const urlempresa = secureStorage.getItem("urlempresa");
     const { t } = useTranslation();
     const handleUploadTemp = async (event) => {
         const file = event.target.files?.[0];
