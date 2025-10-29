@@ -65,7 +65,7 @@ const gdprRoutes = require('./routes/gdprRoutes');
 const visitanteRoutes = require('./routes/visitanteRoutes');
 const externosJPARoutes = require('./routes/externosJPARoutes');
 const configuracaoRoutes = require('./routes/configuracaoRoutes');
-
+const predicaoObraRoutes = require('./routes/predicaoObraRoutes');
 
 // Importar associações
 require('./associations');
@@ -126,6 +126,7 @@ app.use('/api/verificacao-automatica', verificacaoAutomaticaRoutes);
 app.use('/api/visitantes', visitanteRoutes);
 app.use('/api/externos-jpa', externosJPARoutes);
 app.use('/api/configuracoes', configuracaoRoutes);
+app.use('/api/predicao-obra', predicaoObraRoutes);
 
 
 app.use('/api/gdpr', gdprRoutes);
