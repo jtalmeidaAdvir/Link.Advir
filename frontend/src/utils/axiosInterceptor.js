@@ -1,14 +1,14 @@
 import { secureStorage } from '../utils/secureStorage';
 import axios from 'axios';
 
-// Fun��o para mostrar alerta e fazer logout
-const handleTokenExpired = (message = 'A sua sess�o expirou. Ser� redirecionado para a p�gina de login.') => {
-    alert(message);
+// Função para fazer logout sem alert (alert duplicado é confuso)
+const handleTokenExpired = (message = 'A sua sessão expirou. Será redirecionado para a página de login.') => {
+    console.log('Sessão expirada:', message);
     secureStorage.clear();
-    window.location.href = '/';
+    window.location.href = '/login';
 };
 
-// Fun��o para verificar se � erro de token expirado da WebApi
+// Função para verificar se é erro de token expirado da WebApi
 const isWebApiTokenExpired = (data) => {
     return data && (
         data.message === 'Token expirado' ||
@@ -19,7 +19,7 @@ const isWebApiTokenExpired = (data) => {
     );
 };
 
-// Interceptor de requisi��o para adicionar token automaticamente
+// Interceptor de requisição para adicionar token automaticamente
 axios.interceptors.request.use(
     (config) => {
         const token = secureStorage.getItem('loginToken');
@@ -36,24 +36,29 @@ axios.interceptors.request.use(
 // Interceptor de resposta para lidar com tokens expirados
 axios.interceptors.response.use(
     (response) => {
-        // Verificar se a resposta cont�m dados sobre token expirado
+        // Verificar se a resposta contém dados sobre token expirado
         if (response.data && isWebApiTokenExpired(response.data)) {
-            handleTokenExpired('O token da WebApi expirou. Ser� deslogado e ter� que fazer login novamente.');
+            handleTokenExpired('O token da WebApi expirou.');
             return Promise.reject(new Error('Token expirado'));
         }
         return response;
     },
     (error) => {
-        // Verificar se � erro 401
-        if (error.response && error.response.status === 401) {
-            handleTokenExpired();
+        // Apenas tratar 401 e 403 como token expirado
+        // Não tratar 500 como token expirado
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+            // Verificar se realmente é erro de token
+            if (error.response.data && isWebApiTokenExpired(error.response.data)) {
+                handleTokenExpired('O token da WebApi expirou.');
+            } else {
+                handleTokenExpired();
+            }
             return Promise.reject(error);
         }
 
-        // Verificar se o erro cont�m informa��o sobre token expirado
-        if (error.response && error.response.data && isWebApiTokenExpired(error.response.data)) {
-            handleTokenExpired('O token da WebApi expirou. Ser� deslogado e ter� que fazer login novamente.');
-            return Promise.reject(error);
+        // Para erro 500, apenas propagar sem fazer logout
+        if (error.response && error.response.status === 500) {
+            console.log('Erro 500 do servidor - mantendo sessão ativa');
         }
 
         return Promise.reject(error);
