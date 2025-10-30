@@ -499,6 +499,104 @@ router.post("/InserirFalta", async (req, res) => {
     }
 });
 
+router.post("/InserirHoraExtra", async (req, res) => {
+    try {
+        // Token do painel
+        const painelAdminToken = req.headers["authorization"]?.split(" ")[1];
+        if (!painelAdminToken) {
+            return res
+                .status(401)
+                .json({ error: "Token não encontrado. Faça login novamente." });
+        }
+
+        // URL da empresa
+        const urlempresa = await getEmpresaUrl(req);
+        if (!urlempresa) {
+            return res
+                .status(400)
+                .json({ error: "URL da empresa não fornecida." });
+        }
+
+        // Extrair campos do corpo (hora extra)
+        const {
+            Funcionario,
+            Data,            // aceita ISO string ou 'yyyy-MM-dd HH:mm:ss'
+            HoraExtra,       // pode ser código/tipo ou numérico, consoante a tua BD
+            Tempo,           // decimal (horas/minutos)
+            Observacoes      // opcional
+        } = req.body;
+
+        if (!Funcionario || !Tempo || HoraExtra === undefined) {
+            return res.status(400).json({
+                error: "Campos obrigatórios em falta: Funcionario, HoraExtra, Tempo."
+            });
+        }
+
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/InserirHoraExtra`;
+        console.log("Enviando solicitação para a URL:", apiUrl);
+
+        // Enviar apenas os necessários (o C# preenche 0/NULL nos restantes)
+        const requestData = {
+            Funcionario,
+            Data,         // se vier null/undefined, o C# usa GETDATE()
+            HoraExtra,
+            Tempo,
+            Observacoes
+        };
+
+        /*  // Se preferires enviar tudo “à la InserirFalta”, descomenta e ajusta:
+        const requestData = {
+            Funcionario, Data, HoraExtra, Tempo,
+            ExcluiProc: 0,
+            Observacoes,
+            DataProc: null,
+            NumPeriodoProcessado: 0,
+            JaProcessado: 0,
+            InseridoBloco: 0,
+            AnoProcessado: 0,
+            NumProc: 0,
+            IdLinhaProc: 0,
+            Origem: 0,
+            MotivoAcerto: null,
+            Fim: null,
+            Inicio: null
+        };
+        */
+
+        console.log("Dados a serem enviados:", requestData);
+
+        const response = await axios.post(apiUrl, requestData, {
+            headers: {
+                Authorization: `Bearer ${painelAdminToken}`,
+                "Content-Type": "application/json",
+                Accept: "application/json"
+            }
+        });
+
+        if (response.status === 200) {
+            return res.status(200).json({
+                mensagem: "Hora extra inserida com sucesso.",
+                detalhes: response.data
+            });
+        } else {
+            return res.status(response.status).json({
+                error: "Falha ao inserir hora extra.",
+                details: response.data
+            });
+        }
+    } catch (error) {
+        console.error(
+            "Erro ao Inserir Hora Extra:",
+            error.response ? error.response.data : error.message
+        );
+        return res.status(500).json({
+            error: "Erro inesperado ao Inserir Hora Extra.",
+            details: error.message
+        });
+    }
+});
+
+
 router.post("/InserirFeriasFuncionario", async (req, res) => {
     try {
         const dados = req.body;
