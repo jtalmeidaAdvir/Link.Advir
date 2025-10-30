@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { FaClock, FaCheckCircle, FaTimesCircle, FaSync, FaUser, FaBuilding, FaCalendarAlt, FaExclamationTriangle, FaFilter } from 'react-icons/fa';
+import { FaClock, FaCheckCircle, FaTimesCircle, FaSync, FaUser, FaBuilding, FaCalendarAlt, FaExclamationTriangle, FaFilter, FaInfoCircle } from 'react-icons/fa';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { useNavigation } from '@react-navigation/native';
 import { secureStorage } from '../../utils/secureStorage';
@@ -12,7 +12,9 @@ const AprovacaoPontoPendentes = () => {
   const [loading, setLoading] = useState(true);
   const [processando, setProcessando] = useState({});
   const [colaboradorFiltro, setColaboradorFiltro] = useState('');
-const [minhasEquipas, setMinhasEquipas] = useState([]);
+  const [minhasEquipas, setMinhasEquipas] = useState([]);
+  const [resumosDia, setResumosDia] = useState({});
+  const [loadingResumo, setLoadingResumo] = useState({});
   const token = secureStorage.getItem('loginToken');
   const urlempresa = secureStorage.getItem('urlempresa');
 
@@ -128,6 +130,62 @@ const tipoUser = secureStorage.getItem('tipoUser'); // ou usa context/state se a
       console.error('Erro ao cancelar:', err);
     } finally {
       setProcessando(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  /**
+   * Carrega o resumo do dia para um utilizador específico
+   */
+  const carregarResumoDia = async (userId, data) => {
+    const chave = `${userId}-${data}`;
+    
+    if (resumosDia[chave]) {
+      return; // Já carregado
+    }
+
+    setLoadingResumo(prev => ({ ...prev, [chave]: true }));
+    
+    try {
+      const res = await fetch(
+        `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?user_id=${userId}&data=${data}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            urlempresa
+          }
+        }
+      );
+
+      if (res.ok) {
+        const registosDia = await res.json();
+        
+        // Filtrar apenas registos confirmados
+        const registosConfirmados = registosDia.filter(r => r.is_confirmed);
+        
+        // Processar registos confirmados para criar resumo
+        const entradas = registosConfirmados.filter(r => r.tipo === 'entrada');
+        const saidas = registosConfirmados.filter(r => r.tipo === 'saida');
+        const pausasInicio = registosConfirmados.filter(r => r.tipo === 'pausa_inicio');
+        const pausasFim = registosConfirmados.filter(r => r.tipo === 'pausa_fim');
+
+        const resumo = {
+          totalRegistos: registosConfirmados.length,
+          entradas: entradas.length,
+          saidas: saidas.length,
+          pausas: pausasInicio.length,
+          confirmados: registosConfirmados.length,
+          pendentes: registosDia.length - registosConfirmados.length,
+          registos: registosConfirmados.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
+          obras: [...new Set(registosConfirmados.map(r => r.Obra?.nome).filter(Boolean))]
+        };
+
+        setResumosDia(prev => ({ ...prev, [chave]: resumo }));
+      }
+    } catch (err) {
+      console.error('Erro ao carregar resumo do dia:', err);
+    } finally {
+      setLoadingResumo(prev => ({ ...prev, [chave]: false }));
     }
   };
 
@@ -303,6 +361,66 @@ const tipoUser = secureStorage.getItem('tipoUser'); // ou usa context/state se a
             font-size: 1.5rem;
           }
         }
+      .tooltip-resumo {
+          position: absolute;
+          background: white;
+          border: 2px solid #007bff;
+          border-radius: 12px;
+          padding: 15px;
+          box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+          z-index: 10000;
+          min-width: 300px;
+          max-width: 400px;
+          top: 0;
+          left: 105%;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.3s ease;
+        }
+        .registo-card:hover .tooltip-resumo {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .tooltip-resumo-header {
+          font-weight: bold;
+          color: #007bff;
+          margin-bottom: 10px;
+          padding-bottom: 8px;
+          border-bottom: 2px solid #e9ecef;
+        }
+        .tooltip-resumo-item {
+          padding: 4px 0;
+          font-size: 0.85rem;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .tooltip-resumo-registos {
+          margin-top: 10px;
+          padding-top: 10px;
+          border-top: 1px solid #e9ecef;
+          max-height: 200px;
+          overflow-y: auto;
+        }
+        .tooltip-resumo-registo {
+          padding: 6px 8px;
+          margin: 4px 0;
+          background: #f8f9fa;
+          border-radius: 6px;
+          font-size: 0.8rem;
+        }
+        .tooltip-info-icon {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          color: #007bff;
+          font-size: 1.2rem;
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
       `}</style>
 
       {loading && (
@@ -441,10 +559,23 @@ const tipoUser = secureStorage.getItem('tipoUser'); // ou usa context/state se a
                 .map((registo) => {
                   const { data, hora } = formatarDataHora(registo.timestamp);
                   const isProcessando = processando[registo.id];
+                  const chaveResumo = `${registo.User?.id}-${data.split('/').reverse().join('-')}`;
+                  const resumo = resumosDia[chaveResumo];
+                  const isLoadingResumo = loadingResumo[chaveResumo];
                   
                   return (
-                    <div key={registo.id} className="col-12 col-lg-6 col-xl-4">
-                      <div className="card registo-card card-moderno h-100">
+                    <div 
+                      key={registo.id} 
+                      className="col-12 col-lg-6 col-xl-4"
+                      onMouseEnter={() => {
+                        if (registo.User?.id) {
+                          carregarResumoDia(registo.User.id, data.split('/').reverse().join('-'));
+                        }
+                      }}
+                    >
+                      <div className="card registo-card card-moderno h-100" style={{position: 'relative'}}>
+                        <FaInfoCircle className="tooltip-info-icon" />
+                        
                         <div className="card-body d-flex flex-column">
                           {/* Header do Card */}
                           <div className="d-flex justify-content-between align-items-start mb-3">
@@ -537,6 +668,57 @@ const tipoUser = secureStorage.getItem('tipoUser'); // ou usa context/state se a
                             </div>
                           </div>
                         )}
+
+                        {/* Tooltip com Resumo do Dia */}
+                        <div className="tooltip-resumo">
+                          <div className="tooltip-resumo-header">
+                            📊 Resumo do Dia {data}
+                          </div>
+                          
+                          {isLoadingResumo ? (
+                            <div className="text-center py-3">
+                              <div className="spinner-border spinner-border-sm text-primary" role="status">
+                                <span className="visually-hidden">Carregando...</span>
+                              </div>
+                              <p className="mt-2 mb-0 small">Carregando resumo...</p>
+                            </div>
+                          ) : resumo ? (
+                            <>
+                             
+                              
+                              {resumo.registos.length > 0 && (
+                                <div className="tooltip-resumo-registos">
+                                  <small className="fw-bold text-muted">Picagens do dia:</small>
+                                  {resumo.registos.map((r, idx) => {
+                                    const { hora: horaReg } = formatarDataHora(r.timestamp);
+                                    return (
+                                      <div key={idx} className="tooltip-resumo-registo">
+                                        <div className="d-flex justify-content-between align-items-center">
+                                          <span>
+                                            <span className={`badge bg-${getBadgeColor(r.tipo)} me-2`} style={{fontSize: '0.7rem'}}>
+                                              {r.tipo.replace('_', ' ')}
+                                            </span>
+                                            {horaReg}
+                                          </span>
+                                          {r.is_confirmed && <span className="text-success">✓</span>}
+                                        </div>
+                                        {r.Obra?.nome && (
+                                          <small className="text-muted d-block mt-1">
+                                            {r.Obra.nome}
+                                          </small>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="text-center text-muted small py-3">
+                              Passe o rato para ver o resumo
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
