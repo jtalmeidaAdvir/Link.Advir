@@ -297,7 +297,7 @@ const RegistosPorUtilizador = () => {
         }
     };
 
-    const carregarTiposHorasExtras = async () => {
+     const carregarTiposHorasExtras = async () => {
         const painelAdminToken = secureStorage.getItem('painelAdminToken');
         const urlempresa = secureStorage.getItem('urlempresa');
 
@@ -329,10 +329,11 @@ const RegistosPorUtilizador = () => {
 
                     const mapaHorasExtras = {};
                     tipos.forEach(t => {
-                        mapaHorasExtras[t.HoraExtra] = t.Descricao;
+                        // Use "HorasExtra" como chave e "Descricao" como valor a exibir
+                        mapaHorasExtras[t.HorasExtra] = t.Descricao;
                     });
                     setTiposHorasExtras(mapaHorasExtras);
-                    //console.log('✅ Tipos de horas extras carregados com sucesso:', tipos.length);
+                    //console.log('✅ Tipos de horas extras carregados com sucesso:', mapaHorasExtras);
                     return true;
                 } else {
                     const errorText = await res.text();
@@ -350,7 +351,6 @@ const RegistosPorUtilizador = () => {
             }
         }
     };
-
     useEffect(() => {
         if (utilizadorSelecionado) {
             carregarDetalhesUtilizador(utilizadores.find(u => u.id.toString() === utilizadorSelecionado.toString()));
