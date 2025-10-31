@@ -78,7 +78,7 @@ router.get("/GetListaFaltasFuncionario/:codFuncionario", async (req, res) => {
 });
 
 
-router.get("/GetListaFaltasFuncionariosMensal", async (req, res) => {
+router.get("/GetListaFaltasFuncionariosMensal/:mes", async (req, res) => {
     try {
         const painelAdminToken = req.headers["authorization"]?.split(" ")[1]; // Obtendo o token do cabeçalho
         if (!painelAdminToken) {
@@ -95,9 +95,17 @@ router.get("/GetListaFaltasFuncionariosMensal", async (req, res) => {
                 .status(400)
                 .json({ error: "URL da empresa não fornecida." });
         }
-        const { codFuncionario } = req.params;
-        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/GetListaFaltasFuncionariosMensal`; // A URL completa da API
-        console.log("Enviando solicitação para a URL:", apiUrl);
+        const { mes } = req.params;
+        const mesInt = parseInt(mes, 10);
+        
+        if (!mesInt || mesInt < 1 || mesInt > 12) {
+            return res
+                .status(400)
+                .json({ error: "Mês inválido. Deve ser um número entre 1 e 12." });
+        }
+
+        const apiUrl = `http://${urlempresa}/WebApi/AlteracoesMensais/GetListaFaltasFuncionariosMensal/${mesInt}`; // A URL completa da API
+        console.log("Enviando solicitação para a URL:", apiUrl, "com mês:", mesInt);
 
         const response = await axios.get(apiUrl, {
             headers: {
