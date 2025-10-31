@@ -569,6 +569,28 @@ const RegistosPorUtilizador = () => {
                         let faltasUtilizador = [];
                         if (painelAdminToken && urlempresa && loginToken) {
                             try {
+                                // Usar o novo endpoint mensal que retorna todas as faltas do mês
+                        const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}`;
+
+                        const resFaltas = await fetch(urlFaltasMensal, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${painelAdminToken}`,
+                                urlempresa: urlempresa,
+                            },
+                        });
+
+                        if (resFaltas.ok) {
+                            const dataFaltas = await resFaltas.json();
+
+                            // Validar estrutura de resposta
+                            if (!dataFaltas || !dataFaltas.DataSet || !Array.isArray(dataFaltas.DataSet.Table)) {
+                                console.warn(`⚠️ [GRADE] Formato de resposta inválido ao carregar faltas para ${user.nome}`);
+                            } else {
+                                const listaFaltasMes = dataFaltas.DataSet.Table;
+
+                                // Obter codFuncionario do utilizador para filtrar as faltas
                                 const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
                                     method: 'GET',
                                     headers: {
@@ -577,50 +599,29 @@ const RegistosPorUtilizador = () => {
                                     },
                                 });
 
-                                if (!resCodFuncionario.ok) {
-                                    console.warn(`⚠️ [GRADE] Não foi possível obter codFuncionario para ${user.nome}`);
-                                } else {
+                                if (resCodFuncionario.ok) {
                                     const dataCodFuncionario = await resCodFuncionario.json();
                                     const codFuncionario = dataCodFuncionario.codFuncionario;
 
                                     if (codFuncionario) {
-                                        const urlFaltas = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionario/${codFuncionario}`;
-
-                                        const resFaltas = await fetch(urlFaltas, {
-                                            method: 'GET',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                Authorization: `Bearer ${painelAdminToken}`,
-                                                urlempresa: urlempresa,
-                                            },
+                                        // Filtrar faltas deste funcionário específico e do ano selecionado
+                                        faltasUtilizador = listaFaltasMes.filter(f => {
+                                            const dataFalta = new Date(f.Data);
+                                            const anoFalta = dataFalta.getFullYear();
+                                            return f.Funcionario === codFuncionario && anoFalta === parseInt(anoSelecionado);
                                         });
 
-                                        if (resFaltas.ok) {
-                                            const dataFaltas = await resFaltas.json();
-
-                                            // Validar estrutura de resposta
-                                            if (!dataFaltas || !dataFaltas.DataSet || !Array.isArray(dataFaltas.DataSet.Table)) {
-                                                console.warn(`⚠️ [GRADE] Formato de resposta inválido ao carregar faltas para ${user.nome}`);
-                                            } else {
-                                                const listaFaltas = dataFaltas.DataSet.Table;
-
-                                                // Filtrar faltas do mês/ano atual
-                                                faltasUtilizador = listaFaltas.filter(f => {
-                                                    const dataFalta = new Date(f.Data);
-                                                    const anoFalta = dataFalta.getFullYear();
-                                                    const mesFalta = dataFalta.getMonth();
-                                                    return anoFalta === parseInt(anoSelecionado) && mesFalta === parseInt(mesSelecionado) - 1;
-                                                });
-
-                                                console.log(`✅ [GRADE] ${user.nome}: ${faltasUtilizador.length} faltas carregadas para ${mesSelecionado}/${anoSelecionado}`);
-                                            }
-                                        } else {
-                                            console.warn(`⚠️ [GRADE] Erro HTTP ${resFaltas.status} ao carregar faltas para ${user.nome}`);
-                                        }
+                                        console.log(`✅ [GRADE] ${user.nome}: ${faltasUtilizador.length} faltas carregadas para ${mesSelecionado}/${anoSelecionado}`);
                                     } else {
                                         console.warn(`⚠️ [GRADE] codFuncionario não encontrado para ${user.nome}`);
                                     }
+                                } else {
+                                    console.warn(`⚠️ [GRADE] Não foi possível obter codFuncionario para ${user.nome}`);
                                 }
+                            }
+                        } else {
+                            console.warn(`⚠️ [GRADE] Erro HTTP ${resFaltas.status} ao carregar faltas do mês ${mesSelecionado}`);
+                        }
                             } catch (faltaErr) {
                                 console.error(`❌ [GRADE] Erro ao carregar faltas para ${user.nome}:`, faltaErr);
                             }
