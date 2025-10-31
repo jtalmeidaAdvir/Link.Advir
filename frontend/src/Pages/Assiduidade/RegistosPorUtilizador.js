@@ -27,6 +27,7 @@ const RegistosPorUtilizador = () => {
     const [loadingMessage, setLoadingMessage] = useState('');
     const [diasDoMes, setDiasDoMes] = useState([]);
     const [tiposFaltas, setTiposFaltas] = useState({});
+    const [tiposHorasExtras, setTiposHorasExtras] = useState({});
 
     const token = secureStorage.getItem('loginToken');
 
@@ -109,6 +110,18 @@ const RegistosPorUtilizador = () => {
     const [removerFaltaDialogOpen, setRemoverFaltaDialogOpen] = useState(false);
     const [faltaParaRemover, setFaltaParaRemover] = useState(null);
     const [loadingRemoverFalta, setLoadingRemoverFalta] = useState(false);
+
+    // State for hora extra modal
+    const [horaExtraDialogOpen, setHoraExtraDialogOpen] = useState(false);
+    const [tipoHoraExtraSelecionado, setTipoHoraExtraSelecionado] = useState('');
+    const [tempoHoraExtra, setTempoHoraExtra] = useState('');
+    const [observacoesHoraExtra, setObservacoesHoraExtra] = useState('');
+
+    // State for bulk hora extra modal
+    const [bulkHoraExtraDialogOpen, setBulkHoraExtraDialogOpen] = useState(false);
+    const [tipoHoraExtraSelecionadoBulk, setTipoHoraExtraSelecionadoBulk] = useState('');
+    const [tempoHoraExtraBulk, setTempoHoraExtraBulk] = useState('');
+    const [loadingBulkHoraExtra, setLoadingBulkHoraExtra] = useState(false);
 
 
     const handleBulkConfirm = async () => {
@@ -204,7 +217,8 @@ const RegistosPorUtilizador = () => {
                 const resultados = await Promise.allSettled([
                     carregarUtilizadores(),
                     carregarObras(),
-                    carregarTiposFaltas()
+                    carregarTiposFaltas(),
+                    carregarTiposHorasExtras()
                 ]);
 
                 // Verificar se algum carregamento falhou
@@ -278,6 +292,60 @@ const RegistosPorUtilizador = () => {
                 }
 
                 // Aguardar 1 segundo antes de tentar novamente
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+    };
+
+    const carregarTiposHorasExtras = async () => {
+        const painelAdminToken = secureStorage.getItem('painelAdminToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
+
+        if (!painelAdminToken || !urlempresa) {
+            throw new Error('Tokens do Primavera não configurados');
+        }
+
+        let tentativas = 0;
+        const maxTentativas = 3;
+
+        while (tentativas < maxTentativas) {
+            try {
+                const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaTipoHorasExtras', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${painelAdminToken}`,
+                        urlempresa: urlempresa,
+                    },
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    const tipos = data?.DataSet?.Table ?? [];
+
+                    if (!Array.isArray(tipos) || tipos.length === 0) {
+                        throw new Error('Nenhum tipo de hora extra retornado do servidor');
+                    }
+
+                    const mapaHorasExtras = {};
+                    tipos.forEach(t => {
+                        mapaHorasExtras[t.HoraExtra] = t.Descricao;
+                    });
+                    setTiposHorasExtras(mapaHorasExtras);
+                    console.log('✅ Tipos de horas extras carregados com sucesso:', tipos.length);
+                    return true;
+                } else {
+                    const errorText = await res.text();
+                    throw new Error(`Erro HTTP ${res.status}: ${errorText}`);
+                }
+            } catch (err) {
+                tentativas++;
+                console.error(`❌ Tentativa ${tentativas}/${maxTentativas} falhou ao carregar tipos de horas extras:`, err.message);
+
+                if (tentativas >= maxTentativas) {
+                    throw new Error(`Falha ao carregar tipos de horas extras após ${maxTentativas} tentativas: ${err.message}`);
+                }
+
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
         }
@@ -1803,6 +1871,74 @@ const RegistosPorUtilizador = () => {
         }
     };
 
+    const registarHoraExtra = async () => {
+        if (!userToRegistar || !diaToRegistar || !tipoHoraExtraSelecionado || !tempoHoraExtra) {
+            return alert('Por favor, preencha todos os campos para registar a hora extra.');
+        }
+
+        const token = secureStorage.getItem('loginToken');
+        const painelToken = secureStorage.getItem('painelAdminToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
+        
+        const funcionarioId = await obterCodFuncionario(userToRegistar);
+
+        if (!funcionarioId) {
+            return alert('Não foi possível encontrar o código do funcionário.');
+        }
+
+        try {
+            setCarregando(true);
+
+            const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaToRegistar).padStart(2, '0')}`;
+
+            const dadosERP = {
+                Funcionario: funcionarioId,
+                Data: new Date(dataFormatada).toISOString(),
+                HoraExtra: tipoHoraExtraSelecionado,
+                Tempo: parseFloat(tempoHoraExtra),
+                Observacoes: observacoesHoraExtra || 'Registado via interface de administração'
+            };
+
+            console.log('📤 Enviando hora extra para ERP:', dadosERP);
+
+            const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirHoraExtra`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${painelToken}`,
+                    urlempresa
+                },
+                body: JSON.stringify(dadosERP)
+            });
+
+            console.log('📥 Resposta HTTP:', resERP.status, resERP.statusText);
+
+            if (resERP.ok) {
+                alert('✅ Hora extra registada com sucesso!');
+            } else {
+                const errorText = await resERP.text();
+                console.error(`❌ Erro ao inserir hora extra:`, errorText);
+                throw new Error(`Falha ao registar hora extra: ${errorText}`);
+            }
+
+            setHoraExtraDialogOpen(false);
+            setDialogOpen(false);
+            setTipoHoraExtraSelecionado('');
+            setTempoHoraExtra('');
+            setObservacoesHoraExtra('');
+
+            if (viewMode === 'grade') {
+                carregarDadosGrade();
+            }
+
+        } catch (err) {
+            console.error('❌ Erro ao submeter hora extra:', err);
+            alert('Erro ao registar hora extra: ' + err.message);
+        } finally {
+            setCarregando(false);
+        }
+    };
+
     const registarFalta = async () => {
         if (!userToRegistar || !diaToRegistar || !tipoFaltaSelecionado || !duracaoFalta) {
             return alert('Por favor, preencha todos os campos para registar a falta.');
@@ -2076,6 +2212,128 @@ const RegistosPorUtilizador = () => {
             alert('Erro ao registar falta: ' + err.message);
         } finally {
             setCarregando(false);
+        }
+    };
+
+    const registarHorasExtrasEmBloco = async () => {
+        if (selectedCells.length === 0) {
+            return alert('Nenhuma célula selecionada.');
+        }
+
+        if (!tipoHoraExtraSelecionadoBulk || !tempoHoraExtraBulk) {
+            return alert('Por favor, selecione o tipo de hora extra e o tempo.');
+        }
+
+        const painelToken = secureStorage.getItem('painelAdminToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
+
+        if (!painelToken || !urlempresa) {
+            return alert('Tokens do Primavera não encontrados. Configure o acesso ao ERP.');
+        }
+
+        const cellsByUser = {};
+        selectedCells.forEach(cellKey => {
+            const [userId, dia] = cellKey.split('-');
+            const userIdNumber = parseInt(userId, 10);
+            if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
+            cellsByUser[userIdNumber].push(parseInt(dia, 10));
+        });
+
+        let mensagemConfirmacao = `📅 Vai registar horas extras para:\n\n`;
+
+        for (const [userId, dias] of Object.entries(cellsByUser)) {
+            const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
+            if (funcionario) {
+                mensagemConfirmacao += `• ${funcionario.utilizador.nome}: dias ${dias.join(', ')}\n`;
+            }
+        }
+
+        mensagemConfirmacao += `\nTipo de hora extra: ${tiposHorasExtras[tipoHoraExtraSelecionadoBulk] || tipoHoraExtraSelecionadoBulk}\n`;
+        mensagemConfirmacao += `Tempo: ${tempoHoraExtraBulk} hora(s)\n`;
+        mensagemConfirmacao += `\nTotal: ${selectedCells.length} horas extras\n\nDeseja continuar?`;
+
+        const confirmacao = confirm(mensagemConfirmacao);
+        if (!confirmacao) return;
+
+        setLoadingBulkHoraExtra(true);
+
+        try {
+            let horasExtrasRegistadas = 0;
+            let erros = 0;
+
+            for (const [userId, dias] of Object.entries(cellsByUser)) {
+                const userIdNumber = parseInt(userId, 10);
+                const funcionarioId = await obterCodFuncionario(userIdNumber);
+
+                if (!funcionarioId) {
+                    console.error(`Código do funcionário não encontrado para userId ${userIdNumber}`);
+                    erros += dias.length;
+                    continue;
+                }
+
+                for (const dia of dias) {
+                    try {
+                        const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+
+                        const dadosERP = {
+                            Funcionario: funcionarioId,
+                            Data: new Date(dataFormatada).toISOString(),
+                            HoraExtra: tipoHoraExtraSelecionadoBulk,
+                            Tempo: parseFloat(tempoHoraExtraBulk),
+                            Observacoes: 'Registado em bloco via interface de administração'
+                        };
+
+                        const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirHoraExtra`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${painelToken}`,
+                                urlempresa
+                            },
+                            body: JSON.stringify(dadosERP)
+                        });
+
+                        if (resERP.ok) {
+                            horasExtrasRegistadas++;
+                            console.log(`✅ Hora extra registada: ${funcionarioId} - dia ${dia}`);
+                        } else {
+                            const errorText = await resERP.text();
+                            console.error(`Erro ao registar hora extra para dia ${dia}:`, errorText);
+                            erros++;
+                        }
+
+                        await new Promise(resolve => setTimeout(resolve, 150));
+
+                    } catch (diaErr) {
+                        console.error(`Erro ao processar dia ${dia}:`, diaErr);
+                        erros++;
+                    }
+                }
+            }
+
+            let mensagemResultado = `✅ Registo de horas extras em bloco concluído!\n\n`;
+            mensagemResultado += `• Horas extras registadas: ${horasExtrasRegistadas}\n`;
+            if (erros > 0) {
+                mensagemResultado += `• Erros encontrados: ${erros}\n`;
+                mensagemResultado += `• Verifique o console para detalhes dos erros\n`;
+            }
+
+            alert(mensagemResultado);
+
+            setSelectedCells([]);
+            setBulkHoraExtraDialogOpen(false);
+            setTipoHoraExtraSelecionadoBulk('');
+            setTempoHoraExtraBulk('');
+
+            if (viewMode === 'grade') {
+                carregarDadosGrade();
+            }
+
+        } catch (err) {
+            console.error('Erro ao registar horas extras em bloco:', err);
+            alert(`Erro ao registar horas extras em bloco: ${err.message}`);
+        } finally {
+            setLoadingBulkHoraExtra(false);
         }
     };
 
@@ -2563,6 +2821,13 @@ const RegistosPorUtilizador = () => {
                                     </button>
 
                                     <button
+                                        style={{ ...styles.primaryButton, backgroundColor: '#38a169' }}
+                                        onClick={() => setBulkHoraExtraDialogOpen(true)}
+                                    >
+                                        ⏰ Registar Horas Extras ({selectedCells.length} dias)
+                                    </button>
+
+                                    <button
                                         style={{ ...styles.primaryButton, backgroundColor: '#e53e3e' }}
                                         onClick={() => setBulkDeleteDialogOpen(true)}
                                     >
@@ -2586,11 +2851,10 @@ const RegistosPorUtilizador = () => {
                                     <button
                                         style={{ ...styles.primaryButton, backgroundColor: '#d69e2e' }}
                                         onClick={() => {
-                                            // Abrir modal para registar falta individual
                                             const primeiroFuncionario = dadosGrade[0];
                                             if (primeiroFuncionario) {
                                                 setUserToRegistar(primeiroFuncionario.utilizador.id);
-                                                setDiaToRegistar(1); // Dia 1 por defeito
+                                                setDiaToRegistar(1);
                                                 setObraNoDialog(obraSelecionada || '');
                                                 setFaltaIntervalo(false);
                                                 setDataFimFalta('');
@@ -2601,6 +2865,23 @@ const RegistosPorUtilizador = () => {
                                         }}
                                     >
                                         📅 Registar Falta
+                                    </button>
+
+                                    <button
+                                        style={{ ...styles.primaryButton, backgroundColor: '#38a169' }}
+                                        onClick={() => {
+                                            const primeiroFuncionario = dadosGrade[0];
+                                            if (primeiroFuncionario) {
+                                                setUserToRegistar(primeiroFuncionario.utilizador.id);
+                                                setDiaToRegistar(1);
+                                                setTipoHoraExtraSelecionado('');
+                                                setTempoHoraExtra('');
+                                                setObservacoesHoraExtra('');
+                                                setHoraExtraDialogOpen(true);
+                                            }
+                                        }}
+                                    >
+                                        ⏰ Registar Hora Extra
                                     </button>
 
                                     <button
@@ -3038,12 +3319,23 @@ const RegistosPorUtilizador = () => {
                                                 onClick={() => {
                                                     setDialogOpen(false);
                                                     setFaltaDialogOpen(true);
-                                                    // Inicializar com data única
                                                     setFaltaIntervalo(false);
                                                     setDataFimFalta('');
                                                 }}
                                             >
                                                 📅 Registar Falta
+                                            </button>
+                                            <button
+                                                style={{ ...styles.confirmButton, backgroundColor: '#38a169', marginTop: '10px' }}
+                                                onClick={() => {
+                                                    setDialogOpen(false);
+                                                    setTipoHoraExtraSelecionado('');
+                                                    setTempoHoraExtra('');
+                                                    setObservacoesHoraExtra('');
+                                                    setHoraExtraDialogOpen(true);
+                                                }}
+                                            >
+                                                ⏰ Registar Hora Extra
                                             </button>
                                             <button
                                                 style={{ ...styles.confirmButton, backgroundColor: '#6c757d', marginTop: '10px' }}
@@ -3053,6 +3345,143 @@ const RegistosPorUtilizador = () => {
                                                 }}
                                             >
                                                 ✏️ Editar Pontos
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Modal para registo de hora extra */}
+                            {horaExtraDialogOpen && (
+                                <div style={styles.modalOverlay}>
+                                    <div style={styles.individualModal}>
+                                        <div style={{ ...styles.individualModalHeader, background: 'linear-gradient(135deg, #38a169, #2f855a)' }}>
+                                            <h3 style={styles.individualModalTitle}>
+                                                ⏰ Registar Hora Extra
+                                            </h3>
+                                            <p style={styles.individualModalSubtitle}>
+                                                {userToRegistar ? `${utilizadores.find(u => u.id === userToRegistar)?.nome || 'Utilizador'} - Dia ${diaToRegistar}` : 'Selecione um funcionário'}
+                                            </p>
+                                            <button
+                                                style={styles.closeButton}
+                                                onClick={() => setHoraExtraDialogOpen(false)}
+                                                aria-label="Fechar"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+
+                                        <div style={styles.individualModalContent}>
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>Funcionário</label>
+                                                <select
+                                                    style={styles.select}
+                                                    value={userToRegistar || ''}
+                                                    onChange={e => setUserToRegistar(parseInt(e.target.value))}
+                                                >
+                                                    <option value="">-- Selecione um funcionário --</option>
+                                                    {dadosGrade.map(item => (
+                                                        <option key={item.utilizador.id} value={item.utilizador.id}>
+                                                            {item.utilizador.nome} ({item.utilizador.codFuncionario})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>Dia do Mês</label>
+                                                <select
+                                                    style={styles.select}
+                                                    value={diaToRegistar || ''}
+                                                    onChange={e => setDiaToRegistar(parseInt(e.target.value))}
+                                                >
+                                                    <option value="">-- Selecione um dia --</option>
+                                                    {diasDoMes.map(dia => (
+                                                        <option key={dia} value={dia}>
+                                                            Dia {dia} ({mesSelecionado}/{anoSelecionado})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>Tipo de Hora Extra</label>
+                                                <select
+                                                    style={styles.select}
+                                                    value={tipoHoraExtraSelecionado}
+                                                    onChange={e => setTipoHoraExtraSelecionado(e.target.value)}
+                                                >
+                                                    <option value="">-- Selecione o tipo de hora extra --</option>
+                                                    {Object.entries(tiposHorasExtras).map(([key, value]) => (
+                                                        <option key={key} value={key}>{value} ({key})</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>Tempo (horas)</label>
+                                                <input
+                                                    type="number"
+                                                    style={styles.input}
+                                                    min="0.5"
+                                                    step="0.5"
+                                                    value={tempoHoraExtra}
+                                                    onChange={e => setTempoHoraExtra(e.target.value)}
+                                                    placeholder="Ex: 2 (para 2 horas)"
+                                                />
+                                            </div>
+
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>Observações (opcional)</label>
+                                                <input
+                                                    type="text"
+                                                    style={styles.input}
+                                                    value={observacoesHoraExtra}
+                                                    onChange={e => setObservacoesHoraExtra(e.target.value)}
+                                                    placeholder="Ex: Trabalho adicional em fecho de mês"
+                                                />
+                                            </div>
+
+                                            {tipoHoraExtraSelecionado && tiposHorasExtras[tipoHoraExtraSelecionado] && (
+                                                <div style={{
+                                                    ...styles.filterGroup,
+                                                    backgroundColor: '#e6fffa',
+                                                    border: '1px solid #81e6d9',
+                                                    borderRadius: '8px',
+                                                    padding: '12px'
+                                                }}>
+                                                    <div style={{ fontSize: '0.9rem', color: '#234e52' }}>
+                                                        <div><strong>Tipo de Hora Extra:</strong> {tiposHorasExtras[tipoHoraExtraSelecionado]}</div>
+                                                        <div><strong>Código:</strong> {tipoHoraExtraSelecionado}</div>
+                                                        <div><strong>Tempo:</strong> {tempoHoraExtra || '0'} hora(s)</div>
+                                                        <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#285e61' }}>
+                                                            Esta hora extra será integrada diretamente no ERP Primavera.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={styles.individualModalActions}>
+                                            <button
+                                                style={styles.cancelButton}
+                                                onClick={() => setHoraExtraDialogOpen(false)}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                style={{ ...styles.confirmButton, backgroundColor: '#38a169' }}
+                                                onClick={registarHoraExtra}
+                                                disabled={!userToRegistar || !diaToRegistar || !tipoHoraExtraSelecionado || !tempoHoraExtra || carregando}
+                                            >
+                                                {carregando ? (
+                                                    <>
+                                                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                                        A registar...
+                                                    </>
+                                                ) : (
+                                                    '⏰ Confirmar Hora Extra'
+                                                )}
                                             </button>
                                         </div>
                                     </div>
@@ -3242,6 +3671,142 @@ const RegistosPorUtilizador = () => {
                                                     </>
                                                 ) : (
                                                     '📅 Confirmar Falta'
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Modal para registo de horas extras em bloco */}
+                            {bulkHoraExtraDialogOpen && (
+                                <div style={styles.modalOverlay}>
+                                    <div style={styles.bulkModal}>
+                                        <div style={{ ...styles.bulkModalHeader, background: 'linear-gradient(135deg, #38a169, #2f855a)' }}>
+                                            <h3 style={styles.bulkModalTitle}>
+                                                ⏰ Registar Horas Extras em Bloco
+                                            </h3>
+                                            <p style={styles.bulkModalSubtitle}>
+                                                Registando horas extras para {selectedCells.length} seleções
+                                            </p>
+                                            <button
+                                                style={styles.closeButton}
+                                                onClick={() => setBulkHoraExtraDialogOpen(false)}
+                                                aria-label="Fechar"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+
+                                        <div style={styles.bulkModalContent}>
+                                            <div style={styles.selectedCellsContainer}>
+                                                <span style={styles.selectedCellsLabel}>Dias selecionados para registo de hora extra:</span>
+
+                                                {(() => {
+                                                    const cellsByUser = {};
+                                                    selectedCells.forEach(cellKey => {
+                                                        const [userId, dia] = cellKey.split('-');
+                                                        const userIdNumber = parseInt(userId, 10);
+                                                        if (!cellsByUser[userIdNumber]) cellsByUser[userIdNumber] = [];
+                                                        cellsByUser[userIdNumber].push(parseInt(dia, 10));
+                                                    });
+
+                                                    return Object.entries(cellsByUser).map(([userId, dias]) => {
+                                                        const funcionario = dadosGrade.find(item => item.utilizador.id === parseInt(userId, 10));
+                                                        if (!funcionario) return null;
+
+                                                        return (
+                                                            <div key={userId} style={{
+                                                                marginBottom: '15px',
+                                                                padding: '12px',
+                                                                backgroundColor: '#e6fffa',
+                                                                borderRadius: '8px',
+                                                                border: '1px solid #81e6d9'
+                                                            }}>
+                                                                <div style={{
+                                                                    fontWeight: '600',
+                                                                    marginBottom: '8px',
+                                                                    color: '#2d3748'
+                                                                }}>
+                                                                    👤 {funcionario.utilizador.nome}
+                                                                </div>
+                                                                <div style={{ fontSize: '0.9rem', color: '#4a5568' }}>
+                                                                    <strong>Dias:</strong> {dias.sort((a, b) => a - b).join(', ')}
+                                                                </div>
+                                                                <div style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>
+                                                                    {dias.length} dia{dias.length !== 1 ? 's' : ''} selecionado{dias.length !== 1 ? 's' : ''}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    });
+                                                })()}
+                                            </div>
+
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>Tipo de Hora Extra</label>
+                                                <select
+                                                    style={styles.select}
+                                                    value={tipoHoraExtraSelecionadoBulk}
+                                                    onChange={e => setTipoHoraExtraSelecionadoBulk(e.target.value)}
+                                                >
+                                                    <option value="">-- Selecione o tipo de hora extra --</option>
+                                                    {Object.entries(tiposHorasExtras).map(([key, value]) => (
+                                                        <option key={key} value={key}>{value} ({key})</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div style={styles.filterGroup}>
+                                                <label style={styles.label}>Tempo (horas)</label>
+                                                <input
+                                                    type="number"
+                                                    style={styles.input}
+                                                    min="0.5"
+                                                    step="0.5"
+                                                    value={tempoHoraExtraBulk}
+                                                    onChange={e => setTempoHoraExtraBulk(e.target.value)}
+                                                    placeholder="Ex: 2 (para 2 horas)"
+                                                />
+                                            </div>
+
+                                            {tipoHoraExtraSelecionadoBulk && tiposHorasExtras[tipoHoraExtraSelecionadoBulk] && (
+                                                <div style={{
+                                                    ...styles.selectedCellsContainer,
+                                                    backgroundColor: '#e6fffa',
+                                                    border: '1px solid #81e6d9'
+                                                }}>
+                                                    <div style={{ fontSize: '0.9rem', color: '#234e52' }}>
+                                                        <div><strong>Tipo de Hora Extra:</strong> {tiposHorasExtras[tipoHoraExtraSelecionadoBulk]}</div>
+                                                        <div><strong>Código:</strong> {tipoHoraExtraSelecionadoBulk}</div>
+                                                        <div><strong>Tempo:</strong> {tempoHoraExtraBulk || '0'} hora(s)</div>
+                                                        <div><strong>Total de horas extras a registar:</strong> {selectedCells.length}</div>
+                                                        <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#285e61' }}>
+                                                            Estas horas extras serão integradas diretamente no ERP Primavera.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={styles.bulkModalActions}>
+                                            <button
+                                                style={styles.cancelButton}
+                                                onClick={() => setBulkHoraExtraDialogOpen(false)}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                style={{ ...styles.confirmButton, backgroundColor: '#38a169' }}
+                                                onClick={registarHorasExtrasEmBloco}
+                                                disabled={!tipoHoraExtraSelecionadoBulk || !tempoHoraExtraBulk || loadingBulkHoraExtra}
+                                            >
+                                                {loadingBulkHoraExtra ? (
+                                                    <>
+                                                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                                        A registar...
+                                                    </>
+                                                ) : (
+                                                    '⏰ Confirmar Horas Extras em Bloco'
                                                 )}
                                             </button>
                                         </div>
