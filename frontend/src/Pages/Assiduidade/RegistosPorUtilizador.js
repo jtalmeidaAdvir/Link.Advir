@@ -198,7 +198,7 @@ const RegistosPorUtilizador = () => {
             setInitError(null);
 
             try {
-                console.log('🔄 Iniciando carregamento de dados essenciais...');
+                //console.log('🔄 Iniciando carregamento de dados essenciais...');
 
                 // Validar tokens antes de começar
                 const painelAdminToken = secureStorage.getItem('painelAdminToken');
@@ -229,7 +229,7 @@ const RegistosPorUtilizador = () => {
                     throw new Error(`Falha ao carregar dados essenciais: ${erros}`);
                 }
 
-                console.log('✅ Todos os dados essenciais carregados com sucesso');
+                //console.log('✅ Todos os dados essenciais carregados com sucesso');
                 setIsInitialized(true);
 
             } catch (error) {
@@ -277,7 +277,7 @@ const RegistosPorUtilizador = () => {
                         mapaFaltas[t.Falta] = t.Descricao;
                     });
                     setTiposFaltas(mapaFaltas);
-                    console.log('✅ Tipos de faltas carregados com sucesso:', tipos.length);
+                    //console.log('✅ Tipos de faltas carregados com sucesso:', tipos.length);
                     return true;
                 } else {
                     const errorText = await res.text();
@@ -332,7 +332,7 @@ const RegistosPorUtilizador = () => {
                         mapaHorasExtras[t.HoraExtra] = t.Descricao;
                     });
                     setTiposHorasExtras(mapaHorasExtras);
-                    console.log('✅ Tipos de horas extras carregados com sucesso:', tipos.length);
+                    //console.log('✅ Tipos de horas extras carregados com sucesso:', tipos.length);
                     return true;
                 } else {
                     const errorText = await res.text();
@@ -406,7 +406,7 @@ const RegistosPorUtilizador = () => {
                 });
             });
 
-            console.log('✅ Utilizadores carregados:', utilizadoresOrdenados.length);
+            //console.log('✅ Utilizadores carregados:', utilizadoresOrdenados.length);
             setUtilizadores(utilizadoresOrdenados);
             return true;
         } catch (err) {
@@ -437,7 +437,7 @@ const RegistosPorUtilizador = () => {
                 throw new Error('Formato de resposta inválido ao carregar obras');
             }
 
-            console.log('✅ Obras carregadas:', data.length);
+            //console.log('✅ Obras carregadas:', data.length);
             setObras(data);
             return true;
         } catch (err) {
@@ -473,7 +473,7 @@ const RegistosPorUtilizador = () => {
 
         try {
             // 1) Validar e carregar tipos de faltas primeiro
-            console.log('🔍 [GRADE] Etapa 1: Validando tipos de faltas...');
+            //console.log('🔍 [GRADE] Etapa 1: Validando tipos de faltas...');
             setLoadingMessage('Validando tipos de faltas...');
 
             const painelAdminToken = secureStorage.getItem('painelAdminToken');
@@ -489,7 +489,7 @@ const RegistosPorUtilizador = () => {
             // Carregar tipos de faltas com validação
             try {
                 await carregarTiposFaltas();
-                console.log('✅ [GRADE] Tipos de faltas validados com sucesso');
+                //console.log('✅ [GRADE] Tipos de faltas validados com sucesso');
             } catch (err) {
                 console.error('❌ [GRADE] Erro ao validar tipos de faltas:', err);
                 alert('Erro ao carregar tipos de faltas. Por favor, tente novamente.');
@@ -586,7 +586,7 @@ const RegistosPorUtilizador = () => {
 
                             // Validar estrutura de resposta
                             if (!dataFaltas || !dataFaltas.DataSet || !Array.isArray(dataFaltas.DataSet.Table)) {
-                                console.warn(`⚠️ [GRADE] Formato de resposta inválido ao carregar faltas para ${user.nome}`);
+                                //console.warn(`⚠️ [GRADE] Formato de resposta inválido ao carregar faltas para ${user.nome}`);
                             } else {
                                 const listaFaltasMes = dataFaltas.DataSet.Table;
 
@@ -611,7 +611,7 @@ const RegistosPorUtilizador = () => {
                                             return f.Funcionario === codFuncionario && anoFalta === parseInt(anoSelecionado);
                                         });
 
-                                        console.log(`✅ [GRADE] ${user.nome}: ${faltasUtilizador.length} faltas carregadas para ${mesSelecionado}/${anoSelecionado}`);
+                                      //  //console.log(`✅ [GRADE] ${user.nome}: ${faltasUtilizador.length} faltas carregadas para ${mesSelecionado}/${anoSelecionado}`);
                                     } else {
                                         console.warn(`⚠️ [GRADE] codFuncionario não encontrado para ${user.nome}`);
                                     }
@@ -758,26 +758,26 @@ const RegistosPorUtilizador = () => {
             });
 
             // Validação final da integridade dos dados
-            console.log('🔍 [GRADE] Validação final da grade...');
-            console.log(`📊 [GRADE] Total de utilizadores na grade: ${dadosGradeTemp.length}`);
+          //  //console.log('🔍 [GRADE] Validação final da grade...');
+         //   //console.log(`📊 [GRADE] Total de utilizadores na grade: ${dadosGradeTemp.length}`);
 
             const totalFaltasNaGrade = dadosGradeTemp.reduce((sum, user) => sum + (user.totalFaltas || 0), 0);
             const totalRegistosNaGrade = dadosGradeTemp.reduce((sum, user) => sum + (user.totalRegistos || 0), 0);
 
-            console.log(`📊 [GRADE] Total de faltas na grade: ${totalFaltasNaGrade}`);
-            console.log(`📊 [GRADE] Total de registos na grade: ${totalRegistosNaGrade}`);
+           // //console.log(`📊 [GRADE] Total de faltas na grade: ${totalFaltasNaGrade}`);
+           // //console.log(`📊 [GRADE] Total de registos na grade: ${totalRegistosNaGrade}`);
 
             if (dadosGradeTemp.length === 0) {
                 console.warn('⚠️ [GRADE] Nenhum utilizador com dados para o período selecionado');
             }
 
-            console.log('✅ [GRADE] Validação final concluída - definindo grade');
+            //console.log('✅ [GRADE] Validação final concluída - definindo grade');
 
             setDadosGrade(dadosGradeTemp);
             setLoadingProgress(100);
             setLoadingMessage('Concluído!');
 
-            console.log('✅ [GRADE] Grade carregada com sucesso!');
+            //console.log('✅ [GRADE] Grade carregada com sucesso!');
 
         } catch (err) {
             console.error('❌ [GRADE] Erro ao carregar dados da grade:', err);
@@ -1423,7 +1423,7 @@ const RegistosPorUtilizador = () => {
 
                     if (resEliminar.ok) {
                         registosEliminados++;
-                        console.log(`Registo ${registo.id} eliminado com sucesso`);
+                        //console.log(`Registo ${registo.id} eliminado com sucesso`);
                     } else {
                         console.error(`Erro ao eliminar registo ${registo.id}:`, await resEliminar.text());
                         erros++;
@@ -1749,7 +1749,7 @@ const RegistosPorUtilizador = () => {
 
             if (res.ok) {
                 const registos = await res.json();
-                console.log('Registos carregados para edição (todas as obras):', registos);
+                //console.log('Registos carregados para edição (todas as obras):', registos);
 
                 // Criar um registo "virtual" que representa o dia completo com todos os registos
                 const registoVirtual = {
@@ -1761,7 +1761,7 @@ const RegistosPorUtilizador = () => {
                     registosOriginais: registos || []
                 };
 
-                console.log('Registo virtual criado:', registoVirtual);
+                //console.log('Registo virtual criado:', registoVirtual);
 
                 setRegistoParaEditar(registoVirtual);
                 setDadosEdicao({
@@ -1900,7 +1900,7 @@ const RegistosPorUtilizador = () => {
                 Observacoes: observacoesHoraExtra || 'Registado via interface de administração'
             };
 
-            console.log('📤 Enviando hora extra para ERP:', dadosERP);
+            //console.log('📤 Enviando hora extra para ERP:', dadosERP);
 
             const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirHoraExtra`, {
                 method: 'POST',
@@ -1912,7 +1912,7 @@ const RegistosPorUtilizador = () => {
                 body: JSON.stringify(dadosERP)
             });
 
-            console.log('📥 Resposta HTTP:', resERP.status, resERP.statusText);
+            //console.log('📥 Resposta HTTP:', resERP.status, resERP.statusText);
 
             if (resERP.ok) {
                 alert('✅ Hora extra registada com sucesso!');
@@ -2075,12 +2075,12 @@ const RegistosPorUtilizador = () => {
                             SubAlimProporcional: 0
                         };
 
-                        console.log('📤 Enviando falta para ERP:', dadosERP);
-                        console.log('🔑 Headers:', { 
+                        //console.log('📤 Enviando falta para ERP:', dadosERP);
+                        /*//console.log('🔑 Headers:', { 
                             'Content-Type': 'application/json',
                             Authorization: `Bearer ${painelToken.substring(0, 20)}...`,
                             urlempresa 
-                        });
+                        });*/
 
                         const resERP = await fetch(`https://webapiprimavera.advir.pt/routesFaltas/InserirFalta`, {
                             method: 'POST',
@@ -2092,11 +2092,11 @@ const RegistosPorUtilizador = () => {
                             body: JSON.stringify(dadosERP)
                         });
 
-                        console.log('📥 Resposta HTTP:', resERP.status, resERP.statusText);
+                        //console.log('📥 Resposta HTTP:', resERP.status, resERP.statusText);
 
                         if (resERP.ok) {
                             faltasRegistadas++;
-                            console.log(`✅ Falta registada para ${dataAtualFormatada}`);
+                            //console.log(`✅ Falta registada para ${dataAtualFormatada}`);
                             
                             // Verificar se é fim de semana
                             const dataObj = new Date(dataAtualFormatada);
@@ -2153,7 +2153,7 @@ const RegistosPorUtilizador = () => {
 
                                 if (resF40.ok) {
                                     faltasF40Registadas++;
-                                    console.log(`✅ Falta F40 criada para ${dataAtualFormatada}`);
+                                    //console.log(`✅ Falta F40 criada para ${dataAtualFormatada}`);
                                 } else {
                                     const errorF40 = await resF40.text();
                                     console.error(`❌ Erro ao criar F40 para ${dataAtualFormatada}:`, errorF40);
@@ -2296,7 +2296,7 @@ const RegistosPorUtilizador = () => {
 
                         if (resERP.ok) {
                             horasExtrasRegistadas++;
-                            console.log(`✅ Hora extra registada: ${funcionarioId} - dia ${dia}`);
+                            //console.log(`✅ Hora extra registada: ${funcionarioId} - dia ${dia}`);
                         } else {
                             const errorText = await resERP.text();
                             console.error(`Erro ao registar hora extra para dia ${dia}:`, errorText);
@@ -2486,7 +2486,7 @@ const RegistosPorUtilizador = () => {
 
                         if (resERP.ok) {
                             faltasRegistadas++;
-                            console.log(`✅ Falta registada: ${funcionarioId} - dia ${dia}`);
+                            //console.log(`✅ Falta registada: ${funcionarioId} - dia ${dia}`);
 
                             // Se desconta alimentação, criar F40 automaticamente
                             if (descontaAlimentacao) {
@@ -2538,7 +2538,7 @@ const RegistosPorUtilizador = () => {
 
                                 if (resF40.ok) {
                                     faltasF40Registadas++;
-                                    console.log(`✅ Falta F40 automática registada: ${funcionarioId} - dia ${dia}`);
+                                    //console.log(`✅ Falta F40 automática registada: ${funcionarioId} - dia ${dia}`);
                                 } else {
                                     console.error(`Erro ao registar falta F40 para dia ${dia}:`, await resF40.text());
                                 }
@@ -4534,7 +4534,7 @@ const RegistosPorUtilizador = () => {
                                                             }
 
                                                             const cellKey = `${userId}-${diaNum}`;
-                                                            console.log(`[DEBUG] Clique na célula - utilizador.id: ${userId}, dia: ${diaNum}, cellKey: "${cellKey}"`);
+                                                            //console.log(`[DEBUG] Clique na célula - utilizador.id: ${userId}, dia: ${diaNum}, cellKey: "${cellKey}"`);
 
                                                             if (e.ctrlKey) {
                                                                 // Ctrl + Click = Seleção múltipla
@@ -4542,7 +4542,7 @@ const RegistosPorUtilizador = () => {
                                                                     const newCells = cells.includes(cellKey)
                                                                         ? cells.filter(c => c !== cellKey)
                                                                         : [...cells, cellKey];
-                                                                    console.log(`[DEBUG] Células selecionadas atualizadas:`, newCells);
+                                                                    //console.log(`[DEBUG] Células selecionadas atualizadas:`, newCells);
                                                                     return newCells;
                                                                 });
                                                             } else {
