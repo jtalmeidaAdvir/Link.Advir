@@ -28,6 +28,7 @@ const RegistosPorUtilizador = () => {
     const [diasDoMes, setDiasDoMes] = useState([]);
     const [tiposFaltas, setTiposFaltas] = useState({});
     const [tiposHorasExtras, setTiposHorasExtras] = useState({});
+    const [horasExtrasUtilizadores, setHorasExtrasUtilizadores] = useState({});
 
     const token = secureStorage.getItem('loginToken');
 
@@ -351,6 +352,51 @@ const RegistosPorUtilizador = () => {
             }
         }
     };
+
+    const carregarHorasExtrasUtilizadores = async () => {
+        const painelAdminToken = secureStorage.getItem('painelAdminToken');
+        const urlempresa = secureStorage.getItem('urlempresa');
+
+        if (!painelAdminToken || !urlempresa) {
+            console.warn('⚠️ Tokens do Primavera não disponíveis para carregar horas extras');
+            return {};
+        }
+
+        try {
+            const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/GetListaHorasExtrasTodosFuncionarios', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${painelAdminToken}`,
+                    urlempresa: urlempresa,
+                },
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                const horasExtras = data?.DataSet?.Table ?? [];
+
+                // Organizar horas extras por funcionário e data
+                const horasExtrasPorFuncionario = {};
+                horasExtras.forEach(he => {
+                    const funcionario = he.Funcionario;
+                    if (!horasExtrasPorFuncionario[funcionario]) {
+                        horasExtrasPorFuncionario[funcionario] = [];
+                    }
+                    horasExtrasPorFuncionario[funcionario].push(he);
+                });
+
+                //console.log('✅ Horas extras de todos os funcionários carregadas:', Object.keys(horasExtrasPorFuncionario).length);
+                return horasExtrasPorFuncionario;
+            } else {
+                console.warn('⚠️ Erro HTTP ao carregar horas extras:', res.status);
+                return {};
+            }
+        } catch (err) {
+            console.error('❌ Erro ao carregar horas extras:', err);
+            return {};
+        }
+    };
     useEffect(() => {
         if (utilizadorSelecionado) {
             carregarDetalhesUtilizador(utilizadores.find(u => u.id.toString() === utilizadorSelecionado.toString()));
@@ -473,8 +519,8 @@ const RegistosPorUtilizador = () => {
 
         try {
             // 1) Validar e carregar tipos de faltas primeiro
-            //console.log('🔍 [GRADE] Etapa 1: Validando tipos de faltas...');
-            setLoadingMessage('Validando tipos de faltas...');
+            //console.log('🔍 [GRADE] Etapa 1: Validando tipos de faltas e horas extras...');
+            setLoadingMessage('Validando tipos de faltas e horas extras...');
 
             const painelAdminToken = secureStorage.getItem('painelAdminToken');
             const urlempresa = secureStorage.getItem('urlempresa');
@@ -486,13 +532,16 @@ const RegistosPorUtilizador = () => {
                 return;
             }
 
-            // Carregar tipos de faltas com validação
+            // Carregar tipos de faltas e horas extras com validação
             try {
-                await carregarTiposFaltas();
-                //console.log('✅ [GRADE] Tipos de faltas validados com sucesso');
+                await Promise.all([
+                    carregarTiposFaltas(),
+                    carregarTiposHorasExtras()
+                ]);
+                //console.log('✅ [GRADE] Tipos de faltas e horas extras validados com sucesso');
             } catch (err) {
-                console.error('❌ [GRADE] Erro ao validar tipos de faltas:', err);
-                alert('Erro ao carregar tipos de faltas. Por favor, tente novamente.');
+                console.error('❌ [GRADE] Erro ao validar tipos:', err);
+                alert('Erro ao carregar tipos de faltas/horas extras. Por favor, tente novamente.');
                 setLoadingGrade(false);
                 return;
             }
@@ -541,7 +590,7 @@ const RegistosPorUtilizador = () => {
             const progressPerUser = 70 / totalUsers;
 
             // Processar em lotes paralelos para otimizar
-            const BATCH_SIZE = 30; // Processar 5 utilizadores em paralelo
+            const BATCH_SIZE = 30;
 
             for (let i = 0; i < utilizadoresParaPesquisar.length; i += BATCH_SIZE) {
                 const batch = utilizadoresParaPesquisar.slice(i, Math.min(i + BATCH_SIZE, utilizadoresParaPesquisar.length));
@@ -561,72 +610,97 @@ const RegistosPorUtilizador = () => {
                             })
                         ]);
 
-                        // Carregar faltas do utilizador (em paralelo) com validação
+                        // Carregar faltas E horas extras do utilizador (em paralelo) com validação
                         const painelAdminToken = secureStorage.getItem('painelAdminToken');
                         const urlempresa = secureStorage.getItem('urlempresa');
                         const loginToken = secureStorage.getItem('loginToken');
 
                         let faltasUtilizador = [];
+                        let horasExtrasUtilizador = [];
+                        
                         if (painelAdminToken && urlempresa && loginToken) {
                             try {
-                                // Usar o novo endpoint mensal que retorna todas as faltas do mês
-                        const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}`;
+                                // Usar o novo endpoint mensal que retorna FALTAS E HORAS EXTRAS
+                                const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}`;
 
-                        const resFaltas = await fetch(urlFaltasMensal, {
-                            method: 'GET',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${painelAdminToken}`,
-                                urlempresa: urlempresa,
-                            },
-                        });
-
-                        if (resFaltas.ok) {
-                            const dataFaltas = await resFaltas.json();
-
-                            // Validar estrutura de resposta
-                            if (!dataFaltas || !dataFaltas.DataSet || !Array.isArray(dataFaltas.DataSet.Table)) {
-                                //console.warn(`⚠️ [GRADE] Formato de resposta inválido ao carregar faltas para ${user.nome}`);
-                            } else {
-                                const listaFaltasMes = dataFaltas.DataSet.Table;
-
-                                // Obter codFuncionario do utilizador para filtrar as faltas
-                                const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
+                                const resFaltas = await fetch(urlFaltasMensal, {
                                     method: 'GET',
                                     headers: {
-                                        'Authorization': `Bearer ${loginToken}`,
                                         'Content-Type': 'application/json',
+                                        Authorization: `Bearer ${painelAdminToken}`,
+                                        urlempresa: urlempresa,
                                     },
                                 });
 
-                                if (resCodFuncionario.ok) {
-                                    const dataCodFuncionario = await resCodFuncionario.json();
-                                    const codFuncionario = dataCodFuncionario.codFuncionario;
+                                if (resFaltas.ok) {
+                                    const dataFaltas = await resFaltas.json();
 
-                                    if (codFuncionario) {
-                                        // Filtrar faltas deste funcionário específico e do ano selecionado
-                                        faltasUtilizador = listaFaltasMes.filter(f => {
-                                            const dataFalta = new Date(f.Data);
-                                            const anoFalta = dataFalta.getFullYear();
-                                            return f.Funcionario === codFuncionario && anoFalta === parseInt(anoSelecionado);
+                                    // Validar estrutura de resposta
+                                    if (!dataFaltas || !dataFaltas.DataSet || !Array.isArray(dataFaltas.DataSet.Table)) {
+                                        //console.warn(`⚠️ [GRADE] Formato de resposta inválido para ${user.nome}`);
+                                    } else {
+                                        const listaMes = dataFaltas.DataSet.Table;
+
+                                        // Obter codFuncionario do utilizador
+                                        const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
+                                            method: 'GET',
+                                            headers: {
+                                                'Authorization': `Bearer ${loginToken}`,
+                                                'Content-Type': 'application/json',
+                                            },
                                         });
 
-                                      //  //console.log(`✅ [GRADE] ${user.nome}: ${faltasUtilizador.length} faltas carregadas para ${mesSelecionado}/${anoSelecionado}`);
-                                    } else {
-                                        console.warn(`⚠️ [GRADE] codFuncionario não encontrado para ${user.nome}`);
+                                        if (resCodFuncionario.ok) {
+                                            const dataCodFuncionario = await resCodFuncionario.json();
+                                            const codFuncionario = dataCodFuncionario.codFuncionario;
+
+                                            if (codFuncionario) {
+                                                // Processar dados do mês - separar faltas e horas extras
+                                                listaMes.forEach(item => {
+                                                    const anoItem = item.Data1 ? new Date(item.Data1).getFullYear() : 
+                                                                   item.Data ? new Date(item.Data).getFullYear() : null;
+                                                    
+                                                    // Validar se é do ano selecionado
+                                                    if (anoItem !== parseInt(anoSelecionado)) return;
+
+                                                    // Verificar se é FALTA (tem Funcionario1 e Falta1)
+                                                    if (item.Funcionario1 === codFuncionario && item.Falta1) {
+                                                        faltasUtilizador.push({
+                                                            Funcionario: item.Funcionario1,
+                                                            Data: item.Data1,
+                                                            Falta: item.Falta1,
+                                                            Horas: item.Horas,
+                                                            Tempo: item.Tempo
+                                                        });
+                                                    }
+                                                    
+                                                    // Verificar se é HORA EXTRA (tem Funcionario e HoraExtra)
+                                                    if (item.Funcionario === codFuncionario && item.HoraExtra) {
+                                                        horasExtrasUtilizador.push({
+                                                            Funcionario: item.Funcionario,
+                                                            Data: item.Data,
+                                                            HoraExtra: item.HoraExtra,
+                                                            Tempo: item.TempoExtra
+                                                        });
+                                                    }
+                                                });
+
+                                                //console.log(`✅ [GRADE] ${user.nome}: ${faltasUtilizador.length} faltas e ${horasExtrasUtilizador.length} horas extras para ${mesSelecionado}/${anoSelecionado}`);
+                                            } else {
+                                                console.warn(`⚠️ [GRADE] codFuncionario não encontrado para ${user.nome}`);
+                                            }
+                                        } else {
+                                            console.warn(`⚠️ [GRADE] Não foi possível obter codFuncionario para ${user.nome}`);
+                                        }
                                     }
                                 } else {
-                                    console.warn(`⚠️ [GRADE] Não foi possível obter codFuncionario para ${user.nome}`);
+                                    console.warn(`⚠️ [GRADE] Erro HTTP ${resFaltas.status} ao carregar dados do mês ${mesSelecionado}`);
                                 }
-                            }
-                        } else {
-                            console.warn(`⚠️ [GRADE] Erro HTTP ${resFaltas.status} ao carregar faltas do mês ${mesSelecionado}`);
-                        }
                             } catch (faltaErr) {
-                                console.error(`❌ [GRADE] Erro ao carregar faltas para ${user.nome}:`, faltaErr);
+                                console.error(`❌ [GRADE] Erro ao carregar dados para ${user.nome}:`, faltaErr);
                             }
                         } else {
-                            console.warn(`⚠️ [GRADE] Tokens não disponíveis para carregar faltas de ${user.nome}`);
+                            console.warn(`⚠️ [GRADE] Tokens não disponíveis para carregar dados de ${user.nome}`);
                         }
 
                         if (resRegistos.ok) {
@@ -635,6 +709,7 @@ const RegistosPorUtilizador = () => {
                             // Organizar registos por dia (otimizado)
                             const registosPorDia = {};
                             const faltasPorDia = {};
+                            const horasExtrasPorDia = {};
 
                             registos.forEach(reg => {
                                 const dia = new Date(reg.timestamp).getDate();
@@ -648,6 +723,12 @@ const RegistosPorUtilizador = () => {
                                 faltasPorDia[dia].push(falta);
                             });
 
+                            horasExtrasUtilizador.forEach(he => {
+                                const dia = new Date(he.Data).getDate();
+                                if (!horasExtrasPorDia[dia]) horasExtrasPorDia[dia] = [];
+                                horasExtrasPorDia[dia].push(he);
+                            });
+
                             // Calcular estatísticas por dia (otimizado)
                             const estatisticasDias = {};
                             let totalDiasComRegistos = 0;
@@ -656,8 +737,9 @@ const RegistosPorUtilizador = () => {
                             dias.forEach(dia => {
                                 const regs = registosPorDia[dia] || [];
                                 const faltas = faltasPorDia[dia] || [];
+                                const horasExtras = horasExtrasPorDia[dia] || [];
 
-                                if (regs.length > 0 || faltas.length > 0) {
+                                if (regs.length > 0 || faltas.length > 0 || horasExtras.length > 0) {
                                     if (regs.length > 0) totalDiasComRegistos++;
 
                                     const entradas = regs.filter(r => r.tipo === 'entrada').length;
@@ -697,7 +779,8 @@ const RegistosPorUtilizador = () => {
                                         primeiroRegisto: timestamps.length > 0 ? new Date(Math.min(...timestamps)).toLocaleTimeString('pt-PT') : null,
                                         ultimoRegisto: timestamps.length > 0 ? new Date(Math.max(...timestamps)).toLocaleTimeString('pt-PT') : null,
                                         obras: [...new Set(regs.map(r => r.Obra?.nome).filter(Boolean))],
-                                        faltas: faltas
+                                        faltas: faltas,
+                                        horasExtras: horasExtras
                                     };
                                 }
                             });
@@ -708,7 +791,8 @@ const RegistosPorUtilizador = () => {
                                 totalDias: totalDiasComRegistos,
                                 totalRegistos: registos.length,
                                 totalHorasEstimadas: totalHorasEstimadas.toFixed(1),
-                                totalFaltas: faltasUtilizador.length
+                                totalFaltas: faltasUtilizador.length,
+                                totalHorasExtras: horasExtrasUtilizador.length
                             });
                         } else {
                             dadosGradeTemp.push({
@@ -728,7 +812,8 @@ const RegistosPorUtilizador = () => {
                             totalDias: 0,
                             totalRegistos: 0,
                             totalHorasEstimadas: '0.0',
-                            totalFaltas: 0
+                            totalFaltas: 0,
+                            totalHorasExtras: 0
                         });
                     }
 
@@ -1219,45 +1304,89 @@ const RegistosPorUtilizador = () => {
     };
 
 
-    // Function to get cell content (including absence data)
-    const obterConteudoCelula = (funcionario, dia) => {
-        const registosDoDia = funcionario.registos?.filter(r => {
-            const dataRegisto = new Date(r.dataRegisto || r.Data);
-            return dataRegisto.getDate() === dia;
-        }) || [];
+    // Function to get cell content (including absence data and overtime)
+    const obterConteudoCelula = (estatisticas) => {
+        // Se não há estatísticas, célula vazia
+        if (!estatisticas) {
+            return { texto: '-', cor: '#f5f5f5', textoCor: '#999' };
+        }
 
-        // Verificar se há faltas neste dia
-        const faltasDoDia = funcionario.faltas?.filter(f => {
-            const dataFalta = new Date(f.Data);
-            return dataFalta.getDate() === dia;
-        }) || [];
-
-        // Se há falta, mostrar F
-        if (faltasDoDia.length > 0) {
-            const tipoFalta = faltasDoDia[0].Falta || 'F';
+        // PRIORIDADE 1: Verificar se há faltas (com ou sem registos)
+        if (estatisticas.faltas && estatisticas.faltas.length > 0) {
+            const tipoFalta = estatisticas.faltas[0].Falta || 'F';
+            const descricaoFalta = tiposFaltas[tipoFalta] || tipoFalta;
             return {
                 texto: tipoFalta,
                 cor: '#ffebee',
                 textoCor: '#d32f2f',
-                title: `Falta: ${faltasDoDia[0].Falta || 'Não especificada'}`
+                title: `Falta: ${descricaoFalta}`
             };
         }
 
-        if (registosDoDia.length === 0) {
+        // PRIORIDADE 2: Verificar se há horas extras
+        if (estatisticas.horasExtras && estatisticas.horasExtras.length > 0) {
+            const totalHE = estatisticas.horasExtras.reduce((sum, he) => {
+                const tempo = parseFloat(he.Tempo);
+                return sum + (isNaN(tempo) ? 0 : tempo);
+            }, 0);
+
+            const tiposHE = [...new Set(estatisticas.horasExtras.map(he => {
+                const tipo = he.HorasExtra || he.HoraExtra;
+                return tiposHorasExtras[tipo] || tipo;
+            }))].join(', ');
+
+            // Se NÃO tem registos, mostrar apenas HE
+            if (!estatisticas.totalRegistos || estatisticas.totalRegistos === 0) {
+                return {
+                    texto: `+${totalHE}h`,
+                    cor: '#e3f2fd',
+                    textoCor: '#1976d2',
+                    title: `Horas Extras: ${totalHE}h (${tiposHE})`
+                };
+            }
+
+            // Se tem registos, mostrar horas normais + HE
+            const horasNormais = parseFloat(estatisticas.horasEstimadas) || 0;
+            return {
+                texto: `${horasNormais}h+${totalHE}h`,
+                cor: '#e8f5e9',
+                textoCor: '#2e7d32',
+                title: `Horas Trabalhadas: ${horasNormais}h | Horas Extras: ${totalHE}h (${tiposHE})`
+            };
+        }
+
+        // PRIORIDADE 3: Se não tem registos, faltas nem horas extras
+        if (!estatisticas.totalRegistos || estatisticas.totalRegistos === 0) {
             return { texto: '-', cor: '#f5f5f5', textoCor: '#999' };
         }
 
-        // Lógica para determinar o conteúdo baseado nos registos
-        const temEntrada = registosDoDia.some(r => r.tipo === 'entrada' || r.TipoRegisto === 'Entrada');
-        const temSaida = registosDoDia.some(r => r.tipo === 'saida' || r.TipoRegisto === 'Saída');
+        // PRIORIDADE 4: Mostrar horas normais baseado na percentagem de confirmação
+        const percentagemConfirmados = (estatisticas.confirmados / estatisticas.totalRegistos) * 100;
+        const horas = parseFloat(estatisticas.horasEstimadas);
 
-        if (temEntrada && temSaida) {
-            return { texto: 'P', cor: '#e8f5e8', textoCor: '#2e7d32' }; // Presente
-        } else if (temEntrada) {
-            return { texto: '½', cor: '#fff3e0', textoCor: '#f57c00' }; // Meio dia
-        } else {
-            return { texto: '?', cor: '#ffebee', textoCor: '#d32f2f' }; // Situação indefinida
+        if (percentagemConfirmados === 100 && horas >= 7) {
+            return { 
+                texto: `${estatisticas.horasEstimadas}h`, 
+                cor: '#e8f5e9', 
+                textoCor: '#2e7d32',
+                title: `${estatisticas.horasEstimadas}h - ${estatisticas.totalRegistos} registos`
+            };
         }
+        if (percentagemConfirmados >= 80 && horas >= 6) {
+            return { 
+                texto: `${estatisticas.horasEstimadas}h`, 
+                cor: '#fff3e0', 
+                textoCor: '#f57c00',
+                title: `${estatisticas.horasEstimadas}h - ${estatisticas.totalRegistos} registos`
+            };
+        }
+
+        return { 
+            texto: `${estatisticas.horasEstimadas}h`, 
+            cor: '#ffebee', 
+            textoCor: '#d32f2f',
+            title: `${estatisticas.horasEstimadas}h - ${estatisticas.totalRegistos} registos (problemas)`
+        };
     };
 
     const obterCodFuncionario = async (userId) => {
@@ -1880,7 +2009,7 @@ const RegistosPorUtilizador = () => {
         const token = secureStorage.getItem('loginToken');
         const painelToken = secureStorage.getItem('painelAdminToken');
         const urlempresa = secureStorage.getItem('urlempresa');
-        
+
         const funcionarioId = await obterCodFuncionario(userToRegistar);
 
         if (!funcionarioId) {
@@ -1952,7 +2081,7 @@ const RegistosPorUtilizador = () => {
         const token = secureStorage.getItem('loginToken');
         const painelToken = secureStorage.getItem('painelAdminToken');
         const urlempresa = secureStorage.getItem('urlempresa');
-        
+
         // Obter o codFuncionario através do endpoint
         const funcionarioId = await obterCodFuncionario(userToRegistar);
 
@@ -1966,16 +2095,16 @@ const RegistosPorUtilizador = () => {
 
         // Criar lista de datas a processar
         const datasParaProcessar = [];
-        
+
         if (faltaIntervalo && dataFimFalta) {
             // Calcular todas as datas no intervalo
             const dataInicio = new Date(`${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaToRegistar).padStart(2, '0')}`);
             const dataFim = new Date(dataFimFalta);
-            
+
             if (dataFim < dataInicio) {
                 return alert('A data de fim deve ser posterior à data de início.');
             }
-            
+
             let dataAtual = new Date(dataInicio);
             while (dataAtual <= dataFim) {
                 const dia = dataAtual.getDate();
@@ -1992,7 +2121,7 @@ const RegistosPorUtilizador = () => {
                 `Até: ${new Date(dataFim).toLocaleDateString('pt-PT')}\n\n` +
                 `Deseja continuar?`
             );
-            
+
             if (!confirmacao) {
                 return;
             }
@@ -2097,7 +2226,7 @@ const RegistosPorUtilizador = () => {
                         if (resERP.ok) {
                             faltasRegistadas++;
                             //console.log(`✅ Falta registada para ${dataAtualFormatada}`);
-                            
+
                             // Verificar se é fim de semana
                             const dataObj = new Date(dataAtualFormatada);
                             const diaSemana = dataObj.getDay();
@@ -4594,29 +4723,26 @@ const RegistosPorUtilizador = () => {
 
 
                                                     >
-                                                        {estatisticas ? (
-                                                            <div style={styles.gradeCellContent}>
-                                                                <div style={styles.gradeCellHoras}>
-                                                                    {(() => {
-                                                                        const horasDecimal = parseFloat(estatisticas.horasEstimadas);
-                                                                        const horas = Math.floor(horasDecimal);
-                                                                        const minutos = Math.round((horasDecimal - horas) * 60);
-                                                                        return minutos > 0 ? `${horas}h ${minutos}m` : `${horas}h`;
-                                                                    })()}
+                                                        {(() => {
+                                                            const cellData = obterConteudoCelula(estatisticas);
+                                                            return (
+                                                                <div style={{
+                                                                    ...styles.gradeCellContent,
+                                                                    color: cellData.textoCor,
+                                                                    fontWeight: '600'
+                                                                }}>
+                                                                    <div style={{ whiteSpace: 'pre-line', fontSize: '0.75rem' }}>
+                                                                        {cellData.texto}
+                                                                    </div>
+                                                                    {estatisticas && estatisticas.totalRegistos > 0 && (
+                                                                        <div style={styles.gradeCellRegistos}>{estatisticas.totalRegistos}r</div>
+                                                                    )}
+                                                                    {estatisticas && estatisticas.naoConfirmados > 0 && (
+                                                                        <div style={styles.gradeCellAlert}>⚠️{estatisticas.naoConfirmados}</div>
+                                                                    )}
                                                                 </div>
-                                                                <div style={styles.gradeCellRegistos}>{estatisticas.totalRegistos}r</div>
-                                                                {estatisticas.faltas && estatisticas.faltas.length > 0 && (
-                                                                    <div style={styles.gradeCellFaltas}>📅{estatisticas.faltas.length}</div>
-                                                                )}
-                                                                {estatisticas.naoConfirmados > 0 && (
-                                                                    <div style={styles.gradeCellAlert}>⚠️{estatisticas.naoConfirmados}</div>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <div style={{ ...styles.gradeCellEmpty, cursor: 'pointer' }}>
-                                                                <div style={{ fontSize: '0.7rem', color: '#a0aec0' }}>+</div>
-                                                            </div>
-                                                        )}
+                                                            );
+                                                        })()}
                                                     </td>
                                                 );
                                             })}
@@ -4870,13 +4996,13 @@ const RegistosPorUtilizador = () => {
             )}
 
             {/* Empty States */}
-           
+
 
             {viewMode === 'grade' && !loadingGrade && (anoSelecionado && mesSelecionado) && (
                 <div style={styles.emptyState}>
                     <span style={styles.emptyIcon}></span>
                     <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '10px' }}>
-                    
+
                     </p>
                 </div>
             )}

@@ -15,6 +15,7 @@ const AprovacaoPontoPendentes = () => {
   const [minhasEquipas, setMinhasEquipas] = useState([]);
   const [resumosDia, setResumosDia] = useState({});
   const [loadingResumo, setLoadingResumo] = useState({});
+  const [modalResumoAberto, setModalResumoAberto] = useState(null);
   const token = secureStorage.getItem('loginToken');
   const urlempresa = secureStorage.getItem('urlempresa');
 
@@ -310,6 +311,7 @@ const tipoUser = secureStorage.getItem('tipoUser'); // ou usa context/state se a
         .registo-card {
           transition: all 0.3s ease;
           height: 100%;
+          position: relative;
         }
         .registo-card:hover {
           transform: translateY(-3px);
@@ -361,65 +363,93 @@ const tipoUser = secureStorage.getItem('tipoUser'); // ou usa context/state se a
             font-size: 1.5rem;
           }
         }
-      .tooltip-resumo {
-          position: absolute;
-          background: white;
-          border: 2px solid #007bff;
-          border-radius: 12px;
-          padding: 15px;
-          box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-          z-index: 10000;
-          min-width: 300px;
-          max-width: 400px;
+      .modal-resumo-overlay {
+          position: fixed;
           top: 0;
-          left: 105%;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.3s ease;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 99999;
+          padding: 20px;
+          backdrop-filter: blur(4px);
         }
-        .registo-card:hover .tooltip-resumo {
-          opacity: 1;
-          pointer-events: auto;
+        .modal-resumo-content {
+          background: white;
+          border-radius: 20px;
+          padding: 25px;
+          width: 100%;
+          max-width: 500px;
+          max-height: 80vh;
+          overflow-y: auto;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          position: relative;
         }
-        .tooltip-resumo-header {
+        .modal-resumo-close {
+          position: absolute;
+          top: 15px;
+          right: 15px;
+          background: #f1f5f9;
+          border: none;
+          border-radius: 50%;
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          color: #64748b;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .modal-resumo-close:hover {
+          background: #e2e8f0;
+          color: #1e293b;
+        }
+        .modal-resumo-header {
+          font-size: 20px;
           font-weight: bold;
           color: #007bff;
-          margin-bottom: 10px;
-          padding-bottom: 8px;
+          margin-bottom: 20px;
+          padding-bottom: 15px;
           border-bottom: 2px solid #e9ecef;
         }
-        .tooltip-resumo-item {
-          padding: 4px 0;
-          font-size: 0.85rem;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
+        .modal-resumo-registos {
+          margin-top: 15px;
         }
-        .tooltip-resumo-registos {
-          margin-top: 10px;
-          padding-top: 10px;
-          border-top: 1px solid #e9ecef;
-          max-height: 200px;
-          overflow-y: auto;
-        }
-        .tooltip-resumo-registo {
-          padding: 6px 8px;
-          margin: 4px 0;
+        .modal-resumo-registo {
+          padding: 12px;
+          margin: 8px 0;
           background: #f8f9fa;
-          border-radius: 6px;
-          font-size: 0.8rem;
+          border-radius: 10px;
+          border-left: 4px solid #007bff;
         }
-        .tooltip-info-icon {
+        .info-icon-button {
           position: absolute;
-          top: 10px;
-          right: 10px;
-          color: #007bff;
-          font-size: 1.2rem;
-          animation: pulse 2s infinite;
+          top: 8px;
+          right: 8px;
+          background: #007bff;
+          border: 2px solid white;
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          z-index: 10;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
+        .info-icon-button:hover {
+          background: #0056b3;
+          transform: scale(1.15);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
       `}</style>
 
@@ -567,14 +597,21 @@ const tipoUser = secureStorage.getItem('tipoUser'); // ou usa context/state se a
                     <div 
                       key={registo.id} 
                       className="col-12 col-lg-6 col-xl-4"
-                      onMouseEnter={() => {
-                        if (registo.User?.id) {
-                          carregarResumoDia(registo.User.id, data.split('/').reverse().join('-'));
-                        }
-                      }}
                     >
                       <div className="card registo-card card-moderno h-100" style={{position: 'relative'}}>
-                        <FaInfoCircle className="tooltip-info-icon" />
+                        <button 
+                          className="info-icon-button"
+                          onClick={() => {
+                            if (registo.User?.id) {
+                              const dataFormatada = data.split('/').reverse().join('-');
+                              carregarResumoDia(registo.User.id, dataFormatada);
+                              setModalResumoAberto(chaveResumo);
+                            }
+                          }}
+                          title="Ver resumo do dia"
+                        >
+                          <FaInfoCircle />
+                        </button>
                         
                         <div className="card-body d-flex flex-column">
                           {/* Header do Card */}
@@ -669,62 +706,69 @@ const tipoUser = secureStorage.getItem('tipoUser'); // ou usa context/state se a
                           </div>
                         )}
 
-                        {/* Tooltip com Resumo do Dia */}
-                        <div className="tooltip-resumo">
-                          <div className="tooltip-resumo-header">
-                            📊 Resumo do Dia {data}
-                          </div>
-                          
-                          {isLoadingResumo ? (
-                            <div className="text-center py-3">
-                              <div className="spinner-border spinner-border-sm text-primary" role="status">
-                                <span className="visually-hidden">Carregando...</span>
-                              </div>
-                              <p className="mt-2 mb-0 small">Carregando resumo...</p>
-                            </div>
-                          ) : resumo ? (
-                            <>
-                             
-                              
-                              {resumo.registos.length > 0 && (
-                                <div className="tooltip-resumo-registos">
-                                  <small className="fw-bold text-muted">Picagens do dia:</small>
-                                  {resumo.registos.map((r, idx) => {
-                                    const { hora: horaReg } = formatarDataHora(r.timestamp);
-                                    return (
-                                      <div key={idx} className="tooltip-resumo-registo">
-                                        <div className="d-flex justify-content-between align-items-center">
-                                          <span>
-                                            <span className={`badge bg-${getBadgeColor(r.tipo)} me-2`} style={{fontSize: '0.7rem'}}>
-                                              {r.tipo.replace('_', ' ')}
-                                            </span>
-                                            {horaReg}
-                                          </span>
-                                          {r.is_confirmed && <span className="text-success">✓</span>}
-                                        </div>
-                                        {r.Obra?.nome && (
-                                          <small className="text-muted d-block mt-1">
-                                            {r.Obra.nome}
-                                          </small>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <div className="text-center text-muted small py-3">
-                              Passe o rato para ver o resumo
-                            </div>
-                          )}
                         </div>
-                      </div>
                     </div>
                   );
                 })
             )}
           </div>
+
+          {/* Modal de Resumo do Dia */}
+          {modalResumoAberto && (
+            <div className="modal-resumo-overlay" onClick={() => setModalResumoAberto(null)}>
+              <div className="modal-resumo-content" onClick={(e) => e.stopPropagation()}>
+                <button className="modal-resumo-close" onClick={() => setModalResumoAberto(null)}>
+                  ✕
+                </button>
+                
+                <div className="modal-resumo-header">
+                  📊 Resumo do Dia
+                </div>
+                
+                {loadingResumo[modalResumoAberto] ? (
+                  <div className="text-center py-4">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Carregando...</span>
+                    </div>
+                    <p className="mt-3 mb-0">Carregando resumo...</p>
+                  </div>
+                ) : resumosDia[modalResumoAberto] ? (
+                  <>
+                    {resumosDia[modalResumoAberto].registos.length > 0 && (
+                      <div className="modal-resumo-registos">
+                        <h6 className="fw-bold text-muted mb-3">Picagens do dia:</h6>
+                        {resumosDia[modalResumoAberto].registos.map((r, idx) => {
+                          const { hora: horaReg } = formatarDataHora(r.timestamp);
+                          return (
+                            <div key={idx} className="modal-resumo-registo">
+                              <div className="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                  <span className={`badge bg-${getBadgeColor(r.tipo)} me-2`}>
+                                    {r.tipo.replace('_', ' ').toUpperCase()}
+                                  </span>
+                                  <strong>{horaReg}</strong>
+                                </div>
+                                {r.is_confirmed && <span className="text-success fs-5">✓</span>}
+                              </div>
+                              {r.Obra?.nome && (
+                                <small className="text-muted">
+                                  📍 {r.Obra.nome}
+                                </small>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center text-muted py-4">
+                    Nenhum dado disponível
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
