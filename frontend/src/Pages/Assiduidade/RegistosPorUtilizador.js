@@ -112,6 +112,11 @@ const RegistosPorUtilizador = () => {
     const [faltaParaRemover, setFaltaParaRemover] = useState(null);
     const [loadingRemoverFalta, setLoadingRemoverFalta] = useState(false);
 
+    // State for remover hora extra modal
+    const [removerHoraExtraDialogOpen, setRemoverHoraExtraDialogOpen] = useState(false);
+    const [horaExtraParaRemover, setHoraExtraParaRemover] = useState(null);
+    const [loadingRemoverHoraExtra, setLoadingRemoverHoraExtra] = useState(false);
+
     // State for hora extra modal
     const [horaExtraDialogOpen, setHoraExtraDialogOpen] = useState(false);
     const [tipoHoraExtraSelecionado, setTipoHoraExtraSelecionado] = useState('');
@@ -680,7 +685,8 @@ const RegistosPorUtilizador = () => {
                                                             Funcionario: item.Funcionario,
                                                             Data: item.Data,
                                                             HoraExtra: item.HoraExtra,
-                                                            Tempo: item.TempoExtra
+                                                            Tempo: item.TempoExtra,
+                                                            IdFuncRemCBL: item.idFuncRemCBL // ID necessário para remover (campo com 'i' minúsculo)
                                                         });
                                                     }
                                                 });
@@ -1467,6 +1473,60 @@ const RegistosPorUtilizador = () => {
             alert(`Erro ao remover falta: ${err.message}`);
         } finally {
             setLoadingRemoverFalta(false);
+        }
+    };
+
+    const removerHoraExtra = async () => {
+        if (!horaExtraParaRemover) return;
+
+        setLoadingRemoverHoraExtra(true);
+
+        try {
+            const painelToken = secureStorage.getItem('painelAdminToken');
+            const urlempresa = secureStorage.getItem('urlempresa');
+
+            if (!painelToken || !urlempresa) {
+                throw new Error('Tokens do Primavera não encontrados');
+            }
+
+            const { IdFuncRemCBL } = horaExtraParaRemover;
+
+            if (!IdFuncRemCBL) {
+                console.error('❌ Dados da hora extra:', horaExtraParaRemover);
+                throw new Error('ID da hora extra não encontrado. Verifique se o campo idFuncRemCBL está presente nos dados.');
+            }
+
+            const res = await fetch('https://webapiprimavera.advir.pt/routesFaltas/RemoverHoraExtra', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${painelToken}`,
+                    urlempresa
+                },
+                body: JSON.stringify({ IdFuncRemCBL })
+            });
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`Erro ao remover hora extra: ${errorText}`);
+            }
+
+            const resultado = await res.json();
+            alert('✅ Hora extra removida com sucesso!');
+
+            // Recarregar dados
+            if (viewMode === 'grade') {
+                carregarDadosGrade();
+            }
+
+            setRemoverHoraExtraDialogOpen(false);
+            setHoraExtraParaRemover(null);
+
+        } catch (err) {
+            console.error('Erro ao remover hora extra:', err);
+            alert(`Erro ao remover hora extra: ${err.message}`);
+        } finally {
+            setLoadingRemoverHoraExtra(false);
         }
     };
 
@@ -2938,7 +2998,7 @@ const RegistosPorUtilizador = () => {
                                 <>
                                     <button
                                         style={styles.primaryButton}
-                                        onClick={() => setBulkDialogOpen(true)}
+                                               onClick={() => setBulkDialogOpen(true)}
                                     >
                                         🗓️ Registar em bloco ({selectedCells.length} dias)
                                     </button>
@@ -4675,9 +4735,24 @@ const RegistosPorUtilizador = () => {
                                                                     return newCells;
                                                                 });
                                                             } else {
-                                                                // Verificar se há faltas neste dia
+                                                                // Verificar se há faltas ou horas extras neste dia
                                                                 const estatisticas = item.estatisticasDias[diaNum];
-                                                                if (estatisticas && estatisticas.faltas && estatisticas.faltas.length > 0) {
+                                                                
+                                                                // Verificar horas extras primeiro
+                                                                if (estatisticas && estatisticas.horasExtras && estatisticas.horasExtras.length > 0) {
+                                                                    // Há hora(s) extra(s) - abrir modal de remoção
+                                                                    const horaExtra = estatisticas.horasExtras[0];
+                                                                    
+                                                                    setHoraExtraParaRemover({
+                                                                        IdFuncRemCBL: horaExtra.IdFuncRemCBL,
+                                                                        funcionarioNome: item.utilizador.nome,
+                                                                        dia: diaNum,
+                                                                        tipo: horaExtra.HoraExtra || horaExtra.HorasExtra,
+                                                                        tempo: horaExtra.Tempo,
+                                                                        todasHorasExtras: estatisticas.horasExtras
+                                                                    });
+                                                                    setRemoverHoraExtraDialogOpen(true);
+                                                                } else if (estatisticas && estatisticas.faltas && estatisticas.faltas.length > 0) {
                                                                     // Há falta(s) - abrir modal de remoção
                                                                     const dataFormatada = `${anoSelecionado}-${String(mesSelecionado).padStart(2, '0')}-${String(diaNum).padStart(2, '0')}`;
 
@@ -4694,7 +4769,7 @@ const RegistosPorUtilizador = () => {
                                                                     });
                                                                     setRemoverFaltaDialogOpen(true);
                                                                 } else {
-                                                                    // Não há falta - abrir editor (funciona para células vazias ou com registos)
+                                                                    // Não há falta nem hora extra - abrir editor (funciona para células vazias ou com registos)
                                                                     abrirEdicaoDirecta(userId, diaNum, item.utilizador.nome);
                                                                 }
                                                             }
@@ -4900,6 +4975,87 @@ const RegistosPorUtilizador = () => {
                             <p>Não foram encontrados registos para os critérios selecionados.</p>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Modal para remover hora extra */}
+            {removerHoraExtraDialogOpen && horaExtraParaRemover && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.bulkModal}>
+                        <div style={{ ...styles.bulkModalHeader, background: 'linear-gradient(135deg, #38a169, #2f855a)' }}>
+                            <h3 style={styles.bulkModalTitle}>
+                                🗑️ Remover Hora Extra
+                            </h3>
+                            <p style={styles.bulkModalSubtitle}>
+                                Confirmar remoção de hora extra
+                            </p>
+                            <button
+                                style={styles.closeButton}
+                                onClick={() => {
+                                    setRemoverHoraExtraDialogOpen(false);
+                                    setHoraExtraParaRemover(null);
+                                }}
+                                aria-label="Fechar"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div style={styles.bulkModalContent}>
+                            <div style={{
+                                ...styles.selectedCellsContainer,
+                                backgroundColor: '#e6fffa',
+                                border: '1px solid #81e6d9'
+                            }}>
+                                <div style={{ fontSize: '0.9rem', color: '#234e52' }}>
+                                    <div style={{ marginBottom: '10px' }}>
+                                        <strong>⚠️ ATENÇÃO:</strong>
+                                    </div>
+                                    <div style={{ marginBottom: '10px' }}>
+                                        Vai eliminar a hora extra:
+                                    </div>
+                                    <div style={{ padding: '15px', backgroundColor: '#fff', borderRadius: '8px', marginTop: '10px' }}>
+                                        <div><strong>Funcionário:</strong> {horaExtraParaRemover.funcionarioNome}</div>
+                                        <div><strong>Dia:</strong> {horaExtraParaRemover.dia}/{mesSelecionado}/{anoSelecionado}</div>
+                                        <div><strong>Tipo:</strong> {tiposHorasExtras[horaExtraParaRemover.tipo] || horaExtraParaRemover.tipo}</div>
+                                        <div><strong>Tempo:</strong> {horaExtraParaRemover.tempo}h</div>
+                                        {horaExtraParaRemover.IdFuncRemCBL && (
+                                            <div><strong>ID:</strong> {horaExtraParaRemover.IdFuncRemCBL}</div>
+                                        )}
+                                    </div>
+                                    <div style={{ marginTop: '15px', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                        Esta ação <strong>NÃO pode ser desfeita</strong>!
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={styles.bulkModalActions}>
+                            <button
+                                style={styles.cancelButton}
+                                onClick={() => {
+                                    setRemoverHoraExtraDialogOpen(false);
+                                    setHoraExtraParaRemover(null);
+                                }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                style={{ ...styles.confirmButton, backgroundColor: '#38a169' }}
+                                onClick={removerHoraExtra}
+                                disabled={loadingRemoverHoraExtra}
+                            >
+                                {loadingRemoverHoraExtra ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        A remover...
+                                    </>
+                                ) : (
+                                    '🗑️ Confirmar Remoção'
+                                )}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

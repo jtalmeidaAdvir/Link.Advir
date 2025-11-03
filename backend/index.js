@@ -67,6 +67,7 @@ const visitanteRoutes = require('./routes/visitanteRoutes');
 const externosJPARoutes = require('./routes/externosJPARoutes');
 const configuracaoRoutes = require('./routes/configuracaoRoutes');
 const predicaoObraRoutes = require('./routes/predicaoObraRoutes');
+const horarioRoutes = require('./routes/horarioRoutes');
 
 // Importar associações
 require('./associations');
@@ -78,17 +79,20 @@ app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true }));
 //app.use(fileUpload());
 
-// Configuração CORS para o frontend
 // Configuração CORS para o frontend (produção + desenvolvimento)
+const REPLIT_DOMAIN = process.env.REPLIT_DEV_DOMAIN || 'ba8aed94-d238-4c85-ab08-af124aedc800-00-1zbkxl1goyz9l.spock.replit.dev';
 const allowedOrigins = [
-    'https://link.advir.pt',   // produção
-    'http://localhost:19006',  // desenvolvimento (Expo ou React Native Web)
+    'https://link.advir.pt',
+    'http://localhost:19006',
+    'http://0.0.0.0:19006',
+    'http://localhost:5000',
+    'http://0.0.0.0:5000',
+    `https://${REPLIT_DOMAIN}`,
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Permite requisições sem "origin" (ex: ferramentas internas, Postman)
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (!origin || allowedOrigins.includes(origin) || origin.includes('replit.dev')) {
             callback(null, true);
         } else {
             console.log('🚫 Bloqueado por CORS:', origin);
@@ -129,7 +133,7 @@ app.use('/api/visitantes', visitanteRoutes);
 app.use('/api/externos-jpa', externosJPARoutes);
 app.use('/api/configuracoes', configuracaoRoutes);
 app.use('/api/predicao-obra', predicaoObraRoutes);
-
+app.use('/api/horarios', horarioRoutes);
 
 app.use('/api/gdpr', gdprRoutes);
 

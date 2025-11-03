@@ -29,6 +29,10 @@ const Configuracao = require('./models/configuracao');
 const Comunicado = require('./models/comunicado');
 const ComunicadoLeitura = require('./models/comunicadoLeitura');
 
+// Importar novos modelos para o sistema de horários
+const Horario = require('./models/horario');
+const PlanoHorario = require('./models/planoHorario');
+
 // Nota: Contact e Schedule são tabelas independentes para o WhatsApp Web
 // sem relações diretas com outras tabelas
 
@@ -114,6 +118,17 @@ Empresa.hasMany(POS, { foreignKey: 'empresa_id' });
 Comunicado.hasMany(ComunicadoLeitura, { foreignKey: 'comunicado_id' });
 ComunicadoLeitura.belongsTo(Comunicado, { foreignKey: 'comunicado_id' });
 
+// Associações de Horario com Empresa
+Empresa.hasMany(Horario, { foreignKey: 'empresa_id', as: 'horarios' });
+Horario.belongsTo(Empresa, { foreignKey: 'empresa_id' });
+
+// Associações de PlanoHorario com User e Horario
+User.hasMany(PlanoHorario, { foreignKey: 'user_id', as: 'planos_horarios' });
+PlanoHorario.belongsTo(User, { foreignKey: 'user_id' });
+
+Horario.hasMany(PlanoHorario, { foreignKey: 'horario_id', as: 'planos' });
+PlanoHorario.belongsTo(Horario, { foreignKey: 'horario_id' });
+
 // Exportar os modelos para que as associações sejam aplicadas
 module.exports = {
     User,
@@ -144,4 +159,6 @@ module.exports = {
     Configuracao,
     Comunicado,
     ComunicadoLeitura,
+    Horario,
+    PlanoHorario,
 };

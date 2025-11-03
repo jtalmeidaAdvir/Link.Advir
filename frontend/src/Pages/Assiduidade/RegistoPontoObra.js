@@ -473,7 +473,13 @@ const RegistoPontoObra = (props) => {
             const novaObraId = qrData.obraId;
             const nomeObraNova = qrData.nome;
 
-            await processarPorQR(novaObraId, nomeObraNova);
+            // Se tiver membros selecionados, processar registo de equipa
+            if (membrosSelecionados.length > 0) {
+                await processarRegistoEquipaComQR(novaObraId, nomeObraNova);
+            } else {
+                // Senão, processar registo individual normal
+                await processarPorQR(novaObraId, nomeObraNova);
+            }
         } catch (err) {
             console.error("Erro ao processar o QR Code:", err);
             alert("Erro ao processar o QR Code");
@@ -556,6 +562,95 @@ const RegistoPontoObra = (props) => {
             alert("Não foi possível trocar de câmara.");
         } finally {
             setIsProcessing(false);
+        }
+    };
+
+    const processarRegistoEquipaComQR = async (obraId, nomeObra) => {
+        try {
+            setLoading(true);
+            const token = secureStorage.getItem("loginToken");
+            const loc = await getCurrentLocation();
+
+            // Determinar o tipo de registo (entrada/saída) baseado no estado atual da equipa
+            // Para simplificar, vamos fazer entrada/saída alternada
+            const registosHoje = registos.filter(r => 
+                membrosSelecionados.includes(r.user_id) && 
+                String(r.obra_id) === String(obraId)
+            );
+            
+            // Verificar se há alguma entrada ativa
+            const temEntradaAtiva = registosHoje.some(entrada => {
+                if (entrada.tipo !== 'entrada') return false;
+                const temSaidaPosterior = registosHoje.some(saida => 
+                    saida.tipo === 'saida' && 
+                    saida.user_id === entrada.user_id &&
+                    new Date(saida.timestamp) > new Date(entrada.timestamp)
+                );
+                return !temSaidaPosterior;
+            });
+
+            const tipo = temEntradaAtiva ? 'saida' : 'entrada';
+
+            const res = await fetch(
+                "https://backend.advir.pt/api/registo-ponto-obra/registar-ponto-equipa",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        tipo,
+                        obra_id: obraId,
+                        latitude: loc.coords.latitude,
+                        longitude: loc.coords.longitude,
+                        membros: membrosSelecionados,
+                    }),
+                },
+            );
+
+            if (res.ok) {
+                alert(
+                    `QR Code lido!\n\n${tipo.toUpperCase()} registada na obra "${nomeObra}" para ${membrosSelecionados.length} membro(s).`,
+                );
+                
+                // Recarregar registos
+                const hoje = new Date().toISOString().split("T")[0];
+                const resRegistos = await fetch(
+                    `https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}`,
+                    {
+                        headers: { Authorization: `Bearer ${token}` },
+                    },
+                );
+
+                if (resRegistos.ok) {
+                    const dados = await resRegistos.json();
+                    const registosIniciais = dados.map((r) => ({
+                        ...r,
+                        morada: "A carregar localização...",
+                    }));
+                    setRegistos(registosIniciais);
+
+                    dados.forEach(async (r) => {
+                        const morada = await obterMoradaPorCoordenadas(
+                            r.latitude,
+                            r.longitude,
+                        );
+                        setRegistos((prev) =>
+                            prev.map((item) =>
+                                item.id === r.id ? { ...item, morada } : item,
+                            ),
+                        );
+                    });
+                }
+            } else {
+                alert("Erro ao registar ponto para equipa.");
+            }
+        } catch (err) {
+            console.error("Erro registo equipa com QR:", err);
+            alert("Erro interno ao registar ponto da equipa.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -1141,6 +1236,29 @@ const RegistoPontoObra = (props) => {
                                                                     },
                                                                 )
                                                             )}
+                                                        </div>
+
+                                                        {/* Botão Scanner QR para Equipa */}
+                                                        <div className="mb-3">
+                                                            <button
+                                                                className="btn btn-primary btn-action w-100"
+                                                                onClick={() => {
+                                                                    if (!obraSelecionada || membrosSelecionados.length === 0) {
+                                                                        alert("Selecione um local e pelo menos um membro da equipa");
+                                                                        return;
+                                                                    }
+                                                                    setScannerVisible(true);
+                                                                }}
+                                                                disabled={
+                                                                    !obraSelecionada ||
+                                                                    membrosSelecionados.length === 0 ||
+                                                                    loading ||
+                                                                    isProcessing
+                                                                }
+                                                            >
+                                                                <FaQrcode className="me-2" />
+                                                                Scanner QR - Registar Equipa
+                                                            </button>
                                                         </div>
 
                                                         {/* Botões Entrada/Saída */}

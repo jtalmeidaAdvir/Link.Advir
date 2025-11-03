@@ -58,7 +58,6 @@ import PedidosAlteracaoAdmin from "./src/Pages/Assiduidade/PedidosAlteracaoAdmin
 import ListarRegistos from "./src/Pages/Assiduidade/ListarRegistos";
 import Ausencias from "./src/Pages/Assiduidade/Ausencias";
 
-
 import AnaliseComplotaPontos from "./src/Pages/Assiduidade/AnaliseComplotaPontos";
 import RegistoPontoObra from "./src/Pages/Assiduidade/RegistoPontoObra";
 import RegistoPontoFacial from "./src/Pages/Assiduidade/RegistoPontoFacial";
@@ -98,17 +97,16 @@ import MapaRegistos from "./src/Pages/Obras/MapaRegistos";
 import { TokenManager } from "./src/utils/TokenManager";
 import { ThemeProvider } from "./ThemeContext";
 
-
 import PrivacySettings from "./src/Pages/GDPR/PrivacySettings";
 
 //Comunicados
 import ComunicadosUser from "./src/Pages/Components/Comunicados/ComunicadosUsuario";
 import GestorComunicados from "./src/Pages/Components/Comunicados/GestorComunicados";
 
+import GestaoHorarios from "./src/Pages/Autenticacao/GestaoHorarios";
+
 // Hook para comunicados não lidos
 import { useComunicadosNaoLidos } from "./src/hooks/useComunicadosNaoLidos";
-
-
 
 const Drawer = createDrawerNavigator();
 
@@ -123,7 +121,6 @@ const linking = {
         screens: {
             RedefinirPassword: {
                 path: "redefinir-password/:token",
-
 
                 parse: {
                     token: (token) => token,
@@ -147,7 +144,9 @@ const CustomDrawerContent = ({
     hasRegistarUtilizadorModule,
     hasRegistoPontoAdminModule,
     hasPedidosAlteracaoAdminModule,
+
     isPOS, // Recebe a prop isPOS
+    hasGestaoHorariosModule,
     ...props
 }) => {
     const [expandedModules, setExpandedModules] = useState({
@@ -355,17 +354,10 @@ const CustomDrawerContent = ({
         "GestaoExternos", // GestaoTrabalhadoresExternos
         "GestaoPartes", // GestaoPartesDiarias
         "MapaRegistos", // MapaRegistos
-        "Ausencias", 
+        "Ausencias",
         "ConsultaQRCodesExternos",
- 
-
     ];
-    const comunicadosSubmodulesOrder = [
-
-        "ComunicadosUser",
-        "GestorComunicados"
-
-    ];
+    const comunicadosSubmodulesOrder = ["ComunicadosUser", "GestorComunicados"];
     // Organizar módulos para drawer
     const getModuleIcon = (moduleName) => {
         const icons = {
@@ -375,7 +367,7 @@ const CustomDrawerContent = ({
             Oficios: "file-text",
             Administrador: "cog",
             Complota: "map",
-             Comunicados: "bullhorn", // 👈 novo
+            Comunicados: "bullhorn", // 👈 novo
         };
         return icons[moduleName] || "circle";
     };
@@ -386,7 +378,7 @@ const CustomDrawerContent = ({
             Servicos: "Serviços",
             Oficios: "Ofícios",
             Administrador: "Administrador",
-              Comunicados: "Comunicados",
+            Comunicados: "Comunicados",
         };
 
         if (module?.nome === "Obras") {
@@ -397,11 +389,9 @@ const CustomDrawerContent = ({
             return hasPonto ? "Ponto" : "Obras";
         }
 
-
         if (module?.nome === "Complota") {
             return "Pontos";
-            }
-
+        }
 
         return base[module?.nome] || module?.nome;
     };
@@ -426,13 +416,12 @@ const CustomDrawerContent = ({
             ConsultaQRCodesExternos: "qrcode",
             ComunicadosUser: "bullhorn",
             GestorComunicados: "bullhorn",
-   
         };
         return icons[submoduleName] || "circle-o";
     };
 
     // Filtrar módulos disponíveis para o usuário
-   /* console.log(`📋 Módulos recebidos:`, modules);
+    /* console.log(`📋 Módulos recebidos:`, modules);
     console.log(
         `👤 Estado atual - tipoUser: "${tipoUser}", isLoggedIn: ${isLoggedIn}`,
     );
@@ -445,11 +434,11 @@ const CustomDrawerContent = ({
     });*/
 
     const availableModules = modules.filter((module) => {
-      /*  console.log(
+        /*  console.log(
             `🔍 Verificando módulo: ${module.nome}, tipoUser: "${tipoUser}"`,
         );*/
 
-      /*  // Log detalhado para o módulo Obras
+        /*  // Log detalhado para o módulo Obras
         if (module.nome === "Obras") {
             console.log(`🏗️ MÓDULO OBRAS ENCONTRADO:`, {
                 moduloNome: module.nome,
@@ -466,7 +455,6 @@ const CustomDrawerContent = ({
 
         // Se o tipoUser parece ser um JWT (contém pontos), permitir todos os módulos temporariamente
         if (tipoUser && tipoUser.includes(".")) {
-
             return true;
         }
 
@@ -479,14 +467,13 @@ const CustomDrawerContent = ({
                 tipoUser === "Trabalhador" // Permitir Trabalhadores terem acesso ao módulo Obras
             )
         ) {
-
             return false;
         }
 
         return true;
     });
 
-   // console.log(`📊 Módulos disponíveis após filtro:`, availableModules);
+    // console.log(`📊 Módulos disponíveis após filtro:`, availableModules);
 
     // Check if user has any admin module
     const hasAnyAdminModule =
@@ -497,11 +484,16 @@ const CustomDrawerContent = ({
         hasRegistarUtilizadorModule ||
         hasRegistoPontoAdminModule ||
         hasPedidosAlteracaoAdminModule;
+
     const hasGestaoPOSModule = modules.some(
         (module) =>
             module.nome === "Administrador" &&
             module.submodulos.some((sub) => sub.nome === "GestaoPOS"),
     );
+
+
+
+
 
     const userNome = secureStorage.getItem("userNome") || "";
     const empresa = secureStorage.getItem("empresaSelecionada") || "";
@@ -541,9 +533,7 @@ const CustomDrawerContent = ({
                         </View>
                     </TouchableOpacity>
                 </View>
-                <View style={drawerStyles.moduleContainer}>
-
-                </View>
+                <View style={drawerStyles.moduleContainer}></View>
 
                 {/* Selecionar Empresa */}
                 {isLoggedIn && (
@@ -570,9 +560,7 @@ const CustomDrawerContent = ({
                 )}
 
                 {isLoggedIn && (
-                    <View style={drawerStyles.moduleContainer}>
-                     
-                    </View>
+                    <View style={drawerStyles.moduleContainer}></View>
                 )}
 
                 {/* Módulos */}
@@ -654,61 +642,61 @@ const CustomDrawerContent = ({
                                                         "Assistencia",
                                                         "DashboardTecnico",
                                                     )) && (
-                                                        <TouchableOpacity
+                                                    <TouchableOpacity
+                                                        style={
+                                                            drawerStyles.submoduleItem
+                                                        }
+                                                        onPress={() =>
+                                                            props.navigation.navigate(
+                                                                "PedidosAssistencia",
+                                                            )
+                                                        }
+                                                    >
+                                                        <FontAwesome
+                                                            name="wrench"
+                                                            size={16}
+                                                            color="#1792FE"
+                                                        />
+                                                        <Text
                                                             style={
-                                                                drawerStyles.submoduleItem
-                                                            }
-                                                            onPress={() =>
-                                                                props.navigation.navigate(
-                                                                    "PedidosAssistencia",
-                                                                )
+                                                                drawerStyles.submoduleText
                                                             }
                                                         >
-                                                            <FontAwesome
-                                                                name="wrench"
-                                                                size={16}
-                                                                color="#1792FE"
-                                                            />
-                                                            <Text
-                                                                style={
-                                                                    drawerStyles.submoduleText
-                                                                }
-                                                            >
-                                                                Pedidos de
-                                                                Assistência
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    )}
+                                                            Pedidos de
+                                                            Assistência
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                )}
 
                                                 {/* Dashboard Técnico */}
                                                 {hasSubmodule(
                                                     "Servicos",
                                                     "DashboardTecnico",
                                                 ) && (
-                                                        <TouchableOpacity
+                                                    <TouchableOpacity
+                                                        style={
+                                                            drawerStyles.submoduleItem
+                                                        }
+                                                        onPress={() =>
+                                                            props.navigation.navigate(
+                                                                "PandIByTecnico",
+                                                            )
+                                                        }
+                                                    >
+                                                        <FontAwesome
+                                                            name="bar-chart"
+                                                            size={16}
+                                                            color="#1792FE"
+                                                        />
+                                                        <Text
                                                             style={
-                                                                drawerStyles.submoduleItem
-                                                            }
-                                                            onPress={() =>
-                                                                props.navigation.navigate(
-                                                                    "PandIByTecnico",
-                                                                )
+                                                                drawerStyles.submoduleText
                                                             }
                                                         >
-                                                            <FontAwesome
-                                                                name="bar-chart"
-                                                                size={16}
-                                                                color="#1792FE"
-                                                            />
-                                                            <Text
-                                                                style={
-                                                                    drawerStyles.submoduleText
-                                                                }
-                                                            >
-                                                                Dashboard Técnico
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    )}
+                                                            Dashboard Técnico
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                )}
 
                                                 {/* Contratos */}
                                                 {(hasSubmodule(
@@ -723,30 +711,30 @@ const CustomDrawerContent = ({
                                                         "Servicos",
                                                         "ContratosAtivos",
                                                     )) && (
-                                                        <TouchableOpacity
+                                                    <TouchableOpacity
+                                                        style={
+                                                            drawerStyles.submoduleItem
+                                                        }
+                                                        onPress={() =>
+                                                            props.navigation.navigate(
+                                                                "ContratosList",
+                                                            )
+                                                        }
+                                                    >
+                                                        <FontAwesome
+                                                            name="file-text-o"
+                                                            size={16}
+                                                            color="#1792FE"
+                                                        />
+                                                        <Text
                                                             style={
-                                                                drawerStyles.submoduleItem
-                                                            }
-                                                            onPress={() =>
-                                                                props.navigation.navigate(
-                                                                    "ContratosList",
-                                                                )
+                                                                drawerStyles.submoduleText
                                                             }
                                                         >
-                                                            <FontAwesome
-                                                                name="file-text-o"
-                                                                size={16}
-                                                                color="#1792FE"
-                                                            />
-                                                            <Text
-                                                                style={
-                                                                    drawerStyles.submoduleText
-                                                                }
-                                                            >
-                                                                Contratos
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    )}
+                                                            Contratos
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                )}
                                             </View>
                                         )}
                                     </View>
@@ -858,13 +846,24 @@ const CustomDrawerContent = ({
                                             >
                                                 {getModuleDisplayName(module)}
                                             </Text>
-                                            {module.nome === "Comunicados" && comunicadosNaoLidos > 0 && (
-                                                <View style={drawerStyles.notificationBadge}>
-                                                    <Text style={drawerStyles.notificationBadgeText}>
-                                                        {comunicadosNaoLidos}
-                                                    </Text>
-                                                </View>
-                                            )}
+                                            {module.nome === "Comunicados" &&
+                                                comunicadosNaoLidos > 0 && (
+                                                    <View
+                                                        style={
+                                                            drawerStyles.notificationBadge
+                                                        }
+                                                    >
+                                                        <Text
+                                                            style={
+                                                                drawerStyles.notificationBadgeText
+                                                            }
+                                                        >
+                                                            {
+                                                                comunicadosNaoLidos
+                                                            }
+                                                        </Text>
+                                                    </View>
+                                                )}
                                         </View>
                                         <FontAwesome
                                             name={
@@ -884,33 +883,51 @@ const CustomDrawerContent = ({
                                             }
                                         >
                                             {module.submodulos
-  .sort((a, b) => {
-    const orderArray =
-      module.nome === "Obras" ? obrasSubmodulesOrder :
-      module.nome === "Comunicados" ? comunicadosSubmodulesOrder : [];
+                                                .sort((a, b) => {
+                                                    const orderArray =
+                                                        module.nome === "Obras"
+                                                            ? obrasSubmodulesOrder
+                                                            : module.nome ===
+                                                                "Comunicados"
+                                                              ? comunicadosSubmodulesOrder
+                                                              : [];
 
-    if (!orderArray.length) return a.nome.localeCompare(b.nome);
+                                                    if (!orderArray.length)
+                                                        return a.nome.localeCompare(
+                                                            b.nome,
+                                                        );
 
-    const ia = orderArray.indexOf(a.nome);
-    const ib = orderArray.indexOf(b.nome);
-    if (ia === -1 && ib === -1) return a.nome.localeCompare(b.nome);
-    if (ia === -1) return 1;
-    if (ib === -1) return -1;
-    return ia - ib;
-  })
-  .map((submodulo) => {
+                                                    const ia =
+                                                        orderArray.indexOf(
+                                                            a.nome,
+                                                        );
+                                                    const ib =
+                                                        orderArray.indexOf(
+                                                            b.nome,
+                                                        );
+                                                    if (ia === -1 && ib === -1)
+                                                        return a.nome.localeCompare(
+                                                            b.nome,
+                                                        );
+                                                    if (ia === -1) return 1;
+                                                    if (ib === -1) return -1;
+                                                    return ia - ib;
+                                                })
+                                                .map((submodulo) => {
                                                     // Mapear submódulos para navegação
                                                     const navigationMap = {
                                                         Obras: "Obras",
-                                                         ComunicadosUser: "ComunicadosUser",
-                                                         GestorComunicados: "GestorComunicados",
+                                                        ComunicadosUser:
+                                                            "ComunicadosUser",
+                                                        GestorComunicados:
+                                                            "GestorComunicados",
                                                         Escritório:
                                                             "Escritorio",
                                                         PartesDiarias:
                                                             "PartesDiarias",
                                                         ConsultaQRCodesExternos:
                                                             "ConsultaQRCodesExternos",
-                                                  
+
                                                         Equipas: "CriarEquipa",
                                                         Agenda: "CalendarioHorasTrabalho",
                                                         GestaoFaltas:
@@ -930,27 +947,26 @@ const CustomDrawerContent = ({
                                                         Botao: "PontoBotao",
                                                         Aprovacoes:
                                                             "ConcursosAprovacao",
-                                                            Complota: "AnaliseComplotaPontos",
-                                                            Ausencias: "Ausencias",
+                                                        Complota:
+                                                            "AnaliseComplotaPontos",
+                                                        Ausencias: "Ausencias",
                                                     };
 
                                                     const screenName =
                                                         navigationMap[
-                                                        submodulo.nome
+                                                            submodulo.nome
                                                         ];
                                                     if (!screenName) {
-
                                                         return null;
                                                     }
 
                                                     // Log específico para Ponto e Agenda
                                                     if (
                                                         submodulo.nome ===
-                                                        "Ponto" ||
+                                                            "Ponto" ||
                                                         submodulo.nome ===
-                                                        "Agenda"
+                                                            "Agenda"
                                                     ) {
-
                                                     }
 
                                                     // Verificar permissões especiais
@@ -958,14 +974,14 @@ const CustomDrawerContent = ({
                                                         (submodulo.nome ===
                                                             "GestaoFaltas" ||
                                                             submodulo.nome ===
-                                                            "GestaoPontos") &&
+                                                                "GestaoPontos") &&
                                                         !(
                                                             tipoUser ===
-                                                            "Encarregado" ||
+                                                                "Encarregado" ||
                                                             tipoUser ===
-                                                            "Diretor" ||
+                                                                "Diretor" ||
                                                             tipoUser ===
-                                                            "Administrador"
+                                                                "Administrador"
                                                         )
                                                     ) {
                                                         return null;
@@ -988,34 +1004,32 @@ const CustomDrawerContent = ({
                                                         if (
                                                             !(
                                                                 submodulo.nome ===
-                                                                "Ponto" ||
+                                                                    "Ponto" ||
                                                                 submodulo.nome ===
-                                                                "Agenda"
+                                                                    "Agenda"
                                                             )
                                                         ) {
-
                                                             return null;
                                                         }
-
                                                     }
 
                                                     if (
                                                         submodulo.nome ===
-                                                        "GestaoExternos" &&
+                                                            "GestaoExternos" &&
                                                         tipoUser !==
-                                                        "Administrador"
+                                                            "Administrador"
                                                     ) {
                                                         return null;
                                                     }
 
                                                     if (
                                                         submodulo.nome ===
-                                                        "GestaoPartes" &&
+                                                            "GestaoPartes" &&
                                                         !(
                                                             tipoUser ===
-                                                            "Diretor" ||
+                                                                "Diretor" ||
                                                             tipoUser ===
-                                                            "Administrador"
+                                                                "Administrador"
                                                         )
                                                     ) {
                                                         return null;
@@ -1041,9 +1055,11 @@ const CustomDrawerContent = ({
                                                             Botao: "Ponto Botão",
                                                             Aprovacoes:
                                                                 "Aprovações",
-                                                                 Complota: "Pontos",
-                                                                   ComunicadosUser: "Os meus comunicados",     // <-- novo rótulo
-  GestorComunicados: "Gestor de comunicados", // <-- novo rótulo
+                                                            Complota: "Pontos",
+                                                            ComunicadosUser:
+                                                                "Os meus comunicados", // <-- novo rótulo
+                                                            GestorComunicados:
+                                                                "Gestor de comunicados", // <-- novo rótulo
                                                         }[submodulo.nome] ||
                                                         submodulo.nome;
 
@@ -1288,26 +1304,25 @@ const CustomDrawerContent = ({
                                     </TouchableOpacity>
                                 )}
                                 {hasGestaoPOSModule && (
-                                    <TouchableOpacity
-                                        style={drawerStyles.submoduleItem}
-                                        onPress={() =>
-                                            props.navigation.navigate(
-                                                "GestaoPOS",
-                                            )
-                                        }
-                                    >
-                                        <FontAwesome
-                                            name="desktop"
-                                            size={16}
-                                            color="#1792FE"
-                                        />
-                                        <Text
-                                            style={drawerStyles.submoduleText}
-                                        >
-                                            Gestão Terminais
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
+  <TouchableOpacity
+    style={drawerStyles.submoduleItem}
+    onPress={() => props.navigation.navigate("GestaoPOS")}
+  >
+    <FontAwesome name="desktop" size={16} color="#1792FE" />
+    <Text style={drawerStyles.submoduleText}>Gestão Terminais</Text>
+  </TouchableOpacity>
+)}
+
+{hasGestaoHorariosModule && (
+  <TouchableOpacity
+    style={drawerStyles.submoduleItem}
+    onPress={() => props.navigation.navigate("GestaoHorarios")}
+  >
+    <FontAwesome name="calendar" size={16} color="#1792FE" />
+    <Text style={drawerStyles.submoduleText}>Gestão Horários</Text>
+  </TouchableOpacity>
+)}
+
                             </View>
                         )}
                     </View>
@@ -1433,6 +1448,14 @@ const AppNavigator = () => {
             module.submodulos.some((sub) => sub.nome === "Assistencia"),
     );
 
+        const hasGestaoHorariosModule = modules.some(
+  (module) =>
+    module.nome === "Administrador" &&
+    Array.isArray(module.submodulos) &&
+    module.submodulos.some((sub) => sub.nome === "GestaoHorarios"),
+);
+
+
     // Dentro de AppNavigator:
     const fetchUserData = async () => {
         setLoading(true);
@@ -1442,7 +1465,6 @@ const AppNavigator = () => {
 
         // Verificar se tipoUser é um token JWT e tentar corrigir
         if (tipoUserLs && tipoUserLs.includes(".")) {
-
             tipoUserLs =
                 secureStorage.getItem("userTipo") ||
                 secureStorage.getItem("tipo_user") ||
@@ -1450,13 +1472,10 @@ const AppNavigator = () => {
 
             // Se ainda não encontramos, definir como vazio para forçar nova seleção
             if (!tipoUserLs || tipoUserLs.includes(".")) {
-
                 secureStorage.removeItem("tipoUser");
                 tipoUserLs = "";
             }
         }
-
-
 
         // Verificar se o token existe e é válido
         if (token && isTokenValid(token)) {
@@ -1507,7 +1526,6 @@ const AppNavigator = () => {
                 // Verificar se tem o submódulo "Ponto" para redirecionamento automático
                 const hasPointSubmodule = await checkUserHasPointSubmodule();
 
-
                 if (hasPointSubmodule) {
                     setInitialRoute("RegistoPontoObra");
                 } else {
@@ -1533,8 +1551,6 @@ const AppNavigator = () => {
         const userId = secureStorage.getItem("userId");
         const empresaId = secureStorage.getItem("empresa_id");
 
-
-
         if (userId && token) {
             try {
                 let url = `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos`;
@@ -1544,12 +1560,10 @@ const AppNavigator = () => {
                     url += `?empresa_id=${empresaId}`;
                 }
 
-
                 const response = await fetch(url, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await response.json();
-
 
                 setModules(data.modulos || []);
             } catch (error) {
@@ -1557,7 +1571,6 @@ const AppNavigator = () => {
                 setModules([]);
             }
         } else {
-
         }
     };
 
@@ -1590,20 +1603,22 @@ const AppNavigator = () => {
                 `https://backend.advir.pt/api/users/${userId}/modulos-e-submodulos?empresa_id=${empresaId}`,
                 {
                     headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                },
             );
 
             if (!response.ok) {
-                console.error("❌ checkUserHasPointSubmodule - Erro na API:", response.status);
+                console.error(
+                    "❌ checkUserHasPointSubmodule - Erro na API:",
+                    response.status,
+                );
                 return false;
             }
 
             const data = await response.json();
             const userModules = data.modulos || [];
-
 
             // Procurar especificamente pelo submódulo "Ponto"
             for (const module of userModules) {
@@ -1692,7 +1707,6 @@ const AppNavigator = () => {
         );
     };
 
-
     return (
         <ThemeProvider>
             <TokenManager>
@@ -1735,6 +1749,7 @@ const AppNavigator = () => {
                             }
                             hasAssistenciaModule={hasAssistenciaModule}
                             isPOS={isPOS} // Passa o estado isPOS para o CustomDrawerContent
+                            hasGestaoHorariosModule={hasGestaoHorariosModule}
                         />
                     )}
                     screenOptions={({ navigation }) => ({
@@ -1788,7 +1803,6 @@ const AppNavigator = () => {
                                 {/* Botão de perfil/login */}
                                 <TouchableOpacity
                                     onPress={() => {
-
                                         if (isLoggedIn) {
                                             toggleProfileMenu();
                                         } else {
@@ -1910,20 +1924,40 @@ const AppNavigator = () => {
                                                     Perfil
                                                 </Text>
                                             </TouchableOpacity>
-<View style={profileMenuStyles.divider} />
+                                            <View
+                                                style={
+                                                    profileMenuStyles.divider
+                                                }
+                                            />
 
                                             <TouchableOpacity
-  style={[profileMenuStyles.menuItem, profileMenuStyles.buttonStyle]}
-  onPress={() => {
-    setProfileMenuVisible(false);
-    navigation.navigate("PrivacySettings");
-  }}
-  activeOpacity={0.6}
->
-  <FontAwesome name="lock" size={16} color="#1792FE" />
-  <Text style={profileMenuStyles.menuText}>Privacidade</Text>
-</TouchableOpacity>
-
+                                                style={[
+                                                    profileMenuStyles.menuItem,
+                                                    profileMenuStyles.buttonStyle,
+                                                ]}
+                                                onPress={() => {
+                                                    setProfileMenuVisible(
+                                                        false,
+                                                    );
+                                                    navigation.navigate(
+                                                        "PrivacySettings",
+                                                    );
+                                                }}
+                                                activeOpacity={0.6}
+                                            >
+                                                <FontAwesome
+                                                    name="lock"
+                                                    size={16}
+                                                    color="#1792FE"
+                                                />
+                                                <Text
+                                                    style={
+                                                        profileMenuStyles.menuText
+                                                    }
+                                                >
+                                                    Privacidade
+                                                </Text>
+                                            </TouchableOpacity>
 
                                             <View
                                                 style={
@@ -2100,29 +2134,29 @@ const AppNavigator = () => {
                         }}
                     />
                     <Drawer.Screen
-  name="PrivacySettings"
-  component={PrivacySettings}
-  options={{
-    title: "AdvirLink - Privacidade",
-    drawerItemStyle: { display: "none" },
-  }}
-/>
-<Drawer.Screen
-  name="ComunicadosUser"
-  component={ComunicadosUser}
-  options={{
-    title: "AdvirLink - Comunicados",
-    drawerItemStyle: { display: "none" }, // mostra via módulo/submódulo
-  }}
-/>
-<Drawer.Screen
-  name="GestorComunicados"
-  component={GestorComunicados}
-  options={{
-    title: "AdvirLink - Comunicados",
-    drawerItemStyle: { display: "none" }, // mostra via módulo/submódulo
-  }}
-/>
+                        name="PrivacySettings"
+                        component={PrivacySettings}
+                        options={{
+                            title: "AdvirLink - Privacidade",
+                            drawerItemStyle: { display: "none" },
+                        }}
+                    />
+                    <Drawer.Screen
+                        name="ComunicadosUser"
+                        component={ComunicadosUser}
+                        options={{
+                            title: "AdvirLink - Comunicados",
+                            drawerItemStyle: { display: "none" }, // mostra via módulo/submódulo
+                        }}
+                    />
+                    <Drawer.Screen
+                        name="GestorComunicados"
+                        component={GestorComunicados}
+                        options={{
+                            title: "AdvirLink - Comunicados",
+                            drawerItemStyle: { display: "none" }, // mostra via módulo/submódulo
+                        }}
+                    />
 
                     <Drawer.Screen
                         name="LeitorQRCode"
@@ -2217,57 +2251,57 @@ const AppNavigator = () => {
 
                         return canAccessObras;
                     })() && (
-                            <>
-                                <Drawer.Screen
-                                    name="Obras"
-                                    component={Obras}
-                                    options={{
-                                        title: "AdvirLink - Obras",
-                                    }}
-                                />
-                                <Drawer.Screen
-                                    name="Escritorio"
-                                    component={Escritorio}
-                                    options={{
-                                        title: "AdvirLink - Escritório",
-                                    }}
-                                />
+                        <>
+                            <Drawer.Screen
+                                name="Obras"
+                                component={Obras}
+                                options={{
+                                    title: "AdvirLink - Obras",
+                                }}
+                            />
+                            <Drawer.Screen
+                                name="Escritorio"
+                                component={Escritorio}
+                                options={{
+                                    title: "AdvirLink - Escritório",
+                                }}
+                            />
 
-                                <Drawer.Screen
-                                    name="PartesDiarias"
-                                    component={PartesDiarias}
-                                />
-                                <Drawer.Screen
-                                    name="ConsultaQRCodesExternos"
-                                    component={ConsultaQRCodesExternos}
-                                />
-                         
-                                     <Drawer.Screen
-                                    name="Ausencias"
-                                    component={Ausencias}
-                                />
-                                <Drawer.Screen
-                                    name="CriarEquipa"
-                                    component={CriarEquipa}
-                                />
-                                <Drawer.Screen
-                                    name="PessoalObra"
-                                    component={PessoalObra}
-                                    options={{
-                                        drawerItemStyle: { display: "none" },
-                                    }}
-                                />
-                             
-                                {/* Adicionar a nova tela ao Drawer.Navigator */}
-                                <Drawer.Screen
-                                    name="MapaRegistos"
-                                    component={MapaRegistos}
-                                    options={{
-                                        title: "AdvirLink - Mapa Registos",
-                                    }}
-                                />
-                            </>
-                        )}
+                            <Drawer.Screen
+                                name="PartesDiarias"
+                                component={PartesDiarias}
+                            />
+                            <Drawer.Screen
+                                name="ConsultaQRCodesExternos"
+                                component={ConsultaQRCodesExternos}
+                            />
+
+                            <Drawer.Screen
+                                name="Ausencias"
+                                component={Ausencias}
+                            />
+                            <Drawer.Screen
+                                name="CriarEquipa"
+                                component={CriarEquipa}
+                            />
+                            <Drawer.Screen
+                                name="PessoalObra"
+                                component={PessoalObra}
+                                options={{
+                                    drawerItemStyle: { display: "none" },
+                                }}
+                            />
+
+                            {/* Adicionar a nova tela ao Drawer.Navigator */}
+                            <Drawer.Screen
+                                name="MapaRegistos"
+                                component={MapaRegistos}
+                                options={{
+                                    title: "AdvirLink - Mapa Registos",
+                                }}
+                            />
+                        </>
+                    )}
 
                     <Drawer.Screen name="PontoBotao" component={PontoBotao} />
                     <Drawer.Screen
@@ -2388,7 +2422,7 @@ const AppNavigator = () => {
                             )}
                         </Drawer.Screen>
                     )}
-                
+
                     <Drawer.Screen
                         name="RecuperarPassword"
                         component={RecuperarPassword}
@@ -2451,6 +2485,15 @@ const AppNavigator = () => {
                             component={GestaoPOS}
                             options={{
                                 title: "AdvirLink - Gestão Terminais",
+                            }}
+                        />
+                    )}
+                    {hasGestaoHorariosModule  && (
+                        <Drawer.Screen
+                            name="GestaoHorarios"
+                            component={GestaoHorarios}
+                            options={{
+                                title: "AdvirLink - Gestão Horários",
                             }}
                         />
                     )}
