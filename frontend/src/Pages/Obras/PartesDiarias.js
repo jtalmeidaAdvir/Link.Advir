@@ -769,8 +769,7 @@ const submeterPessoalEquip = async () => {
                 trabalhadorId: trab.id,
                 funcionario: trab.funcionario,
                 empresa: trab.empresa,
-                valor: Number(trab.valor || 0),
-                moeda: trab.moeda || "EUR",
+                
                 horasMin: minutos,
                 horaExtra: !!linhaAtual.horaExtra,
 
