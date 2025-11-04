@@ -91,12 +91,16 @@ const CriarEquipa = () => {
         try {
             const token = await secureStorage.getItem("loginToken");
             const userId = await secureStorage.getItem("userId");
-            const tipoUser = await secureStorage.getItem("tipoUser"); // assume userType guardado
+            const tipoUser = await secureStorage.getItem("tipoUser");
+            const empresaId = await secureStorage.getItem("empresa_id");
 
             const res = await fetch(
                 "https://backend.advir.pt/api/equipa-obra/listar-todas",
                 {
-                    headers: { Authorization: `Bearer ${token}` },
+                    headers: { 
+                        Authorization: `Bearer ${token}`,
+                        "X-Empresa-ID": empresaId,
+                    },
                 },
             );
 
@@ -196,6 +200,8 @@ const CriarEquipa = () => {
         try {
             setLoading(true);
             const token = await secureStorage.getItem("loginToken");
+            const empresaId = await secureStorage.getItem("empresa_id");
+            
             const res = await fetch(
                 "https://backend.advir.pt/api/equipa-obra",
                 {
@@ -203,10 +209,12 @@ const CriarEquipa = () => {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         "Content-Type": "application/json",
+                        "X-Empresa-ID": empresaId,
                     },
                     body: JSON.stringify({
                         nome: nomeEquipa,
                         membros: membrosSelecionados,
+                        empresa_id: empresaId,
                     }),
                 },
             );

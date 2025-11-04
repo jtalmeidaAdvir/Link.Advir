@@ -4,8 +4,15 @@ const User = require('../models/user');
 // Criar equipa (Encarregado, Diretor e Administrador podem criar)
 const criarEquipa = async (req, res) => {
     try {
-        const { nome, membros } = req.body;
+        const { nome, membros, empresa_id } = req.body;
         const encarregado_id = req.user.id;
+
+        // Obter empresa_id do header se não vier no body
+        const empresaId = empresa_id || req.headers['x-empresa-id'];
+
+        if (!empresaId) {
+            return res.status(400).json({ message: 'empresa_id é obrigatório.' });
+        }
 
         const user = await User.findByPk(encarregado_id);
         if (!user || !['Encarregado', 'Diretor', 'Administrador'].includes(user.tipoUser)) {
@@ -16,7 +23,8 @@ const criarEquipa = async (req, res) => {
             EquipaObra.create({
                 nome,
                 encarregado_id,
-                user_id
+                user_id,
+                empresa_id: empresaId
             })
         );
 
@@ -101,7 +109,15 @@ const removerMembroEquipa = async (req, res) => {
 // Listar todas as equipas com os seus membros agrupadas
 const listarTodasEquipasAgrupadas = async (req, res) => {
     try {
+        const empresaId = req.headers['x-empresa-id'] || req.query.empresa_id;
+
+        let whereClause = {};
+        if (empresaId) {
+            whereClause.empresa_id = empresaId;
+        }
+
         const registos = await EquipaObra.findAll({
+            where: whereClause,
             include: [
                 { model: User, as: 'membro', attributes: ['id', 'email', 'nome', 'username'] },
                 { model: User, as: 'encarregado', attributes: ['id', 'nome', 'username'] }
@@ -114,6 +130,7 @@ const listarTodasEquipasAgrupadas = async (req, res) => {
                 equipasAgrupadas[reg.nome] = {
                     nome: reg.nome,
                     encarregado: reg.encarregado,
+                    empresa_id: reg.empresa_id,
                     membros: []
                 };
             }
@@ -195,9 +212,15 @@ const removerEquipaInteira = async (req, res) => {
 const listarMinhasEquipasAgrupadas = async (req, res) => {
     try {
         const encarregadoId = req.user.id;
+        const empresaId = req.headers['x-empresa-id'] || req.query.empresa_id;
+
+        let whereClause = { encarregado_id: encarregadoId };
+        if (empresaId) {
+            whereClause.empresa_id = empresaId;
+        }
 
         const registos = await EquipaObra.findAll({
-            where: { encarregado_id: encarregadoId },
+            where: whereClause,
             include: [
                 { model: User, as: 'membro', attributes: ['id', 'nome', 'username'] }
             ],
@@ -211,6 +234,7 @@ const listarMinhasEquipasAgrupadas = async (req, res) => {
             if (!equipasAgrupadas[nomeChave]) {
                 equipasAgrupadas[nomeChave] = {
                     nome: reg.nome,
+                    empresa_id: reg.empresa_id,
                     membros: []
                 };
             }
@@ -253,7 +277,7 @@ const editarEquipa = async (req, res) => {
 
         // Remover todos os membros existentes da equipa
         await EquipaObra.destroy({
-            where: { nome: equipa.nome }
+            where: { nome: equipa.nome, empresa_id: equipa.empresa_id }
         });
 
         // Adicionar os novos membros com o nome atualizado
@@ -261,7 +285,8 @@ const editarEquipa = async (req, res) => {
         const novasEntradas = novosMembros.map(user_id => ({
             nome: nomeEquipa,
             encarregado_id: equipa.encarregado_id,
-            user_id
+            user_id,
+            empresa_id: equipa.empresa_id
         }));
         
         await EquipaObra.bulkCreate(novasEntradas);

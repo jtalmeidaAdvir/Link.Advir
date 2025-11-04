@@ -30,6 +30,10 @@ const EquipaObra = sequelize.define('EquipaObra', {
             key: 'id',
         },
     },
+    empresa_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+    },
 }, {
     timestamps: true,
     tableName: 'equipa_obra',
