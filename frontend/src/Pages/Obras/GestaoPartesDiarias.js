@@ -18,7 +18,7 @@ import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { styles } from "./Css/GestaoPartesDiariasStyles";
-import { secureStorage } from '../../utils/secureStorage';
+import { secureStorage } from "../../utils/secureStorage";
 const GestaoPartesDiarias = () => {
     // === NO TOPO DO FICHEIRO (fora do componente) ===
     const DOC_ID_DEFAULT = "1747FEA9-5D2F-45B4-A89B-9EA30B1E0DCB"; // mão-de-obra/outros
@@ -200,49 +200,66 @@ const GestaoPartesDiarias = () => {
 
     useEffect(() => {
         (async () => {
+            const retryDelay = 2000;
+
+            const fetchWithInfiniteRetry = async (fetchFn, name) => {
+                let attempt = 0;
+                while (true) {
+                    attempt++;
+                    try {
+                        setLoadingMessage(
+                            `A carregar ${name}...`,
+                        );
+                        const result = await fetchFn();
+                        console.log(`✅ ${name} carregado com sucesso`);
+                        return { success: true, data: result };
+                    } catch (err) {
+                        console.warn(
+                            `⚠️ Tentativa ${attempt} falhou para ${name}:`,
+                            err.message,
+                        );
+                        await new Promise((resolve) =>
+                            setTimeout(resolve, retryDelay),
+                        );
+                    }
+                }
+            };
+
             try {
                 setLoading(true);
                 setLoadingPercentage(0);
-                setLoadingMessage("A iniciar carregamento...");
+                setError(null);
 
-                // Carregar dados em paralelo para melhor performance
-                const totalSteps = 5;
-                let currentStep = 0;
+                const requests = [
+                    { fn: fetchEspecialidades, name: "Especialidades" },
+                    { fn: fetchEquipamentos, name: "Equipamentos" },
+                    { fn: fetchClasses, name: "Classes" },
+                    { fn: fetchObras, name: "Obras" },
+                    { fn: fetchCabecalhos, name: "Partes Diárias" },
+                ];
 
-                const updateProgress = (step, message) => {
-                    currentStep = step;
-                    const percentage = Math.round((currentStep / totalSteps) * 100);
-                    setLoadingPercentage(percentage);
-                    setLoadingMessage(message);
-                };
+                setLoadingMessage("A iniciar carregamento de todos os dados...");
 
-                // Carregar dados críticos primeiro (paralelo)
-                updateProgress(1, "A carregar especialidades e equipamentos...");
-                await Promise.all([
-                    fetchEspecialidades(),
-                    fetchEquipamentos(),
-                    fetchClasses()
-                ]);
+                const results = await Promise.all(
+                    requests.map(({ fn, name }) =>
+                        fetchWithInfiniteRetry(fn, name),
+                    ),
+                );
 
-                // Carregar obras (necessário antes de cabecalhos)
-                updateProgress(3, "A carregar obras...");
-                await fetchObras();
+                console.log("✅ Todos os dados carregados com sucesso");
 
-                // Carregar cabeçalhos
-                updateProgress(4, "A carregar partes diárias...");
-                await fetchCabecalhos();
+                setLoadingPercentage(100);
+                setLoadingMessage("✅ Todos os dados carregados com sucesso!");
 
-                updateProgress(5, "Concluído!");
-                
-                // Pequeno delay para mostrar 100%
                 setTimeout(() => {
                     setLoading(false);
                     setLoadingPercentage(0);
-                }, 300);
+                }, 500);
             } catch (err) {
-                console.error("Erro no carregamento inicial:", err);
+                console.error("❌ Erro inesperado no carregamento:", err);
                 setLoading(false);
-                setError("Erro ao carregar dados iniciais");
+                setLoadingPercentage(0);
+                setError(err.message || "Erro ao carregar dados iniciais");
             }
         })();
     }, []);
@@ -254,78 +271,103 @@ const GestaoPartesDiarias = () => {
     }, []);
 
     const fetchEspecialidades = async () => {
-        try {
-            const token = await secureStorage.getItem("painelAdminToken");
-            const urlempresa = await secureStorage.getItem("urlempresa");
-            
-            const res = await fetch(
-                "https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades",
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        urlempresa,
-                        "Content-Type": "application/json",
-                    },
-                },
-            );
-            
-            if (!res.ok) throw new Error("Falha ao obter especialidades");
-            const data = await res.json();
-            const table = data?.DataSet?.Table || [];
+        const token = await secureStorage.getItem("painelAdminToken");
+        const urlempresa = await secureStorage.getItem("urlempresa");
 
-            const map = {};
-            const list = [];
-
-            table.forEach((item) => {
-                const subEmpId = item.SubEmpId ?? item.SubEmpID ?? item.SubEmpid;
-                const codigo = item.SubEmp ?? String(subEmpId ?? "");
-                const desc = item.Descricao ?? item.Desig ?? codigo;
-                if (subEmpId != null) map[String(subEmpId)] = desc;
-                list.push({ codigo, descricao: desc, subEmpId });
-            });
-
-            setEspecialidadesMap(map);
-            setEspecialidadesList(list);
-        } catch (err) {
-            console.warn("Erro especialidades:", err.message);
+        if (!token || !urlempresa) {
+            throw new Error("Token ou URL da empresa não disponível");
         }
+
+        const res = await fetch(
+            "https://webapiprimavera.advir.pt/routesFaltas/GetListaEspecialidades",
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    urlempresa,
+                    "Content-Type": "application/json",
+                },
+            },
+        );
+
+        if (!res.ok) {
+            const errorText = await res.text().catch(() => "");
+            throw new Error(
+                `HTTP ${res.status}: ${errorText || "Falha ao obter especialidades"}`,
+            );
+        }
+
+        const data = await res.json();
+        const table = data?.DataSet?.Table || [];
+
+        if (!Array.isArray(table) || table.length === 0) {
+            throw new Error("Nenhuma especialidade retornada pela API");
+        }
+
+        const map = {};
+        const list = [];
+
+        table.forEach((item) => {
+            const subEmpId = item.SubEmpId ?? item.SubEmpID ?? item.SubEmpid;
+            const codigo = item.SubEmp ?? String(subEmpId ?? "");
+            const desc = item.Descricao ?? item.Desig ?? codigo;
+            if (subEmpId != null) map[String(subEmpId)] = desc;
+            list.push({ codigo, descricao: desc, subEmpId });
+        });
+
+        setEspecialidadesMap(map);
+        setEspecialidadesList(list);
+
+        return { map, list };
     };
 
     const fetchEquipamentos = async () => {
-        try {
-            const token = await secureStorage.getItem("painelAdminToken");
-            const urlempresa = await secureStorage.getItem("urlempresa");
+        const token = await secureStorage.getItem("painelAdminToken");
+        const urlempresa = await secureStorage.getItem("urlempresa");
 
-            const res = await fetch(
-                "https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos",
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        urlempresa,
-                        "Content-Type": "application/json",
-                    },
-                },
-            );
-            if (!res.ok) throw new Error("Falha ao obter equipamentos");
-            const data = await res.json();
-
-            const table = data?.DataSet?.Table || [];
-            const map = {};
-            const list = [];
-
-            table.forEach((item) => {
-                const componenteID = item.ComponenteID ?? item.ID ?? null;
-                const codigo = item.Codigo ?? String(componenteID ?? "");
-                const nome = item.Desig ?? codigo;
-                if (componenteID != null) map[String(componenteID)] = nome;
-                list.push({ codigo, descricao: nome, subEmpId: componenteID });
-            });
-
-            setEquipamentosMap(map);
-            setEquipamentosList(list);
-        } catch (err) {
-            console.warn("Erro equipamentos:", err.message);
+        if (!token || !urlempresa) {
+            throw new Error("Token ou URL da empresa não disponível");
         }
+
+        const res = await fetch(
+            "https://webapiprimavera.advir.pt/routesFaltas/GetListaEquipamentos",
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    urlempresa,
+                    "Content-Type": "application/json",
+                },
+            },
+        );
+
+        if (!res.ok) {
+            const errorText = await res.text().catch(() => "");
+            throw new Error(
+                `HTTP ${res.status}: ${errorText || "Falha ao obter equipamentos"}`,
+            );
+        }
+
+        const data = await res.json();
+        const table = data?.DataSet?.Table || [];
+
+        if (!Array.isArray(table) || table.length === 0) {
+            throw new Error("Nenhum equipamento retornado pela API");
+        }
+
+        const map = {};
+        const list = [];
+
+        table.forEach((item) => {
+            const componenteID = item.ComponenteID ?? item.ID ?? null;
+            const codigo = item.Codigo ?? String(componenteID ?? "");
+            const nome = item.Desig ?? codigo;
+            if (componenteID != null) map[String(componenteID)] = nome;
+            list.push({ codigo, descricao: nome, subEmpId: componenteID });
+        });
+
+        setEquipamentosMap(map);
+        setEquipamentosList(list);
+
+        return { map, list };
     };
 
     const getClasseNomeById = (id) => {
@@ -423,11 +465,16 @@ const GestaoPartesDiarias = () => {
 
     // Nova função para buscar classes
     // === CLASSES ===
+    // === CLASSES ===
     const fetchClasses = async () => {
-        try {
-            const token = await secureStorage.getItem("painelAdminToken");
-            const urlempresa = await secureStorage.getItem("urlempresa");
+        const token = await secureStorage.getItem("painelAdminToken");
+        const urlempresa = await secureStorage.getItem("urlempresa");
 
+        if (!token || !urlempresa) {
+            throw new Error("Token ou URL da empresa não disponível");
+        }
+
+        try {
             const res = await fetch(
                 "https://webapiprimavera.advir.pt/routesFaltas/GetListaClasses",
                 {
@@ -438,14 +485,21 @@ const GestaoPartesDiarias = () => {
                     },
                 },
             );
-            if (!res.ok) throw new Error("Falha ao obter classes");
+
+            if (!res.ok) {
+                const errorText = await res.text().catch(() => "");
+                throw new Error(
+                    `HTTP ${res.status}: ${errorText || "Falha ao obter classes"}`,
+                );
+            }
+
             const data = await res.json();
 
             const table =
                 data?.DataSet?.Table || data?.Table || data?.data || [];
-            const mapLoose = {}; // várias chaves possíveis -> descrição (mantém o teu comportamento atual)
-            const mapById = {}; // ID “canónico” -> descrição (para getClasseNomeById)
-            const listById = new Map(); // para construir lista única pro Picker
+            const mapLoose = {}; // chaves “soltas” (ID, código, variações) -> descrição
+            const mapById = {}; // ID canónico -> descrição
+            const listById = new Map(); // para opções únicas no Picker
 
             const put = (obj, k, v) => {
                 if (k === undefined || k === null) return;
@@ -455,7 +509,6 @@ const GestaoPartesDiarias = () => {
             };
 
             table.forEach((item) => {
-                // tentar apanhar tudo que costuma vir do serviço
                 const idRaw =
                     item.ClasseId ??
                     item.ClasseID ??
@@ -474,11 +527,10 @@ const GestaoPartesDiarias = () => {
                     item.Nome ??
                     String(idRaw ?? codigoRaw ?? "");
 
-                // 1) mapById (apenas por ID canónico)
+                // 1) mapById + lista única
                 if (idRaw !== undefined && idRaw !== null) {
                     const idStr = String(idRaw).trim();
                     put(mapById, idStr, desc);
-                    // construir lista única para o Picker
                     if (!listById.has(idStr)) {
                         listById.set(idStr, {
                             id: idStr,
@@ -488,8 +540,7 @@ const GestaoPartesDiarias = () => {
                     }
                 }
 
-                // 2) mapLoose (todas as variantes como antes)
-                //    — ID com e sem zeros à esquerda e zero-pad comum
+                // 2) mapLoose (várias variantes)
                 if (idRaw !== undefined && idRaw !== null) {
                     const idStr = String(idRaw).trim();
                     const idNoZeros = idStr.replace(/^0+/, "") || "0";
@@ -502,7 +553,6 @@ const GestaoPartesDiarias = () => {
                         put(mapLoose, String(idNum).padStart(3, "0"), desc);
                     }
                 }
-                //    — Código com e sem zeros à esquerda
                 if (codigoRaw !== undefined && codigoRaw !== null) {
                     const codStr = String(codigoRaw).trim();
                     const codNoZeros = codStr.replace(/^0+/, "") || "0";
@@ -517,7 +567,6 @@ const GestaoPartesDiarias = () => {
                 }
             });
 
-            // lista ordenada alfabeticamente por descrição
             const list = Array.from(listById.values()).sort((a, b) =>
                 String(a.descricao).localeCompare(String(b.descricao), "pt", {
                     sensitivity: "base",
@@ -527,8 +576,11 @@ const GestaoPartesDiarias = () => {
             setClassesMap(mapLoose);
             setClassesMapById(mapById);
             setClassesList(list);
+
+            return { mapLoose, mapById, list };
         } catch (err) {
             console.warn("Erro classes:", err.message);
+            throw err;
         }
     };
 
@@ -825,51 +877,81 @@ const GestaoPartesDiarias = () => {
             if (!codFuncionario) return ""; // externos não têm ColaboradorID
             if (cacheNomes[codFuncionario]) return cacheNomes[codFuncionario];
 
-            try {
-                const painelToken =
-                    await secureStorage.getItem("painelAdminToken");
-                const urlempresa = await secureStorage.getItem("urlempresa");
-                const res = await fetch(
-                    `https://webapiprimavera.advir.pt/routesFaltas/GetNomeFuncionario/${codFuncionario}`,
-                    {
-                        headers: {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${painelToken}`,
-                            urlempresa,
+            const maxTentativas = 5;
+            let tentativa = 0;
+
+            while (tentativa < maxTentativas) {
+                tentativa++;
+                try {
+                    const painelToken =
+                        await secureStorage.getItem("painelAdminToken");
+                    const urlempresa = await secureStorage.getItem("urlempresa");
+
+                    // Tentar com o código original
+                    let res = await fetch(
+                        `https://webapiprimavera.advir.pt/routesFaltas/GetNomeFuncionario/${codFuncionario}`,
+                        {
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${painelToken}`,
+                                urlempresa,
+                            },
                         },
-                    },
-                );
+                    );
 
-                if (res.ok) {
-                    const data = await res.json();
-                    const nome =
-                        data?.DataSet?.Table?.[0]?.Nome || codFuncionario;
-                    setCacheNomes((prev) => ({
-                        ...prev,
-                        [codFuncionario]: nome,
-                    }));
-                    return nome;
+                    // Se falhar e o código tiver zeros à esquerda, tentar sem eles
+                    if (!res.ok && /^0+\d+$/.test(String(codFuncionario))) {
+                        const codSemZeros = String(codFuncionario).replace(/^0+/, '');
+                        console.log(`⚠️ Tentativa ${tentativa}: Tentando com código sem zeros: ${codSemZeros}`);
+
+                        res = await fetch(
+                            `https://webapiprimavera.advir.pt/routesFaltas/GetNomeFuncionario/${codSemZeros}`,
+                            {
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    Authorization: `Bearer ${painelToken}`,
+                                    urlempresa,
+                                },
+                            },
+                        );
+                    }
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        const nome = data?.DataSet?.Table?.[0]?.Nome;
+
+                        // Só aceitar se realmente retornou um nome válido
+                        if (nome && nome.trim() && nome !== codFuncionario) {
+                            setCacheNomes((prev) => ({
+                                ...prev,
+                                [codFuncionario]: nome,
+                            }));
+                            console.log(`✅ Nome obtido com sucesso para ${codFuncionario}: ${nome}`);
+                            return nome;
+                        }
+                    }
+
+                    console.warn(
+                        `⚠️ Tentativa ${tentativa}/${maxTentativas} falhou para funcionário ${codFuncionario}`,
+                    );
+
+                    if (tentativa < maxTentativas) {
+                        await new Promise(resolve => setTimeout(resolve, 1000 * tentativa));
+                    }
+                } catch (err) {
+                    console.warn(`⚠️ Tentativa ${tentativa}/${maxTentativas} erro para funcionário ${codFuncionario}:`, err.message);
+                    if (tentativa < maxTentativas) {
+                        await new Promise(resolve => setTimeout(resolve, 1000 * tentativa));
+                    }
                 }
-
-                console.warn(
-                    `Erro ao obter nome do funcionário ${codFuncionario}`,
-                );
-                setCacheNomes((prev) => ({
-                    ...prev,
-                    [codFuncionario]: codFuncionario,
-                }));
-                return codFuncionario;
-            } catch (err) {
-                console.error("Erro ao obter nome do funcionário:", err);
-                setCacheNomes((prev) => ({
-                    ...prev,
-                    [codFuncionario]: codFuncionario,
-                }));
-                return codFuncionario;
             }
+
+            // Se todas as tentativas falharam, lançar erro
+            throw new Error(`Não foi possível obter nome do funcionário ${codFuncionario} após ${maxTentativas} tentativas`);
         },
         [cacheNomes],
     );
+
 
     const obterColaboradorID = useCallback(
         async (codFuncionario) => {
@@ -1044,7 +1126,7 @@ const GestaoPartesDiarias = () => {
         try {
             const logintoken = await secureStorage.getItem("loginToken");
             const tipoUser = await secureStorage.getItem("tipoUser");
-            
+
             const res = await fetch("https://backend.advir.pt/api/obra", {
                 headers: {
                     Authorization: `Bearer ${logintoken}`,
@@ -1069,7 +1151,8 @@ const GestaoPartesDiarias = () => {
             }
 
             // Obter o responsável atual do secureStorage (para não-administradores)
-            const codRecursosHumanos = await secureStorage.getItem("codRecursosHumanos");
+            const codRecursosHumanos =
+                await secureStorage.getItem("codRecursosHumanos");
             const obrasDoResponsavel = new Set();
 
             // Verificar responsáveis em paralelo (máximo 10 simultâneos)
@@ -1079,14 +1162,23 @@ const GestaoPartesDiarias = () => {
                 const resultados = await Promise.all(
                     chunk.map(async (obra) => {
                         const key = String(obra.id || obra.ID);
-                        map[key] = { codigo: obra.codigo, descricao: obra.nome };
+                        map[key] = {
+                            codigo: obra.codigo,
+                            descricao: obra.nome,
+                        };
 
                         if (codRecursosHumanos && obra.codigo) {
-                            const responsavel = await fetchResponsavelObra(obra.codigo);
-                            return { key, isResponsavel: responsavel === codRecursosHumanos };
+                            const responsavel = await fetchResponsavelObra(
+                                obra.codigo,
+                            );
+                            return {
+                                key,
+                                isResponsavel:
+                                    responsavel === codRecursosHumanos,
+                            };
                         }
                         return { key, isResponsavel: false };
-                    })
+                    }),
                 );
 
                 resultados.forEach(({ key, isResponsavel }) => {
@@ -1106,22 +1198,23 @@ const GestaoPartesDiarias = () => {
     const fetchCabecalhos = async () => {
         try {
             const token = await secureStorage.getItem("painelAdminToken");
-            if (!token) throw new Error("Token de autenticação não encontrado.");
-            
+            if (!token)
+                throw new Error("Token de autenticação não encontrado.");
+
             const res = await fetch(
                 "https://backend.advir.pt/api/parte-diaria/cabecalhos",
                 {
                     headers: { Authorization: `Bearer ${token}` },
                 },
             );
-            
+
             if (!res.ok) throw new Error("Falha ao obter partes diárias.");
             const data = await res.json();
 
             // Otimização: Carregar nomes de colaboradores únicos em paralelo
             const colaboradoresUnicos = new Set();
-            data.forEach(cab => {
-                cab?.ParteDiariaItems?.forEach(item => {
+            data.forEach((cab) => {
+                cab?.ParteDiariaItems?.forEach((item) => {
                     if (!isExternoItem(item) && item.ColaboradorID) {
                         colaboradoresUnicos.add(item.ColaboradorID);
                     }
@@ -1133,7 +1226,7 @@ const GestaoPartesDiarias = () => {
             const chunkSize = 10;
             for (let i = 0; i < colaboradoresArray.length; i += chunkSize) {
                 const chunk = colaboradoresArray.slice(i, i + chunkSize);
-                await Promise.all(chunk.map(id => obterNomeFuncionario(id)));
+                await Promise.all(chunk.map((id) => obterNomeFuncionario(id)));
             }
 
             setCabecalhos(data);
@@ -2242,23 +2335,32 @@ const GestaoPartesDiarias = () => {
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#1792FE" />
                 <Text style={styles.loadingText}>{loadingMessage}</Text>
-                <View style={{
-                    width: '80%',
-                    height: 8,
-                    backgroundColor: '#e0e0e0',
-                    borderRadius: 4,
-                    marginTop: 20,
-                    overflow: 'hidden'
-                }}>
-                    <View style={{
-                        width: `${loadingPercentage}%`,
-                        height: '100%',
-                        backgroundColor: '#1792FE',
+                <View
+                    style={{
+                        width: "80%",
+                        height: 8,
+                        backgroundColor: "#e0e0e0",
                         borderRadius: 4,
-                        transition: 'width 0.3s ease'
-                    }} />
+                        marginTop: 20,
+                        overflow: "hidden",
+                    }}
+                >
+                    <View
+                        style={{
+                            width: `${loadingPercentage}%`,
+                            height: "100%",
+                            backgroundColor: "#1792FE",
+                            borderRadius: 4,
+                            transition: "width 0.3s ease",
+                        }}
+                    />
                 </View>
-                <Text style={[styles.loadingText, { marginTop: 10, fontSize: 14 }]}>
+                <Text
+                    style={[
+                        styles.loadingText,
+                        { marginTop: 10, fontSize: 14 },
+                    ]}
+                >
                     {loadingPercentage}%
                 </Text>
             </View>
@@ -2300,7 +2402,9 @@ const GestaoPartesDiarias = () => {
                     <Text style={styles.headerSubtitle}>
                         {cabecalhosFiltrados.length}{" "}
                         {cabecalhosFiltrados.length === 1 ? "parte" : "partes"}{" "}
-                        {obrasResponsavel.size === Object.keys(obrasMap).length ? "de todas as obras" : "das suas obras"}
+                        {obrasResponsavel.size === Object.keys(obrasMap).length
+                            ? "de todas as obras"
+                            : "das suas obras"}
                     </Text>
                 </LinearGradient>
 

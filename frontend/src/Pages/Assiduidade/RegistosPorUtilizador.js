@@ -430,8 +430,8 @@ const RegistosPorUtilizador = () => {
                 throw new Error('Formato de resposta inválido ao carregar utilizadores');
             }
 
-            // Filtrar e ordenar utilizadores (ignorar jose.pedroeb1@gmail.com)
-            const utilizadoresFiltrados = data.filter(u => u.email !== 'jose.pedroeb1@gmail.com');
+            // Filtrar e ordenar utilizadores (ignorar testes@advir.pt)
+            const utilizadoresFiltrados = data.filter(u => u.email !== 'testes@advir.pt');
 
             if (utilizadoresFiltrados.length === 0) {
                 console.warn('⚠️ Nenhum utilizador encontrado para esta empresa');
@@ -2998,6 +2998,7 @@ const RegistosPorUtilizador = () => {
                                 <>
                                     <button
                                         style={styles.primaryButton}
+                                        
                                                onClick={() => setBulkDialogOpen(true)}
                                     >
                                         🗓️ Registar em bloco ({selectedCells.length} dias)
