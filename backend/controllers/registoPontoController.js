@@ -1,396 +1,692 @@
-const RegistoPonto = require('../models/registoPonto');
+const RegistoPontoObra = require('../models/registoPontoObra');
+const Obra = require('../models/obra');
+const User = require('../models/user');
 const { Op } = require('sequelize');
-const Intervalo = require('../models/intervalo');
-const Empresa = require('../models/empresa'); // <-- ADICIONA ESTA LINHA
+const Sequelize = require('sequelize');
+
+console.log('🔧 Models importados:', {
+    RegistoPontoObra: !!RegistoPontoObra,
+    Obra: !!Obra,
+    User: !!User
+});
 
 
-const calcularHorasTrabalhadas = (horaEntrada, horaSaida) => {
-    const entrada = new Date(horaEntrada);
-    const saida = new Date(horaSaida);
+const registarPonto = async (req, res) => {
+  try {
+    // Se for fornecido targetUserId (para registo biométrico), usar esse; caso contrário, usar o utilizador logado
+    const userId = req.body.targetUserId || req.user.id;
+    const { tipo, obra_id, latitude, longitude } = req.body;
 
-    if (isNaN(entrada.getTime()) || isNaN(saida.getTime())) {
-        console.error("Erro: Hora inválida.");
-        return "0.00";
+    const novoRegisto = await RegistoPontoObra.create({
+      user_id: userId,
+      obra_id,
+      tipo,
+      timestamp: new Date(),
+      latitude,
+      longitude
+    });
+
+    res.status(201).json(novoRegisto);
+  } catch (error) {
+    console.error('Erro ao registar ponto:', error);
+    res.status(500).json({ message: 'Erro interno ao registar ponto.' });
+  }
+};
+
+const listarRegistosPorDia = async (req, res) => {
+  try {
+    const { data, userId, user_id } = req.query;
+
+    if (!data || isNaN(Date.parse(data))) {
+      return res.status(400).json({ message: 'Data inválida.' });
     }
 
-    // Calcular a diferença em milissegundos e converter para horas
-    const diferencaMilissegundos = saida.getTime() - entrada.getTime();
-    const horasTrabalhadas = diferencaMilissegundos / (1000 * 60 * 60); // converter ms para horas
+    // Utilizador alvo: query > logado
+    const alvoId = Number(userId ?? user_id ?? req.user.id);
 
-    return horasTrabalhadas.toFixed(2); // arredondar para duas casas decimais
+    // Se o alvo for diferente do logado, verificar permissões
+    const mesmoUser = alvoId === req.user.id;
+    const tipo = (req.user.tipoUser || '').toString();
+    const isPrivileged =
+      !!req.user.isAdmin ||
+      !!req.user.superAdmin ||
+      ['Administrador', 'Encarregado', 'Diretor'].includes(tipo);
+
+    if (!mesmoUser && !isPrivileged) {
+      return res.status(403).json({ message: 'Sem permissões para consultar registos de outro utilizador.' });
+    }
+
+    // Opcional: validar se pertence à mesma empresa
+    // if (req.user.empresa_id && userExiste.empresa_id && req.user.empresa_id !== userExiste.empresa_id) {
+    //   return res.status(403).json({ message: 'Utilizador alvo não pertence à mesma empresa.' });
+    // }
+
+    const dataInicio = new Date(`${data}T00:00:00.000Z`);
+    const dataFim    = new Date(`${data}T23:59:59.999Z`);
+
+    const registos = await RegistoPontoObra.findAll({
+      where: {
+        user_id: alvoId,
+        timestamp: { [Op.between]: [dataInicio, dataFim] }
+      },
+      include: [{ model: Obra, attributes: ['id', 'nome', 'localizacao'] }],
+      order: [['timestamp', 'ASC']]
+    });
+
+    return res.status(200).json(registos);
+  } catch (error) {
+    console.error('Erro ao listar registos:', error);
+    return res.status(500).json({ message: 'Erro interno ao listar registos.' });
+  }
 };
 
 
 
-const registarPontoComBotao = async (req, res) => {
+const resumoMensalPorUser = async (req, res) => {
+  try {
+    const user_id = req.user.id;
+    const { ano, mes } = req.query;
+
+    if (!ano || !mes) {
+      return res.status(400).json({ message: 'Ano e mês são obrigatórios.' });
+    }
+
+    const dataInicio = new Date(`${ano}-${mes}-01T00:00:00Z`);
+    const dataFim = new Date(dataInicio);
+    dataFim.setMonth(dataFim.getMonth() + 1);
+
+    const registos = await RegistoPontoObra.findAll({
+      where: {
+        user_id,
+        timestamp: {
+          [Op.between]: [dataInicio, dataFim]
+        }
+      },
+      order: [['timestamp', 'ASC']],
+    });
+
+    const dias = {};
+
+    for (const registo of registos) {
+      const dataDia = new Date(registo.timestamp).toISOString().split('T')[0];
+
+      if (!dias[dataDia]) dias[dataDia] = [];
+
+      dias[dataDia].push(registo);
+    }
+
+    const resultado = Object.entries(dias).map(([dia, registosDia]) => {
+      let totalMs = 0;
+      let ultimaEntrada = null;
+
+      for (const reg of registosDia) {
+        if (reg.tipo === 'entrada') {
+          ultimaEntrada = new Date(reg.timestamp);
+        } else if (reg.tipo === 'saida' && ultimaEntrada) {
+          const saida = new Date(reg.timestamp);
+          totalMs += saida - ultimaEntrada;
+          ultimaEntrada = null;
+        }
+      }
+
+      const horas = Math.floor(totalMs / 3600000);
+      const minutos = Math.floor((totalMs % 3600000) / 60000);
+
+      return { dia, horas, minutos };
+    });
+
+    res.json(resultado);
+  } catch (error) {
+    console.error('Erro no resumo mensal:', error);
+    res.status(500).json({ message: 'Erro interno ao obter resumo mensal.' });
+  }
+};
+
+
+const registarPontoEsquecido = async (req, res) => {
+  try {
+    const { tipo, obra_id, timestamp, justificacao } = req.body;
+    const user_id = req.user.id;
+
+    const novoRegisto = await RegistoPontoObra.create({
+      user_id,
+      obra_id,
+      tipo,
+      timestamp: new Date(timestamp),
+      is_confirmed: false,
+      justificacao
+    });
+
+    res.status(201).json(novoRegisto);
+  } catch (err) {
+    console.error('Erro ao registar ponto esquecido:', err);
+    res.status(500).json({ message: 'Erro interno ao registar ponto esquecido.' });
+  }
+};
+
+
+const listarPorObraEDia = async (req, res) => {
+  try {
+    const { data, obra_id } = req.query;
+
+    if (!data || !obra_id) {
+      return res.status(400).json({ message: 'Data e obra_id são obrigatórios.' });
+    }
+
+    const dataInicio = new Date(`${data}T00:00:00.000Z`);
+    const dataFim = new Date(`${data}T23:59:59.999Z`);
+
+    const registos = await RegistoPontoObra.findAll({
+      where: {
+        obra_id,
+        timestamp: {
+          [Op.between]: [dataInicio, dataFim]
+        }
+      },
+      include: [
+        { model: User, attributes: ['id', 'nome', 'email'] },
+        { model: Obra, attributes: ['id', 'nome'] }
+      ],
+      order: [['timestamp', 'ASC']]
+    });
+
+    res.status(200).json(registos);
+  } catch (err) {
+    console.error('Erro ao listar registos por obra e dia:', err);
+    res.status(500).json({ message: 'Erro interno ao listar registos.' });
+  }
+};
+
+
+const registarPontoEquipa = async (req, res) => {
+  try {
+    const { tipo, obra_id, latitude, longitude, membros } = req.body;
+
+    if (!['entrada', 'saida'].includes(tipo) || !obra_id || !Array.isArray(membros)) {
+      return res.status(400).json({ message: 'Dados inválidos.' });
+    }
+
+    // Validar estado de cada membro antes de registar
+    const hoje = new Date();
+    const dataInicio = new Date(hoje.setHours(0, 0, 0, 0));
+    const dataFim = new Date(hoje.setHours(23, 59, 59, 999));
+
+    const errosValidacao = [];
+
+    for (const user_id of membros) {
+      // Buscar último registo do utilizador hoje
+      const ultimoRegisto = await RegistoPontoObra.findOne({
+        where: {
+          user_id,
+          obra_id,
+          timestamp: { [Op.between]: [dataInicio, dataFim] }
+        },
+        order: [['timestamp', 'DESC']]
+      });
+
+      // Se está a tentar registar entrada mas já tem entrada ativa
+      if (tipo === 'entrada' && ultimoRegisto && ultimoRegisto.tipo === 'entrada') {
+        const user = await User.findByPk(user_id);
+        errosValidacao.push(`${user?.nome || `Utilizador ${user_id}`} já tem uma entrada registada sem saída.`);
+      }
+
+      // Se está a tentar registar saída mas não tem entrada ou já tem saída
+      if (tipo === 'saida' && (!ultimoRegisto || ultimoRegisto.tipo === 'saida')) {
+        const user = await User.findByPk(user_id);
+        errosValidacao.push(`${user?.nome || `Utilizador ${user_id}`} não tem entrada ativa para registar saída.`);
+      }
+    }
+
+    // Se houver erros de validação, retornar todos
+    if (errosValidacao.length > 0) {
+      return res.status(400).json({ 
+        message: 'Validação falhou para alguns membros da equipa.',
+        erros: errosValidacao 
+      });
+    }
+
+    // Se passou na validação, criar registos
+    const registosCriados = await Promise.all(membros.map(user_id =>
+      RegistoPontoObra.create({
+        tipo,
+        obra_id,
+        latitude: latitude || null,
+        longitude: longitude || null,
+        user_id,
+        timestamp: new Date()
+      })
+    ));
+
+    res.status(201).json(registosCriados);
+  } catch (error) {
+    console.error('Erro no registo por equipa:', error);
+    res.status(500).json({ message: 'Erro interno do servidor.' });
+  }
+};
+
+const listarRegistosHojeEquipa = async (req, res) => {
+  try {
+    const { membros } = req.query;
+
+    if (!membros) return res.status(400).json({ message: 'IDs de membros em falta.' });
+
+    const ids = membros.split(',').map(id => parseInt(id));
+    const hoje = new Date();
+    const dataInicio = new Date(hoje.setHours(0, 0, 0, 0));
+    const dataFim = new Date(hoje.setHours(23, 59, 59, 999));
+
+    const registos = await RegistoPontoObra.findAll({
+      where: {
+        user_id: { [Op.in]: ids },
+        timestamp: { [Op.between]: [dataInicio, dataFim] }
+      },
+      include: [
+        { model: User, attributes: ['id', 'nome', 'email'] },
+        { model: Obra, attributes: ['id', 'nome'] }
+      ],
+      order: [['timestamp', 'ASC']]
+    });
+
+    res.status(200).json(registos);
+  } catch (err) {
+    console.error('Erro ao listar registos da equipa:', err);
+    res.status(500).json({ message: 'Erro ao listar registos da equipa.' });
+  }
+};
+
+const confirmarPonto = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const registo = await RegistoPontoObra.findByPk(id);
+
+    if (!registo) {
+      return res.status(404).json({ message: 'Registo não encontrado.' });
+    }
+
+    if (registo.is_confirmed) {
+      return res.status(400).json({ message: 'Este registo já está confirmado.' });
+    }
+
+    registo.is_confirmed = true;
+    await registo.save();
+
+    res.status(200).json({ message: 'Registo confirmado com sucesso.', registo });
+  } catch (err) {
+    console.error('Erro ao confirmar registo:', err);
+    res.status(500).json({ message: 'Erro interno ao confirmar registo.' });
+  }
+};
+
+const cancelarPonto = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const registo = await RegistoPontoObra.findByPk(id);
+
+    if (!registo) {
+      return res.status(404).json({ message: 'Registo não encontrado.' });
+    }
+
+
+
+    await registo.destroy();
+
+    res.status(200).json({ message: 'Registo cancelado (eliminado) com sucesso.' });
+  } catch (err) {
+    console.error('Erro ao cancelar registo:', err);
+    res.status(500).json({ message: 'Erro interno ao cancelar registo.' });
+  }
+};
+
+const listarPendentes = async (req, res) => {
+  try {
+    const { empresa_id } = req.query;
+
+    let whereClause = { is_confirmed: false };
+    let includeObra = { model: Obra, attributes: ['id', 'nome', 'localizacao'] };
+
+    // Se foi especificado empresa_id, filtrar pelas obras dessa empresa
+    if (empresa_id) {
+      includeObra.where = { empresa_id: empresa_id };
+    }
+
+    const pendentes = await RegistoPontoObra.findAll({
+      where: whereClause,
+      include: [
+        { model: User, attributes: ['id', 'nome', 'email'] },
+        includeObra
+      ],
+      order: [['timestamp', 'ASC']]
+    });
+
+    res.status(200).json(pendentes);
+  } catch (err) {
+    console.error('Erro ao listar registos pendentes:', err);
+    res.status(500).json({ message: 'Erro interno ao listar pendentes.' });
+  }
+};
+
+const listarPorUserEDia = async (req, res) => {
+  try {
+    const { user_id, data } = req.query;
+
+    if (!user_id || !data || isNaN(Date.parse(data))) {
+      return res.status(400).json({ message: 'Parâmetros user_id e data são obrigatórios e válidos.' });
+    }
+
+    const dataInicio = new Date(`${data}T00:00:00.000Z`);
+    const dataFim = new Date(`${data}T23:59:59.999Z`);
+
+    const registos = await RegistoPontoObra.findAll({
+      where: {
+        user_id,
+        timestamp: {
+          [Op.between]: [dataInicio, dataFim]
+        }
+      },
+      include: [
+        { model: User, attributes: ['id', 'nome', 'email'] },
+        { model: Obra, attributes: ['id', 'nome', 'localizacao'] }
+      ],
+      order: [['timestamp', 'ASC']]
+    });
+
+    res.status(200).json(registos);
+  } catch (err) {
+    console.error('Erro ao listar registos por user e dia:', err);
+    res.status(500).json({ message: 'Erro interno ao listar registos por user e dia.' });
+  }
+};
+
+
+const listarPorUserPeriodo = async (req, res) => {
+  try {
+    const { user_id, data, ano, mes, obra_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({ message: 'Parâmetro user_id é obrigatório.' });
+    }
+
+    let dataInicio, dataFim;
+
+    // Se vier data → busca do dia
+    if (data) {
+      if (isNaN(Date.parse(data))) {
+        return res.status(400).json({ message: 'Data inválida.' });
+      }
+      dataInicio = new Date(`${data}T00:00:00.000Z`);
+      dataFim = new Date(`${data}T23:59:59.999Z`);
+    }
+
+    // Se vier ano + mês → busca do mês
+    else if (ano && mes) {
+      dataInicio = new Date(`${ano}-${mes}-01T00:00:00.000Z`);
+      dataFim = new Date(dataInicio);
+      dataFim.setMonth(dataFim.getMonth() + 1);
+    }
+
+    // Se vier só ano → busca do ano
+    else if (ano) {
+      dataInicio = new Date(`${ano}-01-01T00:00:00.000Z`);
+      dataFim = new Date(`${parseInt(ano) + 1}-01-01T00:00:00.000Z`);
+    }
+
+    // Where base
+    const whereClause = {
+      user_id,
+      ...(dataInicio && dataFim && {
+        timestamp: { [Op.between]: [dataInicio, dataFim] }
+      }),
+      ...(obra_id && { obra_id }) // filtro por obra, se existir
+    };
+
+    const registos = await RegistoPontoObra.findAll({
+      where: whereClause,
+      include: [
+        { model: User, attributes: ['id', 'nome', 'email'] },
+        { model: Obra, attributes: ['id', 'nome', 'localizacao'] }
+      ],
+      order: [['timestamp', 'ASC']]
+    });
+
+    res.status(200).json(registos);
+  } catch (err) {
+    console.error('Erro ao listar registos por período:', err);
+    res.status(500).json({ message: 'Erro interno ao listar registos.' });
+  }
+};
+
+// --- NOVO: registar ponto esquecido por outro utilizador ---
+const registarPontoEsquecidoPorOutro = async (req, res) => {
+  try {
+    const {
+      tipo,
+      obra_id,
+      obraId,
+      timestamp,
+      justificacao,
+      user_id: bodyUserId,
+      userId: bodyUserIdCamel
+    } = req.body;
+
+    // Permissões: ajusta à tua realidade
+    const podeAgirPorOutros = true;
+
+    if (!podeAgirPorOutros) {
+      return res.status(403).json({ message: 'Sem permissões para registar por outros utilizadores.' });
+    }
+
+    const targetUserId = Number(bodyUserId ?? bodyUserIdCamel);
+    const targetObraId = Number(obra_id ?? obraId);
+
+    if (!targetUserId || !targetObraId || !tipo || !timestamp) {
+      return res.status(400).json({ message: 'Campos obrigatórios: user_id, obra_id, tipo, timestamp.' });
+    }
+
+    // (Opcional) validações extra
+    const userExiste = await User.findByPk(targetUserId);
+    if (!userExiste) return res.status(404).json({ message: 'Utilizador alvo não encontrado.' });
+
+    const obraExiste = await Obra.findByPk(targetObraId);
+    if (!obraExiste) return res.status(404).json({ message: 'Obra não encontrada.' });
+
+    // (Opcional) garantir que pertence à mesma empresa
+    if (req.user.empresa_id && userExiste.empresa_id && req.user.empresa_id !== userExiste.empresa_id) {
+      return res.status(403).json({ message: 'Utilizador alvo não pertence à mesma empresa.' });
+    }
+
+    const novoRegisto = await RegistoPontoObra.create({
+      user_id: targetUserId,
+      obra_id: targetObraId,
+      tipo,
+      timestamp: new Date(timestamp),
+      is_confirmed: false,
+      justificacao
+    });
+
+    return res.status(201).json(novoRegisto);
+  } catch (err) {
+    console.error('Erro ao registar ponto esquecido por outro:', err);
+    return res.status(500).json({ message: 'Erro interno ao registar ponto.' });
+  }
+};
+
+
+
+const eliminarRegisto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.user.role;
+
+
+    // Verificar se o registo existe
+    const registo = await RegistoPontoObra.findByPk(id);
+    if (!registo) {
+      return res.status(404).json({ message: 'Registo não encontrado.' });
+    }
+
+    // Eliminar o registo
+    await registo.destroy();
+
+    console.log(`Registo de ponto ${id} eliminado por admin (${req.user.id})`);
+    return res.status(200).json({ message: 'Registo eliminado com sucesso.' });
+
+  } catch (err) {
+    console.error('Erro ao eliminar registo de ponto:', err);
+    return res.status(500).json({ message: 'Erro interno ao eliminar registo.' });
+  }
+};
+
+const obterRegistosObraPorDia = async (req, res) => {
     try {
-        const userId = req.user.id;
-        const nomeEmpresa = req.body.empresa;
-        const dataAtual = new Date().toISOString().split('T')[0];
-        const horaAtual = new Date().toISOString();
-        const { latitude, longitude, endereco, obra_id } = req.body;
+        const { obraId } = req.params;
+        const { data } = req.query;
 
-        if (!nomeEmpresa) {
-            return res.status(400).json({ message: "Nome da empresa não fornecido." });
-        }
+        const dataConsulta = data || new Date().toISOString().split('T')[0];
 
-        const empresa = await Empresa.findOne({ where: { empresa: nomeEmpresa } });
-        if (!empresa) {
-            return res.status(404).json({ message: "Empresa não encontrada." });
-        }
-
-        const tempoIntervaloPadrao = empresa.tempoIntervaloPadrao || 0;
-
-        let registo = await RegistoPonto.findOne({
+        const registos = await RegistoPontoObra.findAll({
             where: {
-                user_id: userId,
-                empresa_id: empresa.id,
-                data: dataAtual,
+                obra_id: obraId,
+                timestamp: {
+                    [Op.between]: [
+                        new Date(dataConsulta + 'T00:00:00.000Z'),
+                        new Date(dataConsulta + 'T23:59:59.999Z')
+                    ]
+                }
             },
+            include: [
+                {
+                    model: User,
+                    attributes: ['id', 'nome', 'username', 'email']
+                },
+                {
+                    model: Obra,
+                    attributes: ['id', 'nome']
+                }
+            ],
+            order: [['timestamp', 'DESC']]
         });
 
-        if (registo) {
-            if (registo.horaSaida) {
-                return res.status(400).json({ message: "Já registou entrada e saída para hoje." });
+        res.json(registos);
+    } catch (error) {
+        console.error('Erro ao obter registos da obra por dia:', error);
+        res.status(500).json({ 
+            message: 'Erro ao obter registos da obra',
+            error: error.message 
+        });
+    }
+};
+
+const obterResumoObra = async (req, res) => {
+    try {
+        const { obraId } = req.params;
+        const dataHoje = new Date().toISOString().split('T')[0];
+        
+        console.log(`📊 Obtendo resumo da obra ${obraId} para a data ${dataHoje}`);
+        console.log(`🔍 Query SQL: obra_id = ${obraId} AND DATE(timestamp) = '${dataHoje}'`);
+
+        // Obter todos os registos de hoje para esta obra
+        const registosHoje = await RegistoPontoObra.findAll({
+            where: {
+                obra_id: obraId,
+                timestamp: {
+                    [Op.between]: [
+                        new Date(dataHoje + 'T00:00:00.000Z'),
+                        new Date(dataHoje + 'T23:59:59.999Z')
+                    ]
+                }
+            },
+            include: [
+                {
+                    model: User,
+                    attributes: ['id', 'nome', 'username', 'email']
+                }
+            ],
+            order: [['timestamp', 'DESC']]
+        });
+
+        console.log(`📋 Encontrados ${registosHoje.length} registos para hoje`);
+        
+        if (registosHoje.length > 0) {
+            console.log(`🔍 Primeiros registos:`);
+            registosHoje.slice(0, 3).forEach((reg, idx) => {
+                console.log(`  ${idx + 1}. ${reg.User?.nome || 'N/A'} - ${reg.tipo} - ${reg.timestamp}`);
+            });
+        }
+
+        // Calcular quantas pessoas estão atualmente a trabalhar
+        const pessoasAtivas = new Set();
+        const registosPorUser = {};
+
+        // Organizar registos por utilizador
+        registosHoje.forEach(registo => {
+            const userId = registo.user_id;
+            if (!registosPorUser[userId]) {
+                registosPorUser[userId] = [];
+            }
+            registosPorUser[userId].push(registo);
+        });
+
+        console.log(`👥 Utilizadores únicos encontrados: ${Object.keys(registosPorUser).length}`);
+
+        // Para cada utilizador, verificar se tem entrada ativa
+        Object.keys(registosPorUser).forEach(userId => {
+            const registosUser = registosPorUser[userId].sort((a, b) => 
+                new Date(b.timestamp) - new Date(a.timestamp)
+            );
+            
+            const ultimoRegisto = registosUser[0];
+            console.log(`👤 User ${userId} (${ultimoRegisto.User?.nome}): último registo = ${ultimoRegisto.tipo} às ${ultimoRegisto.timestamp}`);
+            
+            // Se o registo mais recente é uma entrada, está ativo
+            if (registosUser.length > 0 && registosUser[0].tipo === 'entrada') {
+                pessoasAtivas.add(parseInt(userId));
+                console.log(`✅ User ${userId} está ATIVO (última entrada sem saída)`);
             } else {
-                registo.horaSaida = horaAtual;
-                registo.latitude = latitude;
-                registo.longitude = longitude;
-                registo.endereco = endereco;
-                registo.totalHorasTrabalhadas = calcularHorasTrabalhadas(registo.horaEntrada, horaAtual);
-
-                // Se ainda não tiver tempo de intervalo, aplica o padrão
-                if (registo.totalTempoIntervalo === 0 && tempoIntervaloPadrao > 0) {
-                    registo.totalTempoIntervalo = tempoIntervaloPadrao;
-                }
-
-                await registo.save();
-                return res.status(200).json({ message: "Hora de saída registada com sucesso!", registo: registo.toJSON() });
+                console.log(`❌ User ${userId} NÃO está ativo (última ação: ${ultimoRegisto.tipo})`);
             }
-        } else {
-            registo = await RegistoPonto.create({
-                user_id: userId,
-                empresa_id: empresa.id,
-                data: dataAtual,
-                horaEntrada: horaAtual,
-                latitude,
-                longitude,
-                endereco,
-                obra_id: obra_id || null,
-                totalHorasTrabalhadas: 0,
-                totalTempoIntervalo: tempoIntervaloPadrao, // 👈 aplica o valor aqui
-            });
-
-            return res.status(201).json({ message: "Hora de entrada registada com sucesso!", registo: registo.toJSON() });
-        }
-    } catch (error) {
-        console.error("Erro ao registar ponto:", error);
-        res.status(500).json({ message: "Erro ao registar ponto." });
-    }
-};
-
-
-
-
-const obterEstadoPonto = async (req, res) => {
-    try {
-        const userId = req.user.id;
-
-        const dataAtual = new Date().toISOString().split('T')[0];
-
-        // Obter o registo do dia atual
-        const registo = await RegistoPonto.findOne({
-            where: { user_id: userId, data: dataAtual },
-            include: [Intervalo],
         });
 
-        if (!registo) {
-            return res.status(200).json({ intervaloAberto: false, horaInicioIntervalo: null });
-        }
+        const pessoasAConsultar = pessoasAtivas.size;
 
-        const ultimoIntervalo = registo.intervalos?.slice(-1)[0]; // Último intervalo, se existir
+        // Pegar os últimos 10 registos para mostrar na lista
+        const entradasSaidas = registosHoje.slice(0, 10);
 
-        res.status(200).json({
-            intervaloAberto: ultimoIntervalo?.aberto || false,
-            horaInicioIntervalo: ultimoIntervalo?.horaInicio || null,
-        });
+        console.log(`🎯 RESULTADO FINAL: ${pessoasAConsultar} pessoas a trabalhar`);
+        console.log(`📋 ${entradasSaidas.length} registos para mostrar na lista`);
+
+        const resultado = {
+            pessoasAConsultar,
+            entradasSaidas
+        };
+
+        res.json(resultado);
     } catch (error) {
-        console.error("Erro ao obter estado do ponto:", error);
-        res.status(500).json({ message: 'Erro ao obter estado do ponto.' });
+        console.error('❌ Erro ao obter resumo da obra:', error);
+        res.status(500).json({ 
+            message: 'Erro ao obter resumo da obra',
+            error: error.message 
+        });
     }
 };
-
-
-
-const registarLeituraQRCode = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const nomeEmpresa = req.body.empresa;
-        const dataAtual = new Date().toISOString().split('T')[0];
-        const horaAtual = new Date().toISOString();
-        const { latitude, longitude, endereco, obra_id } = req.body;
-
-        if (!nomeEmpresa) {
-            return res.status(400).json({ message: "Nome da empresa não fornecido." });
-        }
-
-        const empresa = await Empresa.findOne({ where: { empresa: nomeEmpresa } });
-        if (!empresa) {
-            return res.status(404).json({ message: "Empresa não encontrada." });
-        }
-
-        const tempoIntervaloPadrao = empresa.tempoIntervaloPadrao || 0;
-
-        let registo = await RegistoPonto.findOne({
-            where: {
-                user_id: userId,
-                empresa_id: empresa.id,
-                data: dataAtual,
-            },
-        });
-
-        if (registo) {
-            if (registo.horaSaida) {
-                return res.status(400).json({ message: "Já registou entrada e saída para hoje." });
-            } else {
-                registo.horaSaida = horaAtual;
-                registo.latitude = latitude;
-                registo.longitude = longitude;
-                registo.endereco = endereco;
-                registo.totalHorasTrabalhadas = calcularHorasTrabalhadas(registo.horaEntrada, horaAtual);
-
-                // Se ainda não tiver intervalo definido, aplica o padrão
-                if (!registo.totalTempoIntervalo || registo.totalTempoIntervalo === 0) {
-                    registo.totalTempoIntervalo = tempoIntervaloPadrao;
-                }
-
-                await registo.save();
-                return res.status(200).json({ message: "Hora de saída registada com sucesso!", registo: registo.toJSON() });
-            }
-        } else {
-            registo = await RegistoPonto.create({
-                user_id: userId,
-                empresa_id: empresa.id,
-                data: dataAtual,
-                horaEntrada: horaAtual,
-                latitude,
-                longitude,
-                endereco,
-                obra_id: obra_id || null,
-                totalHorasTrabalhadas: 0,
-                totalTempoIntervalo: tempoIntervaloPadrao // 👈 aqui aplicas o valor
-            });
-
-            return res.status(201).json({ message: "Hora de entrada registada com sucesso!", registo: registo.toJSON() });
-        }
-    } catch (error) {
-        console.error("Erro ao registar ponto:", error);
-        res.status(500).json({ message: "Erro ao registar ponto." });
-    }
-};
-
-
-const editarRegisto = async (req, res) => {
-    try {
-        const { registoId } = req.params; // ID do registo a ser editado
-        const { horaEntrada, horaSaida } = req.body; // Novos valores
-
-        const registo = await RegistoPonto.findByPk(registoId);
-
-        if (!registo) {
-            return res.status(404).json({ message: 'Registo não encontrado.' });
-        }
-
-        // Atualiza os campos necessários
-        registo.horaEntrada = horaEntrada || registo.horaEntrada;
-        registo.horaSaida = horaSaida || registo.horaSaida;
-
-        // Recalcular horas trabalhadas, se necessário
-        if (horaEntrada && horaSaida) {
-            registo.totalHorasTrabalhadas = calcularHorasTrabalhadas(horaEntrada, horaSaida);
-        }
-
-        await registo.save();
-
-        res.status(200).json({ message: 'Registo atualizado com sucesso.', registo });
-    } catch (error) {
-        console.error("Erro ao editar registo:", error);
-        res.status(500).json({ message: 'Erro ao editar registo.' });
-    }
-};
-
-
-
-const getRegistoDiario = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const { mes, ano, empresa } = req.query; // <- adiciona empresa ao query
-
-        if (!empresa) {
-            return res.status(400).json({ message: "Empresa não especificada." });
-        }
-
-        const empresaSelecionada = await Empresa.findOne({ where: { empresa } });
-
-        if (!empresaSelecionada) {
-            return res.status(404).json({ message: "Empresa não encontrada." });
-        }
-
-        const dataAtual = new Date();
-        const anoFiltro = ano || dataAtual.getFullYear();
-        const mesFiltro = mes ? String(mes).padStart(2, '0') : String(dataAtual.getMonth() + 1).padStart(2, '0');
-        const dataInicio = `${anoFiltro}-${mesFiltro}-01`;
-        const dataFim = new Date(anoFiltro, mesFiltro, 0).toISOString().split('T')[0];
-
-        const registos = await RegistoPonto.findAll({
-            where: {
-                user_id: userId,
-                empresa_id: empresaSelecionada.id, // <- FILTRO ADICIONADO
-                data: { [Op.between]: [dataInicio, dataFim] }
-            },
-            include: [Intervalo],
-            order: [['data', 'ASC']]
-        });
-
-        const registosComTotais = registos.map(registo => {
-            const intervalos = registo.intervalos || [];
-            let totalIntervaloHoras = 0;
-
-            intervalos.forEach(intervalo => {
-                totalIntervaloHoras += intervalo.duracaoIntervalo || 0;
-            });
-
-            return {
-                ...registo.toJSON(),
-                totalHorasTrabalhadas: registo.totalHorasTrabalhadas,
-                totalTempoIntervalo: registo.totalTempoIntervalo
-            };
-        });
-
-        res.json(registosComTotais);
-    } catch (error) {
-        console.error("Erro ao obter registos diários:", error);
-        res.status(500).json({ message: 'Erro ao obter registos diários.' });
-    }
-};
-
-
-
-
-
-const listarHistoricoPontoAdmin = async (req, res) => {
-    try {
-        const { usuario, mes, ano } = req.query;
-
-        // Verifica se os parâmetros obrigatórios foram fornecidos
-        if (!usuario || !mes || !ano) {
-            return res.status(400).json({ message: 'Parâmetros insuficientes. É necessário fornecer usuário, mês e ano.' });
-        }
-
-        // Define o intervalo de datas para o mês e ano especificados
-        const dataInicio = new Date(ano, mes - 1, 1);
-        const dataFim = new Date(ano, mes, 0); // Último dia do mês
-
-        // Consulta os registos de ponto do utilizador no intervalo de datas especificado
-        const registos = await RegistoPonto.findAll({
-            where: {
-                user_id: usuario,
-                data: {
-                    [Op.between]: [dataInicio, dataFim]
-                }
-            },
-            attributes: ['id', 'data', 'horaEntrada', 'horaSaida', 'totalHorasTrabalhadas', 'totalTempoIntervalo'],
-            order: [['data', 'ASC']]
-        });
-
-        // Retorna os registos ao frontend
-        res.json({ registos });
-    } catch (error) {
-        console.error("Erro ao obter histórico de pontos para o administrador:", error);
-        res.status(500).json({ message: 'Erro ao obter histórico de pontos.' });
-    }
-};
-
-
-
-
-const registarPontoParaOutro = async (req, res) => {
-    try {
-
-
-        const { user_id, empresa, latitude, longitude, endereco, obra_id } = req.body;
-
-        if (!user_id || !empresa) {
-            return res.status(400).json({ message: 'user_id e empresa são obrigatórios.' });
-        }
-
-        const empresaRegisto = await Empresa.findOne({ where: { empresa } });
-        if (!empresaRegisto) {
-            return res.status(404).json({ message: "Empresa não encontrada." });
-        }
-
-        const dataAtual = new Date().toISOString().split('T')[0];
-        const horaAtual = new Date().toISOString();
-        const tempoIntervaloPadrao = empresaRegisto.tempoIntervaloPadrao || 0;
-
-        let registo = await RegistoPonto.findOne({
-            where: {
-                user_id,
-                empresa_id: empresaRegisto.id,
-                data: dataAtual,
-            },
-        });
-
-        if (registo) {
-            if (registo.horaSaida) {
-                return res.status(400).json({ message: "Utilizador já registou entrada e saída hoje." });
-            }
-
-            registo.horaSaida = horaAtual;
-            registo.latitude = latitude;
-            registo.longitude = longitude;
-            registo.endereco = endereco;
-            registo.totalHorasTrabalhadas = calcularHorasTrabalhadas(registo.horaEntrada, horaAtual);
-
-            if (!registo.totalTempoIntervalo || registo.totalTempoIntervalo === 0) {
-                registo.totalTempoIntervalo = tempoIntervaloPadrao;
-            }
-
-            await registo.save();
-            return res.status(200).json({ message: `Saída registada para utilizador ${user_id}.`, registo: registo.toJSON() });
-        } else {
-            registo = await RegistoPonto.create({
-                user_id,
-                empresa_id: empresaRegisto.id,
-                data: dataAtual,
-                horaEntrada: horaAtual,
-                latitude,
-                longitude,
-                endereco,
-                obra_id: obra_id || null,
-                totalHorasTrabalhadas: 0,
-                totalTempoIntervalo: tempoIntervaloPadrao,
-            });
-
-            return res.status(201).json({ message: `Entrada registada para utilizador ${user_id}.`, registo: registo.toJSON() });
-        }
-
-    } catch (error) {
-        console.error("Erro ao registar ponto para outro utilizador:", error);
-        res.status(500).json({ message: "Erro interno ao registar ponto para outro utilizador." });
-    }
-};
-
-
 
 
 module.exports = {
-    registarLeituraQRCode,
-    getRegistoDiario,
-    listarHistoricoPontoAdmin,
-    registarPontoComBotao,
-    editarRegisto,
-    obterEstadoPonto,
-    registarPontoParaOutro
-
+  registarPonto,
+  listarRegistosPorDia,
+  resumoMensalPorUser,
+  registarPontoEsquecido,
+  listarPorObraEDia,
+  registarPontoEquipa,
+  listarRegistosHojeEquipa,
+  confirmarPonto,
+  cancelarPonto,
+  listarPendentes,
+  listarPorUserEDia,
+  listarPorUserPeriodo,
+  registarPontoEsquecidoPorOutro,
+  eliminarRegisto,
+  obterRegistosObraPorDia,
+  obterResumoObra,
 };

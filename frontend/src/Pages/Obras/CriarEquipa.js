@@ -484,11 +484,7 @@ const CriarEquipa = () => {
                                                             "@",
                                                         )[0]}
                                                 </Text>
-                                                <Text
-                                                    style={styles.memberEmail}
-                                                >
-                                                    {user.email}
-                                                </Text>
+                                                
                                             </View>
                                         </View>
                                     </TouchableOpacity>
