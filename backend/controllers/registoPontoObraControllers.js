@@ -202,16 +202,56 @@ const registarPontoEquipa = async (req, res) => {
   try {
     const { tipo, obra_id, latitude, longitude, membros } = req.body;
 
-    if (!['entrada', 'saida'].includes(tipo) || !obra_id || !latitude || !longitude || !Array.isArray(membros)) {
+    if (!['entrada', 'saida'].includes(tipo) || !obra_id || !Array.isArray(membros)) {
       return res.status(400).json({ message: 'Dados inválidos.' });
     }
 
+    // Validar estado de cada membro antes de registar
+    const hoje = new Date();
+    const dataInicio = new Date(hoje.setHours(0, 0, 0, 0));
+    const dataFim = new Date(hoje.setHours(23, 59, 59, 999));
+
+    const errosValidacao = [];
+
+    for (const user_id of membros) {
+      // Buscar último registo do utilizador hoje
+      const ultimoRegisto = await RegistoPontoObra.findOne({
+        where: {
+          user_id,
+          obra_id,
+          timestamp: { [Op.between]: [dataInicio, dataFim] }
+        },
+        order: [['timestamp', 'DESC']]
+      });
+
+      // Se está a tentar registar entrada mas já tem entrada ativa
+      if (tipo === 'entrada' && ultimoRegisto && ultimoRegisto.tipo === 'entrada') {
+        const user = await User.findByPk(user_id);
+        errosValidacao.push(`${user?.nome || `Utilizador ${user_id}`} já tem uma entrada registada sem saída.`);
+      }
+
+      // Se está a tentar registar saída mas não tem entrada ou já tem saída
+      if (tipo === 'saida' && (!ultimoRegisto || ultimoRegisto.tipo === 'saida')) {
+        const user = await User.findByPk(user_id);
+        errosValidacao.push(`${user?.nome || `Utilizador ${user_id}`} não tem entrada ativa para registar saída.`);
+      }
+    }
+
+    // Se houver erros de validação, retornar todos
+    if (errosValidacao.length > 0) {
+      return res.status(400).json({ 
+        message: 'Validação falhou para alguns membros da equipa.',
+        erros: errosValidacao 
+      });
+    }
+
+    // Se passou na validação, criar registos
     const registosCriados = await Promise.all(membros.map(user_id =>
       RegistoPontoObra.create({
         tipo,
         obra_id,
-        latitude,
-        longitude,
+        latitude: latitude || null,
+        longitude: longitude || null,
         user_id,
         timestamp: new Date()
       })
