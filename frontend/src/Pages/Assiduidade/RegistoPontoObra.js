@@ -350,63 +350,82 @@ const RegistoPontoObra = (props) => {
     };
 
     const getCurrentLocation = () => {
-        return new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(
-                (pos) =>
-                    resolve({
-                        coords: {
-                            latitude: pos.coords.latitude,
-                            longitude: pos.coords.longitude,
-                        },
-                    }),
-                (err) => reject(err),
-            );
-        });
-    };
-
-    const registarPonto = async (tipo, obraId, nomeObra) => {
-        try {
-            setLoading(true);
-            const loc = await getCurrentLocation();
-            const token = secureStorage.getItem("loginToken");
-
-            const res = await fetch(
-                "https://backend.advir.pt/api/registo-ponto-obra",
-                {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        tipo,
-                        obra_id: obraId,
-                        latitude: loc.coords.latitude,
-                        longitude: loc.coords.longitude,
-                    }),
-                },
-            );
-
-            if (res.ok) {
-                const data = await res.json();
-                const morada = await obterMoradaPorCoordenadas(
-                    data.latitude,
-                    data.longitude,
-                );
-                setRegistos((prev) => [
-                    ...prev,
-                    { ...data, Obra: { nome: nomeObra }, morada },
-                ]);
-            } else {
-                alert("Erro ao registar ponto");
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Erro ao registar ponto");
-        } finally {
-            setLoading(false);
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+            // API não disponível
+            resolve(null);
+            return;
         }
-    };
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                resolve({
+                    coords: {
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude,
+                    },
+                });
+            },
+            (err) => {
+                console.warn("Permissão de localização negada ou erro:", err);
+                resolve(null); // devolve null para continuar o registo
+            },
+            { timeout: 5000 } // evita ficar pendurado
+        );
+    });
+};
+
+
+   const registarPonto = async (tipo, obraId, nomeObra) => {
+    try {
+        setLoading(true);
+        const loc = await getCurrentLocation();
+        const token = secureStorage.getItem("loginToken");
+
+        const latitude = loc?.coords?.latitude ?? null;
+        const longitude = loc?.coords?.longitude ?? null;
+
+        const res = await fetch(
+            "https://backend.advir.pt/api/registo-ponto-obra",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    tipo,
+                    obra_id: obraId,
+                    latitude,
+                    longitude,
+                }),
+            }
+        );
+
+        if (res.ok) {
+            const data = await res.json();
+            let morada = null;
+            if (latitude && longitude) {
+                morada = await obterMoradaPorCoordenadas(latitude, longitude);
+            } else {
+                morada = "Localização não disponível";
+            }
+
+            setRegistos((prev) => [
+                ...prev,
+                { ...data, Obra: { nome: nomeObra }, morada },
+            ]);
+        } else {
+            alert("Erro ao registar ponto");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Erro ao registar ponto");
+    } finally {
+        setLoading(false);
+    }
+};
+
 
     const processarEntradaComValidacao = async (novaObraId, nomeObraNova) => {
         // Verificar se já há entrada na mesma obra sem saída
@@ -570,6 +589,9 @@ const RegistoPontoObra = (props) => {
             setLoading(true);
             const token = secureStorage.getItem("loginToken");
             const loc = await getCurrentLocation();
+const latitude = loc?.coords?.latitude ?? null;
+const longitude = loc?.coords?.longitude ?? null;
+
 
             // Determinar o tipo de registo (entrada/saída) baseado no estado atual da equipa
             // Para simplificar, vamos fazer entrada/saída alternada
@@ -654,44 +676,53 @@ const RegistoPontoObra = (props) => {
         }
     };
 
-    const handleRegistoEquipa = async (tipo) => {
-        try {
-            setLoading(true);
-            const token = secureStorage.getItem("loginToken");
-            const loc = await getCurrentLocation();
+   const handleRegistoEquipa = async (tipo) => {
+  try {
+    setLoading(true);
+    const token = secureStorage.getItem("loginToken");
+    const loc = await getCurrentLocation();
 
-            const res = await fetch(
-                "https://backend.advir.pt/api/registo-ponto-obra/registar-ponto-equipa",
-                {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        tipo,
-                        obra_id: obraSelecionada,
-                        latitude: loc.coords.latitude,
-                        longitude: loc.coords.longitude,
-                        membros: membrosSelecionados,
-                    }),
-                },
-            );
+    const latitude = loc?.coords?.latitude ?? null;
+    const longitude = loc?.coords?.longitude ?? null;
 
-            if (res.ok) {
-                alert(
-                    `Ponto "${tipo}" registado para ${membrosSelecionados.length} membro(s).`,
-                );
-            } else {
-                alert("Erro ao registar ponto para equipa.");
-            }
-        } catch (err) {
-            console.error("Erro registo equipa:", err);
-            alert("Erro interno ao registar ponto da equipa.");
-        } finally {
-            setLoading(false);
-        }
-    };
+    const res = await fetch(
+      "https://backend.advir.pt/api/registo-ponto-obra/registar-ponto-equipa",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tipo,
+          obra_id: obraSelecionada,
+          latitude,
+          longitude,
+          membros: membrosSelecionados,
+        }),
+      },
+    );
+
+    const data = await res.json();
+
+    if (res.ok) {
+      alert(`Ponto "${tipo}" registado para ${membrosSelecionados.length} membro(s).`);
+    } else if (res.status === 400 && data?.erros?.length > 0) {
+      // Mostra erros detalhados vindos do backend
+      alert(`⚠️ Alguns registos não foram efetuados:\n\n${data.erros.join("\n")}`);
+    } else {
+      // Erro genérico
+      alert("Erro ao registar ponto para equipa.");
+    }
+
+  } catch (err) {
+    console.error("Erro registo equipa:", err);
+    alert("Erro interno ao registar ponto da equipa.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
     return (
         <div
