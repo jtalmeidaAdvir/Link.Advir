@@ -27,12 +27,17 @@ const criarHorario = async (req, res) => {
     const { descricao, horasPorDia, horasSemanais, diasSemana, horaEntrada, horaSaida, intervaloAlmoco, observacoes } = req.body;
 
     try {
+        // Ensure diasSemana is properly formatted as JSON
+        const diasSemanaFormatted = Array.isArray(diasSemana) 
+            ? diasSemana 
+            : (typeof diasSemana === 'string' ? JSON.parse(diasSemana) : diasSemana);
+
         const novoHorario = await Horario.create({
             empresa_id: empresaId,
             descricao,
             horasPorDia,
             horasSemanais,
-            diasSemana,
+            diasSemana: diasSemanaFormatted,
             horaEntrada,
             horaSaida,
             intervaloAlmoco,
@@ -42,7 +47,7 @@ const criarHorario = async (req, res) => {
         res.status(201).json({ message: 'Horário criado com sucesso!', horario: novoHorario });
     } catch (error) {
         console.error('Erro ao criar horário:', error);
-        res.status(500).json({ message: 'Erro ao criar horário.' });
+        res.status(500).json({ message: 'Erro ao criar horário.', error: error.message });
     }
 };
 
@@ -58,12 +63,19 @@ const atualizarHorario = async (req, res) => {
             return res.status(404).json({ message: 'Horário não encontrado.' });
         }
 
+        // Ensure diasSemana is properly formatted as JSON if present
+        if (dadosAtualizacao.diasSemana) {
+            dadosAtualizacao.diasSemana = Array.isArray(dadosAtualizacao.diasSemana) 
+                ? dadosAtualizacao.diasSemana 
+                : (typeof dadosAtualizacao.diasSemana === 'string' ? JSON.parse(dadosAtualizacao.diasSemana) : dadosAtualizacao.diasSemana);
+        }
+
         await horario.update(dadosAtualizacao);
 
         res.status(200).json({ message: 'Horário atualizado com sucesso!', horario });
     } catch (error) {
         console.error('Erro ao atualizar horário:', error);
-        res.status(500).json({ message: 'Erro ao atualizar horário.' });
+        res.status(500).json({ message: 'Erro ao atualizar horário.', error: error.message });
     }
 };
 

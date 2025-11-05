@@ -98,8 +98,16 @@ const GestaoHorarios = () => {
             const token = secureStorage.getItem('loginToken');
             const empresaId = secureStorage.getItem('empresa_id');
 
-            const response = await fetch(`https://backend.advir.pt/api/horarios/empresa/${empresaId}`, {
-                method: 'POST',
+            // Se selectedHorario existe, estamos editando
+            const isEditing = selectedHorario && selectedHorario.id;
+            const url = isEditing 
+                ? `https://backend.advir.pt/api/horarios/${selectedHorario.id}`
+                : `https://backend.advir.pt/api/horarios/empresa/${empresaId}`;
+            
+            const method = isEditing ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -108,17 +116,18 @@ const GestaoHorarios = () => {
             });
 
             if (response.ok) {
-                setSuccessMessage('Horário criado com sucesso!');
+                setSuccessMessage(isEditing ? 'Horário atualizado com sucesso!' : 'Horário criado com sucesso!');
                 setShowModal(false);
+                setSelectedHorario(null);
                 resetNovoHorario();
                 fetchHorarios();
             } else {
                 const error = await response.json();
-                setErrorMessage(error.message || 'Erro ao criar horário');
+                setErrorMessage(error.message || `Erro ao ${isEditing ? 'atualizar' : 'criar'} horário`);
             }
         } catch (error) {
-            console.error('Erro ao criar horário:', error);
-            setErrorMessage('Erro ao criar horário');
+            console.error('Erro ao processar horário:', error);
+            setErrorMessage('Erro ao processar horário');
         } finally {
             setLoading(false);
         }
@@ -133,13 +142,21 @@ const GestaoHorarios = () => {
         try {
             const token = secureStorage.getItem('loginToken');
 
+            // Converter os IDs para inteiros conforme esperado pelo backend
+            const payload = {
+                userId: parseInt(novoPlano.user_id),
+                horarioId: parseInt(novoPlano.horario_id),
+                dataInicio: novoPlano.dataInicio,
+                observacoes: novoPlano.observacoes
+            };
+
             const response = await fetch(`https://backend.advir.pt/api/horarios/atribuir`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(novoPlano)
+                body: JSON.stringify(payload)
             });
 
             if (response.ok) {
@@ -481,7 +498,7 @@ const GestaoHorarios = () => {
                                     <input
                                         type="time"
                                         style={styles.formInput}
-                                        value={novoHorario.horaEntrada}
+                                        value={novoHorario.horaEntrada || ''}
                                         onChange={e => setNovoHorario({ ...novoHorario, horaEntrada: e.target.value })}
                                     />
                                 </div>
@@ -491,7 +508,7 @@ const GestaoHorarios = () => {
                                     <input
                                         type="time"
                                         style={styles.formInput}
-                                        value={novoHorario.horaSaida}
+                                        value={novoHorario.horaSaida || ''}
                                         onChange={e => setNovoHorario({ ...novoHorario, horaSaida: e.target.value })}
                                     />
                                 </div>
@@ -501,9 +518,10 @@ const GestaoHorarios = () => {
                                     <input
                                         type="number"
                                         step="0.5"
+                                        min="0"
                                         style={styles.formInput}
-                                        value={novoHorario.intervaloAlmoco}
-                                        onChange={e => setNovoHorario({ ...novoHorario, intervaloAlmoco: parseFloat(e.target.value) })}
+                                        value={novoHorario.intervaloAlmoco || 0}
+                                        onChange={e => setNovoHorario({ ...novoHorario, intervaloAlmoco: parseFloat(e.target.value) || 0 })}
                                     />
                                 </div>
                             </div>
