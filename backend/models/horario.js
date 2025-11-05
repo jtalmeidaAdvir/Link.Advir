@@ -34,7 +34,7 @@ const Horario = sequelize.define('Horario', {
         comment: 'Total de horas semanais'
     },
     diasSemana: {
-        type: DataTypes.STRING('MAX'),
+        type: DataTypes.TEXT,
         allowNull: true,
         comment: 'Array com dias da semana trabalhados [1,2,3,4,5] = Seg-Sex',
         get() {
@@ -78,7 +78,7 @@ const Horario = sequelize.define('Horario', {
         comment: 'Indica se o horário está ativo'
     },
     observacoes: {
-        type: DataTypes.STRING('MAX'),
+        type: DataTypes.TEXT,
         allowNull: true,
     },
     createdAt: {
