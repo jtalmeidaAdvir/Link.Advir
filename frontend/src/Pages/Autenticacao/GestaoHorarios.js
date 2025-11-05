@@ -72,6 +72,8 @@ const GestaoHorarios = () => {
             const token = secureStorage.getItem('loginToken');
             const empresaId = secureStorage.getItem('empresa_id');
 
+            console.log('Fetching users for empresa:', empresaId);
+
             const response = await fetch(`https://backend.advir.pt/api/users/empresa/${empresaId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -79,12 +81,20 @@ const GestaoHorarios = () => {
                 }
             });
 
+            console.log('Users response status:', response.status);
+
             if (response.ok) {
                 const data = await response.json();
+                console.log('Users fetched:', data);
                 setUsers(data);
+            } else {
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
+                setErrorMessage('Erro ao carregar utilizadores: ' + errorText);
             }
         } catch (error) {
             console.error('Erro ao carregar utilizadores:', error);
+            setErrorMessage('Erro ao carregar utilizadores: ' + error.message);
         }
     };
 

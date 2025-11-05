@@ -73,6 +73,57 @@ router.get('/:userId', authMiddleware, getDadosUtilizador);
 // Rota para remover utilizador
 router.delete('/:userId', authMiddleware, removerUtilizador);
 
+// Rota para listar utilizadores por empresa (usando parâmetro de rota)
+// IMPORTANTE: Esta rota deve vir ANTES da rota genérica GET /
+router.get('/empresa/:empresaId', authMiddleware, async (req, res) => {
+    try {
+        const User = require('../models/user');
+        const Empresa = require('../models/empresa');
+        const { empresaId } = req.params;
+
+        console.log('📋 Buscando utilizadores para empresa:', empresaId);
+
+        if (!empresaId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'empresaId é obrigatório' 
+            });
+        }
+
+        const empresa = await Empresa.findByPk(empresaId, {
+            include: {
+                model: User,
+                where: { isActive: true },
+                attributes: ['id', 'nome', 'username', 'email', 'codFuncionario'],
+            },
+        });
+
+        if (!empresa) {
+            console.log('❌ Empresa não encontrada:', empresaId);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Empresa não encontrada' 
+            });
+        }
+
+        const users = empresa.Users.sort((a, b) => {
+            const nomeA = a.nome || a.username || '';
+            const nomeB = b.nome || b.username || '';
+            return nomeA.localeCompare(nomeB);
+        });
+
+        console.log('✅ Utilizadores encontrados:', users.length);
+        res.json(users);
+    } catch (error) {
+        console.error('❌ Erro ao listar utilizadores:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Erro ao listar utilizadores',
+            details: error.message 
+        });
+    }
+});
+
 // Rota para listar todos os utilizadores (para seleção em comunicados)
 router.get('/', authMiddleware, async (req, res) => {
     try {
@@ -107,7 +158,7 @@ router.get('/', authMiddleware, async (req, res) => {
             const nomeB = b.nome || b.username || '';
             return nomeA.localeCompare(nomeB);
         });
-        
+
         res.json({ success: true, users });
     } catch (error) {
         console.error('Erro ao listar utilizadores:', error);
