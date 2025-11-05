@@ -28,6 +28,8 @@ const CriarEquipa = () => {
     const [nomeEquipa, setNomeEquipa] = useState("");
     const [utilizadores, setUtilizadores] = useState([]);
     const [membrosSelecionados, setMembrosSelecionados] = useState([]);
+    const [trabalhadoresExternos, setTrabalhadoresExternos] = useState([]);
+    const [externosSelecionados, setExternosSelecionados] = useState([]);
     const [loading, setLoading] = useState(false);
     const [equipasCriadas, setEquipasCriadas] = useState([]);
     const [modalEditar, setModalEditar] = useState(false);
@@ -84,8 +86,37 @@ const CriarEquipa = () => {
 
     useEffect(() => {
         fetchUtilizadores();
+        fetchTrabalhadoresExternos();
         fetchEquipasCriadas();
     }, []);
+
+    const fetchTrabalhadoresExternos = async () => {
+        try {
+            const loginToken = await secureStorage.getItem("loginToken");
+            const empresaId = await secureStorage.getItem("empresa_id");
+
+            const response = await fetch(
+                `https://backend.advir.pt/api/trabalhadores-externos?ativo=true&anulado=false&pageSize=500`,
+                {
+                    method: "GET",
+                    headers: { 
+                        Authorization: `Bearer ${loginToken}`,
+                        "X-Empresa-ID": empresaId
+                    },
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error("Erro ao obter trabalhadores externos");
+            }
+
+            const data = await response.json();
+            const lista = Array.isArray(data) ? data : data?.data || [];
+            setTrabalhadoresExternos(lista);
+        } catch (error) {
+            console.error("Erro ao carregar trabalhadores externos:", error.message);
+        }
+    };
 
     const fetchEquipasCriadas = async () => {
         try {
@@ -184,6 +215,14 @@ const CriarEquipa = () => {
         }
     };
 
+    const toggleExterno = (id) => {
+        if (externosSelecionados.includes(id)) {
+            setExternosSelecionados(externosSelecionados.filter((m) => m !== id));
+        } else {
+            setExternosSelecionados([...externosSelecionados, id]);
+        }
+    };
+
     const toggleTeamExpansion = (teamName) => {
         setExpandedTeams((prev) => ({
             ...prev,
@@ -192,8 +231,8 @@ const CriarEquipa = () => {
     };
 
     const criarEquipa = async () => {
-        if (!nomeEquipa || membrosSelecionados.length === 0) {
-            Alert.alert("Erro", "Preenche todos os campos.");
+        if (!nomeEquipa || (membrosSelecionados.length === 0 && externosSelecionados.length === 0)) {
+            Alert.alert("Erro", "Preenche o nome da equipa e seleciona pelo menos um membro.");
             return;
         }
 
@@ -214,6 +253,7 @@ const CriarEquipa = () => {
                     body: JSON.stringify({
                         nome: nomeEquipa,
                         membros: membrosSelecionados,
+                        membrosExternos: externosSelecionados,
                         empresa_id: empresaId,
                     }),
                 },
@@ -224,6 +264,7 @@ const CriarEquipa = () => {
                 Alert.alert("Sucesso", "Equipa criada com sucesso!");
                 setNomeEquipa("");
                 setMembrosSelecionados([]);
+                setExternosSelecionados([]);
                 fetchEquipasCriadas();
             } else {
                 Alert.alert("Erro", data.message || "Erro ao criar equipa.");
@@ -275,13 +316,18 @@ const CriarEquipa = () => {
     const iniciarEdicao = (equipa) => {
         setEquipaSelecionadaEditar(equipa);
         setNovoNomeEquipa(equipa.nome);
-        setMembrosSelecionados(equipa.membros.map((m) => m.id));
+        
+        const internos = equipa.membros.filter(m => m.tipo === 'interno').map(m => m.id);
+        const externos = equipa.membros.filter(m => m.tipo === 'externo').map(m => m.id);
+        
+        setMembrosSelecionados(internos);
+        setExternosSelecionados(externos);
         setModalEditar(true);
     };
 
     const salvarEdicaoEquipa = async () => {
-        if (!novoNomeEquipa.trim() || membrosSelecionados.length === 0) {
-            Alert.alert("Erro", "Preenche todos os campos.");
+        if (!novoNomeEquipa.trim() || (membrosSelecionados.length === 0 && externosSelecionados.length === 0)) {
+            Alert.alert("Erro", "Preenche o nome e seleciona pelo menos um membro.");
             return;
         }
 
@@ -299,6 +345,7 @@ const CriarEquipa = () => {
                         nomeAnterior: equipaSelecionadaEditar.nome,
                         novoNome: novoNomeEquipa,
                         novosMembros: membrosSelecionados,
+                        novosMembrosExternos: externosSelecionados,
                     }),
                 },
             );
@@ -309,6 +356,7 @@ const CriarEquipa = () => {
                 setEquipaSelecionadaEditar(null);
                 setNovoNomeEquipa("");
                 setMembrosSelecionados([]);
+                setExternosSelecionados([]);
                 fetchEquipasCriadas();
             } else {
                 const data = await res.json();
@@ -546,6 +594,54 @@ const CriarEquipa = () => {
                     )}
                 </View>
 
+                <View style={styles.inputContainer}>
+                    <Text style={styles.label}>
+                        <FontAwesome name="user-plus" size={16} color="#1792FE" />{" "}
+                        Trabalhadores Externos
+                    </Text>
+                    <Text style={styles.selectedCount}>
+                        {externosSelecionados.length} de {trabalhadoresExternos.length} selecionados
+                    </Text>
+                    <ScrollView style={styles.membersScrollView} nestedScrollEnabled={true}>
+                        {trabalhadoresExternos.map((externo) => (
+                            <TouchableOpacity
+                                key={`externo-${externo.id}`}
+                                style={[
+                                    styles.memberItem,
+                                    externosSelecionados.includes(externo.id) && styles.memberSelected,
+                                ]}
+                                onPress={() => toggleExterno(externo.id)}
+                                activeOpacity={0.7}
+                            >
+                                <View style={styles.memberContent}>
+                                    <View
+                                        style={[
+                                            styles.checkbox,
+                                            externosSelecionados.includes(externo.id) && styles.checkedBox,
+                                        ]}
+                                    >
+                                        {externosSelecionados.includes(externo.id) && (
+                                            <FontAwesome name="check" size={12} color="#FFFFFF" />
+                                        )}
+                                    </View>
+                                    <FontAwesome
+                                        name="user-circle"
+                                        size={16}
+                                        color="#28a745"
+                                        style={styles.userIcon}
+                                    />
+                                    <View style={styles.memberInfo}>
+                                        <Text style={styles.memberName}>{externo.funcionario}</Text>
+                                        <Text style={styles.memberEmail}>
+                                            {externo.empresa} • {externo.categoria || 'N/A'}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+
                 <TouchableOpacity
                     style={styles.createButton}
                     onPress={criarEquipa}
@@ -721,17 +817,19 @@ const CriarEquipa = () => {
                                                         style={styles.memberRow}
                                                     >
                                                         <FontAwesome
-                                                            name="user"
+                                                            name={membro.tipo === 'externo' ? 'user-circle' : 'user'}
                                                             size={14}
-                                                            color="#666"
+                                                            color={membro.tipo === 'externo' ? '#28a745' : '#666'}
                                                         />
                                                         <Text
                                                             style={
                                                                 styles.memberName
                                                             }
                                                         >
-                                                            {membro.nome ||
-                                                                membro.email}
+                                                            {membro.nome || membro.email}
+                                                            {membro.tipo === 'externo' && membro.empresa && 
+                                                                ` (${membro.empresa})`
+                                                            }
                                                         </Text>
                                                     </View>
                                                 ),
@@ -906,6 +1004,71 @@ const CriarEquipa = () => {
                                     </ScrollView>
                                 </View>
                             </View>
+
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.label}>
+                                    <FontAwesome
+                                        name="user-plus"
+                                        size={16}
+                                        color="#1792FE"
+                                    />{" "}
+                                    Trabalhadores Externos
+                                </Text>
+                                <Text style={styles.selectedCount}>
+                                    {externosSelecionados.length} de{" "}
+                                    {trabalhadoresExternos.length} selecionados
+                                </Text>
+
+                                <View style={styles.modalMembersWrapper}>
+                                    <ScrollView
+                                        style={styles.modalMembersContainer}
+                                        nestedScrollEnabled={true}
+                                    >
+                                        {trabalhadoresExternos.map((externo) => (
+                                            <TouchableOpacity
+                                                key={`modal-externo-${externo.id}`}
+                                                style={[
+                                                    styles.modalMemberItem,
+                                                    externosSelecionados.includes(externo.id) && styles.modalMemberSelected,
+                                                ]}
+                                                onPress={() => toggleExterno(externo.id)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <View style={styles.memberContent}>
+                                                    <View
+                                                        style={[
+                                                            styles.checkbox,
+                                                            externosSelecionados.includes(externo.id) && styles.checkedBox,
+                                                        ]}
+                                                    >
+                                                        {externosSelecionados.includes(externo.id) && (
+                                                            <FontAwesome
+                                                                name="check"
+                                                                size={12}
+                                                                color="#FFFFFF"
+                                                            />
+                                                        )}
+                                                    </View>
+                                                    <FontAwesome
+                                                        name="user-circle"
+                                                        size={16}
+                                                        color="#28a745"
+                                                        style={styles.userIcon}
+                                                    />
+                                                    <View style={styles.memberInfo}>
+                                                        <Text style={styles.memberName}>
+                                                            {externo.funcionario}
+                                                        </Text>
+                                                        <Text style={styles.memberEmail}>
+                                                            {externo.empresa} • {externo.categoria || 'N/A'}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                </View>
+                            </View>
                         </ScrollView>
 
                         <View style={styles.modalButtons}>
@@ -915,6 +1078,7 @@ const CriarEquipa = () => {
                                     setEquipaSelecionadaEditar(null);
                                     setNovoNomeEquipa("");
                                     setMembrosSelecionados([]);
+                                    setExternosSelecionados([]);
                                     setSearchMembros("");
                                 }}
                                 style={styles.cancelButton}

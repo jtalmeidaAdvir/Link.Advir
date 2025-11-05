@@ -24,11 +24,20 @@ const EquipaObra = sequelize.define('EquipaObra', {
     },
     user_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: User,
             key: 'id',
         },
+    },
+    trabalhador_externo_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    tipo_membro: {
+        type: DataTypes.ENUM('interno', 'externo'),
+        allowNull: false,
+        defaultValue: 'interno',
     },
     empresa_id: {
         type: DataTypes.INTEGER,
