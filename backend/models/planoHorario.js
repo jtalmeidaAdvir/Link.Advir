@@ -40,7 +40,7 @@ const PlanoHorario = sequelize.define('PlanoHorario', {
         comment: 'Indica se este plano está ativo'
     },
     observacoes: {
-        type: DataTypes.TEXT,
+        type: DataTypes.STRING('MAX'),
         allowNull: true,
         comment: 'Observações sobre o plano de horário'
     },
