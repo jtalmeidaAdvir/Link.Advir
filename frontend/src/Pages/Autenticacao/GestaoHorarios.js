@@ -222,6 +222,23 @@ const GestaoHorarios = () => {
         }
     };
 
+    const formatHora = (v) => {
+  if (!v) return '';
+  // já vem como "09:00"
+  if (/^\d{2}:\d{2}$/.test(v)) return v;
+  // extrai HH:mm de um ISO "....T09:00:00..."
+  const m = String(v).match(/T(\d{2}):(\d{2})/);
+  if (m) return `${m[1]}:${m[2]}`;
+  // fallback seguro
+  try {
+    const d = new Date(v);
+    return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', hour12: false });
+  } catch {
+    return '';
+  }
+};
+
+
     const resetNovoHorario = () => {
         setNovoHorario({
             descricao: '',
@@ -337,9 +354,15 @@ const GestaoHorarios = () => {
                                         <span style={styles.value}>{horario.horasSemanais}h</span>
                                     </div>
                                     <div style={styles.infoRow}>
-                                        <span style={styles.label}>Horário:</span>
+                                        <span style={styles.label}>Hora entrada:</span>
                                         <span style={styles.value}>
-                                            {horario.horaEntrada} - {horario.horaSaida}
+                                            {formatHora(horario.horaEntrada)}
+                                        </span>
+                                    </div>
+                                    <div style={styles.infoRow}>
+                                        <span style={styles.label}>Hora saída:</span>
+                                        <span style={styles.value}>
+                                            {formatHora(horario.horaSaida)}
                                         </span>
                                     </div>
                                     <div style={styles.infoRow}>
