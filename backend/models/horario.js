@@ -86,14 +86,6 @@ const Horario = sequelize.define('Horario', {
     observacoes: {
         type: DataTypes.TEXT,
         allowNull: true,
-    },
-    createdAt: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW,
-    },
-    updatedAt: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW,
     }
 }, {
     timestamps: true,
