@@ -511,6 +511,267 @@ const RegistosPorUtilizador = () => {
         return dias;
     };
 
+    // Função para atualizar apenas um utilizador específico na grade
+    const atualizarUtilizadorNaGrade = async (userId) => {
+        if (!anoSelecionado || !mesSelecionado || !userId) {
+            return;
+        }
+
+        try {
+            const user = utilizadores.find(u => u.id === parseInt(userId));
+            if (!user) return;
+
+            // Carregar dados apenas deste utilizador
+            const painelAdminToken = secureStorage.getItem('painelAdminToken');
+            const urlempresa = secureStorage.getItem('urlempresa');
+            const loginToken = secureStorage.getItem('loginToken');
+
+            let query = `user_id=${user.id}&ano=${anoSelecionado}&mes=${String(mesSelecionado).padStart(2, '0')}`;
+            if (obraSelecionada) query += `&obra_id=${obraSelecionada}`;
+
+            const [resRegistos] = await Promise.all([
+                fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo?${query}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+            ]);
+
+            let faltasUtilizador = [];
+            let horasExtrasUtilizador = [];
+            
+            if (painelAdminToken && urlempresa && loginToken) {
+                try {
+                    const urlFaltasMensal = `https://webapiprimavera.advir.pt/routesFaltas/GetListaFaltasFuncionariosMensal/${mesSelecionado}`;
+
+                    const resCodFuncionario = await fetch(`https://backend.advir.pt/api/users/getCodFuncionario/${user.id}`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${loginToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                    });
+
+                    if (resCodFuncionario.ok) {
+                        const dataCodFuncionario = await resCodFuncionario.json();
+                        const codFuncionario = dataCodFuncionario.codFuncionario;
+
+                        if (codFuncionario) {
+                            const resFaltas = await fetch(urlFaltasMensal, {
+                                method: 'GET',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    Authorization: `Bearer ${painelAdminToken}`,
+                                    urlempresa: urlempresa,
+                                },
+                            });
+
+                            if (resFaltas.ok) {
+                                const dataFaltas = await resFaltas.json();
+                                if (dataFaltas && dataFaltas.DataSet && Array.isArray(dataFaltas.DataSet.Table)) {
+                                    const listaMes = dataFaltas.DataSet.Table;
+
+                                    listaMes.forEach(item => {
+                                        const funcionarioFalta = item.Funcionario2 || item.Funcionario1;
+                                        if (funcionarioFalta === codFuncionario && item.Falta1) {
+                                            const dataFalta = item.Data2 || item.Data1;
+                                            if (dataFalta) {
+                                                const dataObj = new Date(dataFalta);
+                                                if (dataObj.getFullYear() === parseInt(anoSelecionado)) {
+                                                    faltasUtilizador.push({
+                                                        Funcionario: funcionarioFalta,
+                                                        Funcionario1: item.Funcionario1,
+                                                        Funcionario2: item.Funcionario2,
+                                                        Data: dataFalta,
+                                                        Data1: item.Data1,
+                                                        Data2: item.Data2,
+                                                        Falta: item.Falta1,
+                                                        Falta1: item.Falta1,
+                                                        Horas: item.Horas,
+                                                        HorasFalta: item.HorasFalta,
+                                                        Tempo: item.Tempo1 || item.TempoFalta,
+                                                        Tempo1: item.Tempo1,
+                                                        TempoFalta: item.TempoFalta
+                                                    });
+                                                }
+                                            }
+                                        }
+                                        
+                                        if (item.Funcionario === codFuncionario && item.HoraExtra) {
+                                            const dataHE = item.Data;
+                                            if (dataHE) {
+                                                const dataObj = new Date(dataHE);
+                                                if (dataObj.getFullYear() === parseInt(anoSelecionado)) {
+                                                    horasExtrasUtilizador.push({
+                                                        Funcionario: item.Funcionario,
+                                                        Funcionario1: item.Funcionario1,
+                                                        Data: item.Data,
+                                                        Data1: item.Data1,
+                                                        HoraExtra: item.HoraExtra,
+                                                        HoraExtra1: item.HoraExtra1,
+                                                        Tempo: item.TempoExtra || item.Tempo,
+                                                        TempoExtra: item.TempoExtra,
+                                                        IdFuncRemCBL: item.idFuncRemCBL,
+                                                        idFuncRemCBL: item.idFuncRemCBL
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } catch (faltaErr) {
+                    console.error(`Erro ao carregar dados para ${user.nome}:`, faltaErr);
+                }
+            }
+
+            if (resRegistos.ok) {
+                const registos = await resRegistos.json();
+
+                const registosPorDia = {};
+                const faltasPorDia = {};
+                const horasExtrasPorDia = {};
+
+                registos.forEach(reg => {
+                    const dia = new Date(reg.timestamp).getDate();
+                    if (!registosPorDia[dia]) registosPorDia[dia] = [];
+                    registosPorDia[dia].push(reg);
+                });
+
+                faltasUtilizador.forEach(falta => {
+                    const dataFalta = falta.Data1 || falta.Data2;
+                    const codigoFalta = falta.Falta1 || falta.Falta;
+                    
+                    if (dataFalta && codigoFalta) {
+                        const dataObj = new Date(dataFalta);
+                        const dia = dataObj.getDate();
+                        const mes = dataObj.getMonth() + 1;
+                        const ano = dataObj.getFullYear();
+                        
+                        if (mes === parseInt(mesSelecionado) && ano === parseInt(anoSelecionado)) {
+                            if (!faltasPorDia[dia]) faltasPorDia[dia] = [];
+                            
+                            const faltaNormalizada = {
+                                ...falta,
+                                Data: dataFalta,
+                                Falta: codigoFalta,
+                                Funcionario: falta.Funcionario2 || falta.Funcionario1 || falta.Funcionario,
+                                Tempo: falta.Tempo1 || falta.TempoFalta || falta.Tempo,
+                                Horas: falta.Horas || falta.HorasFalta
+                            };
+                            
+                            faltasPorDia[dia].push(faltaNormalizada);
+                        }
+                    }
+                });
+
+                horasExtrasUtilizador.forEach(he => {
+                    const dataHE = he.Data || he.Data1;
+                    const codigoHE = he.HoraExtra || he.HoraExtra1;
+                    
+                    if (dataHE && codigoHE) {
+                        const dataObj = new Date(dataHE);
+                        const dia = dataObj.getDate();
+                        const mes = dataObj.getMonth() + 1;
+                        const ano = dataObj.getFullYear();
+                        
+                        if (mes === parseInt(mesSelecionado) && ano === parseInt(anoSelecionado)) {
+                            if (!horasExtrasPorDia[dia]) horasExtrasPorDia[dia] = [];
+                            
+                            const hENormalizada = {
+                                ...he,
+                                Data: dataHE,
+                                HoraExtra: codigoHE,
+                                Funcionario: he.Funcionario1 || he.Funcionario,
+                                Tempo: he.TempoExtra || he.Tempo,
+                                IdFuncRemCBL: he.idFuncRemCBL || he.IdFuncRemCBL
+                            };
+                            
+                            horasExtrasPorDia[dia].push(hENormalizada);
+                        }
+                    }
+                });
+
+                const estatisticasDias = {};
+                let totalDiasComRegistos = 0;
+                let totalHorasEstimadas = 0;
+
+                diasDoMes.forEach(dia => {
+                    const regs = registosPorDia[dia] || [];
+                    const faltas = faltasPorDia[dia] || [];
+                    const horasExtras = horasExtrasPorDia[dia] || [];
+
+                    if (regs.length > 0 || faltas.length > 0 || horasExtras.length > 0) {
+                        if (regs.length > 0) totalDiasComRegistos++;
+
+                        const entradas = regs.filter(r => r.tipo === 'entrada').length;
+                        const saidas = regs.filter(r => r.tipo === 'saida').length;
+                        const confirmados = regs.filter(r => r.is_confirmed).length;
+
+                        let horasEstimadas = 0;
+                        const eventosOrdenados = regs
+                            .filter(r => r.tipo === 'entrada' || r.tipo === 'saida')
+                            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                        let ultimaEntrada = null;
+                        eventosOrdenados.forEach(reg => {
+                            if (reg.tipo === 'entrada') {
+                                ultimaEntrada = new Date(reg.timestamp);
+                            } else if (reg.tipo === 'saida' && ultimaEntrada) {
+                                const diff = (new Date(reg.timestamp) - ultimaEntrada) / 3600000;
+                                if (diff > 0 && diff < 24) {
+                                    horasEstimadas += diff;
+                                }
+                                ultimaEntrada = null;
+                            }
+                        });
+
+                        totalHorasEstimadas += horasEstimadas;
+
+                        const timestamps = regs.map(r => new Date(r.timestamp).getTime());
+
+                        estatisticasDias[dia] = {
+                            totalRegistos: regs.length,
+                            entradas,
+                            saidas,
+                            confirmados,
+                            naoConfirmados: regs.length - confirmados,
+                            horasEstimadas: horasEstimadas.toFixed(1),
+                            primeiroRegisto: timestamps.length > 0 ? new Date(Math.min(...timestamps)).toLocaleTimeString('pt-PT') : null,
+                            ultimoRegisto: timestamps.length > 0 ? new Date(Math.max(...timestamps)).toLocaleTimeString('pt-PT') : null,
+                            obras: [...new Set(regs.map(r => r.Obra?.nome).filter(Boolean))],
+                            faltas: faltas,
+                            horasExtras: horasExtras
+                        };
+                    }
+                });
+
+                const dadosAtualizados = {
+                    utilizador: user,
+                    estatisticasDias,
+                    totalDias: totalDiasComRegistos,
+                    totalRegistos: registos.length,
+                    totalHorasEstimadas: totalHorasEstimadas.toFixed(1),
+                    totalFaltas: faltasUtilizador.length,
+                    totalHorasExtras: horasExtrasUtilizador.length
+                };
+
+                // Atualizar apenas este utilizador na grade
+                setDadosGrade(prevGrade => {
+                    const index = prevGrade.findIndex(item => item.utilizador.id === user.id);
+                    if (index >= 0) {
+                        const newGrade = [...prevGrade];
+                        newGrade[index] = dadosAtualizados;
+                        return newGrade;
+                    }
+                    return prevGrade;
+                });
+            }
+        } catch (err) {
+            console.error('Erro ao atualizar utilizador na grade:', err);
+        }
+    };
+
     const carregarDadosGrade = async () => {
         if (!anoSelecionado || !mesSelecionado) {
             alert('Por favor, selecione o ano e mês para visualização em grade.');
@@ -1564,9 +1825,12 @@ const RegistosPorUtilizador = () => {
                 alert(`⚠️ Eliminação de faltas concluída com ${falhasNaRemocao} erro(s).\nConsulte a consola para mais detalhes.`);
             }
 
-            // Recarregar dados
+            // Atualizar apenas o utilizador afetado
             if (viewMode === 'grade') {
-                carregarDadosGrade();
+                const userIdFromFalta = utilizadores.find(u => u.codFuncionario === funcionarioId)?.id;
+                if (userIdFromFalta) {
+                    await atualizarUtilizadorNaGrade(userIdFromFalta);
+                }
             }
 
             setRemoverFaltaDialogOpen(false);
@@ -1618,9 +1882,18 @@ const RegistosPorUtilizador = () => {
             const resultado = await res.json();
             alert('✅ Hora extra removida com sucesso!');
 
-            // Recarregar dados
+            // Atualizar apenas o utilizador afetado
             if (viewMode === 'grade') {
-                carregarDadosGrade();
+                const userIdFromHE = utilizadores.find(u => u.codFuncionario === horaExtraParaRemover.funcionarioNome)?.id;
+                if (userIdFromHE) {
+                    await atualizarUtilizadorNaGrade(userIdFromHE);
+                } else {
+                    // Fallback: tentar encontrar pelo nome
+                    const userByName = utilizadores.find(u => u.nome === horaExtraParaRemover.funcionarioNome)?.id;
+                    if (userByName) {
+                        await atualizarUtilizadorNaGrade(userByName);
+                    }
+                }
             }
 
             setRemoverHoraExtraDialogOpen(false);
@@ -1795,7 +2068,7 @@ const RegistosPorUtilizador = () => {
             });
 
             if (diasVazios.length === 0) {
-                alert('Não há dias vazios para preencher. O funcionário je� tem registos ou faltas em todos os dias úteis.');
+                alert('Não há dias vazios para preencher. O funcionário já tem registos ou faltas em todos os dias úteis.');
                 return;
             }
 
@@ -2154,9 +2427,9 @@ const RegistosPorUtilizador = () => {
             setRegistoParaEditar(null);
             setDadosEdicao({ userId: null, dia: null, registos: [] });
 
-            // Recarregar dados da grade
-            if (viewMode === 'grade') {
-                carregarDadosGrade();
+            // Atualizar apenas o utilizador afetado na grade
+            if (viewMode === 'grade' && userId) {
+                await atualizarUtilizadorNaGrade(userId);
             }
 
         } catch (err) {
@@ -2221,8 +2494,8 @@ const RegistosPorUtilizador = () => {
             setTempoHoraExtra('');
             setObservacoesHoraExtra('');
 
-            if (viewMode === 'grade') {
-                carregarDadosGrade();
+            if (viewMode === 'grade' && userToRegistar) {
+                await atualizarUtilizadorNaGrade(userToRegistar);
             }
 
         } catch (err) {
@@ -2496,9 +2769,9 @@ const RegistosPorUtilizador = () => {
             setFaltaIntervalo(false);
             setDataFimFalta('');
 
-            // Recarregar dados da grade
-            if (viewMode === 'grade') {
-                carregarDadosGrade();
+            // Atualizar apenas o utilizador afetado na grade
+            if (viewMode === 'grade' && userToRegistar) {
+                await atualizarUtilizadorNaGrade(userToRegistar);
             }
 
         } catch (err) {

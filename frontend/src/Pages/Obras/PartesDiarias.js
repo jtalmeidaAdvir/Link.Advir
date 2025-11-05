@@ -2216,12 +2216,6 @@ const submeterPessoalEquip = async () => {
                 }
             }
 
-            // Calcular horas totais para o dia (incluindo registos de ponto originais)
-            const horasTotaisDia = Math.max(
-                trabalhador.horasOriginais?.[dia] || 0,
-                trabalhador.horasPorDia?.[dia] || 0
-            ) / 60;
-
             setEditData({
                 especialidadesDia:
                     especialidadesDia.length > 0
@@ -2231,10 +2225,10 @@ const submeterPessoalEquip = async () => {
                                 dia,
                                 categoria: trabalhador.categoria || "MaoObra",
                                 especialidade: especialidadeDefeito,
-                                horas: horasTotaisDia, // usar horas dos registos de ponto
+                                horas: 0, // sempre começar a 0
                                 subEmpId: subEmpIdDefeito,
                                 obraId: trabalhador.obraId,
-                                classeId: classeIdDefeito, // já vem com o valor correto do código acima
+                                classeId: classeIdDefeito,
                                 notaDia: trabalhador?.notasPorDia?.[dia] ?? "",
                                 observacoes: trabalhador.observacoes || "",
                             },
