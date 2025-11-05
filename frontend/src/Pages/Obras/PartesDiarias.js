@@ -592,6 +592,11 @@ const submeterPessoalEquip = async () => {
             row.totalMin += mins;
         });
 
+        console.log("🔍 Externos submetidos agregados por obra:", porObra.size, "obras");
+        porObra.forEach((byPessoa, obraId) => {
+            console.log(`   Obra ${obraId}:`, byPessoa.size, "externos");
+        });
+
         return porObra;
     }, [itensSubmetidos, diasDoMes, mesAno]);
 
@@ -769,7 +774,7 @@ const submeterPessoalEquip = async () => {
                 trabalhadorId: trab.id,
                 funcionario: trab.funcionario,
                 empresa: trab.empresa,
-                
+
                 horasMin: minutos,
                 horaExtra: !!linhaAtual.horaExtra,
 
@@ -960,6 +965,10 @@ const submeterPessoalEquip = async () => {
         const userLogado = (await secureStorage.getItem("userNome")) || "";
         const tipoUser = await secureStorage.getItem("tipoUser");
 
+        console.log("🔍 DEBUG carregarItensSubmetidos:");
+        console.log("   userLogado:", userLogado);
+        console.log("   tipoUser:", tipoUser);
+
         try {
             // Carregar cabeçalhos primeiro
             const resCabecalhos = await fetch(
@@ -975,13 +984,28 @@ const submeterPessoalEquip = async () => {
 
             const cabecalhos = await resCabecalhos.json();
             
+            console.log("📊 Total de cabeçalhos carregados:", cabecalhos.length);
+            console.log("📊 Exemplo de cabeçalho:", cabecalhos[0]);
+
             // Filtrar cabeçalhos criados pelo utilizador logado (exceto para administradores)
             const cabecalhosFiltrados = tipoUser === "Administrador" 
                 ? cabecalhos 
                 : cabecalhos.filter(
-                    (cab) => cab.CriadoPor === userLogado || cab.Utilizador === userLogado
+                    (cab) => {
+                        const match = cab.CriadoPor === userLogado || cab.Utilizador === userLogado;
+                        if (!match && (cab.CriadoPor?.includes(userLogado) || cab.Utilizador?.includes(userLogado))) {
+                            console.warn("⚠️ Possível match parcial:", {
+                                userLogado,
+                                CriadoPor: cab.CriadoPor,
+                                Utilizador: cab.Utilizador
+                            });
+                        }
+                        return match;
+                    }
                 );
             
+            console.log("📊 Cabeçalhos após filtro:", cabecalhosFiltrados.length);
+
             // Extrair os DocumentoIDs dos cabeçalhos filtrados
             const documentoIdsPermitidos = new Set(
                 cabecalhosFiltrados.map((cab) => cab.DocumentoID)
@@ -1000,12 +1024,15 @@ const submeterPessoalEquip = async () => {
             if (!res.ok) throw new Error("Erro ao carregar itens submetidos");
 
             const allData = await res.json();
-            
+
             // Filtrar apenas os itens que pertencem aos cabeçalhos criados pelo utilizador
             const data = allData.filter((item) => 
                 documentoIdsPermitidos.has(item.DocumentoID)
             );
-            
+
+            console.log("📊 Itens carregados (incluindo externos):", data.length);
+            console.log("📊 Externos encontrados:", data.filter(it => it.ColaboradorID == null).length);
+
             // 1) Atualiza o state dos itens
             setItensSubmetidos(data);
             // 2) Constroi imediatamente o Set de submetidos
@@ -1014,7 +1041,9 @@ const submeterPessoalEquip = async () => {
                     // Data vem no formato "YYYY-MM-DD" ou "YYYY-MM-DDTHH:mm:ss"
                     const diaISO = item.Data.split("T")[0];
                     const [ano, mes, dia] = diaISO.split("-");
-                    return `${item.ColaboradorID}-${item.ObraID}-${ano}-${mes}-${dia}`;
+                    // Para internos usa ColaboradorID, para externos usa identificador único
+                    const id = item.ColaboradorID != null ? item.ColaboradorID : `externo-${item.DocumentoID}-${item.Numero}`;
+                    return `${id}-${item.ObraID}-${ano}-${mes}-${dia}`;
                 }),
             );
             setSubmittedSet(novoSubmittedSet);
@@ -3205,7 +3234,7 @@ const submeterPessoalEquip = async () => {
                                                                l.dia === d && 
                                                                String(l.obraId) === String(linhaAtual.obraId)
                                                     );
-                                                
+
                                                 return (
                                                     <Picker.Item 
                                                         key={d} 
@@ -3303,10 +3332,10 @@ const submeterPessoalEquip = async () => {
                                                    String(l.obraId) === String(linhaAtual.obraId))
                                         .map(l => l.dia)
                                         .sort((a, b) => a - b);
-                                    
+
                                     const trabalhadorNome = externosLista.find(e => String(e.id) === String(linhaAtual.trabalhadorId))?.funcionario || 'Trabalhador';
                                     const obraNome = obrasParaPickers.find(o => String(o.id) === String(linhaAtual.obraId))?.nome || 'Obra';
-                                    
+
                                     return (
                                         <View style={{
                                             backgroundColor: diasRegistados.length > 0 ? '#fff3cd' : '#e7f3ff',
@@ -3427,7 +3456,7 @@ const submeterPessoalEquip = async () => {
                                                 subEmpId: sel?.subEmpId ?? null,
                                                 classeId: primeiraClasse,
                                             }));
-                                            
+
                                             setCamposInvalidos(prev => {
                                                 const novo = new Set(prev);
                                                 novo.delete('especialidadeCodigo');
@@ -3535,7 +3564,7 @@ const submeterPessoalEquip = async () => {
                                                 const totalHorasNormais =
                                                     outrasHorasNormaisDia + minutos;
 
-                                                if (totalHorasNormais > 8 * 60 && v !== "") {
+                                                if (totalHorasNormais > 8 * 60) {
                                                     // 8 horas em minutos
                                                     Alert.alert(
                                                         "Limite de Horas Excedido",
@@ -3747,7 +3776,7 @@ const submeterPessoalEquip = async () => {
                   >
                     <Picker.Item label="— Selecionar obra —" value="" />
                     {obrasParaPickers.map(o => (
-                        
+
                       <Picker.Item key={o.id} label={`${o.codigo ? `${o.codigo} — ` : ""}${o.nome}`} value={o.id} />
                     ))}
                   </Picker>
@@ -3877,7 +3906,7 @@ const submeterPessoalEquip = async () => {
                       subEmpId: sel?.subEmpId ?? null,
                       classeId: primeiraClasse,
                     }));
-                    
+
                     setCamposInvalidosPessoal(prev => {
                       const novo = new Set(prev);
                       novo.delete('especialidadeCodigo');
@@ -3936,7 +3965,7 @@ const submeterPessoalEquip = async () => {
                       novo.delete('horas');
                       return novo;
                     });
-                    
+
                     const { colaboradorId, dia, obraId } = linhaPessoalEquipAtual;
                     if (!colaboradorId || !dia || !obraId) {
                       Alert.alert("Validação", "Preencha primeiro Obra, Dia e Colaborador.");
@@ -4223,7 +4252,10 @@ const submeterPessoalEquip = async () => {
                                                                     })()}
                                                                     {submetido && (
                                                                         <Ionicons
-                                                                            
+                                                                            name="checkmark-circle"
+                                                                            size={16}
+                                                                            color="#28a745"
+                                                                            style={styles.iconSubmetido}
                                                                         />
                                                                     )}
                                                                 </TouchableOpacity>
@@ -4257,10 +4289,10 @@ const submeterPessoalEquip = async () => {
                                                 const extMapPend = externosPorObraPessoa.get(
                                                     obraGroup.obraInfo.id,
                                                 );
-                                                
+
                                                 // Criar mapa consolidado por identificador único
                                                 const consolidado = new Map();
-                                                
+
                                                 // Adicionar submetidos
                                                 if (extMapSub) {
                                                     extMapSub.forEach((row) => {
@@ -4275,7 +4307,7 @@ const submeterPessoalEquip = async () => {
                                                         });
                                                     });
                                                 }
-                                                
+
                                                 // Adicionar/somar pendentes
                                                 if (extMapPend) {
                                                     extMapPend.forEach((row) => {
@@ -4300,7 +4332,7 @@ const submeterPessoalEquip = async () => {
                                                         }
                                                     });
                                                 }
-                                                
+
                                                 if (consolidado.size === 0) return null;
 
                                                 return [...consolidado.values()].map((row, idx) => (
@@ -5210,8 +5242,7 @@ const submeterPessoalEquip = async () => {
                                                     }
                                                     style={styles.editPicker}
                                                 >
-                                                    {obrasParaPickers.map((o) => {
-                                                        const codigo = o.codigo ?? o.cod ?? o.codigoObra; // usa o que existir
+                                                    {obrasParaPickers.map((o) => {                                                        const codigo = o.codigo ?? o.cod ?? o.codigoObra; // usa o que existir
                                                         const label = codigo ? `${String(codigo)} — ${o.nome}` : o.nome;
 
                                                         return (
