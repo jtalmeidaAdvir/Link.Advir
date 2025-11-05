@@ -57,20 +57,14 @@ const Horario = sequelize.define('Horario', {
         }
     },
     horaEntrada: {
-        type: DataTypes.STRING(5),
+        type: DataTypes.TIME,
         allowNull: true,
-        comment: 'Hora padrão de entrada (ex: 09:00)',
-        validate: {
-            is: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
-        }
+        comment: 'Hora padrão de entrada (ex: 09:00)'
     },
     horaSaida: {
-        type: DataTypes.STRING(5),
+        type: DataTypes.TIME,
         allowNull: true,
-        comment: 'Hora padrão de saída (ex: 18:00)',
-        validate: {
-            is: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
-        }
+        comment: 'Hora padrão de saída (ex: 18:00)'
     },
     intervaloAlmoco: {
         type: DataTypes.DECIMAL(3, 2),
