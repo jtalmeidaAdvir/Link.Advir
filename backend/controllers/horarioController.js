@@ -27,17 +27,12 @@ const criarHorario = async (req, res) => {
     const { descricao, horasPorDia, horasSemanais, diasSemana, horaEntrada, horaSaida, intervaloAlmoco, observacoes } = req.body;
 
     try {
-        // Ensure diasSemana is properly formatted as JSON
-        const diasSemanaFormatted = Array.isArray(diasSemana) 
-            ? diasSemana 
-            : (typeof diasSemana === 'string' ? JSON.parse(diasSemana) : diasSemana);
-
         const novoHorario = await Horario.create({
             empresa_id: empresaId,
             descricao,
             horasPorDia,
             horasSemanais,
-            diasSemana: diasSemanaFormatted,
+            diasSemana,
             horaEntrada,
             horaSaida,
             intervaloAlmoco,
@@ -61,13 +56,6 @@ const atualizarHorario = async (req, res) => {
         
         if (!horario) {
             return res.status(404).json({ message: 'Horário não encontrado.' });
-        }
-
-        // Ensure diasSemana is properly formatted as JSON if present
-        if (dadosAtualizacao.diasSemana) {
-            dadosAtualizacao.diasSemana = Array.isArray(dadosAtualizacao.diasSemana) 
-                ? dadosAtualizacao.diasSemana 
-                : (typeof dadosAtualizacao.diasSemana === 'string' ? JSON.parse(dadosAtualizacao.diasSemana) : dadosAtualizacao.diasSemana);
         }
 
         await horario.update(dadosAtualizacao);
