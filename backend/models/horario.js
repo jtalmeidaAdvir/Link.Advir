@@ -17,7 +17,7 @@ const Horario = sequelize.define('Horario', {
         }
     },
     descricao: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(255),
         allowNull: false,
         comment: 'Nome do horário (ex: Horário 40h, Turno Noite)'
     },
@@ -34,9 +34,27 @@ const Horario = sequelize.define('Horario', {
         comment: 'Total de horas semanais'
     },
     diasSemana: {
-        type: DataTypes.JSON,
+        type: DataTypes.TEXT,
         allowNull: true,
-        comment: 'Array com dias da semana trabalhados [1,2,3,4,5] = Seg-Sex'
+        comment: 'Array com dias da semana trabalhados [1,2,3,4,5] = Seg-Sex',
+        get() {
+            const rawValue = this.getDataValue('diasSemana');
+            if (!rawValue) return null;
+            try {
+                return typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+            } catch (e) {
+                return rawValue;
+            }
+        },
+        set(value) {
+            if (value === null || value === undefined) {
+                this.setDataValue('diasSemana', null);
+            } else if (typeof value === 'string') {
+                this.setDataValue('diasSemana', value);
+            } else {
+                this.setDataValue('diasSemana', JSON.stringify(value));
+            }
+        }
     },
     horaEntrada: {
         type: DataTypes.TIME,
