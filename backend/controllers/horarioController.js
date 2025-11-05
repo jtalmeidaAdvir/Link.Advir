@@ -104,24 +104,20 @@ const atribuirHorarioUser = async (req, res) => {
 
     try {
         // Desativar planos anteriores do utilizador
-        // Formato ISO 8601 sem timezone para compatibilidade com SQL Server
-        const dataFimFormatada = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const agora = new Date();
         
         await PlanoHorario.update(
-            { ativo: false, dataFim: dataFimFormatada },
+            { ativo: false, dataFim: agora },
             { where: { user_id: userId, ativo: true } }
         );
 
         // Criar novo plano
-        // Garantir que dataInicio também está no formato correto
-        const dataInicioFormatada = dataInicio 
-            ? (new Date(dataInicio).toISOString().slice(0, 19).replace('T', ' '))
-            : (new Date().toISOString().slice(0, 19).replace('T', ' '));
+        const dataInicioDate = dataInicio ? new Date(dataInicio) : new Date();
 
         const novoPlano = await PlanoHorario.create({
             user_id: userId,
             horario_id: horarioId,
-            dataInicio: dataInicioFormatada,
+            dataInicio: dataInicioDate,
             ativo: true,
             observacoes
         });
