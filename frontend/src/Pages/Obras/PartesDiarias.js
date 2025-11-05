@@ -4252,10 +4252,7 @@ const submeterPessoalEquip = async () => {
                                                                     })()}
                                                                     {submetido && (
                                                                         <Ionicons
-                                                                            name="checkmark-circle"
-                                                                            size={16}
-                                                                            color="#28a745"
-                                                                            style={styles.iconSubmetido}
+                                                                          
                                                                         />
                                                                     )}
                                                                 </TouchableOpacity>
@@ -4515,10 +4512,7 @@ const submeterPessoalEquip = async () => {
                                                                 })()}
                                                                 {submetido && (
                                                                     <Ionicons
-                                                                        name="checkmark-circle"
-                                                                        size={16}
-                                                                        color="#28a745"
-                                                                        style={styles.iconSubmetido}
+                                                                       
                                                                     />
                                                                 )}
                                                             </TouchableOpacity>
