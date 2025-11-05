@@ -2346,7 +2346,9 @@ const CalendarioHorasTrabalho = () => {
                                                             >
                                                                 <option value="">Selecione um Local...</option>
                                                                 {obras.map(obra => (
-                                                                    <option key={obra.id} value={obra.id}>{obra.nome}</option>
+                                                                    <option key={obra.id} value={obra.id}>
+                                                                        {obra.codigo ? `${obra.codigo} - ${obra.nome}` : obra.nome}
+                                                                    </option>
                                                                 ))}
                                                             </select>
                                                         </div>

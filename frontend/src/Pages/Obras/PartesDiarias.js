@@ -957,8 +957,34 @@ const submeterPessoalEquip = async () => {
 
     const carregarItensSubmetidos = async () => {
         const painelToken = await secureStorage.getItem("painelAdminToken");
+        const userLogado = (await secureStorage.getItem("userNome")) || "";
 
         try {
+            // Carregar cabeçalhos primeiro
+            const resCabecalhos = await fetch(
+                "https://backend.advir.pt/api/parte-diaria/cabecalhos",
+                {
+                    headers: {
+                        Authorization: `Bearer ${painelToken}`,
+                    },
+                },
+            );
+
+            if (!resCabecalhos.ok) throw new Error("Erro ao carregar cabeçalhos");
+
+            const cabecalhos = await resCabecalhos.json();
+            
+            // Filtrar cabeçalhos criados pelo utilizador logado
+            const cabecalhosFiltrados = cabecalhos.filter(
+                (cab) => cab.CriadoPor === userLogado || cab.Utilizador === userLogado
+            );
+            
+            // Extrair os DocumentoIDs dos cabeçalhos filtrados
+            const documentoIdsPermitidos = new Set(
+                cabecalhosFiltrados.map((cab) => cab.DocumentoID)
+            );
+
+            // Carregar itens
             const res = await fetch(
                 "https://backend.advir.pt/api/parte-diaria/itens",
                 {
@@ -970,7 +996,13 @@ const submeterPessoalEquip = async () => {
 
             if (!res.ok) throw new Error("Erro ao carregar itens submetidos");
 
-            const data = await res.json();
+            const allData = await res.json();
+            
+            // Filtrar apenas os itens que pertencem aos cabeçalhos criados pelo utilizador
+            const data = allData.filter((item) => 
+                documentoIdsPermitidos.has(item.DocumentoID)
+            );
+            
             // 1) Atualiza o state dos itens
             setItensSubmetidos(data);
             // 2) Constroi imediatamente o Set de submetidos
@@ -1728,8 +1760,8 @@ const submeterPessoalEquip = async () => {
                 membros: equipa.membros || [],
             }));
 
-            // Adicionar o próprio utilizador (diretor) à primeira equipa se não existir
-            if (userId && userName) {
+            // Adicionar o próprio utilizador à primeira equipa se não existir (apenas para não-administradores)
+            if (userId && userName && tipoUser !== "Administrador") {
                 const primeiraEquipa = equipasFormatadas[0];
                 if (primeiraEquipa) {
                     const jaExiste = primeiraEquipa.membros.some(m => String(m.id) === String(userId));
@@ -1745,22 +1777,17 @@ const submeterPessoalEquip = async () => {
             setEquipas(equipasFormatadas);
             setLoadingProgress(20);
 
-            // 2. Coletar todos os IDs dos membros (incluindo o próprio diretor)
+            // 2. Coletar todos os IDs dos membros das equipas
             const membrosIds = [];
             equipasFormatadas.forEach((equipa) => {
                 if (equipa.membros) {
                     equipa.membros.forEach((membro) => {
-                        if (membro && membro.id) {
+                        if (membro && membro.id && !membrosIds.includes(membro.id)) {
                             membrosIds.push(membro.id);
                         }
                     });
                 }
             });
-
-            // Garantir que o próprio utilizador está na lista
-            if (userId && !membrosIds.includes(parseInt(userId))) {
-                membrosIds.push(parseInt(userId));
-            }
             // Dentro de carregarDadosReais, logo depois de montar equipasFormatadas e membrosIds:
             const uniqueUserIds = [...new Set(membrosIds)];
             const novoCodMap = {};
@@ -5722,7 +5749,7 @@ const submeterPessoalEquip = async () => {
                         {renderDataSheet()}
                         {renderConfirmModal()}
                         {renderEditModal()}
-                        {renderExternosModal()}
+                        {renderExternosModal()}h
                         {renderPessoalEquipModal()}
                         {renderPropriaParteModal()}
                     </View>
