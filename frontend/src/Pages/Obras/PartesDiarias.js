@@ -958,6 +958,7 @@ const submeterPessoalEquip = async () => {
     const carregarItensSubmetidos = async () => {
         const painelToken = await secureStorage.getItem("painelAdminToken");
         const userLogado = (await secureStorage.getItem("userNome")) || "";
+        const tipoUser = await secureStorage.getItem("tipoUser");
 
         try {
             // Carregar cabeçalhos primeiro
@@ -974,10 +975,12 @@ const submeterPessoalEquip = async () => {
 
             const cabecalhos = await resCabecalhos.json();
             
-            // Filtrar cabeçalhos criados pelo utilizador logado
-            const cabecalhosFiltrados = cabecalhos.filter(
-                (cab) => cab.CriadoPor === userLogado || cab.Utilizador === userLogado
-            );
+            // Filtrar cabeçalhos criados pelo utilizador logado (exceto para administradores)
+            const cabecalhosFiltrados = tipoUser === "Administrador" 
+                ? cabecalhos 
+                : cabecalhos.filter(
+                    (cab) => cab.CriadoPor === userLogado || cab.Utilizador === userLogado
+                );
             
             // Extrair os DocumentoIDs dos cabeçalhos filtrados
             const documentoIdsPermitidos = new Set(
@@ -4220,10 +4223,7 @@ const submeterPessoalEquip = async () => {
                                                                     })()}
                                                                     {submetido && (
                                                                         <Ionicons
-                                                                            name="checkmark-circle"
-                                                                            size={16}
-                                                                            color="#28a745"
-                                                                            style={styles.iconSubmetido}
+                                                                            
                                                                         />
                                                                     )}
                                                                 </TouchableOpacity>
@@ -5749,7 +5749,7 @@ const submeterPessoalEquip = async () => {
                         {renderDataSheet()}
                         {renderConfirmModal()}
                         {renderEditModal()}
-                        {renderExternosModal()}h
+                        {renderExternosModal()}
                         {renderPessoalEquipModal()}
                         {renderPropriaParteModal()}
                     </View>
