@@ -44,10 +44,20 @@ const ParteDiariaRascunho = sequelize.define('ParteDiariaRascunho', {
         type: DataTypes.DATE,
         allowNull: false,
         defaultValue: DataTypes.NOW
+    },
+    createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
+    },
+    updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW
     }
 }, {
     tableName: 'partes_diarias_rascunhos',
-    timestamps: true
+    timestamps: false // Desativar createdAt e updatedAt automáticos
 });
 
 module.exports = ParteDiariaRascunho;
