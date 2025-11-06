@@ -99,11 +99,13 @@ const [linhaPessoalEquipAtual, setLinhaPessoalEquipAtual] = useState({
   observacoes: "",
 });
 
-// Colaboradores únicos vindos das tuas equipas (internos)
+// Colaboradores únicos vindos das tuas equipas (internos - excluir externos)
 const colaboradoresDisponiveis = useMemo(() => {
   const map = new Map(); // id -> { id, nome, codFuncionario }
   equipas.forEach(eq => (eq.membros || []).forEach(mb => {
     if (!mb?.id) return;
+    // Filtrar externos
+    if (mb.tipo === 'externo') return;
     if (!map.has(mb.id)) {
       map.set(mb.id, { id: mb.id, nome: mb.nome, codFuncionario: codMap[mb.id] ?? null });
     }
@@ -1199,10 +1201,15 @@ const submeterPessoalEquip = async () => {
         carregarObrasTodas();
     }, [carregarObrasTodas]);
 
-    const obrasParaPickers = useMemo(
-        () => (obrasTodas.length > 0 ? obrasTodas : obras),
-        [obrasTodas, obras],
-    );
+    const obrasParaPickers = useMemo(() => {
+        const listaObras = obrasTodas.length > 0 ? obrasTodas : obras;
+        // Ordenar alfanumericamente pelo código
+        return [...listaObras].sort((a, b) => {
+            const codigoA = (a.codigo || '').toString().toUpperCase();
+            const codigoB = (b.codigo || '').toString().toUpperCase();
+            return codigoA.localeCompare(codigoB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+    }, [obrasTodas, obras]);
 
     // 🔹 AGREGADOR: Externos por Obra × Dia (para render na grelha)
     const externosPorObra = useMemo(() => {

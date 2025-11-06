@@ -20,6 +20,8 @@ import backgroundImage from "../../../images/ImagemFundo.png";
 import { secureStorage } from "../../utils/secureStorage";
 
 const RegistoPontoObra = (props) => {
+        const collator = new Intl.Collator('pt-PT', { numeric: true, sensitivity: 'base' });
+
     const scannerRef = useRef(null);
     const [scannerVisible, setScannerVisible] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -28,10 +30,13 @@ const RegistoPontoObra = (props) => {
     const [obraSelecionada, setObraSelecionada] = useState("");
     const [loading, setLoading] = useState(false);
     const [registosEquipa, setRegistosEquipa] = useState([]);
-    const opcoesObras = obras.map((obra) => ({
-        value: obra.id,
-        label: obra.codigo + " - " + obra.nome,
-    }));
+    const opcoesObras = [...obras]
+  .sort((a, b) => collator.compare(a?.codigo ?? '', b?.codigo ?? ''))
+  .map((obra) => ({
+    value: obra.id,
+    label: `${obra.codigo} - ${obra.nome}`,
+  }));
+
 
     const tipoUser =
         secureStorage.getItem("tipoUser") ||
@@ -52,6 +57,7 @@ const RegistoPontoObra = (props) => {
 
     const [cameras, setCameras] = useState([]);
     const [currentCamIdx, setCurrentCamIdx] = useState(0);
+
 
     const startScannerWith = async (cameraId) => {
         // garante que não existem instâncias anteriores
@@ -246,18 +252,19 @@ const RegistoPontoObra = (props) => {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (res.ok) {
-                    const data = await res.json();
-                    const empresaId = secureStorage.getItem("empresa_id");
-                    const obrasDaEmpresa = data.filter(
-                        (o) => o.empresa_id == empresaId,
-                    );
-                    setObras(obrasDaEmpresa);
+  const data = await res.json();
+  const empresaId = secureStorage.getItem("empresa_id");
+  const obrasDaEmpresa = data
+    .filter((o) => o.empresa_id == empresaId)
+    .sort((a, b) => collator.compare(a?.codigo ?? '', b?.codigo ?? '')); // <= aqui
 
-                    // Auto-selecionar se só houver uma obra
-                    if (obrasDaEmpresa.length === 1) {
-                        setObraSelecionada(obrasDaEmpresa[0].id);
-                    }
-                }
+  setObras(obrasDaEmpresa);
+
+  if (obrasDaEmpresa.length === 1) {
+    setObraSelecionada(obrasDaEmpresa[0].id);
+  }
+}
+
             } catch (err) {
                 console.error("Erro ao carregar obras:", err);
                 alert("Erro ao carregar obras");
