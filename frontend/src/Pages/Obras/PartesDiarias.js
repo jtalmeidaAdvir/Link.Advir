@@ -86,6 +86,29 @@ const PartesDiarias = ({ navigation }) => {
     const CLASSE_DEFEITO = "Estaleiro";
 
 
+
+    // Helper genérico de confirmação (RN + Web)
+const confirmAction = (title, message, okText = "Continuar", cancelText = "Cancelar") => {
+  // Web (RN Web) usa window.confirm para simplificar
+  const isWeb = typeof window !== "undefined" && typeof window.document !== "undefined";
+  if (isWeb) {
+    return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+  }
+
+  // Mobile: usar Alert com Promise
+  return new Promise((resolve) => {
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: cancelText, style: "cancel", onPress: () => resolve(false) },
+        { text: okText, style: "default", onPress: () => resolve(true) },
+      ],
+      { cancelable: true }
+    );
+  });
+};
+
     // === PESSOAL/EQUIPAMENTOS ===
 const [modalPessoalEquipVisible, setModalPessoalEquipVisible] = useState(false);
 const [linhasPessoalEquip, setLinhasPessoalEquip] = useState([]);
@@ -1183,133 +1206,149 @@ const submeterPessoalEquip = async () => {
         return `partesDiarias_rascunho_${identificador}_${mesAno.mes}_${mesAno.ano}`;
     }, [mesAno]);
 
-    // Função para guardar rascunho no backend
-    const guardarRascunho = useCallback(async () => {
-        try {
-            const token = await secureStorage.getItem("loginToken");
-            
-            const response = await fetch('https://backend.advir.pt/api/parte-diaria-rascunho/guardar', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    mes: mesAno.mes,
-                    ano: mesAno.ano,
-                    dadosProcessados,
-                    linhasExternos,
-                    linhasPessoalEquip,
-                    diasEditadosManualmente: Array.from(diasEditadosManualmente)
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                setTemRascunho(true);
-                Alert.alert(
-                    "Rascunho Guardado",
-                    "Os dados foram guardados com sucesso. Pode continuar a trabalhar mais tarde em qualquer dispositivo.",
-                    [{ text: "OK" }]
-                );
-            } else {
-                throw new Error(result.message || 'Erro ao guardar rascunho');
-            }
-        } catch (error) {
-            console.error("Erro ao guardar rascunho:", error);
-            Alert.alert("Erro", "Não foi possível guardar o rascunho.");
-        }
-    }, [dadosProcessados, linhasExternos, linhasPessoalEquip, diasEditadosManualmente, mesAno]);
+ // Função para guardar rascunho no backend
+const guardarRascunho = useCallback(async () => {
+  try {
+    const wants = await confirmAction(
+      "Guardar rascunho?",
+      "Vai guardar o estado atual das partes. Confirma?"
+    );
+    if (!wants) return;
 
-    // Função para carregar rascunho do backend
-    const carregarRascunho = useCallback(async () => {
+    const token = await secureStorage.getItem("loginToken");
+
+    const response = await fetch("https://backend.advir.pt/api/parte-diaria-rascunho/guardar", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        mes: mesAno.mes,
+        ano: mesAno.ano,
+        dadosProcessados,
+        linhasExternos,
+        linhasPessoalEquip,
+        diasEditadosManualmente: Array.from(diasEditadosManualmente),
+      }),
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      setTemRascunho(true);
+      Alert.alert(
+        "Rascunho Guardado",
+        "Os dados foram guardados com sucesso. Pode continuar mais tarde em qualquer dispositivo.",
+        [{ text: "OK" }]
+      );
+    } else {
+      throw new Error(result.message || "Erro ao guardar rascunho");
+    }
+  } catch (error) {
+    console.error("Erro ao guardar rascunho:", error);
+    Alert.alert("Erro", "Não foi possível guardar o rascunho.");
+  }
+}, [dadosProcessados, linhasExternos, linhasPessoalEquip, diasEditadosManualmente, mesAno]);
+
+// Função para carregar rascunho do backend
+const carregarRascunho = useCallback(async () => {
+  try {
+    const wants = await confirmAction(
+      "Carregar rascunho?",
+      "Irá substituir os dados atuais pelo ultimo rascunho. Confirma?"
+    );
+    if (!wants) return false;
+
+    const token = await secureStorage.getItem("loginToken");
+
+    const response = await fetch(
+      `https://backend.advir.pt/api/parte-diaria-rascunho/obter?mes=${mesAno.mes}&ano=${mesAno.ano}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    console.log("📦 Resposta do servidor ao carregar rascunho:", result);
+
+    if (!result.success || !result.rascunho) {
+      setTemRascunho(false);
+      Alert.alert("Aviso", "Não foi encontrado nenhum rascunho para este mês.");
+      return false;
+    }
+
+    const rascunhoData = result.rascunho;
+
+    // Helper para fazer parse seguro de JSON
+    const parseJSON = (data) => {
+      if (!data) return [];
+      if (Array.isArray(data)) return data;
+      if (typeof data === "string") {
         try {
-            const token = await secureStorage.getItem("loginToken");
-            
-            const response = await fetch(`https://backend.advir.pt/api/parte-diaria-rascunho/obter?mes=${mesAno.mes}&ano=${mesAno.ano}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Erro HTTP: ${response.status}`);
-            }
-            
-            const result = await response.json();
-            
-            console.log("📦 Resposta do servidor ao carregar rascunho:", result);
-            
-            if (!result.success || !result.rascunho) {
-                setTemRascunho(false);
-                Alert.alert("Aviso", "Não foi encontrado nenhum rascunho para este mês.");
-                return false;
-            }
-            
-            const rascunhoData = result.rascunho;
-            
-            // Helper para fazer parse seguro de JSON
-            const parseJSON = (data) => {
-                if (!data) return [];
-                if (Array.isArray(data)) return data;
-                if (typeof data === 'string') {
-                    try {
-                        const parsed = JSON.parse(data);
-                        return Array.isArray(parsed) ? parsed : [];
-                    } catch (e) {
-                        console.error('Erro ao fazer parse de JSON:', e);
-                        return [];
-                    }
-                }
-                return [];
-            };
-            
-            // Restaurar dados com parse correto
-            const dadosRestaurados = parseJSON(rascunhoData.dadosProcessados);
-            const linhasExternosRestauradas = parseJSON(rascunhoData.linhasExternos);
-            const linhasPessoalRestauradas = parseJSON(rascunhoData.linhasPessoalEquip);
-            
-            // Parse dos dias editados
-            let diasEditadosRestaurados = new Set();
-            if (rascunhoData.diasEditadosManualmente) {
-                const diasArray = parseJSON(rascunhoData.diasEditadosManualmente);
-                diasEditadosRestaurados = new Set(diasArray);
-            }
-            
-            console.log("📊 Dados a restaurar:", {
-                dadosProcessados: dadosRestaurados.length,
-                linhasExternos: linhasExternosRestauradas.length,
-                linhasPessoalEquip: linhasPessoalRestauradas.length,
-                diasEditados: diasEditadosRestaurados.size
-            });
-            
-            // Aplicar dados restaurados
-            setDadosProcessados(dadosRestaurados);
-            setLinhasExternos(linhasExternosRestauradas);
-            setLinhasPessoalEquip(linhasPessoalRestauradas);
-            setDiasEditadosManualmente(diasEditadosRestaurados);
-            
-            setTemRascunho(true);
-            
-            // Formatar data para exibição
-            const dataRascunho = rascunhoData.createdAt 
-                ? new Date(rascunhoData.createdAt)
-                : new Date();
-            
-            Alert.alert(
-                "Rascunho Carregado",
-                `Rascunho de ${dataRascunho.toLocaleDateString('pt-PT')} às ${dataRascunho.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })} foi restaurado com sucesso.`,
-                [{ text: "OK" }]
-            );
-            
-            return true;
-        } catch (error) {
-            console.error("Erro ao carregar rascunho:", error);
-            Alert.alert("Erro", `Não foi possível carregar o rascunho: ${error.message}`);
-            return false;
+          const parsed = JSON.parse(data);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          console.error("Erro ao fazer parse de JSON:", e);
+          return [];
         }
-    }, [mesAno]);
+      }
+      return [];
+    };
+
+    // Restaurar dados com parse correto
+    const dadosRestaurados = parseJSON(rascunhoData.dadosProcessados);
+    const linhasExternosRestauradas = parseJSON(rascunhoData.linhasExternos);
+    const linhasPessoalRestauradas = parseJSON(rascunhoData.linhasPessoalEquip);
+
+    // Parse dos dias editados
+    let diasEditadosRestaurados = new Set();
+    if (rascunhoData.diasEditadosManualmente) {
+      const diasArray = parseJSON(rascunhoData.diasEditadosManualmente);
+      diasEditadosRestaurados = new Set(diasArray);
+    }
+
+    console.log("📊 Dados a restaurar:", {
+      dadosProcessados: dadosRestaurados.length,
+      linhasExternos: linhasExternosRestauradas.length,
+      linhasPessoalEquip: linhasPessoalRestauradas.length,
+      diasEditados: diasEditadosRestaurados.size,
+    });
+
+    // Aplicar dados restaurados
+    setDadosProcessados(dadosRestaurados);
+    setLinhasExternos(linhasExternosRestauradas);
+    setLinhasPessoalEquip(linhasPessoalRestauradas);
+    setDiasEditadosManualmente(diasEditadosRestaurados);
+
+    setTemRascunho(true);
+
+    // Formatar data para exibição
+    const dataRascunho = rascunhoData.createdAt ? new Date(rascunhoData.createdAt) : new Date();
+
+    Alert.alert(
+      "Rascunho Carregado",
+      `Rascunho de ${dataRascunho.toLocaleDateString("pt-PT")} às ${dataRascunho.toLocaleTimeString(
+        "pt-PT",
+        { hour: "2-digit", minute: "2-digit" }
+      )} foi restaurado com sucesso.`,
+      [{ text: "OK" }]
+    );
+
+    return true;
+  } catch (error) {
+    console.error("Erro ao carregar rascunho:", error);
+    Alert.alert("Erro", `Não foi possível carregar o rascunho: ${error.message}`);
+    return false;
+  }
+}, [mesAno]);
 
 
 
