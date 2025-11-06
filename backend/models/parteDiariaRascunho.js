@@ -39,22 +39,8 @@ const ParteDiariaRascunho = sequelize.define('ParteDiariaRascunho', {
     diasEditadosManualmente: {
         type: DataTypes.JSON,
         allowNull: true
-    },
-    timestamp: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW
-    },
-    createdAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW
-    },
-    updatedAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW
     }
+
 }, {
     tableName: 'partes_diarias_rascunhos',
     timestamps: false // Desativar createdAt e updatedAt automáticos
