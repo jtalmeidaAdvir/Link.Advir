@@ -172,6 +172,8 @@ const RegistoPontoFacial = (props) => {
         setIsObrasLoading(true);
         const token = secureStorage.getItem("loginToken");
         const empresaId = secureStorage.getItem("empresa_id");
+        const obraPredefinidaId = secureStorage.getItem("obra_predefinida_id");
+        
         const res = await fetchWithTimeout(
           "https://backend.advir.pt/api/obra",
           {
@@ -186,8 +188,20 @@ const RegistoPontoFacial = (props) => {
             (o) => String(o.empresa_id) === String(empresaId),
           );
           setObras(obrasDaEmpresa);
-          if (obrasDaEmpresa.length === 1)
+          
+          // Pré-selecionar obra predefinida do POS se existir
+          if (obraPredefinidaId) {
+            const obraPredefinida = obrasDaEmpresa.find(
+              (o) => String(o.id) === String(obraPredefinidaId)
+            );
+            if (obraPredefinida) {
+              setObraSelecionada(obraPredefinida.id);
+              console.log('Obra predefinida do POS selecionada:', obraPredefinida.nome);
+            }
+          } else if (obrasDaEmpresa.length === 1) {
+            // Se não houver obra predefinida mas só existir uma obra, seleciona essa
             setObraSelecionada(obrasDaEmpresa[0].id);
+          }
         } else {
           console.error("Falha ao carregar obras:", res.status);
         }

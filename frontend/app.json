@@ -3,7 +3,7 @@
     "name": "AdvirLink",
     "slug": "AdvirLink",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/app.png",
     "userInterfaceStyle": "light",
     "splash": {

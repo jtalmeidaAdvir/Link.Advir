@@ -278,10 +278,26 @@ const listarMinhasEquipasAgrupadas = async (req, res) => {
         const registos = await EquipaObra.findAll({
             where: whereClause,
             include: [
-                { model: User, as: 'membro', attributes: ['id', 'nome', 'username'] }
+                { model: User, as: 'membro', attributes: ['id', 'nome', 'username'], required: false }
             ],
             order: [['nome', 'ASC']]
         });
+
+        // Buscar trabalhadores externos separadamente
+        const TrabalhadorExterno = require('../models/trabalhadorExterno');
+        const externosIds = registos
+            .filter(r => r.tipo_membro === 'externo' && r.trabalhador_externo_id)
+            .map(r => r.trabalhador_externo_id);
+
+        let externosMap = {};
+        if (externosIds.length > 0) {
+            const externos = await TrabalhadorExterno.findAll({
+                where: { id: externosIds }
+            });
+            externos.forEach(ext => {
+                externosMap[ext.id] = ext;
+            });
+        }
 
         const equipasAgrupadas = {};
 
@@ -295,10 +311,20 @@ const listarMinhasEquipasAgrupadas = async (req, res) => {
                 };
             }
 
-            if (reg.membro) {
+            if (reg.tipo_membro === 'interno' && reg.membro) {
                 equipasAgrupadas[nomeChave].membros.push({
                     id: reg.membro.id,
-                    nome: reg.membro.nome
+                    nome: reg.membro.nome,
+                    tipo: 'interno'
+                });
+            } else if (reg.tipo_membro === 'externo' && externosMap[reg.trabalhador_externo_id]) {
+                const externo = externosMap[reg.trabalhador_externo_id];
+                equipasAgrupadas[nomeChave].membros.push({
+                    id: externo.id,
+                    nome: externo.funcionario,
+                    empresa: externo.empresa,
+                    categoria: externo.categoria,
+                    tipo: 'externo'
                 });
             }
         }

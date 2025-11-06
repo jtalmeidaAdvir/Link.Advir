@@ -1545,6 +1545,7 @@ const submeterPessoalEquip = async () => {
         dataISO,
         codFuncionario,
         linhas,
+        nomeExterno = null,
     ) => {
         const painelToken = await secureStorage.getItem("painelAdminToken");
 
@@ -1573,7 +1574,7 @@ const submeterPessoalEquip = async () => {
                 Data: dataISO,
                 Numero: numeroSequencial, // usa contador sequencial
                 ColaboradorID: codFuncionario,
-                Funcionario: String(codFuncionario),
+                Funcionario: nomeExterno || String(codFuncionario),
                 ClasseID: l.classeId || 1, // usar classeId selecionada ou default 1
                 SubEmpID: l.subEmpId ?? null,
                 NumHoras: l.minutos,
@@ -2005,6 +2006,7 @@ const submeterPessoalEquip = async () => {
                     horasSubmetidasPorDia: null,
                     totalMinSubmetido: 0,
                     isOriginal: true, // Marca como sendo do ponto original
+                    isExterno: false, // Marca como interno
                 });
             });
 
@@ -2051,8 +2053,7 @@ const submeterPessoalEquip = async () => {
                 }
             });
 
-            // === ADICIONA MEMBROS SEM PONTO (linhas vazias)
-            // -> "Sem obra" SÓ para quem NÃO tem ponto no mês ===
+            // === ADICIONA MEMBROS SEM PONTO (linhas vazias) - INTERNOS E EXTERNOS ===
             const existentes = new Set(linhas.map((r) => `${r.userId}-${r.obraId}`));
             const userIdsComLinha = new Set(
                 linhas.map((r) => r.userId).filter(Boolean),
@@ -2092,10 +2093,13 @@ const submeterPessoalEquip = async () => {
                 (eq.membros || []).forEach((mb) => {
                     if (!mb?.id) return;
 
+                    const isExterno = mb.tipo === 'externo';
+                    const userId = isExterno ? `externo-${mb.id}` : mb.id;
+
                     // se a equipa tem obra reconhecida → cria linha vazia dessa obra (se ainda não existir)
                     if (obraIdDetected) {
                         const obraId = Number(obraIdDetected);
-                        const key = `${mb.id}-${obraId}`;
+                        const key = `${userId}-${obraId}`;
                         if (existentes.has(key)) return;
                         const obraMeta = (obrasParaPickers || []).find(
                             (o) => Number(o.id) === obraId,
@@ -2106,10 +2110,10 @@ const submeterPessoalEquip = async () => {
                         };
                         const baseHoras = Object.fromEntries(diasDoMes.map((d) => [d, 0]));
                         linhas.push({
-                            id: `${mb.id}-${obraId}`,
-                            userId: mb.id,
-                            userName: mb.nome,
-                            codFuncionario: codMap[mb.id] ?? null,
+                            id: `${userId}-${obraId}`,
+                            userId: userId,
+                            userName: mb.nome + (isExterno ? ` (${mb.empresa || 'Externo'})` : ''),
+                            codFuncionario: isExterno ? null : (codMap[mb.id] ?? null),
                             obraId,
                             obraNome: obraMeta.nome,
                             obraCodigo: obraMeta.codigo,
@@ -2117,32 +2121,64 @@ const submeterPessoalEquip = async () => {
                             horasOriginais: {},
                             especialidades: [],
                             isOriginal: false,
+                            isExterno: isExterno,
+                            externoId: isExterno ? mb.id : null,
+                            externoEmpresa: isExterno ? mb.empresa : null,
                         });
                         existentes.add(key);
                         return;
                     }
 
-                    // sem obra reconhecida → só criar "Sem obra" se:
-                    //  (a) NÃO tem ponto no mês e
-                    //  (b) ainda não existe nenhuma linha deste utilizador (ex.: vinda de parte diária submetida)
-                    if (usersComPonto.has(mb.id) || userIdsComLinha.has(mb.id)) return;
-                    const keySemObra = `${mb.id}-${OBRA_SEM_ASSOC}`;
-                    if (existentes.has(keySemObra)) return;
-                    const baseHoras = Object.fromEntries(diasDoMes.map((d) => [d, 0]));
-                    linhas.push({
-                        id: `${mb.id}-${OBRA_SEM_ASSOC}`,
-                        userId: mb.id,
-                        userName: mb.nome,
-                        codFuncionario: codMap[mb.id] ?? null,
-                        obraId: OBRA_SEM_ASSOC,
-                        obraNome: "Sem obra",
-                        obraCodigo: "—",
-                        horasPorDia: baseHoras,
-                        horasOriginais: {},
-                        especialidades: [],
-                        isOriginal: false,
-                    });
-                    existentes.add(keySemObra);
+                    // sem obra reconhecida → criar "Sem obra" para externos sempre, para internos só se não tiverem ponto
+                    if (isExterno) {
+                        // Para externos: sempre criar linha "Sem obra" se não existir nenhuma linha deste externo
+                        const temLinhaExistente = Array.from(existentes).some(k => k.startsWith(`${userId}-`));
+                        if (temLinhaExistente) return;
+                        
+                        const keySemObra = `${userId}-${OBRA_SEM_ASSOC}`;
+                        if (existentes.has(keySemObra)) return;
+                        const baseHoras = Object.fromEntries(diasDoMes.map((d) => [d, 0]));
+                        linhas.push({
+                            id: `${userId}-${OBRA_SEM_ASSOC}`,
+                            userId: userId,
+                            userName: mb.nome + ` (${mb.empresa || 'Externo'})`,
+                            codFuncionario: null,
+                            obraId: OBRA_SEM_ASSOC,
+                            obraNome: "Sem obra",
+                            obraCodigo: "—",
+                            horasPorDia: baseHoras,
+                            horasOriginais: {},
+                            especialidades: [],
+                            isOriginal: false,
+                            isExterno: true,
+                            externoId: mb.id,
+                            externoEmpresa: mb.empresa,
+                        });
+                        existentes.add(keySemObra);
+                    } else {
+                        // Para internos: só criar "Sem obra" se não tiverem ponto nem linhas
+                        if (usersComPonto.has(mb.id) || userIdsComLinha.has(mb.id)) return;
+                        const keySemObra = `${userId}-${OBRA_SEM_ASSOC}`;
+                        if (existentes.has(keySemObra)) return;
+                        const baseHoras = Object.fromEntries(diasDoMes.map((d) => [d, 0]));
+                        linhas.push({
+                            id: `${userId}-${OBRA_SEM_ASSOC}`,
+                            userId: userId,
+                            userName: mb.nome,
+                            codFuncionario: codMap[mb.id] ?? null,
+                            obraId: OBRA_SEM_ASSOC,
+                            obraNome: "Sem obra",
+                            obraCodigo: "—",
+                            horasPorDia: baseHoras,
+                            horasOriginais: {},
+                            especialidades: [],
+                            isOriginal: false,
+                            isExterno: false,
+                            externoId: null,
+                            externoEmpresa: null,
+                        });
+                        existentes.add(keySemObra);
+                    }
                 });
             });
 
@@ -2717,10 +2753,14 @@ const submeterPessoalEquip = async () => {
         try {
             for (const item of dadosProcessados) {
                 try {
-                    const codFuncionario = await obterCodFuncionario(item.userId);
-                    if (!codFuncionario) {
-                        console.warn(`codFuncionario não encontrado para ${item.userName}`);
-                        continue;
+                    // Se for externo, não precisa de codFuncionario
+                    let codFuncionario = null;
+                    if (!item.isExterno) {
+                        codFuncionario = await obterCodFuncionario(item.userId);
+                        if (!codFuncionario) {
+                            console.warn(`codFuncionario não encontrado para ${item.userName}`);
+                            continue;
+                        }
                     }
 
                     // dias que este item (utilizador × obra) realmente precisa submeter
@@ -2773,7 +2813,7 @@ const submeterPessoalEquip = async () => {
                             CriadoPor: userLogado,
                             Utilizador: userLogado,
                             TipoEntidade: "O",
-                            ColaboradorID: codFuncionario,
+                            ColaboradorID: item.isExterno ? null : codFuncionario,
                         };
 
                         const respCab = await fetch(
@@ -2812,8 +2852,9 @@ const submeterPessoalEquip = async () => {
                             cab.DocumentoID,
                             obraIdDia,
                             dataISO,
-                            codFuncionario,
+                            item.isExterno ? null : codFuncionario,
                             linhasDoDia,
+                            item.isExterno ? item.userName : null,
                         );
                     }
                 } catch (e) {
