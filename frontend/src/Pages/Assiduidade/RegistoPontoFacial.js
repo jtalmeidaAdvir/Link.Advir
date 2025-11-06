@@ -20,7 +20,7 @@ import { useAppStateRefresh } from "../Autenticacao/utils/useAppStateRefresh";
 import { useEnsureValidTokens } from "../../utils/useEnsureValidTokens";
 import backgroundImage from "../../../images/ImagemFundo.png";
 import { useNavigation } from "@react-navigation/native";
-import { secureStorage } from '../../utils/secureStorage';
+import { secureStorage } from "../../utils/secureStorage";
 const fetchWithTimeout = (url, opts = {}, ms = 8000) => {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
@@ -99,7 +99,7 @@ const RegistoPontoFacial = (props) => {
   // Verificar se é empresa JPA (ID = 5)
   const empresaId = secureStorage.getItem("empresa_id") || "";
   const isEmpresaJPA = empresaId === "5";
-  
+
   // Verificar se é administrador
   const tipoUser = secureStorage.getItem("tipoUser") || "";
   const isAdmin = tipoUser === "Administrador";
@@ -113,8 +113,14 @@ const RegistoPontoFacial = (props) => {
 
   // Estados para modal de definições
   const [showDefinicoesModal, setShowDefinicoesModal] = useState(false);
-  const [emailVisitantes, setEmailVisitantes] = useState('');
+  const [emailVisitantes, setEmailVisitantes] = useState("");
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+  // Estados para pull-to-refresh
+  const [pullDistance, setPullDistance] = useState(0);
+  const [showPullIndicator, setShowPullIndicator] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const containerRef = useRef(null);
 
   // Pré-aquecer localização quando o utilizador inicia o scan
   const locationPromiseRef = useRef(null);
@@ -173,7 +179,7 @@ const RegistoPontoFacial = (props) => {
         const token = secureStorage.getItem("loginToken");
         const empresaId = secureStorage.getItem("empresa_id");
         const obraPredefinidaId = secureStorage.getItem("obra_predefinida_id");
-        
+
         const res = await fetchWithTimeout(
           "https://backend.advir.pt/api/obra",
           {
@@ -188,15 +194,18 @@ const RegistoPontoFacial = (props) => {
             (o) => String(o.empresa_id) === String(empresaId),
           );
           setObras(obrasDaEmpresa);
-          
+
           // Pré-selecionar obra predefinida do POS se existir
           if (obraPredefinidaId) {
             const obraPredefinida = obrasDaEmpresa.find(
-              (o) => String(o.id) === String(obraPredefinidaId)
+              (o) => String(o.id) === String(obraPredefinidaId),
             );
             if (obraPredefinida) {
               setObraSelecionada(obraPredefinida.id);
-              console.log('Obra predefinida do POS selecionada:', obraPredefinida.nome);
+              console.log(
+                "Obra predefinida do POS selecionada:",
+                obraPredefinida.nome,
+              );
             }
           } else if (obrasDaEmpresa.length === 1) {
             // Se não houver obra predefinida mas só existir uma obra, seleciona essa
@@ -387,13 +396,22 @@ const RegistoPontoFacial = (props) => {
 
       if (res.ok) {
         const actionText = tipo === "entrada" ? "Entrada" : "Saída";
+        const mensagemBoasVindas = obterMensagemAleatoria();
         setModalData({
           type: "success",
-          message: `${actionText} registada!`,
+          message: mensagemBoasVindas,
           userName,
           action: actionText,
         });
         setShowResultModal(true);
+        
+        // Auto-fechar o modal após 3 segundos
+        setTimeout(() => {
+          setShowResultModal(false);
+          setModalData({ type: "", message: "", userName: "", action: "" });
+          setStatusMessage("");
+        }, 3000);
+        
         // Atualiza apenas o resumo
         carregarResumoObra(obraId);
         return true;
@@ -406,6 +424,14 @@ const RegistoPontoFacial = (props) => {
           action: "Erro",
         });
         setShowResultModal(true);
+        
+        // Auto-fechar modal de erro após 4 segundos
+        setTimeout(() => {
+          setShowResultModal(false);
+          setModalData({ type: "", message: "", userName: "", action: "" });
+          setStatusMessage("");
+        }, 4000);
+        
         return false;
       }
     } catch (err) {
@@ -503,14 +529,14 @@ const RegistoPontoFacial = (props) => {
       setIsAuthLoading(false);
 
       // 2) Localização - Verificar se é POS CASAPEDOME para pular obtenção de localização
-      const posNome = secureStorage.getItem('posNome');
+      const posNome = secureStorage.getItem("posNome");
       let loc = null;
-      
-      if (posNome === 'CASAPEDOME') {
+
+      if (posNome === "CASAPEDOME") {
         // Para CASAPEDOME, não obter localização (mais rápido)
-        console.log('📍 POS CASAPEDOME detectado - localização desativada');
+        console.log("📍 POS CASAPEDOME detectado - localização desativada");
         setStatusMessage(`${userName} identificado. A registar ponto...`);
-        loc = { coords: { latitude: "41.636771", longitude: "-8.433331" } }; 
+        loc = { coords: { latitude: "41.636771", longitude: "-8.433331" } };
       } else {
         // Para outros POS, obter localização normalmente
         setStatusMessage(`${userName} identificado. A obter localização...`);
@@ -552,13 +578,22 @@ const RegistoPontoFacial = (props) => {
       if (resAuto.ok) {
         const data = await resAuto.json().catch(() => ({}));
         const actionText = data?.action === "saida" ? "Saída" : "Entrada";
+        const mensagemBoasVindas = obterMensagemAleatoria();
         setModalData({
           type: "success",
-          message: `${actionText} registada!`,
+          message: mensagemBoasVindas,
           userName,
           action: actionText,
         });
         setShowResultModal(true);
+        
+        // Auto-fechar o modal após 3 segundos
+        setTimeout(() => {
+          setShowResultModal(false);
+          setModalData({ type: "", message: "", userName: "", action: "" });
+          setStatusMessage("");
+        }, 3000);
+        
         await carregarResumoObra(obraId);
         return;
       }
@@ -620,6 +655,13 @@ const RegistoPontoFacial = (props) => {
         action: "Erro",
       });
       setShowResultModal(true);
+      
+      // Auto-fechar modal de erro após 4 segundos
+      setTimeout(() => {
+        setShowResultModal(false);
+        setModalData({ type: "", message: "", userName: "", action: "" });
+        setStatusMessage("");
+      }, 4000);
     } finally {
       setIsAuthLoading(false);
       setIsPostLoading(false);
@@ -654,8 +696,8 @@ const RegistoPontoFacial = (props) => {
       return;
     }
     // Pré-aquecer localização apenas se não for CASAPEDOME
-    const posNome = secureStorage.getItem('posNome');
-    if (posNome !== 'CASAPEDOME') {
+    const posNome = secureStorage.getItem("posNome");
+    if (posNome !== "CASAPEDOME") {
       locationPromiseRef.current = getCurrentLocation();
     }
     setIsFacialScanning(true);
@@ -668,6 +710,25 @@ const RegistoPontoFacial = (props) => {
     setStatusMessage("");
     setFacialScanResult(null);
     locationPromiseRef.current = null;
+  };
+
+  // Mensagens de boas-vindas aleatórias
+  const mensagensBoasVindas = [
+    "Bem-vindo! Tenha um excelente dia de trabalho! 🌟",
+    "Olá! Que hoje seja produtivo e positivo! 💪",
+    "Bom dia! Desejamos-lhe muito sucesso! ✨",
+    "Seja bem-vindo! Vamos fazer um ótimo trabalho hoje! 🚀",
+    "Boa jornada! Conte connosco para um dia incrível! 🌈",
+    "Bem-vindo de volta! Hoje será um grande dia! 🎯",
+    "Olá! Pronto para mais um dia de conquistas? 💼",
+    "Bem-vindo! A sua dedicação faz a diferença! 🌟",
+    "Bom trabalho! Juntos somos mais fortes! 🤝",
+    "Seja bem-vindo! Vamos alcançar novos objetivos! 🏆"
+  ];
+
+  const obterMensagemAleatoria = () => {
+    const indiceAleatorio = Math.floor(Math.random() * mensagensBoasVindas.length);
+    return mensagensBoasVindas[indiceAleatorio];
   };
 
   const handleFacialScanComplete = async (facialData) => {
@@ -709,12 +770,15 @@ const RegistoPontoFacial = (props) => {
     // Carregar email atual
     try {
       const token = secureStorage.getItem("loginToken");
-      const res = await fetch("https://backend.advir.pt/api/configuracoes/email_visitantes", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(
+        "https://backend.advir.pt/api/configuracoes/email_visitantes",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (res.ok) {
         const config = await res.json();
-        setEmailVisitantes(config.valor || '');
+        setEmailVisitantes(config.valor || "");
       }
     } catch (error) {
       console.error("Erro ao carregar configurações:", error);
@@ -722,32 +786,35 @@ const RegistoPontoFacial = (props) => {
   };
 
   const handleSalvarDefinicoes = async () => {
-    if (!emailVisitantes || !emailVisitantes.includes('@')) {
-      alert('Por favor, insira um email válido');
+    if (!emailVisitantes || !emailVisitantes.includes("@")) {
+      alert("Por favor, insira um email válido");
       return;
     }
 
     try {
       setIsSavingConfig(true);
       const token = secureStorage.getItem("loginToken");
-      const res = await fetch("https://backend.advir.pt/api/configuracoes/email_visitantes", {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const res = await fetch(
+        "https://backend.advir.pt/api/configuracoes/email_visitantes",
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ valor: emailVisitantes }),
         },
-        body: JSON.stringify({ valor: emailVisitantes })
-      });
+      );
 
       if (res.ok) {
-        alert('Configurações salvas com sucesso!');
+        alert("Configurações salvas com sucesso!");
         setShowDefinicoesModal(false);
       } else {
-        alert('Erro ao salvar configurações');
+        alert("Erro ao salvar configurações");
       }
     } catch (error) {
       console.error("Erro ao salvar configurações:", error);
-      alert('Erro ao salvar configurações');
+      alert("Erro ao salvar configurações");
     } finally {
       setIsSavingConfig(false);
     }
@@ -773,6 +840,72 @@ const RegistoPontoFacial = (props) => {
     // Atualiza apenas o resumo da obra selecionada
     if (obraSelecionada) carregarResumoObra(obraSelecionada);
   };
+
+  // Função de refresh
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+
+    setIsRefreshing(true);
+    setStatusMessage("A atualizar dados...");
+
+    try {
+      if (obraSelecionada) {
+        await carregarResumoObra(obraSelecionada);
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar dados:", error);
+    } finally {
+      setIsRefreshing(false);
+      setStatusMessage("");
+    }
+  };
+
+  // Pull-to-refresh - Touch events
+  const handleTouchStart = (e) => {
+    if (window.scrollY === 0) {
+      containerRef.current.startY = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (window.scrollY === 0 && containerRef.current.startY) {
+      const distance = Math.max(
+        0,
+        e.touches[0].clientY - containerRef.current.startY,
+      );
+      if (distance > 10) {
+        setPullDistance(distance);
+        setShowPullIndicator(true);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (pullDistance > 80 && !isRefreshing) {
+      handleRefresh();
+    }
+    containerRef.current.startY = null;
+    setPullDistance(0);
+    setShowPullIndicator(false);
+  };
+
+  // Setup event listeners
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
+    container.addEventListener("touchmove", handleTouchMove, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [pullDistance, isRefreshing]);
 
   const handleAbrirModalVisitante = () => {
     if (!obraSelecionada) {
@@ -822,10 +955,10 @@ const RegistoPontoFacial = (props) => {
       setExternoNome(externo.nome);
 
       // Obter localização apenas se não for CASAPEDOME
-      const posNome = secureStorage.getItem('posNome');
+      const posNome = secureStorage.getItem("posNome");
       let loc = { coords: { latitude: null, longitude: null } };
-      
-      if (posNome !== 'CASAPEDOME') {
+
+      if (posNome !== "CASAPEDOME") {
         try {
           loc = await getCurrentLocation();
         } catch {}
@@ -953,12 +1086,12 @@ const RegistoPontoFacial = (props) => {
     try {
       const token = secureStorage.getItem("loginToken");
       const empresaId = secureStorage.getItem("empresa_id");
-      const posNome = secureStorage.getItem('posNome');
+      const posNome = secureStorage.getItem("posNome");
 
       let loc = { coords: { latitude: null, longitude: null } };
-      
+
       // Apenas obter localização se não for CASAPEDOME
-      if (posNome !== 'CASAPEDOME') {
+      if (posNome !== "CASAPEDOME") {
         try {
           loc = await getCurrentLocation();
         } catch {}
@@ -1008,6 +1141,7 @@ const RegistoPontoFacial = (props) => {
 
   return (
     <div
+      ref={containerRef}
       className="container-fluid bg-light min-vh-100 py-2 py-md-4"
       style={{
         overflowX: "hidden",
@@ -1016,6 +1150,33 @@ const RegistoPontoFacial = (props) => {
         height: "100vh",
       }}
     >
+      {/* Indicador de Pull-to-Refresh */}
+      {showPullIndicator && (
+        <div
+          style={{
+            position: "fixed",
+            top: `${Math.min(pullDistance, 100)}px`,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            background: "rgba(23, 146, 254, 0.95)",
+            padding: "0.75rem 1.5rem",
+            borderRadius: "25px",
+            boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
+            transition: "top 0.3s ease",
+          }}
+        >
+          <span
+            style={{ color: "white", fontWeight: "600", fontSize: "0.9rem" }}
+          >
+            {isRefreshing
+              ? "A atualizar..."
+              : pullDistance > 80
+                ? "Solte para atualizar"
+                : "Puxe para atualizar"}
+          </span>
+        </div>
+      )}
       <div
         style={{
           position: "absolute",
@@ -1204,6 +1365,19 @@ const RegistoPontoFacial = (props) => {
             transform: scale(1) translateY(0);
           }
         }
+        .auto-close-modal {
+          animation: modalAppear 0.3s ease-out, modalDisappear 0.3s ease-in 2.7s forwards;
+        }
+        @keyframes modalDisappear {
+          from {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+          to {
+            opacity: 0;
+            transform: scale(0.9) translateY(-20px);
+          }
+        }
         @media (max-width: 767px) {
           .container-fluid {
             padding-left: 0.75rem;
@@ -1248,7 +1422,7 @@ const RegistoPontoFacial = (props) => {
                     <button
                       className="btn btn-sm btn-outline-primary"
                       onClick={handleAbrirDefinicoes}
-                      style={{ minWidth: '100px' }}
+                      style={{ minWidth: "100px" }}
                     >
                       ⚙️ Definições
                     </button>
@@ -1710,7 +1884,8 @@ const RegistoPontoFacial = (props) => {
                   onChange={(e) => setEmailVisitantes(e.target.value)}
                 />
                 <small className="text-muted">
-                  Este email receberá notificações sempre que um visitante registar entrada/saída
+                  Este email receberá notificações sempre que um visitante
+                  registar entrada/saída
                 </small>
               </div>
               <div className="d-flex gap-2 mt-4">
@@ -1728,11 +1903,10 @@ const RegistoPontoFacial = (props) => {
                 >
                   {isSavingConfig ? (
                     <>
-                      <FaSpinner className="me-2 spin" />
-                      A guardar...
+                      <FaSpinner className="me-2 spin" />A guardar...
                     </>
                   ) : (
-                    'Guardar'
+                    "Guardar"
                   )}
                 </button>
               </div>
@@ -1743,8 +1917,8 @@ const RegistoPontoFacial = (props) => {
 
       {/* Modal de Resultado */}
       {showResultModal && (
-        <div className="result-modal-overlay" onClick={handleCloseModal}>
-          <div className="result-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="result-modal-overlay">
+          <div className="result-modal auto-close-modal" onClick={(e) => e.stopPropagation()}>
             <div className="result-modal-header">
               <div
                 className={
@@ -1758,7 +1932,7 @@ const RegistoPontoFacial = (props) => {
                 )}
               </div>
               <h3 className="modal-title">
-                {modalData.type === "success" ? "Sucesso!" : "Erro!"}
+                {modalData.type === "success" ? modalData.action : "Erro!"}
               </h3>
               <p className="modal-subtitle">{modalData.userName}</p>
             </div>
@@ -1766,16 +1940,16 @@ const RegistoPontoFacial = (props) => {
               <p
                 style={{
                   fontSize: "1.1rem",
-                  marginBottom: "1.5rem",
+                  marginBottom: "0.5rem",
                   color: modalData.type === "success" ? "#28a745" : "#dc3545",
                   fontWeight: "500",
                 }}
               >
                 {modalData.message}
               </p>
-              <button className="modal-close-btn" onClick={handleCloseModal}>
-                OK
-              </button>
+              <small className="text-muted" style={{ fontSize: "0.85rem" }}>
+                Esta mensagem irá fechar automaticamente...
+              </small>
             </div>
           </div>
         </div>
