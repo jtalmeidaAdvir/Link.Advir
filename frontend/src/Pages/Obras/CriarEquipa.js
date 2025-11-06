@@ -43,6 +43,8 @@ const CriarEquipa = () => {
     const [equipaParaRemover, setEquipaParaRemover] = useState(null);
     const [membersExpanded, setMembersExpanded] = useState(false);
     const [searchMembros, setSearchMembros] = useState("");
+    const [externosExpanded, setExternosExpanded] = useState(false);
+    const [searchExternos, setSearchExternos] = useState("");
 
     // Animação principal
     useEffect(() => {
@@ -595,51 +597,155 @@ const CriarEquipa = () => {
                 </View>
 
                 <View style={styles.inputContainer}>
-                    <Text style={styles.label}>
-                        <FontAwesome name="user-plus" size={16} color="#1792FE" />{" "}
-                        Trabalhadores Externos
-                    </Text>
-                    <Text style={styles.selectedCount}>
-                        {externosSelecionados.length} de {trabalhadoresExternos.length} selecionados
-                    </Text>
-                    <ScrollView style={styles.membersScrollView} nestedScrollEnabled={true}>
-                        {trabalhadoresExternos.map((externo) => (
-                            <TouchableOpacity
-                                key={`externo-${externo.id}`}
-                                style={[
-                                    styles.memberItem,
-                                    externosSelecionados.includes(externo.id) && styles.memberSelected,
-                                ]}
-                                onPress={() => toggleExterno(externo.id)}
-                                activeOpacity={0.7}
+                    <TouchableOpacity
+                        style={styles.membersHeader}
+                        onPress={() => {
+                            setExternosExpanded(!externosExpanded);
+                            if (externosExpanded) {
+                                setSearchExternos("");
+                            }
+                        }}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={styles.label}>
+                            <FontAwesome
+                                name="user-plus"
+                                size={16}
+                                color="#28a745"
+                            />{" "}
+                            Trabalhadores Externos
+                        </Text>
+                        <View style={styles.membersCounter}>
+                            <Text style={styles.selectedCount}>
+                                {externosSelecionados.length} de{" "}
+                                {trabalhadoresExternos.length}
+                            </Text>
+                            <Animated.View
+                                style={{
+                                    transform: [
+                                        {
+                                            rotate: externosExpanded
+                                                ? "180deg"
+                                                : "0deg",
+                                        },
+                                    ],
+                                }}
                             >
-                                <View style={styles.memberContent}>
-                                    <View
+                                <Ionicons
+                                    name="chevron-down"
+                                    size={20}
+                                    color="#28a745"
+                                />
+                            </Animated.View>
+                        </View>
+                    </TouchableOpacity>
+
+                    {externosExpanded && (
+                        <View style={styles.membersContainer}>
+                            <TextInput
+                                style={styles.searchInput}
+                                value={searchExternos}
+                                onChangeText={setSearchExternos}
+                                placeholder="Pesquisar trabalhador externo..."
+                                placeholderTextColor="#999"
+                            />
+                            <ScrollView
+                                style={styles.membersScrollView}
+                                nestedScrollEnabled={true}
+                            >
+                                {trabalhadoresExternos
+                                    .filter((externo) => {
+                                        const searchLower = searchExternos.toLowerCase();
+                                        const nome = (externo.funcionario || "").toLowerCase();
+                                        const empresa = (externo.empresa || "").toLowerCase();
+                                        const categoria = (externo.categoria || "").toLowerCase();
+                                        return nome.includes(searchLower) || 
+                                               empresa.includes(searchLower) || 
+                                               categoria.includes(searchLower);
+                                    })
+                                    .map((externo) => (
+                                    <TouchableOpacity
+                                        key={`externo-${externo.id}`}
                                         style={[
-                                            styles.checkbox,
-                                            externosSelecionados.includes(externo.id) && styles.checkedBox,
+                                            styles.memberItem,
+                                            externosSelecionados.includes(externo.id) && styles.memberSelected,
                                         ]}
+                                        onPress={() => toggleExterno(externo.id)}
+                                        activeOpacity={0.7}
                                     >
-                                        {externosSelecionados.includes(externo.id) && (
-                                            <FontAwesome name="check" size={12} color="#FFFFFF" />
-                                        )}
-                                    </View>
-                                    <FontAwesome
-                                        name="user-circle"
-                                        size={16}
-                                        color="#28a745"
-                                        style={styles.userIcon}
-                                    />
-                                    <View style={styles.memberInfo}>
-                                        <Text style={styles.memberName}>{externo.funcionario}</Text>
-                                        <Text style={styles.memberEmail}>
-                                            {externo.empresa} • {externo.categoria || 'N/A'}
+                                        <View style={styles.memberContent}>
+                                            <View
+                                                style={[
+                                                    styles.checkbox,
+                                                    externosSelecionados.includes(externo.id) && styles.checkedBox,
+                                                ]}
+                                            >
+                                                {externosSelecionados.includes(externo.id) && (
+                                                    <FontAwesome
+                                                        name="check"
+                                                        size={12}
+                                                        color="#FFFFFF"
+                                                    />
+                                                )}
+                                            </View>
+                                            <FontAwesome
+                                                name="user-circle"
+                                                size={16}
+                                                color="#28a745"
+                                                style={styles.userIcon}
+                                            />
+                                            <View style={styles.memberInfo}>
+                                                <Text style={styles.memberName}>
+                                                    {externo.funcionario}
+                                                </Text>
+                                                <Text style={styles.memberEmail}>
+                                                    {externo.empresa} • {externo.categoria || 'N/A'}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )}
+
+                    {!externosExpanded && externosSelecionados.length > 0 && (
+                        <View style={styles.selectedMembersPreview}>
+                            <Text style={styles.previewTitle}>
+                                Externos selecionados:
+                            </Text>
+                            <View style={styles.selectedMembersList}>
+                                {externosSelecionados
+                                    .slice(0, 3)
+                                    .map((externoId) => {
+                                        const externo = trabalhadoresExternos.find(
+                                            (e) => e.id === externoId,
+                                        );
+                                        return (
+                                            <View
+                                                key={`preview-ext-${externoId}`}
+                                                style={styles.selectedMemberTag}
+                                            >
+                                                <Text
+                                                    style={
+                                                        styles.selectedMemberTagText
+                                                    }
+                                                >
+                                                    {externo?.funcionario || "Externo"}
+                                                </Text>
+                                            </View>
+                                        );
+                                    })}
+                                {externosSelecionados.length > 3 && (
+                                    <View style={styles.moreSelectedTag}>
+                                        <Text style={styles.moreSelectedText}>
+                                            +{externosSelecionados.length - 3}
                                         </Text>
                                     </View>
-                                </View>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
+                                )}
+                            </View>
+                        </View>
+                    )}
                 </View>
 
                 <TouchableOpacity
@@ -1010,7 +1116,7 @@ const CriarEquipa = () => {
                                     <FontAwesome
                                         name="user-plus"
                                         size={16}
-                                        color="#1792FE"
+                                        color="#28a745"
                                     />{" "}
                                     Trabalhadores Externos
                                 </Text>
@@ -1020,11 +1126,28 @@ const CriarEquipa = () => {
                                 </Text>
 
                                 <View style={styles.modalMembersWrapper}>
+                                    <TextInput
+                                        style={styles.searchInput}
+                                        value={searchExternos}
+                                        onChangeText={setSearchExternos}
+                                        placeholder="Pesquisar trabalhador externo..."
+                                        placeholderTextColor="#999"
+                                    />
                                     <ScrollView
                                         style={styles.modalMembersContainer}
                                         nestedScrollEnabled={true}
                                     >
-                                        {trabalhadoresExternos.map((externo) => (
+                                        {trabalhadoresExternos
+                                            .filter((externo) => {
+                                                const searchLower = searchExternos.toLowerCase();
+                                                const nome = (externo.funcionario || "").toLowerCase();
+                                                const empresa = (externo.empresa || "").toLowerCase();
+                                                const categoria = (externo.categoria || "").toLowerCase();
+                                                return nome.includes(searchLower) || 
+                                                       empresa.includes(searchLower) || 
+                                                       categoria.includes(searchLower);
+                                            })
+                                            .map((externo) => (
                                             <TouchableOpacity
                                                 key={`modal-externo-${externo.id}`}
                                                 style={[
@@ -1080,6 +1203,7 @@ const CriarEquipa = () => {
                                     setMembrosSelecionados([]);
                                     setExternosSelecionados([]);
                                     setSearchMembros("");
+                                    setSearchExternos("");
                                 }}
                                 style={styles.cancelButton}
                             >

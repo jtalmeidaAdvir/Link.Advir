@@ -164,7 +164,12 @@ const RegistoPontoObra = (props) => {
 
             if (res.ok) {
                 const data = await res.json();
-                setMinhasEquipas(data);
+                // Filter out external members from each team
+                const equipasFiltered = data.map(equipa => ({
+                    ...equipa,
+                    membros: equipa.membros.filter(m => m.tipo !== 'externo')
+                }));
+                setMinhasEquipas(equipasFiltered);
             }
         };
         fetchEquipas();
