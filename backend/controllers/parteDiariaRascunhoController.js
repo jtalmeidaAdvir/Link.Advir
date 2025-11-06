@@ -1,52 +1,105 @@
 
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db');
+const ParteDiariaRascunho = require('../models/parteDiariaRascunho');
 
-const ParteDiariaRascunho = sequelize.define('ParteDiariaRascunho', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true
-    },
-    userId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        references: {
-            model: 'users',
-            key: 'id'
+// Guardar ou atualizar rascunho
+exports.guardarRascunho = async (req, res) => {
+    try {
+        const { mes, ano, dadosProcessados, linhasExternos, linhasPessoalEquip, diasEditadosManualmente } = req.body;
+        const userId = req.user.id;
+
+        // Verificar se já existe rascunho para este utilizador/mês/ano
+        let rascunho = await ParteDiariaRascunho.findOne({
+            where: { userId, mes, ano }
+        });
+
+        if (rascunho) {
+            // Atualizar existente
+            await rascunho.update({
+                dadosProcessados,
+                linhasExternos,
+                linhasPessoalEquip,
+                diasEditadosManualmente,
+                timestamp: new Date()
+            });
+        } else {
+            // Criar novo
+            rascunho = await ParteDiariaRascunho.create({
+                userId,
+                mes,
+                ano,
+                dadosProcessados,
+                linhasExternos,
+                linhasPessoalEquip,
+                diasEditadosManualmente
+            });
         }
-    },
-    mes: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
-    ano: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
-    dadosProcessados: {
-        type: DataTypes.JSON,
-        allowNull: true
-    },
-    linhasExternos: {
-        type: DataTypes.JSON,
-        allowNull: true
-    },
-    linhasPessoalEquip: {
-        type: DataTypes.JSON,
-        allowNull: true
-    },
-    diasEditadosManualmente: {
-        type: DataTypes.JSON,
-        allowNull: true
-    },
-    timestamp: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
-    }
-}, {
-    tableName: 'partes_diarias_rascunhos',
-    timestamps: true
-});
 
-module.exports = ParteDiariaRascunho;
+        res.json({
+            success: true,
+            message: 'Rascunho guardado com sucesso',
+            rascunho
+        });
+    } catch (error) {
+        console.error('Erro ao guardar rascunho:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao guardar rascunho',
+            error: error.message
+        });
+    }
+};
+
+// Obter rascunho
+exports.obterRascunho = async (req, res) => {
+    try {
+        const { mes, ano } = req.query;
+        const userId = req.user.id;
+
+        const rascunho = await ParteDiariaRascunho.findOne({
+            where: { userId, mes, ano }
+        });
+
+        if (!rascunho) {
+            return res.json({
+                success: true,
+                rascunho: null
+            });
+        }
+
+        res.json({
+            success: true,
+            rascunho
+        });
+    } catch (error) {
+        console.error('Erro ao obter rascunho:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao obter rascunho',
+            error: error.message
+        });
+    }
+};
+
+// Eliminar rascunho
+exports.eliminarRascunho = async (req, res) => {
+    try {
+        const { mes, ano } = req.query;
+        const userId = req.user.id;
+
+        await ParteDiariaRascunho.destroy({
+            where: { userId, mes, ano }
+        });
+
+        res.json({
+            success: true,
+            message: 'Rascunho eliminado com sucesso'
+        });
+    } catch (error) {
+        console.error('Erro ao eliminar rascunho:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao eliminar rascunho',
+            error: error.message
+        });
+    }
+};
