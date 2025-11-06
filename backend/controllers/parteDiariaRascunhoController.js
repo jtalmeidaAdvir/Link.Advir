@@ -18,8 +18,8 @@ exports.guardarRascunho = async (req, res) => {
             dadosProcessados: dadosProcessados || [],
             linhasExternos: linhasExternos || [],
             linhasPessoalEquip: linhasPessoalEquip || [],
-            diasEditadosManualmente: diasEditadosManualmente || [],
-            timestamp: new Date()
+            diasEditadosManualmente: diasEditadosManualmente || []
+            // timestamp será gerado automaticamente pelo defaultValue
         };
 
         if (rascunho) {

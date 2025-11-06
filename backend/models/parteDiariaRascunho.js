@@ -42,6 +42,7 @@ const ParteDiariaRascunho = sequelize.define('ParteDiariaRascunho', {
     },
     timestamp: {
         type: DataTypes.DATE,
+        allowNull: false,
         defaultValue: DataTypes.NOW
     }
 }, {
