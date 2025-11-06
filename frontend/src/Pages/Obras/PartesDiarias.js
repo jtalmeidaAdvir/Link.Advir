@@ -58,6 +58,9 @@ const PartesDiarias = ({ navigation }) => {
         categoria: "MaoObra",
         notaDia: "", // <- nota do cabeçalho para o dia selecionado
     });
+    
+    // Estado para controlar se há rascunho guardado
+    const [temRascunho, setTemRascunho] = useState(false);
 
     const [obrasTodas, setObrasTodas] = useState([]);
 
@@ -1170,6 +1173,170 @@ const submeterPessoalEquip = async () => {
         carregarClasses();
     }, [carregarEspecialidades, carregarEquipamentos, carregarClasses]);
 
+    // Função auxiliar para obter chave do rascunho
+    const obterChaveRascunho = useCallback(async () => {
+        const userId = await secureStorage.getItem("userId");
+        const userEmail = await secureStorage.getItem("userEmail");
+        
+        // Usar email como fallback se userId não estiver disponível
+        const identificador = userId || userEmail || 'temp';
+        return `partesDiarias_rascunho_${identificador}_${mesAno.mes}_${mesAno.ano}`;
+    }, [mesAno]);
+
+    // Função para guardar rascunho no backend
+    const guardarRascunho = useCallback(async () => {
+        try {
+            const token = await secureStorage.getItem("loginToken");
+            
+            const response = await fetch('https://backend.advir.pt/api/parte-diaria-rascunho/guardar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    mes: mesAno.mes,
+                    ano: mesAno.ano,
+                    dadosProcessados,
+                    linhasExternos,
+                    linhasPessoalEquip,
+                    diasEditadosManualmente: Array.from(diasEditadosManualmente)
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                setTemRascunho(true);
+                Alert.alert(
+                    "Rascunho Guardado",
+                    "Os dados foram guardados com sucesso. Pode continuar a trabalhar mais tarde em qualquer dispositivo.",
+                    [{ text: "OK" }]
+                );
+            } else {
+                throw new Error(result.message || 'Erro ao guardar rascunho');
+            }
+        } catch (error) {
+            console.error("Erro ao guardar rascunho:", error);
+            Alert.alert("Erro", "Não foi possível guardar o rascunho.");
+        }
+    }, [dadosProcessados, linhasExternos, linhasPessoalEquip, diasEditadosManualmente, mesAno]);
+
+    // Função para carregar rascunho do backend
+    const carregarRascunho = useCallback(async () => {
+        try {
+            const token = await secureStorage.getItem("loginToken");
+            
+            const response = await fetch(`https://backend.advir.pt/api/parte-diaria-rascunho/obter?mes=${mesAno.mes}&ano=${mesAno.ano}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (!result.success || !result.rascunho) {
+                setTemRascunho(false);
+                Alert.alert("Aviso", "Não foi encontrado nenhum rascunho para este mês.");
+                return false;
+            }
+            
+            const { dadosProcessados, linhasExternos, linhasPessoalEquip, diasEditadosManualmente, timestamp } = result.rascunho;
+            
+            // Restaurar dados
+            setDadosProcessados(dadosProcessados || []);
+            setLinhasExternos(linhasExternos || []);
+            setLinhasPessoalEquip(linhasPessoalEquip || []);
+            setDiasEditadosManualmente(new Set(diasEditadosManualmente || []));
+            
+            setTemRascunho(true);
+            
+            const dataRascunho = new Date(timestamp);
+            Alert.alert(
+                "Rascunho Carregado",
+                `Rascunho de ${dataRascunho.toLocaleDateString('pt-PT')} às ${dataRascunho.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })} foi restaurado com sucesso.`,
+                [{ text: "OK" }]
+            );
+            
+            return true;
+        } catch (error) {
+            console.error("Erro ao carregar rascunho:", error);
+            Alert.alert("Erro", "Não foi possível carregar o rascunho.");
+            return false;
+        }
+    }, [mesAno]);
+
+    // Função para eliminar rascunho do backend
+    const eliminarRascunho = useCallback(async () => {
+        try {
+            const token = await secureStorage.getItem("loginToken");
+            
+            const response = await fetch(`https://backend.advir.pt/api/parte-diaria-rascunho/eliminar?mes=${mesAno.mes}&ano=${mesAno.ano}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                setTemRascunho(false);
+                Alert.alert(
+                    "Rascunho Eliminado",
+                    "O rascunho foi eliminado com sucesso.",
+                    [{ text: "OK" }]
+                );
+            } else {
+                throw new Error(result.message || 'Erro ao eliminar rascunho');
+            }
+        } catch (error) {
+            console.error("Erro ao eliminar rascunho:", error);
+            Alert.alert("Erro", "Não foi possível eliminar o rascunho.");
+        }
+    }, [mesAno]);
+
+    // Verificar se existe rascunho no backend
+    const verificarRascunho = useCallback(async () => {
+        try {
+            const token = await secureStorage.getItem("loginToken");
+            
+            const response = await fetch(`https://backend.advir.pt/api/parte-diaria-rascunho/obter?mes=${mesAno.mes}&ano=${mesAno.ano}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success && result.rascunho) {
+                setTemRascunho(true);
+                const dataRascunho = new Date(result.rascunho.timestamp);
+                
+                Alert.alert(
+                    "Rascunho Disponível",
+                    `Foi encontrado um rascunho de ${dataRascunho.toLocaleDateString('pt-PT')} às ${dataRascunho.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}.\n\nDeseja carregar este rascunho?`,
+                    [
+                        {
+                            text: "Não",
+                            style: "cancel",
+                            onPress: () => setTemRascunho(true)
+                        },
+                        {
+                            text: "Sim",
+                            onPress: () => carregarRascunho()
+                        }
+                    ]
+                );
+            } else {
+                setTemRascunho(false);
+            }
+        } catch (error) {
+            console.error("Erro ao verificar rascunho:", error);
+            setTemRascunho(false);
+        }
+    }, [mesAno, carregarRascunho]);
+
     useEffect(() => {
         const init = async () => {
             setLoading(true);
@@ -1186,6 +1353,9 @@ const submeterPessoalEquip = async () => {
                 const { equipas, registos } = resultado;
 
                 processarDadosPartes(registos, equipas);
+                
+                // 3) Verificar se existe rascunho após carregar dados
+                await verificarRascunho();
             } catch (err) {
                 console.error(err);
                 Alert.alert("Erro", "Falha ao carregar dados.");
@@ -2910,6 +3080,9 @@ const submeterPessoalEquip = async () => {
             await carregarDados();
             await carregarItensSubmetidos();
 
+            // Eliminar rascunho após submissão bem-sucedida
+            await eliminarRascunho();
+            
             Alert.alert(
                 "Sucesso",
                 submeteuExternos
@@ -3158,7 +3331,63 @@ for (const l of linhasParaSubmeter) {
                         <Text style={styles.buttonText}>Enviar Partes</Text>
                     </LinearGradient>
                 </TouchableOpacity>
-                {/* NOVO BOTÃO DE ATUALIZAR */}
+                
+                {/* BOTÃO GUARDAR RASCUNHO */}
+                <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={guardarRascunho}
+                >
+                    <LinearGradient
+                        colors={["#28a745", "#1e7e34"]}
+                        style={styles.buttonGradient}
+                    >
+                        <Ionicons name="folder" size={16} color="#FFFFFF" />
+                        <Text style={styles.buttonText}>Guardar Rascunho</Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+                
+                {/* BOTÃO CARREGAR RASCUNHO */}
+                {temRascunho && (
+                    <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={carregarRascunho}
+                    >
+                        <LinearGradient
+                            colors={["#ffc107", "#e0a800"]}
+                            style={styles.buttonGradient}
+                        >
+                            <Ionicons name="folder-open" size={16} color="#FFFFFF" />
+                            <Text style={styles.buttonText}>Carregar Rascunho</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+                )}
+                
+                {/* BOTÃO ELIMINAR RASCUNHO */}
+                {temRascunho && (
+                    <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => {
+                            Alert.alert(
+                                "Confirmar Eliminação",
+                                "Tem a certeza que deseja eliminar o rascunho guardado?",
+                                [
+                                    { text: "Cancelar", style: "cancel" },
+                                    { text: "Eliminar", onPress: eliminarRascunho, style: "destructive" }
+                                ]
+                            );
+                        }}
+                    >
+                        <LinearGradient
+                            colors={["#dc3545", "#bd2130"]}
+                            style={styles.buttonGradient}
+                        >
+                            <Ionicons name="trash" size={16} color="#FFFFFF" />
+                            <Text style={styles.buttonText}>Eliminar Rascunho</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+                )}
+                
+                {/* BOTÃO DE ATUALIZAR */}
                 <TouchableOpacity
                     style={styles.actionButton}
                     onPress={async () => {
