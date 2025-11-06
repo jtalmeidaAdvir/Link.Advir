@@ -2275,6 +2275,32 @@ const submeterPessoalEquip = async () => {
 
     const abrirEdicao = useCallback(
         async (trabalhador, dia) => {
+            // Verificar se é um externo vindo da equipa
+            if (trabalhador.isExterno && trabalhador.externoId) {
+                // Abrir modal de externos
+                await carregarExternos();
+                
+                // Preencher o formulário com os dados do externo
+                const externo = externosLista.find(e => e.id === trabalhador.externoId);
+                
+                setLinhaAtual({
+                    obraId: trabalhador.obraId !== OBRA_SEM_ASSOC ? trabalhador.obraId : "",
+                    dia: dia,
+                    trabalhadorId: trabalhador.externoId,
+                    horas: "",
+                    horaExtra: false,
+                    categoria: "MaoObra",
+                    especialidadeCodigo: "",
+                    subEmpId: null,
+                    classeId: null,
+                    observacoes: "",
+                });
+                
+                setModalExternosVisible(true);
+                return;
+            }
+
+            // Lógica normal para internos
             setSelectedTrabalhador(trabalhador);
             setSelectedDia(dia);
 
@@ -2332,7 +2358,7 @@ const submeterPessoalEquip = async () => {
             });
             setEditModalVisible(true);
         },
-        [selectedDia, especialidadesList, classesList],
+        [selectedDia, especialidadesList, classesList, externosLista, carregarExternos],
     );
 
     const adicionarEspecialidade = useCallback(() => {
@@ -2904,21 +2930,60 @@ const submeterPessoalEquip = async () => {
 
     // ——— ENVIAR EXTERNOS "SILENCIOSO" (sem fechar modal nem alerts de sucesso) ———
     const submeterExternosSilencioso = async () => {
-        if (linhasExternos.length === 0) return false;
+        // Recolher linhas de externos do modal + externos das equipas com horas
+        const linhasParaSubmeter = [...linhasExternos];
+        
+        // Adicionar externos das equipas que têm horas registadas
+        dadosProcessados.forEach(item => {
+            if (item.isExterno && item.externoId) {
+                diasDoMes.forEach(dia => {
+                    const minutos = item?.horasPorDia?.[dia] || 0;
+                    if (minutos > 0) {
+                        const especialidadesDia = (item.especialidades || []).filter(e => e.dia === dia);
+                        
+                        especialidadesDia.forEach(esp => {
+                            const lista = esp.categoria === "Equipamentos" ? equipamentosList : especialidadesList;
+                            const sel = lista.find(x => x.codigo === esp.especialidade);
+                            
+                            linhasParaSubmeter.push({
+                                key: `equipa-${item.externoId}-${item.obraId}-${dia}-${Date.now()}`,
+                                obraId: Number(item.obraId),
+                                dia: Number(dia),
+                                trabalhadorId: item.externoId,
+                                funcionario: item.userName.replace(/\s*\(.*?\)\s*$/, '').trim(),
+                                empresa: item.externoEmpresa || '—',
+                                horasMin: Math.round((parseFloat(esp.horas) || 0) * 60),
+                                horaExtra: !!esp.horaExtra,
+                                categoria: esp.categoria || "MaoObra",
+                                especialidadeCodigo: esp.especialidade,
+                                especialidadeDesc: sel?.descricao ?? "",
+                                subEmpId: sel?.subEmpId ?? null,
+                                classeId: esp.classeId || null,
+                                observacoes: esp.observacoes || "",
+                                horas: esp.horas,
+                            });
+                        });
+                    }
+                });
+            }
+        });
+        
+        if (linhasParaSubmeter.length === 0) return false;
 
         try {
             const painelToken = await secureStorage.getItem("painelAdminToken");
             const userLogado = (await secureStorage.getItem("userNome")) || "";
 
             // Agrupar por (obraId, dia)
-            const grupos = new Map();
-            for (const l of linhasExternos) {
-                const dataISO = `${mesAno.ano}-${String(mesAno.mes).padStart(2, "0")}-${String(l.dia).padStart(2, "0")}`;
-                const key = `${l.obraId}|${dataISO}`;
-                if (!grupos.has(key))
-                    grupos.set(key, { obraId: l.obraId, dataISO, linhas: [] });
-                grupos.get(key).linhas.push(l);
-            }
+const grupos = new Map();
+for (const l of linhasParaSubmeter) {
+    const dataISO = `${mesAno.ano}-${String(mesAno.mes).padStart(2, "0")}-${String(l.dia).padStart(2, "0")}`;
+    const key = `${l.obraId}|${dataISO}`;
+    if (!grupos.has(key)) {
+        grupos.set(key, { obraId: l.obraId, dataISO, linhas: [] });
+    }
+    grupos.get(key).linhas.push(l);
+}
 
             for (const [, grp] of grupos.entries()) {
                 // 1) cabeçalho
@@ -2933,7 +2998,7 @@ const submeterPessoalEquip = async () => {
                 };
 
                 const respCab = await fetch(
-                    "https://backend.advir.pt/api/parte-diaria/cabecalhos",
+                                        "https://backend.advir.pt/api/parte-diaria/cabecalhos",
                     {
                         method: "POST",
                         headers: {
