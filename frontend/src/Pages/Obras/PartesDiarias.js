@@ -721,8 +721,8 @@ const submeterPessoalEquip = async () => {
 
         // ✅ VALIDAÇÃO: Verificar se já existe registo para este trabalhador/dia/obra
         const jaExiste = linhasExternos.some(
-            (l) => String(l.trabalhadorId) === String(trabalhadorId) && 
-                   l.dia === dia && 
+            (l) => String(l.trabalhadorId) === String(trabalhadorId) &&
+                   l.dia === dia &&
                    String(l.obraId) === String(obraId)
         );
 
@@ -744,8 +744,8 @@ const submeterPessoalEquip = async () => {
         // Validação de horas: 8h normais por dia (por trabalhador)
         if (!linhaAtual.horaExtra) {
             const outrasHorasNormaisDia = linhasExternos
-                .filter((l) => String(l.trabalhadorId) === String(trabalhadorId) && 
-                              l.dia === dia && 
+                .filter((l) => String(l.trabalhadorId) === String(trabalhadorId) &&
+                              l.dia === dia &&
                               !l.horaExtra)
                 .reduce((total, l) => total + parseHorasToMinutos(l.horas), 0);
 
@@ -983,13 +983,13 @@ const submeterPessoalEquip = async () => {
             if (!resCabecalhos.ok) throw new Error("Erro ao carregar cabeçalhos");
 
             const cabecalhos = await resCabecalhos.json();
-            
+
             console.log("📊 Total de cabeçalhos carregados:", cabecalhos.length);
             console.log("📊 Exemplo de cabeçalho:", cabecalhos[0]);
 
             // Filtrar cabeçalhos criados pelo utilizador logado (exceto para administradores)
-            const cabecalhosFiltrados = tipoUser === "Administrador" 
-                ? cabecalhos 
+            const cabecalhosFiltrados = tipoUser === "Administrador"
+                ? cabecalhos
                 : cabecalhos.filter(
                     (cab) => {
                         const match = cab.CriadoPor === userLogado || cab.Utilizador === userLogado;
@@ -1003,7 +1003,7 @@ const submeterPessoalEquip = async () => {
                         return match;
                     }
                 );
-            
+
             console.log("📊 Cabeçalhos após filtro:", cabecalhosFiltrados.length);
 
             // Extrair os DocumentoIDs dos cabeçalhos filtrados
@@ -1026,7 +1026,7 @@ const submeterPessoalEquip = async () => {
             const allData = await res.json();
 
             // Filtrar apenas os itens que pertencem aos cabeçalhos criados pelo utilizador
-            const data = allData.filter((item) => 
+            const data = allData.filter((item) =>
                 documentoIdsPermitidos.has(item.DocumentoID)
             );
 
@@ -2032,7 +2032,11 @@ const submeterPessoalEquip = async () => {
                     const metaUser = codToUser.get(row.cod) || {};
                     const obraMeta = (obrasParaPickers || obras || []).find(
                         (o) => Number(o.id) === Number(row.obraId),
-                    );
+                    ) || {
+                        id: row.obraId,
+                        nome: `Obra ${row.obraId}`,
+                        codigo: `OBR${String(row.obraId).padStart(3, "0")}`
+                    };
 
                     linhas.push({
                         id: `${metaUser.userId ?? `COD${row.cod}`}-${row.obraId}`,
@@ -2040,9 +2044,8 @@ const submeterPessoalEquip = async () => {
                         userName: metaUser.userName ?? `Colab ${row.cod}`,
                         codFuncionario: row.cod,
                         obraId: row.obraId,
-                        obraNome: obraMeta?.nome || `Obra ${row.obraId}`,
-                        obraCodigo:
-                            obraMeta?.codigo || `OBR${String(row.obraId).padStart(3, "0")}`,
+                        obraNome: obraMeta.nome,
+                        obraCodigo: obraMeta.codigo,
                         horasPorDia: Object.fromEntries(diasDoMes.map((d) => [d, 0])), // nada de ponto
                         horasOriginais: {},
                         horasSubmetidasPorDia: row.horasPorDia,
@@ -2134,7 +2137,7 @@ const submeterPessoalEquip = async () => {
                         // Para externos: sempre criar linha "Sem obra" se não existir nenhuma linha deste externo
                         const temLinhaExistente = Array.from(existentes).some(k => k.startsWith(`${userId}-`));
                         if (temLinhaExistente) return;
-                        
+
                         const keySemObra = `${userId}-${OBRA_SEM_ASSOC}`;
                         if (existentes.has(keySemObra)) return;
                         const baseHoras = Object.fromEntries(diasDoMes.map((d) => [d, 0]));
@@ -2279,10 +2282,10 @@ const submeterPessoalEquip = async () => {
             if (trabalhador.isExterno && trabalhador.externoId) {
                 // Abrir modal de externos
                 await carregarExternos();
-                
+
                 // Preencher o formulário com os dados do externo
                 const externo = externosLista.find(e => e.id === trabalhador.externoId);
-                
+
                 setLinhaAtual({
                     obraId: trabalhador.obraId !== OBRA_SEM_ASSOC ? trabalhador.obraId : "",
                     dia: dia,
@@ -2295,7 +2298,7 @@ const submeterPessoalEquip = async () => {
                     classeId: null,
                     observacoes: "",
                 });
-                
+
                 setModalExternosVisible(true);
                 return;
             }
@@ -2932,7 +2935,7 @@ const submeterPessoalEquip = async () => {
     const submeterExternosSilencioso = async () => {
         // Recolher linhas de externos do modal + externos das equipas com horas
         const linhasParaSubmeter = [...linhasExternos];
-        
+
         // Adicionar externos das equipas que têm horas registadas
         dadosProcessados.forEach(item => {
             if (item.isExterno && item.externoId) {
@@ -2940,11 +2943,12 @@ const submeterPessoalEquip = async () => {
                     const minutos = item?.horasPorDia?.[dia] || 0;
                     if (minutos > 0) {
                         const especialidadesDia = (item.especialidades || []).filter(e => e.dia === dia);
-                        
+
                         especialidadesDia.forEach(esp => {
-                            const lista = esp.categoria === "Equipamentos" ? equipamentosList : especialidadesList;
+                            const lista =
+                                esp.categoria === "Equipamentos" ? equipamentosList : especialidadesList;
                             const sel = lista.find(x => x.codigo === esp.especialidade);
-                            
+
                             linhasParaSubmeter.push({
                                 key: `equipa-${item.externoId}-${item.obraId}-${dia}-${Date.now()}`,
                                 obraId: Number(item.obraId),
@@ -2967,7 +2971,7 @@ const submeterPessoalEquip = async () => {
                 });
             }
         });
-        
+
         if (linhasParaSubmeter.length === 0) return false;
 
         try {
@@ -2997,7 +3001,7 @@ for (const l of linhasParaSubmeter) {
                     ColaboradorID: null,
                 };
 
-                const respCab = await fetch(
+               const respCab = await fetch(
                                         "https://backend.advir.pt/api/parte-diaria/cabecalhos",
                     {
                         method: "POST",
@@ -3334,17 +3338,17 @@ for (const l of linhasParaSubmeter) {
                                             <Picker.Item label="— Selecionar dia —" value="" />
                                             {diasDoMes.map((d) => {
                                                 // Verificar se já existe registo para este dia/trabalhador/obra
-                                                const jaRegistado = linhaAtual.trabalhadorId && linhaAtual.obraId && 
+                                                const jaRegistado = linhaAtual.trabalhadorId && linhaAtual.obraId &&
                                                     linhasExternos.some(
-                                                        (l) => String(l.trabalhadorId) === String(linhaAtual.trabalhadorId) && 
-                                                               l.dia === d && 
+                                                        (l) => String(l.trabalhadorId) === String(linhaAtual.trabalhadorId) &&
+                                                               l.dia === d &&
                                                                String(l.obraId) === String(linhaAtual.obraId)
                                                     );
 
                                                 return (
-                                                    <Picker.Item 
-                                                        key={d} 
-                                                        label={jaRegistado ? `Dia ${d} ✓ (já registado)` : `Dia ${d}`} 
+                                                    <Picker.Item
+                                                        key={d}
+                                                        label={jaRegistado ? `Dia ${d} ✓ (já registado)` : `Dia ${d}`}
                                                         value={String(d)}
                                                         color={jaRegistado ? "#28a745" : "#000"}
                                                     />
@@ -3408,14 +3412,14 @@ for (const l of linhasParaSubmeter) {
                                         {externosFiltrados.map((ext) => {
                                             // Obtém os dias já registados para este trabalhador e obra selecionada
                                             const diasRegistados = linhasExternos
-                                                .filter(l => String(l.trabalhadorId) === String(ext.id) && 
+                                                .filter(l => String(l.trabalhadorId) === String(ext.id) &&
                                                            String(l.obraId) === String(linhaAtual.obraId))
                                                 .map(l => l.dia)
                                                 .sort((a, b) => a - b);
 
                                             // Formata a label para incluir os dias já registados
-                                            const labelExtra = diasRegistados.length > 0 
-                                                ? ` (Dias: ${diasRegistados.join(', ')})` 
+                                            const labelExtra = diasRegistados.length > 0
+                                                ? ` (Dias: ${diasRegistados.join(', ')})`
                                                 : '';
 
                                             return (
@@ -3434,7 +3438,7 @@ for (const l of linhasParaSubmeter) {
                             {linhaAtual.trabalhadorId && linhaAtual.obraId && (
                                 (() => {
                                     const diasRegistados = linhasExternos
-                                        .filter(l => String(l.trabalhadorId) === String(linhaAtual.trabalhadorId) && 
+                                        .filter(l => String(l.trabalhadorId) === String(linhaAtual.trabalhadorId) &&
                                                    String(l.obraId) === String(linhaAtual.obraId))
                                         .map(l => l.dia)
                                         .sort((a, b) => a - b);
@@ -3455,7 +3459,7 @@ for (const l of linhasParaSubmeter) {
                                                 {diasRegistados.length > 0 ? '⚠️' : 'ℹ️'} {trabalhadorNome} - {obraNome}
                                             </Text>
                                             <Text style={{ fontSize: 12, color: '#666' }}>
-                                                {diasRegistados.length > 0 
+                                                {diasRegistados.length > 0
                                                     ? `Dias já registados: ${diasRegistados.join(', ')}`
                                                     : 'Nenhum registo ainda. Selecione um dia disponível.'
                                                 }
@@ -4358,7 +4362,7 @@ for (const l of linhasParaSubmeter) {
                                                                     })()}
                                                                     {submetido && (
                                                                         <Ionicons
-                                                                          
+
                                                                         />
                                                                     )}
                                                                 </TouchableOpacity>
@@ -4406,7 +4410,8 @@ for (const l of linhasParaSubmeter) {
                                                             horasPorDia: { ...row.horasPorDia },
                                                             totalMin: row.totalMin,
                                                             temSubmetido: true,
-                                                            temPendente: false
+                                                            temPendente: false,
+                                                            trabalhadorId: null
                                                         });
                                                     });
                                                 }
@@ -4423,6 +4428,7 @@ for (const l of linhasParaSubmeter) {
                                                             existing.totalMin += row.totalMin;
                                                             existing.temPendente = true;
                                                             existing.empresa = row.empresa || existing.empresa;
+                                                            existing.trabalhadorId = row.trabalhadorId;
                                                         } else {
                                                             consolidado.set(key, {
                                                                 funcionario: row.funcionario,
@@ -4430,7 +4436,8 @@ for (const l of linhasParaSubmeter) {
                                                                 horasPorDia: { ...row.horasPorDia },
                                                                 totalMin: row.totalMin,
                                                                 temSubmetido: false,
-                                                                temPendente: true
+                                                                temPendente: true,
+                                                                trabalhadorId: row.trabalhadorId
                                                             });
                                                         }
                                                     });
@@ -4473,23 +4480,52 @@ for (const l of linhasParaSubmeter) {
                                                             )}
                                                         </View>
 
-                                                        {/* Colunas dos dias */}
+                                                        {/* Colunas dos dias - AGORA COM CLIQUE */}
                                                         {diasDoMes.map((dia) => (
                                                             <View
                                                                 key={`ext-consolidado-${obraGroup.obraInfo.id}-${idx}-${dia}`}
                                                                 style={[styles.tableCell, { width: 50 }]}
                                                             >
-                                                                <Text
-                                                                    style={[
-                                                                        styles.cellText,
-                                                                        { textAlign: "center" },
-                                                                        row.horasPorDia[dia] > 0 && styles.hoursText,
-                                                                    ]}
+                                                                <TouchableOpacity
+                                                                    style={[styles.cellTouchable]}
+                                                                    onPress={async () => {
+                                                                        // Abrir modal de externos com dados pré-preenchidos
+                                                                        await carregarExternos();
+                                                                        
+                                                                        // Tentar encontrar o trabalhador externo na lista
+                                                                        const externo = externosLista.find(
+                                                                            e => e.funcionario?.toLowerCase().trim() === row.funcionario.toLowerCase().trim()
+                                                                        );
+
+                                                                        setLinhaAtual({
+                                                                            obraId: obraGroup.obraInfo.id,
+                                                                            dia: dia,
+                                                                            trabalhadorId: externo?.id || row.trabalhadorId || "",
+                                                                            horas: "",
+                                                                            horaExtra: false,
+                                                                            categoria: "MaoObra",
+                                                                            especialidadeCodigo: "",
+                                                                            subEmpId: null,
+                                                                            classeId: null,
+                                                                            observacoes: "",
+                                                                        });
+
+                                                                        setModalExternosVisible(true);
+                                                                    }}
                                                                 >
-                                                                    {row.horasPorDia[dia] > 0
-                                                                        ? formatarHorasMinutos(row.horasPorDia[dia])
-                                                                        : "-"}
-                                                                </Text>
+                                                                    <Text
+                                                                        style={[
+                                                                            styles.cellText,
+                                                                            { textAlign: "center" },
+                                                                            row.horasPorDia[dia] > 0 && styles.hoursText,
+                                                                            styles.clickableHours,
+                                                                        ]}
+                                                                    >
+                                                                        {row.horasPorDia[dia] > 0
+                                                                            ? formatarHorasMinutos(row.horasPorDia[dia])
+                                                                            : "-"}
+                                                                    </Text>
+                                                                </TouchableOpacity>
                                                             </View>
                                                         ))}
 
@@ -4618,7 +4654,7 @@ for (const l of linhasParaSubmeter) {
                                                                 })()}
                                                                 {submetido && (
                                                                     <Ionicons
-                                                                       
+
                                                                     />
                                                                 )}
                                                             </TouchableOpacity>
@@ -4699,11 +4735,8 @@ for (const l of linhasParaSubmeter) {
                                                 <Text
                                                     style={[
                                                         styles.cellText,
-                                                        {
-                                                            fontWeight: "700",
-                                                            textAlign: "center",
-                                                            color: "#1792FE",
-                                                        },
+                                                        styles.totalText,
+                                                        { textAlign: "center" },
                                                     ]}
                                                 >
                                                     {formatarHorasMinutos(
@@ -5639,7 +5672,7 @@ for (const l of linhasParaSubmeter) {
                                                             }}
                                                         >
                                                             {horasNormais.toFixed(2)}h{" "}
-                                                            {excedeLimite && "⚠️ Excede 8h"}
+                                                            {excedeLimite && "⚠️Excede 8h"}
                                                         </Text>
                                                     </Text>
 
@@ -5890,4 +5923,4 @@ for (const l of linhasParaSubmeter) {
     );
 };
 
-export default PartesDiarias;
+export default PartesDiarias;               
