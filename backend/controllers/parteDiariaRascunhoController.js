@@ -7,44 +7,50 @@ exports.guardarRascunho = async (req, res) => {
         const { mes, ano, dadosProcessados, linhasExternos, linhasPessoalEquip, diasEditadosManualmente } = req.body;
         const userId = req.user.id;
 
+        console.log('Guardando rascunho para userId:', userId, 'mes:', mes, 'ano:', ano);
+
         // Verificar se já existe rascunho para este utilizador/mês/ano
         let rascunho = await ParteDiariaRascunho.findOne({
             where: { userId, mes, ano }
         });
 
+        const dadosRascunho = {
+            dadosProcessados: dadosProcessados || [],
+            linhasExternos: linhasExternos || [],
+            linhasPessoalEquip: linhasPessoalEquip || [],
+            diasEditadosManualmente: diasEditadosManualmente || [],
+            timestamp: new Date()
+        };
+
         if (rascunho) {
             // Atualizar existente
-            await rascunho.update({
-                dadosProcessados,
-                linhasExternos,
-                linhasPessoalEquip,
-                diasEditadosManualmente,
-                timestamp: new Date()
-            });
+            console.log('Atualizando rascunho existente:', rascunho.id);
+            await rascunho.update(dadosRascunho);
         } else {
             // Criar novo
+            console.log('Criando novo rascunho');
             rascunho = await ParteDiariaRascunho.create({
                 userId,
                 mes,
                 ano,
-                dadosProcessados,
-                linhasExternos,
-                linhasPessoalEquip,
-                diasEditadosManualmente
+                ...dadosRascunho
             });
         }
 
+        console.log('Rascunho guardado com sucesso:', rascunho.id);
         res.json({
             success: true,
             message: 'Rascunho guardado com sucesso',
             rascunho
         });
     } catch (error) {
-        console.error('Erro ao guardar rascunho:', error);
+        console.error('Erro detalhado ao guardar rascunho:', error);
+        console.error('Stack:', error.stack);
         res.status(500).json({
             success: false,
             message: 'Erro ao guardar rascunho',
-            error: error.message
+            error: error.message,
+            details: error.stack
         });
     }
 };
