@@ -40,9 +40,9 @@ const ParteDiariaRascunho = sequelize.define('ParteDiariaRascunho', {
         type: DataTypes.JSON,
         allowNull: true
     }
-
 }, {
-    tableName: 'partes_diarias_rascunhos'
+    tableName: 'partes_diarias_rascunhos',
+    timestamps: false
 });
 
 module.exports = ParteDiariaRascunho;

@@ -19,7 +19,6 @@ exports.guardarRascunho = async (req, res) => {
             linhasExternos: linhasExternos || [],
             linhasPessoalEquip: linhasPessoalEquip || [],
             diasEditadosManualmente: diasEditadosManualmente || []
-            // timestamp será gerado automaticamente pelo defaultValue
         };
 
         if (rascunho) {
@@ -61,17 +60,21 @@ exports.obterRascunho = async (req, res) => {
         const { mes, ano } = req.query;
         const userId = req.user.id;
 
+        console.log('Buscando rascunho para userId:', userId, 'mes:', mes, 'ano:', ano);
+
         const rascunho = await ParteDiariaRascunho.findOne({
-            where: { userId, mes, ano }
+            where: { userId, mes: parseInt(mes), ano: parseInt(ano) }
         });
 
         if (!rascunho) {
+            console.log('Nenhum rascunho encontrado');
             return res.json({
                 success: true,
                 rascunho: null
             });
         }
 
+        console.log('Rascunho encontrado:', rascunho.id);
         res.json({
             success: true,
             rascunho
@@ -92,13 +95,18 @@ exports.eliminarRascunho = async (req, res) => {
         const { mes, ano } = req.query;
         const userId = req.user.id;
 
-        await ParteDiariaRascunho.destroy({
-            where: { userId, mes, ano }
+        console.log('Eliminando rascunho para userId:', userId, 'mes:', mes, 'ano:', ano);
+
+        const deletedRows = await ParteDiariaRascunho.destroy({
+            where: { userId, mes: parseInt(mes), ano: parseInt(ano) }
         });
+
+        console.log('Linhas eliminadas:', deletedRows);
 
         res.json({
             success: true,
-            message: 'Rascunho eliminado com sucesso'
+            message: 'Rascunho eliminado com sucesso',
+            deletedRows
         });
     } catch (error) {
         console.error('Erro ao eliminar rascunho:', error);
