@@ -42,8 +42,7 @@ const ParteDiariaRascunho = sequelize.define('ParteDiariaRascunho', {
     }
 
 }, {
-    tableName: 'partes_diarias_rascunhos',
-    timestamps: false // Desativar createdAt e updatedAt automáticos
+    tableName: 'partes_diarias_rascunhos'
 });
 
 module.exports = ParteDiariaRascunho;

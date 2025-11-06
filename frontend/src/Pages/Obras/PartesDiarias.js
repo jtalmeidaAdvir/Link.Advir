@@ -1233,7 +1233,13 @@ const submeterPessoalEquip = async () => {
                 }
             });
             
+            if (!response.ok) {
+                throw new Error(`Erro HTTP: ${response.status}`);
+            }
+            
             const result = await response.json();
+            
+            console.log("📦 Resposta do servidor ao carregar rascunho:", result);
             
             if (!result.success || !result.rascunho) {
                 setTemRascunho(false);
@@ -1241,17 +1247,36 @@ const submeterPessoalEquip = async () => {
                 return false;
             }
             
-            const { dadosProcessados, linhasExternos, linhasPessoalEquip, diasEditadosManualmente, timestamp } = result.rascunho;
+            const rascunhoData = result.rascunho;
             
-            // Restaurar dados
-            setDadosProcessados(dadosProcessados || []);
-            setLinhasExternos(linhasExternos || []);
-            setLinhasPessoalEquip(linhasPessoalEquip || []);
-            setDiasEditadosManualmente(new Set(diasEditadosManualmente || []));
+            // Restaurar dados com valores padrão seguros
+            const dadosRestaurados = rascunhoData.dadosProcessados || [];
+            const linhasExternosRestauradas = rascunhoData.linhasExternos || [];
+            const linhasPessoalRestauradas = rascunhoData.linhasPessoalEquip || [];
+            const diasEditadosRestaurados = Array.isArray(rascunhoData.diasEditadosManualmente) 
+                ? new Set(rascunhoData.diasEditadosManualmente) 
+                : new Set();
+            
+            console.log("📊 Dados a restaurar:", {
+                dadosProcessados: dadosRestaurados.length,
+                linhasExternos: linhasExternosRestauradas.length,
+                linhasPessoalEquip: linhasPessoalRestauradas.length,
+                diasEditados: diasEditadosRestaurados.size
+            });
+            
+            // Aplicar dados restaurados
+            setDadosProcessados(dadosRestaurados);
+            setLinhasExternos(linhasExternosRestauradas);
+            setLinhasPessoalEquip(linhasPessoalRestauradas);
+            setDiasEditadosManualmente(diasEditadosRestaurados);
             
             setTemRascunho(true);
             
-            const dataRascunho = new Date(timestamp);
+            // Formatar data para exibição
+            const dataRascunho = rascunhoData.updatedAt 
+                ? new Date(rascunhoData.updatedAt)
+                : new Date();
+            
             Alert.alert(
                 "Rascunho Carregado",
                 `Rascunho de ${dataRascunho.toLocaleDateString('pt-PT')} às ${dataRascunho.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })} foi restaurado com sucesso.`,
@@ -1261,7 +1286,7 @@ const submeterPessoalEquip = async () => {
             return true;
         } catch (error) {
             console.error("Erro ao carregar rascunho:", error);
-            Alert.alert("Erro", "Não foi possível carregar o rascunho.");
+            Alert.alert("Erro", `Não foi possível carregar o rascunho: ${error.message}`);
             return false;
         }
     }, [mesAno]);
@@ -1271,6 +1296,8 @@ const submeterPessoalEquip = async () => {
         try {
             const token = await secureStorage.getItem("loginToken");
             
+            console.log("🗑️ Eliminando rascunho:", { mes: mesAno.mes, ano: mesAno.ano });
+            
             const response = await fetch(`https://backend.advir.pt/api/parte-diaria-rascunho/eliminar?mes=${mesAno.mes}&ano=${mesAno.ano}`, {
                 method: 'DELETE',
                 headers: {
@@ -1278,7 +1305,13 @@ const submeterPessoalEquip = async () => {
                 }
             });
             
+            if (!response.ok) {
+                throw new Error(`Erro HTTP: ${response.status}`);
+            }
+            
             const result = await response.json();
+            
+            console.log("✅ Resposta ao eliminar rascunho:", result);
             
             if (result.success) {
                 setTemRascunho(false);
@@ -1292,7 +1325,7 @@ const submeterPessoalEquip = async () => {
             }
         } catch (error) {
             console.error("Erro ao eliminar rascunho:", error);
-            Alert.alert("Erro", "Não foi possível eliminar o rascunho.");
+            Alert.alert("Erro", `Não foi possível eliminar o rascunho: ${error.message}`);
         }
     }, [mesAno]);
 
