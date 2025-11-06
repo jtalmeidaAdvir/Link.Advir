@@ -1249,13 +1249,33 @@ const submeterPessoalEquip = async () => {
             
             const rascunhoData = result.rascunho;
             
-            // Restaurar dados com valores padrão seguros
-            const dadosRestaurados = rascunhoData.dadosProcessados || [];
-            const linhasExternosRestauradas = rascunhoData.linhasExternos || [];
-            const linhasPessoalRestauradas = rascunhoData.linhasPessoalEquip || [];
-            const diasEditadosRestaurados = Array.isArray(rascunhoData.diasEditadosManualmente) 
-                ? new Set(rascunhoData.diasEditadosManualmente) 
-                : new Set();
+            // Helper para fazer parse seguro de JSON
+            const parseJSON = (data) => {
+                if (!data) return [];
+                if (Array.isArray(data)) return data;
+                if (typeof data === 'string') {
+                    try {
+                        const parsed = JSON.parse(data);
+                        return Array.isArray(parsed) ? parsed : [];
+                    } catch (e) {
+                        console.error('Erro ao fazer parse de JSON:', e);
+                        return [];
+                    }
+                }
+                return [];
+            };
+            
+            // Restaurar dados com parse correto
+            const dadosRestaurados = parseJSON(rascunhoData.dadosProcessados);
+            const linhasExternosRestauradas = parseJSON(rascunhoData.linhasExternos);
+            const linhasPessoalRestauradas = parseJSON(rascunhoData.linhasPessoalEquip);
+            
+            // Parse dos dias editados
+            let diasEditadosRestaurados = new Set();
+            if (rascunhoData.diasEditadosManualmente) {
+                const diasArray = parseJSON(rascunhoData.diasEditadosManualmente);
+                diasEditadosRestaurados = new Set(diasArray);
+            }
             
             console.log("📊 Dados a restaurar:", {
                 dadosProcessados: dadosRestaurados.length,
@@ -1273,8 +1293,8 @@ const submeterPessoalEquip = async () => {
             setTemRascunho(true);
             
             // Formatar data para exibição
-            const dataRascunho = rascunhoData.updatedAt 
-                ? new Date(rascunhoData.updatedAt)
+            const dataRascunho = rascunhoData.createdAt 
+                ? new Date(rascunhoData.createdAt)
                 : new Date();
             
             Alert.alert(
@@ -1291,43 +1311,7 @@ const submeterPessoalEquip = async () => {
         }
     }, [mesAno]);
 
-    // Função para eliminar rascunho do backend
-    const eliminarRascunho = useCallback(async () => {
-        try {
-            const token = await secureStorage.getItem("loginToken");
-            
-            console.log("🗑️ Eliminando rascunho:", { mes: mesAno.mes, ano: mesAno.ano });
-            
-            const response = await fetch(`https://backend.advir.pt/api/parte-diaria-rascunho/eliminar?mes=${mesAno.mes}&ano=${mesAno.ano}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Erro HTTP: ${response.status}`);
-            }
-            
-            const result = await response.json();
-            
-            console.log("✅ Resposta ao eliminar rascunho:", result);
-            
-            if (result.success) {
-                setTemRascunho(false);
-                Alert.alert(
-                    "Rascunho Eliminado",
-                    "O rascunho foi eliminado com sucesso.",
-                    [{ text: "OK" }]
-                );
-            } else {
-                throw new Error(result.message || 'Erro ao eliminar rascunho');
-            }
-        } catch (error) {
-            console.error("Erro ao eliminar rascunho:", error);
-            Alert.alert("Erro", `Não foi possível eliminar o rascunho: ${error.message}`);
-        }
-    }, [mesAno]);
+
 
     // Verificar se existe rascunho no backend
     const verificarRascunho = useCallback(async () => {
@@ -3113,8 +3097,6 @@ const submeterPessoalEquip = async () => {
             await carregarDados();
             await carregarItensSubmetidos();
 
-            // Eliminar rascunho após submissão bem-sucedida
-            await eliminarRascunho();
             
             Alert.alert(
                 "Sucesso",
@@ -3395,30 +3377,7 @@ for (const l of linhasParaSubmeter) {
                     </TouchableOpacity>
                 )}
                 
-                {/* BOTÃO ELIMINAR RASCUNHO */}
-                {temRascunho && (
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => {
-                            Alert.alert(
-                                "Confirmar Eliminação",
-                                "Tem a certeza que deseja eliminar o rascunho guardado?",
-                                [
-                                    { text: "Cancelar", style: "cancel" },
-                                    { text: "Eliminar", onPress: eliminarRascunho, style: "destructive" }
-                                ]
-                            );
-                        }}
-                    >
-                        <LinearGradient
-                            colors={["#dc3545", "#bd2130"]}
-                            style={styles.buttonGradient}
-                        >
-                            <Ionicons name="trash" size={16} color="#FFFFFF" />
-                            <Text style={styles.buttonText}>Eliminar Rascunho</Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
-                )}
+               
                 
                 {/* BOTÃO DE ATUALIZAR */}
                 <TouchableOpacity
