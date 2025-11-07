@@ -108,6 +108,15 @@ const confirmAction = (title, message, okText = "Continuar", cancelText = "Cance
     );
   });
 };
+    const obrasParaPickers = useMemo(() => {
+        const listaObras = obrasTodas.length > 0 ? obrasTodas : obras;
+        // Ordenar alfanumericamente pelo código
+        return [...listaObras].sort((a, b) => {
+            const codigoA = (a.codigo || '').toString().toUpperCase();
+            const codigoB = (b.codigo || '').toString().toUpperCase();
+            return codigoA.localeCompare(codigoB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+    }, [obrasTodas, obras]);
 
     // === PESSOAL/EQUIPAMENTOS ===
 const [modalPessoalEquipVisible, setModalPessoalEquipVisible] = useState(false);
@@ -160,7 +169,7 @@ const abrirModalPessoalEquip = () => {
 
 const [camposInvalidosPessoal, setCamposInvalidosPessoal] = useState(new Set());
 
-const adicionarLinhaPessoalEquip = () => {
+const adicionarLinhaPessoalEquip = async () => {
   const {
     obraId, dia, colaboradorId, horas, categoria,
     especialidadeCodigo, subEmpId, classeId, observacoes
@@ -344,6 +353,9 @@ const adicionarLinhaPessoalEquip = () => {
     classeId: categoria === "Equipamentos" ? -1 : null,
     observacoes: "",
   }));
+
+  // ✅ GUARDAR RASCUNHO IMEDIATAMENTE (sem timeout)
+  await guardarRascunhoAutomatico();
 };
 
 const removerLinhaPessoalEquip = (key) => {
@@ -707,7 +719,7 @@ const submeterPessoalEquip = async () => {
 
     const [camposInvalidos, setCamposInvalidos] = useState(new Set());
 
-    const adicionarLinhaExterno = () => {
+    const adicionarLinhaExterno = async () => {
         const {
             obraId,
             dia,
@@ -813,7 +825,7 @@ const submeterPessoalEquip = async () => {
 
         // Buscar informações da obra
         const obraMeta = obrasParaPickers.find((o) => Number(o.id) === Number(obraId));
-        
+
         // Buscar informações da classe
         const classeMeta = classesList.find((c) => c.classeId === classeId);
 
@@ -855,6 +867,9 @@ const submeterPessoalEquip = async () => {
             classeId: null,
             observacoes: "",
         }));
+
+        // ✅ GUARDAR RASCUNHO IMEDIATAMENTE (sem timeout)
+        await guardarRascunhoAutomatico();
     };
 
     const removerLinhaExterno = (key) => {
@@ -1234,16 +1249,27 @@ const submeterPessoalEquip = async () => {
         return `partesDiarias_rascunho_${identificador}_${mesAno.mes}_${mesAno.ano}`;
     }, [mesAno]);
 
- // Função para guardar rascunho no backend
-const guardarRascunho = useCallback(async () => {
+ // Função para guardar rascunho automaticamente (sem confirmação)
+const guardarRascunhoAutomatico = useCallback(async () => {
   try {
-    const wants = await confirmAction(
-      "Guardar rascunho?",
-      "Vai guardar o estado atual das partes. Confirma?"
-    );
-    if (!wants) return;
-
     const token = await secureStorage.getItem("loginToken");
+
+    // ✅ GARANTIR que está a guardar TODOS os dados da grade
+    const dadosParaGuardar = {
+      mes: mesAno.mes,
+      ano: mesAno.ano,
+      dadosProcessados: dadosProcessados || [],
+      linhasExternos: linhasExternos || [],
+      linhasPessoalEquip: linhasPessoalEquip || [],
+      diasEditadosManualmente: Array.from(diasEditadosManualmente || new Set()),
+    };
+
+    console.log("📦 Guardando rascunho com:", {
+      colaboradores: dadosParaGuardar.dadosProcessados.length,
+      externos: dadosParaGuardar.linhasExternos.length,
+      pessoalEquip: dadosParaGuardar.linhasPessoalEquip.length,
+      diasEditados: dadosParaGuardar.diasEditadosManualmente.length,
+    });
 
     const response = await fetch("https://backend.advir.pt/api/parte-diaria-rascunho/guardar", {
       method: "POST",
@@ -1251,42 +1277,37 @@ const guardarRascunho = useCallback(async () => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        mes: mesAno.mes,
-        ano: mesAno.ano,
-        dadosProcessados,
-        linhasExternos,
-        linhasPessoalEquip,
-        diasEditadosManualmente: Array.from(diasEditadosManualmente),
-      }),
+      body: JSON.stringify(dadosParaGuardar),
     });
 
     const result = await response.json();
 
     if (result.success) {
       setTemRascunho(true);
-      Alert.alert(
-        "Rascunho Guardado",
-        "Os dados foram guardados com sucesso. Pode continuar mais tarde em qualquer dispositivo.",
-        [{ text: "OK" }]
-      );
+      console.log("✅ Rascunho guardado com sucesso");
     } else {
-      throw new Error(result.message || "Erro ao guardar rascunho");
+      console.error("❌ Erro ao guardar rascunho:", result.message);
     }
   } catch (error) {
-    console.error("Erro ao guardar rascunho:", error);
-    Alert.alert("Erro", "Não foi possível guardar o rascunho.");
+    console.error("❌ Erro ao guardar rascunho automático:", error);
   }
 }, [dadosProcessados, linhasExternos, linhasPessoalEquip, diasEditadosManualmente, mesAno]);
 
-// Função para carregar rascunho do backend
-const carregarRascunho = useCallback(async () => {
+// Função para carregar rascunho silenciosamente (sem confirmação)
+const carregarRascunhoSilencioso = useCallback(async () => {
+  // Garantir que classesList está carregado
+  if (!classesList || classesList.length === 0) {
+    console.warn("⚠️ classesList ainda não está carregado, aguardando...");
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  // Garantir que obrasParaPickers está carregado
+  if (!obrasParaPickers || obrasParaPickers.length === 0) {
+    console.warn("⚠️ obrasParaPickers ainda não está carregado, aguardando...");
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
   try {
-    const wants = await confirmAction(
-      "Carregar rascunho?",
-      "Irá substituir os dados atuais pelo ultimo rascunho. Confirma?"
-    );
-    if (!wants) return false;
 
     const token = await secureStorage.getItem("loginToken");
 
@@ -1315,19 +1336,37 @@ const carregarRascunho = useCallback(async () => {
 
     const rascunhoData = result.rascunho;
 
-    // Helper para fazer parse seguro de JSON
+    // Helper para fazer parse seguro de JSON - MELHORADO
     const parseJSON = (data) => {
-      if (!data) return [];
-      if (Array.isArray(data)) return data;
+      if (!data) {
+        console.log("⚠️ parseJSON: dados vazios");
+        return [];
+      }
+      
+      if (Array.isArray(data)) {
+        console.log(`✅ parseJSON: já é array com ${data.length} itens`);
+        return data;
+      }
+      
       if (typeof data === "string") {
         try {
           const parsed = JSON.parse(data);
-          return Array.isArray(parsed) ? parsed : [];
+          const result = Array.isArray(parsed) ? parsed : [];
+          console.log(`✅ parseJSON: string convertida para array com ${result.length} itens`);
+          return result;
         } catch (e) {
-          console.error("Erro ao fazer parse de JSON:", e);
+          console.error("❌ parseJSON: Erro ao fazer parse:", e);
           return [];
         }
       }
+      
+      // Se for objeto, tenta converter para array
+      if (typeof data === "object") {
+        console.log("⚠️ parseJSON: recebeu objeto, tentando converter");
+        return Object.values(data).filter(v => v !== null && v !== undefined);
+      }
+      
+      console.warn("⚠️ parseJSON: tipo inesperado:", typeof data);
       return [];
     };
 
@@ -1343,16 +1382,51 @@ const carregarRascunho = useCallback(async () => {
       diasEditadosRestaurados = new Set(diasArray);
     }
 
+    // Enriquecer linhas de externos com informações completas da classe e obra
+    const linhasExternosEnriquecidas = linhasExternosRestauradas.map(linha => {
+      const enriquecida = { ...linha };
+      
+      // Enriquecer informações da classe
+      if (linha.classeId && !linha.classe) {
+        const classeMeta = classesList.find(c => c.classeId === linha.classeId);
+        if (classeMeta) {
+          enriquecida.classe = classeMeta.classe;
+          enriquecida.classeDescricao = classeMeta.descricao;
+        }
+      }
+      
+      // Enriquecer informações da obra
+      if (linha.obraId && (!linha.obraCodigo || !linha.obraNome)) {
+        const obraMeta = obrasParaPickers.find(o => Number(o.id) === Number(linha.obraId));
+        if (obraMeta) {
+          enriquecida.obraCodigo = obraMeta.codigo || '';
+          enriquecida.obraNome = obraMeta.nome || `Obra ${linha.obraId}`;
+        }
+      }
+      
+      return enriquecida;
+    });
+
     console.log("📊 Dados a restaurar:", {
       dadosProcessados: dadosRestaurados.length,
-      linhasExternos: linhasExternosRestauradas.length,
+      linhasExternos: linhasExternosEnriquecidas.length,
       linhasPessoalEquip: linhasPessoalRestauradas.length,
+      diasEditados: diasEditadosRestaurados.size,
+    });
+
+    console.log("🔍 Amostra de externo enriquecido:", linhasExternosEnriquecidas[0]);
+
+    // ✅ APLICAR DADOS RESTAURADOS COM VALIDAÇÃO
+    console.log("📦 Aplicando dados do rascunho:", {
+      colaboradores: dadosRestaurados.length,
+      externos: linhasExternosEnriquecidas.length,
+      pessoalEquip: linhasPessoalRestauradas.length,
       diasEditados: diasEditadosRestaurados.size,
     });
 
     // Aplicar dados restaurados
     setDadosProcessados(dadosRestaurados);
-    setLinhasExternos(linhasExternosRestauradas);
+    setLinhasExternos(linhasExternosEnriquecidas);
     setLinhasPessoalEquip(linhasPessoalRestauradas);
     setDiasEditadosManualmente(diasEditadosRestaurados);
 
@@ -1361,26 +1435,61 @@ const carregarRascunho = useCallback(async () => {
     // Formatar data para exibição
     const dataRascunho = rascunhoData.createdAt ? new Date(rascunhoData.createdAt) : new Date();
 
-    Alert.alert(
-      "Rascunho Carregado",
-      `Rascunho de ${dataRascunho.toLocaleDateString("pt-PT")} às ${dataRascunho.toLocaleTimeString(
+    console.log(
+      `✅ Rascunho de ${dataRascunho.toLocaleDateString("pt-PT")} às ${dataRascunho.toLocaleTimeString(
         "pt-PT",
         { hour: "2-digit", minute: "2-digit" }
-      )} foi restaurado com sucesso.`,
-      [{ text: "OK" }]
+      )} foi restaurado automaticamente.`
     );
 
+    // ✅ VERIFICAÇÃO FINAL: Se há dados no rascunho mas não foram aplicados, alertar
+    if ((dadosRestaurados.length > 0 || linhasExternosEnriquecidas.length > 0 || linhasPessoalRestauradas.length > 0) &&
+        dadosProcessados.length === 0 && linhasExternos.length === 0 && linhasPessoalEquip.length === 0) {
+      console.warn("⚠️ AVISO: Rascunho tinha dados mas não foram aplicados corretamente!");
+      Alert.alert(
+        "Aviso",
+        "O rascunho foi carregado mas pode haver inconsistências. Verifique os dados antes de submeter.",
+        [{ text: "OK" }]
+      );
+    }
+
     return true;
+  } catch (error) {
+    console.error("Erro ao carregar rascunho:", error);
+    return false;
+  }
+}, [mesAno, classesList, obrasParaPickers]);
+
+// Função para carregar rascunho com confirmação (para o botão manual)
+const carregarRascunho = useCallback(async () => {
+  try {
+    const wants = await confirmAction(
+      "Carregar rascunho?",
+      "Irá substituir os dados atuais pelo ultimo rascunho. Confirma?"
+    );
+    if (!wants) return false;
+
+    const sucesso = await carregarRascunhoSilencioso();
+    
+    if (sucesso) {
+      Alert.alert(
+        "Rascunho Carregado",
+        "Os dados do rascunho foram restaurados com sucesso.",
+        [{ text: "OK" }]
+      );
+    }
+    
+    return sucesso;
   } catch (error) {
     console.error("Erro ao carregar rascunho:", error);
     Alert.alert("Erro", `Não foi possível carregar o rascunho: ${error.message}`);
     return false;
   }
-}, [mesAno]);
+}, [carregarRascunhoSilencioso]);
 
 
 
-    // Verificar se existe rascunho no backend
+    // Verificar e carregar rascunho automaticamente
     const verificarRascunho = useCallback(async () => {
         try {
             const token = await secureStorage.getItem("loginToken");
@@ -1395,23 +1504,10 @@ const carregarRascunho = useCallback(async () => {
 
             if (result.success && result.rascunho) {
                 setTemRascunho(true);
-                const dataRascunho = new Date(result.rascunho.timestamp);
-
-                Alert.alert(
-                    "Rascunho Disponível",
-                    `Foi encontrado um rascunho de ${dataRascunho.toLocaleDateString('pt-PT')} às ${dataRascunho.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}.\n\nDeseja carregar este rascunho?`,
-                    [
-                        {
-                            text: "Não",
-                            style: "cancel",
-                            onPress: () => setTemRascunho(true)
-                        },
-                        {
-                            text: "Sim",
-                            onPress: () => carregarRascunho()
-                        }
-                    ]
-                );
+                console.log("📦 Rascunho encontrado, carregando automaticamente...");
+                
+                // Carregar automaticamente sem perguntar
+                await carregarRascunhoSilencioso();
             } else {
                 setTemRascunho(false);
             }
@@ -1419,7 +1515,7 @@ const carregarRascunho = useCallback(async () => {
             console.error("Erro ao verificar rascunho:", error);
             setTemRascunho(false);
         }
-    }, [mesAno, carregarRascunho]);
+    }, [mesAno]);
 
     useEffect(() => {
         const init = async () => {
@@ -1451,19 +1547,24 @@ const carregarRascunho = useCallback(async () => {
         init();
     }, [mesAno]);
 
+    // ✅ GUARDAR RASCUNHO sempre que houver mudanças nos dados da grade
+    useEffect(() => {
+        // Só guarda se já terminou o loading inicial
+        if (!loading && (dadosProcessados.length > 0 || linhasExternos.length > 0 || linhasPessoalEquip.length > 0)) {
+            // Debounce para não guardar excessivamente
+            const timer = setTimeout(() => {
+                guardarRascunhoAutomatico();
+            }, 2000); // Guarda 2 segundos após última alteração
+
+            return () => clearTimeout(timer);
+        }
+    }, [dadosProcessados, linhasExternos, linhasPessoalEquip, diasEditadosManualmente, loading, guardarRascunhoAutomatico]);
+
     useEffect(() => {
         carregarObrasTodas();
     }, [carregarObrasTodas]);
 
-    const obrasParaPickers = useMemo(() => {
-        const listaObras = obrasTodas.length > 0 ? obrasTodas : obras;
-        // Ordenar alfanumericamente pelo código
-        return [...listaObras].sort((a, b) => {
-            const codigoA = (a.codigo || '').toString().toUpperCase();
-            const codigoB = (b.codigo || '').toString().toUpperCase();
-            return codigoA.localeCompare(codigoB, undefined, { numeric: true, sensitivity: 'base' });
-        });
-    }, [obrasTodas, obras]);
+
 
     // 🔹 AGREGADOR: Externos por Obra × Dia (para render na grelha)
     const externosPorObra = useMemo(() => {
@@ -2695,7 +2796,7 @@ const carregarRascunho = useCallback(async () => {
         setEditData({ ...editData, especialidadesDia: novas });
     };
 
-    const salvarEdicao = useCallback(() => {
+    const salvarEdicao = useCallback(async () => {
         if (!selectedTrabalhador || !selectedDia) return;
 
         // Garante obra em cada linha + calcula minutos
@@ -2862,7 +2963,10 @@ const carregarRascunho = useCallback(async () => {
 
         setEditModalVisible(false);
         Alert.alert("Sucesso", "Horas distribuídas pelas obras selecionadas.");
-    }, [selectedTrabalhador, selectedDia, editData, obras, diasDoMes, codMap]);
+
+        // ✅ GUARDAR RASCUNHO IMEDIATAMENTE (sem timeout)
+        await guardarRascunhoAutomatico();
+    }, [selectedTrabalhador, selectedDia, editData, obras, diasDoMes, codMap, guardarRascunhoAutomatico]);
 
     const obterCodFuncionario = async (userId) => {
         const painelToken = await secureStorage.getItem("painelAdminToken");
@@ -2989,7 +3093,7 @@ const carregarRascunho = useCallback(async () => {
             }
         });
 
-        // Processar externos
+        // Processar externos e adicionar ao total de horas
         const gruposExternos = new Map();
         linhasExternos.forEach((l) => {
             const obraId = Number(l.obraId);
@@ -3001,6 +3105,14 @@ const carregarRascunho = useCallback(async () => {
                 });
             }
             gruposExternos.get(obraId).externos.push(l);
+            
+            // ✅ ADICIONAR HORAS DOS EXTERNOS AO TOTAL
+            const minutosExterno = l.horasMin || 0;
+            if (l.horaExtra) {
+                resumo.totalHorasExtras += minutosExterno;
+            } else {
+                resumo.totalHorasNormais += minutosExterno;
+            }
         });
 
         resumo.externosPorObra = gruposExternos;
@@ -3422,35 +3534,7 @@ for (const l of linhasParaSubmeter) {
                     </LinearGradient>
                 </TouchableOpacity>
 
-                {/* BOTÃO GUARDAR RASCUNHO */}
-                <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={guardarRascunho}
-                >
-                    <LinearGradient
-                        colors={["#28a745", "#1e7e34"]}
-                        style={styles.buttonGradient}
-                    >
-                        <Ionicons name="folder" size={16} color="#FFFFFF" />
-                        <Text style={styles.buttonText}>Guardar Rascunho</Text>
-                    </LinearGradient>
-                </TouchableOpacity>
-
-                {/* BOTÃO CARREGAR RASCUNHO */}
-                {temRascunho && (
-                    <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={carregarRascunho}
-                    >
-                        <LinearGradient
-                            colors={["#ffc107", "#e0a800"]}
-                            style={styles.buttonGradient}
-                        >
-                            <Ionicons name="folder-open" size={16} color="#FFFFFF" />
-                            <Text style={styles.buttonText}>Carregar Rascunho</Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
-                )}
+                
 
 
 
@@ -3458,14 +3542,35 @@ for (const l of linhasParaSubmeter) {
                 <TouchableOpacity
                     style={styles.actionButton}
                     onPress={async () => {
-                        setLoading(true); // ativa o loading e barra de progresso
-                        setDiasEditadosManualmente(new Set()); // limpa marcações manuais (se quiseres manter)
-                        setLinhasExternos([]);
-                        await carregarItensSubmetidos(); // recarrega os submetidos
-                        console.log(
-                            "🔍 submittedSet contém:",
-                            Array.from(submittedSet).slice(0, 10),
+                        const wants = await confirmAction(
+                            "Limpar Partes?",
+                            "Vai eliminar todas as alterações não submetidas e o rascunho guardado. Confirma?"
                         );
+                        if (!wants) return;
+
+                        setLoading(true);
+                        
+                        // Eliminar rascunho do backend
+                        try {
+                            const token = await secureStorage.getItem("loginToken");
+                            await fetch(
+                                `https://backend.advir.pt/api/parte-diaria-rascunho/eliminar?mes=${mesAno.mes}&ano=${mesAno.ano}`,
+                                {
+                                    method: "DELETE",
+                                    headers: { Authorization: `Bearer ${token}` },
+                                }
+                            );
+                            console.log("Rascunho eliminado do backend");
+                        } catch (error) {
+                            console.error("Erro ao eliminar rascunho:", error);
+                        }
+
+                        setDiasEditadosManualmente(new Set());
+                        setLinhasExternos([]);
+                        setLinhasPessoalEquip([]);
+                        setTemRascunho(false);
+                        await carregarItensSubmetidos();
+                        console.log("🔍 submittedSet contém:", Array.from(submittedSet).slice(0, 10));
 
                         setLoading(false);
                     }}
@@ -4099,23 +4204,22 @@ for (const l of linhasParaSubmeter) {
                                                     color="#666"
                                                 /> Dia {l.dia}
                                                 {" • "}
-                                                <Ionicons name="cash" size={12} color="#666" />{" "}
-                                                {l.valor?.toFixed(2)} {l.moeda}
                                                 {l.horaExtra && " • Extra"}
-                                            </Text>
-
-                                            <Text style={styles.externosListItemCategory}>
-                                                {l.categoria === "Equipamentos" ? "🔧" : "👷"}{" "}
-                                                {l.especialidadeDesc || l.especialidadeCodigo}
-                                            </Text>
-                                            <Text style={styles.externosListItemCategory}>
-                                                <Ionicons name="library" size={12} color="#666" />{" "}
-                                                Classe: {l.classeDescricao || l.classe || "N/D"}
                                             </Text>
                                             <Text style={styles.externosListItemCategory}>
                                                 <Ionicons name="business" size={12} color="#666" />{" "}
                                                 Obra: {l.obraCodigo ? `${l.obraCodigo} - ${l.obraNome}` : l.obraNome || "N/D"}
                                             </Text>
+
+                                            <Text style={styles.externosListItemCategory}>
+                                                {l.categoria === "Equipamentos" ? "🔧" : "👷"}{" "}
+                                                Especialidade: {l.especialidadeDesc || l.especialidadeCodigo}
+                                            </Text>
+                                            <Text style={styles.externosListItemCategory}>
+                                                <Ionicons name="library" size={12} color="#666" />{" "}
+                                                Classe: {l.classeDescricao || l.classe || "N/D"}
+                                            </Text>
+                                            
                                             {!!l.observacoes && (
                                                 <Text style={styles.externosListItemObservations}>
                                                     <Ionicons name="chatbubble-ellipses" size={12} color="#1792FE" />{" "}
@@ -5403,7 +5507,7 @@ for (const l of linhasParaSubmeter) {
                                                             />{" "}
                                                             {ext.especialidadeDesc || ext.especialidadeCodigo}
                                                         </Text>
-                                                        {ext.classe && (
+                                                        {ext.classe && ext.classeDescricao && (
                                                             <Text style={styles.resumoExternoDetalhes}>
                                                                 <Ionicons name="library" size={12} color="#666" />{" "}
                                                                 Classe: {ext.classe} - {ext.classeDescricao}
