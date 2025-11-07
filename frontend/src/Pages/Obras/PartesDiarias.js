@@ -58,7 +58,7 @@ const PartesDiarias = ({ navigation }) => {
         categoria: "MaoObra",
         notaDia: "", // <- nota do cabeçalho para o dia selecionado
     });
-    
+
     // Estado para controlar se há rascunho guardado
     const [temRascunho, setTemRascunho] = useState(false);
 
@@ -414,7 +414,7 @@ const submeterPessoalEquip = async () => {
           Funcionario: String(grp.codFuncionario),
           ClasseID: l.classeId || 1,
           SubEmpID: l.subEmpId ?? null,
-          NumHoras: l.horasMin,
+          NumHoras: l.minutos,
           PrecoUnit: 0,
           categoria: l.categoria || "MaoObra",
           TipoHoraID: tipoHoraId,
@@ -671,19 +671,37 @@ const submeterPessoalEquip = async () => {
 
     const abrirModalExternos = async () => {
         await carregarExternos();
-        setLinhaAtual({
-            obraId: "",
-            dia: "",
-            trabalhadorId: "",
-            horas: "",
-            horaExtra: false,
-            categoria: "MaoObra",
-            especialidadeCodigo: "",
-            subEmpId: null,
-            classeId: null, // Reset classeId
-            observacoes: "", // Reset observacoes
-        });
-        //setLinhasExternos([]);
+
+        // Verificar se há linhas existentes para preencher os campos
+        if (linhasExternos.length > 0) {
+            const primeiraLinha = linhasExternos[0];
+            setLinhaAtual({
+                obraId: primeiraLinha.obraId || "",
+                dia: primeiraLinha.dia || "",
+                trabalhadorId: primeiraLinha.trabalhadorId || "",
+                horas: primeiraLinha.horas || "",
+                horaExtra: !!primeiraLinha.horaExtra,
+                categoria: primeiraLinha.categoria || "MaoObra",
+                especialidadeCodigo: primeiraLinha.especialidadeCodigo || "",
+                subEmpId: primeiraLinha.subEmpId || null,
+                classeId: primeiraLinha.classeId || null,
+                observacoes: primeiraLinha.observacoes || "",
+            });
+        } else {
+            setLinhaAtual({
+                obraId: "",
+                dia: "",
+                trabalhadorId: "",
+                horas: "",
+                horaExtra: false,
+                categoria: "MaoObra",
+                especialidadeCodigo: "",
+                subEmpId: null,
+                classeId: null,
+                observacoes: "",
+            });
+        }
+
         setModalExternosVisible(true);
     };
 
@@ -793,6 +811,12 @@ const submeterPessoalEquip = async () => {
             categoria === "Equipamentos" ? equipamentosList : especialidadesList;
         const sel = lista.find((x) => x.codigo === especialidadeCodigo);
 
+        // Buscar informações da obra
+        const obraMeta = obrasParaPickers.find((o) => Number(o.id) === Number(obraId));
+        
+        // Buscar informações da classe
+        const classeMeta = classesList.find((c) => c.classeId === classeId);
+
         setLinhasExternos((prev) => [
             ...prev,
             {
@@ -811,8 +835,12 @@ const submeterPessoalEquip = async () => {
                 especialidadeCodigo,
                 especialidadeDesc: sel?.descricao ?? "",
                 subEmpId: subEmpId ?? null,
-                classeId: classeId, // Include classeId
-                observacoes: observacoes || "", // Include observacoes
+                classeId: classeId,
+                classe: classeMeta?.classe ?? "",
+                classeDescricao: classeMeta?.descricao ?? "",
+                obraCodigo: obraMeta?.codigo ?? "",
+                obraNome: obraMeta?.nome ?? `Obra ${obraId}`,
+                observacoes: observacoes || "",
                 horas: horas, // guardar horas no formato original para validação
             },
         ]);
@@ -824,8 +852,8 @@ const submeterPessoalEquip = async () => {
             horaExtra: false,
             especialidadeCodigo: "",
             subEmpId: null,
-            classeId: null, // Reset classeId
-            observacoes: "", // Reset observacoes
+            classeId: null,
+            observacoes: "",
         }));
     };
 
@@ -1200,7 +1228,7 @@ const submeterPessoalEquip = async () => {
     const obterChaveRascunho = useCallback(async () => {
         const userId = await secureStorage.getItem("userId");
         const userEmail = await secureStorage.getItem("userEmail");
-        
+
         // Usar email como fallback se userId não estiver disponível
         const identificador = userId || userEmail || 'temp';
         return `partesDiarias_rascunho_${identificador}_${mesAno.mes}_${mesAno.ano}`;
@@ -1356,19 +1384,19 @@ const carregarRascunho = useCallback(async () => {
     const verificarRascunho = useCallback(async () => {
         try {
             const token = await secureStorage.getItem("loginToken");
-            
+
             const response = await fetch(`https://backend.advir.pt/api/parte-diaria-rascunho/obter?mes=${mesAno.mes}&ano=${mesAno.ano}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success && result.rascunho) {
                 setTemRascunho(true);
                 const dataRascunho = new Date(result.rascunho.timestamp);
-                
+
                 Alert.alert(
                     "Rascunho Disponível",
                     `Foi encontrado um rascunho de ${dataRascunho.toLocaleDateString('pt-PT')} às ${dataRascunho.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}.\n\nDeseja carregar este rascunho?`,
@@ -1409,7 +1437,7 @@ const carregarRascunho = useCallback(async () => {
                 const { equipas, registos } = resultado;
 
                 processarDadosPartes(registos, equipas);
-                
+
                 // 3) Verificar se existe rascunho após carregar dados
                 await verificarRascunho();
             } catch (err) {
@@ -2932,6 +2960,14 @@ const carregarRascunho = useCallback(async () => {
                                     return item?.descricao || l.especialidadeCodigo;
                                 })
                                 .join(", "),
+                            classes: linhasDoDia
+                                .map((l) => {
+                                    if (l.categoria === "Equipamentos") return null;
+                                    const classe = classesList.find((c) => c.classeId === l.classeId);
+                                    return classe ? `${classe.classe} - ${classe.descricao}` : null;
+                                })
+                                .filter(Boolean)
+                                .join(", "),
                         };
                     })
                     .filter((d) => d !== null);
@@ -3136,7 +3172,7 @@ const carregarRascunho = useCallback(async () => {
             await carregarDados();
             await carregarItensSubmetidos();
 
-            
+
             Alert.alert(
                 "Sucesso",
                 submeteuExternos
@@ -3385,7 +3421,7 @@ for (const l of linhasParaSubmeter) {
                         <Text style={styles.buttonText}>Enviar Partes</Text>
                     </LinearGradient>
                 </TouchableOpacity>
-                
+
                 {/* BOTÃO GUARDAR RASCUNHO */}
                 <TouchableOpacity
                     style={styles.actionButton}
@@ -3399,7 +3435,7 @@ for (const l of linhasParaSubmeter) {
                         <Text style={styles.buttonText}>Guardar Rascunho</Text>
                     </LinearGradient>
                 </TouchableOpacity>
-                
+
                 {/* BOTÃO CARREGAR RASCUNHO */}
                 {temRascunho && (
                     <TouchableOpacity
@@ -3415,9 +3451,9 @@ for (const l of linhasParaSubmeter) {
                         </LinearGradient>
                     </TouchableOpacity>
                 )}
-                
-               
-                
+
+
+
                 {/* BOTÃO DE ATUALIZAR */}
                 <TouchableOpacity
                     style={styles.actionButton}
@@ -4072,6 +4108,14 @@ for (const l of linhasParaSubmeter) {
                                                 {l.categoria === "Equipamentos" ? "🔧" : "👷"}{" "}
                                                 {l.especialidadeDesc || l.especialidadeCodigo}
                                             </Text>
+                                            <Text style={styles.externosListItemCategory}>
+                                                <Ionicons name="library" size={12} color="#666" />{" "}
+                                                Classe: {l.classeDescricao || l.classe || "N/D"}
+                                            </Text>
+                                            <Text style={styles.externosListItemCategory}>
+                                                <Ionicons name="business" size={12} color="#666" />{" "}
+                                                Obra: {l.obraCodigo ? `${l.obraCodigo} - ${l.obraNome}` : l.obraNome || "N/D"}
+                                            </Text>
                                             {!!l.observacoes && (
                                                 <Text style={styles.externosListItemObservations}>
                                                     <Ionicons name="chatbubble-ellipses" size={12} color="#1792FE" />{" "}
@@ -4715,10 +4759,7 @@ for (const l of linhasParaSubmeter) {
                                                 return [...consolidado.values()].map((row, idx) => (
                                                     <View
                                                         key={`ext-consolidado-${obraGroup.obraInfo.id}-${idx}`}
-                                                        style={[
-                                                            styles.tableRow,
-                                                            row.temPendente && !row.temSubmetido ? styles.externoResumoRow : styles.externoSubmetidoRow,
-                                                        ]}
+                                                        style={[styles.tableRow, row.temPendente && !row.temSubmetido ? styles.externoResumoRow : styles.externoSubmetidoRow,]}
                                                     >
                                                         {/* Coluna do nome */}
                                                         <View style={[styles.tableCell, { width: 120 }]}>
@@ -4758,7 +4799,7 @@ for (const l of linhasParaSubmeter) {
                                                                     onPress={async () => {
                                                                         // Abrir modal de externos com dados pré-preenchidos
                                                                         await carregarExternos();
-                                                                        
+
                                                                         // Tentar encontrar o trabalhador externo na lista
                                                                         const externo = externosLista.find(
                                                                             e => e.funcionario?.toLowerCase().trim() === row.funcionario.toLowerCase().trim()
@@ -5266,6 +5307,12 @@ for (const l of linhasParaSubmeter) {
                                                             )}{" "}
                                                             • {diaInfo.especialidades}
                                                         </Text>
+                                                        {diaInfo.classes && (
+                                                            <Text style={styles.resumoDiaDetalhes}>
+                                                                <Ionicons name="library" size={12} color="#666" />{" "}
+                                                                Classes: {diaInfo.classes}
+                                                            </Text>
+                                                        )}
                                                     </View>
                                                 ))}
                                             </View>
@@ -5332,13 +5379,23 @@ for (const l of linhasParaSubmeter) {
                                                                 size={12}
                                                                 color="#666"
                                                             />{" "}
-                                                            {ext.empresa} •
+                                                            {ext.empresa}
+                                                        </Text>
+                                                        <Text style={styles.resumoExternoDetalhes}>
+                                                            <Ionicons
+                                                                name="briefcase"
+                                                                size={12}
+                                                                color="#666"
+                                                            />{" "}
+                                                            Obra: {ext.obraCodigo ? `${ext.obraCodigo} - ${ext.obraNome}` : ext.obraNome || obraData.obraNome}
+                                                        </Text>
+                                                        <Text style={styles.resumoExternoDetalhes}>
                                                             <Ionicons
                                                                 name="calendar"
                                                                 size={12}
                                                                 color="#666"
                                                             />{" "}
-                                                            Dia {ext.dia} •
+                                                            Dia {ext.dia} •{" "}
                                                             <Ionicons
                                                                 name="construct"
                                                                 size={12}
@@ -5346,6 +5403,12 @@ for (const l of linhasParaSubmeter) {
                                                             />{" "}
                                                             {ext.especialidadeDesc || ext.especialidadeCodigo}
                                                         </Text>
+                                                        {ext.classe && (
+                                                            <Text style={styles.resumoExternoDetalhes}>
+                                                                <Ionicons name="library" size={12} color="#666" />{" "}
+                                                                Classe: {ext.classe} - {ext.classeDescricao}
+                                                            </Text>
+                                                        )}
                                                         {!!ext.observacoes && (
                                                             <Text style={styles.resumoExternoObservations}>
                                                                 <Ionicons name="chatbubble-ellipses" size={12} color="#1792FE" />{" "}
@@ -6190,4 +6253,4 @@ for (const l of linhasParaSubmeter) {
     );
 };
 
-export default PartesDiarias;               
+export default PartesDiarias;
