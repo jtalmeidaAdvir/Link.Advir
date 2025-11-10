@@ -113,8 +113,14 @@ const RegistoPontoFacial = (props) => {
 
   // Estados para modal de definições
   const [showDefinicoesModal, setShowDefinicoesModal] = useState(false);
-  const [emailVisitantes, setEmailVisitantes] = useState("");
+  const [emailVisitantes, setEmailVisitantes] = useState([]);
+  const [novoEmail, setNovoEmail] = useState("");
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+  // Estados para modal de detalhes de pessoal
+  const [showDetalhesModal, setShowDetalhesModal] = useState(false);
+  const [filtroTipo, setFiltroTipo] = useState("todos"); // todos, trabalhador, visitante, externo
+  const [filtroEstado, setFiltroEstado] = useState("todos"); // todos, aTrabalhador, saiu
 
   // Estados para pull-to-refresh
   const [pullDistance, setPullDistance] = useState(0);
@@ -767,7 +773,8 @@ const RegistoPontoFacial = (props) => {
 
   const handleAbrirDefinicoes = async () => {
     setShowDefinicoesModal(true);
-    // Carregar email atual
+    setNovoEmail("");
+    // Carregar emails atuais
     try {
       const token = secureStorage.getItem("loginToken");
       const res = await fetch(
@@ -778,22 +785,53 @@ const RegistoPontoFacial = (props) => {
       );
       if (res.ok) {
         const config = await res.json();
-        setEmailVisitantes(config.valor || "");
+        // Se o valor estiver armazenado como string separada por vírgulas, converter para array
+        if (config.valor) {
+          const emails = config.valor.includes(',') 
+            ? config.valor.split(',').map(e => e.trim()).filter(e => e)
+            : [config.valor.trim()];
+          setEmailVisitantes(emails);
+        } else {
+          setEmailVisitantes([]);
+        }
       }
     } catch (error) {
       console.error("Erro ao carregar configurações:", error);
     }
   };
 
-  const handleSalvarDefinicoes = async () => {
-    if (!emailVisitantes || !emailVisitantes.includes("@")) {
+  const handleAdicionarEmail = () => {
+    if (!novoEmail || !novoEmail.includes("@")) {
       alert("Por favor, insira um email válido");
+      return;
+    }
+
+    if (emailVisitantes.includes(novoEmail.trim())) {
+      alert("Este email já foi adicionado");
+      return;
+    }
+
+    setEmailVisitantes([...emailVisitantes, novoEmail.trim()]);
+    setNovoEmail("");
+  };
+
+  const handleRemoverEmail = (emailToRemove) => {
+    setEmailVisitantes(emailVisitantes.filter(email => email !== emailToRemove));
+  };
+
+  const handleSalvarDefinicoes = async () => {
+    if (emailVisitantes.length === 0) {
+      alert("Por favor, adicione pelo menos um email");
       return;
     }
 
     try {
       setIsSavingConfig(true);
       const token = secureStorage.getItem("loginToken");
+      
+      // Converter array de emails em string separada por vírgulas
+      const emailsString = emailVisitantes.join(', ');
+      
       const res = await fetch(
         "https://backend.advir.pt/api/configuracoes/email_visitantes",
         {
@@ -802,7 +840,7 @@ const RegistoPontoFacial = (props) => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ valor: emailVisitantes }),
+          body: JSON.stringify({ valor: emailsString }),
         },
       );
 
@@ -858,6 +896,52 @@ const RegistoPontoFacial = (props) => {
       setIsRefreshing(false);
       setStatusMessage("");
     }
+  };
+
+  const handleAbrirDetalhes = () => {
+    setShowDetalhesModal(true);
+    setFiltroTipo("todos");
+    setFiltroEstado("todos");
+  };
+
+  const getRegistosFiltrados = () => {
+    let registos = resumoObra.entradasSaidas || [];
+
+    // Filtrar por tipo
+    if (filtroTipo !== "todos") {
+      registos = registos.filter((reg) => reg.tipoEntidade === filtroTipo);
+    }
+
+    // Filtrar por estado
+    if (filtroEstado === "aTrabalhador") {
+      registos = registos.filter((reg) => reg.tipo === "entrada");
+    } else if (filtroEstado === "saiu") {
+      registos = registos.filter((reg) => reg.tipo === "saida");
+    }
+
+    return registos;
+  };
+
+  const getTotalizadores = () => {
+    const todosRegistos = resumoObra.entradasSaidas || [];
+    
+    const aTrabalhador = todosRegistos.filter((reg) => reg.tipo === "entrada").length;
+    const saiu = todosRegistos.filter((reg) => reg.tipo === "saida").length;
+    const total = todosRegistos.length;
+    
+    // Totalizadores por tipo
+    const colaboradores = todosRegistos.filter((reg) => reg.tipoEntidade === "trabalhador").length;
+    const visitantes = todosRegistos.filter((reg) => reg.tipoEntidade === "visitante").length;
+    const externos = todosRegistos.filter((reg) => reg.tipoEntidade === "externo").length;
+
+    return {
+      aTrabalhador,
+      saiu,
+      total,
+      colaboradores,
+      visitantes,
+      externos
+    };
   };
 
   // Pull-to-refresh - Touch events
@@ -1042,10 +1126,9 @@ const RegistoPontoFacial = (props) => {
       !visitanteData.primeiroNome ||
       !visitanteData.ultimoNome ||
       !numeroContribuinte ||
-      !visitanteData.nomeEmpresa ||
-      !visitanteData.nifEmpresa
+      !visitanteData.nomeEmpresa
     ) {
-      alert("Todos os campos são obrigatórios");
+      alert("Por favor, preencha os campos obrigatórios (Nome, Apelido, NIF e Nome da Empresa)");
       return;
     }
 
@@ -1579,9 +1662,18 @@ const RegistoPontoFacial = (props) => {
                         </span>
                       </div>
                       <hr className="mb-3" />
-                      <h6 className="fw-semibold mb-2">
-                        Entradas e Saídas Recentes:
-                      </h6>
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <h6 className="fw-semibold mb-0">
+                          Entradas e Saídas Recentes:
+                        </h6>
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={handleAbrirDetalhes}
+                          disabled={isResumoLoading || !resumoObra.entradasSaidas?.length}
+                        >
+                          Ver Mais
+                        </button>
+                      </div>
                       {isResumoLoading ? (
                         <p className="text-muted fst-italic">A carregar...</p>
                       ) : resumoObra.entradasSaidas?.length > 0 ? (
@@ -1589,7 +1681,7 @@ const RegistoPontoFacial = (props) => {
                           className="list-unstyled mb-0"
                           style={{ maxHeight: "200px", overflowY: "auto" }}
                         >
-                          {resumoObra.entradasSaidas.map((reg, index) => (
+                          {resumoObra.entradasSaidas.slice(0, 5).map((reg, index) => (
                             <li
                               key={index}
                               className={`registro-item ${reg.tipo === "saida" ? "registro-saida" : ""} d-flex justify-content-between align-items-center p-2 mb-2`}
@@ -1827,7 +1919,7 @@ const RegistoPontoFacial = (props) => {
                   <input
                     type="text"
                     className="form-control mb-3"
-                    placeholder="NIF Empresa *"
+                    placeholder="NIF Empresa (opcional)"
                     value={visitanteData.nifEmpresa || ""}
                     onChange={(e) =>
                       setVisitanteData({
@@ -1866,7 +1958,7 @@ const RegistoPontoFacial = (props) => {
           <div
             className="result-modal"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "500px" }}
+            style={{ maxWidth: "600px" }}
           >
             <div className="result-modal-header">
               <h3 className="modal-title">⚙️ Definições de Visitantes</h3>
@@ -1874,17 +1966,72 @@ const RegistoPontoFacial = (props) => {
             <div className="result-modal-body">
               <div className="mb-3 text-start">
                 <label className="form-label fw-semibold">
-                  Email para Notificações de Visitantes:
+                  Emails para Notificações de Visitantes:
                 </label>
-                <input
-                  type="email"
-                  className="form-control"
-                  placeholder="exemplo@advir.pt"
-                  value={emailVisitantes}
-                  onChange={(e) => setEmailVisitantes(e.target.value)}
-                />
+                
+                {/* Lista de emails adicionados */}
+                {emailVisitantes.length > 0 && (
+                  <div className="mb-3" style={{ 
+                    maxHeight: "200px", 
+                    overflowY: "auto",
+                    border: "1px solid #dee2e6",
+                    borderRadius: "8px",
+                    padding: "0.5rem"
+                  }}>
+                    {emailVisitantes.map((email, index) => (
+                      <div 
+                        key={index}
+                        className="d-flex justify-content-between align-items-center p-2 mb-2"
+                        style={{
+                          background: "#f8f9fa",
+                          borderRadius: "6px",
+                          border: "1px solid #e9ecef"
+                        }}
+                      >
+                        <span style={{ fontSize: "0.9rem" }}>{email}</span>
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => handleRemoverEmail(email)}
+                          style={{
+                            padding: "0.25rem 0.5rem",
+                            fontSize: "0.8rem"
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Adicionar novo email */}
+                <div className="input-group">
+                  <input
+                    type="email"
+                    className="form-control"
+                    placeholder="exemplo@advir.pt"
+                    value={novoEmail}
+                    onChange={(e) => setNovoEmail(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAdicionarEmail();
+                      }
+                    }}
+                  />
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleAdicionarEmail}
+                    style={{
+                      background: "linear-gradient(45deg, #1792fe, #0d7efe)",
+                      border: "none"
+                    }}
+                  >
+                    Adicionar
+                  </button>
+                </div>
                 <small className="text-muted">
-                  Este email receberá notificações sempre que um visitante
+                  Estes emails receberão notificações sempre que um visitante
                   registar entrada/saída
                 </small>
               </div>
@@ -1910,6 +2057,207 @@ const RegistoPontoFacial = (props) => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalhes de Pessoal */}
+      {showDetalhesModal && (
+        <div
+          className="result-modal-overlay"
+          onClick={() => setShowDetalhesModal(false)}
+        >
+          <div
+            className="result-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "800px", maxHeight: "90vh", overflow: "hidden" }}
+          >
+            <div className="result-modal-header">
+              <h3 className="modal-title">Detalhes do Pessoal</h3>
+              <p className="modal-subtitle">
+                {obras.find((o) => String(o.id) === String(obraSelecionada))?.nome}
+              </p>
+            </div>
+            <div className="result-modal-body" style={{ padding: "1rem 2rem 2rem" }}>
+              {/* Totalizadores */}
+              <div className="row mb-3 g-2">
+                <div className="col-4">
+                  <div className="p-2 text-center" style={{ 
+                    background: "linear-gradient(135deg, #28a745, #20c997)", 
+                    borderRadius: "8px", 
+                    color: "white" 
+                  }}>
+                    <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
+                      {getTotalizadores().aTrabalhador}
+                    </div>
+                    <small style={{ fontSize: "0.75rem" }}>A Trabalhar</small>
+                  </div>
+                </div>
+                <div className="col-4">
+                  <div className="p-2 text-center" style={{ 
+                    background: "linear-gradient(135deg, #dc3545, #e63946)", 
+                    borderRadius: "8px", 
+                    color: "white" 
+                  }}>
+                    <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
+                      {getTotalizadores().saiu}
+                    </div>
+                    <small style={{ fontSize: "0.75rem" }}>Saíram</small>
+                  </div>
+                </div>
+                <div className="col-4">
+                  <div className="p-2 text-center" style={{ 
+                    background: "linear-gradient(135deg, #1792fe, #0d7efe)", 
+                    borderRadius: "8px", 
+                    color: "white" 
+                  }}>
+                    <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
+                      {getTotalizadores().total}
+                    </div>
+                    <small style={{ fontSize: "0.75rem" }}>Total Registos</small>
+                  </div>
+                </div>
+              </div>
+
+              {/* Totalizadores por Tipo */}
+              <div className="row mb-3 g-2">
+                <div className="col-4">
+                  <div className="p-2 text-center" style={{ 
+                    background: "rgba(23, 146, 254, 0.1)", 
+                    border: "1px solid #1792fe",
+                    borderRadius: "8px" 
+                  }}>
+                    <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#1792fe" }}>
+                      {getTotalizadores().colaboradores}
+                    </div>
+                    <small style={{ fontSize: "0.7rem", color: "#666" }}>Colaboradores</small>
+                  </div>
+                </div>
+                <div className="col-4">
+                  <div className="p-2 text-center" style={{ 
+                    background: "rgba(23, 162, 184, 0.1)", 
+                    border: "1px solid #17a2b8",
+                    borderRadius: "8px" 
+                  }}>
+                    <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#17a2b8" }}>
+                      {getTotalizadores().visitantes}
+                    </div>
+                    <small style={{ fontSize: "0.7rem", color: "#666" }}>Visitantes</small>
+                  </div>
+                </div>
+                <div className="col-4">
+                  <div className="p-2 text-center" style={{ 
+                    background: "rgba(255, 193, 7, 0.1)", 
+                    border: "1px solid #ffc107",
+                    borderRadius: "8px" 
+                  }}>
+                    <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#ffc107" }}>
+                      {getTotalizadores().externos}
+                    </div>
+                    <small style={{ fontSize: "0.7rem", color: "#666" }}>Externos</small>
+                  </div>
+                </div>
+              </div>
+
+              <hr className="my-3" />
+
+              {/* Filtros */}
+              <div className="row mb-3">
+                <div className="col-6">
+                  <label className="form-label fw-semibold small">Tipo:</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={filtroTipo}
+                    onChange={(e) => setFiltroTipo(e.target.value)}
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="trabalhador">Colaboradores</option>
+                    <option value="visitante">Visitantes</option>
+                    <option value="externo">Externos</option>
+                  </select>
+                </div>
+                <div className="col-6">
+                  <label className="form-label fw-semibold small">Estado:</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={filtroEstado}
+                    onChange={(e) => setFiltroEstado(e.target.value)}
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="aTrabalhador">A Trabalhar</option>
+                    <option value="saiu">Saiu</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Lista de Registos */}
+              <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+                {getRegistosFiltrados().length > 0 ? (
+                  <ul className="list-unstyled mb-0">
+                    {getRegistosFiltrados().map((reg, index) => (
+                      <li
+                        key={index}
+                        className={`registro-item ${reg.tipo === "saida" ? "registro-saida" : ""} d-flex justify-content-between align-items-center p-2 mb-2`}
+                      >
+                        <div className="flex-grow-1">
+                          <strong className="d-block">
+                            {reg.User?.nome || reg.nome || "Utilizador Desconhecido"}
+                          </strong>
+                          <small className="text-muted d-block">
+                            {reg.timestamp
+                              ? new Date(reg.timestamp).toLocaleString()
+                              : "-"}
+                          </small>
+                          {reg.tipoEntidade === "visitante" && (
+                            <>
+                              <small className="text-info d-block">
+                                <FaUsers className="me-1" />
+                                Visitante
+                              </small>
+                              {reg.nomeEmpresa && (
+                                <small className="text-muted d-block">
+                                  Empresa: {reg.nomeEmpresa}
+                                </small>
+                              )}
+                            </>
+                          )}
+                          {reg.tipoEntidade === "externo" && (
+                            <small className="text-warning d-block">
+                              <FaQrcode className="me-1" />
+                              Externo
+                            </small>
+                          )}
+                          {reg.tipoEntidade === "trabalhador" && (
+                            <small className="text-primary d-block">
+                              <FaUserCheck className="me-1" />
+                              Colaborador
+                            </small>
+                          )}
+                        </div>
+                        <div className="d-flex flex-column align-items-end gap-1">
+                          <span
+                            className={`badge rounded-pill ${reg.tipo === "entrada" ? "bg-success" : "bg-danger"}`}
+                          >
+                            {reg.tipo === "entrada" ? "Entrada" : "Saída"}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted fst-italic text-center">
+                    Sem registos para os filtros selecionados
+                  </p>
+                )}
+              </div>
+
+              <button
+                className="modal-close-btn w-100 mt-3"
+                onClick={() => setShowDetalhesModal(false)}
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>

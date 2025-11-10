@@ -12,8 +12,8 @@ const criarVisitante = async (req, res) => {
 
     console.log('📝 Tentando criar visitante:', { primeiroNome, ultimoNome, numeroContribuinte, nomeEmpresa, nifEmpresa, empresaId });
 
-    if (!primeiroNome || !ultimoNome || !numeroContribuinte || !nomeEmpresa || !nifEmpresa || !empresaId) {
-      return res.status(400).json({ message: 'Todos os campos são obrigatórios (Nome, Apelido, NIF, Nome Empresa e NIF Empresa)' });
+    if (!primeiroNome || !ultimoNome || !numeroContribuinte || !nomeEmpresa || !empresaId) {
+      return res.status(400).json({ message: 'Campos obrigatórios: Nome, Apelido, NIF e Nome da Empresa' });
     }
 
     // Verificar se já existe
@@ -31,7 +31,7 @@ const criarVisitante = async (req, res) => {
       ultimoNome,
       numeroContribuinte,
       nomeEmpresa,
-      nifEmpresa,
+      nifEmpresa: nifEmpresa || null,
       empresa_id: empresaId
     });
 
