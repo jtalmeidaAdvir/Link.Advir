@@ -193,7 +193,7 @@ const ComunicadosUsuario = () => {
                                 </div>
                                 
                                 <div style={styles.cardFooter}>
-                                    <span style={styles.readMoreText}>Clique para ler mais →</span>
+                                    <span style={styles.readMoreText}>Confirmo que li →</span>
                                 </div>
                             </div>
                         ))}

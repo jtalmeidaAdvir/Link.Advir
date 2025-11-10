@@ -361,6 +361,9 @@ const GestorComunicados = () => {
                                                     minute: '2-digit'
                                                 })}
                                             </p>
+                                             <p style={styles.cardMeta}>
+                                                Criado Por: {com.remetente_nome}
+                                            </p>
                                         </div>
                                         <div style={styles.cardActions}>
                                             <button

@@ -10,13 +10,14 @@ export const useComunicadosNaoLidos = () => {
             try {
                 const token = secureStorage.getItem('loginToken');
                 const userId = secureStorage.getItem('userId');
+                const empresaId = secureStorage.getItem('empresaId') || secureStorage.getItem('empresa_id');
 
-                if (!token || !userId) {
+                if (!token || !userId || !empresaId) {
                     return;
                 }
 
                 const response = await fetch(
-                    `https://backend.advir.pt/api/comunicados/usuario/${userId}/nao-lidos`,
+                    `https://backend.advir.pt/api/comunicados/usuario/${userId}/nao-lidos?empresaId=${empresaId}`,
                     {
                         headers: {
                             'Authorization': `Bearer ${token}`,
