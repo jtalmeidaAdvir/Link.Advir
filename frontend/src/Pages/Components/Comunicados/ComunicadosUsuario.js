@@ -2,6 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { secureStorage } from '../../../utils/secureStorage';
 
+const getEmpresaId = () =>
+  secureStorage.getItem("empresaId") ?? secureStorage.getItem("empresa_id");
+
+
 const ComunicadosUsuario = () => {
     const [comunicados, setComunicados] = useState([]);
     const [filtro, setFiltro] = useState('todos');
@@ -12,43 +16,56 @@ const ComunicadosUsuario = () => {
     const userId = secureStorage.getItem('userId');
 
     useEffect(() => {
-        carregarComunicados();
-        const interval = setInterval(carregarComunicados, 30000);
-        return () => clearInterval(interval);
-    }, []);
+  carregarComunicados();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [secureStorage.getItem("empresaId") ?? secureStorage.getItem("empresa_id")]);
+
 
     const carregarComunicados = async () => {
-        try {
-            setIsLoading(true);
-            const response = await fetch(
-                `https://backend.advir.pt/api/comunicados/usuario/${userId}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
-            );
-            const data = await response.json();
-            if (data.success) {
-                setComunicados(data.data);
-            }
-        } catch (error) {
-            console.error('Erro ao carregar comunicados:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  try {
+    setIsLoading(true);
+    const empresaId = getEmpresaId();
+    if (!empresaId) {
+      console.error("Empresa não selecionada");
+      setIsLoading(false);
+      return;
+    }
+
+    const response = await fetch(
+      `https://backend.advir.pt/api/comunicados/usuario/${userId}?empresaId=${empresaId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const data = await response.json();
+    if (data.success) setComunicados(data.data);
+  } catch (error) {
+    console.error("Erro ao carregar comunicados:", error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
     const marcarComoLido = async (comunicadoId) => {
-        try {
-            await fetch(
-                `https://backend.advir.pt/api/comunicados/${comunicadoId}/lido/${userId}`,
-                {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }
-            );
-            carregarComunicados();
-        } catch (error) {
-            console.error('Erro ao marcar como lido:', error);
-        }
-    };
+  try {
+    const empresaId = getEmpresaId();
+    if (!empresaId) return;
+
+    await fetch(
+      `https://backend.advir.pt/api/comunicados/${comunicadoId}/lido/${userId}?empresaId=${empresaId}`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    // Atualiza a lista local sem esperar pelo próximo intervalo
+    carregarComunicados();
+  } catch (error) {
+    console.error("Erro ao marcar como lido:", error);
+  }
+};
+
 
     const handleExpandir = (comunicado) => {
         setComunicadoExpandido(comunicado);
