@@ -1,7 +1,13 @@
-
 const Comunicado = require("../models/comunicado");
 const ComunicadoLeitura = require("../models/comunicadoLeitura");
 const User = require("../models/user");
+const UserEmpresa = require("../models/user_empresa");
+
+function toDateOrNull(value) {
+    if (!value) return null;
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+}
 
 const criarComunicado = async (req, res) => {
     try {
@@ -13,9 +19,17 @@ const criarComunicado = async (req, res) => {
             destinatarios_ids,
             prioridade,
             data_expiracao,
+            empresa_id, // <<< AGORA VEM DO BODY
         } = req.body;
 
-        // Buscar remetente pelo ID
+        if (!empresa_id) {
+            return res.status(400).json({
+                success: false,
+                error: "empresa_id é obrigatório.",
+            });
+        }
+
+        // Buscar remetente
         const remetente = await User.findByPk(remetente_id, {
             attributes: ["id", "nome"],
         });
@@ -27,38 +41,26 @@ const criarComunicado = async (req, res) => {
             });
         }
 
+        // Criar comunicado com empresa_id
         const comunicado = await Comunicado.create({
             titulo,
             mensagem,
             remetente_id,
-            remetente_nome: remetente.nome,   // <<< NOME VEM DO BD
+            remetente_nome: remetente.nome,
             destinatarios_tipo,
             destinatarios_ids: destinatarios_ids || [],
             prioridade: prioridade || "normal",
             data_expiracao: toDateOrNull(data_expiracao),
+            empresa_id, // <<< GRAVAR AQUI
         });
 
-        // Criar registros de leitura
+        // Determinar destinatários
         let destinatarios = [];
 
         if (destinatarios_tipo === "todos") {
-            // Buscar a empresa do remetente
-            const UserEmpresa = require("../models/user_empresa");
-            const userEmpresa = await UserEmpresa.findOne({
-                where: { user_id: remetente_id },
-                attributes: ["empresa_id"],
-            });
-
-            if (!userEmpresa) {
-                return res.status(400).json({
-                    success: false,
-                    error: "Empresa do remetente não encontrada.",
-                });
-            }
-
             // Buscar todos os usuários da mesma empresa
             const usersEmpresas = await UserEmpresa.findAll({
-                where: { empresa_id: userEmpresa.empresa_id },
+                where: { empresa_id },
                 attributes: ["user_id"],
             });
 
@@ -73,7 +75,6 @@ const criarComunicado = async (req, res) => {
                 usuario_id: u.id,
                 usuario_nome: u.nome,
             }));
-
         } else {
             const users = await User.findAll({
                 where: { id: destinatarios_ids },
@@ -86,13 +87,14 @@ const criarComunicado = async (req, res) => {
             }));
         }
 
-        // Criar registros
+        // Criar registros de leitura
         await Promise.all(
             destinatarios.map((dest) =>
                 ComunicadoLeitura.create({
                     comunicado_id: comunicado.id,
                     usuario_id: dest.usuario_id,
                     usuario_nome: dest.usuario_nome,
+                    empresa_id, // <<< também associar à empresa
                     lido: false,
                 })
             )
@@ -114,16 +116,23 @@ const criarComunicado = async (req, res) => {
     }
 };
 
-function toDateOrNull(value) {
-    if (!value) return null;
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? null : d;
-}
-
 const listarComunicados = async (req, res) => {
     try {
+        const { empresaId } = req.query;
+
+        if (!empresaId) {
+            return res.status(400).json({
+                success: false,
+                error: "empresaId é obrigatório",
+            });
+        }
+
+        // Buscar comunicados da empresa
         const comunicados = await Comunicado.findAll({
-            where: { ativo: true },
+            where: { 
+                ativo: true,
+                empresa_id: empresaId, // <<< filtro por empresa
+            },
             order: [["data_criacao", "DESC"]],
         });
 
@@ -144,13 +153,21 @@ const listarComunicados = async (req, res) => {
 const listarComunicadosUsuario = async (req, res) => {
     try {
         const { usuario_id } = req.params;
+        const { empresaId } = req.query;
+
+        if (!empresaId) {
+            return res.status(400).json({
+                success: false,
+                error: "empresaId é obrigatório",
+            });
+        }
 
         const leituras = await ComunicadoLeitura.findAll({
-            where: { usuario_id },
+            where: { usuario_id, empresa_id: empresaId },
             include: [
                 {
                     model: Comunicado,
-                    where: { ativo: true },
+                    where: { ativo: true, empresa_id: empresaId },
                 },
             ],
             order: [["createdAt", "DESC"]],
@@ -173,12 +190,17 @@ const listarComunicadosUsuario = async (req, res) => {
 const marcarComoLido = async (req, res) => {
     try {
         const { comunicado_id, usuario_id } = req.params;
+        const { empresaId } = req.query;
+
+        if (!empresaId) {
+            return res.status(400).json({
+                success: false,
+                error: "empresaId é obrigatório",
+            });
+        }
 
         const leitura = await ComunicadoLeitura.findOne({
-            where: {
-                comunicado_id,
-                usuario_id,
-            },
+            where: { comunicado_id, usuario_id, empresa_id: empresaId },
         });
 
         if (!leitura) {
@@ -210,9 +232,17 @@ const marcarComoLido = async (req, res) => {
 const obterEstatisticasLeitura = async (req, res) => {
     try {
         const { comunicado_id } = req.params;
+        const { empresaId } = req.query;
+
+        if (!empresaId) {
+            return res.status(400).json({
+                success: false,
+                error: "empresaId é obrigatório",
+            });
+        }
 
         const leituras = await ComunicadoLeitura.findAll({
-            where: { comunicado_id },
+            where: { comunicado_id, empresa_id: empresaId },
         });
 
         const totalDestinatarios = leituras.length;
@@ -255,16 +285,25 @@ const obterEstatisticasLeitura = async (req, res) => {
 const contarNaoLidos = async (req, res) => {
     try {
         const { usuario_id } = req.params;
+        const { empresaId } = req.query;
+
+        if (!empresaId) {
+            return res.status(400).json({
+                success: false,
+                error: "empresaId é obrigatório",
+            });
+        }
 
         const count = await ComunicadoLeitura.count({
             where: {
                 usuario_id,
+                empresa_id: empresaId,
                 lido: false,
             },
             include: [
                 {
                     model: Comunicado,
-                    where: { ativo: true },
+                    where: { ativo: true, empresa_id: empresaId },
                 },
             ],
         });
@@ -286,8 +325,19 @@ const contarNaoLidos = async (req, res) => {
 const desativarComunicado = async (req, res) => {
     try {
         const { id } = req.params;
+        const { empresaId } = req.query;
 
-        const comunicado = await Comunicado.findByPk(id);
+        if (!empresaId) {
+            return res.status(400).json({
+                success: false,
+                error: "empresaId é obrigatório",
+            });
+        }
+
+        const comunicado = await Comunicado.findOne({
+            where: { id, empresa_id: empresaId },
+        });
+
         if (!comunicado) {
             return res.status(404).json({
                 success: false,

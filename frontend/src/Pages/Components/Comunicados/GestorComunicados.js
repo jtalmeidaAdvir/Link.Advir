@@ -2,6 +2,12 @@
 import React, { useState, useEffect } from "react";
 import { secureStorage } from "../../../utils/secureStorage";
 
+
+// topo do ficheiro, depois dos imports
+const getEmpresaId = () =>
+  secureStorage.getItem("empresaId") ?? secureStorage.getItem("empresa_id");
+
+
 const GestorComunicados = () => {
     const [comunicados, setComunicados] = useState([]);
     const [usuarios, setUsuarios] = useState([]);
@@ -25,129 +31,140 @@ const GestorComunicados = () => {
     const userId = secureStorage.getItem("userId");
 
     useEffect(() => {
-        carregarComunicados();
-        carregarUsuarios();
-    }, []);
+  carregarComunicados();
+  carregarUsuarios();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [secureStorage.getItem("empresaId") ?? secureStorage.getItem("empresa_id")]);
+
 
     const carregarComunicados = async () => {
-        try {
-            setIsLoading(true);
-            const response = await fetch(
-                "https://backend.advir.pt/api/comunicados",
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                },
-            );
-            const data = await response.json();
-            if (data.success) {
-                setComunicados(data.data);
-            }
-        } catch (error) {
-            console.error("Erro ao carregar comunicados:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  try {
+    setIsLoading(true);
+    const empresaId = getEmpresaId();
+    if (!empresaId) {
+      console.error("Empresa não selecionada");
+      setIsLoading(false);
+      return;
+    }
+
+    const response = await fetch(
+      `https://backend.advir.pt/api/comunicados?empresaId=${empresaId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await response.json();
+    if (data.success) setComunicados(data.data);
+  } catch (error) {
+    console.error("Erro ao carregar comunicados:", error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
     const carregarUsuarios = async () => {
-        try {
-            const empresaId = secureStorage.getItem("empresa_id");
-            if (!empresaId) {
-                console.error("Empresa não selecionada");
-                return;
-            }
+  try {
+    const empresaId = getEmpresaId();
+    if (!empresaId) {
+      console.error("Empresa não selecionada");
+      return;
+    }
 
-            const response = await fetch(
-                `https://backend.advir.pt/api/users?empresaId=${empresaId}`,
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                }
-            );
-            const data = await response.json();
-            if (data.success) {
-                setUsuarios(data.users);
-            }
-        } catch (error) {
-            console.error("Erro ao carregar usuários:", error);
-        }
-    };
+    const response = await fetch(
+      `https://backend.advir.pt/api/users?empresaId=${empresaId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await response.json();
+    if (data.success) setUsuarios(data.users);
+  } catch (error) {
+    console.error("Erro ao carregar usuários:", error);
+  }
+};
+
 
     const criarComunicado = async () => {
-        try {
-            const response = await fetch(
-                "https://backend.advir.pt/api/comunicados",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                        ...novoComunicado,
-                        remetente_id: userId,
-                    }),
-                },
-            );
+  try {
+    const empresaId = getEmpresaId();
+    if (!empresaId) {
+      alert("Selecione uma empresa antes de criar o comunicado.");
+      return;
+    }
 
-            const data = await response.json();
-            if (data.success) {
-                alert("Comunicado criado com sucesso!");
-                setNovoComunicado({
-                    titulo: "",
-                    mensagem: "",
-                    destinatarios_tipo: "todos",
-                    destinatarios_ids: [],
-                    prioridade: "normal",
-                    data_expiracao: "",
-                });
-                setMostrarFormulario(false);
-                carregarComunicados();
-            }
-        } catch (error) {
-            console.error("Erro ao criar comunicado:", error);
-            alert("Erro ao criar comunicado");
-        }
-    };
+    const response = await fetch("https://backend.advir.pt/api/comunicados", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        ...novoComunicado,
+        remetente_id: Number(userId),
+        empresa_id: Number(empresaId), // <<< importante
+      }),
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      alert("Comunicado criado com sucesso!");
+      setNovoComunicado({
+        titulo: "",
+        mensagem: "",
+        destinatarios_tipo: "todos",
+        destinatarios_ids: [],
+        prioridade: "normal",
+        data_expiracao: "",
+      });
+      setMostrarFormulario(false);
+      carregarComunicados();
+    } else {
+      alert(data.error || "Erro ao criar comunicado");
+    }
+  } catch (error) {
+    console.error("Erro ao criar comunicado:", error);
+    alert("Erro ao criar comunicado");
+  }
+};
+
 
     const verEstatisticas = async (comunicadoId) => {
-        try {
-            const response = await fetch(
-                `https://backend.advir.pt/api/comunicados/${comunicadoId}/estatisticas`,
-                { headers: { Authorization: `Bearer ${token}` } },
-            );
-            const data = await response.json();
-            if (data.success) {
-                setEstatisticas(data.data);
-                setComunicadoSelecionado(
-                    comunicados.find((c) => c.id === comunicadoId),
-                );
-                setMostrarModal(true);
-            }
-        } catch (error) {
-            console.error("Erro ao obter estatísticas:", error);
-        }
-    };
+  try {
+    const empresaId = getEmpresaId();
+    const response = await fetch(
+      `https://backend.advir.pt/api/comunicados/${comunicadoId}/estatisticas?empresaId=${empresaId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await response.json();
+    if (data.success) {
+      setEstatisticas(data.data);
+      setComunicadoSelecionado(comunicados.find((c) => c.id === comunicadoId));
+      setMostrarModal(true);
+    }
+  } catch (error) {
+    console.error("Erro ao obter estatísticas:", error);
+  }
+};
+
 
     const desativarComunicado = async (id) => {
-        if (!confirm("Deseja realmente desativar este comunicado?")) return;
+  if (!confirm("Deseja realmente desativar este comunicado?")) return;
 
-        try {
-            const response = await fetch(
-                `https://backend.advir.pt/api/comunicados/${id}/desativar`,
-                {
-                    method: "PUT",
-                    headers: { Authorization: `Bearer ${token}` },
-                },
-            );
-            const data = await response.json();
-            if (data.success) {
-                alert("Comunicado desativado com sucesso!");
-                carregarComunicados();
-            }
-        } catch (error) {
-            console.error("Erro ao desativar comunicado:", error);
-        }
-    };
+  try {
+    const empresaId = getEmpresaId();
+    const response = await fetch(
+      `https://backend.advir.pt/api/comunicados/${id}/desativar?empresaId=${empresaId}`,
+      { method: "PUT", headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await response.json();
+    if (data.success) {
+      alert("Comunicado desativado com sucesso!");
+      carregarComunicados();
+    } else {
+      alert(data.error || "Erro ao desativar comunicado");
+    }
+  } catch (error) {
+    console.error("Erro ao desativar comunicado:", error);
+  }
+};
+
 
     const handleDestinatariosChange = (userId) => {
         setNovoComunicado((prev) => {

@@ -129,6 +129,8 @@ PlanoHorario.belongsTo(User, { foreignKey: 'user_id' });
 Horario.hasMany(PlanoHorario, { foreignKey: 'horario_id', as: 'planos' });
 PlanoHorario.belongsTo(Horario, { foreignKey: 'horario_id' });
 
+
+
 // Exportar os modelos para que as associações sejam aplicadas
 module.exports = {
     User,
