@@ -1101,7 +1101,7 @@ const CriarEquipa = () => {
                                                                 styles.memberEmail
                                                             }
                                                         >
-                                                            {user.email}
+                                                            
                                                         </Text>
                                                     </View>
                                                 </View>

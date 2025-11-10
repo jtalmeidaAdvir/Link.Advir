@@ -1122,78 +1122,91 @@ const GestaoPartesDiarias = () => {
         return null;
     };
 
-    const fetchObras = async () => {
-        try {
-            const logintoken = await secureStorage.getItem("loginToken");
-            const tipoUser = await secureStorage.getItem("tipoUser");
+  const fetchObras = async () => {
+  try {
+    const logintoken = await secureStorage.getItem("loginToken");
+    const tipoUser   = await secureStorage.getItem("tipoUser");
 
-            const res = await fetch("https://backend.advir.pt/api/obra", {
-                headers: {
-                    Authorization: `Bearer ${logintoken}`,
-                    "Content-Type": "application/json",
-                },
-            });
-            if (!res.ok) throw new Error("Falha ao obter obras");
-            const obras = await res.json();
-            const map = {};
+    // tenta várias chaves comuns para o id da empresa
+    const empresaIdStr =
+      (await secureStorage.getItem("empresa_id")) ??
+      (await secureStorage.getItem("empresaId")) ??
+      (await secureStorage.getItem("companyId")) ?? null;
 
-            // Se for administrador, adicionar todas as obras
-            if (tipoUser === "Administrador") {
-                const todasAsObras = new Set();
-                obras.forEach((obra) => {
-                    const key = String(obra.id || obra.ID);
-                    map[key] = { codigo: obra.codigo, descricao: obra.nome };
-                    todasAsObras.add(Number(key));
-                });
-                setObrasMap(map);
-                setObrasResponsavel(todasAsObras);
-                return;
-            }
+    const empresaId = empresaIdStr ? Number(empresaIdStr) : null;
 
-            // Obter o responsável atual do secureStorage (para não-administradores)
-            const codRecursosHumanos =
-                await secureStorage.getItem("codRecursosHumanos");
-            const obrasDoResponsavel = new Set();
+    const res = await fetch("https://backend.advir.pt/api/obra", {
+      headers: {
+        Authorization: `Bearer ${logintoken}`,
+        "Content-Type": "application/json",
+      },
+    });
+    if (!res.ok) throw new Error("Falha ao obter obras");
+    const obrasRaw = await res.json();
 
-            // Verificar responsáveis em paralelo (máximo 10 simultâneos)
-            const chunkSize = 10;
-            for (let i = 0; i < obras.length; i += chunkSize) {
-                const chunk = obras.slice(i, i + chunkSize);
-                const resultados = await Promise.all(
-                    chunk.map(async (obra) => {
-                        const key = String(obra.id || obra.ID);
-                        map[key] = {
-                            codigo: obra.codigo,
-                            descricao: obra.nome,
-                        };
+    // 1) Filtrar por empresa (quando soubermos qual é)
+    const obrasFiltradas = Array.isArray(obrasRaw)
+      ? obrasRaw.filter(o => {
+          if (!empresaId) return true; // fallback: sem empresa definida, não filtra
+          const oEmpresaId = Number(o.empresa_id ?? o.empresaId);
+          return !Number.isNaN(empresaId) && oEmpresaId === empresaId;
+        })
+      : [];
 
-                        if (codRecursosHumanos && obra.codigo) {
-                            const responsavel = await fetchResponsavelObra(
-                                obra.codigo,
-                            );
-                            return {
-                                key,
-                                isResponsavel:
-                                    responsavel === codRecursosHumanos,
-                            };
-                        }
-                        return { key, isResponsavel: false };
-                    }),
-                );
+    // 2) Ordenar por código (natural order: 1,2,10 em vez de 1,10,2)
+    obrasFiltradas.sort((a, b) =>
+      String(a.codigo ?? "").localeCompare(String(b.codigo ?? ""), undefined, {
+        numeric: true,
+        sensitivity: "base",
+      })
+    );
 
-                resultados.forEach(({ key, isResponsavel }) => {
-                    if (isResponsavel) {
-                        obrasDoResponsavel.add(Number(key));
-                    }
-                });
-            }
+    // 3) Construir o mapa já filtrado e ordenado
+    const map = {};
+    obrasFiltradas.forEach(obra => {
+      const key = String(obra.id ?? obra.ID);
+      map[key] = { codigo: obra.codigo, descricao: obra.nome };
+    });
 
-            setObrasMap(map);
-            setObrasResponsavel(obrasDoResponsavel);
-        } catch (err) {
-            console.warn("Erro obras:", err.message);
-        }
-    };
+    // Administrador → todas as obras (da empresa selecionada)
+    if (tipoUser === "Administrador") {
+      const todasAsObras = new Set(
+        obrasFiltradas.map(obra => Number(obra.id ?? obra.ID)).filter(n => !Number.isNaN(n))
+      );
+      setObrasMap(map);
+      setObrasResponsavel(todasAsObras);
+      return;
+    }
+
+    // Não-administrador → detetar responsabilidade (mantendo o filtro por empresa)
+    const codRecursosHumanos = await secureStorage.getItem("codRecursosHumanos");
+    const obrasDoResponsavel = new Set();
+
+    const chunkSize = 10;
+    for (let i = 0; i < obrasFiltradas.length; i += chunkSize) {
+      const chunk = obrasFiltradas.slice(i, i + chunkSize);
+      const resultados = await Promise.all(
+        chunk.map(async (obra) => {
+          const key = String(obra.id ?? obra.ID);
+          if (codRecursosHumanos && obra.codigo) {
+            const responsavel = await fetchResponsavelObra(obra.codigo);
+            return { key, isResponsavel: responsavel === codRecursosHumanos };
+          }
+          return { key, isResponsavel: false };
+        })
+      );
+      resultados.forEach(({ key, isResponsavel }) => {
+        if (isResponsavel) obrasDoResponsavel.add(Number(key));
+      });
+    }
+
+    setObrasMap(map);
+    setObrasResponsavel(obrasDoResponsavel);
+  } catch (err) {
+    console.warn("Erro obras:", err.message);
+  }
+};
+
 
     const fetchCabecalhos = async () => {
         try {
@@ -3330,24 +3343,25 @@ const GestaoPartesDiarias = () => {
                                     <View style={styles.editPickerContainer}>
                                         <Picker
                                             selectedValue={editItem.obraId}
-                                            onValueChange={(v) =>
-                                                setEditItem((s) => ({
-                                                    ...s,
-                                                    obraId: v,
-                                                }))
-                                            }
+                                            onValueChange={(v) => setEditItem((s) => ({ ...s, obraId: v }))}
                                             style={styles.editPicker}
-                                        >
-                                            {Object.entries(obrasMap).map(
-                                                ([id, meta]) => (
-                                                    <Picker.Item
-                                                        key={id}
-                                                        label={`${meta.codigo} — ${meta.descricao}`}
-                                                        value={Number(id)}
-                                                    />
-                                                ),
-                                            )}
-                                        </Picker>
+                                            >
+                                            {Object.entries(obrasMap)
+                                                .sort(([, a], [, b]) =>
+                                                String(a.codigo ?? "").localeCompare(String(b.codigo ?? ""), undefined, {
+                                                    numeric: true,
+                                                    sensitivity: "base",
+                                                })
+                                                )
+                                                .map(([id, meta]) => (
+                                                <Picker.Item
+                                                    key={id}
+                                                    label={`${meta.codigo} — ${meta.descricao}`}
+                                                    value={Number(id)}
+                                                />
+                                                ))}
+                                            </Picker>
+
                                     </View>
                                 </View>
 
