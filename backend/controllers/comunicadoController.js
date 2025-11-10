@@ -2,6 +2,7 @@ const Comunicado = require("../models/comunicado");
 const ComunicadoLeitura = require("../models/comunicadoLeitura");
 const User = require("../models/user");
 const UserEmpresa = require("../models/user_empresa");
+const { Op } = require("sequelize");
 
 function toDateOrNull(value) {
     if (!value) return null;
@@ -241,8 +242,16 @@ const obterEstatisticasLeitura = async (req, res) => {
             });
         }
 
+        // Buscar leituras com empresa_id ou NULL (para dados antigos)
         const leituras = await ComunicadoLeitura.findAll({
-            where: { comunicado_id, empresa_id: empresaId },
+            where: { 
+                comunicado_id,
+                [Op.or]: [
+                    { empresa_id: empresaId },
+                    { empresa_id: null },
+                    { empresa_id: 0 }
+                ]
+            },
         });
 
         const totalDestinatarios = leituras.length;
