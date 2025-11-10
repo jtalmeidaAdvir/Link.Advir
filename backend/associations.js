@@ -115,6 +115,11 @@ Obra.hasMany(POS, { foreignKey: 'obra_predefinida_id' });
 Empresa.hasMany(POS, { foreignKey: 'empresa_id' });
 
 // Associações de Comunicados
+// Relacionamentos de Comunicado com Empresa
+Comunicado.belongsTo(Empresa, { foreignKey: 'empresa_id' });
+Empresa.hasMany(Comunicado, { foreignKey: 'empresa_id' });
+
+// Relacionamentos de Comunicado e ComunicadoLeitura
 Comunicado.hasMany(ComunicadoLeitura, { foreignKey: 'comunicado_id' });
 ComunicadoLeitura.belongsTo(Comunicado, { foreignKey: 'comunicado_id' });
 

@@ -60,6 +60,10 @@ const Comunicado = sequelize.define(
             type: DataTypes.DATE,
             allowNull: true,
         },
+        empresa_id: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+        },
     },
     {
         tableName: "comunicados",

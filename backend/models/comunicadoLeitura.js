@@ -1,6 +1,7 @@
 
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/db");
+const Comunicado = require("./comunicado");
 
 const ComunicadoLeitura = sequelize.define(
     "ComunicadoLeitura",
@@ -13,6 +14,10 @@ const ComunicadoLeitura = sequelize.define(
         comunicado_id: {
             type: DataTypes.INTEGER,
             allowNull: false,
+            references: {
+                model: "comunicados",
+                key: "id",
+            },
         },
         usuario_id: {
             type: DataTypes.STRING,
@@ -20,6 +25,10 @@ const ComunicadoLeitura = sequelize.define(
         },
         usuario_nome: {
             type: DataTypes.STRING,
+            allowNull: false,
+        },
+        empresa_id: {
+            type: DataTypes.INTEGER,
             allowNull: false,
         },
         lido: {
@@ -32,9 +41,14 @@ const ComunicadoLeitura = sequelize.define(
         },
     },
     {
-        tableName: "comunicados_leitura",
+        tableName: "comunicado_leituras",
         timestamps: true,
     }
 );
+
+// Relacionamento
+ComunicadoLeitura.belongsTo(Comunicado, {
+    foreignKey: "comunicado_id",
+});
 
 module.exports = ComunicadoLeitura;
