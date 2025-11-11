@@ -82,9 +82,43 @@ exports.criar = async (req, res) => {
 
 exports.atualizar = async (req, res) => {
   const { id } = req.params;
-  const [updated] = await ParteDiariaCabecalho.update(req.body, { where: { DocumentoID: id } });
-  if (!updated) return res.status(404).json({ erro: 'Não encontrado' });
-  res.sendStatus(204);
+  
+  try {
+    const cab = await ParteDiariaCabecalho.findByPk(id);
+    if (!cab) return res.status(404).json({ erro: 'Cabeçalho não encontrado' });
+
+    // Permitir atualização de campos específicos
+    const camposPermitidos = ['ObraID', 'Data', 'Notas', 'CriadoPor', 'Utilizador', 'TipoEntidade', 'ColaboradorID'];
+    const updates = {};
+    
+    camposPermitidos.forEach(campo => {
+      if (req.body[campo] !== undefined) {
+        updates[campo] = req.body[campo];
+      }
+    });
+
+    // Garantir que Data está no formato correto
+    if (updates.Data) {
+      updates.Data = new Date(updates.Data).toISOString().split('T')[0];
+    }
+
+    // Garantir que ObraID é número
+    if (updates.ObraID) {
+      updates.ObraID = Number(updates.ObraID);
+    }
+
+    await cab.update(updates);
+    
+    // Retornar o cabeçalho atualizado
+    const cabecalhoAtualizado = await ParteDiariaCabecalho.findByPk(id, { 
+      include: require('../models/parteDiariaItem')
+    });
+    
+    res.json(cabecalhoAtualizado);
+  } catch (err) {
+    console.error('Erro ao atualizar cabeçalho:', err);
+    res.status(500).json({ erro: 'Erro ao atualizar cabeçalho', detalhe: err.message });
+  }
 };
 
 

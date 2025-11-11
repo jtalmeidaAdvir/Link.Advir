@@ -670,7 +670,7 @@ const GestaoPartesDiarias = () => {
             // Campos obrigatórios no create (e inofensivos no update)
             const obrigatorios = {
                 Funcionario: prev.Funcionario ?? "",
-                ClasseID: editItem.classeID ?? prev.ClasseID ?? -1, // Usar valor do editItem, ou anterior
+                ClasseID: editItem.classeID ?? prev.ClasseID ?? -1,
                 PrecoUnit: prev.PrecoUnit ?? 0,
                 TipoEntidade: prev.TipoEntidade ?? "O",
                 ColaboradorID: prev.ColaboradorID ?? null,
@@ -696,13 +696,10 @@ const GestaoPartesDiarias = () => {
             let method = "PUT";
 
             if (editItem.id) {
-                // Atualizar por PK
                 url = `https://backend.advir.pt/api/parte-diaria/itens/${encodeURIComponent(editItem.id)}`;
             } else if (prev?.Numero != null) {
-                // Fallback: atualizar por DocumentoID + Número (linha) — precisa da rota no backend
                 url = `https://backend.advir.pt/api/parte-diaria/itens/doc/${encodeURIComponent(editItem.documentoID)}/linha/${Number(prev.Numero)}`;
             } else {
-                // Último recurso: criar
                 method = "POST";
                 payload.Numero =
                     prev?._idx != null
@@ -711,8 +708,7 @@ const GestaoPartesDiarias = () => {
                 url = `https://backend.advir.pt/api/parte-diaria/itens`;
             }
 
-            console.log("URL UPDATE:", method, url);
-            console.log("ID usado:", editItem.id);
+            console.log("URL UPDATE ITEM:", method, url);
 
             const resp = await fetch(url, {
                 method,
@@ -735,11 +731,54 @@ const GestaoPartesDiarias = () => {
                 const msg =
                     saved?.erro ||
                     saved?.message ||
-                    `Falha ao guardar (HTTP ${resp.status})`;
+                    `Falha ao guardar item (HTTP ${resp.status})`;
                 throw new Error(msg);
             }
 
-            // Construir item atualizado (prioriza o que veio do servidor)
+            // Verificar se ObraID ou Data mudaram no cabeçalho
+            const cabOriginal = selectedCabecalho;
+            const obraChanged = cabOriginal && Number(cabOriginal.ObraID) !== Number(editItem.obraId);
+            const dataChanged = cabOriginal && cabOriginal.Data.split('T')[0] !== editItem.dataISO;
+
+            let cabecalhoAtualizado = null;
+
+            if (obraChanged || dataChanged) {
+                console.log("🔄 Atualizando cabeçalho: obra ou data alterada");
+                console.log("📊 Valores anteriores:", { ObraID: cabOriginal.ObraID, Data: cabOriginal.Data });
+                console.log("📊 Novos valores:", { ObraID: editItem.obraId, Data: editItem.dataISO });
+                
+                const cabPayload = {
+                    ObraID: Number(editItem.obraId),
+                    Data: editItem.dataISO,
+                };
+
+                const cabResp = await fetch(
+                    `https://backend.advir.pt/api/parte-diaria/cabecalhos/${encodeURIComponent(editItem.documentoID)}`,
+                    {
+                        method: "PUT",
+                        headers: {
+                            Authorization: `Bearer ${loginToken}`,
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify(cabPayload),
+                    }
+                );
+
+                if (!cabResp.ok) {
+                    const errorText = await cabResp.text();
+                    console.error("❌ Falha ao atualizar cabeçalho:", errorText);
+                    Alert.alert("Aviso", "Item atualizado, mas houve erro ao atualizar o cabeçalho.");
+                } else {
+                    try {
+                        cabecalhoAtualizado = await cabResp.json();
+                        console.log("✅ Cabeçalho atualizado com sucesso:", cabecalhoAtualizado);
+                    } catch (e) {
+                        console.log("✅ Cabeçalho atualizado (sem resposta JSON)");
+                    }
+                }
+            }
+
+            // Construir item atualizado
             const itemAtualizado = {
                 ...itemEmEdicao,
                 ...(saved || {}),
@@ -751,14 +790,13 @@ const GestaoPartesDiarias = () => {
                 NumHoras: saved?.NumHoras ?? payload.NumHoras,
                 TipoHoraID: saved?.TipoHoraID ?? payload.TipoHoraID,
                 Funcionario: saved?.Funcionario ?? payload.Funcionario,
-                ClasseID: saved?.ClasseID ?? payload.ClasseID, // Atualiza ClasseID
+                ClasseID: saved?.ClasseID ?? payload.ClasseID,
                 PrecoUnit: saved?.PrecoUnit ?? payload.PrecoUnit,
                 TipoEntidade: saved?.TipoEntidade ?? payload.TipoEntidade,
                 ColaboradorID: saved?.ColaboradorID ?? payload.ColaboradorID,
                 Numero: saved?.Numero ?? prev.Numero ?? payload.Numero,
             };
 
-            // Obter id devolvido pelo servidor (em caso de criação)
             const newId = String(
                 saved?.ComponenteID ?? saved?.id ?? saved?.ID ?? "",
             ).trim();
@@ -788,7 +826,18 @@ const GestaoPartesDiarias = () => {
                     return i;
                 });
                 const lista = encontrou ? novos : [...novos, itemAtualizado];
-                return { ...prevCab, ParteDiariaItems: lista };
+                
+                // Se temos cabeçalho atualizado do servidor, usar esses dados
+                if (cabecalhoAtualizado) {
+                    return { ...cabecalhoAtualizado, ParteDiariaItems: lista };
+                }
+                
+                // Senão, atualizar manualmente os campos do cabeçalho se mudaram
+                const cabAtualizado = { ...prevCab, ParteDiariaItems: lista };
+                if (obraChanged) cabAtualizado.ObraID = Number(editItem.obraId);
+                if (dataChanged) cabAtualizado.Data = editItem.dataISO;
+                
+                return cabAtualizado;
             });
 
             // Atualiza lista total de cabeçalhos
@@ -811,20 +860,29 @@ const GestaoPartesDiarias = () => {
                     const lista = encontrou
                         ? novos
                         : [...novos, itemAtualizado];
-                    return { ...c, ParteDiariaItems: lista };
+                    
+                    // Se temos cabeçalho atualizado do servidor, usar esses dados
+                    if (cabecalhoAtualizado) {
+                        return { ...cabecalhoAtualizado, ParteDiariaItems: lista };
+                    }
+                    
+                    // Senão, atualizar manualmente os campos do cabeçalho se mudaram
+                    const cabAtualizado = { ...c, ParteDiariaItems: lista };
+                    if (obraChanged) cabAtualizado.ObraID = Number(editItem.obraId);
+                    if (dataChanged) cabAtualizado.Data = editItem.dataISO;
+                    
+                    return cabAtualizado;
                 }),
             );
 
-            // Fecha modal e limpa estado
             setEditItemModalVisible(false);
             setItemEmEdicao(null);
 
-            // Se criou, guarda o id novo no estado de edição (se quiseres)
             if (!editItem.id && newId) {
                 setEditItem((s) => ({ ...s, id: newId }));
             }
 
-            Alert.alert("Sucesso", "Item atualizado.");
+            Alert.alert("Sucesso", "Item e cabeçalho atualizados.");
         } catch (e) {
             console.error("Erro a guardar item:", e);
             Alert.alert("Erro", e.message || "Não foi possível guardar.");
