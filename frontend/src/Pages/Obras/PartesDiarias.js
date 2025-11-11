@@ -224,16 +224,32 @@ const adicionarLinhaPessoalEquip = async () => {
     return;
   }
 
-  // validar 8h normais/dia no buffer local (por colaborador/dia)
+  // Validar 8h normais por obra no mesmo dia
   if (!linhaPessoalEquipAtual.horaExtra) {
-    const outrasHorasNormaisDia = linhasPessoalEquip
-      .filter(l => l.dia === dia && l.colaboradorId === colaboradorId && !l.horaExtra)
+    const horasNaObraDia = linhasPessoalEquip
+      .filter(l => l.dia === dia && 
+                   l.colaboradorId === colaboradorId && 
+                   String(l.obraId) === String(obraId) &&
+                   !l.horaExtra)
       .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
 
-    if (outrasHorasNormaisDia + minutos > 8 * 60) {
+    if (horasNaObraDia + minutos > 8 * 60) {
       Alert.alert(
         "Limite de Horas Excedido",
-        `Não é possível registar mais de 8 horas normais por dia para este colaborador.\n\nJá registadas: ${formatarHorasMinutos(outrasHorasNormaisDia)}\n\nPara mais horas, marque como "Hora Extra".`
+        `Não é possível registar mais de 8 horas normais por dia nesta obra.\n\nJá registadas nesta obra: ${formatarHorasMinutos(horasNaObraDia)}\n\nPara mais horas, marque como "Hora Extra".`
+      );
+      return;
+    }
+
+    // Validar 10h totais por dia (todas as obras)
+    const totalHorasDia = linhasPessoalEquip
+      .filter(l => l.dia === dia && l.colaboradorId === colaboradorId)
+      .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
+
+    if (totalHorasDia + minutos > 10 * 60) {
+      Alert.alert(
+        "Limite de Horas Diário Excedido",
+        `Não é possível registar mais de 10 horas totais por dia.\n\nHoras totais já registadas no dia ${dia} (todas as obras): ${formatarHorasMinutos(totalHorasDia)}\n\nPara mais horas, marque como "Hora Extra".`
       );
       return;
     }
@@ -777,21 +793,7 @@ const submeterPessoalEquip = async () => {
             return;
         }
 
-        // ✅ VALIDAÇÃO: Verificar se já existe registo para este trabalhador/dia/obra
-        const jaExiste = linhasExternos.some(
-            (l) => String(l.trabalhadorId) === String(trabalhadorId) &&
-                   l.dia === dia &&
-                   String(l.obraId) === String(obraId)
-        );
-
-        if (jaExiste) {
-            Alert.alert(
-                "Registo Duplicado",
-                `Já existe um registo para ${trab.funcionario} no dia ${dia} nesta obra.\n\nPor favor, escolha outro dia ou edite o registo existente.`,
-                [{ text: "OK" }]
-            );
-            return;
-        }
+     
 
         const minutos = parseHorasToMinutos(horas);
         if (minutos <= 0) {
@@ -799,20 +801,20 @@ const submeterPessoalEquip = async () => {
             return;
         }
 
-        // Validação de horas: 8h normais por dia (por trabalhador)
+        // Validação de horas: 
+        // - Máximo 10h normais por dia (todas as obras)
         if (!linhaAtual.horaExtra) {
-            const outrasHorasNormaisDia = linhasExternos
+            // Validar 10h totais por dia (todas as obras)
+            const totalHorasDia = linhasExternos
                 .filter((l) => String(l.trabalhadorId) === String(trabalhadorId) &&
                               l.dia === dia &&
                               !l.horaExtra)
                 .reduce((total, l) => total + parseHorasToMinutos(l.horas), 0);
 
-            const totalHorasNormais = outrasHorasNormaisDia + minutos;
-
-            if (totalHorasNormais > 8 * 60) {
+            if (totalHorasDia + minutos > 10 * 60) {
                 Alert.alert(
-                    "Limite de Horas Excedido",
-                    `Não é possível registar mais de 8 horas normais por dia para ${trab.funcionario}.\n\nHoras normais já registadas neste dia: ${formatarHorasMinutos(outrasHorasNormaisDia)}\n\nPara mais horas, marque como "Hora Extra".`,
+                    "Limite de Horas Diário Excedido",
+                    `Não é possível registar mais de 10 horas normais por dia para ${trab.funcionario}.\n\nHoras normais já registadas no dia ${dia} (todas as obras): ${formatarHorasMinutos(totalHorasDia)}\n\nPara mais horas, marque como "Hora Extra".`,
                     [{ text: "OK" }],
                 );
                 return;
@@ -4052,47 +4054,6 @@ for (const l of linhasParaSubmeter) {
                                                 novo.delete('horas');
                                                 return novo;
                                             });
-                                            const { trabalhadorId, dia, obraId } = linhaAtual;
-                                            if (!trabalhadorId || !dia || !obraId) {
-                                                Alert.alert(
-                                                    "Validação",
-                                                    "Preencha primeiro Obra, Dia e Trabalhador.",
-                                                );
-                                                return;
-                                            }
-
-                                            const minutos = parseHorasToMinutos(v);
-                                            if (minutos <= 0 && v !== "") {
-                                                Alert.alert(
-                                                    "Validação",
-                                                    "Formato de horas inválido. Use H:MM ou H.MM (ex: 2:30 ou 2.5)",
-                                                );
-                                                return;
-                                            }
-
-                                            // Validação de horas: 8h normais por dia
-                                            if (!linhaAtual.horaExtra) {
-                                                const outrasHorasNormaisDia = linhasExternos
-                                                    .filter((l) => l.dia === dia && !l.horaExtra)
-                                                    .reduce(
-                                                        (total, l) => total + parseHorasToMinutos(l.horas),
-                                                        0,
-                                                    );
-
-                                                const totalHorasNormais =
-                                                    outrasHorasNormaisDia + minutos;
-
-                                                if (totalHorasNormais > 8 * 60) {
-                                                    // 8 horas em minutos
-                                                    Alert.alert(
-                                                        "Limite de Horas Excedido",
-                                                        `Não é possível registar mais de 8 horas normais por dia.\n\nHoras normais já registadas neste dia: ${formatarHorasMinutos(outrasHorasNormaisDia)}\n\nPara mais horas, marque como "Hora Extra".`,
-                                                        [{ text: "OK" }],
-                                                    );
-                                                    return;
-                                                }
-                                            }
-
                                             setLinhaAtual((p) => ({ ...p, horas: v }));
                                         }}
                                         placeholder="0:00"
