@@ -51,6 +51,7 @@ const RegistoPontoObra = (props) => {
     // Estado para equipas e membros
     const [minhasEquipas, setMinhasEquipas] = useState([]);
     const [membrosSelecionados, setMembrosSelecionados] = useState([]);
+    const [horasEquipa, setHorasEquipa] = useState({});
 
     const [mostrarManual, setMostrarManual] = useState(false);
     const [mostrarEquipa, setMostrarEquipa] = useState(false);
@@ -693,39 +694,163 @@ const longitude = loc?.coords?.longitude ?? null;
     setLoading(true);
     const token = secureStorage.getItem("loginToken");
     const loc = await getCurrentLocation();
-
     const latitude = loc?.coords?.latitude ?? null;
     const longitude = loc?.coords?.longitude ?? null;
 
-    const res = await fetch(
-      "https://backend.advir.pt/api/registo-ponto-obra/registar-ponto-equipa",
+    const hoje = new Date().toISOString().split('T')[0];
+    const erros = [];
+    const sucessos = [];
+
+    // Separar membros com e sem hora definida
+    const membrosComHora = membrosSelecionados.filter(id => horasEquipa[id]);
+    const membrosSemHora = membrosSelecionados.filter(id => !horasEquipa[id]);
+
+    // Registar ponto esquecido para membros com hora definida
+    for (const userId of membrosComHora) {
+      const horaDefinida = horasEquipa[userId];
+      const timestamp = new Date(`${hoje}T${horaDefinida}:00`);
+
+      try {
+        const res = await fetch(
+          "https://backend.advir.pt/api/registo-ponto-obra/registar-esquecido-por-outro",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              obra_id: obraSelecionada,
+              tipo,
+              timestamp: timestamp.toISOString(),
+              justificacao: `Registo de equipa - ${tipo} às ${horaDefinida}`,
+              skipValidation: true
+            }),
+          },
+        );
+
+        if (res.ok) {
+          const membro = minhasEquipas.flatMap(eq => eq.membros).find(m => m.id === userId);
+          sucessos.push(membro?.nome || `Membro ${userId}`);
+        } else {
+          const data = await res.json();
+          const membro = minhasEquipas.flatMap(eq => eq.membros).find(m => m.id === userId);
+          erros.push(`${membro?.nome || `Membro ${userId}`}: ${data.message || 'Erro desconhecido'}`);
+        }
+      } catch (err) {
+        const membro = minhasEquipas.flatMap(eq => eq.membros).find(m => m.id === userId);
+        erros.push(`${membro?.nome || `Membro ${userId}`}: Erro de comunicação`);
+      }
+    }
+
+    // Registar ponto em tempo real para membros sem hora definida
+    if (membrosSemHora.length > 0) {
+      try {
+        const res = await fetch(
+          "https://backend.advir.pt/api/registo-ponto-obra/registar-ponto-equipa",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              tipo,
+              obra_id: obraSelecionada,
+              latitude,
+              longitude,
+              membros: membrosSemHora,
+            }),
+          },
+        );
+
+        if (res.ok) {
+          membrosSemHora.forEach(userId => {
+            const membro = minhasEquipas.flatMap(eq => eq.membros).find(m => m.id === userId);
+            sucessos.push(membro?.nome || `Membro ${userId}`);
+          });
+        } else {
+          const data = await res.json();
+          if (data.erros && Array.isArray(data.erros)) {
+            erros.push(...data.erros);
+          } else {
+            membrosSemHora.forEach(userId => {
+              const membro = minhasEquipas.flatMap(eq => eq.membros).find(m => m.id === userId);
+              erros.push(`${membro?.nome || `Membro ${userId}`}: ${data.message || 'Erro desconhecido'}`);
+            });
+          }
+        }
+      } catch (err) {
+        membrosSemHora.forEach(userId => {
+          const membro = minhasEquipas.flatMap(eq => eq.membros).find(m => m.id === userId);
+          erros.push(`${membro?.nome || `Membro ${userId}`}: Erro de comunicação`);
+        });
+      }
+    }
+
+    // Mostrar resultado
+    let mensagem = '';
+    if (sucessos.length > 0) {
+      mensagem += `✅ Registos criados com sucesso:\n${sucessos.join(', ')}\n\n`;
+    }
+    if (erros.length > 0) {
+      mensagem += `⚠️ Erros:\n${erros.join('\n')}`;
+    }
+    
+    alert(mensagem || 'Nenhum registo foi efetuado.');
+
+    // Recarregar registos
+    const resRegistos = await fetch(
+      `https://backend.advir.pt/api/registo-ponto-obra/listar-dia?data=${hoje}`,
       {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          tipo,
-          obra_id: obraSelecionada,
-          latitude,
-          longitude,
-          membros: membrosSelecionados,
-        }),
+        headers: { Authorization: `Bearer ${token}` },
       },
     );
 
-    const data = await res.json();
+    if (resRegistos.ok) {
+      const dados = await resRegistos.json();
+      const registosIniciais = dados.map((r) => ({
+        ...r,
+        morada: "A carregar localização...",
+      }));
+      setRegistos(registosIniciais);
 
-    if (res.ok) {
-      alert(`Ponto "${tipo}" registado para ${membrosSelecionados.length} membro(s).`);
-    } else if (res.status === 400 && data?.erros?.length > 0) {
-      // Mostra erros detalhados vindos do backend
-      alert(`⚠️ Alguns registos não foram efetuados:\n\n${data.erros.join("\n")}`);
-    } else {
-      // Erro genérico
-      alert("Erro ao registar ponto para equipa.");
+      dados.forEach(async (r) => {
+        const morada = await obterMoradaPorCoordenadas(
+          r.latitude,
+          r.longitude,
+        );
+        setRegistos((prev) =>
+          prev.map((item) =>
+            item.id === r.id ? { ...item, morada } : item,
+          ),
+        );
+      });
     }
+
+    // Recarregar registos da equipa para atualizar estados
+    const todosMembros = minhasEquipas.flatMap((eq) =>
+      eq.membros.map((m) => m.id),
+    );
+    if (todosMembros.length > 0) {
+      const ids = todosMembros.join(",");
+      const resEquipa = await fetch(
+        `https://backend.advir.pt/api/registo-ponto-obra/listar-dia-equipa?membros=${ids}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      if (resEquipa.ok) {
+        const dataEquipa = await resEquipa.json();
+        setRegistosEquipa(dataEquipa);
+      }
+    }
+
+    // Limpar seleções
+    setMembrosSelecionados([]);
+    setHorasEquipa({});
 
   } catch (err) {
     console.error("Erro registo equipa:", err);
@@ -1216,60 +1341,79 @@ const longitude = loc?.coords?.longitude ?? null;
                                                                                                 key={
                                                                                                     m.id
                                                                                                 }
-                                                                                                className="form-check d-flex justify-content-between align-items-center border-bottom py-2 ps-3"
+                                                                                                className="border-bottom py-2"
                                                                                             >
-                                                                                                <div>
-                                                                                                    <input
-                                                                                                        className="form-check-input me-2"
-                                                                                                        type="checkbox"
-                                                                                                        id={`membro-${m.id}`}
-                                                                                                        value={
-                                                                                                            m.id
-                                                                                                        }
-                                                                                                        checked={
-                                                                                                            checked
-                                                                                                        }
-                                                                                                        onChange={(
-                                                                                                            e,
-                                                                                                        ) => {
-                                                                                                            const isChecked =
-                                                                                                                e
-                                                                                                                    .target
-                                                                                                                    .checked;
-                                                                                                            setMembrosSelecionados(
-                                                                                                                (
-                                                                                                                    prev,
-                                                                                                                ) =>
-                                                                                                                    isChecked
-                                                                                                                        ? [
-                                                                                                                              ...prev,
-                                                                                                                              m.id,
-                                                                                                                          ]
-                                                                                                                        : prev.filter(
-                                                                                                                              (
-                                                                                                                                  id,
-                                                                                                                              ) =>
-                                                                                                                                  id !==
+                                                                                                <div className="d-flex justify-content-between align-items-center mb-2 ps-3">
+                                                                                                    <div>
+                                                                                                        <input
+                                                                                                            className="form-check-input me-2"
+                                                                                                            type="checkbox"
+                                                                                                            id={`membro-${m.id}`}
+                                                                                                            value={
+                                                                                                                m.id
+                                                                                                            }
+                                                                                                            checked={
+                                                                                                                checked
+                                                                                                            }
+                                                                                                            onChange={(
+                                                                                                                e,
+                                                                                                            ) => {
+                                                                                                                const isChecked =
+                                                                                                                    e
+                                                                                                                        .target
+                                                                                                                        .checked;
+                                                                                                                setMembrosSelecionados(
+                                                                                                                    (
+                                                                                                                        prev,
+                                                                                                                    ) =>
+                                                                                                                        isChecked
+                                                                                                                            ? [
+                                                                                                                                  ...prev,
                                                                                                                                   m.id,
-                                                                                                                          ),
-                                                                                                            );
-                                                                                                        }}
-                                                                                                    />
-                                                                                                    <label
-                                                                                                        className="form-check-label"
-                                                                                                        htmlFor={`membro-${m.id}`}
+                                                                                                                              ]
+                                                                                                                            : prev.filter(
+                                                                                                                                  (
+                                                                                                                                      id,
+                                                                                                                                  ) =>
+                                                                                                                                      id !==
+                                                                                                                                      m.id,
+                                                                                                                              ),
+                                                                                                                );
+                                                                                                            }}
+                                                                                                        />
+                                                                                                        <label
+                                                                                                            className="form-check-label"
+                                                                                                            htmlFor={`membro-${m.id}`}
+                                                                                                        >
+                                                                                                            {m.nome ||
+                                                                                                                `Membro ${m.id}`}
+                                                                                                        </label>
+                                                                                                    </div>
+                                                                                                    <span
+                                                                                                        className={`fw-semibold ${corEstado} me-2`}
                                                                                                     >
-                                                                                                        {m.nome ||
-                                                                                                            `Membro ${m.id}`}
-                                                                                                    </label>
+                                                                                                        {
+                                                                                                            estado
+                                                                                                        }
+                                                                                                    </span>
                                                                                                 </div>
-                                                                                                <span
-                                                                                                    className={`fw-semibold ${corEstado} me-2`}
-                                                                                                >
-                                                                                                    {
-                                                                                                        estado
-                                                                                                    }
-                                                                                                </span>
+                                                                                                {checked && (
+                                                                                                    <div className="ps-5 pe-3">
+                                                                                                        <input
+                                                                                                            type="time"
+                                                                                                            className="form-control form-control-sm"
+                                                                                                            value={horasEquipa[m.id] || ''}
+                                                                                                            onChange={(e) => {
+                                                                                                                setHorasEquipa(prev => ({
+                                                                                                                    ...prev,
+                                                                                                                    [m.id]: e.target.value
+                                                                                                                }));
+                                                                                                            }}
+                                                                                                            placeholder="HH:MM"
+                                                                                                        />
+                                                                                                        <small className="text-muted">Hora do registo (opcional - se vazio usa hora atual)</small>
+                                                                                                    </div>
+                                                                                                )}
                                                                                             </div>
                                                                                         );
                                                                                     },
@@ -1279,29 +1423,6 @@ const longitude = loc?.coords?.longitude ?? null;
                                                                     },
                                                                 )
                                                             )}
-                                                        </div>
-
-                                                        {/* Botão Scanner QR para Equipa */}
-                                                        <div className="mb-3">
-                                                            <button
-                                                                className="btn btn-primary btn-action w-100"
-                                                                onClick={() => {
-                                                                    if (!obraSelecionada || membrosSelecionados.length === 0) {
-                                                                        alert("Selecione um local e pelo menos um membro da equipa");
-                                                                        return;
-                                                                    }
-                                                                    setScannerVisible(true);
-                                                                }}
-                                                                disabled={
-                                                                    !obraSelecionada ||
-                                                                    membrosSelecionados.length === 0 ||
-                                                                    loading ||
-                                                                    isProcessing
-                                                                }
-                                                            >
-                                                                <FaQrcode className="me-2" />
-                                                                Scanner QR - Registar Equipa
-                                                            </button>
                                                         </div>
 
                                                         {/* Botões Entrada/Saída */}
@@ -1345,6 +1466,9 @@ const longitude = loc?.coords?.longitude ?? null;
                                                                 </button>
                                                             </div>
                                                         </div>
+                                                        <small className="text-muted d-block mt-2">
+                                                            Membros com hora definida: registo como ponto esquecido | Membros sem hora: registo em tempo real
+                                                        </small>
                                                     </div>
                                                 )}
                                             </div>
