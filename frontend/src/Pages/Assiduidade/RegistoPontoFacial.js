@@ -1396,7 +1396,7 @@ const RegistoPontoFacial = (props) => {
           animation: modalAppear 0.3s ease-out;
         }
         .result-modal-header {
-          padding: 2rem 2rem 1rem;
+          padding: 5rem 2rem 1rem;
           text-align: center;
           background: linear-gradient(135deg, #f8f9fa, #e9ecef);
         }
@@ -1461,6 +1461,19 @@ const RegistoPontoFacial = (props) => {
             transform: scale(0.9) translateY(-20px);
           }
         }
+        .detalhes-modal {
+          max-width: 800px;
+          width: 90%;
+          max-height: 90vh;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        .detalhes-modal-body {
+          padding: 2rem 2rem 2rem;
+          overflow-y: auto;
+          flex: 1;
+        }
         @media (max-width: 767px) {
           .container-fluid {
             padding-left: 0.75rem;
@@ -1474,6 +1487,60 @@ const RegistoPontoFacial = (props) => {
           .result-modal-body {
             padding: 1.5rem 1rem;
           }
+          .detalhes-modal {
+            width: 95%;
+            max-width: 95%;
+            margin: 0.5rem;
+            max-height: 95vh;
+          }
+          .detalhes-modal-body {
+            padding: 1.5rem 1rem 1rem;
+          }
+          .detalhes-modal .row {
+            margin: 0;
+          }
+          .detalhes-modal .col-4,
+          .detalhes-modal .col-6 {
+            padding-left: 0.25rem;
+            padding-right: 0.25rem;
+          }
+          .detalhes-modal .modal-title {
+            font-size: 1.1rem;
+          }
+          .detalhes-modal .modal-subtitle {
+            font-size: 0.85rem;
+          }
+        }
+        @media (max-width: 576px) {
+          .detalhes-modal .row.mb-3.g-2,
+          .detalhes-modal .row.mb-4.g-2 {
+            flex-direction: column;
+          }
+          .detalhes-modal .col-4 {
+            width: 100%;
+            margin-bottom: 0.5rem;
+          }
+          .detalhes-modal .row.mb-3 .col-6,
+          .detalhes-modal .row.mb-4 .col-6 {
+            width: 100%;
+            margin-bottom: 0.5rem;
+          }
+          .detalhes-modal .registro-item {
+            padding: 0.75rem;
+          }
+          .detalhes-modal .registro-item strong {
+            font-size: 0.9rem;
+          }
+          .detalhes-modal .registro-item small {
+            font-size: 0.75rem;
+          }
+        }
+        .form-select:focus {
+          border-color: #1792fe !important;
+          box-shadow: 0 0 0 0.2rem rgba(23, 146, 254, 0.25) !important;
+        }
+        .form-select:hover {
+          border-color: #1792fe !important;
         }
       `}</style>
 
@@ -2069,124 +2136,147 @@ const RegistoPontoFacial = (props) => {
           onClick={() => setShowDetalhesModal(false)}
         >
           <div
-            className="result-modal"
+            className="result-modal detalhes-modal"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "800px", maxHeight: "90vh", overflow: "hidden" }}
           >
             <div className="result-modal-header">
               <h3 className="modal-title">Detalhes do Pessoal</h3>
-              <p className="modal-subtitle">
+              <p className="modal-subtitle" style={{ fontSize: "0.95rem", marginBottom: "0.5rem" }}>
                 {obras.find((o) => String(o.id) === String(obraSelecionada))?.nome}
               </p>
             </div>
-            <div className="result-modal-body" style={{ padding: "1rem 2rem 2rem" }}>
-              {/* Totalizadores */}
+            <div className="result-modal-body detalhes-modal-body">
+              {/* Totalizadores Principais */}
               <div className="row mb-3 g-2">
                 <div className="col-4">
-                  <div className="p-2 text-center" style={{ 
+                  <div className="p-3 text-center" style={{ 
                     background: "linear-gradient(135deg, #28a745, #20c997)", 
-                    borderRadius: "8px", 
-                    color: "white" 
+                    borderRadius: "12px", 
+                    color: "white",
+                    boxShadow: "0 4px 12px rgba(40, 167, 69, 0.3)"
                   }}>
-                    <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
+                    <div style={{ fontSize: "2rem", fontWeight: "bold", marginBottom: "0.25rem" }}>
                       {getTotalizadores().aTrabalhador}
                     </div>
-                    <small style={{ fontSize: "0.75rem" }}>A Trabalhar</small>
+                    <small style={{ fontSize: "0.8rem", opacity: 0.9 }}>A Trabalhar</small>
                   </div>
                 </div>
                 <div className="col-4">
-                  <div className="p-2 text-center" style={{ 
+                  <div className="p-3 text-center" style={{ 
                     background: "linear-gradient(135deg, #dc3545, #e63946)", 
-                    borderRadius: "8px", 
-                    color: "white" 
+                    borderRadius: "12px", 
+                    color: "white",
+                    boxShadow: "0 4px 12px rgba(220, 53, 69, 0.3)"
                   }}>
-                    <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
+                    <div style={{ fontSize: "2rem", fontWeight: "bold", marginBottom: "0.25rem" }}>
                       {getTotalizadores().saiu}
                     </div>
-                    <small style={{ fontSize: "0.75rem" }}>Saíram</small>
+                    <small style={{ fontSize: "0.8rem", opacity: 0.9 }}>Saíram</small>
                   </div>
                 </div>
                 <div className="col-4">
-                  <div className="p-2 text-center" style={{ 
+                  <div className="p-3 text-center" style={{ 
                     background: "linear-gradient(135deg, #1792fe, #0d7efe)", 
-                    borderRadius: "8px", 
-                    color: "white" 
+                    borderRadius: "12px", 
+                    color: "white",
+                    boxShadow: "0 4px 12px rgba(23, 146, 254, 0.3)"
                   }}>
-                    <div style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
+                    <div style={{ fontSize: "2rem", fontWeight: "bold", marginBottom: "0.25rem" }}>
                       {getTotalizadores().total}
                     </div>
-                    <small style={{ fontSize: "0.75rem" }}>Total Registos</small>
+                    <small style={{ fontSize: "0.8rem", opacity: 0.9 }}>Total Registos</small>
                   </div>
                 </div>
               </div>
 
               {/* Totalizadores por Tipo */}
-              <div className="row mb-3 g-2">
+              <div className="row mb-4 g-2">
                 <div className="col-4">
                   <div className="p-2 text-center" style={{ 
                     background: "rgba(23, 146, 254, 0.1)", 
-                    border: "1px solid #1792fe",
-                    borderRadius: "8px" 
+                    border: "2px solid #1792fe",
+                    borderRadius: "10px",
+                    transition: "all 0.3s ease"
                   }}>
-                    <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#1792fe" }}>
+                    <div style={{ fontSize: "1.4rem", fontWeight: "bold", color: "#1792fe", marginBottom: "0.25rem" }}>
                       {getTotalizadores().colaboradores}
                     </div>
-                    <small style={{ fontSize: "0.7rem", color: "#666" }}>Colaboradores</small>
+                    <small style={{ fontSize: "0.75rem", color: "#1792fe", fontWeight: "600" }}>Colaboradores</small>
                   </div>
                 </div>
                 <div className="col-4">
                   <div className="p-2 text-center" style={{ 
                     background: "rgba(23, 162, 184, 0.1)", 
-                    border: "1px solid #17a2b8",
-                    borderRadius: "8px" 
+                    border: "2px solid #17a2b8",
+                    borderRadius: "10px",
+                    transition: "all 0.3s ease"
                   }}>
-                    <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#17a2b8" }}>
+                    <div style={{ fontSize: "1.4rem", fontWeight: "bold", color: "#17a2b8", marginBottom: "0.25rem" }}>
                       {getTotalizadores().visitantes}
                     </div>
-                    <small style={{ fontSize: "0.7rem", color: "#666" }}>Visitantes</small>
+                    <small style={{ fontSize: "0.75rem", color: "#17a2b8", fontWeight: "600" }}>Visitantes</small>
                   </div>
                 </div>
                 <div className="col-4">
                   <div className="p-2 text-center" style={{ 
                     background: "rgba(255, 193, 7, 0.1)", 
-                    border: "1px solid #ffc107",
-                    borderRadius: "8px" 
+                    border: "2px solid #ffc107",
+                    borderRadius: "10px",
+                    transition: "all 0.3s ease"
                   }}>
-                    <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#ffc107" }}>
+                    <div style={{ fontSize: "1.4rem", fontWeight: "bold", color: "#f59c00", marginBottom: "0.25rem" }}>
                       {getTotalizadores().externos}
                     </div>
-                    <small style={{ fontSize: "0.7rem", color: "#666" }}>Externos</small>
+                    <small style={{ fontSize: "0.75rem", color: "#f59c00", fontWeight: "600" }}>Externos</small>
                   </div>
                 </div>
               </div>
 
-              <hr className="my-3" />
+              <hr style={{ margin: "1.5rem 0", opacity: 0.2 }} />
 
               {/* Filtros */}
-              <div className="row mb-3">
+              <div className="row mb-4 g-3">
                 <div className="col-6">
-                  <label className="form-label fw-semibold small">Tipo:</label>
+                  <label className="form-label fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "0.5rem", color: "#333" }}>
+                    🏷️ Tipo:
+                  </label>
                   <select
-                    className="form-select form-select-sm"
+                    className="form-select"
                     value={filtroTipo}
                     onChange={(e) => setFiltroTipo(e.target.value)}
+                    style={{
+                      borderRadius: "8px",
+                      border: "2px solid #e9ecef",
+                      padding: "0.6rem 0.75rem",
+                      fontSize: "0.95rem",
+                      transition: "all 0.2s ease"
+                    }}
                   >
-                    <option value="todos">Todos</option>
-                    <option value="trabalhador">Colaboradores</option>
-                    <option value="visitante">Visitantes</option>
-                    <option value="externo">Externos</option>
+                    <option value="todos">Todos os Tipos</option>
+                    <option value="trabalhador">👷 Colaboradores</option>
+                    <option value="visitante">👥 Visitantes</option>
+                    <option value="externo">🔧 Externos</option>
                   </select>
                 </div>
                 <div className="col-6">
-                  <label className="form-label fw-semibold small">Estado:</label>
+                  <label className="form-label fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "0.5rem", color: "#333" }}>
+                    📊 Estado:
+                  </label>
                   <select
-                    className="form-select form-select-sm"
+                    className="form-select"
                     value={filtroEstado}
                     onChange={(e) => setFiltroEstado(e.target.value)}
+                    style={{
+                      borderRadius: "8px",
+                      border: "2px solid #e9ecef",
+                      padding: "0.6rem 0.75rem",
+                      fontSize: "0.95rem",
+                      transition: "all 0.2s ease"
+                    }}
                   >
-                    <option value="todos">Todos</option>
-                    <option value="aTrabalhador">A Trabalhar</option>
-                    <option value="saiu">Saiu</option>
+                    <option value="todos">Todos os Estados</option>
+                    <option value="aTrabalhador">✅ A Trabalhar</option>
+                    <option value="saiu">❌ Saiu</option>
                   </select>
                 </div>
               </div>
