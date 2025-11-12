@@ -364,7 +364,8 @@ export const styles = {
         backgroundColor: '#FFFFFF',
         borderRadius: 15,
         width: '100%',
-        maxWidth: 400,
+        maxWidth: 500,
+        maxHeight: '90vh',
         overflow: 'hidden',
     },
     modalHeader: {
@@ -379,6 +380,8 @@ export const styles = {
     },
     modalBody: {
         padding: 20,
+        maxHeight: 'calc(90vh - 180px)',
+        overflowY: 'auto',
     },
     modalInput: {
         borderWidth: 1,
@@ -457,5 +460,56 @@ export const styles = {
     deleteConfirmButton: {
         borderRadius: 8,
         overflow: 'hidden',
+    },
+    // Responsive styles
+    '@media (max-width: 768px)': {
+        modalOverlay: {
+            padding: 10,
+        },
+        modalContent: {
+            maxWidth: '95vw',
+            maxHeight: '95vh',
+        },
+        modalHeader: {
+            paddingVertical: 15,
+            paddingHorizontal: 15,
+        },
+        modalTitle: {
+            fontSize: 16,
+        },
+        modalBody: {
+            padding: 15,
+            maxHeight: 'calc(95vh - 160px)',
+        },
+        modalInput: {
+            padding: 12,
+            fontSize: 14,
+        },
+        modalMembersWrapper: {
+            maxHeight: 200,
+        },
+        modalMembersContainer: {
+            maxHeight: 130,
+        },
+        searchInput: {
+            padding: 10,
+            fontSize: 13,
+        },
+        modalButtons: {
+            padding: 15,
+            flexDirection: 'column',
+        },
+        cancelButton: {
+            marginRight: 0,
+            marginBottom: 10,
+            width: '100%',
+            textAlign: 'center',
+        },
+        saveButton: {
+            width: '100%',
+        },
+        saveButtonGradient: {
+            paddingVertical: 12,
+        },
     },
 };

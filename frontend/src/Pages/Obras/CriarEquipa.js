@@ -242,7 +242,7 @@ const CriarEquipa = () => {
             setLoading(true);
             const token = await secureStorage.getItem("loginToken");
             const empresaId = await secureStorage.getItem("empresa_id");
-            
+
             const res = await fetch(
                 "https://backend.advir.pt/api/equipa-obra",
                 {
@@ -318,10 +318,10 @@ const CriarEquipa = () => {
     const iniciarEdicao = (equipa) => {
         setEquipaSelecionadaEditar(equipa);
         setNovoNomeEquipa(equipa.nome);
-        
+
         const internos = equipa.membros.filter(m => m.tipo === 'interno').map(m => m.id);
         const externos = equipa.membros.filter(m => m.tipo === 'externo').map(m => m.id);
-        
+
         setMembrosSelecionados(internos);
         setExternosSelecionados(externos);
         setModalEditar(true);
@@ -542,7 +542,7 @@ const CriarEquipa = () => {
                                                             "@",
                                                         )[0]}
                                                 </Text>
-                                                
+
                                             </View>
                                         </View>
                                     </TouchableOpacity>
@@ -1025,7 +1025,7 @@ const CriarEquipa = () => {
                                     {utilizadores.length} selecionados
                                 </Text>
 
-                                <View style={styles.modalMembersWrapper}>
+                                <View style={styles.modalMembersWrapper} className="modal-members-wrapper">
                                     <TextInput
                                         style={styles.searchInput}
                                         value={searchMembros}
@@ -1101,7 +1101,7 @@ const CriarEquipa = () => {
                                                                 styles.memberEmail
                                                             }
                                                         >
-                                                            
+
                                                         </Text>
                                                     </View>
                                                 </View>
@@ -1125,7 +1125,7 @@ const CriarEquipa = () => {
                                     {trabalhadoresExternos.length} selecionados
                                 </Text>
 
-                                <View style={styles.modalMembersWrapper}>
+                                <View style={styles.modalMembersWrapper} className="modal-members-wrapper">
                                     <TextInput
                                         style={styles.searchInput}
                                         value={searchExternos}
@@ -1194,7 +1194,7 @@ const CriarEquipa = () => {
                             </View>
                         </ScrollView>
 
-                        <View style={styles.modalButtons}>
+                        <View style={styles.modalButtons} className="modal-editar-buttons">
                             <TouchableOpacity
                                 onPress={() => {
                                     setModalEditar(false);
@@ -1266,7 +1266,7 @@ const CriarEquipa = () => {
                                 Esta ação não pode ser desfeita.
                             </Text>
 
-                            <View style={styles.modalButtons}>
+                            <View style={styles.modalButtons} className="modal-editar-buttons">
                                 <TouchableOpacity
                                     onPress={() => {
                                         setModalConfirmDelete(false);
