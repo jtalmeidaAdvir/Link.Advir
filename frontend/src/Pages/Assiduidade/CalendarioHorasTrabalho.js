@@ -1479,7 +1479,7 @@ const CalendarioHorasTrabalho = () => {
         setHorasParaDividir(obra.horas);
         setMinutosParaDividir(obra.minutos);
         setDivisoes([]); // Limpa divisões anteriores
-        setObrasDestino(obras.filter(o => o.id !== obra.id)); // Obras disponíveis para dividir
+        setObrasDestino(obras); // Todas as obras disponíveis, incluindo a original
         setMostrarModalDividirHoras(true);
     };
 
@@ -2068,15 +2068,28 @@ const CalendarioHorasTrabalho = () => {
 
             {/* Modal de Divisão de Horas */}
             {mostrarModalDividirHoras && (
-                <div className="modal fade show" style={{ display: 'block' }} role="dialog" aria-modal="true">
-                    <div className="modal-dialog modal-lg modal-dialog-centered">
-                        <div className="modal-content">
-                            <div className="modal-header bg-primary text-white">
-                                <h5 className="modal-title">Dividir Horas - {obraSelecionadaParaDividir?.nome}</h5>
+                <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} role="dialog" aria-modal="true">
+                    <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '95%', margin: '1rem auto' }}>
+                        <div className="modal-content" style={{ borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+                            <div className="modal-header bg-primary text-white" style={{ borderRadius: '12px 12px 0 0', padding: '1rem' }}>
+                                <h6 className="modal-title mb-0" style={{ fontSize: 'clamp(0.95rem, 3vw, 1.1rem)', fontWeight: '600' }}>
+                                    Dividir Horas
+                                </h6>
                                 <button type="button" className="btn-close btn-close-white" onClick={fecharModalDividirHoras}></button>
                             </div>
-                            <div className="modal-body">
-                                <p>Total de horas a dividir: <strong>{horasParaDividir}h {minutosParaDividir}min</strong></p>
+                            <div className="modal-body" style={{ padding: 'clamp(0.75rem, 3vw, 1.5rem)' }}>
+                                <div className="mb-3 p-2 bg-light rounded" style={{ fontSize: 'clamp(0.85rem, 2.5vw, 0.95rem)' }}>
+                                    <div className="fw-bold text-muted mb-1" style={{ fontSize: '0.75rem' }}>Obra Original:</div>
+                                    <div className="text-truncate mb-2" style={{ fontSize: '0.85rem' }}>
+                                        {obraSelecionadaParaDividir?.nome}
+                                    </div>
+                                    <div className="d-flex justify-content-between align-items-center">
+                                        <span className="text-muted" style={{ fontSize: '0.8rem' }}>Total a dividir:</span>
+                                        <span className="badge bg-primary" style={{ fontSize: '0.9rem', padding: '0.4rem 0.8rem' }}>
+                                            {horasParaDividir}h {minutosParaDividir}min
+                                        </span>
+                                    </div>
+                                </div>
                                 
                                 {divisoes.length > 0 && (() => {
                                     const totalDividido = divisoes.reduce((acc, div) => acc + (div.horas * 60 + div.minutos), 0);
@@ -2086,72 +2099,124 @@ const CalendarioHorasTrabalho = () => {
                                     const restanteMinutos = Math.abs(restante) % 60;
                                     
                                     return (
-                                        <div className={`alert ${restante === 0 ? 'alert-success' : restante > 0 ? 'alert-warning' : 'alert-danger'} py-2`}>
-                                            <small>
-                                                <strong>Total dividido:</strong> {Math.floor(totalDividido / 60)}h {totalDividido % 60}min
-                                                {restante !== 0 && (
-                                                    <> | <strong>{restante > 0 ? 'Falta' : 'Excede'}:</strong> {restanteHoras}h {restanteMinutos}min</>
+                                        <div className={`alert ${restante === 0 ? 'alert-success' : restante > 0 ? 'alert-warning' : 'alert-danger'} mb-3`} 
+                                             style={{ padding: '0.6rem', fontSize: 'clamp(0.75rem, 2.5vw, 0.85rem)', borderRadius: '8px' }}>
+                                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                                <span>
+                                                    <strong>Dividido:</strong> {Math.floor(totalDividido / 60)}h {totalDividido % 60}min
+                                                </span>
+                                                {restante !== 0 ? (
+                                                    <span className="badge bg-dark">
+                                                        {restante > 0 ? 'Falta' : 'Excede'}: {restanteHoras}h {restanteMinutos}min
+                                                    </span>
+                                                ) : (
+                                                    <span className="badge bg-success">✓ Completo</span>
                                                 )}
-                                                {restante === 0 && <> ✓ Divisão completa</>}
-                                            </small>
+                                            </div>
                                         </div>
                                     );
                                 })()}
 
                                 <div className="mb-3">
-                                    <label className="form-label fw-semibold small">Divisões por obra:</label>
-                                    {divisoes.map((div, index) => (
-                                        <div key={index} className="row g-2 mb-2 align-items-center">
-                                            <div className="col-5">
-                                                <select
-                                                    className="form-select form-moderno"
-                                                    value={div.obra_id}
-                                                    onChange={(e) => atualizarDivisao(index, 'obra_id', e.target.value)}
-                                                >
-                                                    <option value="">Selecione a obra...</option>
-                                                    {obrasDestino.map(obra => (
-                                                        <option key={obra.id} value={obra.id}>
-                                                            {obra.codigo ? `${obra.codigo} - ${obra.nome}` : obra.nome}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                    <label className="form-label fw-semibold mb-2" style={{ fontSize: 'clamp(0.85rem, 2.5vw, 0.95rem)' }}>
+                                        Divisões por obra:
+                                    </label>
+                                    <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                                        {divisoes.map((div, index) => (
+                                            <div key={index} className="card mb-2" style={{ borderRadius: '8px', border: '1px solid #e0e0e0' }}>
+                                                <div className="card-body p-2">
+                                                    <div className="mb-2">
+                                                        <label className="form-label mb-1" style={{ fontSize: '0.75rem', color: '#666' }}>
+                                                            Obra de destino
+                                                        </label>
+                                                        <select
+                                                            className="form-select form-select-sm"
+                                                            value={div.obra_id}
+                                                            onChange={(e) => atualizarDivisao(index, 'obra_id', e.target.value)}
+                                                            style={{ fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)', borderRadius: '6px' }}
+                                                        >
+                                                            <option value="">Selecione...</option>
+                                                            {obrasDestino.map(obra => (
+                                                                <option key={obra.id} value={obra.id}>
+                                                                    {obra.codigo ? `${obra.codigo} - ${obra.nome}` : obra.nome}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="d-flex gap-2 align-items-end">
+                                                        <div className="flex-fill">
+                                                            <label className="form-label mb-1" style={{ fontSize: '0.7rem', color: '#666' }}>
+                                                                Horas
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                inputMode="numeric"
+                                                                className="form-control form-control-sm text-center"
+                                                                placeholder="0"
+                                                                value={div.horas || ''}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value.replace(/\D/g, '');
+                                                                    atualizarDivisao(index, 'horas', val === '' ? 0 : parseInt(val));
+                                                                }}
+                                                                style={{ fontSize: '1rem', fontWeight: '500', borderRadius: '6px', padding: '0.5rem' }}
+                                                            />
+                                                        </div>
+                                                        <div className="flex-fill">
+                                                            <label className="form-label mb-1" style={{ fontSize: '0.7rem', color: '#666' }}>
+                                                                Minutos
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                inputMode="numeric"
+                                                                className="form-control form-control-sm text-center"
+                                                                placeholder="0"
+                                                                value={div.minutos || ''}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value.replace(/\D/g, '');
+                                                                    const num = val === '' ? 0 : parseInt(val);
+                                                                    atualizarDivisao(index, 'minutos', Math.min(59, num));
+                                                                }}
+                                                                style={{ fontSize: '1rem', fontWeight: '500', borderRadius: '6px', padding: '0.5rem' }}
+                                                            />
+                                                        </div>
+                                                        <button 
+                                                            className="btn btn-sm btn-outline-danger" 
+                                                            onClick={() => removerDivisao(index)}
+                                                            style={{ padding: '0.5rem 0.75rem', borderRadius: '6px' }}
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="col-3">
-                                                <input
-                                                    type="number"
-                                                    className="form-control form-moderno"
-                                                    placeholder="Horas"
-                                                    value={div.horas}
-                                                    onChange={(e) => atualizarDivisao(index, 'horas', parseInt(e.target.value || '0'))}
-                                                    min="0"
-                                                />
-                                            </div>
-                                            <div className="col-3">
-                                                <input
-                                                    type="number"
-                                                    className="form-control form-moderno"
-                                                    placeholder="Minutos"
-                                                    value={div.minutos}
-                                                    onChange={(e) => atualizarDivisao(index, 'minutos', parseInt(e.target.value || '0'))}
-                                                    min="0"
-                                                    max="59"
-                                                />
-                                            </div>
-                                            <div className="col-1">
-                                                <button className="btn btn-sm btn-outline-danger" onClick={() => removerDivisao(index)}>
-                                                    <FaExclamationTriangle size={12} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
-                                <button className="btn btn-secondary btn-sm mb-3" onClick={adicionarDivisao}>
-                                    <FaPlus /> Adicionar Divisão
+                                <button 
+                                    className="btn btn-outline-primary w-100 btn-sm" 
+                                    onClick={adicionarDivisao}
+                                    style={{ borderRadius: '8px', padding: '0.6rem', fontSize: 'clamp(0.85rem, 2.5vw, 0.95rem)' }}
+                                >
+                                    <FaPlus size={14} className="me-2" /> Adicionar Divisão
                                 </button>
                             </div>
-                            <div className="modal-footer">
-                                <button type="button" className="btn btn-secondary" onClick={fecharModalDividirHoras}>Cancelar</button>
-                                <button type="button" className="btn btn-primary" onClick={reconstruirPicagens}>Reconstruir Picagens</button>
+                            <div className="modal-footer" style={{ padding: '0.75rem 1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                <button 
+                                    type="button" 
+                                    className="btn btn-secondary flex-fill" 
+                                    onClick={fecharModalDividirHoras}
+                                    style={{ borderRadius: '8px', fontSize: 'clamp(0.85rem, 2.5vw, 0.95rem)', minWidth: '100px' }}
+                                >
+                                    Cancelar
+                                </button>
+                                <button 
+                                    type="button" 
+                                    className="btn btn-primary flex-fill" 
+                                    onClick={reconstruirPicagens}
+                                    style={{ borderRadius: '8px', fontSize: 'clamp(0.85rem, 2.5vw, 0.95rem)', minWidth: '100px' }}
+                                >
+                                    Reconstruir
+                                </button>
                             </div>
                         </div>
                     </div>

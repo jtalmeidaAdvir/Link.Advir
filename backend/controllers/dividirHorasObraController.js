@@ -37,6 +37,14 @@ const dividirHorasObra = async (req, res) => {
             }
         }
 
+        // Verificar se há pelo menos uma divisão com uma obra diferente da original
+        const temObraDiferente = divisoes.some(div => parseInt(div.obra_id) !== parseInt(obraOrigemId));
+        if (!temObraDiferente) {
+            return res.status(400).json({ 
+                message: 'Deve haver pelo menos uma divisão com uma obra diferente da original.' 
+            });
+        }
+
         // Buscar todos os registos da obra origem no dia especificado
         const dataInicio = new Date(dia + 'T00:00:00.000Z');
         const dataFim = new Date(dia + 'T23:59:59.999Z');
@@ -104,6 +112,9 @@ const dividirHorasObra = async (req, res) => {
 
         for (const div of divisoes) {
             const minutosTrabalho = div.horas * 60 + div.minutos;
+            
+            // Buscar informação da obra de destino
+            const obraDestino = await Obra.findByPk(div.obra_id);
 
             // Criar entrada
             const entrada = await RegistoPontoObra.create({
@@ -112,7 +123,9 @@ const dividirHorasObra = async (req, res) => {
                 tipo: 'entrada',
                 timestamp: new Date(horaAtual),
                 is_confirmed: false,
-                justificacao: `Divisão de horas - Original: ${obraOrigem.nome}`
+                justificacao: parseInt(div.obra_id) === parseInt(obraOrigemId) 
+                    ? `Divisão de horas - Mantido em ${obraOrigem.nome}`
+                    : `Divisão de horas - Original: ${obraOrigem.nome}`
             });
 
             // Calcular saída
@@ -124,7 +137,9 @@ const dividirHorasObra = async (req, res) => {
                 tipo: 'saida',
                 timestamp: new Date(horaAtual),
                 is_confirmed: false,
-                justificacao: `Divisão de horas - Original: ${obraOrigem.nome}`
+                justificacao: parseInt(div.obra_id) === parseInt(obraOrigemId)
+                    ? `Divisão de horas - Mantido em ${obraOrigem.nome}`
+                    : `Divisão de horas - Original: ${obraOrigem.nome}`
             });
 
             novosRegistos.push({ entrada, saida });
