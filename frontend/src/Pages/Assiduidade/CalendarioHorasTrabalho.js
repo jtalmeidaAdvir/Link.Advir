@@ -59,6 +59,15 @@ const CalendarioHorasTrabalho = () => {
     const [diasPendentes, setDiasPendentes] = useState([]);
     const [faltasPendentes, setFaltasPendentes] = useState([]);
 
+    // State para o modal de dividir horas
+    const [mostrarModalDividirHoras, setMostrarModalDividirHoras] = useState(false);
+    const [obraSelecionadaParaDividir, setObraSelecionadaParaDividir] = useState(null);
+    const [horasParaDividir, setHorasParaDividir] = useState(0);
+    const [minutosParaDividir, setMinutosParaDividir] = useState(0);
+    const [obrasDestino, setObrasDestino] = useState([]);
+    const [divisoes, setDivisoes] = useState([]);
+
+
     const isBeforeToday = (dateLike) => {
         if (!dateLike) return false;
         const d = new Date(dateLike);
@@ -1463,6 +1472,114 @@ const CalendarioHorasTrabalho = () => {
         }
     };
 
+    // Função para abrir o modal e definir a obra selecionada
+    const abrirModalDividirHoras = (obra) => {
+        setObraSelecionadaParaDividir(obra);
+        const totalMinutos = obra.horas * 60 + obra.minutos;
+        setHorasParaDividir(obra.horas);
+        setMinutosParaDividir(obra.minutos);
+        setDivisoes([]); // Limpa divisões anteriores
+        setObrasDestino(obras.filter(o => o.id !== obra.id)); // Obras disponíveis para dividir
+        setMostrarModalDividirHoras(true);
+    };
+
+    // Função para fechar o modal
+    const fecharModalDividirHoras = () => {
+        setMostrarModalDividirHoras(false);
+        setObraSelecionadaParaDividir(null);
+        setHorasParaDividir(0);
+        setMinutosParaDividir(0);
+        setDivisoes([]);
+        setObrasDestino([]);
+    };
+
+    // Função para adicionar uma nova divisão
+    const adicionarDivisao = () => {
+        setDivisoes([...divisoes, { obra_id: '', horas: 0, minutos: 0 }]);
+    };
+
+    // Função para remover uma divisão
+    const removerDivisao = (index) => {
+        setDivisoes(divisoes.filter((_, i) => i !== index));
+    };
+
+    // Função para atualizar uma divisão
+    const atualizarDivisao = (index, campo, valor) => {
+        const novasDivisoes = [...divisoes];
+        novasDivisoes[index][campo] = valor;
+        setDivisoes(novasDivisoes);
+    };
+
+    // Lógica para reconstruir as picagens
+    const reconstruirPicagens = async () => {
+        if (!obraSelecionadaParaDividir || !diaSelecionado) {
+            alert('Erro: Obra ou dia não selecionado.');
+            return;
+        }
+
+        // Validar se todas as divisões têm obra selecionada
+        const divisoesInvalidas = divisoes.filter(d => !d.obra_id);
+        if (divisoesInvalidas.length > 0) {
+            alert('Por favor, selecione uma obra para todas as divisões.');
+            return;
+        }
+
+        const horasTotaisParaDividir = horasParaDividir * 60 + minutosParaDividir;
+        const totalMinutosDivididos = divisoes.reduce((acc, div) => acc + (div.horas * 60 + div.minutos), 0);
+
+        // Verificar se a soma corresponde (com tolerância de 1 minuto para arredondamentos)
+        if (Math.abs(horasTotaisParaDividir - totalMinutosDivididos) > 1) {
+            alert(`A soma das horas divididas (${Math.floor(totalMinutosDivididos / 60)}h ${totalMinutosDivididos % 60}min) deve ser igual às horas totais da obra selecionada (${horasParaDividir}h ${minutosParaDividir}min).`);
+            return;
+        }
+
+        const token = secureStorage.getItem('loginToken');
+
+        try {
+            setLoading(true);
+
+            const res = await fetch('https://backend.advir.pt/api/dividir-horas-obra/dividir', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                    urlempresa: secureStorage.getItem('empresa_id')
+                },
+                body: JSON.stringify({
+                    dia: diaSelecionado,
+                    obraOrigemId: obraSelecionadaParaDividir.id,
+                    divisoes: divisoes.map(d => ({
+                        obra_id: parseInt(d.obra_id),
+                        horas: parseInt(d.horas),
+                        minutos: parseInt(d.minutos)
+                    }))
+                })
+            });
+
+            if (res.ok) {
+                const resultado = await res.json();
+                alert(`Horas divididas com sucesso!\n\n${resultado.totalRegistosOrigemEliminados} registos eliminados.\n${resultado.totalNovasEntradas} novos registos criados.`);
+                
+                fecharModalDividirHoras();
+                
+                // Recarregar dados
+                await Promise.all([
+                    carregarResumo(),
+                    carregarDetalhes(diaSelecionado)
+                ]);
+            } else {
+                const error = await res.json();
+                alert('Erro ao dividir horas: ' + (error.message || 'Erro desconhecido'));
+            }
+        } catch (err) {
+            console.error('Erro ao dividir horas:', err);
+            alert('Erro inesperado ao dividir horas: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
     const carregarDetalhes = useCallback(async (data) => {
         setDiaSelecionado(data);
         const faltasNoDia = faltas.filter(f => {
@@ -1528,7 +1645,7 @@ const CalendarioHorasTrabalho = () => {
                     const ts = new Date(registo.timestamp);
 
                     if (!temposPorObra[obraId]) {
-                        temposPorObra[obraId] = { nome: nomeObra, totalMinutos: 0 };
+                        temposPorObra[obraId] = { nome: nomeObra, totalMinutos: 0, id: obraId }; // Adiciona o ID da obra
                     }
 
                     if (registo.tipo === 'entrada') {
@@ -1542,6 +1659,7 @@ const CalendarioHorasTrabalho = () => {
                         estadoAtualPorObra[obraId] = null;
                     }
 
+                    // Considera o tempo ativo se ainda houver uma entrada e for hoje
                     if (estadoAtualPorObra[obraId] && formatarData(ts) === formatarData(new Date())) {
                         const agora = new Date();
                         const minutos = Math.max(0, (agora - estadoAtualPorObra[obraId]) / 60000);
@@ -1552,7 +1670,8 @@ const CalendarioHorasTrabalho = () => {
                 const detalhesPorObra = Object.values(temposPorObra).map(o => ({
                     nome: o.nome,
                     horas: Math.floor(o.totalMinutos / 60),
-                    minutos: Math.round(o.totalMinutos % 60)
+                    minutos: Math.round(o.totalMinutos % 60),
+                    id: o.id // Passa o ID da obra para o estado
                 }));
 
                 setDetalhes(detalhesPorObra);
@@ -1947,6 +2066,98 @@ const CalendarioHorasTrabalho = () => {
                 }
             `}</style>
 
+            {/* Modal de Divisão de Horas */}
+            {mostrarModalDividirHoras && (
+                <div className="modal fade show" style={{ display: 'block' }} role="dialog" aria-modal="true">
+                    <div className="modal-dialog modal-lg modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">Dividir Horas - {obraSelecionadaParaDividir?.nome}</h5>
+                                <button type="button" className="btn-close btn-close-white" onClick={fecharModalDividirHoras}></button>
+                            </div>
+                            <div className="modal-body">
+                                <p>Total de horas a dividir: <strong>{horasParaDividir}h {minutosParaDividir}min</strong></p>
+                                
+                                {divisoes.length > 0 && (() => {
+                                    const totalDividido = divisoes.reduce((acc, div) => acc + (div.horas * 60 + div.minutos), 0);
+                                    const totalOrigem = horasParaDividir * 60 + minutosParaDividir;
+                                    const restante = totalOrigem - totalDividido;
+                                    const restanteHoras = Math.floor(Math.abs(restante) / 60);
+                                    const restanteMinutos = Math.abs(restante) % 60;
+                                    
+                                    return (
+                                        <div className={`alert ${restante === 0 ? 'alert-success' : restante > 0 ? 'alert-warning' : 'alert-danger'} py-2`}>
+                                            <small>
+                                                <strong>Total dividido:</strong> {Math.floor(totalDividido / 60)}h {totalDividido % 60}min
+                                                {restante !== 0 && (
+                                                    <> | <strong>{restante > 0 ? 'Falta' : 'Excede'}:</strong> {restanteHoras}h {restanteMinutos}min</>
+                                                )}
+                                                {restante === 0 && <> ✓ Divisão completa</>}
+                                            </small>
+                                        </div>
+                                    );
+                                })()}
+
+                                <div className="mb-3">
+                                    <label className="form-label fw-semibold small">Divisões por obra:</label>
+                                    {divisoes.map((div, index) => (
+                                        <div key={index} className="row g-2 mb-2 align-items-center">
+                                            <div className="col-5">
+                                                <select
+                                                    className="form-select form-moderno"
+                                                    value={div.obra_id}
+                                                    onChange={(e) => atualizarDivisao(index, 'obra_id', e.target.value)}
+                                                >
+                                                    <option value="">Selecione a obra...</option>
+                                                    {obrasDestino.map(obra => (
+                                                        <option key={obra.id} value={obra.id}>
+                                                            {obra.codigo ? `${obra.codigo} - ${obra.nome}` : obra.nome}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="col-3">
+                                                <input
+                                                    type="number"
+                                                    className="form-control form-moderno"
+                                                    placeholder="Horas"
+                                                    value={div.horas}
+                                                    onChange={(e) => atualizarDivisao(index, 'horas', parseInt(e.target.value || '0'))}
+                                                    min="0"
+                                                />
+                                            </div>
+                                            <div className="col-3">
+                                                <input
+                                                    type="number"
+                                                    className="form-control form-moderno"
+                                                    placeholder="Minutos"
+                                                    value={div.minutos}
+                                                    onChange={(e) => atualizarDivisao(index, 'minutos', parseInt(e.target.value || '0'))}
+                                                    min="0"
+                                                    max="59"
+                                                />
+                                            </div>
+                                            <div className="col-1">
+                                                <button className="btn btn-sm btn-outline-danger" onClick={() => removerDivisao(index)}>
+                                                    <FaExclamationTriangle size={12} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button className="btn btn-secondary btn-sm mb-3" onClick={adicionarDivisao}>
+                                    <FaPlus /> Adicionar Divisão
+                                </button>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={fecharModalDividirHoras}>Cancelar</button>
+                                <button type="button" className="btn btn-primary" onClick={reconstruirPicagens}>Reconstruir Picagens</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="row justify-content-center">
                 <div className="col-12 col-xl-11">
                     <div className="card card-moderno mb-3 mb-md-4">
@@ -2124,29 +2335,29 @@ const CalendarioHorasTrabalho = () => {
                                 <div className="card card-moderno sidebar-sticky" style={{ marginBottom: '100px' }}>
                                     <div className="card-body p-3 p-md-4">
                                         {detalhesHorario && feriasTotalizador && (<div></div>
-                                            /* 
-                                            <div className="mb-3">
-                                                 <h6 className="fw-bold text-muted mb-2">Horário Contratual & Férias</h6>
-                                                 <div className="row g-2">
-                                                     <div className="col-12 col-md-6">
-                                                         <div className="border-start border-info border-3 ps-3 small">
-                                                             <div><strong>Descrição:</strong> {detalhesHorario.Descricao}</div>
-                                                             <div><strong>Horas por dia:</strong> {detalhesHorario.Horas1}</div>
-                                                             <div><strong>Total Horas Semanais:</strong> {detalhesHorario.TotalHoras}</div>
-                                                         </div>
-                                                     </div>
-                                                     <div className="col-12 col-md-6">
-                                                         <div className="border-start border-success border-3 ps-3 small">
-                                                             <div><strong>Dias Direito:</strong> {feriasTotalizador.DiasDireito} dias</div>
-                                                             <div><strong>Dias Ano Anterior:</strong> {feriasTotalizador.DiasAnoAnterior} dias</div>
-                                                             <div><strong>Total Dias:</strong> {feriasTotalizador.TotalDias} dias</div>
-                                                             <div><strong>Dias Já Gozados:</strong> {feriasTotalizador.DiasJaGozados} dias</div>
-                                                             <div><strong>Total Por Gozar:</strong> {feriasTotalizador.DiasPorGozar} dias</div>
-                                                         </div>
-                                                     </div>
-                                                 </div>
-                                             </div>
-                                             */
+                                            /*
+                                             <div className="mb-3">
+                                                  <h6 className="fw-bold text-muted mb-2">Horário Contratual & Férias</h6>
+                                                  <div className="row g-2">
+                                                      <div className="col-12 col-md-6">
+                                                          <div className="border-start border-info border-3 ps-3 small">
+                                                              <div><strong>Descrição:</strong> {detalhesHorario.Descricao}</div>
+                                                              <div><strong>Horas por dia:</strong> {detalhesHorario.Horas1}</div>
+                                                              <div><strong>Total Horas Semanais:</strong> {detalhesHorario.TotalHoras}</div>
+                                                          </div>
+                                                      </div>
+                                                      <div className="col-12 col-md-6">
+                                                          <div className="border-start border-success border-3 ps-3 small">
+                                                              <div><strong>Dias Direito:</strong> {feriasTotalizador.DiasDireito} dias</div>
+                                                              <div><strong>Dias Ano Anterior:</strong> {feriasTotalizador.DiasAnoAnterior} dias</div>
+                                                              <div><strong>Total Dias:</strong> {feriasTotalizador.TotalDias} dias</div>
+                                                              <div><strong>Dias Já Gozados:</strong> {feriasTotalizador.DiasJaGozados} dias</div>
+                                                              <div><strong>Total Por Gozar:</strong> {feriasTotalizador.DiasPorGozar} dias</div>
+                                                          </div>
+                                                      </div>
+                                                  </div>
+                                              </div>
+                                              */
                                         )}
 
                                         <h5 className="card-title d-flex align-items-center mb-3 mb-md-4" style={{ fontSize: 'clamp(1rem, 3vw, 1.25rem)' }}>
@@ -2173,7 +2384,13 @@ const CalendarioHorasTrabalho = () => {
                                                 <h6 className="fw-bold text-muted mb-3">Resumo do Dia</h6>
 
                                                 {detalhes.map((entry, index) => (
-                                                    <div key={index} className="border-start border-success border-3 ps-3 mb-3">
+                                                    <div
+                                                        key={index}
+                                                        className="border-start border-success border-3 ps-3 mb-3"
+                                                        style={{ cursor: 'pointer' }}
+                                                        onClick={() => abrirModalDividirHoras(entry)}
+                                                        title="Clique para dividir horas entre obras"
+                                                    >
                                                         <div className="d-flex justify-content-between">
                                                             <span className="fw-semibold">🛠 {entry.nome}</span>
                                                             <span className="text-success fw-bold">

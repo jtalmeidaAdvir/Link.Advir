@@ -69,6 +69,7 @@ const externosJPARoutes = require('./routes/externosJPARoutes');
 const configuracaoRoutes = require('./routes/configuracaoRoutes');
 const predicaoObraRoutes = require('./routes/predicaoObraRoutes');
 const horarioRoutes = require('./routes/horarioRoutes');
+const dividirHorasObraRoutes = require('./routes/dividirHorasObraRoutes');
 
 // Importar associações
 require('./associations');
@@ -136,6 +137,7 @@ app.use('/api/externos-jpa', externosJPARoutes);
 app.use('/api/configuracoes', configuracaoRoutes);
 app.use('/api/predicao-obra', predicaoObraRoutes);
 app.use('/api/horarios', horarioRoutes);
+app.use('/api/dividir-horas-obra', dividirHorasObraRoutes);
 
 app.use('/api/gdpr', gdprRoutes);
 
