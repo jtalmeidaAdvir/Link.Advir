@@ -67,6 +67,11 @@ const CalendarioHorasTrabalho = () => {
     const [obrasDestino, setObrasDestino] = useState([]);
     const [divisoes, setDivisoes] = useState([]);
 
+    // Verificar permissões do utilizador para dividir horas
+    const podeAcessarDivisaoHoras = useMemo(() => {
+        const tipoUser = secureStorage.getItem('tipoUser');
+        return ['diretor', 'administrador', 'encarregado'].includes(tipoUser?.toLowerCase());
+    }, []);
 
     const isBeforeToday = (dateLike) => {
         if (!dateLike) return false;
@@ -2452,9 +2457,9 @@ const CalendarioHorasTrabalho = () => {
                                                     <div
                                                         key={index}
                                                         className="border-start border-success border-3 ps-3 mb-3"
-                                                        style={{ cursor: 'pointer' }}
-                                                        onClick={() => abrirModalDividirHoras(entry)}
-                                                        title="Clique para dividir horas entre obras"
+                                                        style={{ cursor: podeAcessarDivisaoHoras ? 'pointer' : 'default' }}
+                                                        onClick={() => podeAcessarDivisaoHoras && abrirModalDividirHoras(entry)}
+                                                        title={podeAcessarDivisaoHoras ? "Clique para dividir horas entre obras" : "Sem permissão para dividir horas"}
                                                     >
                                                         <div className="d-flex justify-content-between">
                                                             <span className="fw-semibold">🛠 {entry.nome}</span>

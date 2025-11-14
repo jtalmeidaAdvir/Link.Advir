@@ -178,34 +178,60 @@ const adicionarLinhaPessoalEquip = async () => {
   // Reset campos inválidos
   const invalidos = new Set();
 
-  // Validação detalhada campo por campo
+  // ✅ VALIDAÇÃO OBRIGATÓRIA: Obra
   const obraIdNum = Number(obraId);
   if (!obraId || obraId === "" || isNaN(obraIdNum)) {
     invalidos.add('obraId');
   }
+
+  // ✅ VALIDAÇÃO OBRIGATÓRIA: Dia
   if (!dia || dia === "") {
     invalidos.add('dia');
   }
+
+  // ✅ VALIDAÇÃO OBRIGATÓRIA: Colaborador
   if (!colaboradorId || colaboradorId === "") {
     invalidos.add('colaboradorId');
   }
+
+  // ✅ VALIDAÇÃO OBRIGATÓRIA: Horas
   if (!horas || horas === "") {
     invalidos.add('horas');
   }
+
+  // ✅ VALIDAÇÃO OBRIGATÓRIA: Especialidade
   if (!especialidadeCodigo || especialidadeCodigo === "") {
     invalidos.add('especialidadeCodigo');
   }
+
+  // ✅ VALIDAÇÃO OBRIGATÓRIA: SubEmpId (vem da especialidade)
   if (!subEmpId) {
     invalidos.add('especialidadeCodigo');
   }
-  if (categoria === "MaoObra" && (!classeId || classeId === null)) {
+
+  // ✅ VALIDAÇÃO OBRIGATÓRIA: Classe (sempre obrigatória, exceto Equipamentos)
+  if (categoria !== "Equipamentos" && (!classeId || classeId === null)) {
     invalidos.add('classeId');
+  }
+
+  // ✅ VALIDAÇÃO OBRIGATÓRIA: Observações se classe -1 (Indiferenciada)
+  if (classeId === -1 && (!observacoes || observacoes.trim() === "")) {
+    invalidos.add('observacoes');
   }
 
   // Se há campos inválidos, mostra erro e retorna
   if (invalidos.size > 0) {
     setCamposInvalidosPessoal(invalidos);
-    Alert.alert("Campos Obrigatórios", "Por favor, preencha todos os campos marcados a vermelho.");
+
+    // Mensagem específica se for falta de observações na classe -1
+    if (invalidos.has('observacoes')) {
+      Alert.alert(
+        "Observações Obrigatórias",
+        'A classe "Indiferenciada" requer observações obrigatórias.\n\nPor favor, preencha o campo de observações.'
+      );
+    } else {
+      Alert.alert("Campos Obrigatórios", "Por favor, preencha todos os campos marcados a vermelho.");
+    }
     return;
   }
 
@@ -227,8 +253,8 @@ const adicionarLinhaPessoalEquip = async () => {
   // Validar 8h normais por obra no mesmo dia
   if (!linhaPessoalEquipAtual.horaExtra) {
     const horasNaObraDia = linhasPessoalEquip
-      .filter(l => l.dia === dia && 
-                   l.colaboradorId === colaboradorId && 
+      .filter(l => l.dia === dia &&
+                   l.colaboradorId === colaboradorId &&
                    String(l.obraId) === String(obraId) &&
                    !l.horaExtra)
       .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
@@ -359,16 +385,16 @@ const adicionarLinhaPessoalEquip = async () => {
   });
 
   // reset campos variáveis
-  setLinhaPessoalEquipAtual(p => ({
-    ...p,
-    colaboradorId: "",
-    horas: "",
-    horaExtra: false,
-    especialidadeCodigo: "",
-    subEmpId: null,
-    classeId: categoria === "Equipamentos" ? -1 : null,
-    observacoes: "",
-  }));
+    setLinhaPessoalEquipAtual(p => ({
+      ...p,
+      colaboradorId: "",
+      horas: "",
+      horaExtra: false,
+      especialidadeCodigo: "",
+      subEmpId: null,
+      classeId: null, // Reset classId here
+      observacoes: "",
+    }));
 
   // ✅ GUARDAR RASCUNHO IMEDIATAMENTE (sem timeout)
   await guardarRascunhoAutomatico();
@@ -751,34 +777,60 @@ const submeterPessoalEquip = async () => {
         // Reset campos inválidos
         const invalidos = new Set();
 
-        // Validação detalhada campo por campo
+        // ✅ VALIDAÇÃO OBRIGATÓRIA: Obra
         const obraIdNum = Number(obraId);
         if (!obraId || obraId === "" || isNaN(obraIdNum)) {
             invalidos.add('obraId');
         }
+
+        // ✅ VALIDAÇÃO OBRIGATÓRIA: Dia
         if (!dia || dia === "") {
             invalidos.add('dia');
         }
+
+        // ✅ VALIDAÇÃO OBRIGATÓRIA: Trabalhador
         if (!trabalhadorId || trabalhadorId === "") {
             invalidos.add('trabalhadorId');
         }
+
+        // ✅ VALIDAÇÃO OBRIGATÓRIA: Horas
         if (!horas || horas === "") {
             invalidos.add('horas');
         }
+
+        // ✅ VALIDAÇÃO OBRIGATÓRIA: Especialidade
         if (!especialidadeCodigo || especialidadeCodigo === "") {
             invalidos.add('especialidadeCodigo');
         }
+
+        // ✅ VALIDAÇÃO OBRIGATÓRIA: SubEmpId (vem da especialidade)
         if (!subEmpId) {
             invalidos.add('especialidadeCodigo');
         }
-        if (categoria === "MaoObra" && (!classeId || classeId === null)) {
+
+        // ✅ VALIDAÇÃO OBRIGATÓRIA: Classe (sempre obrigatória, exceto Equipamentos)
+        if (categoria !== "Equipamentos" && (!classeId || classeId === null)) {
             invalidos.add('classeId');
+        }
+
+        // ✅ VALIDAÇÃO OBRIGATÓRIA: Observações se classe -1 (Indiferenciada)
+        if (classeId === -1 && (!observacoes || observacoes.trim() === "")) {
+            invalidos.add('observacoes');
         }
 
         // Se há campos inválidos, mostra erro e retorna
         if (invalidos.size > 0) {
             setCamposInvalidos(invalidos);
-            Alert.alert("Campos Obrigatórios", "Por favor, preencha todos os campos marcados a vermelho.");
+
+            // Mensagem específica se for falta de observações na classe -1
+            if (invalidos.has('observacoes')) {
+                Alert.alert(
+                    "Observações Obrigatórias",
+                    'A classe "Indiferenciada" requer observações obrigatórias.\n\nPor favor, preencha o campo de observações.'
+                );
+            } else {
+                Alert.alert("Campos Obrigatórios", "Por favor, preencha todos os campos marcados a vermelho.");
+            }
             return;
         }
 
@@ -793,7 +845,7 @@ const submeterPessoalEquip = async () => {
             return;
         }
 
-     
+
 
         const minutos = parseHorasToMinutos(horas);
         if (minutos <= 0) {
@@ -801,7 +853,7 @@ const submeterPessoalEquip = async () => {
             return;
         }
 
-        // Validação de horas: 
+        // Validação de horas:
         // - Máximo 10h normais por dia (todas as obras)
         if (!linhaAtual.horaExtra) {
             // Validar 10h totais por dia (todas as obras)
@@ -1015,14 +1067,8 @@ const submeterPessoalEquip = async () => {
                 linha.categoria = "MaoObra";
                 linha.especialidade = mao.codigo;
                 linha.subEmpId = mao.subEmpId ?? null;
-
-                // Automaticamente selecionar a primeira classe compatível
-                const classesCompativeis = getClassesCompativeis(valor, "MaoObra");
-                if (classesCompativeis.length > 0) {
-                    linha.classeId = classesCompativeis[0].classeId;
-                } else {
-                    linha.classeId = null;
-                }
+                // ✅ SEMPRE null - obriga utilizador a escolher
+                linha.classeId = null;
             } else {
                 // fallback (não encontrou em nenhuma lista)
                 linha.especialidade = valor;
@@ -1344,12 +1390,12 @@ const carregarRascunhoSilencioso = useCallback(async () => {
         console.log("⚠️ parseJSON: dados vazios");
         return [];
       }
-      
+
       if (Array.isArray(data)) {
         console.log(`✅ parseJSON: já é array com ${data.length} itens`);
         return data;
       }
-      
+
       if (typeof data === "string") {
         try {
           const parsed = JSON.parse(data);
@@ -1361,13 +1407,13 @@ const carregarRascunhoSilencioso = useCallback(async () => {
           return [];
         }
       }
-      
+
       // Se for objeto, tenta converter para array
       if (typeof data === "object") {
         console.log("⚠️ parseJSON: recebeu objeto, tentando converter");
         return Object.values(data).filter(v => v !== null && v !== undefined);
       }
-      
+
       console.warn("⚠️ parseJSON: tipo inesperado:", typeof data);
       return [];
     };
@@ -1387,7 +1433,7 @@ const carregarRascunhoSilencioso = useCallback(async () => {
     // Enriquecer linhas de externos com informações completas da classe e obra
     const linhasExternosEnriquecidas = linhasExternosRestauradas.map(linha => {
       const enriquecida = { ...linha };
-      
+
       // Enriquecer informações da classe
       if (linha.classeId && !linha.classe) {
         const classeMeta = classesList.find(c => c.classeId === linha.classeId);
@@ -1396,7 +1442,7 @@ const carregarRascunhoSilencioso = useCallback(async () => {
           enriquecida.classeDescricao = classeMeta.descricao;
         }
       }
-      
+
       // Enriquecer informações da obra
       if (linha.obraId && (!linha.obraCodigo || !linha.obraNome)) {
         const obraMeta = obrasParaPickers.find(o => Number(o.id) === Number(linha.obraId));
@@ -1405,7 +1451,7 @@ const carregarRascunhoSilencioso = useCallback(async () => {
           enriquecida.obraNome = obraMeta.nome || `Obra ${linha.obraId}`;
         }
       }
-      
+
       return enriquecida;
     });
 
@@ -1472,7 +1518,7 @@ const carregarRascunho = useCallback(async () => {
     if (!wants) return false;
 
     const sucesso = await carregarRascunhoSilencioso();
-    
+
     if (sucesso) {
       Alert.alert(
         "Rascunho Carregado",
@@ -1480,7 +1526,7 @@ const carregarRascunho = useCallback(async () => {
         [{ text: "OK" }]
       );
     }
-    
+
     return sucesso;
   } catch (error) {
     console.error("Erro ao carregar rascunho:", error);
@@ -1507,7 +1553,7 @@ const carregarRascunho = useCallback(async () => {
             if (result.success && result.rascunho) {
                 setTemRascunho(true);
                 console.log("📦 Rascunho encontrado, carregando automaticamente...");
-                
+
                 // Carregar automaticamente sem perguntar
                 await carregarRascunhoSilencioso();
             } else {
@@ -1628,63 +1674,108 @@ const carregarRascunho = useCallback(async () => {
     // 🔹 EXTERNOS para a VISTA POR UTILIZADOR (agregado por pessoa -> obras)
     const externosAgrupadosPorPessoa = useMemo(() => {
         const baseHoras = Object.fromEntries(diasDoMes.map((d) => [d, 0]));
-        const mapPessoa = new Map(); // key -> { nome, empresa, obras: Map(obraId -> { obraId, obraNome, horasPorDia, totalMin }) }
-
-        const ensurePessoa = (key, nome, empresa = "") => {
-            if (!mapPessoa.has(key))
-                mapPessoa.set(key, { nome, empresa, obras: new Map() });
-            return mapPessoa.get(key);
-        };
-        const ensureObra = (pessoa, obraId) => {
-            if (!pessoa.obras.has(obraId)) {
-                const meta = obrasParaPickers.find(
-                    (o) => Number(o.id) === Number(obraId),
-                );
-                pessoa.obras.set(obraId, {
-                    obraId: Number(obraId),
-                    obraNome: meta?.nome || `Obra ${obraId}`,
-                    horasPorDia: { ...baseHoras },
-                    totalMin: 0,
-                });
-            }
-            return pessoa.obras.get(obraId);
+        
+        // Helper para normalizar nome (remover espaços, acentos e case)
+        const normalizarNome = (nome) => {
+            return (nome || "")
+                .toLowerCase()
+                .trim()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, ""); // Remove acentos
         };
 
-        // ✅ Submetidos (vindos da API)
+        // 1️⃣ Consolidar por pessoa (nome normalizado) e obra
+        const consolidadoPorObraPessoa = new Map(); // "nomeNorm|obraId" -> { nome, empresa, horasPorDia, totalMin, obraId }
+
+        // ✅ Adicionar submetidos
         externosSubmetidosPorObraPessoa.forEach((byPessoa, obraId) => {
             byPessoa.forEach((row) => {
-                // usa o nome como chave (é o que temos nos submetidos)
-                const pessoa = ensurePessoa(row.funcionario, row.funcionario, "");
-                const obra = ensureObra(pessoa, obraId);
+                const nomeNorm = normalizarNome(row.funcionario);
+                const key = `${nomeNorm}|${obraId}`;
+                
+                if (!consolidadoPorObraPessoa.has(key)) {
+                    consolidadoPorObraPessoa.set(key, {
+                        obraId: Number(obraId),
+                        nome: row.funcionario,
+                        nomeNorm,
+                        empresa: "",
+                        horasPorDia: { ...baseHoras },
+                        totalMin: 0,
+                    });
+                }
+                
+                const item = consolidadoPorObraPessoa.get(key);
                 diasDoMes.forEach((d) => {
                     const mins = row.horasPorDia[d] || 0;
-                    obra.horasPorDia[d] = (obra.horasPorDia[d] || 0) + mins;
-                    obra.totalMin += mins;
+                    item.horasPorDia[d] = (item.horasPorDia[d] || 0) + mins;
+                    item.totalMin += mins;
                 });
             });
         });
 
-        // 📝 Pendentes (linhas ainda no modal)
+        // 📝 Adicionar/somar pendentes
         externosPorObraPessoa.forEach((byTrab, obraId) => {
             byTrab.forEach((row) => {
-                // aqui temos id e empresa — usamos uma chave estável baseada no id
-                const key = `id:${row.trabalhadorId}`;
-                const pessoa = ensurePessoa(key, row.funcionario, row.empresa || "");
-                const obra = ensureObra(pessoa, obraId);
-                diasDoMes.forEach((d) => {
-                    const mins = row.horasPorDia[d] || 0;
-                    obra.horasPorDia[d] = (obra.horasPorDia[d] || 0) + mins;
-                    obra.totalMin += mins;
-                });
+                const nomeNorm = normalizarNome(row.funcionario);
+                const key = `${nomeNorm}|${obraId}`;
+                
+                if (consolidadoPorObraPessoa.has(key)) {
+                    // Já existe - somar horas
+                    const item = consolidadoPorObraPessoa.get(key);
+                    diasDoMes.forEach((d) => {
+                        const mins = row.horasPorDia[d] || 0;
+                        item.horasPorDia[d] = (item.horasPorDia[d] || 0) + mins;
+                        item.totalMin += mins;
+                    });
+                    item.empresa = row.empresa || item.empresa;
+                } else {
+                    // Novo (só pendente)
+                    consolidadoPorObraPessoa.set(key, {
+                        obraId: Number(obraId),
+                        nome: row.funcionario,
+                        nomeNorm,
+                        empresa: row.empresa || "",
+                        horasPorDia: { ...row.horasPorDia },
+                        totalMin: row.totalMin,
+                    });
+                }
             });
         });
 
-        // -> array para render
-        return [...mapPessoa.values()].map((p) => ({
-            nome: p.nome,
-            empresa: p.empresa,
-            obras: [...p.obras.values()],
-        }));
+        // 2️⃣ Agrupar por pessoa (todas as obras de cada externo)
+        const mapPessoa = new Map(); // nomeNorm -> { nome, empresa, obras: [] }
+
+        consolidadoPorObraPessoa.forEach((item) => {
+            if (!mapPessoa.has(item.nomeNorm)) {
+                mapPessoa.set(item.nomeNorm, {
+                    nome: item.nome, // Usar o nome original (não normalizado)
+                    empresa: item.empresa,
+                    obras: [],
+                });
+            }
+            
+            const pessoa = mapPessoa.get(item.nomeNorm);
+            
+            // Atualizar empresa se vier melhor informação
+            if (item.empresa && !pessoa.empresa) {
+                pessoa.empresa = item.empresa;
+            }
+            
+            // Adicionar obra (evitar duplicatas)
+            const jaExiste = pessoa.obras.some(o => Number(o.obraId) === Number(item.obraId));
+            if (!jaExiste) {
+                const obraMeta = obrasParaPickers.find((o) => Number(o.id) === Number(item.obraId));
+                pessoa.obras.push({
+                    obraId: item.obraId,
+                    obraNome: obraMeta?.nome || `Obra ${item.obraId}`,
+                    horasPorDia: item.horasPorDia,
+                    totalMin: item.totalMin,
+                });
+            }
+        });
+
+        // 3️⃣ Converter para array e ordenar
+        return [...mapPessoa.values()].sort((a, b) => a.nome.localeCompare(b.nome));
     }, [
         externosSubmetidosPorObraPessoa,
         externosPorObraPessoa,
@@ -1833,10 +1924,18 @@ const carregarRascunho = useCallback(async () => {
         const codigosCompativeis = especialidadeSelecionada.cduCcs.split(',').map(codigo => codigo.trim());
 
         // Filtrar classes que têm o cduCcs (ou classe) que coincide com algum dos códigos compatíveis
-        return classesList.filter(classe =>
+        const classesCompativeis = classesList.filter(classe =>
             codigosCompativeis.includes(String(classe.cduCcs)) ||
             codigosCompativeis.includes(String(classe.classe))
         );
+
+        // Garantir que a classe -1 (Indiferenciada) está sempre presente
+        const classeIndiferenciada = classesList.find(c => c.classeId === -1);
+        if (classeIndiferenciada && !classesCompativeis.some(c => c.classeId === -1)) {
+            classesCompativeis.unshift(classeIndiferenciada);
+        }
+
+        return classesCompativeis;
     }, [classesList, especialidadesList, equipamentosList]);
 
     // === HELPER: extrai as linhas (uma só data + uma só obra) ===
@@ -2274,7 +2373,7 @@ const carregarRascunho = useCallback(async () => {
                                     obrasUnicas.set(registo.Obra.id, {
                                         id: registo.Obra.id,
                                         nome: registo.Obra.nome || "Obra sem nome",
-                                        codigo: `OBR${String(registo.Obra.id).padStart(3, "0")}`,
+                                        codigo: registo.Obra.codigo || `OBR${String(registo.Obra.id).padStart(3, "0")}`,
                                     });
                                 }
                             }
@@ -2680,7 +2779,6 @@ const carregarRascunho = useCallback(async () => {
 
             // Encontrar a especialidade e classe por defeito
             let especialidadeDefeito = trabalhador.especialidade || "";
-            let classeIdDefeito = trabalhador.classeId || null;
             let subEmpIdDefeito = trabalhador.subEmpId || null;
 
             if (isProprioUtilizador && especialidadesDia.length === 0) {
@@ -2693,21 +2791,15 @@ const carregarRascunho = useCallback(async () => {
                     especialidadeDefeito = espDefeito.codigo;
                     subEmpIdDefeito = espDefeito.subEmpId;
                 }
-
-                // Procurar a classe "Estaleiro" - verificar tanto em descricao como em classe
-                const classeDefeito = classesList.find(
-                    (c) => (c.descricao && c.descricao.toLowerCase().includes("estaleiro")) ||
-                           (c.classe && c.classe.toLowerCase().includes("estaleiro"))
-                );
-                if (classeDefeito) {
-                    classeIdDefeito = classeDefeito.classeId;
-                }
             }
 
             setEditData({
                 especialidadesDia:
                     especialidadesDia.length > 0
-                        ? especialidadesDia
+                        ? especialidadesDia.map(esp => ({
+                            ...esp,
+                            classeId: esp.classeId || null // ✅ Garantir null se não tiver classe definida
+                        }))
                         : [
                             {
                                 dia,
@@ -2716,7 +2808,7 @@ const carregarRascunho = useCallback(async () => {
                                 horas: 0, // sempre começar a 0
                                 subEmpId: subEmpIdDefeito,
                                 obraId: trabalhador.obraId,
-                                classeId: classeIdDefeito,
+                                classeId: null, // ✅ SEMPRE null = "Selecionar classe"
                                 notaDia: trabalhador?.notasPorDia?.[dia] ?? "",
                                 observacoes: trabalhador.observacoes || "",
                             },
@@ -2774,14 +2866,8 @@ const carregarRascunho = useCallback(async () => {
         if (campo === "especialidade" && subEmpId != null) {
             novas[index].subEmpId = subEmpId;
 
-            // Automaticamente selecionar a primeira classe compatível
-            const categoria = novas[index].categoria || "MaoObra";
-            const classesCompativeis = getClassesCompativeis(valor, categoria);
-            if (classesCompativeis.length > 0) {
-                novas[index].classeId = classesCompativeis[0].classeId;
-            } else {
-                novas[index].classeId = categoria === "Equipamentos" ? -1 : null;
-            }
+            // ✅ SEMPRE resetar para null (mostrar "Selecionar classe")
+            novas[index].classeId = null;
         }
 
         if (campo === "categoria") {
@@ -2800,6 +2886,63 @@ const carregarRascunho = useCallback(async () => {
 
     const salvarEdicao = useCallback(async () => {
         if (!selectedTrabalhador || !selectedDia) return;
+
+        // ✅ VALIDAÇÃO COMPLETA: obra, horas, especialidade, classe e observações (se classe -1)
+        for (let i = 0; i < (editData.especialidadesDia || []).length; i++) {
+            const esp = editData.especialidadesDia[i];
+
+            // Validar obra
+            const obraId = resolveObraId(esp.obraId, selectedTrabalhador.obraId);
+            if (!obraId || obraId === OBRA_SEM_ASSOC) {
+                Alert.alert(
+                    "Obra Obrigatória",
+                    `Por favor, selecione uma obra válida na especialidade ${i + 1}.`,
+                    [{ text: "OK" }]
+                );
+                return;
+            }
+
+            // Validar horas
+            const horas = parseFloat(esp.horas) || 0;
+            if (horas <= 0) {
+                Alert.alert(
+                    "Horas Obrigatórias",
+                    `Por favor, preencha as horas na especialidade ${i + 1}.`,
+                    [{ text: "OK" }]
+                );
+                return;
+            }
+
+            // Validar especialidade
+            if (!esp.especialidade || esp.especialidade === "") {
+                Alert.alert(
+                    "Especialidade Obrigatória",
+                    `Por favor, selecione uma especialidade na linha ${i + 1}.`,
+                    [{ text: "OK" }]
+                );
+                return;
+            }
+
+            // Validar classe (obrigatória se não for Equipamentos)
+            if (esp.categoria !== "Equipamentos" && (!esp.classeId || esp.classeId === null)) {
+                Alert.alert(
+                    "Classe Obrigatória",
+                    `Por favor, selecione uma classe na especialidade ${i + 1}.`,
+                    [{ text: "OK" }]
+                );
+                return;
+            }
+
+            // Validar observações se classe -1
+            if (esp.classeId === -1 && (!esp.observacoes || esp.observacoes.trim() === "")) {
+                Alert.alert(
+                    "Observações Obrigatórias",
+                    `A classe "Indiferenciada" requer observações obrigatórias.\n\nPor favor, preencha o campo de observações na especialidade ${i + 1}.`,
+                    [{ text: "OK" }]
+                );
+                return;
+            }
+        }
 
         // Garante obra em cada linha + calcula minutos
         const linhas = (editData.especialidadesDia || []).map((esp) => {
@@ -3107,7 +3250,7 @@ const carregarRascunho = useCallback(async () => {
                 });
             }
             gruposExternos.get(obraId).externos.push(l);
-            
+
             // ✅ ADICIONAR HORAS DOS EXTERNOS AO TOTAL
             const minutosExterno = l.horasMin || 0;
             if (l.horaExtra) {
@@ -3282,7 +3425,6 @@ const carregarRascunho = useCallback(async () => {
 
             setModalVisible(false); // Fecha o modal de confirmação geral (não o de resumo)
             setDiasEditadosManualmente(new Set());
-
             await carregarDados();
             await carregarItensSubmetidos();
 
@@ -3536,7 +3678,7 @@ for (const l of linhasParaSubmeter) {
                     </LinearGradient>
                 </TouchableOpacity>
 
-                
+
 
 
 
@@ -3551,7 +3693,7 @@ for (const l of linhasParaSubmeter) {
                         if (!wants) return;
 
                         setLoading(true);
-                        
+
                         // Eliminar rascunho do backend
                         try {
                             const token = await secureStorage.getItem("loginToken");
@@ -3902,13 +4044,7 @@ for (const l of linhasParaSubmeter) {
                                             ]}
                                             onPress={() => {
                                                 const novaClasseId = opt.value === "Equipamentos" ? -1 : null;
-                                                setLinhaAtual((p) => ({
-                                                    ...p,
-                                                    categoria: opt.value,
-                                                    especialidadeCodigo: "",
-                                                    subEmpId: null,
-                                                    classeId: novaClasseId,
-                                                }));
+                                                setLinhaAtual((p) => ({ ...p, categoria: opt.value, especialidadeCodigo: "", subEmpId: null, classeId: novaClasseId }));
                                             }}
                                         >
                                             <Ionicons
@@ -3964,17 +4100,14 @@ for (const l of linhasParaSubmeter) {
                                                     : especialidadesList;
                                             const sel = lista.find((x) => x.codigo === cod);
 
-                                            // Automaticamente selecionar a primeira classe compatível
-                                            const classesCompativeis = getClassesCompativeis(cod, linhaAtual.categoria);
-                                            const primeiraClasse = classesCompativeis.length > 0
-                                                ? classesCompativeis[0].classeId
-                                                : (linhaAtual.categoria === "Equipamentos" ? -1 : null);
+                                            // ✅ SEMPRE null para Mão de Obra, -1 para Equipamentos
+                                            const novaClasse = linhaAtual.categoria === "Equipamentos" ? -1 : null;
 
                                             setLinhaAtual((p) => ({
                                                 ...p,
                                                 especialidadeCodigo: cod,
                                                 subEmpId: sel?.subEmpId ?? null,
-                                                classeId: primeiraClasse,
+                                                classeId: novaClasse,
                                             }));
 
                                             setCamposInvalidos(prev => {
@@ -4101,15 +4234,23 @@ for (const l of linhasParaSubmeter) {
                             <View style={styles.externosInputGroup}>
                                 <Text style={styles.externosInputLabel}>
                                     <Ionicons name="chatbubble-ellipses" size={14} color="#666" />{" "}
-                                    Observações
+                                    Observações{linhaAtual.classeId === -1 ? ' *' : ''}
                                 </Text>
                                 <TextInput
-                                    style={styles.externosTextInput}
+                                    style={[
+                                        styles.externosTextInput,
+                                        camposInvalidos.has('observacoes') && { borderColor: '#dc3545', borderWidth: 2 }
+                                    ]}
                                     value={linhaAtual.observacoes}
-                                    onChangeText={(v) =>
-                                        setLinhaAtual((p) => ({ ...p, observacoes: v }))
-                                    }
-                                    placeholder="Notas adicionais sobre este registo"
+                                    onChangeText={(v) => {
+                                        setCamposInvalidos(prev => {
+                                            const novo = new Set(prev);
+                                            novo.delete('observacoes');
+                                            return novo;
+                                        });
+                                        setLinhaAtual((p) => ({ ...p, observacoes: v }));
+                                    }}
+                                    placeholder={linhaAtual.classeId === -1 ? "Obrigatório para classe Indiferenciada" : "Notas adicionais sobre este registo"}
                                     multiline
                                     numberOfLines={2}
                                     textAlignVertical="top"
@@ -4180,7 +4321,7 @@ for (const l of linhasParaSubmeter) {
                                                 <Ionicons name="library" size={12} color="#666" />{" "}
                                                 Classe: {l.classeDescricao || l.classe || "N/D"}
                                             </Text>
-                                            
+
                                             {!!l.observacoes && (
                                                 <Text style={styles.externosListItemObservations}>
                                                     <Ionicons name="chatbubble-ellipses" size={12} color="#1792FE" />{" "}
@@ -4381,16 +4522,15 @@ for (const l of linhasParaSubmeter) {
                   onValueChange={(cod) => {
                     const lista = linhaPessoalEquipAtual.categoria === "Equipamentos" ? equipamentosList : especialidadesList;
                     const sel = lista.find(x => x.codigo === cod);
-                    const classesComp = getClassesCompativeis(cod, linhaPessoalEquipAtual.categoria);
-                    const primeiraClasse = classesComp.length > 0
-                      ? classesComp[0].classeId
-                      : (linhaPessoalEquipAtual.categoria === "Equipamentos" ? -1 : null);
+
+                    // ✅ SEMPRE null para Mão de Obra, -1 para Equipamentos
+                    const novaClasse = linhaPessoalEquipAtual.categoria === "Equipamentos" ? -1 : null;
 
                     setLinhaPessoalEquipAtual(p => ({
                       ...p,
                       especialidadeCodigo: cod,
                       subEmpId: sel?.subEmpId ?? null,
-                      classeId: primeiraClasse,
+                      classeId: novaClasse,
                     }));
 
                     setCamposInvalidosPessoal(prev => {
@@ -4451,7 +4591,6 @@ for (const l of linhasParaSubmeter) {
                       novo.delete('horas');
                       return novo;
                     });
-
                     const { colaboradorId, dia, obraId } = linhaPessoalEquipAtual;
                     if (!colaboradorId || !dia || !obraId) {
                       Alert.alert("Validação", "Preencha primeiro Obra, Dia e Colaborador.");
@@ -4494,12 +4633,24 @@ for (const l of linhasParaSubmeter) {
 
             {/* Observações */}
             <View style={styles.externosInputGroup}>
-              <Text style={styles.externosInputLabel}><Ionicons name="chatbubble-ellipses" size={14} color="#666" /> Observações</Text>
+              <Text style={styles.externosInputLabel}>
+                <Ionicons name="chatbubble-ellipses" size={14} color="#666" /> Observações{linhaPessoalEquipAtual.classeId === -1 ? ' *' : ''}
+              </Text>
               <TextInput
-                style={styles.externosTextInput}
+                style={[
+                  styles.externosTextInput,
+                  camposInvalidosPessoal.has('observacoes') && { borderColor: '#dc3545', borderWidth: 2 }
+                ]}
                 value={linhaPessoalEquipAtual.observacoes}
-                onChangeText={(v) => setLinhaPessoalEquipAtual(p => ({...p, observacoes: v}))}
-                placeholder="Notas adicionais"
+                onChangeText={(v) => {
+                  setCamposInvalidosPessoal(prev => {
+                    const novo = new Set(prev);
+                    novo.delete('observacoes');
+                    return novo;
+                  });
+                  setLinhaPessoalEquipAtual(p => ({...p, observacoes: v}));
+                }}
+                placeholder={linhaPessoalEquipAtual.classeId === -1 ? "Obrigatório para classe Indiferenciada" : "Notas adicionais"}
                 multiline
                 numberOfLines={2}
                 textAlignVertical="top"
@@ -4580,8 +4731,7 @@ for (const l of linhasParaSubmeter) {
                         Nenhum registo encontrado para este período
                     </Text>
                     <Text style={styles.emptySubText}>
-                        Verifique se tem equipas associadas
-                    </Text>
+                        Verifique se tem equipas associadas                    </Text>
                 </View>
             );
         }
@@ -5091,11 +5241,7 @@ for (const l of linhasParaSubmeter) {
                                                         <Text
                                                             style={[
                                                                 styles.cellText,
-                                                                {
-                                                                    fontWeight: "600",
-                                                                    color: "#333",
-                                                                    textAlign: "center",
-                                                                },
+                                                                { fontWeight: "600", color: "#333", textAlign: "center" },
                                                             ]}
                                                         >
                                                             {formatarHorasMinutos(totalMinutosDia)}
@@ -5961,21 +6107,20 @@ for (const l of linhasParaSubmeter) {
                                     {/* Classe */}
                                     <View style={styles.editInputGroup}>
                                         <Text style={styles.editInputLabel}>
-                                            <Ionicons name="library" size={14} color="#666" /> Classe
+                                            <Ionicons name="library" size={14} color="#666" /> Classe *
                                         </Text>
                                         <View style={styles.editPickerWrapper}>
                                             <Picker
-                                                selectedValue={espItem.classeId}
+                                                selectedValue={espItem.classeId === null ? "" : espItem.classeId}
                                                 onValueChange={(valor) =>
-                                                    atualizarEspecialidade(index, "classeId", valor)
+                                                    atualizarEspecialidade(index, "classeId", valor === "" ? null : valor)
                                                 }
                                                 style={styles.editPicker}
+                                                enabled={espItem.categoria !== "Equipamentos"}
                                             >
-                                                <Picker.Item
-                                                    label="— Selecionar classe —"
-                                                    value={null}
-                                                    enabled={false}
-                                                    color="#999"
+                                                <Picker.Item 
+                                                    label={espItem.categoria === "Equipamentos" ? "N/A" : "— Selecionar classe —"} 
+                                                    value="" 
                                                 />
                                                 {getClassesCompativeis(espItem.especialidade, espItem.categoria).map((classe) => (
                                                     <Picker.Item
@@ -5992,15 +6137,26 @@ for (const l of linhasParaSubmeter) {
                                     <View style={styles.editInputGroup}>
                                         <Text style={styles.editInputLabel}>
                                             <Ionicons name="chatbubble-ellipses" size={14} color="#666" />{" "}
-                                            Observações
+                                            Observações{Number(espItem.classeId) === -1 ? ' *' : ''}
+                                            {Number(espItem.classeId) === -1 && (
+                                                <Text style={{ color: '#dc3545', fontSize: 11 }}>
+                                                    {' '}(Obrigatório para Indiferenciada)
+                                                </Text>
+                                            )}
                                         </Text>
                                         <TextInput
-                                            style={styles.editTextInput}
+                                            style={[
+                                                styles.editTextInput,
+                                                Number(espItem.classeId) === -1 && (!espItem.observacoes || espItem.observacoes.trim() === '') && {
+                                                    borderColor: '#dc3545',
+                                                    borderWidth: 2
+                                                }
+                                            ]}
                                             value={espItem.observacoes || ""}
                                             onChangeText={(v) =>
                                                 atualizarEspecialidade(index, "observacoes", v)
                                             }
-                                            placeholder="Notas adicionais sobre esta especialidade"
+                                            placeholder={Number(espItem.classeId) === -1 ? "Obrigatório para classe Indiferenciada" : "Notas adicionais sobre este registo"}
                                             multiline
                                             numberOfLines={2}
                                             textAlignVertical="top"
