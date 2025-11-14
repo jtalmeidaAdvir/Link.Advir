@@ -1472,7 +1472,10 @@ const carregarRascunhoSilencioso = useCallback(async () => {
       diasEditados: diasEditadosRestaurados.size,
     });
 
-    // Aplicar dados restaurados
+    // ✅ LIMPAR DADOS EXISTENTES ANTES DE RESTAURAR (evita duplicação)
+    console.log("📦 Limpando dados existentes antes de restaurar rascunho...");
+    
+    // Aplicar dados restaurados (substitui completamente os dados)
     setDadosProcessados(dadosRestaurados);
     setLinhasExternos(linhasExternosEnriquecidas);
     setLinhasPessoalEquip(linhasPessoalRestauradas);
@@ -1742,13 +1745,38 @@ const carregarRascunho = useCallback(async () => {
             });
         });
 
-        // 2️⃣ Agrupar por pessoa (todas as obras de cada externo)
+        // 2️⃣ Adicionar externos das equipas (sem registos) - SÓ se não tiverem dados consolidados
+        equipas.forEach((eq) => {
+            (eq.membros || []).forEach((mb) => {
+                if (!mb?.id || mb.tipo !== 'externo') return;
+                
+                const nomeNorm = normalizarNome(mb.nome);
+                
+                // Verificar se este externo JÁ tem algum dado (submetido ou pendente)
+                const temDados = Array.from(consolidadoPorObraPessoa.keys()).some(k => k.startsWith(`${nomeNorm}|`));
+                
+                if (!temDados) {
+                    // Só adiciona se não tiver nenhum registo
+                    const key = `${nomeNorm}|${OBRA_SEM_ASSOC}`;
+                    consolidadoPorObraPessoa.set(key, {
+                        obraId: OBRA_SEM_ASSOC,
+                        nome: mb.nome,
+                        nomeNorm,
+                        empresa: mb.empresa || "",
+                        horasPorDia: { ...baseHoras },
+                        totalMin: 0,
+                    });
+                }
+            });
+        });
+
+        // 3️⃣ Agrupar por pessoa (todas as obras de cada externo)
         const mapPessoa = new Map(); // nomeNorm -> { nome, empresa, obras: [] }
 
         consolidadoPorObraPessoa.forEach((item) => {
             if (!mapPessoa.has(item.nomeNorm)) {
                 mapPessoa.set(item.nomeNorm, {
-                    nome: item.nome, // Usar o nome original (não normalizado)
+                    nome: item.nome,
                     empresa: item.empresa,
                     obras: [],
                 });
@@ -1767,20 +1795,21 @@ const carregarRascunho = useCallback(async () => {
                 const obraMeta = obrasParaPickers.find((o) => Number(o.id) === Number(item.obraId));
                 pessoa.obras.push({
                     obraId: item.obraId,
-                    obraNome: obraMeta?.nome || `Obra ${item.obraId}`,
+                    obraNome: obraMeta?.nome || (item.obraId === OBRA_SEM_ASSOC ? "Sem obra" : `Obra ${item.obraId}`),
                     horasPorDia: item.horasPorDia,
                     totalMin: item.totalMin,
                 });
             }
         });
 
-        // 3️⃣ Converter para array e ordenar
+        // 4️⃣ Converter para array e ordenar
         return [...mapPessoa.values()].sort((a, b) => a.nome.localeCompare(b.nome));
     }, [
         externosSubmetidosPorObraPessoa,
         externosPorObraPessoa,
         diasDoMes,
         obrasParaPickers,
+        equipas,
     ]);
 
     useEffect(() => {
@@ -3425,9 +3454,30 @@ const carregarRascunho = useCallback(async () => {
 
             setModalVisible(false); // Fecha o modal de confirmação geral (não o de resumo)
             setDiasEditadosManualmente(new Set());
+            
+            // ✅ ELIMINAR RASCUNHO APÓS SUBMISSÃO COM SUCESSO
+            try {
+                const token = await secureStorage.getItem("loginToken");
+                const response = await fetch(
+                    `https://backend.advir.pt/api/parte-diaria-rascunho/eliminar?mes=${mesAno.mes}&ano=${mesAno.ano}`,
+                    {
+                        method: "DELETE",
+                        headers: { Authorization: `Bearer ${token}` },
+                    }
+                );
+                
+                if (response.ok) {
+                    console.log("✅ Rascunho eliminado após submissão com sucesso");
+                    setTemRascunho(false);
+                } else {
+                    console.warn("⚠️ Erro ao eliminar rascunho após submissão:", await response.text());
+                }
+            } catch (error) {
+                console.error("❌ Erro ao eliminar rascunho após submissão:", error);
+            }
+            
             await carregarDados();
             await carregarItensSubmetidos();
-
 
             Alert.alert(
                 "Sucesso",
@@ -3682,7 +3732,7 @@ for (const l of linhasParaSubmeter) {
 
 
 
-                {/* BOTÃO DE ATUALIZAR */}
+                {/* BOTÃO DE LIMPAR PARTES */}
                 <TouchableOpacity
                     style={styles.actionButton}
                     onPress={async () => {
@@ -3694,29 +3744,40 @@ for (const l of linhasParaSubmeter) {
 
                         setLoading(true);
 
-                        // Eliminar rascunho do backend
+                        // ✅ Eliminar rascunho do backend
                         try {
                             const token = await secureStorage.getItem("loginToken");
-                            await fetch(
+                            const response = await fetch(
                                 `https://backend.advir.pt/api/parte-diaria-rascunho/eliminar?mes=${mesAno.mes}&ano=${mesAno.ano}`,
                                 {
                                     method: "DELETE",
                                     headers: { Authorization: `Bearer ${token}` },
                                 }
                             );
-                            console.log("Rascunho eliminado do backend");
+                            
+                            if (response.ok) {
+                                console.log("✅ Rascunho eliminado do backend com sucesso");
+                            } else {
+                                console.warn("⚠️ Erro ao eliminar rascunho:", await response.text());
+                            }
                         } catch (error) {
-                            console.error("Erro ao eliminar rascunho:", error);
+                            console.error("❌ Erro ao eliminar rascunho:", error);
                         }
 
+                        // ✅ Limpar TODOS os dados locais
                         setDiasEditadosManualmente(new Set());
                         setLinhasExternos([]);
                         setLinhasPessoalEquip([]);
+                        setDadosProcessados([]);
                         setTemRascunho(false);
+                        
+                        // Recarregar dados
                         await carregarItensSubmetidos();
-                        console.log("🔍 submittedSet contém:", Array.from(submittedSet).slice(0, 10));
+                        await carregarDados();
 
                         setLoading(false);
+                        
+                        Alert.alert("Sucesso", "Todas as alterações foram limpas e o rascunho eliminado.");
                     }}
                 >
                     <LinearGradient
