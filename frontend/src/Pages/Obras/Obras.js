@@ -29,6 +29,7 @@ const ListarObras = ({ navigation }) => {
     const [loadingMessage, setLoadingMessage] = useState("Inicializando...");
     const [errorMessage, setErrorMessage] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
+    const [searchInput, setSearchInput] = useState(""); // Novo estado para o input
     const [obrasImportadas, setObrasImportadas] = useState([]);
     const [animatedValue] = useState(new Animated.Value(0));
     const [searchAnimated] = useState(new Animated.Value(0));
@@ -316,9 +317,15 @@ const ListarObras = ({ navigation }) => {
         setFilteredObras(filtered);
     };
 
-    const handleSearch = (text) => {
-        setSearchTerm(text);
-        applyFilters(text, filterType);
+    const handleSearchClick = () => {
+        setSearchTerm(searchInput);
+        applyFilters(searchInput, filterType);
+    };
+
+    const handleClearSearch = () => {
+        setSearchInput("");
+        setSearchTerm("");
+        applyFilters("", filterType);
     };
 
     const handleFilterChange = (newFilter) => {
@@ -418,17 +425,31 @@ const ListarObras = ({ navigation }) => {
                     style={styles.searchInput}
                     placeholder="Procurar por código ou título da obra..."
                     placeholderTextColor="#666"
-                    value={searchTerm}
-                    onChangeText={handleSearch}
+                    value={searchInput}
+                    onChangeText={setSearchInput}
+                    onSubmitEditing={handleSearchClick}
+                    returnKeyType="search"
                 />
-                {searchTerm ? (
+                {searchInput ? (
                     <TouchableOpacity
-                        onPress={() => handleSearch("")}
+                        onPress={handleClearSearch}
                         style={styles.clearButton}
                     >
                         <Ionicons name="close-circle" size={20} color="#999" />
                     </TouchableOpacity>
                 ) : null}
+                <TouchableOpacity
+                    onPress={handleSearchClick}
+                    style={styles.searchButton}
+                    activeOpacity={0.7}
+                >
+                    <LinearGradient
+                        colors={["#1792FE", "#0B5ED7"]}
+                        style={styles.searchButtonGradient}
+                    >
+                        <Ionicons name="search" size={18} color="#FFFFFF" />
+                    </LinearGradient>
+                </TouchableOpacity>
             </View>
         </Animated.View>
     );

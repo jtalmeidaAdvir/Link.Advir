@@ -60,6 +60,17 @@ export const styles = {
     },
     clearButton: {
         padding: 5,
+        marginRight: 5,
+    },
+    searchButton: {
+        borderRadius: 15,
+        overflow: "hidden",
+        marginLeft: 5,
+    },
+    searchButtonGradient: {
+        padding: 10,
+        alignItems: "center",
+        justifyContent: "center",
     },
     filtersContainer: {
         marginHorizontal: 20,
