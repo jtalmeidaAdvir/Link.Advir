@@ -3259,20 +3259,36 @@ const RegistosPorUtilizador = () => {
 
             {/* Filtros */}
             <div style={styles.filtersCard}>
-                <h3 style={styles.sectionTitle}>
+                <h3 style={{
+                    ...styles.sectionTitle,
+                    fontSize: '1.1rem',
+                    marginBottom: '12px'
+                }}>
                     <span style={styles.sectionIcon}>🔍</span>
                     Filtros de Pesquisa
                 </h3>
 
-                <div style={styles.filtersGrid}>
+                <div style={{
+                    ...styles.filtersGrid,
+                    gap: '10px',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))'
+                }}>
                     <div style={styles.filterGroup}>
-                        <label style={styles.label}>Obra</label>
+                        <label style={{
+                            ...styles.label,
+                            fontSize: '0.8rem',
+                            marginBottom: '4px'
+                        }}>Obra</label>
                         <select
-                            style={styles.select}
+                            style={{
+                                ...styles.select,
+                                padding: '6px 10px',
+                                fontSize: '0.85rem'
+                            }}
                             value={obraSelecionada}
                             onChange={e => setObraSelecionada(e.target.value)}
                         >
-                            <option value="">-- Todas as obras --</option>
+                            <option value="">Todas</option>
                             {obras.map(o => (
                                 <option key={o.id} value={o.id}>{o.nome}</option>
                             ))}
@@ -3280,13 +3296,21 @@ const RegistosPorUtilizador = () => {
                     </div>
 
                     <div style={styles.filterGroup}>
-                        <label style={styles.label}>Utilizador (Opcional)</label>
+                        <label style={{
+                            ...styles.label,
+                            fontSize: '0.8rem',
+                            marginBottom: '4px'
+                        }}>Utilizador</label>
                         <select
-                            style={styles.select}
+                            style={{
+                                ...styles.select,
+                                padding: '6px 10px',
+                                fontSize: '0.85rem'
+                            }}
                             value={utilizadorSelecionado}
                             onChange={e => setUtilizadorSelecionado(e.target.value)}
                         >
-                            <option value="">-- Todos os utilizadores --</option>
+                            <option value="">Todos</option>
                             {utilizadores.map(u => (
                                 <option key={u.id} value={u.id}>{u.codFuncionario} - {u.nome}</option>
                             ))}
@@ -3294,20 +3318,36 @@ const RegistosPorUtilizador = () => {
                     </div>
 
                     <div style={styles.filterGroup}>
-                        <label style={styles.label}>Data Específica</label>
+                        <label style={{
+                            ...styles.label,
+                            fontSize: '0.8rem',
+                            marginBottom: '4px'
+                        }}>Data Específica</label>
                         <input
                             type="date"
-                            style={styles.input}
+                            style={{
+                                ...styles.input,
+                                padding: '6px 10px',
+                                fontSize: '0.85rem'
+                            }}
                             value={dataSelecionada}
                             onChange={e => setDataSelecionada(e.target.value)}
                         />
                     </div>
 
                     <div style={styles.filterGroup}>
-                        <label style={styles.label}>Mês</label>
+                        <label style={{
+                            ...styles.label,
+                            fontSize: '0.8rem',
+                            marginBottom: '4px'
+                        }}>Mês</label>
                         <input
                             type="number"
-                            style={styles.input}
+                            style={{
+                                ...styles.input,
+                                padding: '6px 10px',
+                                fontSize: '0.85rem'
+                            }}
                             min="1"
                             max="12"
                             value={mesSelecionado}
@@ -3317,10 +3357,18 @@ const RegistosPorUtilizador = () => {
                     </div>
 
                     <div style={styles.filterGroup}>
-                        <label style={styles.label}>Ano</label>
+                        <label style={{
+                            ...styles.label,
+                            fontSize: '0.8rem',
+                            marginBottom: '4px'
+                        }}>Ano</label>
                         <input
                             type="number"
-                            style={styles.input}
+                            style={{
+                                ...styles.input,
+                                padding: '6px 10px',
+                                fontSize: '0.85rem'
+                            }}
                             min="2020"
                             max="2030"
                             value={anoSelecionado}
@@ -3330,23 +3378,35 @@ const RegistosPorUtilizador = () => {
                     </div>
                 </div>
 
-                <div style={styles.actionButtons}>
+                <div style={{
+                    ...styles.actionButtons,
+                    gap: '8px',
+                    marginTop: '12px'
+                }}>
                     {viewMode === 'resumo' && (
                         <>
                             <button
-                                style={styles.primaryButton}
+                                style={{
+                                    ...styles.primaryButton,
+                                    padding: '8px 14px',
+                                    fontSize: '0.85rem'
+                                }}
                                 onClick={carregarResumoUtilizadores}
                                 disabled={loading}
                             >
-                                {loading ? '🔄 A carregar...' : '🔍 Carregar Resumo'}
+                                {loading ? '🔄 Carregar...' : '🔍 Resumo'}
                             </button>
 
                             {resumoUtilizadores.length > 0 && (
                                 <button
-                                    style={styles.exportButton}
+                                    style={{
+                                        ...styles.exportButton,
+                                        padding: '8px 14px',
+                                        fontSize: '0.85rem'
+                                    }}
                                     onClick={exportarResumo}
                                 >
-                                    📊 Exportar Resumo
+                                    📊 Exportar
                                 </button>
                             )}
                         </>
@@ -3355,51 +3415,77 @@ const RegistosPorUtilizador = () => {
                     {viewMode === 'grade' && (
                         <>
                             <button
-                                style={styles.primaryButton}
+                                style={{
+                                    ...styles.primaryButton,
+                                    padding: '8px 14px',
+                                    fontSize: '0.85rem'
+                                }}
                                 onClick={carregarDadosGrade}
                                 disabled={loadingGrade || !anoSelecionado || !mesSelecionado}
                             >
-                                {loadingGrade ? '🔄 A carregar...' : '📅 Carregar Grade'}
+                                {loadingGrade ? '🔄 Carregar...' : '📅 Grade'}
                             </button>
 
                             {dadosGrade.length > 0 && (
                                 <button
-                                    style={styles.exportButton}
+                                    style={{
+                                        ...styles.exportButton,
+                                        padding: '8px 14px',
+                                        fontSize: '0.85rem'
+                                    }}
                                     onClick={exportarGrade}
                                 >
-                                    📊 Exportar Grade
+                                    📊 Exportar
                                 </button>
                             )}
 
                             {viewMode === 'grade' && selectedCells.length > 0 && (
                                 <>
                                     <button
-                                        style={styles.primaryButton}
-                                        
-                                               onClick={() => setBulkDialogOpen(true)}
+                                        style={{
+                                            ...styles.primaryButton,
+                                            padding: '8px 12px',
+                                            fontSize: '0.8rem'
+                                        }}
+                                        onClick={() => setBulkDialogOpen(true)}
                                     >
-                                        🗓️ Registar em bloco ({selectedCells.length} dias)
+                                        🗓️ Bloco ({selectedCells.length})
                                     </button>
 
                                     <button
-                                        style={{ ...styles.primaryButton, backgroundColor: '#d69e2e' }}
+                                        style={{
+                                            ...styles.primaryButton,
+                                            backgroundColor: '#d69e2e',
+                                            padding: '8px 12px',
+                                            fontSize: '0.8rem'
+                                        }}
                                         onClick={() => setBulkFaltaDialogOpen(true)}
                                     >
-                                        📅 Registar Faltas ({selectedCells.length} dias)
+                                        📅 Faltas ({selectedCells.length})
                                     </button>
 
                                     <button
-                                        style={{ ...styles.primaryButton, backgroundColor: '#38a169' }}
+                                        style={{
+                                            ...styles.primaryButton,
+                                            backgroundColor: '#38a169',
+                                            padding: '8px 12px',
+                                            fontSize: '0.8rem'
+                                        }}
                                         onClick={() => setBulkHoraExtraDialogOpen(true)}
                                     >
-                                        ⏰ Registar Horas Extras ({selectedCells.length} dias)
+                                        ⏰ H.Extras ({selectedCells.length})
                                     </button>
 
                                     <button
-                                        style={{ ...styles.primaryButton, backgroundColor: '#e53e3e' }}
+                                        style={{
+                                            ...styles.primaryButton,
+                                            backgroundColor: '#e53e3e',
+                                            padding: '8px 12px',
+                                            fontSize: '0.8rem'
+                                        }}
                                         onClick={() => setBulkDeleteDialogOpen(true)}
                                     >
-                                        🗑️ Eliminar pontos ({selectedCells.length} dias)
+                                        🗑️ Eliminar ({selectedCells.length})
                                     </button>
                                 </>
                             )}
@@ -3407,17 +3493,27 @@ const RegistosPorUtilizador = () => {
                             {viewMode === 'grade' && dadosGrade.length > 0 && (
                                 <>
                                     <button
-                                        style={{ ...styles.primaryButton, backgroundColor: '#805ad5' }}
+                                        style={{
+                                            ...styles.primaryButton,
+                                            backgroundColor: '#805ad5',
+                                            padding: '8px 12px',
+                                            fontSize: '0.8rem'
+                                        }}
                                         onClick={() => {
                                             setObraNoDialog(obraSelecionada || '');
                                             setAutoFillDialogOpen(true);
                                         }}
                                     >
-                                        🤖 Preencher Pontos em Falta
+                                        🤖 Auto-Preencher
                                     </button>
 
                                     <button
-                                        style={{ ...styles.primaryButton, backgroundColor: '#d69e2e' }}
+                                        style={{
+                                            ...styles.primaryButton,
+                                            backgroundColor: '#d69e2e',
+                                            padding: '8px 12px',
+                                            fontSize: '0.8rem'
+                                        }}
                                         onClick={() => {
                                             const primeiroFuncionario = dadosGrade[0];
                                             if (primeiroFuncionario) {
@@ -3432,11 +3528,16 @@ const RegistosPorUtilizador = () => {
                                             }
                                         }}
                                     >
-                                        📅 Registar Falta
+                                        📅 Nova Falta
                                     </button>
 
                                     <button
-                                        style={{ ...styles.primaryButton, backgroundColor: '#38a169' }}
+                                        style={{
+                                            ...styles.primaryButton,
+                                            backgroundColor: '#38a169',
+                                            padding: '8px 12px',
+                                            fontSize: '0.8rem'
+                                        }}
                                         onClick={() => {
                                             const primeiroFuncionario = dadosGrade[0];
                                             if (primeiroFuncionario) {
@@ -3449,14 +3550,19 @@ const RegistosPorUtilizador = () => {
                                             }
                                         }}
                                     >
-                                        ⏰ Registar Hora Extra
+                                        ⏰ Nova H.Extra
                                     </button>
 
                                     <button
-                                        style={{ ...styles.primaryButton, backgroundColor: '#e53e3e' }}
+                                        style={{
+                                            ...styles.primaryButton,
+                                            backgroundColor: '#e53e3e',
+                                            padding: '8px 12px',
+                                            fontSize: '0.8rem'
+                                        }}
                                         onClick={() => setClearPointsDialogOpen(true)}
                                     >
-                                        🗑️ Limpar Pontos de um Dia
+                                        🗑️ Limpar Dia
                                     </button>
                                 </>
                             )}
@@ -4886,21 +4992,29 @@ const RegistosPorUtilizador = () => {
                     {viewMode === 'detalhes' && utilizadorDetalhado && (
                         <>
                             <button
-                                style={styles.detailsButton}
+                                style={{
+                                    ...styles.detailsButton,
+                                    padding: '8px 14px',
+                                    fontSize: '0.85rem'
+                                }}
                                 onClick={() => {
                                     setUtilizadorDetalhado(null);
                                     setViewMode('resumo');
                                 }}
                             >
-                                ← Voltar ao Resumo
+                                ← Voltar
                             </button>
 
                             {registosDetalhados.length > 0 && (
                                 <button
-                                    style={styles.exportButton}
+                                    style={{
+                                        ...styles.exportButton,
+                                        padding: '8px 14px',
+                                        fontSize: '0.85rem'
+                                    }}
                                     onClick={exportarDetalhesUtilizador}
                                 >
-                                    📊 Exportar Detalhes
+                                    📊 Exportar
                                 </button>
                             )}
                         </>
@@ -5556,21 +5670,21 @@ const styles = {
     },
     header: {
         textAlign: 'center',
-        marginBottom: '30px'
+        marginBottom: '20px'
     },
     title: {
-        fontSize: '2.5rem',
+        fontSize: '1.5rem',
         color: '#2d3748',
         margin: '0 0 10px 0',
         fontWeight: '700'
     },
     subtitle: {
         color: '#718096',
-        fontSize: '1.1rem',
+        fontSize: '0.6rem',
         margin: 0
     },
     icon: {
-        marginRight: '10px'
+        marginRight: '5px'
     },
     navigationTabs: {
         display: 'flex',
@@ -6355,7 +6469,7 @@ const styles = {
         gap: '15px'
     },
     inputGroup: {
-        flex: 1
+        flex: 0.5
     },
     timeLabel: {
         display: 'block',

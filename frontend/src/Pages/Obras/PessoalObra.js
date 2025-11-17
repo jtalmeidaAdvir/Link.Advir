@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { styles } from './Css/PessoalObraStyles';
 import { secureStorage } from '../../utils/secureStorage';
+import * as XLSX from 'xlsx';
 const PessoalObra = ({ route }) => {
     const { obraId, nomeObra } = route.params;
     const [registos, setRegistos] = useState([]);
@@ -249,6 +250,39 @@ const PessoalObra = ({ route }) => {
         });
     };
 
+    const exportToExcel = () => {
+        const filteredData = applyFilters();
+        
+        // Preparar dados para exportação
+        const dataToExport = filteredData.map(funcionario => {
+            const tipoPessoa = funcionario.eventos?.[0]?.tipoPessoa || 'colaborador';
+            const nomeEmpresa = funcionario.eventos?.[0]?.nomeEmpresa || 'N/A';
+            
+            return {
+                'Nome': funcionario.nome,
+                'Tipo': tipoPessoa === 'visitante' ? 'Visitante' : tipoPessoa === 'externo' ? 'Externo' : 'Colaborador',
+                'Empresa': nomeEmpresa,
+                'Total de Horas': funcionario.total,
+                'Status': funcionario.status,
+                'Observações': funcionario.observacoes,
+                'Número de Registos': funcionario.eventos.length
+            };
+        });
+
+        // Criar worksheet
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        
+        // Criar workbook
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Pessoal');
+        
+        // Nome do arquivo
+        const fileName = `Pessoal_${nomeObra}_${dataSelecionada.toISOString().split('T')[0]}.xlsx`;
+        
+        // Fazer download
+        XLSX.writeFile(workbook, fileName);
+    };
+
     const getProgressWidth = (totalMinutos) => {
         const maxMinutos = 8 * 60; // 8 horas
         return Math.min((totalMinutos / maxMinutos) * 100, 100);
@@ -333,6 +367,17 @@ const PessoalObra = ({ route }) => {
                 onClick={() => handleTipoFiltroChange('externo')}
             >
                 🔧 Externos
+            </button>
+            <button
+                style={{
+                    ...styles.filterButton,
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    borderColor: '#28a745'
+                }}
+                onClick={exportToExcel}
+            >
+                📥 Exportar Excel
             </button>
         </div>
     );

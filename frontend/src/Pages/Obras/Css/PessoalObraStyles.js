@@ -147,6 +147,12 @@ export const styles = {
     boxShadow: '0 4px 15px rgba(23, 146, 254, 0.3)',
   },
 
+  exportButton: {
+    backgroundColor: '#28a745',
+    color: 'white',
+    borderColor: '#28a745',
+  },
+
   searchContainer: {
     margin: '0 20px 20px',
     borderRadius: '15px',
