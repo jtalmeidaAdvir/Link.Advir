@@ -328,6 +328,11 @@ const ListarObras = ({ navigation }) => {
         applyFilters("", filterType);
     };
 
+    const handleInputChange = (text) => {
+        setSearchInput(text);
+        // Não executar pesquisa automaticamente
+    };
+
     const handleFilterChange = (newFilter) => {
         setFilterType(newFilter);
         applyFilters(searchTerm, newFilter);
@@ -426,7 +431,7 @@ const ListarObras = ({ navigation }) => {
                     placeholder="Procurar por código ou título da obra..."
                     placeholderTextColor="#666"
                     value={searchInput}
-                    onChangeText={setSearchInput}
+                    onChangeText={handleInputChange}
                     onSubmitEditing={handleSearchClick}
                     returnKeyType="search"
                 />
@@ -943,34 +948,36 @@ const ListarObras = ({ navigation }) => {
         </View>
     );
 
-    const renderListHeader = () => (
-        <>
-            {renderHeader()}
-            {!loading && !errorMessage && renderSearchBar()}
-            {!loading && !errorMessage && renderFilters()}
-        </>
-    );
-
     return (
         <LinearGradient
             colors={["#e3f2fd", "#bbdefb", "#90caf9"]}
             style={styles.container}
         >
-            {loading ? (
-                renderLoadingState()
-            ) : errorMessage ? (
-                renderErrorState()
-            ) : (
-                <FlatList
-                    data={filteredObras}
-                    renderItem={renderObra}
-                    keyExtractor={(item) => item.ID.toString()}
-                    contentContainerStyle={styles.listContainer}
-                    showsVerticalScrollIndicator={false}
-                    ListEmptyComponent={renderEmptyState}
-                    ListHeaderComponent={renderListHeader}
-                />
-            )}
+            <ScrollView 
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
+            >
+                {renderHeader()}
+
+                {!loading && !errorMessage && renderSearchBar()}
+                {!loading && !errorMessage && renderFilters()}
+
+                {loading ? (
+                    renderLoadingState()
+                ) : errorMessage ? (
+                    renderErrorState()
+                ) : (
+                    <FlatList
+                        data={filteredObras}
+                        renderItem={renderObra}
+                        keyExtractor={(item) => item.ID.toString()}
+                        contentContainerStyle={styles.listContainer}
+                        showsVerticalScrollIndicator={false}
+                        ListEmptyComponent={renderEmptyState}
+                        scrollEnabled={false}
+                    />
+                )}
+            </ScrollView>
         </LinearGradient>
     );
 };
