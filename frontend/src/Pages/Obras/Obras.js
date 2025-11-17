@@ -943,36 +943,34 @@ const ListarObras = ({ navigation }) => {
         </View>
     );
 
+    const renderListHeader = () => (
+        <>
+            {renderHeader()}
+            {!loading && !errorMessage && renderSearchBar()}
+            {!loading && !errorMessage && renderFilters()}
+        </>
+    );
+
     return (
         <LinearGradient
             colors={["#e3f2fd", "#bbdefb", "#90caf9"]}
             style={styles.container}
         >
-            <ScrollView 
-                style={{ flex: 1 }}
-                showsVerticalScrollIndicator={false}
-            >
-                {renderHeader()}
-
-                {!loading && !errorMessage && renderSearchBar()}
-                {!loading && !errorMessage && renderFilters()}
-
-                {loading ? (
-                    renderLoadingState()
-                ) : errorMessage ? (
-                    renderErrorState()
-                ) : (
-                    <FlatList
-                        data={filteredObras}
-                        renderItem={renderObra}
-                        keyExtractor={(item) => item.ID.toString()}
-                        contentContainerStyle={styles.listContainer}
-                        showsVerticalScrollIndicator={false}
-                        ListEmptyComponent={renderEmptyState}
-                        scrollEnabled={false}
-                    />
-                )}
-            </ScrollView>
+            {loading ? (
+                renderLoadingState()
+            ) : errorMessage ? (
+                renderErrorState()
+            ) : (
+                <FlatList
+                    data={filteredObras}
+                    renderItem={renderObra}
+                    keyExtractor={(item) => item.ID.toString()}
+                    contentContainerStyle={styles.listContainer}
+                    showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={renderEmptyState}
+                    ListHeaderComponent={renderListHeader}
+                />
+            )}
         </LinearGradient>
     );
 };
