@@ -3875,11 +3875,16 @@ for (const l of linhasParaSubmeter) {
         return dadosProcessados.reduce((acc, item) => {
             const obraKey = item.obraId;
             if (!acc[obraKey]) {
+                // Buscar metadados completos da obra
+                const obraMeta = obrasParaPickers.find(o => Number(o.id) === Number(item.obraId));
+                const codigoObra = obraMeta?.codigo || item.obraCodigo || `OBR${String(item.obraId).padStart(3, "0")}`;
+                const nomeObra = obraMeta?.nome || item.obraNome || `Obra ${item.obraId}`;
+                
                 acc[obraKey] = {
                     obraInfo: {
                         id: item.obraId,
-                        nome: item.obraNome,
-                        codigo: item.obraCodigo,
+                        nome: nomeObra,
+                        codigo: codigoObra,
                     },
                     trabalhadores: [],
                 };
@@ -3887,7 +3892,7 @@ for (const l of linhasParaSubmeter) {
             acc[obraKey].trabalhadores.push(item);
             return acc;
         }, {});
-    }, [dadosProcessados]);
+    }, [dadosProcessados, obrasParaPickers]);
 
     const dadosAgrupadosPorUser = useMemo(() => {
         return dadosProcessados.reduce((acc, item) => {
@@ -5308,15 +5313,8 @@ for (const l of linhasParaSubmeter) {
                                                     >
                                                         {formatarHorasMinutos(
                                                             diasDoMes.reduce((acc, dia) => {
-                                                                return (
-                                                                    acc +
-                                                                    userGroup.obras.reduce(
-                                                                        (accObra, item) =>
-                                                                            accObra + getMinutosCell(item, dia),
-                                                                        0,
-                                                                    )
-                                                                );
-                                                            }, 0),
+                                                                return acc + getMinutosCell(item, dia);
+                                                            }, 0)
                                                         )}
                                                     </Text>
                                                 </View>
