@@ -98,6 +98,7 @@ const GestaoPartesDiarias = () => {
     const [filtroEstado, setFiltroEstado] = useState("pendentes");
     const [integrandoIds, setIntegrandoIds] = useState(new Set());
     const [equipamentosMap, setEquipamentosMap] = useState({});
+    const [searchQuery, setSearchQuery] = useState("");
     const [obrasResponsavel, setObrasResponsavel] = useState(new Set()); // Set com IDs das obras que sou responsável
     const [classesMap, setClassesMap] = useState({}); // Novo estado para o mapa de classes
     const [classesList, setClassesList] = useState([]);
@@ -153,8 +154,48 @@ const GestaoPartesDiarias = () => {
             return obrasResponsavel.has(obraId);
         });
 
+        // Filtrar por pesquisa
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase().trim();
+            filtered = filtered.filter((c) => {
+                // Pesquisar por nome do criador
+                const criador = (c.CriadoPor || c.Utilizador || "").toLowerCase();
+                if (criador.includes(query)) return true;
+
+                // Pesquisar por data
+                const data = new Date(c.Data).toLocaleDateString("pt-PT");
+                if (data.includes(query)) return true;
+
+                // Pesquisar por obra (código e nome)
+                const obraInfo = obrasMap[String(c.ObraID)];
+                if (obraInfo) {
+                    const obraCodigo = (obraInfo.codigo || "").toLowerCase();
+                    const obraDescricao = (obraInfo.descricao || "").toLowerCase();
+                    if (obraCodigo.includes(query) || obraDescricao.includes(query)) return true;
+                }
+
+                // Pesquisar nos itens (nomes de colaboradores, especialidades, equipamentos)
+                const itens = c.ParteDiariaItems || [];
+                for (const item of itens) {
+                    // Nome do colaborador
+                    const nomeColab = cacheNomes[item.ColaboradorID] || item.Funcionario || "";
+                    if (nomeColab.toLowerCase().includes(query)) return true;
+
+                    // Especialidade
+                    const especialidade = especialidadesMap[String(item.SubEmpID)] || "";
+                    if (especialidade.toLowerCase().includes(query)) return true;
+
+                    // Equipamento
+                    const equipamento = equipamentosMap[String(item.ComponenteID)] || equipamentosMap[String(item.SubEmpID)] || "";
+                    if (equipamento.toLowerCase().includes(query)) return true;
+                }
+
+                return false;
+            });
+        }
+
         return filtered;
-    }, [cabecalhos, filtroEstado, obrasResponsavel]);
+    }, [cabecalhos, filtroEstado, obrasResponsavel, searchQuery, obrasMap, cacheNomes, especialidadesMap, equipamentosMap]);
 
     // === ESTADOS DE EDIÇÃO ===
     const [editItemModalVisible, setEditItemModalVisible] = useState(false);
@@ -2463,23 +2504,59 @@ const GestaoPartesDiarias = () => {
             style={{ flex: 1 }}
         >
             <SafeAreaView style={styles.container}>
-                <LinearGradient
-                    colors={["#1792FE", "#0B5ED7"]}
-                    style={styles.header}
+                <ScrollView
+                    style={{ flex: 1 }}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ flexGrow: 1 }}
                 >
-                    <Text style={styles.headerTitle}>
-                        Gestão de Partes Diárias
-                    </Text>
-                    <Text style={styles.headerSubtitle}>
-                        {cabecalhosFiltrados.length}{" "}
-                        {cabecalhosFiltrados.length === 1 ? "parte" : "partes"}{" "}
-                        {obrasResponsavel.size === Object.keys(obrasMap).length
-                            ? "de todas as obras"
-                            : "das suas obras"}
-                    </Text>
-                </LinearGradient>
+                    <LinearGradient
+                        colors={["#1792FE", "#0B5ED7"]}
+                        style={styles.header}
+                    >
+                        <Text style={styles.headerTitle}>
+                            Gestão de Partes Diárias
+                        </Text>
+                        <Text style={styles.headerSubtitle}>
+                            {cabecalhosFiltrados.length}{" "}
+                            {cabecalhosFiltrados.length === 1 ? "parte" : "partes"}{" "}
+                            {obrasResponsavel.size === Object.keys(obrasMap).length
+                                ? "de todas as obras"
+                                : "das suas obras"}
+                        </Text>
+                    </LinearGradient>
 
-                <View style={styles.filtroContainer}>
+                    {/* Barra de Pesquisa */}
+                    <View style={styles.searchContainer}>
+                        <View style={styles.searchInputWrapper}>
+                            <Ionicons
+                                name="search"
+                                size={20}
+                                color="#666"
+                                style={styles.searchIcon}
+                            />
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Pesquisar por nome, data, obra..."
+                                placeholderTextColor="#999"
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                            />
+                            {searchQuery.length > 0 && (
+                                <TouchableOpacity
+                                    onPress={() => setSearchQuery("")}
+                                    style={styles.clearButton}
+                                >
+                                    <Ionicons
+                                        name="close-circle"
+                                        size={20}
+                                        color="#999"
+                                    />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+
+                    <View style={styles.filtroContainer}>
                     {["pendentes", "integrados"].map((opcao) => (
                         <TouchableOpacity
                             key={opcao}
@@ -2571,15 +2648,18 @@ const GestaoPartesDiarias = () => {
                                 Nenhuma parte diária encontrada
                             </Text>
                             <Text style={styles.emptyText}>
-                                {filtroEstado === "pendentes"
-                                    ? "Não há partes pendentes das suas obras no momento."
-                                    : filtroEstado === "integrados"
-                                      ? "Não há partes integradas das suas obras ainda."
-                                      : "Não há partes diárias registadas para as suas obras."}
+                                {searchQuery.trim()
+                                    ? "Nenhuma parte diária corresponde à sua pesquisa."
+                                    : filtroEstado === "pendentes"
+                                      ? "Não há partes pendentes das suas obras no momento."
+                                      : filtroEstado === "integrados"
+                                        ? "Não há partes integradas das suas obras ainda."
+                                        : "Não há partes diárias registadas para as suas obras."}
                             </Text>
                         </View>
                     )}
                 />
+                </ScrollView>
 
                 <Modal
                     visible={modalVisible}

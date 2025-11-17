@@ -119,6 +119,34 @@ export const styles = {
     fontStyle: 'italic',
   },
   
+  filterButtonsContainer: {
+    display: 'flex',
+    gap: '10px',
+    margin: '0 20px 15px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+
+  filterButton: {
+    padding: '10px 20px',
+    border: '2px solid #e9ecef',
+    borderRadius: '25px',
+    background: 'white',
+    color: '#666',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+  },
+
+  filterButtonActive: {
+    background: 'linear-gradient(135deg, #1792FE 0%, #0B5ED7 100%)',
+    color: 'white',
+    borderColor: '#1792FE',
+    boxShadow: '0 4px 15px rgba(23, 146, 254, 0.3)',
+  },
+
   searchContainer: {
     margin: '0 20px 20px',
     borderRadius: '15px',
@@ -143,6 +171,7 @@ export const styles = {
   searchIcon: {
     color: '#1792FE',
     marginRight: '10px',
+    fontSize: '18px',
   },
   
   searchInput: {
@@ -152,16 +181,19 @@ export const styles = {
     fontSize: '16px',
     color: '#333',
     background: 'transparent',
-    minHeight: '40px', // 👈
+    minHeight: '40px',
   },
 
   
   clearButton: {
-    padding: '5px',
+    padding: '5px 10px',
     background: 'none',
     border: 'none',
     cursor: 'pointer',
     color: '#999',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    transition: 'color 0.3s ease',
   },
   
   employeesContainer: {

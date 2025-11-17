@@ -109,9 +109,51 @@ const confirmAction = (title, message, okText = "Continuar", cancelText = "Cance
   });
 };
     const obrasParaPickers = useMemo(() => {
-        const listaObras = obrasTodas.length > 0 ? obrasTodas : obras;
-        // Ordenar alfanumericamente pelo código
-        return [...listaObras].sort((a, b) => {
+        // Combinar obras de ambas as fontes e remover duplicados
+        const obrasMap = new Map();
+        
+        // Função auxiliar para obter código normalizado
+        const obterCodigo = (obra) => {
+            // Tentar várias variações de campos
+            const codigoCandidatos = [
+                obra.codigo,
+                obra.Codigo,
+                obra.COD,
+                obra.Code,
+                obra.cod
+            ].filter(Boolean);
+            
+            if (codigoCandidatos.length > 0) {
+                return codigoCandidatos[0];
+            }
+            
+            // Se não tem código, gera um baseado no ID
+            return `OBR${String(obra.id).padStart(3, "0")}`;
+        };
+        
+        // Adicionar obras da lista completa
+        (obrasTodas || []).forEach(o => {
+            obrasMap.set(o.id, {
+                id: o.id,
+                nome: o.nome || o.Descricao || o.Titulo || `Obra ${o.id}`,
+                codigo: obterCodigo(o)
+            });
+        });
+        
+        // Adicionar obras dos registos (caso faltem na lista completa)
+        (obras || []).forEach(o => {
+            if (!obrasMap.has(o.id)) {
+                obrasMap.set(o.id, {
+                    id: o.id,
+                    nome: o.nome || o.Descricao || o.Titulo || `Obra ${o.id}`,
+                    codigo: obterCodigo(o)
+                });
+            }
+        });
+        
+        // Converter para array e ordenar
+        const listaObras = Array.from(obrasMap.values());
+        return listaObras.sort((a, b) => {
             const codigoA = (a.codigo || '').toString().toUpperCase();
             const codigoB = (b.codigo || '').toString().toUpperCase();
             return codigoA.localeCompare(codigoB, undefined, { numeric: true, sensitivity: 'base' });
@@ -2522,10 +2564,12 @@ const carregarRascunho = useCallback(async () => {
                 } else {
                     // Se não existe, cria nova linha apenas com dados submetidos
                     const metaUser = codToUser.get(row.cod) || {};
-                    const obraMeta = (obrasParaPickers || obras || []).find(
-                        (o) => Number(o.id) === Number(row.obraId),
-                    ) || {
-                        id: row.obraId,
+                    const obraMeta = obrasParaPickers.find(o => Number(o.id) === Number(row.obraId));
+                    
+                    const obraInfo = obraMeta ? {
+                        nome: obraMeta.nome,
+                        codigo: obraMeta.codigo || `OBR${String(row.obraId).padStart(3, "0")}`
+                    } : {
                         nome: `Obra ${row.obraId}`,
                         codigo: `OBR${String(row.obraId).padStart(3, "0")}`
                     };
@@ -2536,8 +2580,8 @@ const carregarRascunho = useCallback(async () => {
                         userName: metaUser.userName ?? `Colab ${row.cod}`,
                         codFuncionario: row.cod,
                         obraId: row.obraId,
-                        obraNome: obraMeta.nome,
-                        obraCodigo: obraMeta.codigo,
+                        obraNome: obraInfo.nome,
+                        obraCodigo: obraInfo.codigo,
                         horasPorDia: Object.fromEntries(diasDoMes.map((d) => [d, 0])), // nada de ponto
                         horasOriginais: {},
                         horasSubmetidasPorDia: row.horasPorDia,
@@ -2547,6 +2591,23 @@ const carregarRascunho = useCallback(async () => {
                     });
                 }
             });
+
+            // === FUNÇÃO AUXILIAR PARA BUSCAR METADADOS DA OBRA ===
+            const obterMetaObra = (obraId) => {
+                const obraMeta = obrasParaPickers.find(o => Number(o.id) === Number(obraId));
+                if (obraMeta) {
+                    return {
+                        id: Number(obraId),
+                        nome: obraMeta.nome,
+                        codigo: obraMeta.codigo || `OBR${String(obraId).padStart(3, "0")}`
+                    };
+                }
+                return {
+                    id: Number(obraId),
+                    nome: `Obra ${obraId}`,
+                    codigo: `OBR${String(obraId).padStart(3, "0")}`
+                };
+            };
 
             // === ADICIONA MEMBROS SEM PONTO (linhas vazias) - INTERNOS E EXTERNOS ===
             const existentes = new Set(linhas.map((r) => `${r.userId}-${r.obraId}`));
@@ -2596,13 +2657,7 @@ const carregarRascunho = useCallback(async () => {
                         const obraId = Number(obraIdDetected);
                         const key = `${userId}-${obraId}`;
                         if (existentes.has(key)) return;
-                        const obraMeta = (obrasParaPickers || []).find(
-                            (o) => Number(o.id) === obraId,
-                        ) || {
-                            id: obraId,
-                            nome: eq.nome || `Obra ${obraId}`,
-                            codigo: `OBR${String(obraId).padStart(3, "0")}`,
-                        };
+                        const obraMeta = obterMetaObra(obraId);
                         const baseHoras = Object.fromEntries(diasDoMes.map((d) => [d, 0]));
                         linhas.push({
                             id: `${userId}-${obraId}`,
@@ -4829,10 +4884,7 @@ for (const l of linhasParaSubmeter) {
                                                         style={{ marginRight: 8 }}
                                                     />
                                                     <Text style={styles.obraHeaderText}>
-                                                        {obraGroup.obraInfo.nome}
-                                                    </Text>
-                                                    <Text style={styles.obraHeaderCode}>
-                                                        ({obraGroup.obraInfo.codigo})
+                                                        {obraGroup.obraInfo.codigo} — {obraGroup.obraInfo.nome}
                                                     </Text>
                                                 </View>
                                                 <View style={styles.obraStats}>
@@ -5042,10 +5094,10 @@ for (const l of linhasParaSubmeter) {
                                                             <Text
                                                                 style={[styles.cellText, { fontWeight: "700" }]}
                                                             >
-                                                                {row.funcionario}{" "}
-                                                                <Text style={{ fontWeight: "400" }}>
-                                                                    (Externo)
-                                                                </Text>
+                                                                {row.funcionario}
+                                                            </Text>
+                                                            <Text style={{ fontWeight: "400", fontSize: 11, color: "#666" }}>
+                                                                (Externo)
                                                             </Text>
                                                             {row.temSubmetido && row.temPendente && (
                                                                 <Text style={[styles.cellSubText, { color: "#1792FE" }]}>
@@ -5305,7 +5357,7 @@ for (const l of linhasParaSubmeter) {
                                                                 { fontWeight: "600", color: "#333", textAlign: "center" },
                                                             ]}
                                                         >
-                                                            {formatarHorasMinutos(totalMinutosDia)}
+                                                            {totalMinutosDia > 0 ? formatarHorasMinutos(totalMinutosDia) : "-"}
                                                         </Text>
                                                     </View>
                                                 );
@@ -5320,16 +5372,11 @@ for (const l of linhasParaSubmeter) {
                                                     ]}
                                                 >
                                                     {formatarHorasMinutos(
-                                                        diasDoMes.reduce((acc, dia) => {
-                                                            return (
-                                                                acc +
-                                                                userGroup.obras.reduce(
-                                                                    (accObra, item) =>
-                                                                        accObra + getMinutosCell(item, dia),
-                                                                    0,
-                                                                )
-                                                            );
-                                                        }, 0),
+                                                        userGroup.obras.reduce((totalGeral, obraItem) => {
+                                                            return totalGeral + diasDoMes.reduce((acc, dia) => {
+                                                                return acc + getMinutosCell(obraItem, dia);
+                                                            }, 0);
+                                                        }, 0)
                                                     )}
                                                 </Text>
                                             </View>
@@ -5347,18 +5394,16 @@ for (const l of linhasParaSubmeter) {
                                             {/* Cabeçalho do "utilizador externo" */}
                                             <View style={styles.obraHeader}>
                                                 <View style={styles.obraHeaderContent}>
+                                                    <MaterialCommunityIcons
+                                                        name="account"
+                                                        size={20}
+                                                        color="#1792FE"
+                                                        style={{ marginRight: 8 }}
+                                                    />
                                                     <Text style={styles.obraHeaderText}>
-                                                        {ext.nome}{" "}
-                                                        <Text style={{ fontWeight: "normal" }}>
-                                                            (Externo)
-                                                        </Text>
+                                                        {ext.nome} (Externo)
+                                                        {!!ext.empresa && ` · ${ext.empresa}`}
                                                     </Text>
-                                                    {!!ext.empresa && (
-                                                        <Text style={styles.obraHeaderCode}>
-                                                            {" "}
-                                                            · {ext.empresa}
-                                                        </Text>
-                                                    )}
                                                 </View>
                                             </View>
 

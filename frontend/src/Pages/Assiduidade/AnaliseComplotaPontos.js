@@ -141,9 +141,7 @@ const AnaliseComplotaPontos = () => {
     }, []);
 
     useEffect(() => {
-        if (obraSelecionada) {
-            carregarDadosGrade();
-        }
+        carregarDadosGrade();
     }, [obraSelecionada, mesSelecionado, anoSelecionado]);
 
     // Refresh automático quando mudar obra, mês ou ano
@@ -153,21 +151,19 @@ const AnaliseComplotaPontos = () => {
         );
         console.log(
             "🔄 [REFRESH] Obra:",
-            obraSelecionada,
+            obraSelecionada || "Todas",
             "Mês:",
             mesSelecionado,
             "Ano:",
             anoSelecionado,
         );
 
-        if (obraSelecionada) {
-            // Limpar dados anteriores
-            setDadosGrade([]);
-            setFaltas([]);
+        // Limpar dados anteriores
+        setDadosGrade([]);
+        setFaltas([]);
 
-            // Recarregar com os novos filtros
-            carregarDadosGrade();
-        }
+        // Recarregar com os novos filtros
+        carregarDadosGrade();
     }, [obraSelecionada, mesSelecionado, anoSelecionado, utilizadores]);
 
     const carregarDadosIniciais = async () => {
@@ -395,83 +391,56 @@ const AnaliseComplotaPontos = () => {
     };
 
     const gerarPontosFicticios = (userId, dia, isHoje, horaAtual) => {
-        // Gerar horários fictícios mais variados e aleatórios
-        const seed = userId * 1000 + dia + Math.floor(dia / 7); // Mais variação
+        // Gerar horários fictícios coerentes com dia de trabalho completo
+        const seed = userId * 1000 + dia + Math.floor(dia / 7);
         const random1 = ((seed * 9301 + 49297) % 233280) / 233280;
 
-        // Horários de entrada mais variados (7:30 a 9:30)
+        // Horários de entrada (08:00 ± variação pequena)
         const horasEntrada = [
-            "07:30",
-            "07:45",
-            "07:50",
             "07:55",
             "07:58",
-            "07:59",
             "08:00",
-            "08:01",
             "08:02",
             "08:05",
             "08:10",
-            "08:15",
-            "08:30",
-            "08:45",
-            "08:50",
-            "08:55",
-            "08:58",
-            "08:59",
-            "09:00",
-            "09:05",
-            "09:10",
-            "09:15",
-            "09:30",
-        ];
-
-        // Horários de saída correspondentes (mantendo ~8h de trabalho)
-        const horariosSaida = [
-            "16:30",
-            "16:45",
-            "16:50",
-            "16:55",
-            "16:58",
-            "16:59",
-            "17:00",
-            "17:01",
-            "17:02",
-            "17:05",
-            "17:10",
-            "17:15",
-            "17:30",
-            "17:45",
-            "17:50",
-            "17:55",
-            "17:58",
-            "17:59",
-            "18:00",
-            "18:05",
-            "18:10",
-            "18:15",
-            "18:30",
         ];
 
         const indiceEntrada = Math.floor(random1 * horasEntrada.length);
         const horaEntrada = horasEntrada[indiceEntrada];
-        const horaSaida = horariosSaida[indiceEntrada];
 
-        // Se é hoje, verificar se já passou da hora de saída
+        // Almoço fixo: 12:00-13:00 (padrão mais comum)
+        const saidaAlmoco = "12:00";
+        const entradaAlmoco = "13:00";
+
+        // Horário de saída baseado na entrada (8h de trabalho + 1h almoço = 9h total)
+        const [entradaH, entradaM] = horaEntrada.split(":").map(Number);
+        const minutosEntrada = entradaH * 60 + entradaM;
+        const minutosSaida = minutosEntrada + 540; // 9 horas depois (8h trabalho + 1h almoço)
+        
+        const horaSaidaH = Math.floor(minutosSaida / 60);
+        const horaSaidaM = minutosSaida % 60;
+        const horaSaida = `${String(horaSaidaH).padStart(2, "0")}:${String(horaSaidaM).padStart(2, "0")}`;
+
+        // Verificar se deve mostrar saída (se é hoje e já passou da hora)
         let mostrarSaida = true;
+        let mostrarAlmoco = true;
+        
         if (isHoje && horaAtual) {
             const [horaAtualH, horaAtualM] = horaAtual.split(":").map(Number);
-            const [horaSaidaH, horaSaidaM] = horaSaida.split(":").map(Number);
-
             const minutosAtuais = horaAtualH * 60 + horaAtualM;
-            const minutosSaida = horaSaidaH * 60 + horaSaidaM;
-
+            
+            // Só mostra almoço se já passou das 13:00
+            mostrarAlmoco = minutosAtuais >= 780; // 13:00 em minutos
+            
+            // Só mostra saída se já passou da hora de saída
             mostrarSaida = minutosAtuais >= minutosSaida;
         }
 
         return {
             horaEntrada: horaEntrada,
             horaSaida: mostrarSaida ? horaSaida : null,
+            saidaAlmoco: mostrarAlmoco ? saidaAlmoco : null,
+            entradaAlmoco: mostrarAlmoco ? entradaAlmoco : null,
             totalHoras: mostrarSaida ? 8.0 : null,
             temSaida: mostrarSaida,
         };
@@ -503,10 +472,8 @@ const AnaliseComplotaPontos = () => {
     };
 
     const carregarDadosGrade = async () => {
-        if (!obraSelecionada) return;
-
         console.log("🔍 [GRADE] Iniciando carregamento da grade...");
-        console.log("🔍 [GRADE] Obra selecionada:", obraSelecionada);
+        console.log("🔍 [GRADE] Obra selecionada:", obraSelecionada || "Todas as obras");
         console.log("🔍 [GRADE] Mês/Ano:", mesSelecionado, "/", anoSelecionado);
 
         setLoading(true);
@@ -548,7 +515,8 @@ const AnaliseComplotaPontos = () => {
                         String(mesSelecionado).padStart(2, "0"),
                     );
 
-                    if (obraSelecionada) {
+                    // Adicionar obra_id apenas se uma obra específica estiver selecionada
+                    if (obraSelecionada && obraSelecionada !== "") {
                         url.searchParams.set(
                             "obra_id",
                             String(obraSelecionada),
@@ -810,6 +778,8 @@ const AnaliseComplotaPontos = () => {
                         estatisticasDia.horaSaida = null;
                         estatisticasDia.totalHoras = null;
                         estatisticasDia.temSaida = false;
+                        estatisticasDia.saidaAlmoco = null; // Limpar almoço
+                        estatisticasDia.entradaAlmoco = null; // Limpar almoço
 
                         console.log(
                             `❌ [GRADE] ${user.nome} - Dia ${dia}: FALTA registada (${faltasDoDia.length} falta(s)) - ${isFutureDate ? "FUTURO" : "PASSADO"}`,
@@ -830,17 +800,34 @@ const AnaliseComplotaPontos = () => {
                             estatisticasDia.horaEntrada =
                                 entradas[0]._hhmm || horaFrom(entradas[0]);
 
-                            if (saidas.length > 0) {
-                                // Temos saída -> usar a última
+                            // Processar picagens de almoço se existirem
+                            if (entradas.length >= 2 && saidas.length >= 2) {
+                                // Tem picagens completas incluindo almoço
+                                estatisticasDia.saidaAlmoco = saidas[0]._hhmm || horaFrom(saidas[0]);
+                                estatisticasDia.entradaAlmoco = entradas[1]._hhmm || horaFrom(entradas[1]);
+                                estatisticasDia.horaSaida = saidas[1]._hhmm || horaFrom(saidas[1]);
+                                estatisticasDia.totalHoras = 8.0;
+                                estatisticasDia.temSaida = true;
+                                dadosUsuario.totalHorasMes += 8;
+                                dadosUsuario.diasTrabalhados++;
+                            } else if (saidas.length > 0) {
+                                // Tem pelo menos uma saída, usar a última
                                 estatisticasDia.horaSaida =
                                     saidas[saidas.length - 1]._hhmm ||
                                     horaFrom(saidas[saidas.length - 1]);
-                                estatisticasDia.totalHoras = 8.0; // ou calcula a partir de horas reais, se quiseres
+                                
+                                // Se só tem 2 picagens (entrada manhã + saída final), completar com almoço padrão
+                                if (entradas.length === 1 && saidas.length === 1) {
+                                    estatisticasDia.saidaAlmoco = "12:00";
+                                    estatisticasDia.entradaAlmoco = "13:00";
+                                }
+                                
+                                estatisticasDia.totalHoras = 8.0;
                                 estatisticasDia.temSaida = true;
                                 dadosUsuario.totalHorasMes += 8;
                                 dadosUsuario.diasTrabalhados++;
                             } else {
-                                // Só entrada
+                                // Só entrada, verificar se é hoje ou passado
                                 const hojeStr = hoje.toDateString();
                                 const dataAtualStr = new Date(
                                     anoSelecionado,
@@ -851,11 +838,24 @@ const AnaliseComplotaPontos = () => {
                                 if (hojeStr === dataAtualStr) {
                                     // Hoje: sem saída ainda
                                     estatisticasDia.horaSaida = null;
+                                    estatisticasDia.saidaAlmoco = null;
+                                    estatisticasDia.entradaAlmoco = null;
                                     estatisticasDia.temSaida = false;
                                     dadosUsuario.diasTrabalhados += 0.5;
                                 } else {
-                                    // Dia no passado: saída fictícia **apenas porque há atividade real no próprio dia**
-                                    estatisticasDia.horaSaida = "17:00";
+                                    // Dia no passado: completar com horários fictícios coerentes
+                                    const isHoje = false;
+                                    const pontosFicticios = gerarPontosFicticios(
+                                        user.id,
+                                        dia,
+                                        isHoje,
+                                        null,
+                                    );
+                                    
+                                    // Manter a entrada real, usar saída e almoço fictícios
+                                    estatisticasDia.horaSaida = pontosFicticios.horaSaida;
+                                    estatisticasDia.saidaAlmoco = pontosFicticios.saidaAlmoco;
+                                    estatisticasDia.entradaAlmoco = pontosFicticios.entradaAlmoco;
                                     estatisticasDia.totalHoras = 8.0;
                                     estatisticasDia.temSaida = true;
                                     dadosUsuario.totalHorasMes += 8;
@@ -865,7 +865,7 @@ const AnaliseComplotaPontos = () => {
 
                             estatisticasDia.trabalhou = true;
                         } else {
-                            // Há registos no dia, mas nenhum de tipo "entrada" -> gerar cenário fictício **permitido** porque HÁ atividade real nesse dia
+                            // Há registos no dia, mas nenhum de tipo "entrada" -> gerar cenário fictício completo
                             const isHoje =
                                 new Date(
                                     anoSelecionado,
@@ -900,6 +900,8 @@ const AnaliseComplotaPontos = () => {
                         estatisticasDia.horaSaida = null;
                         estatisticasDia.totalHoras = null;
                         estatisticasDia.temSaida = false;
+                        estatisticasDia.saidaAlmoco = null; // Limpar almoço
+                        estatisticasDia.entradaAlmoco = null; // Limpar almoço
                     }
 
                     dadosUsuario.estatisticasDias[dia] = estatisticasDia;
@@ -978,7 +980,7 @@ const AnaliseComplotaPontos = () => {
     const getCellStyle = (estatisticas) => {
         // ✅ VERIFICAÇÃO DE SEGURANÇA: se estatisticas é undefined, retornar estilo vazio
         if (!estatisticas) return styles.cellEmpty;
-        
+
         // 1º FALTAS (tem prioridade absoluta, mesmo em futuro/fds)
         if (estatisticas.temFalta) return styles.cellFalta;
         // 2º FIM DE SEMANA
@@ -1004,7 +1006,15 @@ const AnaliseComplotaPontos = () => {
 
         if (estatisticas.trabalhou) {
             if (estatisticas.horaSaida) {
-                return `${estatisticas.horaEntrada}\n${estatisticas.horaSaida}`;
+                let cellValue = `${estatisticas.horaEntrada}`;
+                if (estatisticas.saidaAlmoco) {
+                    cellValue += `\n${estatisticas.saidaAlmoco}`;
+                }
+                if (estatisticas.entradaAlmoco) {
+                    cellValue += `\n${estatisticas.entradaAlmoco}`;
+                }
+                cellValue += `\n${estatisticas.horaSaida}`;
+                return cellValue;
             } else {
                 return `${estatisticas.horaEntrada}\n---`;
             }
@@ -1032,9 +1042,9 @@ const AnaliseComplotaPontos = () => {
                 0,
             ).getDate();
             const dias = Array.from({ length: diasDoMes }, (_, i) => i + 1);
-            const obraNome =
-                obras.find((obra) => obra.id.toString() === obraSelecionada)
-                    ?.nome || "Obra não encontrada";
+            const obraNome = obraSelecionada 
+                ? obras.find((obra) => obra.id.toString() === obraSelecionada)?.nome || "Obra não encontrada"
+                : "Todas as Obras";
 
             // Criar dados para exportação em formato profissional
             const dadosExport = [];
@@ -1115,11 +1125,14 @@ const AnaliseComplotaPontos = () => {
                         } else if (estatisticas.isFutureDate) {
                             cellValue = "";
                         } else if (estatisticas.trabalhou) {
-                            if (estatisticas.horaSaida) {
-                                cellValue = `✅ ${estatisticas.horaEntrada}\n${estatisticas.horaSaida}`;
-                            } else {
-                                cellValue = `🔄 ${estatisticas.horaEntrada}\nEm curso`;
+                            cellValue = `✅ ${estatisticas.horaEntrada}`;
+                            if (estatisticas.saidaAlmoco) {
+                                cellValue += `\n${estatisticas.saidaAlmoco}`;
                             }
+                            if (estatisticas.entradaAlmoco) {
+                                cellValue += `\n${estatisticas.entradaAlmoco}`;
+                            }
+                            cellValue += `\n${estatisticas.horaSaida}`;
                         } else {
                             cellValue = "";
                         }
@@ -1351,10 +1364,19 @@ const AnaliseComplotaPontos = () => {
                                         `Funcionário: ${dadosUsuario.utilizador.nome}\n` +
                                             `Dia: ${dia}/${mesSelecionado}/${anoSelecionado}\n` +
                                             `Entrada: ${estatisticas.horaEntrada}\n` +
+                                            (estatisticas.saidaAlmoco ? `Saída Almoço: ${estatisticas.saidaAlmoco}\n` : "") +
+                                            (estatisticas.entradaAlmoco ? `Entrada Almoço: ${estatisticas.entradaAlmoco}\n` : "") +
                                             `Saída: ${estatisticas.horaSaida || "Em curso"}\n` +
                                             (estatisticas.totalHoras
                                                 ? `Total Horas: ${estatisticas.totalHoras}h`
                                                 : "Dia em curso"),
+                                    );
+                                } else if (estatisticas && estatisticas.temFalta) {
+                                    Alert.alert(
+                                        "Detalhes do Dia",
+                                        `Funcionário: ${dadosUsuario.utilizador.nome}\n` +
+                                            `Dia: ${dia}/${mesSelecionado}/${anoSelecionado}\n` +
+                                            `Motivo: FALTA`,
                                     );
                                 }
                             }}
@@ -1413,7 +1435,7 @@ const AnaliseComplotaPontos = () => {
                                     style={styles.picker}
                                 >
                                     <Picker.Item
-                                        label="Selecione uma obra..."
+                                        label="Todas as Obras"
                                         value=""
                                     />
                                     {obras.map((obra) => (
@@ -1518,21 +1540,13 @@ const AnaliseComplotaPontos = () => {
                         <View style={styles.gradeHeader}>
                             <Text style={styles.gradeTitle}>
                                 Grade Mensal - {meses[mesSelecionado - 1]}{" "}
-                                {anoSelecionado} ({dadosGrade.length}{" "}
+                                {anoSelecionado} - {obraSelecionada ? obras.find(o => o.id.toString() === obraSelecionada)?.nome : "Todas as Obras"} ({dadosGrade.length}{" "}
                                 utilizadores)
                             </Text>
                             <View style={styles.buttonGroup}>
                                 <TouchableOpacity
                                     style={styles.refreshButton}
                                     onPress={() => {
-                                        if (!obraSelecionada) {
-                                            Alert.alert(
-                                                "Aviso",
-                                                "Selecione uma obra primeiro",
-                                            );
-                                            return;
-                                        }
-
                                         Alert.alert(
                                             "Atualizar Dados",
                                             "Deseja recarregar apenas as faltas ou todos os dados?",
@@ -1652,6 +1666,8 @@ const AnaliseComplotaPontos = () => {
                                                                                         null;
                                                                                     estatisticasDia.totalHoras =
                                                                                         null;
+                                                                                    estatisticasDia.saidaAlmoco = null;
+                                                                                    estatisticasDia.entradaAlmoco = null;
                                                                                     novosDados.faltasTotal++;
                                                                                 } else {
                                                                                     estatisticasDia.faltas =
@@ -1745,7 +1761,7 @@ const AnaliseComplotaPontos = () => {
                                             ],
                                         );
                                     }}
-                                    disabled={loading || !obraSelecionada}
+                                    disabled={loading}
                                 >
                                     <LinearGradient
                                         colors={["#007bff", "#0056b3"]}
@@ -1801,7 +1817,7 @@ const AnaliseComplotaPontos = () => {
                             </View>
                         </ScrollView>
                     </View>
-                ) : obraSelecionada ? (
+                ) : (
                     <View style={styles.emptyContainer}>
                         <MaterialCommunityIcons
                             name="information"
@@ -1810,17 +1826,6 @@ const AnaliseComplotaPontos = () => {
                         />
                         <Text style={styles.emptyText}>
                             Nenhum dado encontrado para os filtros selecionados
-                        </Text>
-                    </View>
-                ) : (
-                    <View style={styles.emptyContainer}>
-                        <MaterialCommunityIcons
-                            name="filter"
-                            size={64}
-                            color="#ccc"
-                        />
-                        <Text style={styles.emptyText}>
-                            Selecione uma obra para visualizar a grade
                         </Text>
                     </View>
                 )}

@@ -229,7 +229,7 @@ export const styles = StyleSheet.create({
     },
     dayCell: {
         width: 40,
-        height: 50,
+        height: 70,
         padding: 2,
         justifyContent: "center",
         alignItems: "center",
@@ -237,9 +237,10 @@ export const styles = StyleSheet.create({
         borderRightColor: "#ddd",
     },
     dayCellText: {
-        fontSize: 8,
+        fontSize: 7,
         textAlign: "center",
         color: "#333",
+        lineHeight: 10,
     },
     totalCell: {
         width: 80,

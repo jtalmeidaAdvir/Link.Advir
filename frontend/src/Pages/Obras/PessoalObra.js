@@ -12,6 +12,7 @@ const PessoalObra = ({ route }) => {
     const [animatedValue, setAnimatedValue] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    const [tipoFiltro, setTipoFiltro] = useState('todos'); // 'todos', 'colaborador', 'visitante', 'externo'
 
     // Animation effect for header pulse
     useEffect(() => {
@@ -195,9 +196,18 @@ const PessoalObra = ({ route }) => {
         return resumos.sort((a, b) => b.totalMinutos - a.totalMinutos);
     };
 
-    const applyFilters = (searchText = searchTerm) => {
+    const applyFilters = (searchText = searchTerm, filtroTipo = tipoFiltro) => {
         let filtered = [...resumoFuncionarios];
 
+        // Filtrar por tipo de pessoa
+        if (filtroTipo !== 'todos') {
+            filtered = filtered.filter(funcionario => {
+                const tipoPessoa = funcionario.eventos?.[0]?.tipoPessoa || 'colaborador';
+                return tipoPessoa === filtroTipo;
+            });
+        }
+
+        // Filtrar por texto de pesquisa
         if (searchText.trim() !== '') {
             filtered = filtered.filter(funcionario =>
                 funcionario.nome.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -210,6 +220,10 @@ const PessoalObra = ({ route }) => {
 
     const handleSearch = (text) => {
         setSearchTerm(text);
+    };
+
+    const handleTipoFiltroChange = (tipo) => {
+        setTipoFiltro(tipo);
     };
 
     const toggleCardExpansion = (nome) => {
@@ -282,14 +296,54 @@ const PessoalObra = ({ route }) => {
         </div>
     );
 
+    const renderFilterButtons = () => (
+        <div style={styles.filterButtonsContainer}>
+            <button
+                style={{
+                    ...styles.filterButton,
+                    ...(tipoFiltro === 'todos' ? styles.filterButtonActive : {})
+                }}
+                onClick={() => handleTipoFiltroChange('todos')}
+            >
+                📊 Todos
+            </button>
+            <button
+                style={{
+                    ...styles.filterButton,
+                    ...(tipoFiltro === 'colaborador' ? styles.filterButtonActive : {})
+                }}
+                onClick={() => handleTipoFiltroChange('colaborador')}
+            >
+                👷 Colaboradores
+            </button>
+            <button
+                style={{
+                    ...styles.filterButton,
+                    ...(tipoFiltro === 'visitante' ? styles.filterButtonActive : {})
+                }}
+                onClick={() => handleTipoFiltroChange('visitante')}
+            >
+                👤 Visitantes
+            </button>
+            <button
+                style={{
+                    ...styles.filterButton,
+                    ...(tipoFiltro === 'externo' ? styles.filterButtonActive : {})
+                }}
+                onClick={() => handleTipoFiltroChange('externo')}
+            >
+                🔧 Externos
+            </button>
+        </div>
+    );
+
     const renderSearchBar = () => (
         <div style={{
             ...styles.searchContainer,
             ...(searchTerm ? styles.searchContainerActive : {})
         }}>
             <div style={styles.searchInputContainer}>
-
-
+                <span style={styles.searchIcon}>🔍</span>
                 <input
                     type="text"
                     style={styles.searchInput}
@@ -302,6 +356,7 @@ const PessoalObra = ({ route }) => {
                         style={styles.clearButton}
                         onClick={() => handleSearch('')}
                     >
+                        ✕
                     </button>
                 )}
             </div>
@@ -464,6 +519,7 @@ const PessoalObra = ({ route }) => {
             <div style={styles.container}>
                 {renderHeader()}
                 {renderDatePicker()}
+                {renderFilterButtons()}
                 {renderSearchBar()}
                 {renderContent()}
             </div>
