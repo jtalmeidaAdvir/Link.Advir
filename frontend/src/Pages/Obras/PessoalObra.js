@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { styles } from './Css/PessoalObraStyles';
 import { secureStorage } from '../../utils/secureStorage';
 import * as XLSX from 'xlsx';
-const PessoalObra = ({ route }) => {
+const PessoalObra = ({ route, navigation }) => {
     const { obraId, nomeObra } = route.params;
     const [registos, setRegistos] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -295,6 +295,12 @@ const PessoalObra = ({ route }) => {
                     ...styles.headerContent,
                     ...(animatedValue ? styles.headerContentPulse : {})
                 }}>
+                    <button
+                        style={styles.backButton}
+                        onClick={() => navigation.navigate('Obras')}
+                    >
+                        ← Voltar
+                    </button>
                     <h1 style={styles.headerTitle}>Colaboradores na Obra</h1>
                     <p style={styles.headerSubtitle}>
                         {nomeObra}

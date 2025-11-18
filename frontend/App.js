@@ -2163,12 +2163,10 @@ const AppNavigator = () => {
                         name="VisualizacaoGrelhaPartes"
                         component={VisualizacaoGrelhaPartes}
                         options={{
-                            title: "AdvirLink - VisualizacaoGrelhaPartes",
-                            drawerItemStyle: { display: "none" }, // mostra via módulo/submódulo
+                            title: "AdvirLink - Visualização em Grelha",
+                            drawerItemStyle: { display: "none" },
                         }}
                     />
-
-                    
 
                     <Drawer.Screen
                         name="LeitorQRCode"

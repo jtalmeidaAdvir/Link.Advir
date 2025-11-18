@@ -8,14 +8,14 @@ export const styles = {
     background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     overflowY: 'auto', 
-   
+
   },
-  
+
   headerContainer: {
     width: '100%',
     marginBottom: '20px',
   },
-  
+
   headerGradient: {
     background: 'linear-gradient(135deg, #1792FE 0%, #0B5ED7 100%)',
     padding: '30px 20px',
@@ -24,7 +24,7 @@ export const styles = {
     position: 'relative',
     overflow: 'hidden',
   },
-  
+
   headerContent: {
     textAlign: 'center',
     color: 'white',
@@ -32,17 +32,17 @@ export const styles = {
     zIndex: 1,
     transition: 'transform 0.3s ease',
   },
-  
+
   headerContentPulse: {
     transform: 'scale(1.02)',
   },
-  
+
   headerIcon: {
     fontSize: '32px',
     marginBottom: '10px',
     display: 'block',
   },
-  
+
   headerTitle: {
     fontSize: 'clamp(1.5rem, 2vw, 2rem)', // entre 24px e 32px
     fontWeight: '700',
@@ -50,20 +50,20 @@ export const styles = {
     textShadow: '0 2px 4px rgba(0,0,0,0.1)',
   },
 
-  
+
   headerSubtitle: {
     fontSize: '18px',
     margin: '0 0 5px 0',
     opacity: 0.9,
     fontWeight: '500',
   },
-  
+
   headerCount: {
     fontSize: '14px',
     margin: 0,
     opacity: 0.8,
   },
-  
+
   datePickerContainer: {
     background: 'white',
     margin: '20px',
@@ -72,32 +72,32 @@ export const styles = {
     boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
     border: '1px solid rgba(23, 146, 254, 0.1)',
   },
-  
+
   datePickerHeader: {
     display: 'flex',
     alignItems: 'center',
     marginBottom: '15px',
   },
-  
+
   dateIcon: {
     color: '#1792FE',
     fontSize: '20px',
     marginRight: '10px',
   },
-  
+
   datePickerTitle: {
     margin: 0,
     color: '#333',
     fontSize: '18px',
     fontWeight: '600',
   },
-  
+
   datePickerContent: {
     display: 'flex',
     flexDirection: 'column',
     gap: '10px',
   },
-  
+
   dateInput: {
     padding: '12px 15px',
     border: '2px solid #e9ecef',
@@ -106,19 +106,19 @@ export const styles = {
     transition: 'all 0.3s ease',
     outline: 'none',
   },
-  
+
   dateInputFocus: {
     borderColor: '#1792FE',
     boxShadow: '0 0 0 3px rgba(23, 146, 254, 0.1)',
   },
-  
+
   selectedDate: {
     color: '#666',
     fontSize: '14px',
     margin: 0,
     fontStyle: 'italic',
   },
-  
+
   filterButtonsContainer: {
     display: 'flex',
     gap: '10px',
@@ -160,11 +160,11 @@ export const styles = {
     background: 'rgba(255,255,255,0.9)',
     transition: 'background 0.3s ease',
   },
-  
+
   searchContainerActive: {
     background: 'rgba(23,146,254,0.1)',
   },
-  
+
   searchInputContainer: {
     display: 'flex',
     alignItems: 'center',
@@ -173,13 +173,13 @@ export const styles = {
     padding: '10px 15px',
     boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
   },
-  
+
   searchIcon: {
     color: '#1792FE',
     marginRight: '10px',
     fontSize: '18px',
   },
-  
+
   searchInput: {
     flex: 1,
     border: 'none',
@@ -190,7 +190,7 @@ export const styles = {
     minHeight: '40px',
   },
 
-  
+
   clearButton: {
     padding: '5px 10px',
     background: 'none',
@@ -201,12 +201,12 @@ export const styles = {
     fontWeight: 'bold',
     transition: 'color 0.3s ease',
   },
-  
+
   employeesContainer: {
     padding: '0 20px 20px',
     marginBottom: '80px'
   },
-  
+
   employeeCard: {
     background: 'white',
     borderRadius: '15px',
@@ -217,12 +217,12 @@ export const styles = {
     border: '1px solid rgba(23, 146, 254, 0.1)',
     cursor: 'pointer',
   },
-  
+
   employeeCardHover: {
     transform: 'translateY(-2px)',
     boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
   },
-  
+
   employeeCardHeader: {
     padding: '20px',
     display: 'flex',
@@ -230,11 +230,11 @@ export const styles = {
     alignItems: 'center',
     transition: 'background-color 0.3s ease',
   },
-  
+
   employeeCardHeaderHover: {
     backgroundColor: 'rgba(23, 146, 254, 0.05)',
   },
-  
+
   employeeInfo: {
     display: 'flex',
     alignItems: 'center',
@@ -242,32 +242,32 @@ export const styles = {
     flexWrap: 'wrap',
     gap: '10px',
   },
-  
 
-  
+
+
   employeeDetails: {
     flex: 1,
   },
-  
+
   employeeName: {
     margin: '0 0 5px 0',
     fontSize: '18px',
     fontWeight: '600',
     color: '#333',
   },
-  
+
   employeeTotal: {
     margin: 0,
     color: '#666',
     fontSize: '14px',
   },
-  
+
   employeeStatusContainer: {
     display: 'flex',
     alignItems: 'center',
     gap: '15px',
   },
-  
+
   statusBadge: {
     padding: '6px 12px',
     borderRadius: '20px',
@@ -277,20 +277,20 @@ export const styles = {
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
   },
-  
+
   expandIcon: {
     color: '#999',
     fontSize: '16px',
     transition: 'transform 0.3s ease',
   },
-  
+
   progressContainer: {
     padding: '0 20px 15px',
     display: 'flex',
     alignItems: 'center',
     gap: '15px',
   },
-  
+
   progressBar: {
     flex: 1,
     height: '8px',
@@ -298,20 +298,20 @@ export const styles = {
     borderRadius: '4px',
     overflow: 'hidden',
   },
-  
+
   progressFill: {
     height: '100%',
     borderRadius: '4px',
     transition: 'width 0.6s ease',
   },
-  
+
   progressText: {
     fontSize: '12px',
     color: '#666',
     minWidth: '60px',
     textAlign: 'right',
   },
-  
+
   employeeObservations: {
     padding: '0 20px 20px',
     margin: 0,
@@ -319,13 +319,13 @@ export const styles = {
     fontSize: '14px',
     fontStyle: 'italic',
   },
-  
+
   employeeTimeline: {
     padding: '20px',
     borderTop: '1px solid #e9ecef',
     backgroundColor: '#f8f9fa',
   },
-  
+
   timelineTitle: {
     margin: '0 0 20px 0',
     color: '#333',
@@ -335,20 +335,20 @@ export const styles = {
     alignItems: 'center',
     gap: '8px',
   },
-  
+
   timelineContainer: {
     position: 'relative',
     maxHeight: '200px',
     overflowY: 'auto',
   },
-  
+
   timelineItem: {
     display: 'flex',
     alignItems: 'center',
     marginBottom: '15px',
     position: 'relative',
   },
-  
+
   timelineMarker: {
     width: '40px',
     height: '40px',
@@ -361,36 +361,36 @@ export const styles = {
     marginRight: '15px',
     position: 'relative',
   },
-  
+
   timelineMarkerEntrada: {
     background: 'linear-gradient(135deg, #28a745, #20c997)',
   },
-  
+
   timelineMarkerSaida: {
     background: 'linear-gradient(135deg, #dc3545, #e83e8c)',
   },
-  
+
   timelineMarkerPausa: {
     background: 'linear-gradient(135deg, #ffc107, #fd7e14)',
   },
-  
+
   timelineContent: {
     display: 'flex',
     flexDirection: 'column',
     flex: 1,
   },
-  
+
   timelineType: {
     fontWeight: '600',
     color: '#333',
     fontSize: '14px',
   },
-  
+
   timelineTime: {
     color: '#666',
     fontSize: '12px',
   },
-  
+
   loadingContainer: {
     textAlign: 'center',
     padding: '60px 20px',
@@ -400,7 +400,7 @@ export const styles = {
     justifyContent: 'center',
     minHeight: '300px',
   },
-  
+
   loadingSpinner: {
     width: '40px',
     height: '40px',
@@ -410,13 +410,13 @@ export const styles = {
     animation: 'spin 1s linear infinite',
     marginBottom: '20px',
   },
-  
+
   loadingText: {
     color: '#666',
     fontSize: '16px',
     margin: 0,
   },
-  
+
   errorContainer: {
     textAlign: 'center',
     padding: '60px 20px',
@@ -428,24 +428,24 @@ export const styles = {
     flexDirection: 'column',
     alignItems: 'center',
   },
-  
+
   errorIcon: {
     fontSize: '48px',
     color: '#dc3545',
     marginBottom: '20px',
   },
-  
+
   errorTitle: {
     color: '#333',
     margin: '0 0 10px 0',
     fontSize: '20px',
   },
-  
+
   errorMessage: {
     color: '#666',
     margin: '0 0 30px 0',
   },
-  
+
   retryButton: {
     background: 'linear-gradient(135deg, #1792FE, #0B5ED7)',
     color: 'white',
@@ -460,12 +460,12 @@ export const styles = {
     alignItems: 'center',
     gap: '8px',
   },
-  
+
   retryButtonHover: {
     transform: 'translateY(-1px)',
     boxShadow: '0 4px 15px rgba(23, 146, 254, 0.3)',
   },
-  
+
   emptyState: {
     textAlign: 'center',
     padding: '60px 20px',
@@ -477,21 +477,110 @@ export const styles = {
     flexDirection: 'column',
     alignItems: 'center',
   },
-  
+
   emptyIcon: {
     fontSize: '48px',
     color: '#6c757d',
     marginBottom: '20px',
   },
-  
+
   emptyTitle: {
     color: '#333',
     margin: '0 0 10px 0',
     fontSize: '20px',
   },
-  
+
   emptyMessage: {
     color: '#666',
     margin: 0,
+  },
+
+  backButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    color: '#fff',
+    border: 'none',
+    padding: '10px 20px',
+    borderRadius: '8px',
+    fontSize: '16px',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    fontWeight: '600',
+    marginTop: '15px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    ':hover': {
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        transform: 'translateX(-5px)',
+    },
+  },
+
+  // Responsividade
+  '@media (max-width: 768px)': {
+    headerTitle: {
+      fontSize: '20px',
+    },
+    headerSubtitle: {
+      fontSize: '16px',
+    },
+    headerCount: {
+      fontSize: '13px',
+    },
+    backButton: {
+      padding: '8px 16px',
+      fontSize: '14px',
+      marginTop: '10px',
+    },
+    datePickerContainer: {
+      margin: '15px 10px',
+      padding: '15px',
+    },
+    filterButtonsContainer: {
+      margin: '0 10px 15px',
+    },
+    filterButton: {
+      padding: '8px 16px',
+      fontSize: '13px',
+    },
+    employeeCard: {
+      marginBottom: '15px',
+    },
+    employeeCardHeader: {
+      padding: '15px',
+      flexDirection: 'column',
+      alignItems: 'flex-start',
+      gap: '10px',
+    },
+    employeeStatusContainer: {
+      width: '100%',
+      justifyContent: 'flex-start',
+    },
+    employeeName: {
+      fontSize: '16px',
+    },
+    employeeTotal: {
+      fontSize: '13px',
+    },
+  },
+
+  '@media (max-width: 480px)': {
+    headerTitle: {
+      fontSize: '18px',
+    },
+    headerSubtitle: {
+      fontSize: '14px',
+    },
+    backButton: {
+      padding: '1px 12px',
+      fontSize: '13px',
+      marginTop: '8px',
+    },
+    filterButtonsContainer: {
+      flexDirection: 'column',
+      gap: '8px',
+    },
+    filterButton: {
+      width: '100%',
+    },
   },
 };

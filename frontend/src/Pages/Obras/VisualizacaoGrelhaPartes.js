@@ -26,6 +26,7 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
   const [colaboradoresMap, setColaboradoresMap] = useState({});
   const [modalDetalhes, setModalDetalhes] = useState(false);
   const [detalheSelecionado, setDetalheSelecionado] = useState(null);
+  const [tipoVista, setTipoVista] = useState("obra"); // "obra" ou "utilizador"
 
   useEffect(() => {
     carregarDados();
@@ -198,6 +199,105 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
     setModalDetalhes(true);
   };
 
+  const renderGrelhaPorUtilizador = (colaboradorId) => {
+    const nomeColaborador = colaboradoresMap[colaboradorId] || colaboradorId;
+    
+    // Agregar registos deste colaborador em todas as obras
+    const registosColaborador = {};
+    let totalHoras = 0;
+    
+    obras.forEach((obra) => {
+      const registosObra = registosPorObra[obra.id] || {};
+      if (registosObra[colaboradorId]) {
+        registosColaborador[obra.id] = registosObra[colaboradorId];
+        totalHoras += Object.values(registosObra[colaboradorId]).reduce((sum, dia) => sum + dia.horas, 0);
+      }
+    });
+
+    const obrasComRegistos = Object.keys(registosColaborador);
+
+    if (obrasComRegistos.length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.obraCard}>
+        <View style={styles.obraHeader}>
+          <Text style={styles.obraNome}>{nomeColaborador}</Text>
+          <Text style={styles.obraTotal}>Total: {totalHoras.toFixed(1)}h</Text>
+        </View>
+        
+        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+          <View>
+            {/* Cabeçalho com dias */}
+            <View style={styles.headerRow}>
+              <View style={[styles.headerCell, styles.nomeCell]}>
+                <Text style={styles.headerText}>Obra</Text>
+              </View>
+              {diasDoMes.map((dia) => (
+                <View key={dia} style={styles.headerCell}>
+                  <Text style={styles.headerText}>{dia}</Text>
+                </View>
+              ))}
+              <View style={styles.headerCell}>
+                <Text style={styles.headerText}>Total</Text>
+              </View>
+            </View>
+
+            {/* Linhas de obras */}
+            {obrasComRegistos.map((obraId) => {
+              const obra = obras.find((o) => o.id === Number(obraId));
+              const registosObraColab = registosColaborador[obraId];
+              const totalObra = Object.values(registosObraColab).reduce(
+                (sum, dia) => sum + dia.horas,
+                0
+              );
+
+              return (
+                <View key={obraId} style={styles.dataRow}>
+                  <View style={[styles.dataCell, styles.nomeCell]}>
+                    <Text style={styles.nomeText} numberOfLines={1}>
+                      {obra ? obra.nome : obraId}
+                    </Text>
+                  </View>
+                  {diasDoMes.map((dia) => {
+                    const registro = registosObraColab[dia];
+                    return (
+                      <TouchableOpacity
+                        key={dia}
+                        style={[
+                          styles.dataCell,
+                          registro && styles.dataCellWithData,
+                          registro?.integrado && styles.dataCellIntegrado,
+                        ]}
+                        onPress={() =>
+                          registro &&
+                          abrirDetalhes(obra, nomeColaborador, dia, registro)
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.dataCellText,
+                            registro && styles.dataCellTextBold,
+                          ]}
+                        >
+                          {registro ? `${registro.horas.toFixed(1)}h` : "-"}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  <View style={[styles.dataCell, styles.totalCell]}>
+                    <Text style={styles.totalText}>{totalObra.toFixed(1)}h</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </View>
+    );
+  };
+
   const renderGrelha = (obra) => {
     const registosObra = registosPorObra[obra.id] || {};
     const colaboradores = Object.keys(registosObra);
@@ -308,7 +408,7 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
           <View style={styles.headerContent}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => navigation.goBack()}
+              onPress={() => navigation.navigate('GestaoPartesDiarias')}
             >
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
@@ -354,24 +454,93 @@ const VisualizacaoGrelhaPartes = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Lista de obras */}
+        {/* Botões de seleção de vista */}
+        <View style={styles.vistaContainer}>
+          <TouchableOpacity
+            style={[
+              styles.vistaButton,
+              tipoVista === "obra" && styles.vistaButtonActive,
+            ]}
+            onPress={() => setTipoVista("obra")}
+          >
+            <Ionicons
+              name="business"
+              size={20}
+              color={tipoVista === "obra" ? "#fff" : "#1792FE"}
+            />
+            <Text
+              style={[
+                styles.vistaButtonText,
+                tipoVista === "obra" && styles.vistaButtonTextActive,
+              ]}
+            >
+              Por Obra
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.vistaButton,
+              tipoVista === "utilizador" && styles.vistaButtonActive,
+            ]}
+            onPress={() => setTipoVista("utilizador")}
+          >
+            <Ionicons
+              name="people"
+              size={20}
+              color={tipoVista === "utilizador" ? "#fff" : "#1792FE"}
+            />
+            <Text
+              style={[
+                styles.vistaButtonText,
+                tipoVista === "utilizador" && styles.vistaButtonTextActive,
+              ]}
+            >
+              Por Utilizador
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Lista de obras ou utilizadores */}
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {obras.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="business" size={64} color="#ccc" />
-              <Text style={styles.emptyTitle}>Sem obras</Text>
-              <Text style={styles.emptySubtitle}>
-                Não há obras onde você é responsável
-              </Text>
-            </View>
+          {tipoVista === "obra" ? (
+            obras.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="business" size={64} color="#ccc" />
+                <Text style={styles.emptyTitle}>Sem obras</Text>
+                <Text style={styles.emptySubtitle}>
+                  Não há obras onde você é responsável
+                </Text>
+              </View>
+            ) : (
+              obras.map((obra) => (
+                <View key={obra.id}>{renderGrelha(obra)}</View>
+              ))
+            )
           ) : (
-            obras.map((obra) => (
-              <View key={obra.id}>{renderGrelha(obra)}</View>
-            ))
+            Object.keys(colaboradoresMap).length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="people" size={64} color="#ccc" />
+                <Text style={styles.emptyTitle}>Sem utilizadores</Text>
+                <Text style={styles.emptySubtitle}>
+                  Não há registos de utilizadores para este período
+                </Text>
+              </View>
+            ) : (
+              Object.keys(colaboradoresMap)
+                .sort((a, b) => 
+                  colaboradoresMap[a].localeCompare(colaboradoresMap[b], 'pt')
+                )
+                .map((colaboradorId) => (
+                  <View key={colaboradorId}>
+                    {renderGrelhaPorUtilizador(colaboradorId)}
+                  </View>
+                ))
+            )
           )}
         </ScrollView>
 
@@ -516,6 +685,38 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
+  },
+  vistaContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "transparent",
+  },
+  vistaButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#1792FE",
+    elevation: 2,
+  },
+  vistaButtonActive: {
+    backgroundColor: "#1792FE",
+    borderColor: "#1792FE",
+  },
+  vistaButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1792FE",
+  },
+  vistaButtonTextActive: {
+    color: "#fff",
   },
   scrollView: { flex: 1 },
   scrollContent: { padding: 16 },

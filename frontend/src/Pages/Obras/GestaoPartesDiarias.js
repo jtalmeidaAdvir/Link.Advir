@@ -19,7 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { styles } from "./Css/GestaoPartesDiariasStyles";
 import { secureStorage } from "../../utils/secureStorage";
-const GestaoPartesDiarias = () => {
+const GestaoPartesDiarias = ({ navigation }) => {
     // === NO TOPO DO FICHEIRO (fora do componente) ===
     const DOC_ID_DEFAULT = "1747FEA9-5D2F-45B4-A89B-9EA30B1E0DCB"; // mão-de-obra/outros
     const DOC_ID_EQUIP = "11C77189-1046-4CDE-96F9-503B8EB25B08"; // equipamentos
@@ -148,7 +148,7 @@ const GestaoPartesDiarias = () => {
             filtered = filtered.filter((c) => c.IntegradoERP);
         }
 
-        // Filtrar apenas obras onde sou responsável
+        // Filtrar apenas obras onde sou responsável (aplicar a todos independentemente do estado)
         filtered = filtered.filter((c) => {
             const obraId = Number(c.ObraID);
             return obrasResponsavel.has(obraId);
