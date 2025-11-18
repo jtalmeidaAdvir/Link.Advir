@@ -2,12 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { secureStorage } from '../../utils/secureStorage';
 import { motion } from 'framer-motion';
-import { FaClock, FaPlus, FaEdit, FaTrash, FaUsers, FaHistory } from 'react-icons/fa';
+import { FaClock, FaPlus, FaEdit, FaTrash, FaUsers, FaHistory, FaCheck, FaTimes, FaExclamationTriangle } from 'react-icons/fa';
 
 const GestaoHorarios = () => {
-    const [activeTab, setActiveTab] = useState('horarios');
+    const [activeTab, setActiveTab] = useState('visao-geral');
     const [horarios, setHorarios] = useState([]);
     const [users, setUsers] = useState([]);
+    const [planosAtivos, setPlanosAtivos] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [showPlanoModal, setShowPlanoModal] = useState(false);
@@ -16,6 +17,8 @@ const GestaoHorarios = () => {
     const [historico, setHistorico] = useState([]);
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filtroStatus, setFiltroStatus] = useState('todos'); // 'todos', 'com-horario', 'sem-horario'
 
     const [novoHorario, setNovoHorario] = useState({
         descricao: '',
@@ -40,6 +43,7 @@ const GestaoHorarios = () => {
     useEffect(() => {
         fetchHorarios();
         fetchUsers();
+        fetchPlanosAtivos();
     }, []);
 
     const fetchHorarios = async () => {
@@ -72,8 +76,6 @@ const GestaoHorarios = () => {
             const token = secureStorage.getItem('loginToken');
             const empresaId = secureStorage.getItem('empresa_id');
 
-            console.log('Fetching users for empresa:', empresaId);
-
             const response = await fetch(`https://backend.advir.pt/api/users/empresa/${empresaId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -81,20 +83,69 @@ const GestaoHorarios = () => {
                 }
             });
 
-            console.log('Users response status:', response.status);
-
             if (response.ok) {
                 const data = await response.json();
-                console.log('Users fetched:', data);
                 setUsers(data);
-            } else {
-                const errorText = await response.text();
-                console.error('Error response:', errorText);
-                setErrorMessage('Erro ao carregar utilizadores: ' + errorText);
             }
         } catch (error) {
             console.error('Erro ao carregar utilizadores:', error);
-            setErrorMessage('Erro ao carregar utilizadores: ' + error.message);
+            setErrorMessage('Erro ao carregar utilizadores');
+        }
+    };
+
+    const fetchPlanosAtivos = async () => {
+        try {
+            const token = secureStorage.getItem('loginToken');
+            const empresaId = secureStorage.getItem('empresa_id');
+
+            // Buscar todos os utilizadores da empresa
+            const usersResponse = await fetch(`https://backend.advir.pt/api/users/empresa/${empresaId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (usersResponse.ok) {
+                const usersData = await usersResponse.json();
+                
+                // Para cada utilizador, buscar o plano ativo
+                const planosPromises = usersData.map(async (user) => {
+                    try {
+                        const planoResponse = await fetch(`https://backend.advir.pt/api/horarios/user/${user.id}`, {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        if (planoResponse.ok) {
+                            const planoData = await planoResponse.json();
+                            return {
+                                userId: user.id,
+                                userName: user.username,
+                                userEmail: user.email,
+                                plano: planoData,
+                                hasPlano: true
+                            };
+                        }
+                    } catch (err) {
+                        // Utilizador sem plano
+                    }
+                    
+                    return {
+                        userId: user.id,
+                        userName: user.username,
+                        userEmail: user.email,
+                        plano: null,
+                        hasPlano: false
+                    };
+                });
+
+                const planosData = await Promise.all(planosPromises);
+                setPlanosAtivos(planosData);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar planos ativos:', error);
         }
     };
 
@@ -108,7 +159,6 @@ const GestaoHorarios = () => {
             const token = secureStorage.getItem('loginToken');
             const empresaId = secureStorage.getItem('empresa_id');
 
-            // Se selectedHorario existe, estamos editando
             const isEditing = selectedHorario && selectedHorario.id;
             const url = isEditing 
                 ? `https://backend.advir.pt/api/horarios/${selectedHorario.id}`
@@ -152,22 +202,18 @@ const GestaoHorarios = () => {
         try {
             const token = secureStorage.getItem('loginToken');
 
-            // Validar campos antes de enviar
             if (!novoPlano.user_id || !novoPlano.horario_id) {
                 setErrorMessage('Por favor, selecione um utilizador e um horário.');
                 setLoading(false);
                 return;
             }
 
-            // Converter os IDs para inteiros conforme esperado pelo backend
             const payload = {
                 userId: parseInt(novoPlano.user_id, 10),
                 horarioId: parseInt(novoPlano.horario_id, 10),
                 dataInicio: novoPlano.dataInicio,
                 observacoes: novoPlano.observacoes || ''
             };
-
-            console.log('Enviando payload:', payload);
 
             const response = await fetch(`https://backend.advir.pt/api/horarios/atribuir`, {
                 method: 'POST',
@@ -184,12 +230,8 @@ const GestaoHorarios = () => {
                 setSuccessMessage('Horário atribuído com sucesso!');
                 setShowPlanoModal(false);
                 resetNovoPlano();
-                // Atualizar a lista se estiver na tab de atribuir
-                if (activeTab === 'atribuir') {
-                    fetchUsers();
-                }
+                fetchPlanosAtivos();
             } else {
-                console.error('Erro do servidor:', data);
                 setErrorMessage(data.message || data.error || 'Erro ao atribuir horário');
             }
         } catch (error) {
@@ -239,7 +281,7 @@ const GestaoHorarios = () => {
             if (response.ok) {
                 const data = await response.json();
                 setHistorico(data);
-                setSelectedUser(users.find(u => u.id === userId));
+                setSelectedUser(planosAtivos.find(p => p.userId === userId));
                 setActiveTab('historico');
             }
         } catch (error) {
@@ -248,21 +290,17 @@ const GestaoHorarios = () => {
     };
 
     const formatHora = (v) => {
-  if (!v) return '';
-  // já vem como "09:00"
-  if (/^\d{2}:\d{2}$/.test(v)) return v;
-  // extrai HH:mm de um ISO "....T09:00:00..."
-  const m = String(v).match(/T(\d{2}):(\d{2})/);
-  if (m) return `${m[1]}:${m[2]}`;
-  // fallback seguro
-  try {
-    const d = new Date(v);
-    return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', hour12: false });
-  } catch {
-    return '';
-  }
-};
-
+        if (!v) return '';
+        if (/^\d{2}:\d{2}$/.test(v)) return v;
+        const m = String(v).match(/T(\d{2}):(\d{2})/);
+        if (m) return `${m[1]}:${m[2]}`;
+        try {
+            const d = new Date(v);
+            return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', hour12: false });
+        } catch {
+            return '';
+        }
+    };
 
     const resetNovoHorario = () => {
         setNovoHorario({
@@ -295,6 +333,29 @@ const GestaoHorarios = () => {
         }));
     };
 
+    // Estatísticas
+    const totalUsers = planosAtivos.length;
+    const usersComHorario = planosAtivos.filter(p => p.hasPlano).length;
+    const usersSemHorario = totalUsers - usersComHorario;
+
+    // Filtragem de utilizadores
+    const planosFiltrados = planosAtivos.filter(plano => {
+        // Filtro de pesquisa
+        const matchSearch = searchTerm === '' || 
+            plano.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            plano.userEmail.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        // Filtro de status
+        let matchStatus = true;
+        if (filtroStatus === 'com-horario') {
+            matchStatus = plano.hasPlano;
+        } else if (filtroStatus === 'sem-horario') {
+            matchStatus = !plano.hasPlano;
+        }
+        
+        return matchSearch && matchStatus;
+    });
+
     return (
         <div style={styles.container}>
             <div style={styles.header}>
@@ -304,7 +365,6 @@ const GestaoHorarios = () => {
                 </h1>
             </div>
 
-            {/* Messages */}
             {errorMessage && (
                 <div style={styles.errorMessage}>{errorMessage}</div>
             )}
@@ -315,20 +375,190 @@ const GestaoHorarios = () => {
             {/* Tabs */}
             <div style={styles.tabs}>
                 <button
+                    style={activeTab === 'visao-geral' ? styles.activeTab : styles.tab}
+                    onClick={() => setActiveTab('visao-geral')}
+                >
+                    <FaUsers /> Visão Geral
+                </button>
+                <button
                     style={activeTab === 'horarios' ? styles.activeTab : styles.tab}
                     onClick={() => setActiveTab('horarios')}
                 >
                     <FaClock /> Horários
                 </button>
-                <button
-                    style={activeTab === 'atribuir' ? styles.activeTab : styles.tab}
-                    onClick={() => setActiveTab('atribuir')}
-                >
-                    <FaUsers /> Atribuir Horários
-                </button>
             </div>
 
-            {/* Tab Content */}
+            {/* Visão Geral - Nova Tab Principal */}
+            {activeTab === 'visao-geral' && (
+                <div style={styles.content}>
+                    {/* Estatísticas */}
+                    <div style={styles.statsGrid}>
+                        <div style={styles.statCard}>
+                            <div style={styles.statIcon} className="stat-icon-total">
+                                <FaUsers />
+                            </div>
+                            <div style={styles.statContent}>
+                                <div style={styles.statValue}>{totalUsers}</div>
+                                <div style={styles.statLabel}>Total de Utilizadores</div>
+                            </div>
+                        </div>
+
+                        <div style={styles.statCard}>
+                            <div style={{...styles.statIcon, backgroundColor: '#e8f5e9'}} className="stat-icon-com">
+                                <FaCheck style={{color: '#4caf50'}} />
+                            </div>
+                            <div style={styles.statContent}>
+                                <div style={{...styles.statValue, color: '#4caf50'}}>{usersComHorario}</div>
+                                <div style={styles.statLabel}>Com Horário Definido</div>
+                            </div>
+                        </div>
+
+                        <div style={styles.statCard}>
+                            <div style={{...styles.statIcon, backgroundColor: '#fff3e0'}} className="stat-icon-sem">
+                                <FaExclamationTriangle style={{color: '#ff9800'}} />
+                            </div>
+                            <div style={styles.statContent}>
+                                <div style={{...styles.statValue, color: '#ff9800'}}>{usersSemHorario}</div>
+                                <div style={styles.statLabel}>Sem Horário Definido</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Ações Rápidas */}
+                    <div style={styles.actionBar}>
+                        <button
+                            style={styles.btnPrimary}
+                            onClick={() => setShowPlanoModal(true)}
+                        >
+                            <FaPlus /> Atribuir Horário
+                        </button>
+                    </div>
+
+                    {/* Lista de Utilizadores com Status Visual */}
+                    <div style={styles.usersListContainer}>
+                        <h3 style={styles.sectionTitle}>Utilizadores</h3>
+                        
+                        {/* Barra de Pesquisa e Filtros */}
+                        <div style={styles.searchFilterContainer}>
+                            <div style={styles.searchBox}>
+                                <input
+                                    type="text"
+                                    placeholder="Pesquisar por nome ou email..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    style={styles.searchInput}
+                                />
+                            </div>
+                            
+                            <div style={styles.filterButtons}>
+                                <button
+                                    style={filtroStatus === 'todos' ? styles.filterButtonActive : styles.filterButton}
+                                    onClick={() => setFiltroStatus('todos')}
+                                >
+                                    Todos ({totalUsers})
+                                </button>
+                                <button
+                                    style={filtroStatus === 'com-horario' ? styles.filterButtonActiveSuccess : styles.filterButton}
+                                    onClick={() => setFiltroStatus('com-horario')}
+                                >
+                                    <FaCheck style={{marginRight: '5px'}} />
+                                    Com Horário ({usersComHorario})
+                                </button>
+                                <button
+                                    style={filtroStatus === 'sem-horario' ? styles.filterButtonActiveWarning : styles.filterButton}
+                                    onClick={() => setFiltroStatus('sem-horario')}
+                                >
+                                    <FaExclamationTriangle style={{marginRight: '5px'}} />
+                                    Sem Horário ({usersSemHorario})
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Resultados da Pesquisa */}
+                        {planosFiltrados.length === 0 ? (
+                            <div style={styles.noResults}>
+                                <FaExclamationTriangle style={{fontSize: '48px', color: '#ff9800', marginBottom: '15px'}} />
+                                <p style={{fontSize: '16px', color: '#757575'}}>
+                                    Nenhum utilizador encontrado com os filtros selecionados.
+                                </p>
+                            </div>
+                        ) : (
+                            <div style={styles.resultadosInfo}>
+                                A mostrar <strong>{planosFiltrados.length}</strong> de <strong>{totalUsers}</strong> utilizadores
+                            </div>
+                        )}
+                        
+                        <div style={styles.usersCompactList}>
+                            {planosFiltrados.map(plano => (
+                                <div 
+                                    key={plano.userId} 
+                                    style={plano.hasPlano ? styles.userItemComHorario : styles.userItemSemHorario}
+                                >
+                                    <div style={styles.userItemLeft}>
+                                        <div style={plano.hasPlano ? styles.statusIndicatorAtivo : styles.statusIndicatorInativo}>
+                                            {plano.hasPlano ? <FaCheck /> : <FaTimes />}
+                                        </div>
+                                        <div style={styles.userItemInfo}>
+                                            <h4 style={styles.userName}>{plano.userName}</h4>
+                                            <p style={styles.userEmail}>{plano.userEmail}</p>
+                                            {plano.hasPlano && plano.plano?.Horario && (
+                                                <div style={styles.horarioTag}>
+                                                    <FaClock style={{fontSize: '12px', marginRight: '5px'}} />
+                                                    {plano.plano.Horario.descricao} ({plano.plano.Horario.horasSemanais}h/sem)
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                    <div style={styles.userItemActions}>
+                                        {plano.hasPlano ? (
+                                            <>
+                                                <button
+                                                    style={styles.btnHistorico}
+                                                    onClick={() => verHistorico(plano.userId)}
+                                                >
+                                                    <FaHistory /> Histórico
+                                                </button>
+                                                <button
+                                                    style={styles.btnEditar}
+                                                    onClick={() => {
+                                                        setNovoPlano({
+                                                            user_id: plano.userId,
+                                                            horario_id: '',
+                                                            dataInicio: new Date().toISOString().split('T')[0],
+                                                            observacoes: ''
+                                                        });
+                                                        setShowPlanoModal(true);
+                                                    }}
+                                                >
+                                                    <FaEdit /> Alterar
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <button
+                                                style={styles.btnAtribuir}
+                                                onClick={() => {
+                                                    setNovoPlano({
+                                                        user_id: plano.userId,
+                                                        horario_id: '',
+                                                        dataInicio: new Date().toISOString().split('T')[0],
+                                                        observacoes: ''
+                                                    });
+                                                    setShowPlanoModal(true);
+                                                }}
+                                            >
+                                                <FaPlus /> Atribuir Horário
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Tab Horários */}
             {activeTab === 'horarios' && (
                 <div style={styles.content}>
                     <div style={styles.actionBar}>
@@ -416,43 +646,14 @@ const GestaoHorarios = () => {
                 </div>
             )}
 
-            {activeTab === 'atribuir' && (
-                <div style={styles.content}>
-                    <div style={styles.actionBar}>
-                        <button
-                            style={styles.btnPrimary}
-                            onClick={() => setShowPlanoModal(true)}
-                        >
-                            <FaPlus /> Atribuir Horário
-                        </button>
-                    </div>
-
-                    <div style={styles.usersList}>
-                        {users.map(user => (
-                            <div key={user.id} style={styles.userCard}>
-                                <div style={styles.userInfo}>
-                                    <h4>{user.username}</h4>
-                                    <p style={styles.userEmail}>{user.email}</p>
-                                </div>
-                                <button
-                                    style={styles.btnSecondary}
-                                    onClick={() => verHistorico(user.id)}
-                                >
-                                    <FaHistory /> Ver Histórico
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
+            {/* Tab Histórico */}
             {activeTab === 'historico' && selectedUser && (
                 <div style={styles.content}>
                     <div style={styles.actionBar}>
-                        <h3>Histórico de {selectedUser.username}</h3>
+                        <h3>Histórico de {selectedUser.userName}</h3>
                         <button
                             style={styles.btnSecondary}
-                            onClick={() => setActiveTab('atribuir')}
+                            onClick={() => setActiveTab('visao-geral')}
                         >
                             Voltar
                         </button>
@@ -641,9 +842,9 @@ const GestaoHorarios = () => {
                                     required
                                 >
                                     <option value="">Selecione um utilizador</option>
-                                    {users.map(user => (
-                                        <option key={user.id} value={user.id}>
-                                            {user.username} - {user.email}
+                                    {planosAtivos.map(plano => (
+                                        <option key={plano.userId} value={plano.userId}>
+                                            {plano.userName} - {plano.userEmail}
                                         </option>
                                     ))}
                                 </select>
@@ -713,9 +914,11 @@ const GestaoHorarios = () => {
 const styles = {
     container: {
         padding: '20px',
-        maxWidth: '1400px',
-        margin: '0 auto',
-        fontFamily: 'Poppins, sans-serif'
+        width: '100%',
+        fontFamily: 'Poppins, sans-serif',
+        boxSizing: 'border-box',
+        minHeight: '100vh',
+        overflowY: 'auto'
     },
     header: {
         marginBottom: '30px'
@@ -768,7 +971,276 @@ const styles = {
         backgroundColor: '#fff',
         borderRadius: '12px',
         padding: '20px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        marginBottom: '20px'
+    },
+    statsGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: '20px',
+        marginBottom: '30px'
+    },
+    statCard: {
+        backgroundColor: '#fff',
+        borderRadius: '12px',
+        padding: '20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        border: '1px solid #e0e0e0',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+    },
+    statIcon: {
+        width: '60px',
+        height: '60px',
+        borderRadius: '12px',
+        backgroundColor: '#e3f2fd',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '24px',
+        color: '#1976D2'
+    },
+    statContent: {
+        flex: 1
+    },
+    statValue: {
+        fontSize: '32px',
+        fontWeight: '700',
+        color: '#1976D2',
+        marginBottom: '5px'
+    },
+    statLabel: {
+        fontSize: '14px',
+        color: '#757575',
+        fontWeight: '500'
+    },
+    sectionTitle: {
+        fontSize: '20px',
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: '20px'
+    },
+    usersListContainer: {
+        marginTop: '20px'
+    },
+    searchFilterContainer: {
+        marginBottom: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '15px'
+    },
+    searchBox: {
+        width: '100%'
+    },
+    searchInput: {
+        width: '100%',
+        padding: '12px 16px',
+        fontSize: '14px',
+        border: '2px solid #e0e0e0',
+        borderRadius: '8px',
+        outline: 'none',
+        transition: 'border-color 0.2s ease',
+        boxSizing: 'border-box'
+    },
+    filterButtons: {
+        display: 'flex',
+        gap: '10px',
+        flexWrap: 'wrap'
+    },
+    filterButton: {
+        padding: '10px 20px',
+        backgroundColor: '#fff',
+        color: '#757575',
+        border: '2px solid #e0e0e0',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: '500',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        transition: 'all 0.2s ease'
+    },
+    filterButtonActive: {
+        padding: '10px 20px',
+        backgroundColor: '#1976D2',
+        color: '#fff',
+        border: '2px solid #1976D2',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        transition: 'all 0.2s ease'
+    },
+    filterButtonActiveSuccess: {
+        padding: '10px 20px',
+        backgroundColor: '#4caf50',
+        color: '#fff',
+        border: '2px solid #4caf50',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        transition: 'all 0.2s ease'
+    },
+    filterButtonActiveWarning: {
+        padding: '10px 20px',
+        backgroundColor: '#ff9800',
+        color: '#fff',
+        border: '2px solid #ff9800',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        transition: 'all 0.2s ease'
+    },
+    noResults: {
+        textAlign: 'center',
+        padding: '40px 20px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px',
+        marginBottom: '20px'
+    },
+    resultadosInfo: {
+        fontSize: '14px',
+        color: '#757575',
+        marginBottom: '15px',
+        padding: '10px 15px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '6px',
+        borderLeft: '4px solid #1976D2'
+    },
+    usersCompactList: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px'
+    },
+    userItemComHorario: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '15px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px',
+        border: '2px solid #4caf50',
+        borderLeft: '5px solid #4caf50'
+    },
+    userItemSemHorario: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '15px',
+        backgroundColor: '#fff',
+        borderRadius: '8px',
+        border: '2px solid #ff9800',
+        borderLeft: '5px solid #ff9800'
+    },
+    userItemLeft: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        flex: 1
+    },
+    statusIndicatorAtivo: {
+        width: '40px',
+        height: '40px',
+        borderRadius: '50%',
+        backgroundColor: '#4caf50',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '18px',
+        flexShrink: 0
+    },
+    statusIndicatorInativo: {
+        width: '40px',
+        height: '40px',
+        borderRadius: '50%',
+        backgroundColor: '#ff9800',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '18px',
+        flexShrink: 0
+    },
+    userItemInfo: {
+        flex: 1
+    },
+    userName: {
+        fontSize: '16px',
+        fontWeight: '600',
+        color: '#333',
+        margin: '0 0 4px 0'
+    },
+    userEmail: {
+        fontSize: '14px',
+        color: '#757575',
+        margin: '0 0 8px 0'
+    },
+    horarioTag: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '4px 12px',
+        backgroundColor: '#e3f2fd',
+        color: '#1976D2',
+        borderRadius: '12px',
+        fontSize: '13px',
+        fontWeight: '500'
+    },
+    userItemActions: {
+        display: 'flex',
+        gap: '8px',
+        flexShrink: 0
+    },
+    btnHistorico: {
+        padding: '8px 16px',
+        backgroundColor: '#fff',
+        color: '#1976D2',
+        border: '1px solid #1976D2',
+        borderRadius: '6px',
+        fontSize: '14px',
+        fontWeight: '500',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        whiteSpace: 'nowrap'
+    },
+    btnEditar: {
+        padding: '8px 16px',
+        backgroundColor: '#1976D2',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        fontSize: '14px',
+        fontWeight: '500',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        whiteSpace: 'nowrap'
+    },
+    btnAtribuir: {
+        padding: '8px 16px',
+        backgroundColor: '#ff9800',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        fontSize: '14px',
+        fontWeight: '500',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        whiteSpace: 'nowrap'
     },
     actionBar: {
         display: 'flex',
@@ -778,7 +1250,7 @@ const styles = {
     },
     grid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
         gap: '20px'
     },
     card: {
@@ -841,28 +1313,6 @@ const styles = {
     diaInativo: {
         backgroundColor: '#e0e0e0',
         color: '#999'
-    },
-    usersList: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '15px'
-    },
-    userCard: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '15px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '8px',
-        border: '1px solid #e0e0e0'
-    },
-    userInfo: {
-        flex: 1
-    },
-    userEmail: {
-        fontSize: '14px',
-        color: '#757575',
-        margin: '5px 0 0 0'
     },
     historicoList: {
         display: 'flex',
@@ -968,7 +1418,7 @@ const styles = {
         padding: '30px',
         maxWidth: '600px',
         width: '90%',
-        maxHeight: '90vh',
+        maxHeight: '85vh',
         overflowY: 'auto'
     },
     modalTitle: {

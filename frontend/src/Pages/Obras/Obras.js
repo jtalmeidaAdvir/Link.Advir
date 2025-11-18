@@ -956,6 +956,8 @@ const ListarObras = ({ navigation }) => {
             <ScrollView 
                 style={{ flex: 1 }}
                 showsVerticalScrollIndicator={false}
+                nestedScrollEnabled={true}
+                scrollEventThrottle={16}
             >
                 {renderHeader()}
 
@@ -975,6 +977,7 @@ const ListarObras = ({ navigation }) => {
                         showsVerticalScrollIndicator={false}
                         ListEmptyComponent={renderEmptyState}
                         scrollEnabled={false}
+                        nestedScrollEnabled={true}
                     />
                 )}
             </ScrollView>
