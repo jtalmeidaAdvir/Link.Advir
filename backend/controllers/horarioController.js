@@ -127,25 +127,28 @@ const atribuirHorarioUser = async (req, res) => {
         }
 
         // Desativar planos anteriores do utilizador
-        const agora = new Date();
+        const hoje = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         
         await PlanoHorario.update(
-            { ativo: false, dataFim: agora },
+            { ativo: false, dataFim: hoje },
             { where: { user_id: userId, ativo: true } }
         );
 
-        // Criar novo plano - converter data para formato SQL Server
-        const dataInicioDate = dataInicio ? new Date(dataInicio) : new Date();
+        // Criar novo plano - usar apenas a data (YYYY-MM-DD)
+        let dataInicioFormatted = hoje;
         
-        // Validar se a data é válida
-        if (isNaN(dataInicioDate.getTime())) {
-            return res.status(400).json({ 
-                message: 'Data de início inválida.' 
-            });
+        if (dataInicio) {
+            const dataInicioDate = new Date(dataInicio);
+            
+            // Validar se a data é válida
+            if (isNaN(dataInicioDate.getTime())) {
+                return res.status(400).json({ 
+                    message: 'Data de início inválida.' 
+                });
+            }
+            
+            dataInicioFormatted = dataInicioDate.toISOString().split('T')[0]; // YYYY-MM-DD
         }
-
-        // Formatar data para SQL Server (YYYY-MM-DD HH:MM:SS)
-        const dataInicioFormatted = dataInicioDate.toISOString().slice(0, 19).replace('T', ' ');
 
         console.log('Criando plano com dados:', {
             user_id: userId,
