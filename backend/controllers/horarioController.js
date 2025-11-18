@@ -103,6 +103,29 @@ const atribuirHorarioUser = async (req, res) => {
     const { userId, horarioId, dataInicio, observacoes } = req.body;
 
     try {
+        // Validar dados recebidos
+        if (!userId || !horarioId) {
+            return res.status(400).json({ 
+                message: 'userId e horarioId são obrigatórios.' 
+            });
+        }
+
+        // Verificar se o utilizador existe
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ 
+                message: 'Utilizador não encontrado.' 
+            });
+        }
+
+        // Verificar se o horário existe
+        const horario = await Horario.findByPk(horarioId);
+        if (!horario) {
+            return res.status(404).json({ 
+                message: 'Horário não encontrado.' 
+            });
+        }
+
         // Desativar planos anteriores do utilizador
         const agora = new Date();
         
@@ -132,7 +155,10 @@ const atribuirHorarioUser = async (req, res) => {
         });
     } catch (error) {
         console.error('Erro ao atribuir horário:', error);
-        res.status(500).json({ message: 'Erro ao atribuir horário.' });
+        res.status(500).json({ 
+            message: 'Erro ao atribuir horário.',
+            error: error.message 
+        });
     }
 };
 

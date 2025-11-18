@@ -152,13 +152,22 @@ const GestaoHorarios = () => {
         try {
             const token = secureStorage.getItem('loginToken');
 
+            // Validar campos antes de enviar
+            if (!novoPlano.user_id || !novoPlano.horario_id) {
+                setErrorMessage('Por favor, selecione um utilizador e um horário.');
+                setLoading(false);
+                return;
+            }
+
             // Converter os IDs para inteiros conforme esperado pelo backend
             const payload = {
-                userId: parseInt(novoPlano.user_id),
-                horarioId: parseInt(novoPlano.horario_id),
+                userId: parseInt(novoPlano.user_id, 10),
+                horarioId: parseInt(novoPlano.horario_id, 10),
                 dataInicio: novoPlano.dataInicio,
-                observacoes: novoPlano.observacoes
+                observacoes: novoPlano.observacoes || ''
             };
+
+            console.log('Enviando payload:', payload);
 
             const response = await fetch(`https://backend.advir.pt/api/horarios/atribuir`, {
                 method: 'POST',
@@ -169,17 +178,23 @@ const GestaoHorarios = () => {
                 body: JSON.stringify(payload)
             });
 
+            const data = await response.json();
+
             if (response.ok) {
                 setSuccessMessage('Horário atribuído com sucesso!');
                 setShowPlanoModal(false);
                 resetNovoPlano();
+                // Atualizar a lista se estiver na tab de atribuir
+                if (activeTab === 'atribuir') {
+                    fetchUsers();
+                }
             } else {
-                const error = await response.json();
-                setErrorMessage(error.message || 'Erro ao atribuir horário');
+                console.error('Erro do servidor:', data);
+                setErrorMessage(data.message || data.error || 'Erro ao atribuir horário');
             }
         } catch (error) {
             console.error('Erro ao atribuir horário:', error);
-            setErrorMessage('Erro ao atribuir horário');
+            setErrorMessage('Erro de conexão ao atribuir horário: ' + error.message);
         } finally {
             setLoading(false);
         }
