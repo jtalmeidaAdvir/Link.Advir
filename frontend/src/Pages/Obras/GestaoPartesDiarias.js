@@ -2582,6 +2582,43 @@ const GestaoPartesDiarias = () => {
                     ))}
                 </View>
 
+                {/* Botão para visualização em grelha */}
+                <View style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 8 }}>
+                    <TouchableOpacity
+                        style={{
+                            borderRadius: 12,
+                            overflow: 'hidden',
+                            elevation: 3,
+                            shadowColor: '#1792FE',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 4,
+                        }}
+                        onPress={() => navigation.navigate('VisualizacaoGrelhaPartes')}
+                    >
+                        <LinearGradient
+                            colors={['#1792FE', '#0B5ED7']}
+                            style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                paddingVertical: 12,
+                                paddingHorizontal: 20,
+                            }}
+                        >
+                            <Ionicons name="grid" size={18} color="#fff" />
+                            <Text style={{
+                                color: '#fff',
+                                fontWeight: '600',
+                                fontSize: 14,
+                                marginLeft: 8,
+                            }}>
+                                Ver as Minhas Obras
+                            </Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+                </View>
+
                 {filtroEstado === "pendentes" &&
                     cabecalhosFiltrados.length > 0 && (
                         <View style={styles.botoesAcoesGlobaisContainer}>

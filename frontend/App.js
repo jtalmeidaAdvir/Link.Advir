@@ -108,6 +108,8 @@ import GestaoHorarios from "./src/Pages/Autenticacao/GestaoHorarios";
 // Hook para comunicados não lidos
 import { useComunicadosNaoLidos } from "./src/hooks/useComunicadosNaoLidos";
 
+import VisualizacaoGrelhaPartes from "./src/Pages/Obras/VisualizacaoGrelhaPartes";
+
 const Drawer = createDrawerNavigator();
 
 // Configuração de deep linking para reconhecer URLs com parâmetros dinâmicos como o token
@@ -2157,6 +2159,16 @@ const AppNavigator = () => {
                             drawerItemStyle: { display: "none" }, // mostra via módulo/submódulo
                         }}
                     />
+                    <Drawer.Screen
+                        name="VisualizacaoGrelhaPartes"
+                        component={VisualizacaoGrelhaPartes}
+                        options={{
+                            title: "AdvirLink - VisualizacaoGrelhaPartes",
+                            drawerItemStyle: { display: "none" }, // mostra via módulo/submódulo
+                        }}
+                    />
+
+                    
 
                     <Drawer.Screen
                         name="LeitorQRCode"
