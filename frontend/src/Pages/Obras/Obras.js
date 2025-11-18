@@ -317,11 +317,6 @@ const ListarObras = ({ navigation }) => {
         setFilteredObras(filtered);
     };
 
-    const handleSearchClick = () => {
-        setSearchTerm(searchInput);
-        applyFilters(searchInput, filterType);
-    };
-
     const handleClearSearch = () => {
         setSearchInput("");
         setSearchTerm("");
@@ -330,7 +325,8 @@ const ListarObras = ({ navigation }) => {
 
     const handleInputChange = (text) => {
         setSearchInput(text);
-        // Não executar pesquisa automaticamente
+        setSearchTerm(text);
+        applyFilters(text, filterType);
     };
 
     const handleFilterChange = (newFilter) => {
@@ -432,8 +428,6 @@ const ListarObras = ({ navigation }) => {
                     placeholderTextColor="#666"
                     value={searchInput}
                     onChangeText={handleInputChange}
-                    onSubmitEditing={handleSearchClick}
-                    returnKeyType="search"
                 />
                 {searchInput ? (
                     <TouchableOpacity
@@ -443,18 +437,6 @@ const ListarObras = ({ navigation }) => {
                         <Ionicons name="close-circle" size={20} color="#999" />
                     </TouchableOpacity>
                 ) : null}
-                <TouchableOpacity
-                    onPress={handleSearchClick}
-                    style={styles.searchButton}
-                    activeOpacity={0.7}
-                >
-                    <LinearGradient
-                        colors={["#1792FE", "#0B5ED7"]}
-                        style={styles.searchButtonGradient}
-                    >
-                        <Ionicons name="search" size={18} color="#FFFFFF" />
-                    </LinearGradient>
-                </TouchableOpacity>
             </View>
         </Animated.View>
     );
