@@ -25,13 +25,9 @@ const PlanoHorario = sequelize.define('PlanoHorario', {
         }
     },
     dataInicio: {
-        type: DataTypes.DATEONLY,
+        type: DataTypes.DATE,
         allowNull: false,
-        comment: 'Data de início deste horário para o utilizador',
-        get() {
-            const rawValue = this.getDataValue('dataInicio');
-            return rawValue ? new Date(rawValue) : null;
-        }
+        comment: 'Data de início deste horário para o utilizador'
     },
     dataFim: {
         type: DataTypes.DATE,

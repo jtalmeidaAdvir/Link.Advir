@@ -134,20 +134,9 @@ const atribuirHorarioUser = async (req, res) => {
             { where: { user_id: userId, ativo: true } }
         );
 
-        // Criar novo plano - garantir formato correto da data
-        let dataInicioDate;
-        if (dataInicio) {
-            // Se a data vier no formato YYYY-MM-DD, converter para objeto Date
-            if (typeof dataInicio === 'string') {
-                // Adicionar hora para evitar problemas de timezone
-                dataInicioDate = new Date(dataInicio + 'T00:00:00');
-            } else {
-                dataInicioDate = new Date(dataInicio);
-            }
-        } else {
-            dataInicioDate = new Date();
-        }
-
+        // Criar novo plano - converter data para formato SQL Server
+        const dataInicioDate = dataInicio ? new Date(dataInicio) : new Date();
+        
         // Validar se a data é válida
         if (isNaN(dataInicioDate.getTime())) {
             return res.status(400).json({ 
@@ -155,11 +144,13 @@ const atribuirHorarioUser = async (req, res) => {
             });
         }
 
+        // Formatar data para SQL Server (YYYY-MM-DD HH:MM:SS)
+        const dataInicioFormatted = dataInicioDate.toISOString().slice(0, 19).replace('T', ' ');
+
         console.log('Criando plano com dados:', {
             user_id: userId,
             horario_id: horarioId,
-            dataInicio: dataInicioDate,
-            dataInicioISO: dataInicioDate.toISOString(),
+            dataInicio: dataInicioFormatted,
             ativo: true,
             observacoes
         });
@@ -167,7 +158,7 @@ const atribuirHorarioUser = async (req, res) => {
         const novoPlano = await PlanoHorario.create({
             user_id: userId,
             horario_id: horarioId,
-            dataInicio: dataInicioDate,
+            dataInicio: dataInicioFormatted,
             ativo: true,
             observacoes
         });
