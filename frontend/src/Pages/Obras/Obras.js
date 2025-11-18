@@ -968,17 +968,16 @@ const ListarObras = ({ navigation }) => {
                     renderLoadingState()
                 ) : errorMessage ? (
                     renderErrorState()
+                ) : filteredObras.length === 0 ? (
+                    renderEmptyState()
                 ) : (
-                    <FlatList
-                        data={filteredObras}
-                        renderItem={renderObra}
-                        keyExtractor={(item) => item.ID.toString()}
-                        contentContainerStyle={styles.listContainer}
-                        showsVerticalScrollIndicator={false}
-                        ListEmptyComponent={renderEmptyState}
-                        scrollEnabled={false}
-                        nestedScrollEnabled={true}
-                    />
+                    <View style={styles.listContainer}>
+                        {filteredObras.map((item, index) => (
+                            <View key={item.ID.toString()}>
+                                {renderObra({ item, index })}
+                            </View>
+                        ))}
+                    </View>
                 )}
             </ScrollView>
         </LinearGradient>
