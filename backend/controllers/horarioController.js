@@ -134,8 +134,35 @@ const atribuirHorarioUser = async (req, res) => {
             { where: { user_id: userId, ativo: true } }
         );
 
-        // Criar novo plano
-        const dataInicioDate = dataInicio ? new Date(dataInicio) : new Date();
+        // Criar novo plano - garantir formato correto da data
+        let dataInicioDate;
+        if (dataInicio) {
+            // Se a data vier no formato YYYY-MM-DD, converter para objeto Date
+            if (typeof dataInicio === 'string') {
+                // Adicionar hora para evitar problemas de timezone
+                dataInicioDate = new Date(dataInicio + 'T00:00:00');
+            } else {
+                dataInicioDate = new Date(dataInicio);
+            }
+        } else {
+            dataInicioDate = new Date();
+        }
+
+        // Validar se a data é válida
+        if (isNaN(dataInicioDate.getTime())) {
+            return res.status(400).json({ 
+                message: 'Data de início inválida.' 
+            });
+        }
+
+        console.log('Criando plano com dados:', {
+            user_id: userId,
+            horario_id: horarioId,
+            dataInicio: dataInicioDate,
+            dataInicioISO: dataInicioDate.toISOString(),
+            ativo: true,
+            observacoes
+        });
 
         const novoPlano = await PlanoHorario.create({
             user_id: userId,
