@@ -547,7 +547,9 @@ async function gerarRelatorioRegistosDia(empresa_ou_obra_id) {
                 const minutos = Math.round((horasTrabalhadas - horas) * 60);
 
                 // Adicionar 1 hora para corrigir timezone
-                const timestampCorrigido=0;
+                const timestampCorrigido = new Date(
+                    ultimoRegisto.timestamp.getTime() ,
+                );
 
                 return {
                     utilizador: userGroup.utilizador,
