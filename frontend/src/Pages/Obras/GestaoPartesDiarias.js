@@ -75,7 +75,7 @@ const GestaoPartesDiarias = ({ navigation }) => {
             Funcionario: "",
             ClasseID: it.ClasseID ?? -1,
             Fornecedor: null,
-            SubEmpID: null, // força vazio
+            SubEmpID:  it.SubEmpID, 
             NumHorasTrabalho: Number((it.NumHoras / 60).toFixed(2)),
             NumHorasOrdem: 0,
             NumHorasAvariada: 0,

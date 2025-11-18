@@ -1265,9 +1265,11 @@ const submeterPessoalEquip = async () => {
                 .map((item) => ({
                     codigo: item.Codigo.trim(),
                     descricao: item.Desig,
-                    subEmpId: item.ComponenteID,
+                    subEmpId: item.ComponenteId ?? item.ComponenteID, // ✅ Usar ComponenteID como SubEmpID
+                    componenteID: item.ComponenteId ?? item.ComponenteID,
                 }));
 
+            console.log(`✅ Carregados ${items.length} equipamentos. Exemplo:`, items[0]);
             setEquipamentosList(items);
         } catch (err) {
             console.error("Erro ao obter equipamentos:", err);
@@ -2088,11 +2090,23 @@ const carregarRascunho = useCallback(async () => {
         for (let i = 0; i < linhas.length; i++) {
             const l = linhas[i];
 
-            // validação mais flexível: só avisa se equipamento não tem subEmpId, mas não bloqueia
-            if (l.categoria === "Equipamentos" && !l.subEmpId) {
-                console.warn(
-                    `⚠️ Equipamento sem SubEmpID em ${dataISO} (obra ${obraId}). Enviando mesmo assim.`,
-                );
+            // Para equipamentos, garantir que SubEmpID tem o ComponenteID correto
+            let subEmpIdFinal = l.subEmpId ?? null;
+            
+            if (l.categoria === "Equipamentos") {
+                // ✅ SEMPRE tentar obter o ComponenteId da lista de equipamentos pelo código
+                const equipLista = equipamentosList || [];
+                const equip = equipLista.find(e => e.codigo === l.especialidadeCodigo || e.codigo === l.especialidade);
+                
+                if (equip) {
+                    // Usar componenteID da lista (que vem do ComponenteId da API)
+                    subEmpIdFinal = equip.componenteID || equip.subEmpId;
+                    console.log(`✅ ComponenteID para equipamento ${equip.codigo} (${equip.descricao}): ${subEmpIdFinal}`);
+                } else if (!subEmpIdFinal) {
+                    console.warn(
+                        `⚠️ Equipamento ${l.especialidadeCodigo || l.especialidade} não encontrado na lista em ${dataISO} (obra ${obraId}).`,
+                    );
+                }
             }
 
             const [yyyy, mm, dd] = dataISO.split("-").map(Number);
@@ -2110,7 +2124,7 @@ const carregarRascunho = useCallback(async () => {
                 ColaboradorID: codFuncionario,
                 Funcionario: nomeExterno || String(codFuncionario),
                 ClasseID: l.classeId || 1, // usar classeId selecionada ou default 1
-                SubEmpID: l.subEmpId ?? null,
+                SubEmpID: subEmpIdFinal,
                 NumHoras: l.minutos,
                 PrecoUnit: 0,
                 categoria: l.categoria, // 'MaoObra' | 'Equipamentos'
@@ -2984,7 +2998,7 @@ const carregarRascunho = useCallback(async () => {
                     [{ text: "OK" }]
                 );
                 return;
-            }
+                   }
 
             // Validar horas
             const horas = parseFloat(esp.horas) || 0;
@@ -5206,7 +5220,7 @@ for (const l of linhasParaSubmeter) {
                     <ScrollView horizontal style={styles.horizontalScroll}>
                         <View style={styles.tableContent}>
                             {Object.values(dadosAgrupadosPorUser).map(
-                                (userGroup, userIndex) => (
+                                  (userGroup, userIndex) => (
                                     <View key={userGroup.userInfo.id}>
                                         <View style={styles.obraHeader}>
                                             <Text style={styles.obraHeaderText}>
