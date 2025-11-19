@@ -131,8 +131,16 @@ Horario.belongsTo(Empresa, { foreignKey: 'empresa_id' });
 User.hasMany(PlanoHorario, { foreignKey: 'user_id', as: 'planos_horarios' });
 PlanoHorario.belongsTo(User, { foreignKey: 'user_id' });
 
-Horario.hasMany(PlanoHorario, { foreignKey: 'horario_id', as: 'planos' });
-PlanoHorario.belongsTo(Horario, { foreignKey: 'horario_id' });
+// Associação PlanoHorario -> Horario
+PlanoHorario.belongsTo(Horario, {
+    foreignKey: 'horario_id',
+    as: 'Horario'
+});
+
+Horario.hasMany(PlanoHorario, {
+    foreignKey: 'horario_id',
+    as: 'Planos'
+});
 
 
 

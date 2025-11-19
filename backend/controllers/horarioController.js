@@ -201,6 +201,15 @@ const obterHorarioUser = async (req, res) => {
             return res.status(404).json({ message: 'Utilizador sem horário atribuído.' });
         }
 
+        // Log para debug - verificar se o Horario está a ser incluído
+        console.log(`[HORARIO] User ${userId}:`, {
+            planoId: planoAtivo.id,
+            horarioId: planoAtivo.horario_id,
+            horarioIncluido: planoAtivo.Horario ? true : false,
+            horaEntrada: planoAtivo.Horario?.horaEntrada,
+            horaSaida: planoAtivo.Horario?.horaSaida
+        });
+
         res.status(200).json(planoAtivo);
     } catch (error) {
         console.error('Erro ao obter horário do utilizador:', error);

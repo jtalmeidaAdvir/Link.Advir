@@ -227,15 +227,20 @@ const AnaliseComplotaPontos = () => {
                     );
 
                     if (res.ok) {
-                        const horario = await res.json();
+                        const planoHorario = await res.json();
+                        // A API retorna um objeto PlanoHorario que contém um objeto Horario aninhado
+                        const horarioData = planoHorario?.Horario || planoHorario;
+                        
                         horariosMap[user.id] = {
-                            horaEntrada: horario.Horario?.horaEntrada || "08:00",
-                            horaSaida: horario.Horario?.horaSaida || "17:00",
-                            intervaloAlmoco: horario.Horario?.intervaloAlmoco || 1.00,
-                            horasPorDia: horario.Horario?.horasPorDia || 8.00,
+                            horaEntrada: horarioData.horaEntrada || "08:00",
+                            horaSaida: horarioData.horaSaida || "17:00",
+                            intervaloAlmoco: horarioData.intervaloAlmoco || 1.00,
+                            horasPorDia: horarioData.horasPorDia || 8.00,
                         };
+                        
                         console.log(
-                            `✅ [HORARIOS] ${user.nome} (ID: ${user.id}): ${horariosMap[user.id].horaEntrada}-${horariosMap[user.id].horaSaida} (${horariosMap[user.id].horasPorDia}h/dia, ${horariosMap[user.id].intervaloAlmoco}h almoço)`
+                            `✅ [HORARIOS] ${user.nome} (ID: ${user.id}): ${horariosMap[user.id].horaEntrada}-${horariosMap[user.id].horaSaida} (${horariosMap[user.id].horasPorDia}h/dia, ${horariosMap[user.id].intervaloAlmoco}h almoço)`,
+                            `[Response completa:`, planoHorario, `]`
                         );
                     } else {
                         // Usar horário padrão se não encontrar
