@@ -6,15 +6,16 @@ import {
     TouchableOpacity,
     ScrollView,
     Modal,
-    Alert,
     StyleSheet,
     Image,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import { isCameraAvailable } from "./Autenticacao/utils/facialBiometricAuth";
 import FacialScannerModal from "./Autenticacao/components/FacialScannerModal";
+import QRCode from 'react-native-qrcode-svg';
 import { secureStorage } from '../utils/secureStorage';
+
 const Perfil = ({ user }) => {
+    const [activeTab, setActiveTab] = useState("informacoes");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [modalVisible, setModalVisible] = useState(false);
@@ -28,6 +29,8 @@ const Perfil = ({ user }) => {
     const [isCameraAvailable, setIsCameraAvailable] = useState(false);
     const [facialScannerVisible, setFacialScannerVisible] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [mostrarQRCode, setMostrarQRCode] = useState(false);
+    const [userId, setUserId] = useState(null);
 
     const fileInput = useRef(null);
     const { t } = useTranslation();
@@ -35,8 +38,10 @@ const Perfil = ({ user }) => {
     useEffect(() => {
         const userNomeFromStorage = secureStorage.getItem("userNome");
         const userEmailFromStorage = secureStorage.getItem("userEmail");
+        const userIdFromStorage = secureStorage.getItem("userId");
         setUserNome(userNomeFromStorage);
         setUserEmail(userEmailFromStorage);
+        setUserId(userIdFromStorage);
         loadProfileImage();
     }, []);
 
@@ -48,7 +53,6 @@ const Perfil = ({ user }) => {
     const checkCameraAvailability = async () => {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             try {
-                // Tentativa de acessar a câmera para verificar a disponibilidade
                 await navigator.mediaDevices.getUserMedia({ video: true });
                 setIsCameraAvailable(true);
             } catch (error) {
@@ -74,8 +78,6 @@ const Perfil = ({ user }) => {
             if (response.ok) {
                 const data = await response.json();
                 setIsFacialRegistered(data.hasBiometric || false);
-            } else {
-                console.error("Falha ao verificar o status da biometria facial");
             }
         } catch (error) {
             console.error("Erro ao verificar o status da biometria facial:", error);
@@ -90,7 +92,6 @@ const Perfil = ({ user }) => {
 
             if (!userEmail) throw new Error("Email do utilizador não encontrado");
 
-            // Abrir modal para o scanner facial
             setFacialScannerVisible(true);
 
         } catch (error) {
@@ -100,7 +101,6 @@ const Perfil = ({ user }) => {
                 true,
             );
         } finally {
-            // Não definir isLoading para true aqui, pois o modal gerenciará o estado de carregamento
         }
     };
 
@@ -117,7 +117,6 @@ const Perfil = ({ user }) => {
             const userEmail = secureStorage.getItem("userEmail");
             const token = secureStorage.getItem("loginToken");
 
-            // Primeiro obter challenge
             const challengeResponse = await fetch(
                 "https://backend.advir.pt/api/auth/biometric/register-challenge",
                 {
@@ -136,7 +135,6 @@ const Perfil = ({ user }) => {
                 throw new Error(challengeData.message || "Erro ao obter challenge");
             }
 
-            // Depois registar biometria facial
             const response = await fetch(`https://backend.advir.pt/api/auth/biometric/register`, {
                 method: "POST",
                 headers: {
@@ -200,109 +198,6 @@ const Perfil = ({ user }) => {
         }
     };
 
-    // Placeholder for BiometricSetup component
-    // In a real scenario, this would be imported and used.
-    const BiometricSetup = ({ userId, userEmail, t, onRegistered }) => {
-        const [isBiometricRegistered, setIsBiometricRegistered] =
-            useState(false);
-        const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
-        const [isLoading, setIsLoading] = useState(false);
-
-        useEffect(() => {
-            // Check for WebAuthn API support
-            if (window.PublicKeyCredential) {
-                setIsBiometricAvailable(true);
-                // Check if user already has biometrics registered
-                checkBiometricStatus(userId);
-            }
-        }, [userId]);
-
-        const checkBiometricStatus = async (userId) => {
-            try {
-                const userEmail = secureStorage.getItem("userEmail");
-                const response = await fetch(
-                    `https://backend.advir.pt/api/auth/biometric/check`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({ email: userEmail }),
-                    },
-                );
-
-                if (response.ok) {
-                    const data = await response.json();
-                    setIsBiometricRegistered(data.hasBiometric || false);
-                } else {
-                    console.error("Failed to check biometric status");
-                }
-            } catch (error) {
-                console.error("Error checking biometric status:", error);
-            }
-        };
-
-        const registerBiometric = async () => {
-            setIsLoading(true);
-            try {
-                const userId = parseInt(secureStorage.getItem("userId"));
-                const userEmail = secureStorage.getItem("userEmail");
-
-                // Importar função do módulo de biometria
-                const { registerBiometric: registerBio } = await import(
-                    "./Autenticacao/utils/biometricAuth"
-                );
-
-                await registerBio(userId, userEmail);
-
-                setIsBiometricRegistered(true);
-                if (onRegistered) onRegistered();
-                showMessage("Biometria registada com sucesso!");
-            } catch (error) {
-                console.error("Error during biometric registration:", error);
-                showMessage(
-                    "Ocorreu um erro ao registar a biometria: " + error.message,
-                    true,
-                );
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        const unregisterBiometric = async () => {
-            setIsLoading(true);
-            try {
-                const userEmail = secureStorage.getItem("userEmail");
-                if (!userEmail) {
-                    throw new Error("Email do utilizador não encontrado");
-                }
-
-                // Importar a função removeBiometric dinamicamente
-                const { removeBiometric } = await import('./Autenticacao/utils/biometricAuth');
-
-                await removeBiometric(userEmail);
-                setIsBiometricRegistered(false);
-                showMessage("Biometria removida com sucesso!");
-            } catch (error) {
-                console.error("Error during biometric unregistration:", error);
-                showMessage("Ocorreu um erro ao remover a biometria: " + error.message, true);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        if (!isBiometricAvailable) {
-            return null;
-        }
-
-        return (
-            <View >
-               
-
-            </View>
-        );
-    };
-
     const showMessage = (message, isError = false) => {
         setSuccessMessage(message);
         setShowSuccessMessage(true);
@@ -328,75 +223,65 @@ const Perfil = ({ user }) => {
         }
     };
 
-const alterarPassword = async () => {
-  setModalVisible(false);
-  setIsLoading(true);
+    const alterarPassword = async () => {
+        setModalVisible(false);
+        setIsLoading(true);
 
-  try {
-    const token = secureStorage.getItem("loginToken");
-    if (!token) {
-      showMessage("Sessão expirada. Por favor, inicia sessão novamente.", true);
-      // opcional: redirecionar para login
-      // navigate("/login");
-      return;
-    }
+        try {
+            const token = secureStorage.getItem("loginToken");
+            if (!token) {
+                showMessage("Sessão expirada. Por favor, inicia sessão novamente.", true);
+                return;
+            }
 
-    // validações simples no cliente
-    if (!newPassword || newPassword.length < 8) {
-      showMessage("A nova palavra-passe deve ter pelo menos 8 caracteres.", true);
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      showMessage("As palavras-passe não coincidem.", true);
-      return;
-    }
+            if (!newPassword || newPassword.length < 8) {
+                showMessage("A nova palavra-passe deve ter pelo menos 8 caracteres.", true);
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                showMessage("As palavras-passe não coincidem.", true);
+                return;
+            }
 
-    const resp = await fetch("https://backend.advir.pt/api/users/alterarPassword", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      // ⚠️ alinhar com o backend: enviar confirmNewPassword
-      body: JSON.stringify({
-        newPassword: newPassword,
-        confirmNewPassword: confirmPassword,
-      }),
-    });
+            const resp = await fetch("https://backend.advir.pt/api/users/alterarPassword", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    newPassword: newPassword,
+                    confirmNewPassword: confirmPassword,
+                }),
+            });
 
-    // tentar ler JSON, mas sem rebentar se vier vazio
-    let data = {};
-    try { data = await resp.json(); } catch {}
+            let data = {};
+            try { data = await resp.json(); } catch { }
 
-    if (resp.ok) {
-      showMessage(data.message || "Palavra-passe alterada com sucesso!");
-      setNewPassword("");
-      setConfirmPassword("");
-    } else {
-      // backend usa { error: "..." } nos erros
-      const msg = data.error || data.message || resp.statusText;
+            if (resp.ok) {
+                showMessage(data.message || "Palavra-passe alterada com sucesso!");
+                setNewPassword("");
+                setConfirmPassword("");
+            } else {
+                const msg = data.error || data.message || resp.statusText;
 
-      if (resp.status === 401) {
-        showMessage("Sessão expirada. Por favor, inicia sessão novamente.", true);
-        // opcional: redirecionar
-        // navigate("/login");
-      } else if (resp.status === 404) {
-        showMessage("Utilizador não encontrado.", true);
-      } else if (resp.status === 400) {
-        showMessage(msg || "Pedido inválido.", true);
-      } else {
-        showMessage(`Falha ao alterar palavra-passe: ${msg}`, true);
-      }
-    }
-  } catch (e) {
-    console.error("Erro ao alterar palavra-passe:", e);
-    showMessage("Ocorreu um erro ao alterar a palavra-passe.", true);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-
+                if (resp.status === 401) {
+                    showMessage("Sessão expirada. Por favor, inicia sessão novamente.", true);
+                } else if (resp.status === 404) {
+                    showMessage("Utilizador não encontrado.", true);
+                } else if (resp.status === 400) {
+                    showMessage(msg || "Pedido inválido.", true);
+                } else {
+                    showMessage(`Falha ao alterar palavra-passe: ${msg}`, true);
+                }
+            }
+        } catch (e) {
+            console.error("Erro ao alterar palavra-passe:", e);
+            showMessage("Ocorreu um erro ao alterar a palavra-passe.", true);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const loadProfileImage = () => {
         const savedImage = secureStorage.getItem("profileImage");
@@ -419,102 +304,251 @@ const alterarPassword = async () => {
         }
     };
 
+    const renderTabContent = () => {
+        switch (activeTab) {
+            case "informacoes":
+                return (
+                    <View style={styles.tabContent}>
+                        <View style={styles.profileHeader}>
+                            <TouchableOpacity
+                                style={styles.avatarContainer}
+                                onPress={() => fileInput.current.click()}
+                            >
+                                <Image
+                                    style={styles.avatar}
+                                    source={
+                                        profileImage
+                                            ? { uri: profileImage }
+                                            : require("../../assets/icon.png")
+                                    }
+                                />
+                                <View style={styles.avatarOverlay}>
+                                    <Text style={styles.uploadIcon}>📷</Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            <View style={styles.userInfo}>
+                                <Text style={styles.userName}>{userNome}</Text>
+                                <Text style={styles.userEmail}>{userEmail}</Text>
+                                <Text style={styles.userCompany}>
+                                    {user?.company || secureStorage.getItem("empresaSelecionada")}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <input
+                            type="file"
+                            ref={fileInput}
+                            style={{ display: "none" }}
+                            onChange={handleFileInput}
+                            accept="image/*"
+                        />
+
+                        <View style={styles.infoSection}>
+                            <Text style={styles.infoLabel}>👤 Nome Completo</Text>
+                            <View style={styles.infoBox}>
+                                <Text style={styles.infoValue}>{userNome}</Text>
+                            </View>
+
+                            <Text style={styles.infoLabel}>✉️ Email</Text>
+                            <View style={styles.infoBox}>
+                                <Text style={styles.infoValue}>{userEmail}</Text>
+                            </View>
+
+                            <Text style={styles.infoLabel}>🏢 Empresa</Text>
+                            <View style={styles.infoBox}>
+                                <Text style={styles.infoValue}>
+                                    {user?.company || secureStorage.getItem("empresaSelecionada")}
+                                </Text>
+                            </View>
+
+                            <Text style={styles.infoLabel}>🆔 ID de Utilizador</Text>
+                            <View style={styles.infoBox}>
+                                <Text style={styles.infoValue}>{userId}</Text>
+                            </View>
+                        </View>
+                    </View>
+                );
+
+            case "seguranca":
+                return (
+                    <View style={styles.tabContent}>
+                        <View style={styles.securitySection}>
+                            <Text style={styles.sectionTitle}>🔐 Alterar Palavra-passe</Text>
+
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Nova Palavra-passe</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Digite a nova palavra-passe"
+                                    value={newPassword}
+                                    secureTextEntry
+                                    onChangeText={setNewPassword}
+                                />
+                            </View>
+
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Confirmar Palavra-passe</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Confirme a nova palavra-passe"
+                                    value={confirmPassword}
+                                    secureTextEntry
+                                    onChangeText={setConfirmPassword}
+                                />
+                            </View>
+
+                            <TouchableOpacity
+                                style={styles.primaryButton}
+                                onPress={handleSavePassword}
+                            >
+                                <Text style={styles.primaryButtonText}>💾 Gravar Alterações</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.biometricSection}>
+                            <Text style={styles.sectionTitle}>👤 Reconhecimento Facial</Text>
+
+                            <View style={styles.statusBadge}>
+                                <Text style={styles.statusLabel}>Estado:</Text>
+                                <View
+                                    style={[
+                                        styles.statusIndicator,
+                                        isFacialRegistered ? styles.statusActive : styles.statusInactive,
+                                    ]}
+                                >
+                                    <Text style={styles.statusText}>
+                                        {isFacialRegistered ? "✅ Ativa" : "⚪ Inativa"}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {!isFacialRegistered && isCameraAvailable ? (
+                                <TouchableOpacity
+                                    style={[styles.primaryButton, styles.successButton]}
+                                    onPress={registerFacialBiometric}
+                                    disabled={isLoading}
+                                >
+                                    <Text style={styles.primaryButtonText}>
+                                        {isLoading ? "⏳ A configurar..." : "📷 Configurar Facial"}
+                                    </Text>
+                                </TouchableOpacity>
+                            ) : isFacialRegistered ? (
+                                <TouchableOpacity
+                                    style={[styles.primaryButton, styles.dangerButton]}
+                                    onPress={unregisterFacialBiometric}
+                                    disabled={isLoading}
+                                >
+                                    <Text style={styles.primaryButtonText}>
+                                        {isLoading ? "⏳ A remover..." : "🗑️ Remover Facial"}
+                                    </Text>
+                                </TouchableOpacity>
+                            ) : !isCameraAvailable ? (
+                                <Text style={styles.errorText}>
+                                    📷 Câmera não disponível neste dispositivo
+                                </Text>
+                            ) : null}
+
+                            <View style={styles.infoBox}>
+                                <Text style={styles.infoText}>
+                                    💡 A biometria utiliza a segurança do seu dispositivo
+                                    para autenticação rápida e segura
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                );
+
+            case "qrcode":
+                return (
+                    <View style={styles.tabContent}>
+                        <View style={styles.qrSection}>
+                            <Text style={styles.sectionTitle}>📱 QR Code Pessoal</Text>
+
+                            <Text style={styles.description}>
+                                Este QR Code é único e identifica-o no sistema. Use-o para registar
+                                o seu ponto de forma rápida e segura.
+                            </Text>
+
+                            <TouchableOpacity
+                                style={styles.primaryButton}
+                                onPress={() => setMostrarQRCode(!mostrarQRCode)}
+                            >
+                                <Text style={styles.primaryButtonText}>
+                                    {mostrarQRCode ? "🔒 Ocultar QR Code" : "📱 Mostrar QR Code"}
+                                </Text>
+                            </TouchableOpacity>
+
+                            {mostrarQRCode && userId && (
+                                <View style={styles.qrContainer}>
+                                    <QRCode
+                                        value={userId}
+                                        size={200}
+                                        color="#1792FE"
+                                        backgroundColor="white"
+                                    />
+                                    <Text style={styles.qrInfo}>
+                                        ID: {userId} • {userNome}
+                                    </Text>
+                                    <Text style={styles.qrWarning}>
+                                        ⚠️ Não partilhe este QR Code com outras pessoas
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+                );
+
+            default:
+                return null;
+        }
+    };
+
     return (
-        <ScrollView style={styles.scrollViewStyle} contentContainerStyle={styles.container}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.container}>
             {showSuccessMessage && (
                 <View style={styles.messageContainer}>
                     <Text style={styles.messageText}>{successMessage}</Text>
                 </View>
             )}
 
-            <View style={styles.profileCard}>
+            <View style={styles.card}>
                 <View style={styles.cardHeader}>
-                    <Text style={styles.welcomeText}>{"Perfil"}</Text>
+                    <Text style={styles.headerTitle}>👤 Meu Perfil</Text>
                 </View>
 
-                <View style={styles.profileSection}>
+                <View style={styles.tabsContainer}>
                     <TouchableOpacity
-                        style={styles.avatarContainer}
-                        onPress={() => fileInput.current.click()}
+                        style={[styles.tab, activeTab === "informacoes" && styles.activeTab]}
+                        onPress={() => setActiveTab("informacoes")}
                     >
-                        <Image
-                            style={styles.avatar}
-                            source={
-                                profileImage
-                                    ? { uri: profileImage }
-                                    : require("../../assets/icon.png")
-                            }
-                        />
-                        <View style={styles.avatarOverlay}>
-                            <Text style={styles.uploadText}>
-                                {t("Perfil.Carregar")}
-                            </Text>
-                        </View>
+                        <Text style={[styles.tabText, activeTab === "informacoes" && styles.activeTabText]}>
+                            ℹ️ Informações
+                        </Text>
                     </TouchableOpacity>
 
-                    <View style={styles.userInfoContainer}>
-                        <Text style={styles.userName}>{userNome}</Text>
-                        <Text style={styles.userEmail}>{userEmail}</Text>
-                        <Text style={styles.userCompany}>
-                            {user?.company ||
-                                secureStorage.getItem("empresaSelecionada")}
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === "seguranca" && styles.activeTab]}
+                        onPress={() => setActiveTab("seguranca")}
+                    >
+                        <Text style={[styles.tabText, activeTab === "seguranca" && styles.activeTabText]}>
+                            🔐 Segurança
                         </Text>
-                    </View>
-                </View>
-
-                <input
-                    type="file"
-                    ref={fileInput}
-                    style={{ display: "none" }}
-                    onChange={handleFileInput}
-                    accept="image/*"
-                />
-
-                <View style={styles.divider} />
-
-                <View style={styles.passwordSection}>
-                    <Text style={styles.sectionTitle}>
-                        {t("Perfil.Alterar")}
-                    </Text>
-
-                    <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>
-                            {t("Perfil.Novapass")}
-                        </Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder={t("Perfil.Novapass")}
-                            value={newPassword}
-                            secureTextEntry
-                            onChangeText={setNewPassword}
-                        />
-                    </View>
-
-                    <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>
-                            {t("Perfil.Confirmarpass")}
-                        </Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder={t("Perfil.Confirmarpass")}
-                            value={confirmPassword}
-                            secureTextEntry
-                            onChangeText={setConfirmPassword}
-                        />
-                    </View>
+                    </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.saveButton}
-                        onPress={handleSavePassword}
+                        style={[styles.tab, activeTab === "qrcode" && styles.activeTab]}
+                        onPress={() => setActiveTab("qrcode")}
                     >
-                        <Text style={styles.saveButtonText}>
-                            {t("Perfil.Gravar")}
+                        <Text style={[styles.tabText, activeTab === "qrcode" && styles.activeTabText]}>
+                            📱 QR Code
                         </Text>
                     </TouchableOpacity>
                 </View>
+
+                {renderTabContent()}
             </View>
 
-            {/* Modal de confirmação */}
             <Modal
                 animationType="fade"
                 transparent={true}
@@ -533,10 +567,7 @@ const alterarPassword = async () => {
                         </Text>
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
-                                style={[
-                                    styles.modalButton,
-                                    styles.cancelButton,
-                                ]}
+                                style={[styles.modalButton, styles.cancelButton]}
                                 onPress={() => setModalVisible(false)}
                             >
                                 <Text style={styles.cancelButtonText}>
@@ -544,10 +575,7 @@ const alterarPassword = async () => {
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[
-                                    styles.modalButton,
-                                    styles.confirmButton,
-                                ]}
+                                style={[styles.modalButton, styles.confirmButton]}
                                 onPress={alterarPassword}
                             >
                                 <Text style={styles.confirmButtonText}>
@@ -559,140 +587,6 @@ const alterarPassword = async () => {
                 </View>
             </Modal>
 
-            <BiometricSetup
-                userId={secureStorage.getItem("userId")}
-                userEmail={secureStorage.getItem("userEmail")}
-                t={t}
-                onRegistered={() => {
-                    // Opcional: atualizar estado ou mostrar mensagem
-                    console.log("Biometria configurada com sucesso");
-                }}
-            />
-
-            {/* Seção Reconhecimento Facial */}
-            <View style={[styles.biometricTypeSection, { marginTop: 20 }]}>
-                <Text style={styles.biometricTypeTitle}>👤 Reconhecimento Facial</Text>
-
-                <View style={styles.biometricStatusContainer}>
-                    <View
-                        style={[
-                            styles.biometricStatusBadge,
-                            isFacialRegistered
-                                ? styles.statusActive
-                                : styles.statusInactive,
-                        ]}
-                    >
-                        <Text
-                            style={[
-                                styles.biometricStatusText,
-                                isFacialRegistered
-                                    ? styles.statusActive
-                                    : styles.statusInactive,
-                            ]}
-                        >
-                            {isFacialRegistered ? (
-                                <Text>
-                                    <Text style={{ fontSize: 16, marginRight: 8 }}>✅</Text>
-                                    Ativa
-                                </Text>
-                            ) : (
-                                <Text>
-                                    <Text style={{ fontSize: 16, marginRight: 8 }}>⚪</Text>
-                                    Inativa
-                                </Text>
-                            )}
-                        </Text>
-                    </View>
-                </View>
-
-                {!isFacialRegistered && isCameraAvailable ? (
-                    <TouchableOpacity
-                        style={[styles.biometricButton, styles.registerButton]}
-                        onPress={registerFacialBiometric}
-                        disabled={isLoading}
-                    >
-                        {isLoading ? (
-                            <>
-                                <Text style={styles.biometricButtonIcon}>
-                                    ⏳
-                                </Text>
-                                <Text style={styles.biometricButtonText}>
-                                    A configurar...
-                                </Text>
-                            </>
-                        ) : (
-                            <>
-                                <Text style={styles.biometricButtonIcon}>
-                                    📷
-                                </Text>
-                                <Text style={styles.biometricButtonText}>
-                                    Configurar Facial
-                                </Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
-                ) : isFacialRegistered ? (
-                    <View style={styles.biometricActions}>
-                        <TouchableOpacity
-                            style={[
-                                styles.biometricButton,
-                                styles.removeButton,
-                            ]}
-                            onPress={unregisterFacialBiometric}
-                            disabled={isLoading}
-                        >
-                            {isLoading ? (
-                                <>
-                                    <Text style={styles.biometricButtonIcon}>
-                                        ⏳
-                                    </Text>
-                                    <Text style={styles.biometricButtonText}>
-                                        A remover...
-                                    </Text>
-                                </>
-                            ) : (
-                                <>
-                                    <Text style={styles.biometricButtonIcon}>
-                                        🗑️
-                                    </Text>
-                                    <Text style={styles.biometricButtonText}>
-                                        Remover Facial
-                                    </Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                ) : !isCameraAvailable ? (
-                    <Text style={styles.errorText}>
-                        📷 Câmera não disponível neste dispositivo
-                    </Text>
-                ) : null}
-            </View>
-
-            <View
-                style={{
-                    marginTop: 20,
-                    padding: 15,
-                    backgroundColor: "rgba(23, 146, 254, 0.05)",
-                    borderRadius: 12,
-                    borderLeftWidth: 4,
-                    borderLeftColor: "#1792FE",
-                }}
-            >
-                <Text
-                    style={{
-                        fontSize: 13,
-                        color: "#666",
-                        textAlign: "center",
-                        fontStyle: "italic",
-                    }}
-                >
-                    💡 A biometria utiliza a segurança do seu dispositivo
-                    para autenticação rápida e segura
-                </Text>
-            </View>
-
-            {/* Modal do Scanner Facial */}
             <FacialScannerModal
                 visible={facialScannerVisible}
                 onClose={() => setFacialScannerVisible(false)}
@@ -703,91 +597,136 @@ const alterarPassword = async () => {
 };
 
 const styles = StyleSheet.create({
+    scrollView: {
+        flex: 1,
+        backgroundColor: "#f0f4f8",
+        width: "100%",
+    },
     container: {
         flexGrow: 1,
-        alignItems: "center",
-        backgroundColor: "#d4e4ff",
         padding: 20,
-        position: "relative",
         minHeight: "100vh",
     },
     messageContainer: {
         position: "absolute",
         top: 20,
+        left: "50%",
+        transform: [{ translateX: "-50%" }],
         backgroundColor: "#1792FE",
-        padding: 12,
-        borderRadius: 8,
+        padding: 15,
+        borderRadius: 12,
         zIndex: 100,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 5,
-        elevation: 5,
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 10,
+        minWidth: 300,
+        maxWidth: "90%",
     },
     messageText: {
         color: "white",
-        fontSize: 16,
-        fontWeight: "bold",
+        fontSize: 15,
+        fontWeight: "600",
+        textAlign: "center",
     },
-    profileCard: {
+    card: {
         width: "100%",
-        maxWidth: 600,
+        maxWidth: 900,
         backgroundColor: "white",
         borderRadius: 20,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 10,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+        elevation: 15,
         overflow: "hidden",
+        alignSelf: "center",
     },
     cardHeader: {
         backgroundColor: "#1792FE",
-        padding: 20,
+        padding: 25,
         alignItems: "center",
     },
-    welcomeText: {
-        fontSize: 24,
+    headerTitle: {
+        fontSize: 26,
         fontWeight: "bold",
         color: "white",
     },
-    profileSection: {
+    tabsContainer: {
         flexDirection: "row",
-        padding: 20,
+        backgroundColor: "#f8f9fa",
+        borderBottomWidth: 2,
+        borderBottomColor: "#e0e0e0",
+    },
+    tab: {
+        flex: 1,
+        padding: 16,
         alignItems: "center",
+        justifyContent: "center",
+        borderBottomWidth: 3,
+        borderBottomColor: "transparent",
+        transition: "all 0.3s ease",
+    },
+    activeTab: {
+        borderBottomColor: "#1792FE",
+        backgroundColor: "white",
+    },
+    tabText: {
+        fontSize: 15,
+        fontWeight: "500",
+        color: "#666",
+    },
+    activeTabText: {
+        color: "#1792FE",
+        fontWeight: "700",
+    },
+    tabContent: {
+        padding: 25,
+    },
+    profileHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 30,
+        paddingBottom: 25,
+        borderBottomWidth: 1,
+        borderBottomColor: "#e0e0e0",
     },
     avatarContainer: {
         position: "relative",
-        marginRight: 20,
+        marginRight: 25,
     },
     avatar: {
         width: 100,
         height: 100,
         borderRadius: 50,
-        borderWidth: 3,
+        borderWidth: 4,
         borderColor: "#1792FE",
     },
     avatarOverlay: {
         position: "absolute",
         bottom: 0,
         right: 0,
-        backgroundColor: "rgba(23, 146, 254, 0.8)",
-        borderRadius: 12,
-        padding: 5,
+        backgroundColor: "#1792FE",
+        borderRadius: 20,
+        width: 36,
+        height: 36,
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 3,
+        borderColor: "white",
     },
-    uploadText: {
-        color: "white",
-        fontSize: 10,
-        fontWeight: "bold",
+    uploadIcon: {
+        fontSize: 18,
     },
-    userInfoContainer: {
+    userInfo: {
         flex: 1,
     },
     userName: {
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: "bold",
         color: "#333",
-        marginBottom: 4,
+        marginBottom: 6,
     },
     userEmail: {
         fontSize: 16,
@@ -796,55 +735,159 @@ const styles = StyleSheet.create({
     },
     userCompany: {
         fontSize: 14,
-        color: "#888",
+        color: "#999",
     },
-    divider: {
-        height: 1,
-        backgroundColor: "#e0e0e0",
-        marginHorizontal: 20,
+    infoSection: {
+        gap: 15,
     },
-    passwordSection: {
-        padding: 20,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
-        color: "#1792FE",
-        marginBottom: 16,
-    },
-    inputContainer: {
-        marginBottom: 16,
-    },
-    inputLabel: {
+    infoLabel: {
         fontSize: 14,
+        fontWeight: "600",
         color: "#555",
-        marginBottom: 8,
-        fontWeight: "500",
+        marginBottom: 6,
+        marginTop: 10,
     },
-    input: {
-        backgroundColor: "#f5f5ff",
+    infoBox: {
+        backgroundColor: "#f8f9ff",
         padding: 15,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: "#e0e0e0",
-        fontSize: 16,
+        borderColor: "#e0e7ff",
     },
-    saveButton: {
-        backgroundColor: "#1792FE",
+    infoValue: {
+        fontSize: 16,
+        color: "#333",
+        fontWeight: "500",
+    },
+    infoText: {
+        fontSize: 13,
+        color: "#666",
+        lineHeight: 20,
+        textAlign: "center",
+    },
+    securitySection: {
+        marginBottom: 30,
+    },
+    biometricSection: {
+        marginTop: 20,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#1792FE",
+        marginBottom: 20,
+    },
+    inputContainer: {
+        marginBottom: 20,
+    },
+    inputLabel: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#555",
+        marginBottom: 8,
+    },
+    input: {
+        backgroundColor: "#f8f9ff",
         padding: 15,
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#e0e7ff",
+        fontSize: 16,
+    },
+    primaryButton: {
+        backgroundColor: "#1792FE",
+        padding: 16,
+        borderRadius: 12,
         alignItems: "center",
-        marginTop: 16,
+        marginTop: 10,
         shadowColor: "#1792FE",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
-        shadowRadius: 6,
+        shadowRadius: 8,
         elevation: 5,
     },
-    saveButtonText: {
+    successButton: {
+        backgroundColor: "#4CAF50",
+    },
+    dangerButton: {
+        backgroundColor: "#FF4757",
+    },
+    primaryButtonText: {
         color: "white",
         fontWeight: "bold",
         fontSize: 16,
+    },
+    statusBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 15,
+        backgroundColor: "#f8f9fa",
+        borderRadius: 12,
+        marginBottom: 20,
+        gap: 10,
+    },
+    statusLabel: {
+        fontSize: 15,
+        fontWeight: "600",
+        color: "#555",
+    },
+    statusIndicator: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 2,
+    },
+    statusActive: {
+        backgroundColor: "#e8f5e9",
+        borderColor: "#4CAF50",
+    },
+    statusInactive: {
+        backgroundColor: "#ffebee",
+        borderColor: "#FF4757",
+    },
+    statusText: {
+        fontSize: 14,
+        fontWeight: "700",
+    },
+    errorText: {
+        color: "#FF4757",
+        textAlign: "center",
+        marginTop: 15,
+        fontWeight: "500",
+        fontSize: 14,
+    },
+    qrSection: {
+        alignItems: "center",
+    },
+    description: {
+        fontSize: 15,
+        color: "#666",
+        textAlign: "center",
+        marginBottom: 20,
+        lineHeight: 22,
+    },
+    qrContainer: {
+        alignItems: "center",
+        marginTop: 25,
+        padding: 25,
+        backgroundColor: "#f8f9ff",
+        borderRadius: 16,
+        borderWidth: 2,
+        borderColor: "#1792FE",
+    },
+    qrInfo: {
+        marginTop: 15,
+        fontSize: 14,
+        color: "#666",
+        fontWeight: "600",
+    },
+    qrWarning: {
+        marginTop: 8,
+        fontSize: 12,
+        color: "#FF4757",
+        fontStyle: "italic",
+        textAlign: "center",
     },
     modalOverlay: {
         flex: 1,
@@ -853,20 +896,20 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(0, 0, 0, 0.5)",
     },
     modalContainer: {
-        width: "85%",
+        width: "90%",
         maxWidth: 400,
         backgroundColor: "white",
         borderRadius: 20,
         overflow: "hidden",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.2,
-        shadowRadius: 16,
-        elevation: 15,
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 20,
     },
     modalHeader: {
         backgroundColor: "#1792FE",
-        padding: 15,
+        padding: 20,
     },
     modalTitle: {
         color: "white",
@@ -876,9 +919,10 @@ const styles = StyleSheet.create({
     },
     modalText: {
         fontSize: 16,
-        padding: 20,
+        padding: 25,
         textAlign: "center",
-        color: "#444",
+        color: "#555",
+        lineHeight: 24,
     },
     modalButtons: {
         flexDirection: "row",
@@ -887,7 +931,7 @@ const styles = StyleSheet.create({
     },
     modalButton: {
         flex: 1,
-        padding: 15,
+        padding: 18,
         alignItems: "center",
     },
     cancelButton: {
@@ -906,201 +950,6 @@ const styles = StyleSheet.create({
         color: "white",
         fontWeight: "bold",
         fontSize: 16,
-    },
-    scrollViewStyle: {
-        flex: 1,
-        backgroundColor: "#d4e4ff",
-        width: "100%",
-    },
-    biometricSection: {
-        backgroundColor: "white",
-        marginTop: 20,
-        borderRadius: 20,
-        padding: 25,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 8,
-        borderWidth: 1,
-        borderColor: "rgba(23, 146, 254, 0.1)",
-    },
-    biometricDescription: {
-        fontSize: 15,
-        color: "#555",
-        lineHeight: 22,
-        marginBottom: 20,
-        textAlign: "center",
-        fontWeight: "400",
-    },
-    biometricStatusContainer: {
-        alignItems: "center",
-        marginBottom: 25,
-        padding: 15,
-        backgroundColor: "#f8f9ff",
-        borderRadius: 15,
-        borderWidth: 2,
-        borderColor: "rgba(23, 146, 254, 0.1)",
-    },
-    biometricStatusBadge: {
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 25,
-        backgroundColor: "white",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
-        elevation: 4,
-        borderWidth: 2,
-    },
-    biometricStatusText: {
-        fontSize: 16,
-        fontWeight: "700",
-        letterSpacing: 0.5,
-    },
-    statusActive: {
-        color: "#4CAF50",
-        borderColor: "rgba(76, 175, 80, 0.3)",
-    },
-    statusInactive: {
-        color: "#FF6B35",
-        borderColor: "rgba(255, 107, 53, 0.3)",
-    },
-    biometricButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 18,
-        borderRadius: 15,
-        marginBottom: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 6,
-        borderWidth: 0,
-        transform: [{ scale: 1 }],
-        transition: "all 0.2s ease-in-out",
-    },
-    biometricButtonIcon: {
-        fontSize: 20,
-        marginRight: 12,
-    },
-    biometricButtonText: {
-        color: "white",
-        fontWeight: "700",
-        fontSize: 16,
-        letterSpacing: 0.5,
-    },
-    registerButton: {
-        backgroundColor: "#4CAF50",
-        background: "linear-gradient(135deg, #4CAF50 0%, #45a049 100%)",
-    },
-    testButton: {
-        backgroundColor: "#1792FE",
-        background: "linear-gradient(135deg, #1792FE 0%, #0d7ce8 100%)",
-        flex: 1,
-        marginRight: 8,
-    },
-    removeButton: {
-        backgroundColor: "#FF4757",
-        background: "linear-gradient(135deg, #FF4757 0%, #ff3742 100%)",
-        flex: 1,
-        marginLeft: 8,
-    },
-    biometricActions: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        gap: 8,
-    },
-    modalContainerFacial: {
-        width: "90%",
-        maxWidth: 500,
-        backgroundColor: "#fff",
-        borderRadius: 20,
-        overflow: "hidden",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.3,
-        shadowRadius: 18,
-        elevation: 20,
-        alignItems: "center",
-    },
-    modalHeaderFacial: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        backgroundColor: "#1792FE",
-        paddingVertical: 15,
-        paddingHorizontal: 20,
-        width: "100%",
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-    },
-    modalTitleFacial: {
-        color: "white",
-        fontSize: 20,
-        fontWeight: "bold",
-    },
-    closeButtonFacial: {
-        padding: 5,
-    },
-    closeButtonTextFacial: {
-        color: "white",
-        fontSize: 22,
-        fontWeight: "bold",
-    },
-    videoContainer: {
-        width: "100%",
-        height: 350,
-        backgroundColor: "#f0f0f0",
-        justifyContent: "center",
-        alignItems: "center",
-        position: "relative",
-    },
-    videoElement: {
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-    },
-    scanMessage: {
-        fontSize: 16,
-        color: "#555",
-        marginTop: 15,
-        textAlign: "center",
-        paddingHorizontal: 20,
-    },
-    loadingMessage: {
-        fontSize: 16,
-        color: "#1792FE",
-        fontWeight: "bold",
-        marginTop: 10,
-    },
-    errorText: {
-        color: "#FF4757",
-        textAlign: "center",
-        marginTop: 10,
-        fontWeight: "500",
-    },
-    biometricTypeSection: {
-        backgroundColor: "white",
-        borderRadius: 20,
-        padding: 25,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 8,
-        borderWidth: 1,
-        borderColor: "rgba(23, 146, 254, 0.1)",
-    },
-    biometricTypeTitle: {
-        fontSize: 20,
-        fontWeight: "bold",
-        color: "#1792FE",
-        textAlign: "center",
-        marginBottom: 15,
     },
 });
 

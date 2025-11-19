@@ -1022,8 +1022,55 @@ const RegistoPontoFacial = (props) => {
 
       const token = secureStorage.getItem("loginToken");
       const empresaId = secureStorage.getItem("empresa_id");
+      const posNome = secureStorage.getItem("posNome");
 
-      // Buscar dados do externo na tabela ExternosJPA
+      // Obter localização apenas se não for CASAPEDOME
+      let loc = { coords: { latitude: null, longitude: null } };
+      if (posNome !== "CASAPEDOME") {
+        try {
+          loc = await getCurrentLocation();
+        } catch {}
+      }
+
+      // PRIMEIRO: Tentar como utilizador interno (userId)
+      // Verificar se o QR code é um número (userId)
+      const possibleUserId = parseInt(qrCodeData, 10);
+      
+      if (!isNaN(possibleUserId) && possibleUserId > 0) {
+        try {
+          // Tentar buscar dados do utilizador
+          const resUser = await fetch(
+            `https://backend.advir.pt/api/users/${possibleUserId}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          );
+
+          if (resUser.ok) {
+            const userData = await resUser.json();
+            
+            // É um utilizador interno - registar ponto normal
+            setStatusMessage(`${userData.nome} identificado. A registar ponto...`);
+            
+            const obra = obras.find((o) => String(o.id) === String(obraSelecionada));
+            await registarPontoParaUtilizador(
+              "entrada", // será determinado automaticamente pelo backend
+              obraSelecionada,
+              obra?.nome || "Obra",
+              possibleUserId,
+              userData.nome,
+              loc,
+            );
+            
+            setShowExternoQRModal(false);
+            return;
+          }
+        } catch (err) {
+          console.log("Não é utilizador interno, tentando como externo...");
+        }
+      }
+
+      // SEGUNDO: Tentar como trabalhador externo
       const resExterno = await fetch(
         `https://backend.advir.pt/api/externos-jpa/buscar/${qrCodeData}?empresa_id=${empresaId}`,
         {
@@ -1032,21 +1079,11 @@ const RegistoPontoFacial = (props) => {
       );
 
       if (!resExterno.ok) {
-        throw new Error("Externo não encontrado");
+        throw new Error("QR Code não reconhecido. Não foi encontrado nenhum utilizador ou externo com este código.");
       }
 
       const externo = await resExterno.json();
       setExternoNome(externo.nome);
-
-      // Obter localização apenas se não for CASAPEDOME
-      const posNome = secureStorage.getItem("posNome");
-      let loc = { coords: { latitude: null, longitude: null } };
-
-      if (posNome !== "CASAPEDOME") {
-        try {
-          loc = await getCurrentLocation();
-        } catch {}
-      }
 
       // Registar ponto do externo
       const resRegisto = await fetch(
@@ -1676,7 +1713,7 @@ const RegistoPontoFacial = (props) => {
                       </div>
                     )}
 
-                    {/* Botão de Registo de Externos via QR - Apenas para JPA */}
+                    {/* Botão de Registo via QR (Internos e Externos) - Apenas para JPA */}
                     {isEmpresaJPA && (
                       <div className="text-center mb-4">
                         <button
@@ -1685,7 +1722,7 @@ const RegistoPontoFacial = (props) => {
                           disabled={!obraSelecionada || isRegistering}
                         >
                           <FaQrcode className="me-2" />
-                          Registo de Externos (QR)
+                          Registo via QR Code
                         </button>
                       </div>
                     )}
@@ -1832,13 +1869,13 @@ const RegistoPontoFacial = (props) => {
             style={{ maxWidth: "500px" }}
           >
             <div className="result-modal-header">
-              <h3 className="modal-title">Registo de Externo - QR Code</h3>
+              <h3 className="modal-title">Registo de Ponto - QR Code</h3>
             </div>
             <div className="result-modal-body">
               {qrScannerActive ? (
                 <>
                   <p className="mb-3">
-                    Aponte a câmera para o QR code do trabalhador externo:
+                    Aponte a câmera para o QR code do colaborador ou externo:
                   </p>
                   <div
                     style={{

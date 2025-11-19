@@ -136,6 +136,8 @@ const AnaliseComplotaPontos = () => {
         }, {});
     };
 
+    const [horariosUtilizadores, setHorariosUtilizadores] = useState({});
+
     useEffect(() => {
         carregarDadosIniciais();
     }, []);
@@ -215,11 +217,74 @@ const AnaliseComplotaPontos = () => {
             );
 
             setUtilizadores(utilizadoresFormatados);
+
+            // Carregar horários de todos os utilizadores
+            await carregarHorariosUtilizadores(utilizadoresFormatados);
         } catch (error) {
             console.error("Erro ao carregar dados iniciais:", error);
             Alert.alert("Erro", "Erro ao carregar dados iniciais");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const carregarHorariosUtilizadores = async (utilizadores) => {
+        try {
+            const token = secureStorage.getItem("loginToken");
+            const horariosMap = {};
+
+            console.log("🔍 [HORARIOS] Carregando horários dos utilizadores...");
+
+            for (const user of utilizadores) {
+                try {
+                    const res = await fetch(
+                        `https://backend.advir.pt/api/horario/user/${user.id}`,
+                        {
+                            headers: { Authorization: `Bearer ${token}` },
+                        }
+                    );
+
+                    if (res.ok) {
+                        const horario = await res.json();
+                        horariosMap[user.id] = {
+                            horaEntrada: horario.Horario?.horaEntrada || "08:00",
+                            horaSaida: horario.Horario?.horaSaida || "17:00",
+                            intervaloAlmoco: horario.Horario?.intervaloAlmoco || 1.00,
+                            horasPorDia: horario.Horario?.horasPorDia || 8.00,
+                        };
+                        console.log(
+                            `✅ [HORARIOS] ${user.nome}: ${horariosMap[user.id].horaEntrada} - ${horariosMap[user.id].horaSaida}`
+                        );
+                    } else {
+                        // Usar horário padrão se não encontrar
+                        horariosMap[user.id] = {
+                            horaEntrada: "08:00",
+                            horaSaida: "17:00",
+                            intervaloAlmoco: 1.00,
+                            horasPorDia: 8.00,
+                        };
+                        console.log(
+                            `⚠️ [HORARIOS] ${user.nome}: Usando horário padrão`
+                        );
+                    }
+                } catch (error) {
+                    console.error(
+                        `❌ [HORARIOS] Erro ao carregar horário de ${user.nome}:`,
+                        error
+                    );
+                    horariosMap[user.id] = {
+                        horaEntrada: "08:00",
+                        horaSaida: "17:00",
+                        intervaloAlmoco: 1.00,
+                        horasPorDia: 8.00,
+                    };
+                }
+            }
+
+            setHorariosUtilizadores(horariosMap);
+            console.log("✅ [HORARIOS] Horários carregados:", Object.keys(horariosMap).length);
+        } catch (error) {
+            console.error("❌ [HORARIOS] Erro ao carregar horários:", error);
         }
     };
 
@@ -391,32 +456,47 @@ const AnaliseComplotaPontos = () => {
     };
 
     const gerarPontosFicticios = (userId, dia, isHoje, horaAtual) => {
-        // Gerar horários fictícios coerentes com dia de trabalho completo
+        // Obter horário do utilizador ou usar padrão
+        const horarioUser = horariosUtilizadores[userId] || {
+            horaEntrada: "08:00",
+            horaSaida: "17:00",
+            intervaloAlmoco: 1.00,
+            horasPorDia: 8.00,
+        };
+
+        // Gerar variação pequena na entrada (±10 minutos)
         const seed = userId * 1000 + dia + Math.floor(dia / 7);
         const random1 = ((seed * 9301 + 49297) % 233280) / 233280;
+        const variacaoMinutos = Math.floor(random1 * 21) - 10; // -10 a +10 minutos
 
-        // Horários de entrada (08:00 ± variação pequena)
-        const horasEntrada = [
-            "07:55",
-            "07:58",
-            "08:00",
-            "08:02",
-            "08:05",
-            "08:10",
-        ];
-
-        const indiceEntrada = Math.floor(random1 * horasEntrada.length);
-        const horaEntrada = horasEntrada[indiceEntrada];
-
-        // Almoço fixo: 12:00-13:00 (padrão mais comum)
-        const saidaAlmoco = "12:00";
-        const entradaAlmoco = "13:00";
-
-        // Horário de saída baseado na entrada (8h de trabalho + 1h almoço = 9h total)
-        const [entradaH, entradaM] = horaEntrada.split(":").map(Number);
-        const minutosEntrada = entradaH * 60 + entradaM;
-        const minutosSaida = minutosEntrada + 540; // 9 horas depois (8h trabalho + 1h almoço)
+        // Calcular hora de entrada com variação
+        const [entradaBaseH, entradaBaseM] = horarioUser.horaEntrada.split(":").map(Number);
+        let minutosEntrada = entradaBaseH * 60 + entradaBaseM + variacaoMinutos;
         
+        const entradaH = Math.floor(minutosEntrada / 60);
+        const entradaM = minutosEntrada % 60;
+        const horaEntrada = `${String(entradaH).padStart(2, "0")}:${String(entradaM).padStart(2, "0")}`;
+
+        // Calcular almoço (meio do expediente, intervalo configurado)
+        const intervaloMinutos = Math.floor(horarioUser.intervaloAlmoco * 60);
+        const horasTrabalhoDia = horarioUser.horasPorDia;
+        
+        // Saída almoço: aproximadamente no meio do dia
+        const minutosAteAlmoco = Math.floor((horasTrabalhoDia * 60) / 2);
+        const minutosSaidaAlmoco = minutosEntrada + minutosAteAlmoco;
+        const saidaAlmocoH = Math.floor(minutosSaidaAlmoco / 60);
+        const saidaAlmocoM = minutosSaidaAlmoco % 60;
+        const saidaAlmoco = `${String(saidaAlmocoH).padStart(2, "0")}:${String(saidaAlmocoM).padStart(2, "0")}`;
+        
+        // Entrada almoço: após intervalo
+        const minutosEntradaAlmoco = minutosSaidaAlmoco + intervaloMinutos;
+        const entradaAlmocoH = Math.floor(minutosEntradaAlmoco / 60);
+        const entradaAlmocoM = minutosEntradaAlmoco % 60;
+        const entradaAlmoco = `${String(entradaAlmocoH).padStart(2, "0")}:${String(entradaAlmocoM).padStart(2, "0")}`;
+
+        // Horário de saída: hora de entrada + horas de trabalho + intervalo
+        const totalMinutosDia = (horasTrabalhoDia * 60) + intervaloMinutos;
+        const minutosSaida = minutosEntrada + totalMinutosDia;
         const horaSaidaH = Math.floor(minutosSaida / 60);
         const horaSaidaM = minutosSaida % 60;
         const horaSaida = `${String(horaSaidaH).padStart(2, "0")}:${String(horaSaidaM).padStart(2, "0")}`;
@@ -429,8 +509,8 @@ const AnaliseComplotaPontos = () => {
             const [horaAtualH, horaAtualM] = horaAtual.split(":").map(Number);
             const minutosAtuais = horaAtualH * 60 + horaAtualM;
             
-            // Só mostra almoço se já passou das 13:00
-            mostrarAlmoco = minutosAtuais >= 780; // 13:00 em minutos
+            // Só mostra almoço se já passou da entrada do almoço
+            mostrarAlmoco = minutosAtuais >= minutosEntradaAlmoco;
             
             // Só mostra saída se já passou da hora de saída
             mostrarSaida = minutosAtuais >= minutosSaida;
@@ -441,7 +521,7 @@ const AnaliseComplotaPontos = () => {
             horaSaida: mostrarSaida ? horaSaida : null,
             saidaAlmoco: mostrarAlmoco ? saidaAlmoco : null,
             entradaAlmoco: mostrarAlmoco ? entradaAlmoco : null,
-            totalHoras: mostrarSaida ? 8.0 : null,
+            totalHoras: mostrarSaida ? horasTrabalhoDia : null,
             temSaida: mostrarSaida,
         };
     };
@@ -785,123 +865,43 @@ const AnaliseComplotaPontos = () => {
                             `❌ [GRADE] ${user.nome} - Dia ${dia}: FALTA registada (${faltasDoDia.length} falta(s)) - ${isFutureDate ? "FUTURO" : "PASSADO"}`,
                         );
                     }
-                    // PRIORIDADE 2: Registos reais existem
-                    // PRIORIDADE 2: Só tratamos trabalho quando o DIA tem registos reais
-                    else if (temRegistosReais && !isWeekend && !isFutureDate) {
-                        const entradas = registosReaisDoDia.filter(
-                            (r) => r.tipo === "entrada",
-                        );
-                        const saidas = registosReaisDoDia.filter(
-                            (r) => r.tipo === "saida",
-                        );
-
-                        if (entradas.length > 0) {
-                            // Temos pelo menos 1 entrada -> usar hora real da primeira
-                            estatisticasDia.horaEntrada =
-                                entradas[0]._hhmm || horaFrom(entradas[0]);
-
-                            // Processar picagens de almoço se existirem
-                            if (entradas.length >= 2 && saidas.length >= 2) {
-                                // Tem picagens completas incluindo almoço
-                                estatisticasDia.saidaAlmoco = saidas[0]._hhmm || horaFrom(saidas[0]);
-                                estatisticasDia.entradaAlmoco = entradas[1]._hhmm || horaFrom(entradas[1]);
-                                estatisticasDia.horaSaida = saidas[1]._hhmm || horaFrom(saidas[1]);
-                                estatisticasDia.totalHoras = 8.0;
-                                estatisticasDia.temSaida = true;
-                                dadosUsuario.totalHorasMes += 8;
-                                dadosUsuario.diasTrabalhados++;
-                            } else if (saidas.length > 0) {
-                                // Tem pelo menos uma saída, usar a última
-                                estatisticasDia.horaSaida =
-                                    saidas[saidas.length - 1]._hhmm ||
-                                    horaFrom(saidas[saidas.length - 1]);
-                                
-                                // Se só tem 2 picagens (entrada manhã + saída final), completar com almoço padrão
-                                if (entradas.length === 1 && saidas.length === 1) {
-                                    estatisticasDia.saidaAlmoco = "12:00";
-                                    estatisticasDia.entradaAlmoco = "13:00";
-                                }
-                                
-                                estatisticasDia.totalHoras = 8.0;
-                                estatisticasDia.temSaida = true;
-                                dadosUsuario.totalHorasMes += 8;
-                                dadosUsuario.diasTrabalhados++;
-                            } else {
-                                // Só entrada, verificar se é hoje ou passado
-                                const hojeStr = hoje.toDateString();
-                                const dataAtualStr = new Date(
-                                    anoSelecionado,
-                                    mesSelecionado - 1,
-                                    dia,
-                                ).toDateString();
-
-                                if (hojeStr === dataAtualStr) {
-                                    // Hoje: sem saída ainda
-                                    estatisticasDia.horaSaida = null;
-                                    estatisticasDia.saidaAlmoco = null;
-                                    estatisticasDia.entradaAlmoco = null;
-                                    estatisticasDia.temSaida = false;
-                                    dadosUsuario.diasTrabalhados += 0.5;
-                                } else {
-                                    // Dia no passado: completar com horários fictícios coerentes
-                                    const isHoje = false;
-                                    const pontosFicticios = gerarPontosFicticios(
-                                        user.id,
-                                        dia,
-                                        isHoje,
-                                        null,
-                                    );
-                                    
-                                    // Manter a entrada real, usar saída e almoço fictícios
-                                    estatisticasDia.horaSaida = pontosFicticios.horaSaida;
-                                    estatisticasDia.saidaAlmoco = pontosFicticios.saidaAlmoco;
-                                    estatisticasDia.entradaAlmoco = pontosFicticios.entradaAlmoco;
-                                    estatisticasDia.totalHoras = 8.0;
-                                    estatisticasDia.temSaida = true;
-                                    dadosUsuario.totalHorasMes += 8;
-                                    dadosUsuario.diasTrabalhados++;
-                                }
-                            }
-
-                            estatisticasDia.trabalhou = true;
-                        } else {
-                            // Há registos no dia, mas nenhum de tipo "entrada" -> gerar cenário fictício completo
-                            const isHoje =
-                                new Date(
-                                    anoSelecionado,
-                                    mesSelecionado - 1,
-                                    dia,
-                                ).toDateString() === hoje.toDateString();
-                            const horaAtual = isHoje
-                                ? `${String(hoje.getHours()).padStart(2, "0")}:${String(hoje.getMinutes()).padStart(2, "0")}`
-                                : null;
-
-                            const pontosFicticios = gerarPontosFicticios(
-                                user.id,
+                    // PRIORIDADE 2: Dias úteis sem faltas -> Gerar fictícios baseados no horário do colaborador
+                    else if (!isWeekend && !isFutureDate) {
+                        const isHoje =
+                            new Date(
+                                anoSelecionado,
+                                mesSelecionado - 1,
                                 dia,
-                                isHoje,
-                                horaAtual,
-                            );
-                            Object.assign(estatisticasDia, pontosFicticios);
-                            estatisticasDia.trabalhou = true;
+                            ).toDateString() === hoje.toDateString();
+                        const horaAtual = isHoje
+                            ? `${String(hoje.getHours()).padStart(2, "0")}:${String(hoje.getMinutes()).padStart(2, "0")}`
+                            : null;
 
-                            if (pontosFicticios.temSaida) {
-                                dadosUsuario.totalHorasMes += 8;
-                                dadosUsuario.diasTrabalhados++;
-                            } else {
-                                dadosUsuario.diasTrabalhados += 0.5;
-                            }
+                        const pontosFicticios = gerarPontosFicticios(
+                            user.id,
+                            dia,
+                            isHoje,
+                            horaAtual,
+                        );
+                        Object.assign(estatisticasDia, pontosFicticios);
+                        estatisticasDia.trabalhou = true;
+
+                        if (pontosFicticios.temSaida) {
+                            dadosUsuario.totalHorasMes += 8;
+                            dadosUsuario.diasTrabalhados++;
+                        } else {
+                            dadosUsuario.diasTrabalhados += 0.5;
                         }
                     }
-                    // SEM registos reais no dia -> **NADA de fictícios**
+                    // Dias futuros ou fins de semana -> NADA
                     else {
                         estatisticasDia.trabalhou = false;
                         estatisticasDia.horaEntrada = null;
                         estatisticasDia.horaSaida = null;
                         estatisticasDia.totalHoras = null;
                         estatisticasDia.temSaida = false;
-                        estatisticasDia.saidaAlmoco = null; // Limpar almoço
-                        estatisticasDia.entradaAlmoco = null; // Limpar almoço
+                        estatisticasDia.saidaAlmoco = null;
+                        estatisticasDia.entradaAlmoco = null;
                     }
 
                     dadosUsuario.estatisticasDias[dia] = estatisticasDia;
