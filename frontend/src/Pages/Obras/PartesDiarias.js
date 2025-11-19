@@ -1557,7 +1557,7 @@ const carregarRascunhoSilencioso = useCallback(async () => {
       diasEditados: diasEditadosRestaurados.size,
     });
 
-    // ✅ LIMPAR DADOS EXISTENTES ANTES DE RESTAURAR (evita duplicação)
+    // ✅ LIMPAR DADOS EXISTENTES ANTES DE RESTAURAR RASCUNHO
     console.log("📦 Limpando dados existentes antes de restaurar rascunho...");
 
     // Aplicar dados restaurados (substitui completamente os dados)
@@ -2610,7 +2610,7 @@ const carregarRascunho = useCallback(async () => {
                         codLinha === row.cod && Number(l.obraId) === Number(row.obraId)
                     );
                 });
-                
+
                 if (linhaExistente) {
                     // Se já existe, atualiza com os dados submetidos
                     linhaExistente.horasSubmetidasPorDia = row.horasPorDia;
@@ -4367,29 +4367,39 @@ for (const l of linhasParaSubmeter) {
                                                 novo.delete('horas');
                                                 return novo;
                                             });
-                                            const { colaboradorId, dia, obraId } = linhaAtual;
-                                            if (!colaboradorId || !dia || !obraId) {
-                                                Alert.alert("Validação", "Preencha primeiro Obra, Dia e Colaborador.");
+
+                                            // Permitir limpar o campo
+                                            if (v === "") {
+                                                setLinhaAtual((p) => ({ ...p, horas: v }));
                                                 return;
                                             }
+
+                                            const { trabalhadorId, dia, obraId } = linhaAtual;
+                                            if (!trabalhadorId || !dia || !obraId) {
+                                                setLinhaAtual((p) => ({ ...p, horas: v }));
+                                                return;
+                                            }
+
                                             const minutos = parseHorasToMinutos(v);
-                                            if (minutos <= 0 && v !== "") {
-                                                Alert.alert("Validação", "Formato inválido. Use H:MM ou H.MM (ex: 2:30 ou 2.5)");
-                                                return;
+
+                                            // Só validar limites se tiver valor válido
+                                            if (minutos > 0) {
+                                                if (!linhaAtual.horaExtra) {
+                                                    const outras = linhasExternos
+                                                        .filter(l => String(l.trabalhadorId) === String(trabalhadorId) &&
+                                                                   l.dia === dia &&
+                                                                   !l.horaExtra)
+                                                        .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
+
+                                                    if (outras + minutos > 10*60) {
+                                                        Alert.alert("Limite de Horas Excedido",
+                                                          `Não é possível registar mais de 10 horas normais por dia.\n\nJá registadas: ${formatarHorasMinutos(outras)}\n\nPara mais horas, marque como "Hora Extra".`
+                                                        );
+                                                        return;
+                                                    }
+                                                }
                                             }
-                                            if (!linhaAtual.horaExtra) {
-                                                const outras = linhasExternos
-                                                    .filter(l => String(l.trabalhadorId) === String(linhaAtual.trabalhadorId) &&
-                                                               l.dia === dia &&
-                                                               !l.horaExtra)
-                                                    .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
-                                                if (outras + minutos > 8*60 && v !== "") {
-                                                    Alert.alert("Limite de Horas Excedido",
-                                                      `Não é possível registar mais de 8 horas normais por dia.\n\nJá registadas: ${formatarHorasMinutos(outras)}\n\nPara mais horas, marque como "Hora Extra".`
-                                                    );
-                                                    return;
-                                                  }
-                                            }
+
                                             setLinhaAtual((p) => ({ ...p, horas: v }));
                                         }}
                                         placeholder="0:00"
@@ -5757,7 +5767,9 @@ for (const l of linhasParaSubmeter) {
                                                                         color="#fff"
                                                                     />
                                                                     <Text style={styles.resumoExternoBadgeText}>
-                                                                        {formatarHorasMinutos(ext.horasMin)}
+                                                                        {formatarHorasMinutos(
+                                                                            ext.horasMin,
+                                                                        )}
                                                                     </Text>
                                                                 </View>
                                                                 {ext.horaExtra && (
@@ -5767,11 +5779,7 @@ for (const l of linhasParaSubmeter) {
                                                                             styles.resumoExternoBadgeExtra,
                                                                         ]}
                                                                     >
-                                                                        <Ionicons
-                                                                            name="flash"
-                                                                            size={8}
-                                                                            color="#fff"
-                                                                        />
+                                                                        <Ionicons name="flash" size={8} color="#fff" />
                                                                         <Text style={styles.resumoExternoBadgeText}>
                                                                             Extra
                                                                         </Text>

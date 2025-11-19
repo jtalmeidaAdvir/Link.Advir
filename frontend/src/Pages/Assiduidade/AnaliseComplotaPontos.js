@@ -137,6 +137,7 @@ const AnaliseComplotaPontos = () => {
     };
 
     const [horariosUtilizadores, setHorariosUtilizadores] = useState({});
+    const [horariosCarregados, setHorariosCarregados] = useState(false);
 
     useEffect(() => {
         carregarDadosIniciais();
@@ -144,11 +145,11 @@ const AnaliseComplotaPontos = () => {
 
     // Só carregar dados da grade quando os horários estiverem disponíveis
     useEffect(() => {
-        if (Object.keys(horariosUtilizadores).length > 0 && utilizadores.length > 0) {
+        if (horariosCarregados && utilizadores.length > 0 && Object.keys(horariosUtilizadores).length > 0) {
             console.log("✅ [INIT] Horários carregados, iniciando carregamento da grade...");
             carregarDadosGrade();
         }
-    }, [obraSelecionada, mesSelecionado, anoSelecionado, horariosUtilizadores, utilizadores]);
+    }, [obraSelecionada, mesSelecionado, anoSelecionado, horariosCarregados]);
 
     const carregarDadosIniciais = async () => {
         setLoading(true);
@@ -200,8 +201,12 @@ const AnaliseComplotaPontos = () => {
 
             setUtilizadores(utilizadoresFormatados);
 
-            // Carregar horários de todos os utilizadores
+            // Carregar horários de todos os utilizadores ANTES de marcar como concluído
             await carregarHorariosUtilizadores(utilizadoresFormatados);
+            
+            // Marcar horários como carregados apenas depois de concluir
+            setHorariosCarregados(true);
+            console.log("✅ [INIT] Todos os horários carregados, pronto para carregar grade");
         } catch (error) {
             console.error("Erro ao carregar dados iniciais:", error);
             Alert.alert("Erro", "Erro ao carregar dados iniciais");
@@ -268,7 +273,12 @@ const AnaliseComplotaPontos = () => {
                 }
             }
 
-            setHorariosUtilizadores(horariosMap);
+            // Aguardar atualização do estado antes de continuar
+            await new Promise(resolve => {
+                setHorariosUtilizadores(horariosMap);
+                setTimeout(resolve, 100);
+            });
+            
             console.log("✅ [HORARIOS] Total de horários carregados:", Object.keys(horariosMap).length);
             console.log("📋 [HORARIOS] Mapa completo de horários por utilizador:");
             Object.entries(horariosMap).forEach(([userId, horario]) => {
@@ -448,11 +458,13 @@ const AnaliseComplotaPontos = () => {
     };
 
     const gerarPontosFicticios = (userId, dia, isHoje, horaAtual) => {
-        // Obter horário do utilizador
+        // Obter horário do utilizador - verificar se existe no estado atual
         const horarioUser = horariosUtilizadores[userId];
         
         if (!horarioUser) {
-            console.warn(`⚠️ [PONTOS] UserId ${userId} - Dia ${dia}: Horário não encontrado, usando padrão 08:00-17:00`);
+            console.error(`❌ [PONTOS] UserId ${userId} - Dia ${dia}: ERRO - Horário não encontrado no estado!`);
+            console.error(`❌ [PONTOS] Estado atual de horariosUtilizadores:`, Object.keys(horariosUtilizadores).length, "horários carregados");
+            console.error(`❌ [PONTOS] IDs disponíveis:`, Object.keys(horariosUtilizadores));
         } else {
             console.log(`✅ [PONTOS] UserId ${userId} - Dia ${dia}: Usando horário personalizado ${horarioUser.horaEntrada}-${horarioUser.horaSaida} (${horarioUser.horasPorDia}h/dia, ${horarioUser.intervaloAlmoco}h almoço)`);
         }
