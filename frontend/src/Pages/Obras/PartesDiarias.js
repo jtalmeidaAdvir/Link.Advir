@@ -108,10 +108,51 @@ const confirmAction = (title, message, okText = "Continuar", cancelText = "Cance
     );
   });
 };
+
+    // ✅ Função para obter label da unidade do equipamento
+    const getUnidadeLabel = (especialidadeCodigo, categoria) => {
+        if (categoria !== "Equipamentos") return "Horas";
+
+        // ✅ FORÇAR M² para o equipamento L006 (Andaime)
+        if (String(especialidadeCodigo).toUpperCase().trim() === 'L006') {
+            console.log(`🔧 FORÇADO: Equipamento L006 (Andaime) -> M²`);
+            return 'M²';
+        }
+
+        const equip = equipamentosList.find(e => e.codigo === especialidadeCodigo);
+        if (!equip || !equip.unidade) return "Horas";
+
+        const unidade = String(equip.unidade || '').toUpperCase().trim();
+
+        console.log(`🔍 DEBUG getUnidadeLabel: equipamento=${especialidadeCodigo}, unidade original="${equip.unidade}", unidade normalizada="${unidade}"`);
+
+        // Mapear unidades para labels amigáveis - verificar várias variações
+        if (unidade.includes('M2') || unidade.includes('M²')) {
+            return 'M²';
+        }
+        if (unidade.includes('M3') || unidade.includes('M³')) {
+            return 'M³';
+        }
+        if (unidade.includes('KG')) {
+            return 'Kg';
+        }
+        if (unidade.includes('UN')) {
+            return 'Unidades';
+        }
+        if (unidade.includes('T/')) {
+            return 'Toneladas';
+        }
+        if (unidade === 'H') {
+            return 'Horas';
+        }
+
+        // Fallback: retornar a unidade original se não encontrar mapeamento
+        return equip.unidade || 'Unidades';
+    };
     const obrasParaPickers = useMemo(() => {
         // Combinar obras de ambas as fontes e remover duplicados
         const obrasMap = new Map();
-        
+
         // Função auxiliar para obter código normalizado
         const obterCodigo = (obra) => {
             // Tentar várias variações de campos
@@ -122,15 +163,15 @@ const confirmAction = (title, message, okText = "Continuar", cancelText = "Cance
                 obra.Code,
                 obra.cod
             ].filter(Boolean);
-            
+
             if (codigoCandidatos.length > 0) {
                 return codigoCandidatos[0];
             }
-            
+
             // Se não tem código, gera um baseado no ID
             return `OBR${String(obra.id).padStart(3, "0")}`;
         };
-        
+
         // Adicionar obras da lista completa
         (obrasTodas || []).forEach(o => {
             obrasMap.set(o.id, {
@@ -139,7 +180,7 @@ const confirmAction = (title, message, okText = "Continuar", cancelText = "Cance
                 codigo: obterCodigo(o)
             });
         });
-        
+
         // Adicionar obras dos registos (caso faltem na lista completa)
         (obras || []).forEach(o => {
             if (!obrasMap.has(o.id)) {
@@ -150,7 +191,7 @@ const confirmAction = (title, message, okText = "Continuar", cancelText = "Cance
                 });
             }
         });
-        
+
         // Converter para array e ordenar
         const listaObras = Array.from(obrasMap.values());
         return listaObras.sort((a, b) => {
@@ -980,7 +1021,6 @@ const submeterPessoalEquip = async () => {
 
         try {
             const painelToken = await secureStorage.getItem("painelAdminToken");
-            const loginToken = await secureStorage.getItem("loginToken");
             const userLogado = (await secureStorage.getItem("userNome")) || "";
 
             // Agrupa por (obraId, dia)
@@ -1265,8 +1305,9 @@ const submeterPessoalEquip = async () => {
                 .map((item) => ({
                     codigo: item.Codigo.trim(),
                     descricao: item.Desig,
-                    subEmpId: item.ComponenteId ?? item.ComponenteID, // ✅ Usar ComponenteID como SubEmpID
+                    subEmpId: item.ComponenteId ?? item.ComponenteID,
                     componenteID: item.ComponenteId ?? item.ComponenteID,
+                    unidade: item.Unidade || item.UN || "UN/H", // ✅ Capturar unidade do equipamento
                 }));
 
             console.log(`✅ Carregados ${items.length} equipamentos. Exemplo:`, items[0]);
@@ -1518,7 +1559,7 @@ const carregarRascunhoSilencioso = useCallback(async () => {
 
     // ✅ LIMPAR DADOS EXISTENTES ANTES DE RESTAURAR (evita duplicação)
     console.log("📦 Limpando dados existentes antes de restaurar rascunho...");
-    
+
     // Aplicar dados restaurados (substitui completamente os dados)
     setDadosProcessados(dadosRestaurados);
     setLinhasExternos(linhasExternosEnriquecidas);
@@ -1721,7 +1762,7 @@ const carregarRascunho = useCallback(async () => {
     // 🔹 EXTERNOS para a VISTA POR UTILIZADOR (agregado por pessoa -> obras)
     const externosAgrupadosPorPessoa = useMemo(() => {
         const baseHoras = Object.fromEntries(diasDoMes.map((d) => [d, 0]));
-        
+
         // Helper para normalizar nome (remover espaços, acentos e case)
         const normalizarNome = (nome) => {
             return (nome || "")
@@ -1739,7 +1780,7 @@ const carregarRascunho = useCallback(async () => {
             byPessoa.forEach((row) => {
                 const nomeNorm = normalizarNome(row.funcionario);
                 const key = `${nomeNorm}|${obraId}`;
-                
+
                 if (!consolidadoPorObraPessoa.has(key)) {
                     consolidadoPorObraPessoa.set(key, {
                         obraId: Number(obraId),
@@ -1750,7 +1791,7 @@ const carregarRascunho = useCallback(async () => {
                         totalMin: 0,
                     });
                 }
-                
+
                 const item = consolidadoPorObraPessoa.get(key);
                 diasDoMes.forEach((d) => {
                     const mins = row.horasPorDia[d] || 0;
@@ -1765,7 +1806,7 @@ const carregarRascunho = useCallback(async () => {
             byTrab.forEach((row) => {
                 const nomeNorm = normalizarNome(row.funcionario);
                 const key = `${nomeNorm}|${obraId}`;
-                
+
                 if (consolidadoPorObraPessoa.has(key)) {
                     // Já existe - somar horas
                     const item = consolidadoPorObraPessoa.get(key);
@@ -1793,12 +1834,12 @@ const carregarRascunho = useCallback(async () => {
         equipas.forEach((eq) => {
             (eq.membros || []).forEach((mb) => {
                 if (!mb?.id || mb.tipo !== 'externo') return;
-                
+
                 const nomeNorm = normalizarNome(mb.nome);
-                
+
                 // Verificar se este externo JÁ tem algum dado (submetido ou pendente)
                 const temDados = Array.from(consolidadoPorObraPessoa.keys()).some(k => k.startsWith(`${nomeNorm}|`));
-                
+
                 if (!temDados) {
                     // Só adiciona se não tiver nenhum registo
                     const key = `${nomeNorm}|${OBRA_SEM_ASSOC}`;
@@ -1825,14 +1866,14 @@ const carregarRascunho = useCallback(async () => {
                     obras: [],
                 });
             }
-            
+
             const pessoa = mapPessoa.get(item.nomeNorm);
-            
+
             // Atualizar empresa se vier melhor informação
             if (item.empresa && !pessoa.empresa) {
                 pessoa.empresa = item.empresa;
             }
-            
+
             // Adicionar obra (evitar duplicatas)
             const jaExiste = pessoa.obras.some(o => Number(o.obraId) === Number(item.obraId));
             if (!jaExiste) {
@@ -2092,12 +2133,12 @@ const carregarRascunho = useCallback(async () => {
 
             // Para equipamentos, garantir que SubEmpID tem o ComponenteID correto
             let subEmpIdFinal = l.subEmpId ?? null;
-            
+
             if (l.categoria === "Equipamentos") {
                 // ✅ SEMPRE tentar obter o ComponenteId da lista de equipamentos pelo código
                 const equipLista = equipamentosList || [];
                 const equip = equipLista.find(e => e.codigo === l.especialidadeCodigo || e.codigo === l.especialidade);
-                
+
                 if (equip) {
                     // Usar componenteID da lista (que vem do ComponenteId da API)
                     subEmpIdFinal = equip.componenteID || equip.subEmpId;
@@ -2569,7 +2610,7 @@ const carregarRascunho = useCallback(async () => {
                         codLinha === row.cod && Number(l.obraId) === Number(row.obraId)
                     );
                 });
-
+                
                 if (linhaExistente) {
                     // Se já existe, atualiza com os dados submetidos
                     linhaExistente.horasSubmetidasPorDia = row.horasPorDia;
@@ -2579,7 +2620,7 @@ const carregarRascunho = useCallback(async () => {
                     // Se não existe, cria nova linha apenas com dados submetidos
                     const metaUser = codToUser.get(row.cod) || {};
                     const obraMeta = obrasParaPickers.find(o => Number(o.id) === Number(row.obraId));
-                    
+
                     const obraInfo = obraMeta ? {
                         nome: obraMeta.nome,
                         codigo: obraMeta.codigo || `OBR${String(row.obraId).padStart(3, "0")}`
@@ -3272,7 +3313,11 @@ const carregarRascunho = useCallback(async () => {
                             obraIdDia = Number(espComObra.obraId);
                         }
 
+                        // se ainda está “Sem obra” (-1) e não encontramos destino, não submetemos esse dia
                         if (Number(obraIdDia) === OBRA_SEM_ASSOC) {
+                            console.warn(
+                                `Dia ${dia} ignorado em ${item.userName}: sem obra destino definida.`,
+                            );
                             return null; // Ignorar dias sem obra
                         }
 
@@ -3523,7 +3568,7 @@ const carregarRascunho = useCallback(async () => {
 
             setModalVisible(false); // Fecha o modal de confirmação geral (não o de resumo)
             setDiasEditadosManualmente(new Set());
-            
+
             // ✅ ELIMINAR RASCUNHO APÓS SUBMISSÃO COM SUCESSO
             try {
                 const token = await secureStorage.getItem("loginToken");
@@ -3534,7 +3579,7 @@ const carregarRascunho = useCallback(async () => {
                         headers: { Authorization: `Bearer ${token}` },
                     }
                 );
-                
+
                 if (response.ok) {
                     console.log("✅ Rascunho eliminado após submissão com sucesso");
                     setTemRascunho(false);
@@ -3544,7 +3589,7 @@ const carregarRascunho = useCallback(async () => {
             } catch (error) {
                 console.error("❌ Erro ao eliminar rascunho após submissão:", error);
             }
-            
+
             await carregarDados();
             await carregarItensSubmetidos();
 
@@ -3823,7 +3868,7 @@ for (const l of linhasParaSubmeter) {
                                     headers: { Authorization: `Bearer ${token}` },
                                 }
                             );
-                            
+
                             if (response.ok) {
                                 console.log("✅ Rascunho eliminado do backend com sucesso");
                             } else {
@@ -3839,13 +3884,13 @@ for (const l of linhasParaSubmeter) {
                         setLinhasPessoalEquip([]);
                         setDadosProcessados([]);
                         setTemRascunho(false);
-                        
+
                         // Recarregar dados
                         await carregarItensSubmetidos();
                         await carregarDados();
 
                         setLoading(false);
-                        
+
                         Alert.alert("Sucesso", "Todas as alterações foram limpas e o rascunho eliminado.");
                     }}
                 >
@@ -3893,7 +3938,7 @@ for (const l of linhasParaSubmeter) {
                 const obraMeta = obrasParaPickers.find(o => Number(o.id) === Number(item.obraId));
                 const codigoObra = obraMeta?.codigo || item.obraCodigo || `OBR${String(item.obraId).padStart(3, "0")}`;
                 const nomeObra = obraMeta?.nome || item.obraNome || `Obra ${item.obraId}`;
-                
+
                 acc[obraKey] = {
                     obraInfo: {
                         id: item.obraId,
@@ -4308,7 +4353,7 @@ for (const l of linhasParaSubmeter) {
                             <View style={styles.externosFormGrid}>
                                 <View style={[styles.externosInputGroup, { flex: 2 }]}>
                                     <Text style={styles.externosInputLabel}>
-                                        <Ionicons name="time" size={14} color="#666" /> Horas *
+                                        <Ionicons name="time" size={14} color="#666" /> {getUnidadeLabel(linhaAtual.especialidadeCodigo, linhaAtual.categoria)} *
                                     </Text>
                                     <TextInput
                                         style={[
@@ -4322,6 +4367,29 @@ for (const l of linhasParaSubmeter) {
                                                 novo.delete('horas');
                                                 return novo;
                                             });
+                                            const { colaboradorId, dia, obraId } = linhaAtual;
+                                            if (!colaboradorId || !dia || !obraId) {
+                                                Alert.alert("Validação", "Preencha primeiro Obra, Dia e Colaborador.");
+                                                return;
+                                            }
+                                            const minutos = parseHorasToMinutos(v);
+                                            if (minutos <= 0 && v !== "") {
+                                                Alert.alert("Validação", "Formato inválido. Use H:MM ou H.MM (ex: 2:30 ou 2.5)");
+                                                return;
+                                            }
+                                            if (!linhaAtual.horaExtra) {
+                                                const outras = linhasExternos
+                                                    .filter(l => String(l.trabalhadorId) === String(linhaAtual.trabalhadorId) &&
+                                                               l.dia === dia &&
+                                                               !l.horaExtra)
+                                                    .reduce((tot, l) => tot + parseHorasToMinutos(l.horas), 0);
+                                                if (outras + minutos > 8*60 && v !== "") {
+                                                    Alert.alert("Limite de Horas Excedido",
+                                                      `Não é possível registar mais de 8 horas normais por dia.\n\nJá registadas: ${formatarHorasMinutos(outras)}\n\nPara mais horas, marque como "Hora Extra".`
+                                                    );
+                                                    return;
+                                                  }
+                                            }
                                             setLinhaAtual((p) => ({ ...p, horas: v }));
                                         }}
                                         placeholder="0:00"
@@ -4713,7 +4781,9 @@ for (const l of linhasParaSubmeter) {
             {/* Horas + Extra */}
             <View style={styles.externosFormGrid}>
               <View style={[styles.externosInputGroup, { flex: 2 }]}>
-                <Text style={styles.externosInputLabel}><Ionicons name="time" size={14} color="#666" /> Horas *</Text>
+                <Text style={styles.externosInputLabel}>
+                  <Ionicons name="time" size={14} color="#666" /> {getUnidadeLabel(linhaPessoalEquipAtual.especialidadeCodigo, linhaPessoalEquipAtual.categoria)} *
+                </Text>
                 <TextInput
                   style={[
                     styles.externosTextInput,
@@ -4733,7 +4803,7 @@ for (const l of linhasParaSubmeter) {
                     }
                     const minutos = parseHorasToMinutos(v);
                     if (minutos <= 0 && v !== "") {
-                      Alert.alert("Validação", "Formato de horas inválido. Use H:MM ou H.MM (ex: 2:30 ou 2.5)");
+                      Alert.alert("Validação", "Formato inválido. Use H:MM ou H.MM (ex: 2:30 ou 2.5)");
                       return;
                     }
                     if (!linhaPessoalEquipAtual.horaExtra) {
@@ -4749,7 +4819,15 @@ for (const l of linhasParaSubmeter) {
                     }
                     setLinhaPessoalEquipAtual(p => ({...p, horas: v}));
                   }}
-                  placeholder="0:00"
+                  placeholder={
+                    linhaPessoalEquipAtual.categoria === "Equipamentos" && linhaPessoalEquipAtual.especialidadeCodigo
+                      ? (() => {
+                          const equip = equipamentosList.find(e => e.codigo === linhaPessoalEquipAtual.especialidadeCodigo);
+                          const unidade = equip?.unidade?.toUpperCase().trim() || 'UN/H';
+                          return unidade.includes('/D') ? '0' : '0:00';
+                        })()
+                      : '0:00'
+                  }
                   keyboardType="default"
                 />
               </View>
@@ -4843,8 +4921,7 @@ for (const l of linhasParaSubmeter) {
                   </TouchableOpacity>
                 </View>
               ))}
-
-              </View>
+            </View>
           )}
         </ScrollView>
       </View>
@@ -6053,7 +6130,8 @@ for (const l of linhasParaSubmeter) {
                                         {/* Horas */}
                                         <View style={[styles.editInputGroup, { flex: 0.6 }]}>
                                             <Text style={styles.editInputLabel}>
-                                                <Ionicons name="time" size={14} color="#666" /> Horas
+                                                <Ionicons name="time" size={14} color="#666" />{" "}
+                                                {getUnidadeLabel(espItem.especialidade, espItem.categoria)} *
                                             </Text>
                                             <TextInput
                                                 style={styles.editTextInput}
@@ -6236,9 +6314,9 @@ for (const l of linhasParaSubmeter) {
                                                 style={styles.editPicker}
                                                 enabled={espItem.categoria !== "Equipamentos"}
                                             >
-                                                <Picker.Item 
-                                                    label={espItem.categoria === "Equipamentos" ? "N/A" : "— Selecionar classe —"} 
-                                                    value="" 
+                                                <Picker.Item
+                                                    label={espItem.categoria === "Equipamentos" ? "N/A" : "— Selecionar classe —"}
+                                                    value=""
                                                 />
                                                 {getClassesCompativeis(espItem.especialidade, espItem.categoria).map((classe) => (
                                                     <Picker.Item
