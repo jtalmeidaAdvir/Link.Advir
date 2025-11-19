@@ -236,16 +236,43 @@ const AnaliseComplotaPontos = () => {
                         // A API retorna um objeto PlanoHorario que contém um objeto Horario aninhado
                         const horarioData = planoHorario?.Horario || planoHorario;
                         
+                        // Função para normalizar hora do formato SQL Server "HH:mm:ss.SSSSSSS" para "HH:mm"
+                        const normalizarHora = (hora) => {
+                            if (!hora) return null;
+                            
+                            // Se já está no formato HH:mm, retornar
+                            if (/^\d{2}:\d{2}$/.test(hora)) return hora;
+                            
+                            // Se está no formato HH:mm:ss ou HH:mm:ss.SSSSSSS, extrair HH:mm
+                            const match = String(hora).match(/^(\d{2}):(\d{2})/);
+                            if (match) return `${match[1]}:${match[2]}`;
+                            
+                            // Fallback: tentar criar Date e extrair hora
+                            try {
+                                const d = new Date(`1970-01-01T${hora}`);
+                                if (!isNaN(d)) {
+                                    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                                }
+                            } catch (e) {
+                                console.warn(`⚠️ [HORARIOS] Formato de hora inválido: ${hora}`);
+                            }
+                            
+                            return null;
+                        };
+                        
+                        const horaEntradaNormalizada = normalizarHora(horarioData.horaEntrada) || "08:00";
+                        const horaSaidaNormalizada = normalizarHora(horarioData.horaSaida) || "17:00";
+                        
                         horariosMap[user.id] = {
-                            horaEntrada: horarioData.horaEntrada || "08:00",
-                            horaSaida: horarioData.horaSaida || "17:00",
-                            intervaloAlmoco: horarioData.intervaloAlmoco || 1.00,
-                            horasPorDia: horarioData.horasPorDia || 8.00,
+                            horaEntrada: horaEntradaNormalizada,
+                            horaSaida: horaSaidaNormalizada,
+                            intervaloAlmoco: parseFloat(horarioData.intervaloAlmoco) || 1.00,
+                            horasPorDia: parseFloat(horarioData.horasPorDia) || 8.00,
                         };
                         
                         console.log(
-                            `✅ [HORARIOS] ${user.nome} (ID: ${user.id}): ${horariosMap[user.id].horaEntrada}-${horariosMap[user.id].horaSaida} (${horariosMap[user.id].horasPorDia}h/dia, ${horariosMap[user.id].intervaloAlmoco}h almoço)`,
-                            `[Response completa:`, planoHorario, `]`
+                            `✅ [HORARIOS] ${user.nome} (ID: ${user.id}): ${horaEntradaNormalizada}-${horaSaidaNormalizada} (${horariosMap[user.id].horasPorDia}h/dia, ${horariosMap[user.id].intervaloAlmoco}h almoço)`,
+                            `[Dados originais: entrada=${horarioData.horaEntrada}, saida=${horarioData.horaSaida}]`
                         );
                     } else {
                         // Usar horário padrão se não encontrar
@@ -872,14 +899,26 @@ const AnaliseComplotaPontos = () => {
                         estatisticasDia.horaSaida = null;
                         estatisticasDia.totalHoras = null;
                         estatisticasDia.temSaida = false;
-                        estatisticasDia.saidaAlmoco = null; // Limpar almoço
-                        estatisticasDia.entradaAlmoco = null; // Limpar almoço
+                        estatisticasDia.saidaAlmoco = null;
+                        estatisticasDia.entradaAlmoco = null;
 
                         console.log(
                             `❌ [GRADE] ${user.nome} - Dia ${dia}: FALTA registada (${faltasDoDia.length} falta(s)) - ${isFutureDate ? "FUTURO" : "PASSADO"}`,
                         );
                     }
-                    // PRIORIDADE 2: Dias úteis sem faltas -> Gerar fictícios baseados no horário do colaborador
+                    // PRIORIDADE 2: Dias com registos reais -> NUNCA gerar fictícios
+                    else if (temRegistosReais) {
+                        estatisticasDia.trabalhou = true;
+                        // NÃO gerar pontos fictícios - os registos reais já estão em registosReaisDoDia
+                        // Apenas marcar como trabalhado para estatísticas
+                        
+                        const horasDia = horariosUtilizadores[user.id]?.horasPorDia || 8;
+                        dadosUsuario.totalHorasMes += horasDia;
+                        dadosUsuario.diasTrabalhados++;
+                        
+                        console.log(`📋 [REAL] ${user.nome} - Dia ${dia}: Usando registos REAIS (${registosReaisDoDia.length} picagens), +${horasDia}h`);
+                    }
+                    // PRIORIDADE 3: Dias úteis SEM registos e SEM faltas -> Gerar fictícios
                     else if (!isWeekend && !isFutureDate) {
                         const isHoje =
                             new Date(
@@ -904,13 +943,13 @@ const AnaliseComplotaPontos = () => {
                             const horasDia = horariosUtilizadores[user.id]?.horasPorDia || 8;
                             dadosUsuario.totalHorasMes += horasDia;
                             dadosUsuario.diasTrabalhados++;
-                            console.log(`✅ [PONTOS] ${user.nome} - Dia ${dia}: Dia completo, adicionadas ${horasDia}h`);
+                            console.log(`✅ [FICTICIO] ${user.nome} - Dia ${dia}: Dia completo fictício, +${horasDia}h`);
                         } else {
                             dadosUsuario.diasTrabalhados += 0.5;
-                            console.log(`⏳ [PONTOS] ${user.nome} - Dia ${dia}: Dia parcial (hoje sem saída)`);
+                            console.log(`⏳ [FICTICIO] ${user.nome} - Dia ${dia}: Dia parcial fictício (hoje sem saída)`);
                         }
                     }
-                    // Dias futuros ou fins de semana -> NADA
+                    // PRIORIDADE 4: Dias futuros ou fins de semana -> NADA
                     else {
                         estatisticasDia.trabalhou = false;
                         estatisticasDia.horaEntrada = null;

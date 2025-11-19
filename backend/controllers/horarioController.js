@@ -192,6 +192,19 @@ const obterHorarioUser = async (req, res) => {
             where: { user_id: userId, ativo: true },
             include: [{ 
                 model: Horario,
+                attributes: [
+                    'id', 
+                    'empresa_id', 
+                    'descricao', 
+                    'horasPorDia', 
+                    'horasSemanais', 
+                    'diasSemana', 
+                    'horaEntrada', 
+                    'horaSaida', 
+                    'intervaloAlmoco', 
+                    'ativo', 
+                    'observacoes'
+                ],
                 include: [{ model: Empresa }]
             }],
             order: [['dataInicio', 'DESC']]
@@ -201,13 +214,16 @@ const obterHorarioUser = async (req, res) => {
             return res.status(404).json({ message: 'Utilizador sem horário atribuído.' });
         }
 
-        // Log para debug - verificar se o Horario está a ser incluído
+        // Log detalhado para debug
         console.log(`[HORARIO] User ${userId}:`, {
             planoId: planoAtivo.id,
             horarioId: planoAtivo.horario_id,
             horarioIncluido: planoAtivo.Horario ? true : false,
             horaEntrada: planoAtivo.Horario?.horaEntrada,
-            horaSaida: planoAtivo.Horario?.horaSaida
+            horaSaida: planoAtivo.Horario?.horaSaida,
+            horasPorDia: planoAtivo.Horario?.horasPorDia,
+            intervaloAlmoco: planoAtivo.Horario?.intervaloAlmoco,
+            todosOsCampos: planoAtivo.Horario
         });
 
         res.status(200).json(planoAtivo);
