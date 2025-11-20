@@ -185,7 +185,10 @@ const atribuirHorarioUser = async (req, res) => {
         });
 
         const planoComHorario = await PlanoHorario.findByPk(novoPlano.id, {
-            include: [{ model: Horario }]
+            include: [{ 
+                model: Horario,
+                as: 'Horario'
+            }]
         });
 
         res.status(201).json({ 
