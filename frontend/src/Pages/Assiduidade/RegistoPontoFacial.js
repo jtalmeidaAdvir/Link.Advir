@@ -1049,16 +1049,52 @@ const RegistoPontoFacial = (props) => {
           if (resUser.ok) {
             const userData = await resUser.json();
             
-            // É um utilizador interno - registar ponto normal
-            setStatusMessage(`${userData.nome} identificado. A registar ponto...`);
+            // É um utilizador interno - usar lógica automática de entrada/saída
+            setStatusMessage(`${userData.nome} identificado. A obter registos...`);
             
+            // Buscar registos do dia para determinar se é entrada ou saída
+            const hoje = new Date().toISOString().split("T")[0];
+            const registosUrl =
+              `https://backend.advir.pt/api/registo-ponto-obra/listar-por-user-periodo` +
+              `?user_id=${possibleUserId}&ano=${new Date().getFullYear()}` +
+              `&mes=${String(new Date().getMonth() + 1).padStart(2, "0")}&data=${hoje}`;
+
+            let registosUtilizador = [];
+            try {
+              const registosRes = await fetch(
+                registosUrl,
+                { headers: { Authorization: `Bearer ${token}` } },
+              );
+              if (registosRes.ok) {
+                const data = await registosRes.json();
+                registosUtilizador = data.filter
+                  ? data.filter((r) => r.timestamp && r.timestamp.startsWith(hoje))
+                  : data;
+              }
+            } catch (err) {
+              console.error("Erro ao buscar registos:", err);
+            }
+
+            const registosFormatados = registosUtilizador.map((reg) => ({
+              ...reg,
+              obra_id: reg.obra_id || reg.obraId,
+              timestamp: reg.timestamp || reg.createdAt,
+              tipo: reg.tipo,
+              User: reg.User || { nome: userData.nome },
+              Obra: reg.Obra || {},
+            }));
+
             const obra = obras.find((o) => String(o.id) === String(obraSelecionada));
-            await registarPontoParaUtilizador(
-              "entrada", // será determinado automaticamente pelo backend
+            
+            setStatusMessage(`${userData.nome} — a registar ponto...`);
+            
+            // Processar com lógica de entrada/saída
+            await processarPontoComValidacaoParaUtilizador(
               obraSelecionada,
               obra?.nome || "Obra",
               possibleUserId,
               userData.nome,
+              registosFormatados,
               loc,
             );
             
