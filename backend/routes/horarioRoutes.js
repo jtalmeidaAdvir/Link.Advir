@@ -13,23 +13,23 @@ const {
 
 // Rotas de horários por empresa
 // Rotas de horários por empresa
-router.get('/empresa/:empresaId', authMiddleware, listarHorarios);
-router.post('/empresa/:empresaId', authMiddleware, criarHorario);
+router.get('/empresa/:empresaId',  listarHorarios); //authMiddleware,
+router.post('/empresa/:empresaId',  criarHorario); // authMiddleware,
 
 // Rotas de planos de horário (atribuição a users)
-router.post('/atribuir', authMiddleware, atribuirHorarioUser);
+router.post('/atribuir',  atribuirHorarioUser); //authMiddleware,
 
 // Rota correta para obter horário de user
 router.get('/user/:userId', (req, res, next) => {
     console.log(`\n🔵 [ROUTE] GET /api/horario/user/${req.params.userId} - Requisição recebida!`);
     next();
-}, authMiddleware, obterHorarioUser);
+}, obterHorarioUser); //authMiddleware,
 
-router.get('/user/:userId/historico', authMiddleware, historicoHorariosUser);
+router.get('/user/:userId/historico', historicoHorariosUser);//authMiddleware,
 
 // ROTAS DINÂMICAS — SEMPRE NO FIM
-router.put('/:horarioId', authMiddleware, atualizarHorario);
-router.delete('/:horarioId', authMiddleware, eliminarHorario);
+router.put('/:horarioId',  atualizarHorario); //authMiddleware,
+router.delete('/:horarioId',  eliminarHorario); //authMiddleware,
 
 
 
