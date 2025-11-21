@@ -462,7 +462,7 @@ const GestaoHorarios = () => {
                             <div style={styles.searchBox}>
                                 <input
                                     type="text"
-                                    placeholder="Pesquisar por nome ou email..."
+                                    placeholder="Pesquisar por nome "
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     style={styles.searchInput}
@@ -519,7 +519,7 @@ const GestaoHorarios = () => {
                                         </div>
                                         <div style={styles.userItemInfo}>
                                             <h4 style={styles.userName}>{plano.userName}</h4>
-                                            <p style={styles.userEmail}>{plano.userEmail}</p>
+                                            <p style={styles.userEmail}></p>
                                             {plano.hasPlano && plano.plano?.Horario && (
                                                 <div style={styles.horarioTag}>
                                                     <FaClock style={{fontSize: '12px', marginRight: '5px'}} />
@@ -532,12 +532,7 @@ const GestaoHorarios = () => {
                                     <div style={styles.userItemActions}>
                                         {plano.hasPlano ? (
                                             <>
-                                                <button
-                                                    style={styles.btnHistorico}
-                                                    onClick={() => verHistorico(plano.userId)}
-                                                >
-                                                    <FaHistory /> Histórico
-                                                </button>
+                                              
                                                 <button
                                                     style={styles.btnEditar}
                                                     onClick={() => {
@@ -550,7 +545,7 @@ const GestaoHorarios = () => {
                                                         setShowPlanoModal(true);
                                                     }}
                                                 >
-                                                    <FaEdit /> Alterar
+                                                    <FaEdit />
                                                 </button>
                                             </>
                                         ) : (
@@ -566,7 +561,7 @@ const GestaoHorarios = () => {
                                                     setShowPlanoModal(true);
                                                 }}
                                             >
-                                                <FaPlus /> Atribuir Horário
+                                                <FaPlus />
                                             </button>
                                         )}
                                     </div>
@@ -863,7 +858,7 @@ const GestaoHorarios = () => {
                                     <option value="">Selecione um utilizador</option>
                                     {planosAtivos.map(plano => (
                                         <option key={plano.userId} value={plano.userId}>
-                                            {plano.userName} - {plano.userEmail}
+                                            {plano.userName}
                                         </option>
                                     ))}
                                 </select>
@@ -932,13 +927,23 @@ const GestaoHorarios = () => {
 
 const styles = {
     container: {
-        padding: '20px',
-        width: '100%',
-        fontFamily: 'Poppins, sans-serif',
-        boxSizing: 'border-box',
-        minHeight: '100vh',
-        overflowY: 'auto'
-    },
+    padding: '20px',
+    width: '100%',
+    fontFamily: 'Poppins, sans-serif',
+    boxSizing: 'border-box',
+    minHeight: '100vh',
+    height: '100%',
+    overflowY: 'auto',
+    overflowX: 'hidden'
+},
+
+
+'@media (min-width: 600px)': {
+    container: {
+        padding: '20px'
+    }
+}
+,
     header: {
         marginBottom: '30px'
     },
@@ -994,11 +999,41 @@ const styles = {
         marginBottom: '20px'
     },
     statsGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '20px',
-        marginBottom: '30px'
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    gap: '15px',
+    marginBottom: '30px',
+},
+
+// Responsivo
+'@media (min-width: 600px)': {
+    statsGrid: {
+        gridTemplateColumns: 'repeat(2, 1fr)',
     },
+},
+'@media (min-width: 900px)': {
+    statsGrid: {
+        grid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    gap: '20px'
+},
+
+'@media (min-width: 600px)': {
+    grid: {
+        gridTemplateColumns: 'repeat(2, 1fr)',
+    },
+},
+
+'@media (min-width: 900px)': {
+    grid: {
+        gridTemplateColumns: 'repeat(3, 1fr)',
+    },
+},
+
+    },
+},
+
     statCard: {
         backgroundColor: '#fff',
         borderRadius: '12px',
@@ -1140,32 +1175,72 @@ const styles = {
         flexDirection: 'column',
         gap: '12px'
     },
+userItemSemHorario: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    padding: '14px',
+    borderRadius: '10px',
+    border: '2px solid #ff9800',
+    marginBottom: '12px',
+    gap: '12px'
+},
+
+userItemComHorario: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    padding: '14px',
+    borderRadius: '10px',
+    border: '2px solid #4caf50',
+    marginBottom: '12px',
+    gap: '12px'
+},
+
+
+
+// Desktop
+'@media (min-width: 700px)': {
     userItemComHorario: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '15px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '8px',
-        border: '2px solid #4caf50',
-        borderLeft: '5px solid #4caf50'
+        flexDirection: 'row',
+        alignItems: 'center'
     },
     userItemSemHorario: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '15px',
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        border: '2px solid #ff9800',
-        borderLeft: '5px solid #ff9800'
-    },
-    userItemLeft: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '15px',
-        flex: 1
-    },
+        flexDirection: 'row',
+        alignItems: 'center'
+    }
+}
+,
+userItemActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    width: '100%',
+    gap: '8px'
+},
+
+'@media (min-width: 600px)': {
+    userItemActions: {
+        flexDirection: 'row',
+        width: 'auto'
+    }
+},
+
+
+
+userItemLeft: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '12px',
+    flexGrow: 1,
+    minWidth: 0   // <---- SUPER IMPORTANTE
+}
+,
+
     statusIndicatorAtivo: {
         width: '40px',
         height: '40px',
@@ -1214,11 +1289,21 @@ const styles = {
         fontSize: '13px',
         fontWeight: '500'
     },
+  userItemActions: {
+    flexShrink: 0,     // impede de encolher
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end'
+},
+
+
+'@media (min-width: 600px)': {
     userItemActions: {
-        display: 'flex',
-        gap: '8px',
-        flexShrink: 0
-    },
+        flexDirection: 'row',
+        width: 'auto'
+    }
+}
+,
     btnHistorico: {
         padding: '8px 16px',
         backgroundColor: '#fff',
@@ -1235,7 +1320,7 @@ const styles = {
     },
     btnEditar: {
         padding: '8px 16px',
-        backgroundColor: '#1976D2',
+        backgroundColor: '#4caf50',
         color: '#fff',
         border: 'none',
         borderRadius: '6px',
@@ -1248,19 +1333,24 @@ const styles = {
         whiteSpace: 'nowrap'
     },
     btnAtribuir: {
-        padding: '8px 16px',
-        backgroundColor: '#ff9800',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '6px',
-        fontSize: '14px',
-        fontWeight: '500',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        whiteSpace: 'nowrap'
-    },
+    padding: '8px 12px',
+    backgroundColor: '#ff9800',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    whiteSpace: 'nowrap',
+    maxWidth: '100%',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    flexShrink: 0
+}
+,
     actionBar: {
         display: 'flex',
         justifyContent: 'space-between',
