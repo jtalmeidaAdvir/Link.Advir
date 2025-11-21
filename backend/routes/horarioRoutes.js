@@ -19,7 +19,15 @@ router.delete('/:horarioId', authMiddleware, eliminarHorario);
 
 // Rotas de planos de horário (atribuição a users)
 router.post('/atribuir', authMiddleware, atribuirHorarioUser);
-router.get('/user/:userId', authMiddleware, obterHorarioUser);
+
+// LOG ANTES DO MIDDLEWARE para verificar se a requisição chega
+router.get('/user/:userId', (req, res, next) => {
+    console.log(`\n🔵 [ROUTE] GET /api/horario/user/${req.params.userId} - Requisição recebida!`);
+    console.log(`🔵 [ROUTE] Headers:`, req.headers);
+    console.log(`🔵 [ROUTE] Authorization header presente:`, !!req.headers.authorization);
+    next();
+}, authMiddleware, obterHorarioUser);
+
 router.get('/user/:userId/historico', authMiddleware, historicoHorariosUser);
 
 module.exports = router;
