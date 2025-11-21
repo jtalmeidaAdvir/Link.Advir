@@ -209,46 +209,66 @@ const obterHorarioUser = async (req, res) => {
     const { userId } = req.params;
 
     try {
-        console.log(`[HORARIO_USER] ========================================`);
-        console.log(`[HORARIO_USER] Buscando plano para userId: ${userId}`);
-        console.log(`[HORARIO_USER] Tipo de userId: ${typeof userId}`);
+        console.log(`\n[HORARIO_USER] ========================================`);
+        console.log(`[HORARIO_USER] 🔍 Nova requisição recebida`);
+        console.log(`[HORARIO_USER] Request params:`, req.params);
+        console.log(`[HORARIO_USER] Request URL:`, req.originalUrl);
+        console.log(`[HORARIO_USER] userId recebido: "${userId}" (tipo: ${typeof userId})`);
         
         // Converter para número
         const userIdNum = parseInt(userId, 10);
-        console.log(`[HORARIO_USER] userId convertido: ${userIdNum} (tipo: ${typeof userIdNum})`);
+        console.log(`[HORARIO_USER] userId convertido: ${userIdNum} (isNaN: ${isNaN(userIdNum)})`);
         
-        // Primeiro, verificar se existem planos para este user
+        if (isNaN(userIdNum)) {
+            console.log(`[HORARIO_USER] ❌ ERRO: userId não é um número válido`);
+            return res.status(400).json({ message: 'ID de utilizador inválido' });
+        }
+        
+        // Verificar tabela PlanoHorario
+        console.log(`[HORARIO_USER] 📊 Verificando tabela plano_horarios...`);
+        const totalPlanosTabela = await PlanoHorario.count();
+        console.log(`[HORARIO_USER] Total de registos na tabela plano_horarios: ${totalPlanosTabela}`);
+        
+        // Buscar TODOS os planos deste user (ativos e inativos)
+        console.log(`[HORARIO_USER] 🔎 Buscando TODOS os planos para user_id = ${userIdNum}...`);
         const todosPlanos = await PlanoHorario.findAll({
             where: { user_id: userIdNum },
-            attributes: ['id', 'user_id', 'horario_id', 'ativo', 'dataInicio', 'dataFim'],
             raw: true
         });
         
-        console.log(`[HORARIO_USER] Total de planos encontrados: ${todosPlanos.length}`);
-        console.log(`[HORARIO_USER] Planos (raw):`, JSON.stringify(todosPlanos, null, 2));
+        console.log(`[HORARIO_USER] Total de planos encontrados para user ${userIdNum}: ${todosPlanos.length}`);
+        if (todosPlanos.length > 0) {
+            console.log(`[HORARIO_USER] Planos encontrados:`, JSON.stringify(todosPlanos, null, 2));
+        }
         
         // Buscar plano ativo
+        console.log(`[HORARIO_USER] 🎯 Buscando plano ATIVO para user_id = ${userIdNum}...`);
         const planoAtivo = await PlanoHorario.findOne({
             where: { user_id: userIdNum, ativo: true },
             order: [['dataInicio', 'DESC']],
             raw: true
         });
 
-        console.log(`[HORARIO_USER] Plano ativo:`, planoAtivo ? JSON.stringify(planoAtivo, null, 2) : 'NENHUM');
+        console.log(`[HORARIO_USER] Plano ativo encontrado:`, planoAtivo ? 'SIM ✅' : 'NÃO ❌');
+        if (planoAtivo) {
+            console.log(`[HORARIO_USER] Dados do plano ativo:`, JSON.stringify(planoAtivo, null, 2));
+        }
 
         if (!planoAtivo) {
-            console.log(`[HORARIO_USER] ❌ Nenhum plano ativo para user ${userIdNum}`);
+            console.log(`[HORARIO_USER] ❌ RETORNO 404: Nenhum plano ativo para user ${userIdNum}`);
+            console.log(`[HORARIO_USER] ========================================\n`);
             return res.status(404).json({ message: 'Utilizador sem horário atribuído.' });
         }
 
-        // Buscar o horário associado manualmente
-        console.log(`[HORARIO_USER] Buscando Horario com ID: ${planoAtivo.horario_id}`);
+        // Buscar o horário associado
+        console.log(`[HORARIO_USER] 📋 Buscando Horario com ID: ${planoAtivo.horario_id}...`);
         const horario = await Horario.findByPk(planoAtivo.horario_id, { raw: true });
         
-        console.log(`[HORARIO_USER] Horário encontrado:`, horario ? 'SIM' : 'NÃO');
+        console.log(`[HORARIO_USER] Horário encontrado:`, horario ? 'SIM ✅' : 'NÃO ❌');
         
         if (!horario) {
-            console.log(`[HORARIO_USER] ❌ Horário ID ${planoAtivo.horario_id} não encontrado`);
+            console.log(`[HORARIO_USER] ❌ RETORNO 404: Horário ID ${planoAtivo.horario_id} não encontrado`);
+            console.log(`[HORARIO_USER] ========================================\n`);
             return res.status(404).json({ message: 'Horário não encontrado.' });
         }
 
