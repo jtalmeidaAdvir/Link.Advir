@@ -583,4 +583,109 @@ export const styles = {
       width: '100%',
     },
   },
+
+  // Estilos do Modal de Exportação
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: '15px',
+    padding: '30px',
+    maxWidth: '500px',
+    width: '90%',
+    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
+  },
+
+  modalTitle: {
+    margin: '0 0 10px 0',
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#333',
+    textAlign: 'center',
+  },
+
+  modalSubtitle: {
+    margin: '0 0 25px 0',
+    fontSize: '14px',
+    color: '#666',
+    textAlign: 'center',
+  },
+
+  periodoOptions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    marginBottom: '25px',
+  },
+
+  periodoButton: {
+    padding: '15px 20px',
+    border: '2px solid #e9ecef',
+    borderRadius: '10px',
+    background: 'white',
+    color: '#333',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    textAlign: 'left',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '5px',
+  },
+
+  periodoButtonActive: {
+    background: 'linear-gradient(135deg, #1792FE 0%, #0B5ED7 100%)',
+    color: 'white',
+    borderColor: '#1792FE',
+    boxShadow: '0 4px 15px rgba(23, 146, 254, 0.3)',
+  },
+
+  periodoDate: {
+    fontSize: '12px',
+    opacity: 0.8,
+    fontWeight: '400',
+  },
+
+  modalActions: {
+    display: 'flex',
+    gap: '15px',
+    justifyContent: 'flex-end',
+  },
+
+  modalCancelButton: {
+    padding: '12px 24px',
+    border: '2px solid #e9ecef',
+    borderRadius: '8px',
+    background: 'white',
+    color: '#666',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+  },
+
+  modalConfirmButton: {
+    padding: '12px 24px',
+    border: 'none',
+    borderRadius: '8px',
+    background: 'linear-gradient(135deg, #28a745, #20c997)',
+    color: 'white',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 15px rgba(40, 167, 69, 0.3)',
+  },
 };

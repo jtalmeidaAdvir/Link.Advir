@@ -250,37 +250,240 @@ const PessoalObra = ({ route, navigation }) => {
         });
     };
 
-    const exportToExcel = () => {
-        const filteredData = applyFilters();
-        
-        // Preparar dados para exportação
-        const dataToExport = filteredData.map(funcionario => {
-            const tipoPessoa = funcionario.eventos?.[0]?.tipoPessoa || 'colaborador';
-            const nomeEmpresa = funcionario.eventos?.[0]?.nomeEmpresa || 'N/A';
-            
-            return {
-                'Nome': funcionario.nome,
-                'Tipo': tipoPessoa === 'visitante' ? 'Visitante' : tipoPessoa === 'externo' ? 'Externo' : 'Colaborador',
-                'Empresa': nomeEmpresa,
-                'Total de Horas': funcionario.total,
-                'Status': funcionario.status,
-                'Observações': funcionario.observacoes,
-                'Número de Registos': funcionario.eventos.length
-            };
-        });
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [periodoExport, setPeriodoExport] = useState('dia'); // 'dia', 'semana', 'mes'
 
-        // Criar worksheet
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        
-        // Criar workbook
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Pessoal');
-        
-        // Nome do arquivo
-        const fileName = `Pessoal_${nomeObra}_${dataSelecionada.toISOString().split('T')[0]}.xlsx`;
-        
-        // Fazer download
-        XLSX.writeFile(workbook, fileName);
+    const exportToExcel = async () => {
+        if (!showExportModal) {
+            setShowExportModal(true);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            
+            // Calcular período baseado na seleção
+            let dataInicio, dataFim;
+            const hoje = new Date(dataSelecionada);
+            
+            if (periodoExport === 'dia') {
+                dataInicio = dataFim = dataSelecionada.toISOString().split('T')[0];
+            } else if (periodoExport === 'semana') {
+                const diaSemana = hoje.getDay();
+                const segunda = new Date(hoje);
+                segunda.setDate(hoje.getDate() - (diaSemana === 0 ? 6 : diaSemana - 1));
+                const domingo = new Date(segunda);
+                domingo.setDate(segunda.getDate() + 6);
+                dataInicio = segunda.toISOString().split('T')[0];
+                dataFim = domingo.toISOString().split('T')[0];
+            } else { // mes
+                dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+                dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
+            }
+
+            const token = secureStorage.getItem('loginToken');
+            const empresaId = secureStorage.getItem('empresa_id');
+
+            // Buscar dados do período
+            const dadosPeriodo = [];
+            let dataAtual = new Date(dataInicio);
+            const dataFinal = new Date(dataFim);
+
+            while (dataAtual <= dataFinal) {
+                const dataFormatada = dataAtual.toISOString().split('T')[0];
+
+                // Buscar colaboradores
+                const resColaboradores = await fetch(`https://backend.advir.pt/api/registo-ponto-obra/listar-por-obra-e-dia?obra_id=${obraId}&data=${dataFormatada}`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                });
+
+                // Buscar visitantes
+                const resVisitantes = await fetch(`https://backend.advir.pt/api/visitantes/resumo-obra?obra_id=${obraId}&empresa_id=${empresaId}&data=${dataFormatada}`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                });
+
+                // Buscar externos
+                const resExternos = await fetch(`https://backend.advir.pt/api/externos-jpa/resumo-obra?obra_id=${obraId}&empresa_id=${empresaId}&data=${dataFormatada}`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                });
+
+                if (resColaboradores.ok) {
+                    const dataColaboradores = await resColaboradores.json();
+                    dataColaboradores.forEach(r => dadosPeriodo.push({ ...r, data: dataFormatada, tipo_pessoa: 'colaborador' }));
+                }
+
+                if (resVisitantes.ok) {
+                    const dataVisitantes = await resVisitantes.json();
+                    (dataVisitantes.entradasSaidas || []).forEach(r => {
+                        dadosPeriodo.push({
+                            ...r,
+                            data: dataFormatada,
+                            tipo_pessoa: 'visitante',
+                            User: { nome: r.nome }
+                        });
+                    });
+                }
+
+                if (resExternos.ok) {
+                    const dataExternos = await resExternos.json();
+                    (dataExternos.entradasSaidas || []).forEach(r => {
+                        dadosPeriodo.push({
+                            ...r,
+                            data: dataFormatada,
+                            tipo_pessoa: 'externo',
+                            User: { nome: r.nome }
+                        });
+                    });
+                }
+
+                dataAtual.setDate(dataAtual.getDate() + 1);
+            }
+
+            // Agrupar por pessoa e dia
+            const agrupado = {};
+            dadosPeriodo.forEach(r => {
+                const nome = r.User?.nome || r.nome || 'Desconhecido';
+                const data = r.data || r.timestamp?.split('T')[0];
+                const chave = `${nome}_${data}`;
+                
+                if (!agrupado[chave]) {
+                    agrupado[chave] = {
+                        nome,
+                        data,
+                        tipo_pessoa: r.tipo_pessoa,
+                        nomeEmpresa: r.nomeEmpresa || r.empresa || 'N/A',
+                        eventos: []
+                    };
+                }
+                agrupado[chave].eventos.push(r);
+            });
+
+            // Criar workbook com formatação
+            const workbook = XLSX.utils.book_new();
+            const wsData = [];
+
+            // Cabeçalho principal
+            wsData.push([`MAPA DE ASSIDUIDADE - ${nomeObra.toUpperCase()}`]);
+            wsData.push([`Período: ${new Date(dataInicio).toLocaleDateString('pt-PT')} a ${new Date(dataFim).toLocaleDateString('pt-PT')}`]);
+            wsData.push([]);
+
+            // Cabeçalhos das colunas
+            wsData.push([
+                'Data',
+                'Nome',
+                'Tipo',
+                'Empresa',
+                'Picagem 1',
+                'Picagem 2',
+                'Picagem 3',
+                'Picagem 4',
+                'Total Horas',
+                'Observações'
+            ]);
+
+            // Dados
+            Object.values(agrupado).sort((a, b) => {
+                const dataComp = a.data.localeCompare(b.data);
+                return dataComp !== 0 ? dataComp : a.nome.localeCompare(b.nome);
+            }).forEach(pessoa => {
+                const eventos = pessoa.eventos.sort((a, b) => 
+                    new Date(a.timestamp) - new Date(b.timestamp)
+                );
+
+                // Organizar picagens de forma sequencial independente do tipo
+                const picagens = eventos.map(e => 
+                    new Date(e.timestamp).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
+                );
+
+                // Garantir que temos pelo menos 4 slots, preenchendo com '-' se necessário
+                const picagem1 = picagens[0] || '-';
+                const picagem2 = picagens[1] || '-';
+                const picagem3 = picagens[2] || '-';
+                const picagem4 = picagens[3] || '-';
+
+                // Calcular total de horas
+                let totalMin = 0;
+                for (let i = 0; i < eventos.length; i++) {
+                    if (eventos[i].tipo === 'entrada' && eventos[i + 1]?.tipo === 'saida') {
+                        const ent = new Date(eventos[i].timestamp);
+                        const sai = new Date(eventos[i + 1].timestamp);
+                        totalMin += Math.floor((sai - ent) / 60000);
+                        i++;
+                    }
+                }
+                const horas = Math.floor(totalMin / 60);
+                const minutos = totalMin % 60;
+                const totalHoras = `${horas}h ${minutos}min`;
+
+                let tipoLabel = pessoa.tipo_pessoa === 'visitante' ? 'Visitante' : 
+                                 pessoa.tipo_pessoa === 'externo' ? 'Externo' : 'Colaborador';
+                
+                let empresaNome = pessoa.nomeEmpresa;
+                
+                // Se empresa for N/A, buscar empresa selecionada do localStorage e tipo JPA
+                if (empresaNome === 'N/A') {
+                    const empresaSelecionadaStorage = secureStorage.getItem('empresaSelecionada');
+                    empresaNome = empresaSelecionadaStorage || 'Martela';
+                    tipoLabel = 'JPA';
+                }
+
+                wsData.push([
+                    new Date(pessoa.data).toLocaleDateString('pt-PT'),
+                    pessoa.nome,
+                    tipoLabel,
+                    empresaNome,
+                    picagem1,
+                    picagem2,
+                    picagem3,
+                    picagem4,
+                    totalHoras,
+                    ''
+                ]);
+            });
+
+            // Adicionar linhas de assinatura
+            wsData.push([]);
+            wsData.push([]);
+            wsData.push(['ASSINATURA DO RESPONSÁVEL:', '', '', '', 'DATA:']);
+            wsData.push([]);
+            wsData.push(['_______________________________', '', '', '', '____/____/________']);
+
+            const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+
+            // Definir larguras das colunas
+            worksheet['!cols'] = [
+                { wch: 12 }, // Data
+                { wch: 25 }, // Nome
+                { wch: 12 }, // Tipo
+                { wch: 20 }, // Empresa
+                { wch: 10 }, // Picagem 1
+                { wch: 10 }, // Picagem 2
+                { wch: 10 }, // Picagem 3
+                { wch: 10 }, // Picagem 4
+                { wch: 12 }, // Total Horas
+                { wch: 30 }  // Observações
+            ];
+
+            // Mesclar células do título
+            if (!worksheet['!merges']) worksheet['!merges'] = [];
+            worksheet['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } });
+            worksheet['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 9 } });
+
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Assiduidade');
+
+            const periodoNome = periodoExport === 'dia' ? 'Dia' : periodoExport === 'semana' ? 'Semana' : 'Mes';
+            const fileName = `Assiduidade_${nomeObra}_${periodoNome}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            
+            XLSX.writeFile(workbook, fileName);
+            
+            setShowExportModal(false);
+            alert('Excel exportado com sucesso!');
+        } catch (error) {
+            console.error('Erro ao exportar:', error);
+            alert('Erro ao exportar dados');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const getProgressWidth = (totalMinutos) => {
@@ -573,6 +776,80 @@ const PessoalObra = ({ route, navigation }) => {
                 {renderFilterButtons()}
                 {renderSearchBar()}
                 {renderContent()}
+                
+                {/* Modal de Exportação */}
+                {showExportModal && (
+                    <div style={styles.modalOverlay} onClick={() => setShowExportModal(false)}>
+                        <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                            <h2 style={styles.modalTitle}>📊 Exportar para Excel</h2>
+                            <p style={styles.modalSubtitle}>Selecione o período para exportação</p>
+                            
+                            <div style={styles.periodoOptions}>
+                                <button
+                                    style={{
+                                        ...styles.periodoButton,
+                                        ...(periodoExport === 'dia' ? styles.periodoButtonActive : {})
+                                    }}
+                                    onClick={() => setPeriodoExport('dia')}
+                                >
+                                    📅 Dia Atual
+                                    <span style={styles.periodoDate}>
+                                        {dataSelecionada.toLocaleDateString('pt-PT')}
+                                    </span>
+                                </button>
+                                
+                                <button
+                                    style={{
+                                        ...styles.periodoButton,
+                                        ...(periodoExport === 'semana' ? styles.periodoButtonActive : {})
+                                    }}
+                                    onClick={() => setPeriodoExport('semana')}
+                                >
+                                    📆 Semana Atual
+                                    <span style={styles.periodoDate}>
+                                        {(() => {
+                                            const hoje = new Date(dataSelecionada);
+                                            const diaSemana = hoje.getDay();
+                                            const segunda = new Date(hoje);
+                                            segunda.setDate(hoje.getDate() - (diaSemana === 0 ? 6 : diaSemana - 1));
+                                            const domingo = new Date(segunda);
+                                            domingo.setDate(segunda.getDate() + 6);
+                                            return `${segunda.toLocaleDateString('pt-PT')} - ${domingo.toLocaleDateString('pt-PT')}`;
+                                        })()}
+                                    </span>
+                                </button>
+                                
+                                <button
+                                    style={{
+                                        ...styles.periodoButton,
+                                        ...(periodoExport === 'mes' ? styles.periodoButtonActive : {})
+                                    }}
+                                    onClick={() => setPeriodoExport('mes')}
+                                >
+                                    📊 Mês Atual
+                                    <span style={styles.periodoDate}>
+                                        {dataSelecionada.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })}
+                                    </span>
+                                </button>
+                            </div>
+                            
+                            <div style={styles.modalActions}>
+                                <button
+                                    style={styles.modalCancelButton}
+                                    onClick={() => setShowExportModal(false)}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    style={styles.modalConfirmButton}
+                                    onClick={exportToExcel}
+                                >
+                                    📥 Exportar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </>
     );

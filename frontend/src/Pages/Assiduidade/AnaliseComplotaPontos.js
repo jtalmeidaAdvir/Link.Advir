@@ -228,7 +228,7 @@ const AnaliseComplotaPontos = () => {
             const promises = utilizadores.map(async (user) => {
                 try {
                     const res = await fetch(
-                        `https://backend.advir.pt/api/horario/user/${user.id}`,
+                        `https://backend.advir.pt/api/horarios/user/${user.id}`,
                         {
                             headers: { Authorization: `Bearer ${token}` },
                         }
