@@ -134,7 +134,8 @@ const GestaoHorarios = () => {
                                 hasPlano: true
                             };
                         } else {
-                            console.log(`[PLANOS] ⚠️ User ${user.username} (ID: ${user.id}) sem plano - Status: ${planoResponse.status}`);
+                            const errorText = await planoResponse.text();
+                            console.log(`[PLANOS] ⚠️ User ${user.username} (ID: ${user.id}) sem plano - Status: ${planoResponse.status}`, errorText);
                         }
                     } catch (err) {
                         console.error(`[PLANOS] ❌ Erro ao buscar plano do user ${user.username}:`, err);

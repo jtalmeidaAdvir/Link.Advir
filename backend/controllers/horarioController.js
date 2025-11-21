@@ -209,10 +209,21 @@ const obterHorarioUser = async (req, res) => {
     const { userId } = req.params;
 
     try {
+        console.log(`[HORARIO_USER] Buscando plano para userId: ${userId}`);
+        
+        // Primeiro, verificar se existem planos para este user
+        const todosPlanos = await PlanoHorario.findAll({
+            where: { user_id: userId },
+            attributes: ['id', 'user_id', 'horario_id', 'ativo', 'dataInicio', 'dataFim']
+        });
+        
+        console.log(`[HORARIO_USER] Planos encontrados para user ${userId}:`, todosPlanos);
+        
         const planoAtivo = await PlanoHorario.findOne({
             where: { user_id: userId, ativo: true },
             include: [{ 
                 model: Horario,
+                as: 'Horario',
                 attributes: [
                     'id', 
                     'empresa_id', 
@@ -231,7 +242,10 @@ const obterHorarioUser = async (req, res) => {
             order: [['dataInicio', 'DESC']]
         });
 
+        console.log(`[HORARIO_USER] Plano ativo encontrado:`, planoAtivo ? 'SIM' : 'NÃO');
+
         if (!planoAtivo) {
+            console.log(`[HORARIO_USER] ❌ Nenhum plano ativo para user ${userId}`);
             return res.status(404).json({ message: 'Utilizador sem horário atribuído.' });
         }
 
