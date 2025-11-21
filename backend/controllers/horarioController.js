@@ -217,28 +217,11 @@ const obterHorarioUser = async (req, res) => {
             attributes: ['id', 'user_id', 'horario_id', 'ativo', 'dataInicio', 'dataFim']
         });
         
-        console.log(`[HORARIO_USER] Planos encontrados para user ${userId}:`, todosPlanos);
+        console.log(`[HORARIO_USER] Planos encontrados para user ${userId}:`, JSON.stringify(todosPlanos, null, 2));
         
+        // Buscar plano ativo
         const planoAtivo = await PlanoHorario.findOne({
             where: { user_id: userId, ativo: true },
-            include: [{ 
-                model: Horario,
-                as: 'Horario',
-                attributes: [
-                    'id', 
-                    'empresa_id', 
-                    'descricao', 
-                    'horasPorDia', 
-                    'horasSemanais', 
-                    'diasSemana', 
-                    'horaEntrada', 
-                    'horaSaida', 
-                    'intervaloAlmoco', 
-                    'ativo', 
-                    'observacoes'
-                ],
-                include: [{ model: Empresa }]
-            }],
             order: [['dataInicio', 'DESC']]
         });
 
@@ -249,22 +232,52 @@ const obterHorarioUser = async (req, res) => {
             return res.status(404).json({ message: 'Utilizador sem horário atribuído.' });
         }
 
+        // Buscar o horário associado manualmente
+        const horario = await Horario.findByPk(planoAtivo.horario_id);
+        
+        if (!horario) {
+            console.log(`[HORARIO_USER] ❌ Horário ID ${planoAtivo.horario_id} não encontrado`);
+            return res.status(404).json({ message: 'Horário não encontrado.' });
+        }
+
+        // Construir resposta com estrutura esperada pelo frontend
+        const resposta = {
+            id: planoAtivo.id,
+            user_id: planoAtivo.user_id,
+            horario_id: planoAtivo.horario_id,
+            dataInicio: planoAtivo.dataInicio,
+            dataFim: planoAtivo.dataFim,
+            ativo: planoAtivo.ativo,
+            observacoes: planoAtivo.observacoes,
+            Horario: {
+                id: horario.id,
+                empresa_id: horario.empresa_id,
+                descricao: horario.descricao,
+                horasPorDia: horario.horasPorDia,
+                horasSemanais: horario.horasSemanais,
+                diasSemana: horario.diasSemana,
+                horaEntrada: horario.horaEntrada,
+                horaSaida: horario.horaSaida,
+                intervaloAlmoco: horario.intervaloAlmoco,
+                ativo: horario.ativo,
+                observacoes: horario.observacoes
+            }
+        };
+
         // Log detalhado para debug
         console.log(`[HORARIO] User ${userId}:`, {
-            planoId: planoAtivo.id,
-            horarioId: planoAtivo.horario_id,
-            horarioIncluido: planoAtivo.Horario ? true : false,
-            horaEntrada: planoAtivo.Horario?.horaEntrada,
-            horaSaida: planoAtivo.Horario?.horaSaida,
-            horasPorDia: planoAtivo.Horario?.horasPorDia,
-            intervaloAlmoco: planoAtivo.Horario?.intervaloAlmoco,
-            todosOsCampos: planoAtivo.Horario
+            planoId: resposta.id,
+            horarioId: resposta.horario_id,
+            horaEntrada: resposta.Horario.horaEntrada,
+            horaSaida: resposta.Horario.horaSaida,
+            horasPorDia: resposta.Horario.horasPorDia,
+            intervaloAlmoco: resposta.Horario.intervaloAlmoco
         });
 
-        res.status(200).json(planoAtivo);
+        res.status(200).json(resposta);
     } catch (error) {
-        console.error('Erro ao obter horário do utilizador:', error);
-        res.status(500).json({ message: 'Erro ao obter horário do utilizador.' });
+        console.error('[HORARIO_USER] Erro ao obter horário do utilizador:', error);
+        res.status(500).json({ message: 'Erro ao obter horário do utilizador.', error: error.message });
     }
 };
 
