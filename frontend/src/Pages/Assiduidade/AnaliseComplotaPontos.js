@@ -99,7 +99,7 @@ const AnaliseComplotaPontos = () => {
                     console.warn(
                         `[listar-por-user-periodo] ${res.status} ${res.statusText} · ${url}`,
                     );
-                    console.warn(`Body: ${txt}`);
+                    console.log(`Body: ${txt}`);
                     return { userId: u.id, dias: new Set() };
                     // Se quiseres ser mais agressivo: aqui podias fazer uma segunda tentativa sem obra_id.
                 }
@@ -199,12 +199,12 @@ const AnaliseComplotaPontos = () => {
 
             // Carregar horários e filtrar apenas utilizadores com plano ativo
             const { utilizadoresComHorario, horariosMap } = await carregarHorariosUtilizadores(utilizadoresFormatados);
-            
+
             console.log(`✅ [INIT] Filtrados ${utilizadoresComHorario.length} utilizadores COM plano de horário ativo`);
-            
+
             setUtilizadores(utilizadoresComHorario);
             setHorariosUtilizadores(horariosMap);
-            
+
             // Marcar horários como carregados apenas depois de concluir
             setHorariosCarregados(true);
             console.log("✅ [INIT] Todos os horários carregados, pronto para carregar grade");
@@ -238,7 +238,7 @@ const AnaliseComplotaPontos = () => {
                         const planoHorario = await res.json();
                         // A API retorna um objeto PlanoHorario que contém um objeto Horario aninhado
                         const horarioData = planoHorario?.Horario || planoHorario;
-                        
+
                         // ✅ VALIDAR que o plano está ATIVO
                         if (planoHorario && planoHorario.ativo === true && horarioData) {
                             return {
@@ -290,7 +290,7 @@ const AnaliseComplotaPontos = () => {
             });
 
             const resultados = await Promise.all(promises);
-            
+
             // ✅ FILTRAR apenas utilizadores com plano de horário ativo
             resultados.forEach(resultado => {
                 if (resultado.planoAtivo && resultado.horario) {
@@ -298,25 +298,25 @@ const AnaliseComplotaPontos = () => {
                     utilizadoresComHorario.push(resultado.user);
                 }
             });
-            
+
             // Logs de resumo
             const comHorario = resultados.filter(r => r.planoAtivo).length;
             const semHorario = resultados.length - comHorario;
-            
+
             console.log(`✅ [HORARIOS] Carregamento concluído:`);
             console.log(`   - Total analisado: ${resultados.length} utilizadores`);
             console.log(`   - ✅ Com plano ativo: ${comHorario}`);
             console.log(`   - ❌ Sem plano ativo (EXCLUÍDOS): ${semHorario}`);
-            
+
             if (comHorario > 0) {
                 console.log(`📋 [HORARIOS] Utilizadores com horário ativo:`);
                 resultados.filter(r => r.planoAtivo).forEach(r => {
                     console.log(`   - ${r.userName}: ${r.horario.horaEntrada}-${r.horario.horaSaida} (${r.horario.horasPorDia}h/dia)`);
                 });
             }
-            
+
             return { utilizadoresComHorario, horariosMap };
-            
+
         } catch (error) {
             console.error("❌ [HORARIOS] Erro geral ao carregar horários:", error);
             return { utilizadoresComHorario: [], horariosMap: {} };
@@ -493,7 +493,7 @@ const AnaliseComplotaPontos = () => {
     const gerarPontosFicticios = (userId, dia, isHoje, horaAtual) => {
         // Obter horário do utilizador
         const horarioUser = horariosUtilizadores[userId];
-        
+
         if (!horarioUser) {
             console.warn(`⚠️ [PONTOS] UserId ${userId} - Dia ${dia}: Horário não encontrado, usando padrão 08:00-17:00`);
             console.log(`📊 [PONTOS] Estado: ${Object.keys(horariosUtilizadores).length} horários carregados - IDs: [${Object.keys(horariosUtilizadores).join(', ')}]`);
@@ -525,13 +525,13 @@ const AnaliseComplotaPontos = () => {
             // Gerar variação entre -5 e +5 minutos
             const variacao = Math.floor(Math.random() * 11) - 5; // -5 a +5
             let totalMinutos = h * 60 + m + variacao;
-            
+
             // Garantir que não fica negativo
             if (totalMinutos < 0) totalMinutos = 0;
-            
+
             const novaHora = Math.floor(totalMinutos / 60);
             const novoMinuto = totalMinutos % 60;
-            
+
             return {
                 h: novaHora,
                 m: novoMinuto
@@ -541,10 +541,10 @@ const AnaliseComplotaPontos = () => {
         // Aplicar variação aos horários
         const entradaBase = parseHora(horarioFinal.horaEntrada);
         const saidaBase = parseHora(horarioFinal.horaSaida);
-        
+
         const entradaVariada = adicionarVariacao(entradaBase.h, entradaBase.m);
         const saidaVariada = adicionarVariacao(saidaBase.h, saidaBase.m);
-        
+
         const horaEntrada = `${String(entradaVariada.h).padStart(2, "0")}:${String(entradaVariada.m).padStart(2, "0")}`;
         const horaSaida = `${String(saidaVariada.h).padStart(2, "0")}:${String(saidaVariada.m).padStart(2, "0")}`;
 
@@ -552,11 +552,11 @@ const AnaliseComplotaPontos = () => {
         const intervaloMinutos = Math.floor(horarioFinal.intervaloAlmoco * 60);
         const minutosEntrada = entradaBase.h * 60 + entradaBase.m;
         const minutosSaida = saidaBase.h * 60 + saidaBase.m;
-        
+
         // Saída e entrada de almoço (meio do expediente)
         const minutosTrabalho = minutosSaida - minutosEntrada - intervaloMinutos;
         const minutosAteAlmoco = Math.floor(minutosTrabalho / 2);
-        
+
         const minutosSaidaAlmoco = minutosEntrada + minutosAteAlmoco;
         const saidaAlmocoBase = {
             h: Math.floor(minutosSaidaAlmoco / 60),
@@ -564,7 +564,7 @@ const AnaliseComplotaPontos = () => {
         };
         const saidaAlmocoVariada = adicionarVariacao(saidaAlmocoBase.h, saidaAlmocoBase.m);
         const saidaAlmoco = `${String(saidaAlmocoVariada.h).padStart(2, "0")}:${String(saidaAlmocoVariada.m).padStart(2, "0")}`;
-        
+
         const minutosEntradaAlmoco = minutosSaidaAlmoco + intervaloMinutos;
         const entradaAlmocoBase = {
             h: Math.floor(minutosEntradaAlmoco / 60),
@@ -576,11 +576,11 @@ const AnaliseComplotaPontos = () => {
         // Verificar se deve mostrar saída (se é hoje e já passou da hora)
         let mostrarSaida = true;
         let mostrarAlmoco = true;
-        
+
         if (isHoje && horaAtual) {
             const [horaAtualH, horaAtualM] = horaAtual.split(":").map(Number);
             const minutosAtuais = horaAtualH * 60 + horaAtualM;
-            
+
             mostrarAlmoco = minutosAtuais >= minutosEntradaAlmoco;
             mostrarSaida = minutosAtuais >= minutosSaida;
         }
@@ -749,14 +749,14 @@ const AnaliseComplotaPontos = () => {
 
         // Faltas
         if (estatisticas.temFalta) return "FALTA";
-        
+
         // Futuro
         if (estatisticas.isFutureDate) return "";
 
         // Horário esperado
         if (estatisticas.trabalhou) {
             let cellValue = "";
-            
+
             if (estatisticas.horaEntrada) {
                 cellValue = `${estatisticas.horaEntrada}`;
                 if (estatisticas.saidaAlmoco) {
@@ -797,7 +797,7 @@ const AnaliseComplotaPontos = () => {
                 0,
             ).getDate();
             const dias = Array.from({ length: diasDoMes }, (_, i) => i + 1);
-            const obraNome = obraSelecionada 
+            const obraNome = obraSelecionada
                 ? obras.find((obra) => obra.id.toString() === obraSelecionada)?.nome || "Obra não encontrada"
                 : "Todas as Obras";
 
