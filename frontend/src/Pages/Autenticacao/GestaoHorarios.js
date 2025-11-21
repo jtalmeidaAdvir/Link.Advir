@@ -98,6 +98,8 @@ const GestaoHorarios = () => {
             const token = secureStorage.getItem('loginToken');
             const empresaId = secureStorage.getItem('empresa_id');
 
+            console.log('[PLANOS] Iniciando carregamento de planos ativos...');
+
             // Buscar todos os utilizadores da empresa
             const usersResponse = await fetch(`https://backend.advir.pt/api/users/empresa/${empresaId}`, {
                 headers: {
@@ -108,18 +110,22 @@ const GestaoHorarios = () => {
 
             if (usersResponse.ok) {
                 const usersData = await usersResponse.json();
+                console.log(`[PLANOS] ${usersData.length} utilizadores encontrados`);
                 
                 // Para cada utilizador, buscar o plano ativo
                 const planosPromises = usersData.map(async (user) => {
                     try {
                         const planoResponse = await fetch(`https://backend.advir.pt/api/horarios/user/${user.id}`, {
                             headers: {
-                                'Authorization': `Bearer ${token}`
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
                             }
                         });
 
                         if (planoResponse.ok) {
                             const planoData = await planoResponse.json();
+                            console.log(`[PLANOS] ✅ User ${user.username} (ID: ${user.id}) tem plano:`, planoData);
+                            
                             return {
                                 userId: user.id,
                                 userName: user.username,
@@ -127,9 +133,11 @@ const GestaoHorarios = () => {
                                 plano: planoData,
                                 hasPlano: true
                             };
+                        } else {
+                            console.log(`[PLANOS] ⚠️ User ${user.username} (ID: ${user.id}) sem plano - Status: ${planoResponse.status}`);
                         }
                     } catch (err) {
-                        // Utilizador sem plano
+                        console.error(`[PLANOS] ❌ Erro ao buscar plano do user ${user.username}:`, err);
                     }
                     
                     return {
@@ -142,10 +150,16 @@ const GestaoHorarios = () => {
                 });
 
                 const planosData = await Promise.all(planosPromises);
+                console.log('[PLANOS] Dados finais:', planosData);
+                console.log(`[PLANOS] Total: ${planosData.length} | Com horário: ${planosData.filter(p => p.hasPlano).length} | Sem horário: ${planosData.filter(p => !p.hasPlano).length}`);
+                
                 setPlanosAtivos(planosData);
+            } else {
+                console.error('[PLANOS] Erro ao buscar utilizadores:', usersResponse.status);
             }
         } catch (error) {
-            console.error('Erro ao carregar planos ativos:', error);
+            console.error('[PLANOS] Erro ao carregar planos ativos:', error);
+            setErrorMessage('Erro ao carregar dados dos utilizadores');
         }
     };
 
@@ -230,7 +244,11 @@ const GestaoHorarios = () => {
                 setSuccessMessage('Horário atribuído com sucesso!');
                 setShowPlanoModal(false);
                 resetNovoPlano();
-                fetchPlanosAtivos();
+                
+                // Aguardar um pouco antes de recarregar para garantir que o backend processou
+                setTimeout(() => {
+                    fetchPlanosAtivos();
+                }, 500);
             } else {
                 setErrorMessage(data.message || data.error || 'Erro ao atribuir horário');
             }
